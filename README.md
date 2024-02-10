@@ -1,4 +1,4 @@
-# OTel Weaver (status: Proof of Concept)
+# OpenTelemetry Weaver (status: Prototype)
 
 ## Overview
 
@@ -8,7 +8,7 @@
 >
 > This project is a **work in progress and is not ready for production use**.
 
-OTel Weaver is a CLI tool that enables users to:
+OpenTelemetry Weaver is a CLI tool that enables users to:
 
 - Search for and retrieve information from a semantic convention registry or a telemetry schema.
 - Resolve a semantic convention registry or a telemetry schema.
@@ -114,41 +114,16 @@ weaver languages
 
 ### Architecture
 
-The OTel Weaver tool is architecturally designed as a platform. By default, this
+The OpenTelemetry Weaver tool is architecturally designed as a platform. By default, this
 tool incorporates a template engine that facilitates Client SDK/API generation
 across various programming languages. In the future, we plan to integrate a
 WASM plugin system, allowing the community to enhance the platform. This would
 pave the way for features like enterprise data catalog integration, privacy policy enforcement,
 documentation generation, dashboard creation, and more.
 
-Below is a diagram detailing the primary components of the OTel Weaver tool.
+Below is a diagram detailing the primary components of the OpenTelemetry Weaver tool.
 
-![OTel Weaver Platform](docs/images/otel-weaver-platform.png)
-
-## ToDo
-**Semantic Convention Registry and Application Telemetry Schema**
-- [ ] Add support for open enum types (i.e. allow custom values=true).
-- [ ] Add support for template types.
-- [ ] Add support for `all` in telemetry schema versions section.
-- [ ] Add support for `span_events` in telemetry schema versions section.
-- [ ] Add support for `apply_to_spans` in telemetry schema versions section.
-- [ ] Add support for `apply_to_metrics` in telemetry schema metrics versions section.
-- [ ] Add support for `split` in telemetry schema metrics versions section.
-- [ ] Add support for group constraints `any_of`, ...
-- [ ] Support more than 2 levels of telemetry schema inheritance.
-- [ ] Minimize number of declaration duplications in the resolved schema (especially for attributes).
-
-**Client SDK/API Code Generation**
-- Generate Go Client SDK/API on top of the generic Go Client SDK/API.
-  - [ ] Generate type-safe API for metric groups.
-  - [ ] Support obfuscation and masking.
-- Generate Go Client SDK/API with support for OTel Arrow Protocol.
-- Generate Rust Client SDK/API on top of the generic Rust Client SDK/API.
-- Generate Rust Client SDK/API with support for OTel Arrow Protocol.
-
-**Tooling and Plugins**
-  - [ ] Add support for WASM plugins.
-  - [ ] Add Tera filter to apply obfuscation, masking, ... based on tags and language configuration.
+![OpenTelemetry Weaver Platform](docs/images/otel-weaver-platform.png)
 
 ## Links
 
@@ -176,4 +151,4 @@ read [CONTRIBUTING](CONTRIBUTING.md).
 
 ## License
 
-OTel Weaver is licensed under Apache License Version 2.0.
+OpenTelemetry Weaver is licensed under Apache License Version 2.0.
