@@ -1,0 +1,65 @@
+file_format: 1.2.0
+# Inherit from the OpenTelemetry schema v1.21.0
+parent_schema_url: https://opentelemetry.io/schemas/1.21.0
+# Current schema url
+schema_url: https://mycompany.com/schemas/1.0.0
+
+# Semantic Convention Imports
+semantic_conventions:
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/http-common.yaml
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/client.yaml
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/exception.yaml
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/server.yaml
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/network.yaml
+  - url: https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/metrics/http.yaml
+
+# The section below outlines the telemetry schema for a service or application.
+# This schema details all the metrics, logs, and spans specifically generated
+# by that service or application.
+#
+# Note: Frameworks or libraries linked with the application that produce OTel
+# telemetry data might also have their own telemetry schema, detailing the
+# metrics, logs, and spans they generate locally.
+schema:
+  # Resource attributes
+  # Only used when a Client SDK is generated
+  resource:
+    attributes:
+      - ref: service.name
+        value: "my-service"
+      - ref: service.version
+        value: "{{SERVICE_VERSION}}"
+    # schema url?
+
+  # Instrumentation library
+  instrumentation_library:
+    name: "my-service"
+    version: "1.0.0"
+    # schema url?
+
+  # Spans declaration
+  resource_spans:
+    spans:
+      - span_name: http.request  # name of a specific tracer
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: server.socket.address
+          - ref: server.socket.port
+          - ref: client.address
+          - ref: client.port
+          - ref: client.socket.address
+          - ref: client.socket.port
+          - ref: url.scheme
+          - id: url.host
+            type: string
+            brief: The host of the request
+            requirement_level: required
+        events:
+          - event_name: error
+            attributes:
+              - ref: exception.type
+              - ref: exception.message
+              - ref: exception.stacktrace
+        # links:

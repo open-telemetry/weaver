@@ -1,0 +1,29 @@
+[package]
+name = "weaver_resolver"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+
+[dependencies]
+weaver_logger = {  path = "../weaver_logger" }
+weaver_semconv = { path = "../weaver_semconv" }
+weaver_schema = { path = "../weaver_schema" }
+weaver_version = { path = "../weaver_version" }
+weaver_cache = { path = "../weaver_cache" }
+weaver_resolved_schema = { path = "../weaver_resolved_schema" }
+
+regex.workspace = true
+thiserror.workspace = true
+rayon.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+
+url = "2.5.0"
+walkdir = "2.4.0"
+serde = { version = "1.0.193", features = ["derive"] }
+
+[dev-dependencies]
+glob = "0.3.1"

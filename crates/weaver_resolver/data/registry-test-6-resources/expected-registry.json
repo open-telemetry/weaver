@@ -1,0 +1,61 @@
+{
+  "registry_url": "https://semconv-registry.com",
+  "groups": [
+    {
+      "id": "registry.user_agent",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Describes user-agent attributes.",
+      "prefix": "user_agent",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
+      }
+    },
+    {
+      "id": "browser",
+      "typed_group": {
+        "type": "Resource"
+      },
+      "brief": "The web browser in which the application represented by the resource is running. The `browser.*` attributes MUST be used only for resources that represent applications running in a web browser (regardless of whether running on a mobile or desktop device).\n",
+      "prefix": "browser",
+      "attributes": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-6-resources/registry/resource-browser.yaml",
+        "attributes": {
+          "5": {
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.user_agent"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.user_agent"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.user_agent"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.user_agent"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.user_agent"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

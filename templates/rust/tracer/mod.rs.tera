@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Generated OTel Client Tracers API.
+
+pub enum Status {
+    Unset,
+    Error,
+    Ok,
+}
+
+{% if schema.resource_spans is defined %}
+{% for span in schema.resource_spans.spans %}
+
+{%- set required_attrs = span.attributes | required -%}
+{%- set not_required_attrs = span.attributes | not_required -%}
+{%- if required_attrs | length > 0 %}
+/// Starts a new named `{{ span.span_name }}` span with the given required attributes.
+pub fn start_{{ span.span_name | function_name }}(
+    required_attrs: {{span.span_name | struct_name}}Attrs,
+) -> {{span.span_name | struct_name}}Span {
+    {{span.span_name | struct_name}}Span {
+        {{span.span_name | field_name}}_attrs: required_attrs,
+        {{span.span_name | field_name}}_opt_attrs: Default::default(),
+        events: Vec::new(),
+    }
+}
+
+/// Starts a new named `{{ span.span_name }}` span with the given required attributes
+/// and the optional attributes.
+pub fn start_{{ span.span_name | function_name }}_with_opt_attrs(
+    required_attrs: {{span.span_name | struct_name}}Attrs,
+    optional_attrs: {{span.span_name | struct_name}}OptAttrs,
+) -> {{span.span_name | struct_name}}Span {
+    {{span.span_name | struct_name}}Span {
+        {{span.span_name | field_name}}_attrs: required_attrs,
+        {{span.span_name | field_name}}_opt_attrs: optional_attrs,
+        events: Vec::new(),
+    }
+}
+{%- else %}
+/// Starts a new named `{{ span.span_name }}` span.
+pub fn start_{{ span.span_name | function_name }}() -> {{span.span_name | struct_name}}Span {
+    {{span.span_name | struct_name}}Span {
+        {{span.span_name | field_name}}_opt_attrs: {{span.span_name | struct_name}}OptAttrs::default(),
+    }
+}
+
+/// Starts a new named `{{ span.span_name }}` span with the given optional attributes.
+pub fn start_{{ span.span_name | function_name }}_with_opt_attrs(
+    optional_attrs: {{span.span_name | struct_name}}OptAttrs,
+) -> {{span.span_name | struct_name}}Span {
+    {{span.span_name | struct_name}}Span {
+        {{span.span_name | field_name}}_opt_attrs: optional_attrs,
+    }
+}
+{%- endif %}
+
+/// {{span.span_name | struct_name}}Span is a span for `{{ span.span_name }}`.
+pub struct {{span.span_name | struct_name}}Span {
+    {%- if required_attrs | length > 0 %}
+    /// Required span attributes for `{{ span.span_name }}`.
+    {{span.span_name | field_name}}_attrs: {{span.span_name | struct_name}}Attrs,
+    {%- endif -%}
+    {%- if not_required_attrs | length > 0 %}
+    /// Optional span attributes for `{{ span.span_name }}`.
+    {{span.span_name | field_name}}_opt_attrs: {{span.span_name | struct_name}}OptAttrs,
+    {%- endif %}
+    {%- if span.events | length > 0 %}
+    /// Events for `{{ span.span_name }}`.
+    events: Vec<{{ span.span_name | struct_name }}Event>,
+    {%- endif %}
+}
+
+{% if required_attrs | length > 0 -%}
+/// Required span attributes for `{{ span.span_name }}`.
+pub struct {{span.span_name | struct_name}}Attrs {
+    {%- for attr in required_attrs %}
+    /// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="    /// ") }}
+    pub {{attr.id | field_name}}: {{ attr.type | type_mapping }},
+    {%- endfor %}
+}
+{%- endif %}
+
+{% if not_required_attrs | length > 0 -%}
+/// Optional span attributes for `{{ span.span_name }}`.
+#[derive(Default)]
+pub struct {{span.span_name | struct_name}}OptAttrs {
+    {%- for attr in not_required_attrs %}
+    /// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="    /// ") }}
+    pub {{attr.id | field_name}}: Option<{{ attr.type | type_mapping }}>,
+    {%- endfor %}
+}
+{%- endif %}
+
+{% if span.events | length > 0 -%}
+pub enum {{ span.span_name | struct_name }}Event {
+{% for event in span.events -%}
+{{ event.event_name | struct_name}} {
+{%- for attr in event.attributes %}
+/// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="        /// ") }}
+{%- if attr is required %}
+{{attr.id | field_name}}: {{ attr.type | type_mapping }},
+{% else %}
+{{attr.id | field_name}}: Option<{{ attr.type | type_mapping }}>,
+{% endif -%}
+{% endfor %}
+},
+{%- endfor %}
+}
+{%- endif %}
+
+
+impl {{span.span_name | struct_name}}Span {
+    {%- for attr in not_required_attrs %}
+    /// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="    /// ") }}
+    pub fn attr_{{attr.id | function_name}}(&mut self, value: {{ attr.type | type_mapping }}) {
+        self.{{span.span_name | field_name}}_opt_attrs.{{attr.id | field_name}} = Some(value);
+    }
+    {% endfor %}
+
+    {% if span.events | length > 0 -%}
+    /// Adds an event to the span.
+    pub fn event(&mut self, event: {{ span.span_name | struct_name }}Event) {
+        self.events.push(event);
+    }
+    {%- endif %}
+
+    pub fn status(&self, status: Status) {}
+    pub fn error(&self, err: &dyn std::error::Error) {}
+
+    /// Ends the span.
+    pub fn end(self) {}
+
+    {%- if not_required_attrs | length > 0 %}
+    /// Ends the span with the optional attributes.
+    pub fn end_with_opt_attrs(mut self, optional_attrs: {{span.span_name | struct_name}}OptAttrs) {
+        self.{{span.span_name | field_name}}_opt_attrs = optional_attrs;
+    }
+    {%- endif %}
+}
+{% endfor  %}
+{%  endif %}

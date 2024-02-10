@@ -1,0 +1,69 @@
+[package]
+name = "weaver"
+version = "0.1.0"
+authors = ["Laurent Querel <l.querel@f5.com>"]
+edition = "2021"
+repository = "https://github.com/f5/otel-weaver"
+description = "OTel Weaver - A Schema-Driven Client SDK Generator for OpenTelemetry"
+keywords = ["opentelemetry", "client", "schema", "arrow", "generator"]
+categories = ["command-line-utilities"]
+license = "Apache-2.0"
+readme = "README.md"
+publish = false
+
+# Workspace definition ========================================================
+[workspace]
+members = [
+    "crates/*",
+]
+
+[workspace.package]
+authors = ["Laurent Querel <l.querel@f5.com>"]
+edition = "2021"
+repository = "https://github.com/f5/otel-weaver"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1.0.195", features = ["derive"] }
+serde_yaml = "0.9.30"
+serde_json = "1.0.111"
+thiserror = "1.0.56"
+ureq = "2.9.1"
+regex = "1.10.3"
+rayon = "1.8.1"
+ordered-float = { version = "4.2.0", features = ["serde"] }
+
+# Crate definitions ===========================================================
+[[bin]]
+bench = false
+path = "src/main.rs"
+name = "weaver"
+
+[dependencies]
+# local crates dependencies
+weaver_logger = { path = "crates/weaver_logger" }
+weaver_resolver = { path = "crates/weaver_resolver" }
+weaver_template = { path = "crates/weaver_template" }
+weaver_semconv = { path = "crates/weaver_semconv" }
+weaver_schema = { path = "crates/weaver_schema" }
+weaver_cache = { path = "crates/weaver_cache" }
+
+clap = { version = "4.4.18", features = ["derive"] }
+crossterm = "0.27.0"
+ratatui = "0.26.0"
+tui-textarea = "0.4.0"
+tantivy = "0.21.1"
+
+# workspace dependencies
+serde.workspace = true
+serde_yaml.workspace = true
+
+[package.metadata.cargo-machete]
+# force cargo machete to ignore the following crates
+ignored = ["serde"]
+
+[profile.release]
+lto = true
+strip = true
+panic = "abort"

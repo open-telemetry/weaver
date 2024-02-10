@@ -1,0 +1,52 @@
+{% macro attr_type(prefix) -%}Optional{{prefix}}Attribute{% endmacro attr_type %}
+
+{% macro declare_attrs(prefix="", marker, attrs) -%}
+{% set not_require_attrs = attrs | not_required | without_value %}
+{%- if not_require_attrs | length > 0 -%}
+// ===============================================
+// ====== Definition of optional attributes ======
+// ===============================================
+
+// Optional{{marker}}Attribute is an interface implemented by all optional attributes of the {{marker}}.
+type Optional{{marker}}Attribute interface {
+    Attribute() otel_attr.KeyValue
+	{{ marker | function_name }}Marker()
+}
+
+{% for attr in not_require_attrs | without_enum %}
+// {{prefix}}{{attr.id | struct_name}}OptAttr represents an optional attribute.
+// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="// ") }}
+func {{prefix}}{{attr.id | struct_name}}OptAttr(v {{ attr.type | type_mapping(enum=attr.id | struct_name) }}) {{prefix}}{{attr.id | struct_name}}OptAttrWrapper { return {{prefix}}{{attr.id | struct_name}}OptAttrWrapper{v} }
+// {{prefix}}{{attr.id | struct_name}}OptAttrWrapper is a wrapper for the attribute `{{attr.id}}`.
+// Use the function {{attr.id | struct_name}}OptAttr(value) to create an instance.
+type {{prefix}}{{attr.id | struct_name}}OptAttrWrapper struct { {{ attr.type | type_mapping(enum=attr.id | struct_name) }} }
+func (w {{prefix}}{{attr.id | struct_name}}OptAttrWrapper) Attribute() otel_attr.KeyValue {
+    return attribute.{{ attr.id | field_name }}Key.{{ attr.type | type_mapping(enum="String" | struct_name) | function_name }}(w.{{ attr.type | type_mapping(enum="string" | struct_name) }})
+}
+func (w {{prefix}}{{attr.id | struct_name}}OptAttrWrapper) {{marker}}Marker() {}
+
+{% endfor %}
+
+{% for attr in not_require_attrs | with_enum %}
+// {{prefix}}{{attr.id | struct_name}}OptAttr represents an optional attribute.
+// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="// ") }}
+func {{prefix}}{{attr.id | struct_name}}OptAttr(v {{ attr.type | type_mapping(enum=attr.id | struct_name) }}) {{prefix}}{{attr.id | struct_name}}OptAttrWrapper { return {{prefix}}{{attr.id | struct_name}}OptAttrWrapper{v} }
+// {{prefix}}{{attr.id | struct_name}}OptAttrWrapper is a wrapper for the attribute `{{attr.id}}`.
+// Use the function {{attr.id | struct_name}}OptAttr(value) to create an instance.
+type {{prefix}}{{attr.id | struct_name}}OptAttrWrapper struct { {{ attr.type | type_mapping(enum=attr.id | struct_name) }} }
+func (w {{prefix}}{{attr.id | struct_name}}OptAttrWrapper) Attribute() otel_attr.KeyValue {
+    return attribute.{{ attr.id | field_name }}Key.String(string(w.{{ attr.type | type_mapping(enum=attr.id | struct_name) }}))
+}
+func (w {{prefix}}{{attr.id | struct_name}}OptAttrWrapper) {{marker}}Marker() {}
+
+type {{attr.id | struct_name}} string
+const (
+{% for variant in attr.type.members %}
+    // {{variant.id | struct_name}} is a possible value of {{attr.id | struct_name}}.
+    // {{ [variant.brief, variant.note] | comment(prefix="    // ") }}
+    {{variant.id | struct_name}} {{attr.id | struct_name}} = "{{variant.id}}"
+{%- endfor %}
+)
+{% endfor %}
+{%- endif -%}
+{% endmacro declare_attrs %}

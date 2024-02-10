@@ -1,0 +1,980 @@
+file_format: 1.2.0
+parent_schema_url: demo/root-telemetry-schema.1.22.0.yaml
+schema_url: https://mycompany.com/schemas/1.0.0
+schema:
+  resource:
+    attributes:
+    - id: service.instance.id
+      type: string
+      brief: The unique identifier of the service instance
+      examples: null
+      requirement_level: recommended
+      note: ''
+    - id: service.name
+      type: string
+      brief: |
+        Logical name of the service.
+      examples:
+      - shoppingcart
+      requirement_level: required
+      note: |
+        MUST be the same for all instances of horizontally scaled services. If the value was not specified, SDKs MUST fallback to `unknown_service:` concatenated with [`process.executable.name`](process.md#process), e.g. `unknown_service:bash`. If `process.executable.name` is not available, the value MUST be set to `unknown_service`.
+      value: my-service
+    - id: service.version
+      type: string
+      brief: |
+        The version string of the service API or implementation. The format is not defined by these conventions.
+      examples:
+      - 2.0.0
+      - a01dbef8a
+      requirement_level: required
+      note: ''
+  instrumentation_library:
+    name: my-service
+    version: 1.0.0
+  resource_metrics:
+    metrics:
+    - name: jvm.thread.count
+      brief: Number of executing platform threads.
+      note: ''
+      attributes:
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+        stability: stable
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: required
+        note: ''
+        stability: stable
+      - id: jvm.thread.daemon
+        type: boolean
+        brief: Whether the thread is daemon or not.
+        examples: null
+        requirement_level: recommended
+        note: ''
+      - id: jvm.thread.state
+        type:
+          allow_custom_values: false
+          members:
+          - id: new
+            value: new
+            brief: A thread that has not yet started is in this state.
+            note: null
+          - id: runnable
+            value: runnable
+            brief: A thread executing in the Java virtual machine is in this state.
+            note: null
+          - id: blocked
+            value: blocked
+            brief: A thread that is blocked waiting for a monitor lock is in this state.
+            note: null
+          - id: waiting
+            value: waiting
+            brief: A thread that is waiting indefinitely for another thread to perform a particular action is in this state.
+            note: null
+          - id: timed_waiting
+            value: timed_waiting
+            brief: A thread that is waiting for another thread to perform an action for up to a specified waiting time is in this state.
+            note: null
+          - id: terminated
+            value: terminated
+            brief: A thread that has exited is in this state.
+            note: null
+        brief: State of the thread.
+        examples:
+        - runnable
+        - blocked
+        requirement_level: recommended
+        note: ''
+      instrument: updowncounter
+      unit: '{thread}'
+    - name: jvm.class.loaded
+      brief: Number of classes loaded since JVM start.
+      note: ''
+      attributes:
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+        stability: stable
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: required
+        note: ''
+        stability: stable
+        tags:
+          sensitivity: PII
+      instrument: counter
+      unit: '{class}'
+      tags:
+        sensitivity: PII
+    - name: jvm.cpu.recent_utilization
+      brief: Recent CPU utilization for the process as reported by the JVM.
+      note: |
+        The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).
+      attributes:
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+        stability: stable
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: required
+        note: ''
+        stability: stable
+      instrument: gauge
+      unit: '1'
+    - name: jvm.gc.duration
+      brief: Duration of JVM garbage collection actions.
+      note: ''
+      attributes:
+      - id: action
+        type: string
+        brief: Name of the garbage collector action.
+        examples:
+        - end of minor GC
+        - end of major GC
+        requirement_level: recommended
+        note: |
+          Garbage collector action is generally obtained via [GarbageCollectionNotificationInfo#getGcAction()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcAction()).
+      - id: name
+        type: string
+        brief: Name of the garbage collector.
+        examples:
+        - G1 Young Generation
+        - G1 Old Generation
+        requirement_level: recommended
+        note: |
+          Garbage collector name is generally obtained via [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).
+      instrument: histogram
+      unit: s
+    metric_groups:
+    - name: http
+      attributes:
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+        stability: stable
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.host
+        type: string
+        brief: The host of the request
+        examples: null
+        requirement_level: required
+        note: ''
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: recommended
+        note: ''
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      metrics:
+      - name: jvm.class.loaded
+        brief: Number of classes loaded since JVM start.
+        note: ''
+        attributes: []
+        instrument: counter
+        unit: '{class}'
+      - name: jvm.cpu.recent_utilization
+        brief: Recent CPU utilization for the process as reported by the JVM.
+        note: |
+          The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).
+        attributes: []
+        instrument: gauge
+        unit: '1'
+      brief: null
+      note: null
+  resource_events:
+    events:
+    - event_name: request
+      domain: http
+      attributes:
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+        stability: stable
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.host
+        type: string
+        brief: The host of the request
+        examples: null
+        requirement_level: required
+        note: ''
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: recommended
+        note: ''
+        stability: stable
+      brief: null
+      note: null
+    - event_name: response
+      domain: http
+      attributes:
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+        stability: stable
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.host
+        type: string
+        brief: The host of the request
+        examples: null
+        requirement_level: required
+        note: ''
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: recommended
+        note: ''
+        stability: stable
+      brief: null
+      note: null
+  resource_spans:
+    spans:
+    - span_name: http.request
+      attributes:
+      - id: client.address
+        type: string
+        brief: Client address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - client.example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent the client address behind any intermediaries,  for example proxies, if it's available.
+        stability: stable
+      - id: client.port
+        type: int
+        brief: Client port number.
+        examples:
+        - 65123
+        requirement_level: recommended
+        note: |
+          When observed from the server side, and when communicating through an intermediary, `client.port` SHOULD represent the client port behind any intermediaries,  for example proxies, if it's available.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.host
+        type: string
+        brief: The host of the request
+        examples: null
+        requirement_level: required
+        note: ''
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: recommended
+        note: ''
+        stability: stable
+      events:
+      - event_name: error
+        attributes:
+        - id: exception.message
+          type: string
+          brief: The exception message.
+          examples:
+          - Division by zero
+          - Can't convert 'int' object to str implicitly
+          requirement_level: required
+          note: ''
+        - id: exception.stacktrace
+          type: string
+          brief: |
+            A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+          examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)'
+          requirement_level: recommended
+          note: ''
+        - id: exception.type
+          type: string
+          brief: |
+            The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+          examples:
+          - java.net.ConnectException
+          - OSError
+          requirement_level: recommended
+          note: ''
+        brief: null
+        note: null
+      brief: null
+      note: null
+    - span_name: database.query
+      attributes:
+      - id: client.address
+        type: string
+        brief: Client address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - client.example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent the client address behind any intermediaries,  for example proxies, if it's available.
+        stability: stable
+      - id: client.port
+        type: int
+        brief: Client port number.
+        examples:
+        - 65123
+        requirement_level: recommended
+        note: |
+          When observed from the server side, and when communicating through an intermediary, `client.port` SHOULD represent the client port behind any intermediaries,  for example proxies, if it's available.
+        stability: stable
+      - id: server.address
+        type: string
+        brief: Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+        examples:
+        - example.com
+        - 10.1.2.80
+        - /tmp/my.sock
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: server.port
+        type: int
+        brief: Server port number.
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+        stability: stable
+      - id: url.host
+        type: string
+        brief: The host of the request
+        examples: null
+        requirement_level: required
+        note: ''
+      - id: url.scheme
+        type: string
+        brief: The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+        examples:
+        - https
+        - ftp
+        - telnet
+        requirement_level: required
+        note: ''
+        stability: stable
+      events:
+      - event_name: error
+        attributes:
+        - id: exception.message
+          type: string
+          brief: The exception message.
+          examples:
+          - Division by zero
+          - Can't convert 'int' object to str implicitly
+          requirement_level: recommended
+          note: ''
+        - id: exception.stacktrace
+          type: string
+          brief: |
+            A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+          examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)'
+          requirement_level: recommended
+          note: ''
+        - id: exception.type
+          type: string
+          brief: |
+            The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+          examples:
+          - java.net.ConnectException
+          - OSError
+          requirement_level: recommended
+          note: ''
+        brief: null
+        note: null
+      brief: null
+      note: null
+versions:
+  1.4.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.5.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.6.1:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.7.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.8.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            db.cassandra.keyspace: db.name
+            db.hbase.namespace: db.name
+    resources: null
+  1.9.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.10.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.11.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.12.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.13.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            net.host.ip: net.sock.host.addr
+            net.peer.ip: net.sock.peer.addr
+    resources: null
+  1.14.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.15.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            http.retry_count: http.resend_count
+    resources: null
+  1.16.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.17.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.conversation_id: messaging.message.conversation_id
+            messaging.protocol_version: net.app.protocol.version
+            messaging.temp_destination: messaging.destination.temporary
+            messaging.message_payload_size_bytes: messaging.message.payload_size_bytes
+            messaging.rocketmq.message_type: messaging.rocketmq.message.type
+            messaging.rocketmq.message_keys: messaging.rocketmq.message.keys
+            messaging.destination: messaging.destination.name
+            messaging.protocol: net.app.protocol.name
+            messaging.message_payload_compressed_size_bytes: messaging.message.payload_compressed_size_bytes
+            messaging.kafka.consumer_group: messaging.kafka.consumer.group
+            messaging.kafka.tombstone: messaging.kafka.message.tombstone
+            messaging.kafka.partition: messaging.kafka.destination.partition
+            messaging.message_id: messaging.message.id
+            messaging.consumer_id: messaging.consumer.id
+            messaging.destination_kind: messaging.destination.kind
+            messaging.kafka.message_key: messaging.kafka.message.key
+            messaging.rocketmq.message_tag: messaging.rocketmq.message.tag
+            messaging.rabbitmq.routing_key: messaging.rabbitmq.destination.routing_key
+    resources: null
+  1.18.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.19.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            faas.execution: faas.invocation_id
+      - rename_attributes:
+          attribute_map:
+            faas.id: cloud.resource_id
+      - rename_attributes:
+          attribute_map:
+            http.user_agent: user_agent.original
+    resources:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            browser.user_agent: user_agent.original
+  1.20.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            net.app.protocol.name: net.protocol.name
+            net.app.protocol.version: net.protocol.version
+    resources: null
+  1.21.0:
+    metrics:
+      changes:
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          process.runtime.jvm.cpu.utilization: process.runtime.jvm.cpu.recent_utilization
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.rocketmq.client_id: messaging.client_id
+            messaging.kafka.client_id: messaging.client_id
+      - rename_attributes:
+          attribute_map:
+            http.client_ip: client.address
+            net.host.port: server.port
+            net.sock.host.addr: server.socket.address
+            net.host.name: server.address
+            net.sock.peer.name: server.socket.domain
+            net.sock.host.port: server.socket.port
+      - rename_attributes:
+          attribute_map:
+            net.protocol.name: network.protocol.name
+            net.protocol.version: network.protocol.version
+            net.host.connection.type: network.connection.type
+            net.host.carrier.name: network.carrier.name
+            net.host.carrier.mcc: network.carrier.mcc
+            net.host.carrier.icc: network.carrier.icc
+            net.host.connection.subtype: network.connection.subtype
+            net.host.carrier.mnc: network.carrier.mnc
+      - rename_attributes:
+          attribute_map:
+            http.response_content_length: http.response.body.size
+            http.method: http.request.method
+            http.url: url.full
+            http.status_code: http.response.status_code
+            http.scheme: url.scheme
+            http.request_content_length: http.request.body.size
+    resources: null
+  1.22.0:
+    metrics:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.message.payload_size_bytes: messaging.message.body.size
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          http.server.duration: http.server.request.duration
+          http.client.duration: http.client.request.duration
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          process.runtime.jvm.classes.unloaded: jvm.class.unloaded
+          process.runtime.jvm.memory.init: jvm.memory.init
+          process.runtime.jvm.buffer.count: jvm.buffer.count
+          process.runtime.jvm.system.cpu.load_1m: jvm.system.cpu.load_1m
+          process.runtime.jvm.memory.usage: jvm.memory.usage
+          process.runtime.jvm.classes.loaded: jvm.class.loaded
+          process.runtime.jvm.memory.limit: jvm.memory.limit
+          process.runtime.jvm.cpu.recent_utilization: jvm.cpu.recent_utilization
+          process.runtime.jvm.buffer.usage: jvm.buffer.memory.usage
+          process.runtime.jvm.buffer.limit: jvm.buffer.memory.limit
+          process.runtime.jvm.threads.count: jvm.thread.count
+          process.runtime.jvm.cpu.time: jvm.cpu.time
+          process.runtime.jvm.memory.usage_after_last_gc: jvm.memory.usage_after_last_gc
+          process.runtime.jvm.gc.duration: jvm.gc.duration
+          process.runtime.jvm.memory.committed: jvm.memory.committed
+          process.runtime.jvm.system.cpu.utilization: jvm.system.cpu.utilization
+          process.runtime.jvm.classes.current_loaded: jvm.class.count
+      - rename_attributes:
+          attribute_map:
+            pool: jvm.memory.pool.name
+            type: jvm.memory.type
+          apply_to_metrics:
+          - jvm.memory.usage
+          - jvm.memory.committed
+          - jvm.memory.limit
+          - jvm.memory.usage_after_last_gc
+          - jvm.memory.init
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            action: jvm.gc.action
+            name: jvm.gc.name
+          apply_to_metrics:
+          - jvm.gc.duration
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            daemon: thread.daemon
+          apply_to_metrics:
+          - jvm.threads.count
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            pool: jvm.buffer.pool.name
+          apply_to_metrics:
+          - jvm.buffer.usage
+          - jvm.buffer.limit
+          - jvm.buffer.count
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            state: system.cpu.state
+            cpu: system.cpu.logical_number
+          apply_to_metrics:
+          - system.cpu.time
+          - system.cpu.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            state: system.memory.state
+          apply_to_metrics:
+          - system.memory.usage
+          - system.memory.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            state: system.paging.state
+          apply_to_metrics:
+          - system.paging.usage
+          - system.paging.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            direction: system.paging.direction
+            type: system.paging.type
+          apply_to_metrics:
+          - system.paging.faults
+          - system.paging.operations
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            device: system.device
+            direction: system.disk.direction
+          apply_to_metrics:
+          - system.disk.io
+          - system.disk.operations
+          - system.disk.io_time
+          - system.disk.operation_time
+          - system.disk.merged
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            mountpoint: system.filesystem.mountpoint
+            state: system.filesystem.state
+            device: system.device
+            type: system.filesystem.type
+            mode: system.filesystem.mode
+          apply_to_metrics:
+          - system.filesystem.usage
+          - system.filesystem.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            device: system.device
+            direction: system.network.direction
+            state: system.network.state
+            protocol: network.protocol
+          apply_to_metrics:
+          - system.network.dropped
+          - system.network.packets
+          - system.network.errors
+          - system.network.io
+          - system.network.connections
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            status: system.processes.status
+          apply_to_metrics:
+          - system.processes.count
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          http.server.request.size: http.server.request.body.size
+          http.server.response.size: http.server.response.body.size
+    logs: null
+    spans: null
+    resources: null

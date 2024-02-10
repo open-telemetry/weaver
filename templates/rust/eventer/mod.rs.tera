@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Generated OTel Client Loggers API.
+
+{% if schema.resource_events is defined %}
+{% for event in schema.resource_events.events %}
+/// Events `{{ event.event_name }}` (domain `{{ event.domain }}`) with the given attributes.
+pub fn event_{{ event.domain | function_name }}_{{ event.event_name | function_name }}(attrs: {{ event.domain | struct_name }}{{ event.event_name | struct_name }}Attrs) {}
+
+/// event attributes for `{{ event.event_name }}` (domain `{{ event.domain }}`).
+pub struct {{ event.domain | struct_name }}{{ event.event_name | struct_name }}Attrs {
+    {%- for attr in event.attributes %}
+    /// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="    /// ") }}
+    pub {{attr.id | field_name}}: {% if attr is required %}{{ attr.type | type_mapping }}{% else %}Option<{{ attr.type | type_mapping }}>{% endif %},
+    {%- endfor %}
+}
+
+{% endfor  %}
+{% endif %}

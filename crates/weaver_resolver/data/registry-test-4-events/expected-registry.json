@@ -1,0 +1,173 @@
+{
+  "registry_url": "https://semconv-registry.com",
+  "groups": [
+    {
+      "id": "log-feature_flag",
+      "typed_group": {
+        "type": "Event",
+        "name": null
+      },
+      "brief": "This document defines attributes for feature flag evaluations represented using Log Records.\n",
+      "prefix": "feature_flag",
+      "attributes": [
+        2,
+        3,
+        4
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-4-events/registry/log-feature_flag.yaml",
+        "attributes": {
+          "2": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            }
+          },
+          "3": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            }
+          },
+          "4": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "feature_flag"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "ios.lifecycle.events",
+      "typed_group": {
+        "type": "Event",
+        "name": "device.app.lifecycle"
+      },
+      "brief": "This event represents an occurrence of a lifecycle transition on the iOS platform.\n",
+      "prefix": "ios",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-4-events/registry/mobile-events.yaml"
+      }
+    },
+    {
+      "id": "android.lifecycle.events",
+      "typed_group": {
+        "type": "Event",
+        "name": "device.app.lifecycle"
+      },
+      "brief": "This event represents an occurrence of a lifecycle transition on the Android platform.\n",
+      "prefix": "android",
+      "attributes": [
+        1
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-4-events/registry/mobile-events.yaml"
+      }
+    },
+    {
+      "id": "feature_flag",
+      "typed_group": {
+        "type": "Event",
+        "name": null
+      },
+      "brief": "This semantic convention defines the attributes used to represent a feature flag evaluation as an event.\n",
+      "prefix": "feature_flag",
+      "attributes": [
+        2,
+        3,
+        4
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-4-events/registry/trace-feature-flag.yaml"
+      }
+    }
+  ]
+}
