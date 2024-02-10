@@ -1,0 +1,490 @@
+file_format: 1.2.0
+parent_schema_url: https://opentelemetry.io/schemas/1.21.0
+schema_url: https://mycompany.com/schemas/1.0.0
+schema:
+  resource:
+    attributes:
+    - id: os.version
+      type: string
+      brief: |
+        The version string of the operating system as defined in [Version Attributes](/docs/resource/README.md#version-attributes).
+      examples:
+      - 14.2.1
+      - 18.04.1
+      requirement_level: recommended
+      note: ''
+    - id: os.build_id
+      type: string
+      brief: Unique identifier for a particular build or compilation of the operating system.
+      examples:
+      - TQ3C.230805.001.B2
+      - '20E247'
+      - '22621'
+      requirement_level: recommended
+      note: ''
+    - id: os.name
+      type: string
+      brief: Human readable operating system name.
+      examples:
+      - iOS
+      - Android
+      - Ubuntu
+      requirement_level: recommended
+      note: ''
+    - id: os.type
+      type:
+        allow_custom_values: true
+        members:
+        - id: windows
+          value: windows
+          brief: Microsoft Windows
+          note: null
+        - id: linux
+          value: linux
+          brief: Linux
+          note: null
+        - id: darwin
+          value: darwin
+          brief: Apple Darwin
+          note: null
+        - id: freebsd
+          value: freebsd
+          brief: FreeBSD
+          note: null
+        - id: netbsd
+          value: netbsd
+          brief: NetBSD
+          note: null
+        - id: openbsd
+          value: openbsd
+          brief: OpenBSD
+          note: null
+        - id: dragonflybsd
+          value: dragonflybsd
+          brief: DragonFly BSD
+          note: null
+        - id: hpux
+          value: hpux
+          brief: HP-UX (Hewlett Packard Unix)
+          note: null
+        - id: aix
+          value: aix
+          brief: AIX (Advanced Interactive eXecutive)
+          note: null
+        - id: solaris
+          value: solaris
+          brief: SunOS, Oracle Solaris
+          note: null
+        - id: z_os
+          value: z_os
+          brief: IBM z/OS
+          note: null
+      brief: The operating system type.
+      requirement_level: required
+      note: ''
+    - id: os.description
+      type: string
+      brief: |
+        Human readable (not intended to be parsed) OS version information, like e.g. reported by `ver` or `lsb_release -a` commands.
+      examples:
+      - Microsoft Windows [Version 10.0.18363.778]
+      - Ubuntu 18.04.1 LTS
+      requirement_level: recommended
+      note: ''
+  instrumentation_library:
+    name: my-service
+    version: 1.0.0
+  resource_spans:
+    spans:
+    - span_name: client.http.request
+      attributes:
+      - id: client.socket.address
+        type: string
+        brief: Client address of the socket connection - IP address or Unix domain socket name.
+        examples:
+        - /tmp/my.sock
+        - 127.0.0.1
+        requirement_level:
+          recommended: If different than `client.address`.
+        note: |
+          When observed from the server side, this SHOULD represent the immediate client peer address.
+          When observed from the client side, this SHOULD represent the physical client address.
+      - id: client.address
+        type: string
+        brief: Client address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.
+        examples:
+        - /tmp/my.sock
+        - 10.1.2.80
+        requirement_level: recommended
+        note: |
+          When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent the client address behind any intermediaries (e.g. proxies) if it's available.
+      - id: client.socket.port
+        type: int
+        brief: Client port number of the socket connection.
+        examples:
+        - 35555
+        requirement_level:
+          recommended: If different than `client.port`.
+        note: |
+          When observed from the server side, this SHOULD represent the immediate client peer port.
+          When observed from the client side, this SHOULD represent the physical client port.
+      - id: client.port
+        type: int
+        brief: Client port number.
+        examples:
+        - 65123
+        requirement_level: recommended
+        note: |
+          When observed from the server side, and when communicating through an intermediary, `client.port` SHOULD represent the client port behind any intermediaries (e.g. proxies) if it's available.
+      events:
+      - event_name: error
+        attributes:
+        - id: exception.message
+          type: string
+          brief: The exception message.
+          examples:
+          - Division by zero
+          - Can't convert 'int' object to str implicitly
+          requirement_level: recommended
+          note: ''
+        - id: exception.type
+          type: string
+          brief: |
+            The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+          examples:
+          - java.net.ConnectException
+          - OSError
+          requirement_level: recommended
+          note: ''
+        - id: exception.stacktrace
+          type: string
+          brief: |
+            A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+          examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)'
+          requirement_level: recommended
+          note: ''
+      - event_name: feature_flag
+        attributes:
+        - id: feature_flag.variant
+          type: string
+          brief: |
+            SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.
+          examples:
+          - red
+          - 'true'
+          - on
+          requirement_level: recommended
+          note: |-
+            A semantic identifier, commonly referred to as a variant, provides a means
+            for referring to a value without including the value itself. This can
+            provide additional context for understanding the meaning behind a value.
+            For example, the variant `red` maybe be used for the value `#c05543`.
+
+            A stringified version of the value can be used in situations where a
+            semantic identifier is unavailable. String representation of the value
+            should be determined by the implementer.
+        - id: feature_flag.provider_name
+          type: string
+          brief: The name of the service provider that performs the flag evaluation.
+          examples:
+          - Flag Manager
+          requirement_level: recommended
+          note: ''
+        - id: feature_flag.key
+          type: string
+          brief: The unique identifier of the feature flag.
+          examples:
+          - logo-color
+          requirement_level: required
+          note: ''
+    - span_name: server.http.request
+      attributes:
+      - id: server.socket.address
+        type: string
+        brief: Server address of the socket connection - IP address or Unix domain socket name.
+        examples:
+        - 10.5.3.2
+        requirement_level:
+          recommended: If different than `server.address`.
+        note: |
+          When observed from the client side, this SHOULD represent the immediate server peer address.
+          When observed from the server side, this SHOULD represent the physical server address.
+      - id: server.socket.domain
+        type: string
+        brief: Immediate server peer's domain name if available without reverse DNS lookup
+        examples:
+        - proxy.example.com
+        requirement_level:
+          recommended: If different than `server.address`.
+        note: Typically observed from the client side, and represents a proxy or other intermediary domain name.
+      - id: server.port
+        type: int
+        brief: Server port number
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries (e.g. proxies) if it's available.
+      - id: server.address
+        type: string
+        brief: Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.
+        examples:
+        - example.com
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent
+          the server address behind any intermediaries (e.g. proxies) if it's available.
+      - id: server.socket.port
+        type: int
+        brief: Server port number of the socket connection.
+        examples:
+        - 16456
+        requirement_level:
+          recommended: If different than `server.port`.
+        note: |
+          When observed from the client side, this SHOULD represent the immediate server peer port.
+          When observed from the server side, this SHOULD represent the physical server port.
+      events:
+      - event_name: error
+        attributes:
+        - id: exception.stacktrace
+          type: string
+          brief: |
+            A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+          examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)'
+          requirement_level: recommended
+          note: ''
+        - id: exception.type
+          type: string
+          brief: |
+            The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+          examples:
+          - java.net.ConnectException
+          - OSError
+          requirement_level: recommended
+          note: ''
+        - id: exception.message
+          type: string
+          brief: The exception message.
+          examples:
+          - Division by zero
+          - Can't convert 'int' object to str implicitly
+          requirement_level: recommended
+          note: ''
+      - event_name: feature_flag
+        attributes:
+        - id: feature_flag.key
+          type: string
+          brief: The unique identifier of the feature flag.
+          examples:
+          - logo-color
+          requirement_level: required
+          note: ''
+        - id: feature_flag.variant
+          type: string
+          brief: |
+            SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.
+          examples:
+          - red
+          - 'true'
+          - on
+          requirement_level: recommended
+          note: |-
+            A semantic identifier, commonly referred to as a variant, provides a means
+            for referring to a value without including the value itself. This can
+            provide additional context for understanding the meaning behind a value.
+            For example, the variant `red` maybe be used for the value `#c05543`.
+
+            A stringified version of the value can be used in situations where a
+            semantic identifier is unavailable. String representation of the value
+            should be determined by the implementer.
+        - id: feature_flag.provider_name
+          type: string
+          brief: The name of the service provider that performs the flag evaluation.
+          examples:
+          - Flag Manager
+          requirement_level: recommended
+          note: ''
+versions:
+  1.4.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.5.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.6.1:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.7.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.8.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            db.hbase.namespace: db.name
+            db.cassandra.keyspace: db.name
+    resources: null
+  1.9.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.10.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.11.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.12.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.13.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            net.peer.ip: net.sock.peer.addr
+            net.host.ip: net.sock.host.addr
+    resources: null
+  1.14.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.15.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            http.retry_count: http.resend_count
+    resources: null
+  1.16.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.17.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.conversation_id: messaging.message.conversation_id
+            messaging.consumer_id: messaging.consumer.id
+            messaging.destination: messaging.destination.name
+            messaging.rabbitmq.routing_key: messaging.rabbitmq.destination.routing_key
+            messaging.message_id: messaging.message.id
+            messaging.kafka.message_key: messaging.kafka.message.key
+            messaging.message_payload_size_bytes: messaging.message.payload_size_bytes
+            messaging.rocketmq.message_tag: messaging.rocketmq.message.tag
+            messaging.kafka.partition: messaging.kafka.destination.partition
+            messaging.protocol: net.app.protocol.name
+            messaging.rocketmq.message_type: messaging.rocketmq.message.type
+            messaging.message_payload_compressed_size_bytes: messaging.message.payload_compressed_size_bytes
+            messaging.protocol_version: net.app.protocol.version
+            messaging.kafka.tombstone: messaging.kafka.message.tombstone
+            messaging.kafka.consumer_group: messaging.kafka.consumer.group
+            messaging.temp_destination: messaging.destination.temporary
+            messaging.destination_kind: messaging.destination.kind
+            messaging.rocketmq.message_keys: messaging.rocketmq.message.keys
+    resources: null
+  1.18.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.19.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            faas.execution: faas.invocation_id
+      - rename_attributes:
+          attribute_map:
+            faas.id: cloud.resource_id
+      - rename_attributes:
+          attribute_map:
+            http.user_agent: user_agent.original
+    resources:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            browser.user_agent: user_agent.original
+  1.20.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            net.app.protocol.name: net.protocol.name
+            net.app.protocol.version: net.protocol.version
+    resources: null
+  1.21.0:
+    metrics:
+      changes:
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          process.runtime.jvm.cpu.utilization: process.runtime.jvm.cpu.recent_utilization
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.kafka.client_id: messaging.client_id
+            messaging.rocketmq.client_id: messaging.client_id
+      - rename_attributes:
+          attribute_map:
+            net.sock.host.addr: server.socket.address
+            net.sock.host.port: server.socket.port
+            http.client_ip: client.address
+            net.sock.peer.name: server.socket.domain
+            net.host.name: server.address
+            net.host.port: server.port
+      - rename_attributes:
+          attribute_map:
+            net.host.carrier.icc: network.carrier.icc
+            net.protocol.name: network.protocol.name
+            net.host.connection.type: network.connection.type
+            net.host.carrier.mcc: network.carrier.mcc
+            net.host.carrier.name: network.carrier.name
+            net.protocol.version: network.protocol.version
+            net.host.connection.subtype: network.connection.subtype
+            net.host.carrier.mnc: network.carrier.mnc
+      - rename_attributes:
+          attribute_map:
+            http.status_code: http.response.status_code
+            http.url: url.full
+            http.request_content_length: http.request.body.size
+            http.response_content_length: http.response.body.size
+            http.method: http.request.method
+            http.scheme: url.scheme
+    resources: null

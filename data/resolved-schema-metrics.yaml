@@ -1,0 +1,587 @@
+file_format: 1.2.0
+parent_schema_url: data/open-telemetry-schema.1.22.0.yaml
+schema_url: https://mycompany.com/schemas/1.0.0
+schema:
+  resource:
+    attributes:
+    - id: os.build_id
+      type: string
+      brief: Unique identifier for a particular build or compilation of the operating system.
+      examples:
+      - TQ3C.230805.001.B2
+      - '20E247'
+      - '22621'
+      requirement_level: recommended
+      note: ''
+    - id: os.name
+      type: string
+      brief: Human readable operating system name.
+      examples:
+      - iOS
+      - Android
+      - Ubuntu
+      requirement_level: recommended
+      note: ''
+    - id: os.description
+      type: string
+      brief: |
+        Human readable (not intended to be parsed) OS version information, like e.g. reported by `ver` or `lsb_release -a` commands.
+      examples:
+      - Microsoft Windows [Version 10.0.18363.778]
+      - Ubuntu 18.04.1 LTS
+      requirement_level: recommended
+      note: ''
+    - id: os.type
+      type:
+        allow_custom_values: true
+        members:
+        - id: windows
+          value: windows
+          brief: Microsoft Windows
+          note: null
+        - id: linux
+          value: linux
+          brief: Linux
+          note: null
+        - id: darwin
+          value: darwin
+          brief: Apple Darwin
+          note: null
+        - id: freebsd
+          value: freebsd
+          brief: FreeBSD
+          note: null
+        - id: netbsd
+          value: netbsd
+          brief: NetBSD
+          note: null
+        - id: openbsd
+          value: openbsd
+          brief: OpenBSD
+          note: null
+        - id: dragonflybsd
+          value: dragonflybsd
+          brief: DragonFly BSD
+          note: null
+        - id: hpux
+          value: hpux
+          brief: HP-UX (Hewlett Packard Unix)
+          note: null
+        - id: aix
+          value: aix
+          brief: AIX (Advanced Interactive eXecutive)
+          note: null
+        - id: solaris
+          value: solaris
+          brief: SunOS, Oracle Solaris
+          note: null
+        - id: z_os
+          value: z_os
+          brief: IBM z/OS
+          note: null
+      brief: The operating system type.
+      requirement_level: required
+      note: ''
+    - id: os.version
+      type: string
+      brief: |
+        The version string of the operating system as defined in [Version Attributes](/docs/resource/README.md#version-attributes).
+      examples:
+      - 14.2.1
+      - 18.04.1
+      requirement_level: recommended
+      note: ''
+  instrumentation_library:
+    name: my-service
+    version: 1.0.0
+  resource_metrics:
+    attributes:
+    - id: environment
+      type: string
+      brief: The environment in which the service is running
+      tag: sensitive-information
+      requirement_level: required
+      note: ''
+    metrics:
+    - name: http.server.request.duration
+      brief: Duration of HTTP server requests.
+      note: ''
+      attributes:
+      - id: error.type
+        type:
+          allow_custom_values: true
+          members:
+          - id: other
+            value: _OTHER
+            brief: A fallback error value to be used when the instrumentation does not define a custom value for it.
+            note: null
+        brief: Describes a class of error the operation ended with.
+        examples:
+        - timeout
+        - java.net.UnknownHostException
+        - server_certificate_invalid
+        - '500'
+        requirement_level: recommended
+        note: |
+          The `error.type` SHOULD be predictable and SHOULD have low cardinality.
+          Instrumentations SHOULD document the list of errors they report.
+
+          The cardinality of `error.type` within one instrumentation library SHOULD be low, but
+          telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+          should be prepared for `error.type` to have high cardinality at query time, when no
+          additional filters are applied.
+
+          If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
+          If a specific domain defines its own set of error codes (such as HTTP or gRPC status codes),
+          it's RECOMMENDED to use a domain-specific attribute and also set `error.type` to capture
+          all errors, regardless of whether they are defined within the domain-specific set or not.
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+      - id: server.address
+        type: string
+        brief: Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.
+        examples:
+        - example.com
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent
+          the server address behind any intermediaries (e.g. proxies) if it's available.
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+      - id: server.port
+        type: int
+        brief: Server port number
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries (e.g. proxies) if it's available.
+      instrument: histogram
+      unit: s
+    metric_groups:
+    - id: http
+      attributes:
+      - id: server.port
+        type: int
+        brief: Server port number
+        examples:
+        - 80
+        - 8080
+        - 443
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries (e.g. proxies) if it's available.
+      - id: error.type
+        type:
+          allow_custom_values: true
+          members:
+          - id: other
+            value: _OTHER
+            brief: A fallback error value to be used when the instrumentation does not define a custom value for it.
+            note: null
+        brief: Describes a class of error the operation ended with.
+        examples:
+        - timeout
+        - java.net.UnknownHostException
+        - server_certificate_invalid
+        - '500'
+        requirement_level: recommended
+        note: |
+          The `error.type` SHOULD be predictable and SHOULD have low cardinality.
+          Instrumentations SHOULD document the list of errors they report.
+
+          The cardinality of `error.type` within one instrumentation library SHOULD be low, but
+          telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+          should be prepared for `error.type` to have high cardinality at query time, when no
+          additional filters are applied.
+
+          If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
+          If a specific domain defines its own set of error codes (such as HTTP or gRPC status codes),
+          it's RECOMMENDED to use a domain-specific attribute and also set `error.type` to capture
+          all errors, regardless of whether they are defined within the domain-specific set or not.
+      - id: network.protocol.version
+        type: string
+        brief: Version of the protocol specified in `network.protocol.name`.
+        examples: 3.1.1
+        requirement_level: recommended
+        note: |
+          `network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client used has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
+      - id: network.protocol.name
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        examples:
+        - amqp
+        - http
+        - mqtt
+        requirement_level: recommended
+        note: The value SHOULD be normalized to lowercase.
+      - id: server.address
+        type: string
+        brief: Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.
+        examples:
+        - example.com
+        requirement_level: recommended
+        note: |
+          When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent
+          the server address behind any intermediaries (e.g. proxies) if it's available.
+      metrics:
+      - name: http.server.request.duration
+        brief: Duration of HTTP server requests.
+        note: ''
+        attributes: []
+        instrument: histogram
+        unit: s
+      - name: http.server.request.body.size
+        brief: Size of HTTP server request bodies.
+        note: |
+          The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+        attributes: []
+        instrument: histogram
+        unit: By
+      - name: http.server.response.body.size
+        brief: Size of HTTP server response bodies.
+        note: |
+          The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
+        attributes: []
+        instrument: histogram
+        unit: By
+versions:
+  1.4.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.5.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.6.1:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.7.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.8.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            db.cassandra.keyspace: db.name
+            db.hbase.namespace: db.name
+    resources: null
+  1.9.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.10.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.11.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.12.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.13.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            net.host.ip: net.sock.host.addr
+            net.peer.ip: net.sock.peer.addr
+    resources: null
+  1.14.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.15.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            http.retry_count: http.resend_count
+    resources: null
+  1.16.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.17.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.rocketmq.message_type: messaging.rocketmq.message.type
+            messaging.destination_kind: messaging.destination.kind
+            messaging.conversation_id: messaging.message.conversation_id
+            messaging.rocketmq.message_keys: messaging.rocketmq.message.keys
+            messaging.message_payload_compressed_size_bytes: messaging.message.payload_compressed_size_bytes
+            messaging.kafka.tombstone: messaging.kafka.message.tombstone
+            messaging.temp_destination: messaging.destination.temporary
+            messaging.destination: messaging.destination.name
+            messaging.consumer_id: messaging.consumer.id
+            messaging.protocol: net.app.protocol.name
+            messaging.message_id: messaging.message.id
+            messaging.message_payload_size_bytes: messaging.message.payload_size_bytes
+            messaging.kafka.message_key: messaging.kafka.message.key
+            messaging.kafka.partition: messaging.kafka.destination.partition
+            messaging.rabbitmq.routing_key: messaging.rabbitmq.destination.routing_key
+            messaging.rocketmq.message_tag: messaging.rocketmq.message.tag
+            messaging.protocol_version: net.app.protocol.version
+            messaging.kafka.consumer_group: messaging.kafka.consumer.group
+    resources: null
+  1.18.0:
+    metrics: null
+    logs: null
+    spans: null
+    resources: null
+  1.19.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            faas.execution: faas.invocation_id
+      - rename_attributes:
+          attribute_map:
+            faas.id: cloud.resource_id
+      - rename_attributes:
+          attribute_map:
+            http.user_agent: user_agent.original
+    resources:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            browser.user_agent: user_agent.original
+  1.20.0:
+    metrics: null
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            net.app.protocol.name: net.protocol.name
+            net.app.protocol.version: net.protocol.version
+    resources: null
+  1.21.0:
+    metrics:
+      changes:
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          process.runtime.jvm.cpu.utilization: process.runtime.jvm.cpu.recent_utilization
+    logs: null
+    spans:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.kafka.client_id: messaging.client_id
+            messaging.rocketmq.client_id: messaging.client_id
+      - rename_attributes:
+          attribute_map:
+            net.host.name: server.address
+            net.sock.peer.name: server.socket.domain
+            net.sock.host.addr: server.socket.address
+            http.client_ip: client.address
+            net.host.port: server.port
+            net.sock.host.port: server.socket.port
+      - rename_attributes:
+          attribute_map:
+            net.protocol.name: network.protocol.name
+            net.host.carrier.icc: network.carrier.icc
+            net.host.carrier.mnc: network.carrier.mnc
+            net.host.carrier.name: network.carrier.name
+            net.host.carrier.mcc: network.carrier.mcc
+            net.protocol.version: network.protocol.version
+            net.host.connection.type: network.connection.type
+            net.host.connection.subtype: network.connection.subtype
+      - rename_attributes:
+          attribute_map:
+            http.url: url.full
+            http.request_content_length: http.request.body.size
+            http.response_content_length: http.response.body.size
+            http.status_code: http.response.status_code
+            http.scheme: url.scheme
+            http.method: http.request.method
+    resources: null
+  1.22.0:
+    metrics:
+      changes:
+      - rename_attributes:
+          attribute_map:
+            messaging.message.payload_size_bytes: messaging.message.body.size
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          http.client.duration: http.client.request.duration
+          http.server.duration: http.server.request.duration
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          process.runtime.jvm.buffer.usage: jvm.buffer.memory.usage
+          process.runtime.jvm.classes.unloaded: jvm.class.unloaded
+          process.runtime.jvm.classes.current_loaded: jvm.class.count
+          process.runtime.jvm.system.cpu.utilization: jvm.system.cpu.utilization
+          process.runtime.jvm.memory.usage: jvm.memory.usage
+          process.runtime.jvm.gc.duration: jvm.gc.duration
+          process.runtime.jvm.memory.limit: jvm.memory.limit
+          process.runtime.jvm.system.cpu.load_1m: jvm.system.cpu.load_1m
+          process.runtime.jvm.cpu.recent_utilization: jvm.cpu.recent_utilization
+          process.runtime.jvm.buffer.limit: jvm.buffer.memory.limit
+          process.runtime.jvm.cpu.time: jvm.cpu.time
+          process.runtime.jvm.memory.usage_after_last_gc: jvm.memory.usage_after_last_gc
+          process.runtime.jvm.buffer.count: jvm.buffer.count
+          process.runtime.jvm.classes.loaded: jvm.class.loaded
+          process.runtime.jvm.memory.committed: jvm.memory.committed
+          process.runtime.jvm.memory.init: jvm.memory.init
+          process.runtime.jvm.threads.count: jvm.thread.count
+      - rename_attributes:
+          attribute_map:
+            pool: jvm.memory.pool.name
+            type: jvm.memory.type
+          apply_to_metrics:
+          - jvm.memory.usage
+          - jvm.memory.committed
+          - jvm.memory.limit
+          - jvm.memory.usage_after_last_gc
+          - jvm.memory.init
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            name: jvm.gc.name
+            action: jvm.gc.action
+          apply_to_metrics:
+          - jvm.gc.duration
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            daemon: thread.daemon
+          apply_to_metrics:
+          - jvm.threads.count
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            pool: jvm.buffer.pool.name
+          apply_to_metrics:
+          - jvm.buffer.usage
+          - jvm.buffer.limit
+          - jvm.buffer.count
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            cpu: system.cpu.logical_number
+            state: system.cpu.state
+          apply_to_metrics:
+          - system.cpu.time
+          - system.cpu.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            state: system.memory.state
+          apply_to_metrics:
+          - system.memory.usage
+          - system.memory.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            state: system.paging.state
+          apply_to_metrics:
+          - system.paging.usage
+          - system.paging.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            direction: system.paging.direction
+            type: system.paging.type
+          apply_to_metrics:
+          - system.paging.faults
+          - system.paging.operations
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            direction: system.disk.direction
+            device: system.device
+          apply_to_metrics:
+          - system.disk.io
+          - system.disk.operations
+          - system.disk.io_time
+          - system.disk.operation_time
+          - system.disk.merged
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            state: system.filesystem.state
+            device: system.device
+            type: system.filesystem.type
+            mode: system.filesystem.mode
+            mountpoint: system.filesystem.mountpoint
+          apply_to_metrics:
+          - system.filesystem.usage
+          - system.filesystem.utilization
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            protocol: network.protocol
+            direction: system.network.direction
+            device: system.device
+            state: system.network.state
+          apply_to_metrics:
+          - system.network.dropped
+          - system.network.packets
+          - system.network.errors
+          - system.network.io
+          - system.network.connections
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map:
+            status: system.processes.status
+          apply_to_metrics:
+          - system.processes.count
+        rename_metrics: {}
+      - rename_attributes:
+          attribute_map: {}
+        rename_metrics:
+          http.server.response.size: http.server.response.body.size
+          http.server.request.size: http.server.request.body.size
+    logs: null
+    spans: null
+    resources: null

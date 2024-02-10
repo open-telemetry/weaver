@@ -1,0 +1,149 @@
+file_format: 1.2.0
+parent_schema_url: demo/root-telemetry-schema.1.22.0.yaml
+# Current schema url
+schema_url: https://mycompany.com/schemas/1.0.0
+
+# The section below outlines the telemetry schema for a service or application.
+# This schema details all the metrics, logs, and spans specifically generated
+# by that service or application.
+#
+# Note: Frameworks or libraries linked with the application that produce OTel
+# telemetry data might also have their own telemetry schema, detailing the
+# metrics, logs, and spans they generate locally.
+schema:
+  # Resource attributes
+  # Only used when a Client SDK is generated
+  resource:
+    attributes:
+      - ref: service.name
+        value: "my-service"
+      - ref: service.version
+        requirement_level: required
+      - id: service.instance.id
+        type: string
+        brief: The unique identifier of the service instance
+
+  # Instrumentation library
+  instrumentation_library:
+    name: "my-service"
+    version: "1.0.0"
+    # schema url?
+
+  # Metrics declaration
+  resource_metrics:
+    # Declaration of all the univariate metrics
+    metrics:
+      - ref: jvm.thread.count
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: network.protocol.name
+          - ref: network.protocol.version
+          - ref: url.scheme
+            requirement_level: required
+      - ref: jvm.class.loaded
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: network.protocol.name
+          - ref: network.protocol.version
+          - ref: url.scheme
+            requirement_level: required
+            tags:
+              sensitivity: PII
+        tags:
+          sensitivity: PII
+      - ref: jvm.cpu.recent_utilization
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: network.protocol.name
+          - ref: network.protocol.version
+          - ref: url.scheme
+            requirement_level: required
+      - ref: jvm.gc.duration
+    # Declaration of all the multivariate metrics
+    metric_groups:
+      - name: http  # name of a metrics group
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: network.protocol.name
+          - ref: network.protocol.version
+          - ref: url.scheme
+          - id: url.host
+            type: string
+            brief: The host of the request
+            requirement_level: required
+        metrics: # metrics sharing the same attributes
+          - ref: jvm.class.loaded
+          - ref: jvm.cpu.recent_utilization
+
+  # Events declaration
+  resource_events:
+    events:
+      - event_name: request
+        domain: http
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: network.protocol.name
+          - ref: network.protocol.version
+          - ref: url.scheme
+          - id: url.host
+            type: string
+            brief: The host of the request
+            requirement_level: required
+      - event_name: response
+        domain: http
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: network.protocol.name
+          - ref: network.protocol.version
+          - ref: url.scheme
+          - id: url.host
+            type: string
+            brief: The host of the request
+            requirement_level: required
+
+  # Spans declaration
+  resource_spans:
+    spans:
+      - span_name: http.request  # name of a specific tracer
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: client.address
+          - ref: client.port
+          - ref: url.scheme
+          - id: url.host
+            type: string
+            brief: The host of the request
+            requirement_level: required
+        events:
+          - event_name: error
+            attributes:
+              - ref: exception.type
+              - ref: exception.message
+                requirement_level: required
+              - ref: exception.stacktrace
+        # links:
+      - span_name: database.query
+        attributes:
+          - ref: server.address
+          - ref: server.port
+          - ref: client.address
+          - ref: client.port
+          - ref: url.scheme
+            requirement_level: required
+          - id: url.host
+            type: string
+            brief: The host of the request
+            requirement_level: required
+        events:
+          - event_name: error
+            attributes:
+              - ref: exception.type
+              - ref: exception.message
+              - ref: exception.stacktrace

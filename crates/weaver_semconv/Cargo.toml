@@ -1,0 +1,17 @@
+[package]
+name = "weaver_semconv"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+ureq.workspace = true
+ordered-float.workspace = true
+
+validator = { version = "0.16.1", features = ["derive"] }

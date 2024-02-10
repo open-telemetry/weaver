@@ -1,0 +1,39 @@
+[
+  {
+    "name": "messaging.destination.name",
+    "type": {
+      "type": "String"
+    },
+    "brief": "The message destination name",
+    "examples": {
+      "type": "Strings",
+      "values": [
+        "MyQueue",
+        "MyTopic"
+      ]
+    },
+    "requirement_level": {
+      "type": "Recommended"
+    },
+    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
+  },
+  {
+    "name": "messaging.destination.name",
+    "type": {
+      "type": "String"
+    },
+    "brief": "The message destination name",
+    "examples": {
+      "type": "Strings",
+      "values": [
+        "MyQueue",
+        "MyTopic"
+      ]
+    },
+    "requirement_level": {
+      "type": "ConditionallyRequired",
+      "text": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+    },
+    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
+  }
+]

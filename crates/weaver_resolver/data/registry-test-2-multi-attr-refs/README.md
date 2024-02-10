@@ -1,0 +1,1 @@
+Test multiple attribute references and apply the corresponding overriding rules.

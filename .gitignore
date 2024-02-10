@@ -1,0 +1,24 @@
+# Rust specific
+/target
+**/*.rs.bk
+Cargo.lock
+bench-log
+
+# Just
+just.zsh
+
+# IntelliJ IDEs
+/.idea
+*.iml
+
+# VS Code
+.vscode/
+.devcontainer/
+
+# Emacs
+*~
+\#*\#
+
+# Miscellaneous files
+*.sw[op]
+*.DS_Store

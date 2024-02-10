@@ -1,0 +1,124 @@
+{
+  "registry_url": "https://semconv-registry.com",
+  "groups": [
+    {
+      "id": "metric.messaging.attributes",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Common messaging metrics attributes.",
+      "attributes": [
+        30,
+        31
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
+        "attributes": {
+          "30": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            }
+          },
+          "31": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.messaging",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
+      "prefix": "messaging",
+      "attributes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml"
+      }
+    }
+  ]
+}

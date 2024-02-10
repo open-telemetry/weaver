@@ -1,0 +1,54 @@
+{% macro declare_args(attrs) -%}
+    {%- for attr in attrs | required | without_value %}
+    {{attr.id | arg_name}} {{attr.id | struct_name}}ReqAttrWrapper,
+    {%- endfor %}
+{% endmacro declare_args %}
+
+
+{% macro declare_attrs(prefix="", attrs) -%}
+{% set require_attrs = attrs | required | without_value %}
+{% if require_attrs | length > 0 -%}
+// ===============================================
+// ====== Definition of required attributes ======
+// ===============================================
+
+{% for attr in require_attrs | without_enum %}
+// {{prefix}}{{attr.id | struct_name}}ReqAttr is a wrapper for a required attribute.
+// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="// ") }}
+func {{prefix}}{{attr.id | struct_name}}ReqAttr(v {{ attr.type | type_mapping(enum=attr.id | struct_name) }}) {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper {
+    return {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper{v}
+}
+// {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper is a wrapper for the attribute `{{attr.id}}`.
+// Use the function {{prefix}}{{attr.id | struct_name}}ReqAttr(value) to create an instance.
+type {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper struct { {{ attr.type | type_mapping(enum=attr.id | struct_name) }} }
+func (w {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper) Attribute() otel_attr.KeyValue {
+    return attribute.{{ attr.id | field_name }}Key.String(w.{{ attr.type | type_mapping(enum=attr.id | struct_name) }})
+}
+
+{% endfor %}
+
+{% for attr in require_attrs | with_enum %}
+// {{prefix}}{{attr.id | struct_name}}ReqAttr is a wrapper for a required attribute.
+// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="// ") }}
+func {{prefix}}{{attr.id | struct_name}}ReqAttr(v {{ attr.type | type_mapping(enum=attr.id | struct_name) }}) {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper {
+    return {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper{v}
+}
+// {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper is a wrapper for the attribute `{{attr.id}}`.
+// Use the function {{prefix}}{{attr.id | struct_name}}ReqAttr(value) to create an instance.
+type {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper struct { {{ attr.type | type_mapping(enum=attr.id | struct_name) }} }
+func (w {{prefix}}{{attr.id | struct_name}}ReqAttrWrapper) Attribute() otel_attr.KeyValue {
+    return attribute.{{ attr.id | field_name }}Key.String(w.{{ attr.type | type_mapping(enum=attr.id | struct_name) }})
+}
+
+type {{attr.id | struct_name}} string
+const (
+{% for variant in attr.type.members %}
+    // {{variant.id | struct_name}} is a possible value of {{attr.id | struct_name}}.
+    // {{ [variant.brief, variant.note] | comment(prefix="    // ") }}
+    {{variant.id | struct_name}} {{attr.id | struct_name}} = "{{variant.id}}"
+{%- endfor %}
+)
+{% endfor %}
+
+{%- endif %}
+{% endmacro declare_attrs %}

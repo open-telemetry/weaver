@@ -1,0 +1,1330 @@
+{
+  "registry_url": "https://semconv-registry.com",
+  "groups": [
+    {
+      "id": "attributes.http.common",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Describes HTTP attributes.",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
+        "attributes": {
+          "62": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            }
+          },
+          "63": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            }
+          },
+          "64": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            }
+          },
+          "65": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "66": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "attributes.http.client",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "HTTP Client attributes",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
+        "attributes": {
+          "62": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "63": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "64": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "65": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "66": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "67": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "68": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "69": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "attributes.http.server",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "HTTP Server attributes",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        70,
+        71,
+        72,
+        73
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
+        "attributes": {
+          "62": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "63": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "64": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "65": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "66": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "attributes.http.common"
+            }
+          },
+          "70": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            }
+          },
+          "71": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "72": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "73": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.url"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "messaging.attributes.common",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Common messaging attributes.",
+      "prefix": "messaging",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/messaging-common.yaml",
+        "attributes": {
+          "56": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "74": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            }
+          },
+          "75": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.error"
+            }
+          },
+          "76": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "77": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "78": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.attributes",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Common messaging metrics attributes.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "messaging.attributes.common"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "messaging.attributes.common"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "messaging.attributes.common"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "messaging.attributes.common"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "messaging.attributes.common"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "messaging.attributes.common"
+            }
+          },
+          "79": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            }
+          },
+          "80": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.messaging"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.publish.duration",
+      "typed_group": {
+        "type": "Metric",
+        "metric_name": "messaging.publish.duration",
+        "instrument": "Histogram",
+        "unit": "s"
+      },
+      "brief": "Measures the duration of publish operation.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "79": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "80": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.receive.duration",
+      "typed_group": {
+        "type": "Metric",
+        "metric_name": "messaging.receive.duration",
+        "instrument": "Histogram",
+        "unit": "s"
+      },
+      "brief": "Measures the duration of receive operation.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "79": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "80": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.deliver.duration",
+      "typed_group": {
+        "type": "Metric",
+        "metric_name": "messaging.deliver.duration",
+        "instrument": "Histogram",
+        "unit": "s"
+      },
+      "brief": "Measures the duration of deliver operation.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "79": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "80": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.publish.messages",
+      "typed_group": {
+        "type": "Metric",
+        "metric_name": "messaging.publish.messages",
+        "instrument": "Counter",
+        "unit": "{message}"
+      },
+      "brief": "Measures the number of published messages.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "79": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "80": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.receive.messages",
+      "typed_group": {
+        "type": "Metric",
+        "metric_name": "messaging.receive.messages",
+        "instrument": "Counter",
+        "unit": "{message}"
+      },
+      "brief": "Measures the number of received messages.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "79": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "80": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.messaging.deliver.messages",
+      "typed_group": {
+        "type": "Metric",
+        "metric_name": "messaging.deliver.messages",
+        "instrument": "Counter",
+        "unit": "{message}"
+      },
+      "brief": "Measures the number of delivered messages.",
+      "attributes": [
+        56,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "attributes": {
+          "56": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "74": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "75": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "76": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "77": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "78": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "79": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          },
+          "80": {
+            "GroupAttributes": {
+              "resolution_mode": "Extends",
+              "group_id": "metric.messaging.attributes"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.error",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "This document defines the shared attributes used to report an error.\n",
+      "prefix": "error",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/registry-error.yaml"
+      }
+    },
+    {
+      "id": "registry.http",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "This document defines semantic convention attributes in the HTTP namespace.",
+      "prefix": "http",
+      "attributes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/registry-http.yaml"
+      }
+    },
+    {
+      "id": "registry.messaging",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
+      "prefix": "messaging",
+      "attributes": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/registry-messaging.yaml"
+      }
+    },
+    {
+      "id": "registry.network",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "These attributes may be used for any network related operation.\n",
+      "prefix": "network",
+      "attributes": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/registry-network.yaml"
+      }
+    },
+    {
+      "id": "server",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
+      "prefix": "server",
+      "attributes": [
+        55,
+        56
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/registry-server.yaml"
+      }
+    },
+    {
+      "id": "registry.url",
+      "typed_group": {
+        "type": "AttributeGroup"
+      },
+      "brief": "Attributes describing URL.",
+      "prefix": "url",
+      "attributes": [
+        57,
+        58,
+        59,
+        60,
+        61
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-3-extends/registry/registry-url.yaml"
+      }
+    }
+  ]
+}

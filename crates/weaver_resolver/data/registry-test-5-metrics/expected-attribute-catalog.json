@@ -1,0 +1,140 @@
+[
+  {
+    "name": "faas.trigger",
+    "type": {
+      "type": "Enum",
+      "allow_custom_values": false,
+      "members": [
+        {
+          "id": "datasource",
+          "value": {
+            "type": "String",
+            "value": "datasource"
+          },
+          "brief": "A response to some data source operation such as a database or filesystem read/write"
+        },
+        {
+          "id": "http",
+          "value": {
+            "type": "String",
+            "value": "http"
+          },
+          "brief": "To provide an answer to an inbound HTTP request"
+        },
+        {
+          "id": "pubsub",
+          "value": {
+            "type": "String",
+            "value": "pubsub"
+          },
+          "brief": "A function is set to be executed when messages are sent to a messaging system"
+        },
+        {
+          "id": "timer",
+          "value": {
+            "type": "String",
+            "value": "timer"
+          },
+          "brief": "A function is scheduled to be executed regularly"
+        },
+        {
+          "id": "other",
+          "value": {
+            "type": "String",
+            "value": "other"
+          },
+          "brief": "If none of the others apply"
+        }
+      ]
+    },
+    "brief": "Type of the trigger which caused this function invocation.",
+    "requirement_level": {
+      "type": "Recommended"
+    }
+  },
+  {
+    "name": "faas.invoked_name",
+    "type": {
+      "type": "String"
+    },
+    "brief": "The name of the invoked function.\n",
+    "examples": {
+      "type": "String",
+      "value": "my-function"
+    },
+    "requirement_level": {
+      "type": "Required"
+    },
+    "note": "SHOULD be equal to the `faas.name` resource attribute of the invoked function.\n"
+  },
+  {
+    "name": "faas.invoked_provider",
+    "type": {
+      "type": "Enum",
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "alibaba_cloud",
+          "value": {
+            "type": "String",
+            "value": "alibaba_cloud"
+          },
+          "brief": "Alibaba Cloud"
+        },
+        {
+          "id": "aws",
+          "value": {
+            "type": "String",
+            "value": "aws"
+          },
+          "brief": "Amazon Web Services"
+        },
+        {
+          "id": "azure",
+          "value": {
+            "type": "String",
+            "value": "azure"
+          },
+          "brief": "Microsoft Azure"
+        },
+        {
+          "id": "gcp",
+          "value": {
+            "type": "String",
+            "value": "gcp"
+          },
+          "brief": "Google Cloud Platform"
+        },
+        {
+          "id": "tencent_cloud",
+          "value": {
+            "type": "String",
+            "value": "tencent_cloud"
+          },
+          "brief": "Tencent Cloud"
+        }
+      ]
+    },
+    "brief": "The cloud provider of the invoked function.\n",
+    "requirement_level": {
+      "type": "Required"
+    },
+    "note": "SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.\n"
+  },
+  {
+    "name": "faas.invoked_region",
+    "type": {
+      "type": "String"
+    },
+    "brief": "The cloud region of the invoked function.\n",
+    "examples": {
+      "type": "String",
+      "value": "eu-central-1"
+    },
+    "requirement_level": {
+      "type": "ConditionallyRequired",
+      "text": "For some cloud providers, like AWS or GCP, the region in which a function is hosted is essential to uniquely identify the function and also part of its endpoint. Since it's part of the endpoint being called, the region is always known to clients. In these cases, `faas.invoked_region` MUST be set accordingly. If the region is unknown to the client or not required for identifying the invoked function, setting `faas.invoked_region` is optional.\n"
+    },
+    "note": "SHOULD be equal to the `cloud.region` resource attribute of the invoked function.\n"
+  }
+]

@@ -1,0 +1,160 @@
+{% import "required_attrs.macro.tera" as required %}
+{% import "optional_attrs.macro.tera" as optional %}
+{# Define the file name for the generated code #}
+{%- set file_name = span_name | file_name -%}
+{{- config(file_name="otel/tracer/" ~ file_name ~ "/span.go") -}}
+// SPDX-License-Identifier: Apache-2.0
+
+package {{ span_name | file_name }}
+
+import (
+    "context"
+
+    otel_attr "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/codes"
+    "go.opentelemetry.io/otel/trace"
+
+    client "go_test/pkg/otel"
+    "go_test/pkg/otel/attribute"
+)
+
+{%- if attributes | required | without_value | length > 0 %}
+// Start starts a new `{{ span_name }}` span with
+// the given required attributes.
+func Start(
+    {{- required::declare_args(attrs=attributes) }}
+    optionalAttributes ...{{ optional::attr_type(prefix="Span") }},
+) *{{span_name | struct_name}}Span {
+    return StartWithContext(
+        context.TODO(),
+    {%- for attr in attributes | required | without_value %}
+        {{attr.id | arg_name}},
+    {%- endfor %}
+        optionalAttributes...,
+    )
+}
+
+// StartWithContext starts a new `{{ span_name }}` span with
+// the given required attributes and context.
+func StartWithContext(
+    ctx context.Context,
+    {{- required::declare_args(attrs=attributes) }}
+    optionalAttributes ...{{ optional::attr_type(prefix="Span") }},
+) *{{span_name | struct_name}}Span {
+    ctx, span := client.Tracer.Start(ctx, "{{ span_name }}",
+    {%- for attr in attributes | with_value %}
+        trace.WithAttributes(attribute.{{ attr.id | function_name }}Key.{{attr.type | type_mapping(enum=attr.id) | function_name}}({{attr.value | value}})),
+    {%- endfor %}
+    {%- for attr in attributes | required | without_value %}
+        trace.WithAttributes({{ attr.id | arg_name }}.Attribute()),
+    {%- endfor %}
+    )
+    for _, opt := range optionalAttributes {
+    	span.SetAttributes(opt.Attribute())
+    }
+    return &{{span_name | struct_name}}Span {
+        ctx: ctx,
+        span: span,
+    }
+}
+{%- else %}
+// Start starts a new named `{{ span_name }}` span.
+func Start{{ span_name | function_name }}(ctx context.Context, optionalAttributes ...{{ optional::attr_type(prefix="Span") }}) *{{span_name | struct_name}}Span {
+    ctx, span := client.Tracer.Start(ctx, "{{ span_name }}")
+    for _, opt := range optionalAttributes {
+    	span.SetAttributes(opt.Attribute())
+    }
+    return &{{span_name | struct_name}}Span {
+        ctx: ctx,
+        span: span,
+    }
+}
+{%- endif %}
+
+{{ required::declare_attrs(attrs=attributes) }}
+{{ optional::declare_attrs(marker="Span", attrs=attributes) }}
+
+// {{span_name | struct_name}}Span is a span for `{{ span_name }}`.
+type {{span_name | struct_name}}Span struct {
+    ctx  context.Context
+    span trace.Span
+}
+
+{% if events | length > 0 -%}
+// {{ span_name | struct_name }}Event is interface implemented by all events for `{{ span_name }}`.
+type {{ span_name | struct_name }}Event interface {
+    EventOptions() []trace.EventOption
+}
+
+{% for event in events -%}
+
+{% set event_name = event.event_name | function_name -%}
+{{ required::declare_attrs(prefix="Event" ~ event_name, attrs=event.attributes) }}
+{{ optional::declare_attrs(prefix="Event" ~ event_name, marker="Event" ~ event_name, attrs=event.attributes) }}
+
+// Event adds an event to the span.
+func (s *{{span_name | struct_name}}Span) Event{{ event.event_name | function_name }}(
+    {%- for attr in event.attributes | required %}
+    {{attr.id | field_name}} Event{{ event.event_name | function_name }}{{attr.id | struct_name}}ReqAttrWrapper,
+    {%- endfor %}
+    optionalAttributes ...{{ optional::attr_type(prefix="Event" ~ event_name) }},
+) *{{span_name | struct_name}}Span {
+    eventOptions := []trace.EventOption{
+    {%- for attr in event.attributes | with_value %}
+        trace.WithAttributes(attribute.{{ attr.id | function_name }}Key.{{attr.type | type_mapping(enum=attr.id) | function_name}}({{attr.value | value}})),
+    {%- endfor %}
+    {%- for attr in event.attributes | required %}
+        trace.WithAttributes({{ attr.id | field_name }}.Attribute()),
+    {%- endfor %}
+    }
+    for _, opt := range optionalAttributes {
+    	eventOptions = append(eventOptions, trace.WithAttributes(opt.Attribute()))
+    }
+    s.span.AddEvent("{{ event.event_name }}", eventOptions...)
+    return s
+}
+{% endfor %}
+
+{%- endif %}
+
+{% for attr in attributes | not_required | without_value %}
+// Attr{{ attr.id | function_name }} sets the optional attribute `{{ attr.id }}` for the span.
+// {{ [attr.brief, attr.note, "", "# Examples", attr.examples] | comment(prefix="// ") }}
+func (s *{{span_name | struct_name}}Span) {{attr.id | function_name}}OptAttr(value {{ attr.type | type_mapping(enum=attr.id | struct_name) }}) *{{span_name | struct_name}}Span {
+    s.span.SetAttributes(attribute.{{ attr.id | field_name }}Key.{{ attr.type | type_mapping(enum=attr.id) | function_name }}(value))
+    return s
+}
+{% endfor %}
+
+func (s *{{span_name | struct_name}}Span) StatusOk() *{{span_name | struct_name}}Span {
+    s.span.SetStatus(codes.Ok, "")
+    return s
+}
+
+// Error sets the error for the span.
+func (s *{{span_name | struct_name}}Span) Error(err error, description string) *{{span_name | struct_name}}Span {
+    s.span.SetStatus(codes.Error, description)
+    s.span.RecordError(err)
+    return s
+}
+
+// Context returns the context of the current span.
+func (s *{{span_name | struct_name }}Span) Context() context.Context { return s.ctx }
+
+// End ends the span with status OK.
+func (s *{{span_name | struct_name}}Span) EndWithOk() {
+    s.span.SetStatus(codes.Ok, "")
+    s.span.End()
+}
+
+// End ends the span with status Error and a given description.
+func (s *{{span_name | struct_name}}Span) EndWithError(err error, description string) {
+    s.span.SetStatus(codes.Error, description)
+    s.span.RecordError(err)
+    s.span.End()
+}
+
+// End ends the span.
+func (s *{{span_name | struct_name}}Span) End() {
+    s.span.End()
+}

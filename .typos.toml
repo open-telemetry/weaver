@@ -1,0 +1,5 @@
+[files]
+extend-exclude = ["*.cast", "**/*.yaml", "**/*.svg"]
+
+[default.extend-words]
+ratatui = "ratatui"

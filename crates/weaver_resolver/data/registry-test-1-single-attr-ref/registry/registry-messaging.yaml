@@ -1,0 +1,13 @@
+groups:
+  - id: registry.messaging
+    prefix: messaging
+    type: attribute_group
+    brief: 'Attributes describing telemetry around messaging systems and messaging activities.'
+    attributes:
+      - id: destination.name
+        type: string
+        brief: 'The message destination name'
+        note: |
+          Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If
+          the broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.
+        examples: ['MyQueue', 'MyTopic']
