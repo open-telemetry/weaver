@@ -23,7 +23,7 @@ serde_yaml.workspace = true
 
 url = "2.5.0"
 walkdir = "2.4.0"
-serde = { version = "1.0.193", features = ["derive"] }
+serde = { version = "1.0.196", features = ["derive"] }
 
 [dev-dependencies]
 glob = "0.3.1"
