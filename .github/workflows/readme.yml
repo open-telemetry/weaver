@@ -1,0 +1,27 @@
+name: Check presence of README.md files in the Cargo workspace.
+
+on: [pull_request]
+
+jobs:
+  run-shell-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Check presence of README.md files
+        run: |
+          # Navigate to the crates directory
+          cd crates || exit
+          
+          # Loop through each direct subdirectory in the crates/* directory
+          for dir in */; do
+          # Check if README.md exists in the subdirectory
+          if [ ! -f "$dir/README.md" ]; then
+          echo "README.md missing in $dir"
+          cd - > /dev/null  # Return to the original directory
+          exit 1
+          fi
+          done
+          
+          cd - > /dev/null  # Return to the original directory
+          echo "All crates have a README.md file."

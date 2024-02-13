@@ -112,6 +112,43 @@ be generated.
 weaver languages
 ```
 
+### Crates Layout
+
+This project utilizes the concept of a cargo workspace to organize the
+libraries developed for the OTel Weaver project. The set of crates in the
+workspace is grouped under the directory `crates/*`. Adding a crate under this
+directory will automatically include it in the OTel Weaver project due to the
+directive `members = [ "crates/*" ]` included in the main `Cargo.toml` under the
+`[workspace]` section.
+
+This project has not been published to crates.io and will not be until it is
+ready for production use.
+
+Every crate in the workspace must have a `README.md` file that describes the
+purpose of the crate and how to use it. Furthermore, the name of each crate
+must be prefixed with `weaver_` to avoid any conflicts with existing crates on
+crates.io.
+
+The following is a list of crates in the workspace, along with a brief
+description and the current status of each crate:
+
+| Crate                                                             | Description                                             | Status                 |
+|-------------------------------------------------------------------|---------------------------------------------------------|------------------------|
+| [weaver_semconv](crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                 | Alpha; Need more tests |
+| [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model              | Alpha; Need more tests |
+| [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                              | Work-In-Progress       |
+| [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                             | Work-In-Progress       |
+| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process                     | Work-In-Progress       |
+| [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache | Work-In-Progress       |
+| [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output               | Alpha                  |
+| [weaver_template](crates/weaver_template/README.md)               | Functions and Filters used in the template engine       | Work-In-Progress       |
+
+Note 1: Alpha status means that the crate is in a usable state but may have
+limited functionality and/or may not be fully tested. 
+
+Note 2: Work-In-Progress status means that the crate is still under active
+development.
+
 ### Architecture
 
 The OpenTelemetry Weaver tool is architecturally designed as a platform. By default, this
