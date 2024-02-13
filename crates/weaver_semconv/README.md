@@ -9,3 +9,6 @@ write YAML, JSON, and other formats supported by the Serde ecosystem.
 See [semantic convention YAML language](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 for more details on the syntax.
 
+See [build-tools JSON schema](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/semconv.schema.json) for
+formal definition of the allowed syntax.
+
