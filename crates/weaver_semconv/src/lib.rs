@@ -817,20 +817,30 @@ mod tests {
 
         // Now let's resolve attributes and check provenance and structure is what we expect.
         let _ = catalog.resolve(ResolverConfig::with_keep_specs()).unwrap();
-        assert_eq!(catalog.attribute_with_provenance("server.address").unwrap().provenance, "data/server.yaml");
+        assert_eq!(
+            catalog
+                .attribute_with_provenance("server.address")
+                .unwrap()
+                .provenance,
+            "data/server.yaml"
+        );
         let server_address = catalog.attribute("server.address").unwrap();
         assert_eq!(server_address.brief(), "Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.");
         assert!(!server_address.is_required());
         assert_eq!(server_address.tag(), None);
-        if let AttributeSpec::Id {
-            r#type, ..
-        } = server_address {
+        if let AttributeSpec::Id { r#type, .. } = server_address {
             assert_eq!(format!("{}", r#type), "string");
         } else {
             panic!("Expected real AttributeSpec, not reference");
         }
         // Assert that we read things correctly and keep provenance.
-        assert_eq!(catalog.metric_with_provenance("http.client.request.duration").unwrap().provenance, "data/http-metrics.yaml");
+        assert_eq!(
+            catalog
+                .metric_with_provenance("http.client.request.duration")
+                .unwrap()
+                .provenance,
+            "data/http-metrics.yaml"
+        );
     }
 
     /// Test the resolver with a semantic convention semantic convention registry that contains
