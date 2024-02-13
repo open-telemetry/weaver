@@ -820,7 +820,7 @@ mod tests {
         assert_eq!(catalog.attribute_with_provenance("server.address").unwrap().provenance, "data/server.yaml");
         let server_address = catalog.attribute("server.address").unwrap();
         assert_eq!(server_address.brief(), "Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.");
-        assert_eq!(server_address.is_required(), false);
+        assert!(server_address.is_required());
         assert_eq!(server_address.tag(), None);
         if let AttributeSpec::Id {
             r#type, ..
