@@ -115,6 +115,24 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check formatting
         run: cargo fmt --all -- --check
+  check-workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check-workspace
+        run: scripts/check_workspace.sh
+  check-external-types:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # cargo check-external-types is only available on this specific nightly
+          toolchain: nightly-2023-10-10
+      - uses: Swatinem/rust-cache@v2
+      - name: check-external-types
+        run: scripts/check_external_types.sh
   clippy:
     name: clippy
     runs-on: ubuntu-latest

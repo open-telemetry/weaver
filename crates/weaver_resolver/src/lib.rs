@@ -188,7 +188,7 @@ impl SchemaResolver {
             .as_ref()
             .map(|versions| {
                 if let Some(latest_version) = versions.latest_version() {
-                    versions.version_changes_for(latest_version)
+                    versions.version_changes_for(&latest_version)
                 } else {
                     VersionChanges::default()
                 }
