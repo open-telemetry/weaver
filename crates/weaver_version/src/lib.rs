@@ -57,6 +57,10 @@ pub enum Error {
     },
 }
 
+/// A version of the schema.
+#[derive(PartialOrd, PartialEq)]
+pub struct Version(semver::Version);
+
 /// List of versions with their changes.
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(transparent)]
@@ -127,38 +131,46 @@ impl Versions {
     }
 
     /// Returns the most recent version or None if there are no versions.
-    pub fn latest_version(&self) -> Option<&semver::Version> {
-        self.versions.keys().last()
+    pub fn latest_version(&self) -> Option<Version> {
+        self.versions.keys().last().map(|v| Version(v.clone()))
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in ascending order.
-    pub fn versions_asc(&self) -> Vec<(&semver::Version, &VersionSpec)> {
-        self.versions.iter().collect()
+    pub fn versions_asc(&self) -> Vec<(Version, &VersionSpec)> {
+        self.versions
+            .iter()
+            .map(|(v, spec)| (Version(v.clone()), spec))
+            .collect()
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in descending order.
-    pub fn versions_desc(&self) -> Vec<(&semver::Version, &VersionSpec)> {
-        self.versions.iter().rev().collect()
+    pub fn versions_desc(&self) -> Vec<(Version, &VersionSpec)> {
+        self.versions
+            .iter()
+            .rev()
+            .map(|(v, spec)| (Version(v.clone()), spec))
+            .collect()
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in ascending order from the given version.
-    pub fn versions_asc_from(
-        &self,
-        version: &semver::Version,
-    ) -> Vec<(&semver::Version, &VersionSpec)> {
-        self.versions.range(version.clone()..).collect()
+    pub fn versions_asc_from(&self, version: Version) -> Vec<(Version, &VersionSpec)> {
+        self.versions
+            .range(version.0..)
+            .map(|(v, spec)| (Version(v.clone()), spec))
+            .collect()
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in descending order from the given version.
-    pub fn versions_desc_from(
-        &self,
-        version: &semver::Version,
-    ) -> Vec<(&semver::Version, &VersionSpec)> {
-        self.versions.range(..=version.clone()).rev().collect()
+    pub fn versions_desc_from(&self, version: &Version) -> Vec<(Version, &VersionSpec)> {
+        self.versions
+            .range(..=version.0.clone())
+            .rev()
+            .map(|(v, spec)| (Version(v.clone()), spec))
+            .collect()
     }
 
     /// Returns the changes to apply for the given version including the changes
@@ -166,7 +178,7 @@ impl Versions {
     /// The current supported changes are:
     /// - Renaming of attributes (for resources, logs and spans)
     /// - Renaming of metrics
-    pub fn version_changes_for(&self, version: &semver::Version) -> VersionChanges {
+    pub fn version_changes_for(&self, version: &Version) -> VersionChanges {
         let mut resource_old_to_new_attributes: HashMap<String, String> = HashMap::new();
         let mut metric_old_to_new_names: HashMap<String, String> = HashMap::new();
         let mut metric_old_to_new_attributes: HashMap<String, String> = HashMap::new();
@@ -628,7 +640,7 @@ mod tests {
     #[test]
     fn test_version_changes_for() {
         let versions: Versions = Versions::load_from_file("data/parent_versions.yaml").unwrap();
-        let changes = versions.version_changes_for(versions.latest_version().unwrap());
+        let changes = versions.version_changes_for(versions.latest_version().as_ref().unwrap());
 
         // Test renaming of resource attributes
         assert_eq!(
@@ -759,7 +771,8 @@ mod tests {
             .get("messaging.kafka.client_id");
         assert_eq!(observed_value, Some(&"messaging.client_id".to_string()));
 
-        let changes = app_versions.version_changes_for(app_versions.latest_version().unwrap());
+        let changes =
+            app_versions.version_changes_for(app_versions.latest_version().as_ref().unwrap());
         assert_eq!("metric_1", changes.get_metric_name("m1"));
         assert_eq!("metric2", changes.get_metric_name("m2"));
     }
