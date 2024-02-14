@@ -4,7 +4,7 @@
 
 //! A semantic convention registry.
 
-use crate::attribute::{AttributeRef, UnresolvedAttribute};
+use crate::attribute::AttributeRef;
 use serde::{Deserialize, Serialize};
 
 use crate::catalog::Stability;
@@ -21,15 +21,6 @@ pub struct Registry {
     pub registry_url: String,
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
-}
-
-/// A registry containing unresolved groups.
-#[derive(Debug)]
-pub struct UnresolvedRegistry {
-    /// The semantic convention registry.
-    pub registry: Registry,
-    /// List of unresolved groups that belong to the registry.
-    pub groups: Vec<UnresolvedGroup>,
 }
 
 /// Group specification.
@@ -81,18 +72,6 @@ pub struct Group {
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lineage: Option<GroupLineage>,
-}
-
-/// A group containing unresolved attributes.
-#[derive(Debug)]
-pub struct UnresolvedGroup {
-    /// The group specification.
-    pub group: Group,
-    /// List of unresolved attributes that belong to the semantic convention
-    /// group.
-    pub attributes: Vec<UnresolvedAttribute>,
-    /// The provenance of the group (URL or path).
-    pub provenance: String,
 }
 
 /// An enum representing the type of the group including the specific fields

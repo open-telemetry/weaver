@@ -28,7 +28,7 @@ use weaver_version::VersionChanges;
 
 use crate::events::resolve_events;
 use crate::metrics::{resolve_metrics, semconv_to_resolved_metric};
-use crate::registry::resolve_semconv_registry;
+use crate::registry::resolve_registry;
 use crate::resource::resolve_resource;
 use crate::spans::resolve_spans;
 
@@ -373,8 +373,7 @@ impl SchemaResolver {
         let start = Instant::now();
 
         let mut attr_catalog = AttributeCatalog::default();
-        let resolved_registry =
-            resolve_semconv_registry(&mut attr_catalog, "", registry, log.clone())?;
+        let resolved_registry = resolve_registry(&mut attr_catalog, "", registry)?;
 
         let metrics = registry
             .metrics_iter()
