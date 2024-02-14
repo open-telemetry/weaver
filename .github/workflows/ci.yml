@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check-workspace
-        run: scripts/check_workspace.sh
+        run: ./scripts/check_workspace.sh
   check-external-types:
     runs-on: ubuntu-latest
     steps:
@@ -132,7 +132,7 @@ jobs:
           toolchain: nightly-2023-10-10
       - uses: Swatinem/rust-cache@v2
       - name: check-external-types
-        run: scripts/check_external_types.sh
+        run: ./scripts/check_external_types.sh
   clippy:
     name: clippy
     runs-on: ubuntu-latest
