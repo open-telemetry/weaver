@@ -9,7 +9,7 @@ use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, Resol
 use weaver_resolved_schema::registry::{Group, Registry, TypedGroup};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::ConvTypeSpec;
-use weaver_semconv::{GroupSpecWithProvenance, SemConvSpecs};
+use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
@@ -64,10 +64,10 @@ pub struct UnresolvedGroup {
 /// This function returns the resolved registry or an error if the resolution process
 /// failed.
 #[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
-pub fn resolve_registry(
+pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
-    registry: &SemConvSpecs,
+    registry: &SemConvRegistry,
 ) -> Result<Registry, Error> {
     let mut ureg = unresolved_registry_from_specs(registry_url, registry);
     let mut all_refs_resolved = true;
@@ -139,7 +139,7 @@ pub fn resolve_registry(
 #[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
 fn unresolved_registry_from_specs(
     registry_url: &str,
-    registry: &SemConvSpecs,
+    registry: &SemConvRegistry,
 ) -> UnresolvedRegistry {
     let groups = registry
         .groups_with_provenance()
@@ -329,10 +329,10 @@ mod tests {
 
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::Registry;
-    use weaver_semconv::SemConvSpecs;
+    use weaver_semconv::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
-    use crate::registry::resolve_registry;
+    use crate::registry::resolve_semconv_registry;
 
     /// Test the resolution of semantic convention registries stored in the
     /// data directory.
@@ -358,7 +358,7 @@ mod tests {
 
             println!("Testing `{}`", test_dir);
 
-            let mut sc_specs = SemConvSpecs::default();
+            let mut sc_specs = SemConvRegistry::default();
             for sc_entry in
                 glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
             {
@@ -376,9 +376,12 @@ mod tests {
             }
 
             let mut attr_catalog = AttributeCatalog::default();
-            let observed_registry =
-                resolve_registry(&mut attr_catalog, "https://semconv-registry.com", &sc_specs)
-                    .expect("Failed to resolve registry");
+            let observed_registry = resolve_semconv_registry(
+                &mut attr_catalog,
+                "https://semconv-registry.com",
+                &sc_specs,
+            )
+            .expect("Failed to resolve registry");
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(

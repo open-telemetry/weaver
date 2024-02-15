@@ -10,19 +10,19 @@ use weaver_schema::metric_group::Metric;
 use weaver_schema::schema_spec::SchemaSpec;
 use weaver_schema::univariate_metric::UnivariateMetric;
 use weaver_semconv::group::InstrumentSpec;
-use weaver_semconv::SemConvSpecs;
+use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionChanges;
 
 /// Resolves metrics and their attributes.
 pub fn resolve_metrics(
     schema: &mut SchemaSpec,
-    sem_conv_catalog: &SemConvSpecs,
+    semconv_registry: &SemConvRegistry,
     version_changes: &VersionChanges,
 ) -> Result<(), Error> {
     if let Some(metrics) = schema.resource_metrics.as_mut() {
         metrics.attributes = resolve_attributes(
             metrics.attributes.as_ref(),
-            sem_conv_catalog,
+            semconv_registry,
             version_changes.metric_attribute_changes(),
         )?;
 
@@ -36,14 +36,14 @@ pub fn resolve_metrics(
             {
                 *attributes = resolve_attributes(
                     attributes,
-                    sem_conv_catalog,
+                    semconv_registry,
                     version_changes.metric_attribute_changes(),
                 )?;
-                if let Some(referenced_metric) = sem_conv_catalog.metric(r#ref) {
+                if let Some(referenced_metric) = semconv_registry.metric(r#ref) {
                     let mut inherited_attrs = to_schema_attributes(&referenced_metric.attributes);
                     inherited_attrs = resolve_attributes(
                         &inherited_attrs,
-                        sem_conv_catalog,
+                        semconv_registry,
                         version_changes.metric_attribute_changes(),
                     )?;
                     let merged_attrs = merge_attributes(attributes, &inherited_attrs);
@@ -75,7 +75,7 @@ pub fn resolve_metrics(
             // Resolve metric group attributes
             resolve_attributes(
                 metrics.attributes.as_ref(),
-                sem_conv_catalog,
+                semconv_registry,
                 version_changes.metric_attribute_changes(),
             )?
             .into_iter()
@@ -88,7 +88,7 @@ pub fn resolve_metrics(
             let mut required_shared_attributes = HashSet::new();
             for (i, metric) in metrics.metrics.iter_mut().enumerate() {
                 if let Metric::Ref { r#ref, tags } = metric {
-                    if let Some(referenced_metric) = sem_conv_catalog.metric(r#ref) {
+                    if let Some(referenced_metric) = semconv_registry.metric(r#ref) {
                         let inherited_attrs = referenced_metric.attributes.clone();
 
                         // Initialize all/required_shared_attributes only if first metric.
@@ -143,7 +143,7 @@ pub fn resolve_metrics(
 
             let all_shared_attributes = resolve_attributes(
                 &to_schema_attributes(&all_shared_attributes),
-                sem_conv_catalog,
+                semconv_registry,
                 version_changes.metric_attribute_changes(),
             )?;
             all_shared_attributes

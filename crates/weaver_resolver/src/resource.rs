@@ -5,20 +5,20 @@
 use crate::attribute::resolve_attributes;
 use crate::Error;
 use weaver_schema::schema_spec::SchemaSpec;
-use weaver_semconv::SemConvSpecs;
+use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionChanges;
 
 /// Resolves resource attributes.
 pub fn resolve_resource(
     schema: &mut SchemaSpec,
-    sem_conv_catalog: &SemConvSpecs,
+    semconv_registry: &SemConvRegistry,
     version_changes: &VersionChanges,
 ) -> Result<(), Error> {
     // Resolve resource attributes
     if let Some(res) = schema.resource.as_mut() {
         res.attributes = resolve_attributes(
             res.attributes.as_ref(),
-            sem_conv_catalog,
+            semconv_registry,
             version_changes.log_attribute_changes(),
         )?;
     }
