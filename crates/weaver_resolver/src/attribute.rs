@@ -15,7 +15,7 @@ use weaver_semconv::attribute::{
     PrimitiveOrArrayTypeSpec, RequirementLevelSpec, TemplateTypeSpec, ValueSpec,
 };
 use weaver_semconv::group::ConvTypeSpec;
-use weaver_semconv::SemConvSpecs;
+use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionAttributeChanges;
 
 use crate::{stability, Error};
@@ -237,7 +237,7 @@ impl AttributeCatalog {
 /// attributes.
 pub fn resolve_attributes(
     attributes: &[Attribute],
-    sem_conv_catalog: &weaver_semconv::SemConvSpecs,
+    semconv_registry: &weaver_semconv::SemConvRegistry,
     version_changes: impl VersionAttributeChanges,
 ) -> Result<Vec<Attribute>, Error> {
     let mut resolved_attrs = BTreeMap::new();
@@ -258,7 +258,7 @@ pub fn resolve_attributes(
             tags,
         } = attribute
         {
-            let attrs = sem_conv_catalog
+            let attrs = semconv_registry
                 .attributes(attribute_group_ref, ConvTypeSpec::AttributeGroup)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![attribute_group_ref.clone()],
@@ -271,7 +271,7 @@ pub fn resolve_attributes(
     // Resolve `Attribute::ResourceRef`
     for attribute in attributes.iter() {
         if let Attribute::ResourceRef { resource_ref, tags } = attribute {
-            let attrs = sem_conv_catalog
+            let attrs = semconv_registry
                 .attributes(resource_ref, ConvTypeSpec::Resource)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![resource_ref.clone()],
@@ -284,7 +284,7 @@ pub fn resolve_attributes(
     // Resolve `Attribute::SpanRef`
     for attribute in attributes.iter() {
         if let Attribute::SpanRef { span_ref, tags } = attribute {
-            let attrs = sem_conv_catalog
+            let attrs = semconv_registry
                 .attributes(span_ref, ConvTypeSpec::Span)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![span_ref.clone()],
@@ -297,7 +297,7 @@ pub fn resolve_attributes(
     // Resolve `Attribute::EventRef`
     for attribute in attributes.iter() {
         if let Attribute::EventRef { event_ref, tags } = attribute {
-            let attrs = sem_conv_catalog
+            let attrs = semconv_registry
                 .attributes(event_ref, ConvTypeSpec::Event)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![event_ref.clone()],
@@ -311,7 +311,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::Ref { r#ref, .. } = attribute {
             let normalized_ref = version_changes.get_attribute_name(r#ref);
-            let sem_conv_attr = sem_conv_catalog.attribute(&normalized_ref);
+            let sem_conv_attr = semconv_registry.attribute(&normalized_ref);
             let resolved_attribute = attribute.resolve_from(sem_conv_attr).map_err(|e| {
                 Error::FailToResolveAttributes {
                     ids: vec![r#ref.clone()],
@@ -389,7 +389,7 @@ pub fn merge_attributes(main_attrs: &[Attribute], inherited_attrs: &[Attribute])
 
 /// Converts a semantic convention attribute to a resolved attribute.
 pub fn resolve_attribute(
-    registry: &SemConvSpecs,
+    registry: &SemConvRegistry,
     attr: &AttributeSpec,
 ) -> Result<attribute::Attribute, Error> {
     match attr {

@@ -30,7 +30,7 @@ use theme::ThemeConfig;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_resolver::attribute::AttributeCatalog;
-use weaver_resolver::registry::{resolve_registry, unresolved_registry_from_specs};
+use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
 use weaver_schema::attribute::Attribute;
 use weaver_schema::TelemetrySchema;
@@ -225,14 +225,12 @@ fn search_registry_command2(
     });
 
     let mut attr_catalog = AttributeCatalog::default();
-    let resolved_registry = resolve_registry(
-        unresolved_registry_from_specs(&registry_args.registry, &semconv_specs),
-        &mut attr_catalog,
-    )
-    .unwrap_or_else(|e| {
-        log.error(&format!("{}", e));
-        std::process::exit(1);
-    });
+    let resolved_registry =
+        resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
+            .unwrap_or_else(|e| {
+                log.error(&format!("{}", e));
+                std::process::exit(1);
+            });
 
     dbg!(resolved_registry);
     //dbg!(attr_catalog);

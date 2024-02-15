@@ -4,35 +4,151 @@
 
 use std::collections::HashMap;
 
-use weaver_logger::Logger;
-use weaver_resolved_schema::attribute::{AttributeRef, UnresolvedAttribute};
+use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
-use weaver_resolved_schema::registry::{
-    Group, Registry, TypedGroup, UnresolvedGroup, UnresolvedRegistry,
-};
+use weaver_resolved_schema::registry::{Group, Registry, TypedGroup};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{ConvTypeSpec, GroupSpec};
-use weaver_semconv::{GroupSpecWithProvenance, SemConvSpecs};
+use weaver_semconv::group::ConvTypeSpec;
+use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
-use crate::attribute::{resolve_attribute, AttributeCatalog};
+use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
 use crate::metrics::resolve_instrument;
 use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
 use crate::{Error, UnresolvedReference};
 
-/// Creates a registry from a set of semantic convention specifications.
-/// Note: this function does not resolve references.
+/// A registry containing unresolved groups.
+#[derive(Debug)]
+pub struct UnresolvedRegistry {
+    /// The semantic convention registry containing resolved groups.
+    pub registry: Registry,
+
+    /// List of unresolved groups that belong to the registry.
+    /// The resolution process will progressively move the unresolved groups
+    /// into the registry field once they are resolved.
+    pub groups: Vec<UnresolvedGroup>,
+}
+
+/// A group containing unresolved attributes.
+#[derive(Debug)]
+pub struct UnresolvedGroup {
+    /// The group specification containing resolved attributes and signals.
+    pub group: Group,
+
+    /// List of unresolved attributes that belong to the semantic convention
+    /// group.
+    /// The resolution process will progressively move the unresolved attributes,
+    /// and other signals, into the group field once they are resolved.
+    pub attributes: Vec<UnresolvedAttribute>,
+
+    /// The provenance of the group (URL or path).
+    pub provenance: String,
+}
+
+/// Resolves the semantic convention registry passed as argument and returns
+/// the resolved registry or an error if the resolution process failed.
+///
+/// The resolution process consists of the following steps:
+/// - Resolve all attribute references and apply the overrides when needed.
+/// - Resolve all the `extends` references.
+///
+/// # Arguments
+///
+/// * `attr_catalog` - The attribute catalog to use to resolve the attribute references.
+/// * `registry_url` - The URL of the registry.
+/// * `registry` - The semantic convention registry.
+///
+/// # Returns
+///
+/// This function returns the resolved registry or an error if the resolution process
+/// failed.
 #[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
-pub fn unresolved_registry_from_specs(url: &str, specs: &SemConvSpecs) -> UnresolvedRegistry {
-    let groups = specs
+pub fn resolve_semconv_registry(
+    attr_catalog: &mut AttributeCatalog,
+    registry_url: &str,
+    registry: &SemConvRegistry,
+) -> Result<Registry, Error> {
+    let mut ureg = unresolved_registry_from_specs(registry_url, registry);
+    let mut all_refs_resolved = true;
+
+    all_refs_resolved &= resolve_attribute_references(&mut ureg, attr_catalog);
+    all_refs_resolved &= resolve_extends_references(&mut ureg);
+
+    if !all_refs_resolved {
+        // Process all unresolved references.
+        // An Error::UnresolvedReferences is built and returned.
+        let mut unresolved_refs = vec![];
+        for group in ureg.groups.iter() {
+            if let Some(extends) = group.group.extends.as_ref() {
+                unresolved_refs.push(UnresolvedReference::ExtendsRef {
+                    group_id: group.group.id.clone(),
+                    extends_ref: extends.clone(),
+                    provenance: group.provenance.clone(),
+                });
+            }
+            for attr in group.attributes.iter() {
+                if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
+                    unresolved_refs.push(UnresolvedReference::AttributeRef {
+                        group_id: group.group.id.clone(),
+                        attribute_ref: r#ref.clone(),
+                        provenance: group.provenance.clone(),
+                    });
+                }
+            }
+        }
+        if !unresolved_refs.is_empty() {
+            return Err(Error::UnresolvedReferences {
+                refs: unresolved_refs,
+            });
+        }
+    }
+
+    // Sort the attribute internal references in each group.
+    // This is needed to ensure that the resolved registry is easy to compare
+    // in unit tests.
+    ureg.registry.groups = ureg
+        .groups
+        .into_iter()
+        .map(|mut g| {
+            g.group.attributes.sort();
+            g.group
+        })
+        .collect();
+
+    Ok(ureg.registry)
+}
+
+/// Creates a semantic convention registry from a set of semantic convention
+/// specifications.
+///
+/// This function creates an unresolved registry from the given semantic
+/// convention specifications and registry url.
+///
+/// Note: this function does not resolve references.
+///
+/// # Arguments
+///
+/// * `registry_url` - The URL of the registry.
+/// * `registry` - The semantic convention specifications.
+///
+/// # Returns
+///
+/// This function returns an unresolved registry containing the semantic
+/// convention specifications.
+#[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
+fn unresolved_registry_from_specs(
+    registry_url: &str,
+    registry: &SemConvRegistry,
+) -> UnresolvedRegistry {
+    let groups = registry
         .groups_with_provenance()
         .map(group_from_spec)
         .collect();
 
     UnresolvedRegistry {
         registry: Registry {
-            registry_url: url.to_string(),
+            registry_url: registry_url.to_string(),
             groups: vec![],
         },
         groups,
@@ -85,68 +201,6 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
     }
 }
 
-/// Resolve a semantic convention registry.
-pub fn resolve_semconv_registry(
-    attr_catalog: &mut AttributeCatalog,
-    url: &str,
-    registry: &SemConvSpecs,
-    _log: impl Logger + Sync + Clone,
-) -> Result<Registry, Error> {
-    let groups: Result<Vec<weaver_resolved_schema::registry::Group>, Error> = registry
-        .groups()
-        .map(|group| semconv_to_resolved_group(registry, attr_catalog, group))
-        .collect();
-
-    Ok(Registry {
-        registry_url: url.to_string(),
-        groups: groups?,
-    })
-}
-
-/// Resolve a semantic convention group.
-fn semconv_to_resolved_group(
-    registry: &SemConvSpecs,
-    attr_catalog: &mut AttributeCatalog,
-    group: &GroupSpec,
-) -> Result<Group, Error> {
-    let attr_refs: Result<Vec<AttributeRef>, Error> = group
-        .attributes
-        .iter()
-        .map(|attr| Ok(attr_catalog.attribute_ref(resolve_attribute(registry, attr)?)))
-        .collect();
-
-    Ok(Group {
-        id: group.id.clone(),
-        typed_group: match group.r#type {
-            ConvTypeSpec::AttributeGroup => TypedGroup::AttributeGroup {},
-            ConvTypeSpec::Span => TypedGroup::Span {
-                span_kind: group.span_kind.as_ref().map(resolve_span_kind),
-                events: group.events.clone(),
-            },
-            ConvTypeSpec::Event => TypedGroup::Event {
-                name: group.name.clone(),
-            },
-            ConvTypeSpec::Metric => TypedGroup::Metric {
-                metric_name: group.metric_name.clone(),
-                instrument: group.instrument.as_ref().map(resolve_instrument),
-                unit: group.unit.clone(),
-            },
-            ConvTypeSpec::MetricGroup => TypedGroup::MetricGroup {},
-            ConvTypeSpec::Resource => TypedGroup::Resource {},
-            ConvTypeSpec::Scope => TypedGroup::Scope {},
-        },
-        brief: group.brief.to_string(),
-        note: group.note.to_string(),
-        prefix: group.prefix.to_string(),
-        extends: group.extends.clone(),
-        stability: resolve_stability(&group.stability),
-        deprecated: group.deprecated.clone(),
-        constraints: resolve_constraints(&group.constraints),
-        attributes: attr_refs?,
-        lineage: None,
-    })
-}
-
 /// Resolves attribute references in the given registry.
 /// The resolution process is iterative. The process stops when all the
 /// attribute references are resolved or when no attribute reference could
@@ -156,7 +210,7 @@ fn semconv_to_resolved_group(
 /// attribute references.
 ///
 /// Returns true if all the attribute references could be resolved.
-pub fn resolve_attribute_references(
+fn resolve_attribute_references(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &mut AttributeCatalog,
 ) -> bool {
@@ -213,7 +267,7 @@ pub fn resolve_attribute_references(
 /// be resolved in an iteration.
 ///
 /// Returns true if all the `extends` references could be resolved.
-pub fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
+fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
     loop {
         let mut unresolved_extends_count = 0;
         let mut resolved_extends_count = 0;
@@ -269,74 +323,16 @@ pub fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
     true
 }
 
-/// Resolves the registry by resolving all groups and attributes.
-/// The resolution process consists of the following steps:
-/// - Resolve all attribute references and apply the overrides when needed.
-/// - Resolve all the `extends` references.
-#[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
-pub fn resolve_registry(
-    mut ureg: UnresolvedRegistry,
-    attr_catalog: &mut AttributeCatalog,
-) -> Result<Registry, Error> {
-    let mut all_refs_resolved = true;
-
-    all_refs_resolved &= resolve_attribute_references(&mut ureg, attr_catalog);
-    all_refs_resolved &= resolve_extends_references(&mut ureg);
-
-    if !all_refs_resolved {
-        // Process all unresolved references.
-        // An Error::UnresolvedReferences is built and returned.
-        let mut unresolved_refs = vec![];
-        for group in ureg.groups.iter() {
-            if let Some(extends) = group.group.extends.as_ref() {
-                unresolved_refs.push(UnresolvedReference::ExtendsRef {
-                    group_id: group.group.id.clone(),
-                    extends_ref: extends.clone(),
-                    provenance: group.provenance.clone(),
-                });
-            }
-            for attr in group.attributes.iter() {
-                if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
-                    unresolved_refs.push(UnresolvedReference::AttributeRef {
-                        group_id: group.group.id.clone(),
-                        attribute_ref: r#ref.clone(),
-                        provenance: group.provenance.clone(),
-                    });
-                }
-            }
-        }
-        if !unresolved_refs.is_empty() {
-            return Err(Error::UnresolvedReferences {
-                refs: unresolved_refs,
-            });
-        }
-    }
-
-    // Sort the attribute internal references in each group.
-    // This is needed to ensure that the resolved registry is easy to compare
-    // in unit tests.
-    ureg.registry.groups = ureg
-        .groups
-        .into_iter()
-        .map(|mut g| {
-            g.group.attributes.sort();
-            g.group
-        })
-        .collect();
-
-    Ok(ureg.registry)
-}
-
 #[cfg(test)]
 mod tests {
     use glob::glob;
 
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::Registry;
-    use weaver_semconv::SemConvSpecs;
+    use weaver_semconv::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
-    use crate::registry::{resolve_registry, unresolved_registry_from_specs};
+    use crate::registry::resolve_semconv_registry;
 
     /// Test the resolution of semantic convention registries stored in the
     /// data directory.
@@ -362,7 +358,7 @@ mod tests {
 
             println!("Testing `{}`", test_dir);
 
-            let mut sc_specs = SemConvSpecs::default();
+            let mut sc_specs = SemConvRegistry::default();
             for sc_entry in
                 glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
             {
@@ -380,9 +376,10 @@ mod tests {
             }
 
             let mut attr_catalog = AttributeCatalog::default();
-            let observed_registry = resolve_registry(
-                unresolved_registry_from_specs("https://semconv-registry.com", &sc_specs),
+            let observed_registry = resolve_semconv_registry(
                 &mut attr_catalog,
+                "https://semconv-registry.com",
+                &sc_specs,
             )
             .expect("Failed to resolve registry");
 
