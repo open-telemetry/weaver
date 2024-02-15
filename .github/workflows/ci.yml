@@ -132,7 +132,7 @@ jobs:
         with:
           # cargo check-external-types is only available on this specific nightly
           toolchain: nightly-2023-10-10
-      - uses: Swatinem/rust-cache@v2
+      #- uses: Swatinem/rust-cache@v2
       - name: check-external-types
         run: |
           cargo install cargo-check-external-types
