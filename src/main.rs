@@ -11,6 +11,7 @@ mod gen_client;
 mod languages;
 mod resolve;
 mod search;
+mod check;
 
 fn main() {
     let cli = Cli::parse();
@@ -28,6 +29,9 @@ fn main() {
         }
         Some(Commands::Search(params)) => {
             search::command_search(log, params);
+        }
+        Some(Commands::Check(params)) => {
+            check::command_check(log, params);
         }
         None => {}
     }

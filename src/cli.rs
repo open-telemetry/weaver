@@ -7,6 +7,7 @@ use crate::languages::LanguagesParams;
 use crate::resolve::ResolveCommand;
 use crate::search::SearchCommand;
 use clap::{Parser, Subcommand};
+use crate::check::CheckCommand;
 
 /// Command line arguments.
 #[derive(Parser)]
@@ -32,4 +33,6 @@ pub enum Commands {
     Languages(LanguagesParams),
     /// Search in a semantic convention registry or a telemetry schema
     Search(SearchCommand),
+    /// Check a semantic convention registry or a telemetry schema
+    Check(CheckCommand),
 }
