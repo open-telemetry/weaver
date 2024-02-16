@@ -49,7 +49,7 @@ weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
 
-clap = { version = "4.5.0", features = ["derive"] }
+clap = { version = "4.5.1", features = ["derive"] }
 crossterm = "0.27.0"
 ratatui = "0.26.1"
 tui-textarea = "0.4.0"
