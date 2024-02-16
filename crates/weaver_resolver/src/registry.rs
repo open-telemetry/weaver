@@ -63,7 +63,6 @@ pub struct UnresolvedGroup {
 ///
 /// This function returns the resolved registry or an error if the resolution process
 /// failed.
-#[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
 pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
@@ -136,7 +135,6 @@ pub fn resolve_semconv_registry(
 ///
 /// This function returns an unresolved registry containing the semantic
 /// convention specifications.
-#[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
 fn unresolved_registry_from_specs(
     registry_url: &str,
     registry: &SemConvRegistry,
