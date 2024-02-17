@@ -3,9 +3,9 @@ name = "weaver"
 version = "0.1.0"
 authors = ["Laurent Querel <l.querel@f5.com>"]
 edition = "2021"
-repository = "https://github.com/f5/otel-weaver"
-description = "OTel Weaver - A Schema-Driven Client SDK Generator for OpenTelemetry"
-keywords = ["opentelemetry", "client", "schema", "arrow", "generator"]
+repository = "https://github.com/open-telemetry/weaver"
+description = "Manage semantic convention registry and telemetry schema workflows (OpenTelemetry Project)"
+keywords = ["opentelemetry", "semconv", "schema", "registry", "generator"]
 categories = ["command-line-utilities"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -29,10 +29,14 @@ serde = { version = "1.0.196", features = ["derive"] }
 serde_yaml = "0.9.31"
 serde_json = "1.0.113"
 thiserror = "1.0.56"
-ureq = "2.9.5"
+ureq = "2.9.6"
 regex = "1.10.3"
 rayon = "1.8.1"
 ordered-float = { version = "4.2.0", features = ["serde"] }
+
+# Features definition =========================================================
+[features]
+experimental = []
 
 # Crate definitions ===========================================================
 [[bin]]
@@ -49,7 +53,7 @@ weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
 
-clap = { version = "4.5.0", features = ["derive"] }
+clap = { version = "4.5.1", features = ["derive"] }
 crossterm = "0.27.0"
 ratatui = "0.26.1"
 tui-textarea = "0.4.0"

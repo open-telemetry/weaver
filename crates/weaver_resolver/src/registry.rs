@@ -63,7 +63,6 @@ pub struct UnresolvedGroup {
 ///
 /// This function returns the resolved registry or an error if the resolution process
 /// failed.
-#[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
 pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
@@ -136,7 +135,6 @@ pub fn resolve_semconv_registry(
 ///
 /// This function returns an unresolved registry containing the semantic
 /// convention specifications.
-#[allow(dead_code)] // ToDo remove this once this function is called from the CLI.
 fn unresolved_registry_from_specs(
     registry_url: &str,
     registry: &SemConvRegistry,
@@ -376,12 +374,9 @@ mod tests {
             }
 
             let mut attr_catalog = AttributeCatalog::default();
-            let observed_registry = resolve_semconv_registry(
-                &mut attr_catalog,
-                "https://semconv-registry.com",
-                &sc_specs,
-            )
-            .expect("Failed to resolve registry");
+            let observed_registry =
+                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+                    .expect("Failed to resolve registry");
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
@@ -424,5 +419,3 @@ mod tests {
         }
     }
 }
-
-// ToDo Remove #[allow(dead_code)] once the corresponding functions are called from the CLI.
