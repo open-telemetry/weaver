@@ -1,5 +1,5 @@
 {
-  "registry_url": "https://semconv-registry.com",
+  "registry_url": "https://127.0.0.1",
   "groups": [
     {
       "id": "attributes.http.common",

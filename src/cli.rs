@@ -2,12 +2,16 @@
 
 //! Manage command line arguments
 
+#[cfg(feature = "experimental")]
 use crate::gen_client::GenClientCommand;
+#[cfg(feature = "experimental")]
 use crate::languages::LanguagesParams;
+use crate::registry::RegistryCommand;
+#[cfg(feature = "experimental")]
 use crate::resolve::ResolveCommand;
+#[cfg(feature = "experimental")]
 use crate::search::SearchCommand;
 use clap::{Parser, Subcommand};
-use crate::check::CheckCommand;
 
 /// Command line arguments.
 #[derive(Parser)]
@@ -26,13 +30,17 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Resolve a semantic convention registry or a telemetry schema
+    #[cfg(feature = "experimental")]
     Resolve(ResolveCommand),
     /// Generate a client SDK or client API
+    #[cfg(feature = "experimental")]
     GenClient(GenClientCommand),
     /// List all supported languages
+    #[cfg(feature = "experimental")]
     Languages(LanguagesParams),
     /// Search in a semantic convention registry or a telemetry schema
+    #[cfg(feature = "experimental")]
     Search(SearchCommand),
-    /// Check a semantic convention registry or a telemetry schema
-    Check(CheckCommand),
+    /// Manage Semantic Convention Registry
+    Registry(RegistryCommand),
 }

@@ -10,9 +10,10 @@
 
 OpenTelemetry Weaver is a CLI tool that enables users to:
 
-- Search for and retrieve information from a semantic convention registry or a telemetry schema.
-- Resolve a semantic convention registry or a telemetry schema.
-- Generate a client SDK/API from a telemetry schema.
+- Manage Semantic Convention Registries: check, generate, resolve, search, stats commands.
+- Manage Telemetry Schemas: check, generate, resolve, search, stats commands.
+
+Note: Telemetry Schema commands are only available with the --features experimental flag.
 
 ## Install
 
@@ -36,14 +37,13 @@ for debug mode or the `target/release` directory for release mode.
 ## Usage
 
 ```
+Manage semantic convention registry and telemetry schema workflows (OpenTelemetry Project)
+
 Usage: weaver [OPTIONS] [COMMAND]
 
 Commands:
-  resolve     Resolve a semantic convention registry or a telemetry schema
-  gen-client  Generate a client SDK or client API
-  languages   List all supported languages
-  search      Search in a semantic convention registry or a telemetry schema
-  help        Print this message or the help of the given subcommand(s)
+  registry  Manage Semantic Convention Registry
+  help      Print this message or the help of the given subcommand(s)
 
 Options:
   -d, --debug...  Turn debugging information on
@@ -51,7 +51,28 @@ Options:
   -V, --version   Print version
 ```
 
-### Command `search`
+### Command `registry`
+
+This command provides subcommands to manage semantic convention registries.
+
+```
+Manage Semantic Convention Registry
+
+Usage: weaver registry <COMMAND>
+
+Commands:
+  check     Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints)
+  generate  Generates documentation or code for a registry (not yet implemented)
+  resolve   Resolves a registry (not yet implemented)
+  search    Searches a registry (not yet implemented)
+  stats     Calculate and display a set of general statistics on a registry (not yet implemented)
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
+
+### Command `search` (Experimental)
 
 This command provides an interactive terminal UI, allowing users to search for
 attributes and metrics specified within a given semantic convention registry or
@@ -74,7 +95,7 @@ This search engine leverages [Tantivy](https://github.com/quickwit-oss/tantivy)
 and supports a simple [search syntax](https://docs.rs/tantivy/latest/tantivy/query/struct.QueryParser.html)
 in the search bar.
 
-### Command `resolve`
+### Command `resolve` (Experimental)
 
 This command resolves a schema or a semantic convention registry (not yet
 implemented) and displays the result on the standard output.
@@ -91,7 +112,7 @@ A "resolved schema" is one where:
 - All overrides have been applied.
 - This resolved schema is what the code generator and upcoming plugins utilize.
 
-### Command `gen-client`
+### Command `gen-client` (Experimental)
 
 This command generates a client SDK from a telemetry schema for a given language
 specified with the `--language` option.
@@ -103,7 +124,7 @@ weaver gen-client --schema telemetry-schema.yaml --language go
 In the future, users will be able to specify the protocol to use for the generated
 client SDK (i.e. OTLP or OTel Arrow Protocol) and few others options.
 
-### Command `languages`
+### Command `languages` (Experimental)
 
 This command displays all the languages for which a client SDK/API can
 be generated.

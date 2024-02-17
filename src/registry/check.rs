@@ -2,12 +2,23 @@
 
 //! Check a semantic convention registry.
 
+use clap::Args;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
-use crate::check::CheckRegistry;
+
+/// Parameters for the `registry check` sub-command
+#[derive(Debug, Args)]
+pub struct CheckRegistry {
+    /// Local path or Git URL of the semantic convention registry to check.
+    pub registry: String,
+
+    /// Optional path in the Git repository where the semantic convention
+    /// registry is located
+    pub path: Option<String>,
+}
 
 /// Check a semantic convention registry.
 pub(crate) fn check_registry_command(
@@ -22,20 +33,22 @@ pub(crate) fn check_registry_command(
     let semconv_specs = SchemaResolver::load_semconv_registry(
         registry_args.registry.to_string(),
         registry_args.path.clone(),
-        &cache,
+        cache,
         log.clone(),
     )
-        .unwrap_or_else(|e| {
-            panic!("Failed to load and parse the semantic convention registry, error: {e}");
-        });
+    .unwrap_or_else(|e| {
+        panic!("Failed to load and parse the semantic convention registry, error: {e}");
+    });
 
     // Resolve the semantic convention registry.
     let mut attr_catalog = AttributeCatalog::default();
-    let _ =
-        resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
-            .unwrap_or_else(|e| {
-                panic!("Failed to resolve the semantic convention registry, error: {e}");
-            });
+    let _ = resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
+        .unwrap_or_else(|e| {
+            panic!("Failed to resolve the semantic convention registry, error: {e}");
+        });
 
-    log.success(&format!("Registry `{}` checked successfully", registry_args.registry));
+    log.success(&format!(
+        "Registry `{}` checked successfully",
+        registry_args.registry
+    ));
 }
