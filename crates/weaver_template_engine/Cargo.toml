@@ -1,0 +1,11 @@
+[package]
+name = "weaver_template_engine"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+
+[dependencies]
+minijinja = "1.0.12"
