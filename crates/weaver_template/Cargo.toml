@@ -14,7 +14,7 @@ weaver_schema = { path = "../weaver_schema" }
 weaver_cache = { path = "../weaver_cache" }
 
 tera = "1.19.1"
-textwrap = "0.16.0"
+textwrap = "0.16.1"
 glob = "0.3.1"
 convert_case = "0.6.0"
 thread_local = "1.1.7"
