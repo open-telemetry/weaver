@@ -17,7 +17,7 @@ tera = "1.19.1"
 textwrap = "0.16.1"
 glob = "0.3.1"
 convert_case = "0.6.0"
-thread_local = "1.1.7"
+thread_local = "1.1.8"
 
 thiserror.workspace = true
 serde.workspace = true
