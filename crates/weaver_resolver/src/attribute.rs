@@ -61,7 +61,10 @@ impl AttributeCatalog {
         let mut attributes: Vec<(&attribute::Attribute, &AttributeRef)> =
             self.attribute_refs.iter().collect();
         attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
-        attributes.iter().map(|(attr, _)| attr.name.clone()).collect()
+        attributes
+            .iter()
+            .map(|(attr, _)| attr.name.clone())
+            .collect()
     }
 
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.

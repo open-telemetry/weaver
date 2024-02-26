@@ -29,7 +29,7 @@ use weaver_version::VersionChanges;
 use crate::attribute::AttributeCatalog;
 use crate::events::resolve_events;
 use crate::metrics::{resolve_metrics, semconv_to_resolved_metric};
-use crate::registry::{resolve_semconv_registry};
+use crate::registry::resolve_semconv_registry;
 use crate::resource::resolve_resource;
 use crate::spans::resolve_spans;
 
@@ -153,7 +153,7 @@ pub enum Error {
     #[error("Attribute ref `{attribute_ref:?}` not found in the catalog.")]
     UnresolvedAttribute {
         /// The unresolved attribute reference.
-        attribute_ref: AttributeRef
+        attribute_ref: AttributeRef,
     },
 }
 

@@ -36,6 +36,8 @@ impl Catalog {
     /// Returns the attribute name from an attribute ref if it exists
     /// in the catalog or None if it does not exist.
     pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<String> {
-        self.attributes.get(attribute_ref.0 as usize).map(|attr| attr.name.clone())
+        self.attributes
+            .get(attribute_ref.0 as usize)
+            .map(|attr| attr.name.clone())
     }
 }

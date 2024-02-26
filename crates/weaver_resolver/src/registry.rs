@@ -7,16 +7,16 @@ use std::collections::{HashMap, HashSet};
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry, TypedGroup};
-use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::ConvTypeSpec;
+use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
-use crate::{Error, UnresolvedReference};
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
 use crate::metrics::resolve_instrument;
 use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
+use crate::{Error, UnresolvedReference};
 
 /// A registry containing unresolved groups.
 #[derive(Debug)]
@@ -52,6 +52,8 @@ pub struct UnresolvedGroup {
 /// The resolution process consists of the following steps:
 /// - Resolve all attribute references and apply the overrides when needed.
 /// - Resolve all the `extends` references.
+/// - Resolve all the `include` constraints (i.e. inherit required attributes
+///   and any new `any_of` constraints).
 /// - Check the `any_of` constraints and return an error if the constraints
 ///   are not satisfied.
 ///
@@ -134,25 +136,39 @@ pub fn resolve_semconv_registry(
 ///
 /// This function returns `Ok(())` if all the `any_of` constraints are satisfied.
 /// Otherwise, it returns the error `Error::UnsatisfiedAnyOfConstraint`.
-pub fn check_any_of_constraints(registry: &Registry, attr_name_index: &[String]) -> Result<(), Error> {
+pub fn check_any_of_constraints(
+    registry: &Registry,
+    attr_name_index: &[String],
+) -> Result<(), Error> {
     for group in registry.groups.iter() {
         // Build a list of attribute names for the group.
         let mut group_attr_names = HashSet::new();
         for attr_ref in group.attributes.iter() {
-            let attr_name = attr_name_index.get(attr_ref.0 as usize).ok_or(Error::UnresolvedAttribute {
-                attribute_ref: *attr_ref,
-            })?;
+            let attr_name =
+                attr_name_index
+                    .get(attr_ref.0 as usize)
+                    .ok_or(Error::UnresolvedAttribute {
+                        attribute_ref: *attr_ref,
+                    })?;
             group_attr_names.insert(attr_name.clone());
         }
 
-        check_group_any_of_constraints(group.id.as_ref(), group_attr_names, group.constraints.as_ref())?;
+        check_group_any_of_constraints(
+            group.id.as_ref(),
+            group_attr_names,
+            group.constraints.as_ref(),
+        )?;
     }
 
     Ok(())
 }
 
 /// Checks the `any_of` constraints for the given group.
-fn check_group_any_of_constraints(group_id: &str, group_attr_names: HashSet<String>, constraints: &[Constraint]) -> Result<(), Error> {
+fn check_group_any_of_constraints(
+    group_id: &str,
+    group_attr_names: HashSet<String>,
+    constraints: &[Constraint],
+) -> Result<(), Error> {
     let mut any_of_unsatisfied = 0;
     let mut any_of_total = 0;
     let mut any_of_constraints = vec![];
@@ -174,7 +190,10 @@ fn check_group_any_of_constraints(group_id: &str, group_attr_names: HashSet<Stri
         }
     }
     if any_of_total > 0 && any_of_total == any_of_unsatisfied {
-        let group_attributes: Vec<String> = group_attr_names.iter().map(|name| name.to_string()).collect();
+        let group_attributes: Vec<String> = group_attr_names
+            .iter()
+            .map(|name| name.to_string())
+            .collect();
         return Err(Error::UnsatisfiedAnyOfConstraint {
             group_id: group_id.to_string(),
             group_attributes,
@@ -426,7 +445,7 @@ mod tests {
 
             let mut sc_specs = SemConvRegistry::default();
             for sc_entry in
-            glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
+                glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
             {
                 let path_buf = sc_entry.expect("Failed to read semconv file");
                 let semconv_file = path_buf
@@ -451,12 +470,12 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
                     .expect("Failed to open expected attribute catalog"),
             )
-                .expect("Failed to deserialize expected attribute catalog");
+            .expect("Failed to deserialize expected attribute catalog");
             let expected_registry: Registry = serde_json::from_reader(
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
-                .expect("Failed to deserialize expected registry");
+            .expect("Failed to deserialize expected registry");
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
@@ -496,12 +515,20 @@ mod tests {
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and no constraint.
-        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string()].into_iter().collect();
+        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string()]
+            .into_iter()
+            .collect();
         let constraints = vec![];
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and multiple constraints (all satisfiable).
-        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string(), "attr3".to_string()].into_iter().collect();
+        let group_attr_names = vec![
+            "attr1".to_string(),
+            "attr2".to_string(),
+            "attr3".to_string(),
+        ]
+        .into_iter()
+        .collect();
         let constraints = vec![
             Constraint {
                 any_of: vec!["attr1".to_string(), "attr2".to_string()],
@@ -519,7 +546,13 @@ mod tests {
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and multiple constraints (one unsatisfiable).
-        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string(), "attr3".to_string()].into_iter().collect();
+        let group_attr_names = vec![
+            "attr1".to_string(),
+            "attr2".to_string(),
+            "attr3".to_string(),
+        ]
+        .into_iter()
+        .collect();
         let constraints = vec![
             Constraint {
                 any_of: vec!["attr4".to_string()],
