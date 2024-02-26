@@ -2,21 +2,21 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
-use weaver_resolved_schema::registry::{Group, Registry, TypedGroup};
+use weaver_resolved_schema::registry::{Constraint, Group, Registry, TypedGroup};
+use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::ConvTypeSpec;
-use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
+use crate::{Error, UnresolvedReference};
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
 use crate::metrics::resolve_instrument;
 use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
-use crate::{Error, UnresolvedReference};
 
 /// A registry containing unresolved groups.
 #[derive(Debug)]
@@ -52,6 +52,8 @@ pub struct UnresolvedGroup {
 /// The resolution process consists of the following steps:
 /// - Resolve all attribute references and apply the overrides when needed.
 /// - Resolve all the `extends` references.
+/// - Check the `any_of` constraints and return an error if the constraints
+///   are not satisfied.
 ///
 /// # Arguments
 ///
@@ -115,7 +117,71 @@ pub fn resolve_semconv_registry(
         })
         .collect();
 
+    let attr_name_index = attr_catalog.attribute_name_index();
+    check_any_of_constraints(&ureg.registry, &attr_name_index)?;
+
     Ok(ureg.registry)
+}
+
+/// Checks the `any_of` constraints in the given registry.
+///
+/// # Arguments
+///
+/// * `registry` - The registry to check.
+/// * `attr_name_index` - The index of attribute names (catalog).
+///
+/// # Returns
+///
+/// This function returns `Ok(())` if all the `any_of` constraints are satisfied.
+/// Otherwise, it returns the error `Error::UnsatisfiedAnyOfConstraint`.
+pub fn check_any_of_constraints(registry: &Registry, attr_name_index: &[String]) -> Result<(), Error> {
+    for group in registry.groups.iter() {
+        // Build a list of attribute names for the group.
+        let mut group_attr_names = HashSet::new();
+        for attr_ref in group.attributes.iter() {
+            let attr_name = attr_name_index.get(attr_ref.0 as usize).ok_or(Error::UnresolvedAttribute {
+                attribute_ref: *attr_ref,
+            })?;
+            group_attr_names.insert(attr_name.clone());
+        }
+
+        check_group_any_of_constraints(group.id.as_ref(), group_attr_names, group.constraints.as_ref())?;
+    }
+
+    Ok(())
+}
+
+/// Checks the `any_of` constraints for the given group.
+fn check_group_any_of_constraints(group_id: &str, group_attr_names: HashSet<String>, constraints: &[Constraint]) -> Result<(), Error> {
+    let mut any_of_unsatisfied = 0;
+    let mut any_of_total = 0;
+    let mut any_of_constraints = vec![];
+    'outer: for constraint in constraints.iter() {
+        if constraint.any_of.is_empty() {
+            continue;
+        }
+        any_of_total += 1;
+
+        // Check if the group satisfies the `any_of` constraint.
+        any_of_constraints.push(constraint.any_of.clone());
+        for attr_name in constraint.any_of.iter() {
+            if !group_attr_names.contains(attr_name) {
+                // The any_of constraint is not satisfied.
+                // Continue to the next constraint.
+                any_of_unsatisfied += 1;
+                continue 'outer;
+            }
+        }
+    }
+    if any_of_total > 0 && any_of_total == any_of_unsatisfied {
+        let group_attributes: Vec<String> = group_attr_names.iter().map(|name| name.to_string()).collect();
+        return Err(Error::UnsatisfiedAnyOfConstraint {
+            group_id: group_id.to_string(),
+            group_attributes,
+            any_of_constraints,
+        });
+    }
+    Ok(())
 }
 
 /// Creates a semantic convention registry from a set of semantic convention
@@ -323,14 +389,16 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use glob::glob;
 
     use weaver_resolved_schema::attribute;
-    use weaver_resolved_schema::registry::Registry;
+    use weaver_resolved_schema::registry::{Constraint, Registry};
     use weaver_semconv::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
-    use crate::registry::resolve_semconv_registry;
+    use crate::registry::{check_group_any_of_constraints, resolve_semconv_registry};
 
     /// Test the resolution of semantic convention registries stored in the
     /// data directory.
@@ -358,7 +426,7 @@ mod tests {
 
             let mut sc_specs = SemConvRegistry::default();
             for sc_entry in
-                glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
+            glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
             {
                 let path_buf = sc_entry.expect("Failed to read semconv file");
                 let semconv_file = path_buf
@@ -383,12 +451,12 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
                     .expect("Failed to open expected attribute catalog"),
             )
-            .expect("Failed to deserialize expected attribute catalog");
+                .expect("Failed to deserialize expected attribute catalog");
             let expected_registry: Registry = serde_json::from_reader(
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
-            .expect("Failed to deserialize expected registry");
+                .expect("Failed to deserialize expected registry");
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
@@ -417,5 +485,54 @@ mod tests {
             let yaml = serde_yaml::to_string(&observed_registry).unwrap();
             println!("{}", yaml);
         }
+    }
+
+    /// Test the validation of the `any_of` constraints in a group.
+    #[test]
+    fn test_check_group_any_of_constraints() -> Result<(), crate::Error> {
+        // No attribute and no constraint.
+        let group_attr_names = HashSet::new();
+        let constraints = vec![];
+        check_group_any_of_constraints("group", group_attr_names, &constraints)?;
+
+        // Attributes and no constraint.
+        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string()].into_iter().collect();
+        let constraints = vec![];
+        check_group_any_of_constraints("group", group_attr_names, &constraints)?;
+
+        // Attributes and multiple constraints (all satisfiable).
+        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string(), "attr3".to_string()].into_iter().collect();
+        let constraints = vec![
+            Constraint {
+                any_of: vec!["attr1".to_string(), "attr2".to_string()],
+                include: None,
+            },
+            Constraint {
+                any_of: vec!["attr3".to_string()],
+                include: None,
+            },
+            Constraint {
+                any_of: vec![],
+                include: None,
+            },
+        ];
+        check_group_any_of_constraints("group", group_attr_names, &constraints)?;
+
+        // Attributes and multiple constraints (one unsatisfiable).
+        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string(), "attr3".to_string()].into_iter().collect();
+        let constraints = vec![
+            Constraint {
+                any_of: vec!["attr4".to_string()],
+                include: None,
+            },
+            Constraint {
+                any_of: vec![],
+                include: None,
+            },
+        ];
+        let result = check_group_any_of_constraints("group", group_attr_names, &constraints);
+        assert!(result.is_err());
+
+        Ok(())
     }
 }

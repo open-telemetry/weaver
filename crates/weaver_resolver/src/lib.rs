@@ -17,18 +17,19 @@ use regex::Regex;
 use url::Url;
 use walkdir::DirEntry;
 
-use crate::attribute::AttributeCatalog;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
+use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::{SemConvImport, TelemetrySchema};
 use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
 use weaver_version::VersionChanges;
 
+use crate::attribute::AttributeCatalog;
 use crate::events::resolve_events;
 use crate::metrics::{resolve_metrics, semconv_to_resolved_metric};
-use crate::registry::resolve_semconv_registry;
+use crate::registry::{resolve_semconv_registry};
 use crate::resource::resolve_resource;
 use crate::spans::resolve_spans;
 
@@ -135,6 +136,24 @@ pub enum Error {
     ConversionError {
         /// The error that occurred.
         message: String,
+    },
+
+    /// The `any_of` constraints are unsatisfied for a group.
+    #[error("The `any_of` constraints are unsatisfied for the group '{group_id}'.\nGroup attributes: {group_attributes:#?}\n`any_of` constraints: {any_of_constraints:#?}")]
+    UnsatisfiedAnyOfConstraint {
+        /// The id of the group containing the unsatisfied `any_of` constraint.
+        group_id: String,
+        /// The attributes of the group.
+        group_attributes: Vec<String>,
+        /// The `any_of` constraints of the group.
+        any_of_constraints: Vec<Vec<String>>,
+    },
+
+    /// Attribute ref not found in the catalog.
+    #[error("Attribute ref `{attribute_ref:?}` not found in the catalog.")]
+    UnresolvedAttribute {
+        /// The unresolved attribute reference.
+        attribute_ref: AttributeRef
     },
 }
 
@@ -380,14 +399,16 @@ impl SchemaResolver {
             .map(semconv_to_resolved_metric)
             .collect();
 
+        let catalog = Catalog {
+            attributes: attr_catalog.drain_attributes(),
+            metrics,
+        };
+
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "1.0.0".to_string(),
             schema_url: "".to_string(),
             registries: vec![resolved_registry],
-            catalog: Catalog {
-                attributes: attr_catalog.drain_attributes(),
-                metrics,
-            },
+            catalog,
             resource: None,
             instrumentation_library: None,
             dependencies: vec![],

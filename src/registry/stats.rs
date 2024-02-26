@@ -47,7 +47,7 @@ pub(crate) fn stats_registry_command(
     let mut attr_catalog = AttributeCatalog::default();
     let _ = resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
         .unwrap_or_else(|e| {
-            panic!("Failed to resolve the semantic convention registry, error: {e}");
+            panic!("Failed to resolve the semantic convention registry.\n{e}");
         });
 
     // ToDo display statistics
