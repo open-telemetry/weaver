@@ -125,7 +125,7 @@ pub enum TypedGroup {
 }
 
 /// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Constraint {
     /// any_of accepts a list of sequences. Each sequence contains a list of
@@ -169,5 +169,13 @@ impl Group {
         self.constraints.retain(|c| {
             c.include.is_none() || !include_to_remove.contains(c.include.as_ref().unwrap())
         });
+    }
+
+    /// Returns the provenance of the group.
+    pub fn provenance(&self) -> &str {
+        match &self.lineage {
+            Some(lineage) => lineage.provenance(),
+            None => "unknown",
+        }
     }
 }

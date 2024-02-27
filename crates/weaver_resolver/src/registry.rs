@@ -2,8 +2,9 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+
+use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
@@ -17,7 +18,7 @@ use crate::constraint::resolve_constraints;
 use crate::metrics::resolve_instrument;
 use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
-use crate::{Error, UnresolvedReference};
+use crate::{Error, UnresolvedReference, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -161,17 +162,22 @@ pub fn check_any_of_constraints(
     registry: &Registry,
     attr_name_index: &[String],
 ) -> Result<(), Error> {
+    let mut unresolved_refs = vec![];
+
     for group in registry.groups.iter() {
         // Build a list of attribute names for the group.
         let mut group_attr_names = HashSet::new();
         for attr_ref in group.attributes.iter() {
-            let attr_name =
-                attr_name_index
-                    .get(attr_ref.0 as usize)
-                    .ok_or(Error::UnresolvedAttribute {
-                        attribute_ref: *attr_ref,
-                    })?;
-            group_attr_names.insert(attr_name.clone());
+            match attr_name_index.get(attr_ref.0 as usize) {
+                None => unresolved_refs.push(UnresolvedReference::AttributeRef {
+                    group_id: group.id.clone(),
+                    attribute_ref: attr_ref.0.to_string(),
+                    provenance: group.provenance().to_string(),
+                }),
+                Some(attr_name) => {
+                    group_attr_names.insert(attr_name.clone());
+                }
+            }
         }
 
         check_group_any_of_constraints(
@@ -179,6 +185,12 @@ pub fn check_any_of_constraints(
             group_attr_names,
             group.constraints.as_ref(),
         )?;
+    }
+
+    if !unresolved_refs.is_empty() {
+        return Err(Error::UnresolvedReferences {
+            refs: unresolved_refs,
+        });
     }
 
     Ok(())
@@ -190,35 +202,38 @@ fn check_group_any_of_constraints(
     group_attr_names: HashSet<String>,
     constraints: &[Constraint],
 ) -> Result<(), Error> {
-    let mut any_of_unsatisfied = 0;
-    let mut any_of_total = 0;
-    let mut any_of_constraints = vec![];
-    'outer: for constraint in constraints.iter() {
+    let mut unsatisfied_any_of_constraints: HashMap<&Constraint, Vec<String>> = HashMap::new();
+
+    for constraint in constraints.iter() {
         if constraint.any_of.is_empty() {
             continue;
         }
-        any_of_total += 1;
 
         // Check if the group satisfies the `any_of` constraint.
-        any_of_constraints.push(constraint.any_of.clone());
-        for attr_name in constraint.any_of.iter() {
-            if !group_attr_names.contains(attr_name) {
-                // The any_of constraint is not satisfied.
-                // Continue to the next constraint.
-                any_of_unsatisfied += 1;
-                continue 'outer;
-            }
+        if let Some(attr) = constraint
+            .any_of
+            .iter()
+            .find(|name| !group_attr_names.contains(*name))
+        {
+            // The any_of constraint is not satisfied.
+            // Insert the attribute into the list of missing attributes for the
+            // constraint.
+            unsatisfied_any_of_constraints
+                .entry(constraint)
+                .or_default()
+                .push(attr.clone());
         }
     }
-    if any_of_total > 0 && any_of_total == any_of_unsatisfied {
-        let group_attributes: Vec<String> = group_attr_names
-            .iter()
-            .map(|name| name.to_string())
-            .collect();
-        return Err(Error::UnsatisfiedAnyOfConstraint {
+    if !unsatisfied_any_of_constraints.is_empty() {
+        return Err(Error::UnsatisfiedAnyOfConstraints {
             group_id: group_id.to_string(),
-            group_attributes,
-            any_of_constraints,
+            any_of_constraints: unsatisfied_any_of_constraints
+                .into_iter()
+                .map(|(c, attrs)| UnsatisfiedAnyOfConstraint {
+                    any_of: c.clone(),
+                    missing_attributes: attrs,
+                })
+                .collect(),
         });
     }
     Ok(())

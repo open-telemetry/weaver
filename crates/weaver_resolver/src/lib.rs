@@ -19,8 +19,8 @@ use walkdir::DirEntry;
 
 use weaver_cache::Cache;
 use weaver_logger::Logger;
-use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::catalog::Catalog;
+use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::{SemConvImport, TelemetrySchema};
 use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
@@ -148,22 +148,22 @@ pub enum Error {
     },
 
     /// The `any_of` constraints are unsatisfied for a group.
-    #[error("The `any_of` constraints are unsatisfied for the group '{group_id}'.\nGroup attributes: {group_attributes:#?}\n`any_of` constraints: {any_of_constraints:#?}")]
-    UnsatisfiedAnyOfConstraint {
+    #[error("Some `any_of` constraints are unsatisfied for the group '{group_id}'.\nUnsatisfied `any_of` constraints: {any_of_constraints:#?}")]
+    UnsatisfiedAnyOfConstraints {
         /// The id of the group containing the unsatisfied `any_of` constraint.
         group_id: String,
-        /// The attributes of the group.
-        group_attributes: Vec<String>,
-        /// The `any_of` constraints of the group.
-        any_of_constraints: Vec<Vec<String>>,
+        /// The `any_of` constraints of the group that are not satisfied.
+        any_of_constraints: Vec<UnsatisfiedAnyOfConstraint>,
     },
+}
 
-    /// Attribute ref not found in the catalog.
-    #[error("Attribute ref `{attribute_ref:?}` not found in the catalog.")]
-    UnresolvedAttribute {
-        /// The unresolved attribute reference.
-        attribute_ref: AttributeRef,
-    },
+/// A constraint that is not satisfied and its missing attributes.
+#[derive(Debug)]
+pub struct UnsatisfiedAnyOfConstraint {
+    /// The `any_of` constraint that is not satisfied.
+    pub any_of: Constraint,
+    /// The detected missing attributes.
+    pub missing_attributes: Vec<String>,
 }
 
 impl SchemaResolver {

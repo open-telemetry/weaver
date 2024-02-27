@@ -35,9 +35,9 @@ pub enum Stability {
 impl Catalog {
     /// Returns the attribute name from an attribute ref if it exists
     /// in the catalog or None if it does not exist.
-    pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<String> {
+    pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<&str> {
         self.attributes
             .get(attribute_ref.0 as usize)
-            .map(|attr| attr.name.clone())
+            .map(|attr| attr.name.as_ref())
     }
 }
