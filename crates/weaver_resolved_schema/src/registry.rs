@@ -140,7 +140,7 @@ pub struct Constraint {
 }
 
 impl Group {
-    /// Returns true if ths group contains at least one `include` constraint.
+    /// Returns true if the group contains at least one `include` constraint.
     pub fn has_include(&self) -> bool {
         self.constraints.iter().any(|c| c.include.is_some())
     }
