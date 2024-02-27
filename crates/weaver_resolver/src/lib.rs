@@ -68,6 +68,15 @@ pub enum UnresolvedReference {
         /// The provenance of the reference (URL or path).
         provenance: String,
     },
+    /// An unresolved `include` reference.
+    IncludeRef {
+        /// The id of the group containing the `include` reference.
+        group_id: String,
+        /// The unresolved `include` reference.
+        include_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
 }
 
 /// An error that can occur while resolving a telemetry schema.

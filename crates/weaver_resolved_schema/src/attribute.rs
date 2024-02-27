@@ -74,7 +74,7 @@ pub struct Attribute {
 }
 
 /// An unresolved attribute definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct UnresolvedAttribute {
     /// The attribute specification.
     pub spec: AttributeSpec,

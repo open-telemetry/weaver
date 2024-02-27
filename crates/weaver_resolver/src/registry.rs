@@ -2,6 +2,7 @@
 
 //! Functions to resolve a semantic convention registry.
 
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
@@ -19,7 +20,7 @@ use crate::stability::resolve_stability;
 use crate::{Error, UnresolvedReference};
 
 /// A registry containing unresolved groups.
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct UnresolvedRegistry {
     /// The semantic convention registry containing resolved groups.
     pub registry: Registry,
@@ -31,7 +32,7 @@ pub struct UnresolvedRegistry {
 }
 
 /// A group containing unresolved attributes.
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct UnresolvedGroup {
     /// The group specification containing resolved attributes and signals.
     pub group: Group,
@@ -77,12 +78,14 @@ pub fn resolve_semconv_registry(
 
     all_refs_resolved &= resolve_attribute_references(&mut ureg, attr_catalog);
     all_refs_resolved &= resolve_extends_references(&mut ureg);
+    all_refs_resolved &= resolve_include_constraints(&mut ureg);
 
+    // If the resolution process fails, then we build an error containing all
+    // the unresolved references.
     if !all_refs_resolved {
-        // Process all unresolved references.
-        // An Error::UnresolvedReferences is built and returned.
         let mut unresolved_refs = vec![];
         for group in ureg.groups.iter() {
+            // Collect unresolved `extends` references.
             if let Some(extends) = group.group.extends.as_ref() {
                 unresolved_refs.push(UnresolvedReference::ExtendsRef {
                     group_id: group.group.id.clone(),
@@ -90,11 +93,22 @@ pub fn resolve_semconv_registry(
                     provenance: group.provenance.clone(),
                 });
             }
+            // Collect unresolved `ref` attributes.
             for attr in group.attributes.iter() {
                 if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
                     unresolved_refs.push(UnresolvedReference::AttributeRef {
                         group_id: group.group.id.clone(),
                         attribute_ref: r#ref.clone(),
+                        provenance: group.provenance.clone(),
+                    });
+                }
+            }
+            // Collect unresolved `include` constraints.
+            for constraint in group.group.constraints.iter() {
+                if let Some(include) = &constraint.include {
+                    unresolved_refs.push(UnresolvedReference::IncludeRef {
+                        group_id: group.group.id.clone(),
+                        include_ref: include.clone(),
                         provenance: group.provenance.clone(),
                     });
                 }
@@ -119,8 +133,15 @@ pub fn resolve_semconv_registry(
         })
         .collect();
 
+    // Check the `any_of` constraints.
     let attr_name_index = attr_catalog.attribute_name_index();
     check_any_of_constraints(&ureg.registry, &attr_name_index)?;
+
+    // All constraints are satisfied.
+    // Remove the constraints from the resolved registry.
+    for group in ureg.registry.groups.iter_mut() {
+        group.constraints.clear();
+    }
 
     Ok(ureg.registry)
 }
@@ -406,6 +427,92 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
     true
 }
 
+/// Resolves the `include` constraints in the given registry.
+///
+/// Possible optimization: the current resolution process is a based on a naive
+/// and iterative algorithm that is most likely good enough for now. If the
+/// semconv registry becomes too large, we may need to revisit the resolution
+/// process to make it more efficient by using a topological sort algorithm.
+fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
+    loop {
+        let mut unresolved_include_count = 0;
+        let mut resolved_include_count = 0;
+
+        // Create a map group_id -> vector of attribute ref for groups
+        // that don't have an `include` clause.
+        let mut group_attrs_index = HashMap::new();
+        let mut group_any_of_index = HashMap::new();
+        for group in ureg.groups.iter() {
+            if !group.group.has_include() {
+                group_attrs_index.insert(group.group.id.clone(), group.group.attributes.clone());
+                group_any_of_index.insert(
+                    group.group.id.clone(),
+                    group
+                        .group
+                        .constraints
+                        .iter()
+                        .filter_map(|c| {
+                            if c.any_of.is_empty() {
+                                None
+                            } else {
+                                let mut any_of = c.clone();
+                                _ = any_of.include.take();
+                                Some(any_of)
+                            }
+                        })
+                        .collect::<Vec<Constraint>>(),
+                );
+            }
+        }
+
+        // Iterate over all groups and resolve the `include` constraints.
+        for unresolved_group in ureg.groups.iter_mut() {
+            let mut attributes_to_import = vec![];
+            let mut any_of_to_import = vec![];
+            let mut resolved_includes = HashSet::new();
+
+            for constraint in unresolved_group.group.constraints.iter() {
+                if let Some(include) = &constraint.include {
+                    if let Some(attributes) = group_attrs_index.get(include) {
+                        attributes_to_import.extend(attributes.iter().cloned());
+                        resolved_includes.insert(include.clone());
+
+                        if let Some(any_of_constraints) = group_any_of_index.get(include) {
+                            any_of_to_import.extend(any_of_constraints.iter().cloned());
+                        }
+
+                        resolved_include_count += 1;
+                    } else {
+                        unresolved_include_count += 1;
+                    }
+                }
+            }
+
+            if !attributes_to_import.is_empty() {
+                unresolved_group
+                    .group
+                    .import_attributes_from(attributes_to_import.as_slice());
+                unresolved_group
+                    .group
+                    .update_constraints(any_of_to_import, resolved_includes);
+            }
+        }
+
+        if unresolved_include_count == 0 {
+            break;
+        }
+
+        // If we still have unresolved `include` but we did not resolve any
+        // `include` in the last iteration, we are stuck in an infinite loop.
+        // It means that we have an issue with the semantic convention
+        // specifications.
+        if resolved_include_count == 0 {
+            return false;
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -420,7 +527,13 @@ mod tests {
     use crate::registry::{check_group_any_of_constraints, resolve_semconv_registry};
 
     /// Test the resolution of semantic convention registries stored in the
-    /// data directory.
+    /// data directory. The provided test cases cover the following resolution
+    /// scenarios:
+    /// - Attribute references.
+    /// - Extends references.
+    /// - Include constraints.
+    /// - Provenance of the attributes (except for the attributes related to
+    ///   `include` constraints).
     ///
     /// Each test is stored in a directory named `registry-test-*` and contains
     /// the following directory and files:
