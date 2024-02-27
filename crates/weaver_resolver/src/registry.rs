@@ -18,7 +18,7 @@ use crate::constraint::resolve_constraints;
 use crate::metrics::resolve_instrument;
 use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
-use crate::{Error, UnresolvedReference, UnsatisfiedAnyOfConstraint};
+use crate::{Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -84,11 +84,11 @@ pub fn resolve_semconv_registry(
     // If the resolution process fails, then we build an error containing all
     // the unresolved references.
     if !all_refs_resolved {
-        let mut unresolved_refs = vec![];
+        let mut errors = vec![];
         for group in ureg.groups.iter() {
             // Collect unresolved `extends` references.
             if let Some(extends) = group.group.extends.as_ref() {
-                unresolved_refs.push(UnresolvedReference::ExtendsRef {
+                errors.push(Error::UnresolvedExtendsRef {
                     group_id: group.group.id.clone(),
                     extends_ref: extends.clone(),
                     provenance: group.provenance.clone(),
@@ -97,7 +97,7 @@ pub fn resolve_semconv_registry(
             // Collect unresolved `ref` attributes.
             for attr in group.attributes.iter() {
                 if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
-                    unresolved_refs.push(UnresolvedReference::AttributeRef {
+                    errors.push(Error::UnresolvedAttributeRef {
                         group_id: group.group.id.clone(),
                         attribute_ref: r#ref.clone(),
                         provenance: group.provenance.clone(),
@@ -107,7 +107,7 @@ pub fn resolve_semconv_registry(
             // Collect unresolved `include` constraints.
             for constraint in group.group.constraints.iter() {
                 if let Some(include) = &constraint.include {
-                    unresolved_refs.push(UnresolvedReference::IncludeRef {
+                    errors.push(Error::UnresolvedIncludeRef {
                         group_id: group.group.id.clone(),
                         include_ref: include.clone(),
                         provenance: group.provenance.clone(),
@@ -115,10 +115,8 @@ pub fn resolve_semconv_registry(
                 }
             }
         }
-        if !unresolved_refs.is_empty() {
-            return Err(Error::UnresolvedReferences {
-                refs: unresolved_refs,
-            });
+        if !errors.is_empty() {
+            return Err(Error::CompoundError(errors));
         }
     }
 
@@ -162,14 +160,14 @@ pub fn check_any_of_constraints(
     registry: &Registry,
     attr_name_index: &[String],
 ) -> Result<(), Error> {
-    let mut unresolved_refs = vec![];
+    let mut errors = vec![];
 
     for group in registry.groups.iter() {
         // Build a list of attribute names for the group.
         let mut group_attr_names = HashSet::new();
         for attr_ref in group.attributes.iter() {
             match attr_name_index.get(attr_ref.0 as usize) {
-                None => unresolved_refs.push(UnresolvedReference::AttributeRef {
+                None => errors.push(Error::UnresolvedAttributeRef {
                     group_id: group.id.clone(),
                     attribute_ref: attr_ref.0.to_string(),
                     provenance: group.provenance().to_string(),
@@ -180,17 +178,17 @@ pub fn check_any_of_constraints(
             }
         }
 
-        check_group_any_of_constraints(
+        if let Err(e) = check_group_any_of_constraints(
             group.id.as_ref(),
             group_attr_names,
             group.constraints.as_ref(),
-        )?;
+        ) {
+            errors.push(e);
+        }
     }
 
-    if !unresolved_refs.is_empty() {
-        return Err(Error::UnresolvedReferences {
-            refs: unresolved_refs,
-        });
+    if !errors.is_empty() {
+        return Err(Error::CompoundError(errors));
     }
 
     Ok(())
@@ -202,7 +200,8 @@ fn check_group_any_of_constraints(
     group_attr_names: HashSet<String>,
     constraints: &[Constraint],
 ) -> Result<(), Error> {
-    let mut unsatisfied_any_of_constraints: HashMap<&Constraint, Vec<String>> = HashMap::new();
+    let mut unsatisfied_any_of_constraints: HashMap<&Constraint, UnsatisfiedAnyOfConstraint> =
+        HashMap::new();
 
     for constraint in constraints.iter() {
         if constraint.any_of.is_empty() {
@@ -220,21 +219,24 @@ fn check_group_any_of_constraints(
             // constraint.
             unsatisfied_any_of_constraints
                 .entry(constraint)
-                .or_default()
+                .or_insert_with(|| UnsatisfiedAnyOfConstraint {
+                    any_of: constraint.clone(),
+                    missing_attributes: vec![],
+                })
+                .missing_attributes
                 .push(attr.clone());
         }
     }
     if !unsatisfied_any_of_constraints.is_empty() {
-        return Err(Error::UnsatisfiedAnyOfConstraints {
-            group_id: group_id.to_string(),
-            any_of_constraints: unsatisfied_any_of_constraints
-                .into_iter()
-                .map(|(c, attrs)| UnsatisfiedAnyOfConstraint {
-                    any_of: c.clone(),
-                    missing_attributes: attrs,
-                })
-                .collect(),
-        });
+        let errors = unsatisfied_any_of_constraints
+            .into_values()
+            .map(|v| Error::UnsatisfiedAnyOfConstraint {
+                group_id: group_id.to_string(),
+                any_of: v.any_of,
+                missing_attributes: v.missing_attributes,
+            })
+            .collect();
+        return Err(Error::CompoundError(errors));
     }
     Ok(())
 }

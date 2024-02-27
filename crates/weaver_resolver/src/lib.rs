@@ -47,38 +47,6 @@ mod tags;
 /// All references to semantic conventions will be resolved.
 pub struct SchemaResolver {}
 
-/// Different types of unresolved references.
-#[derive(Debug)]
-pub enum UnresolvedReference {
-    /// An unresolved attribute reference.
-    AttributeRef {
-        /// The id of the group containing the attribute reference.
-        group_id: String,
-        /// The unresolved attribute reference.
-        attribute_ref: String,
-        /// The provenance of the reference (URL or path).
-        provenance: String,
-    },
-    /// An unresolved `extends` clause reference.
-    ExtendsRef {
-        /// The id of the group containing the `extends` clause reference.
-        group_id: String,
-        /// The unresolved `extends` clause reference.
-        extends_ref: String,
-        /// The provenance of the reference (URL or path).
-        provenance: String,
-    },
-    /// An unresolved `include` reference.
-    IncludeRef {
-        /// The id of the group containing the `include` reference.
-        group_id: String,
-        /// The unresolved `include` reference.
-        include_ref: String,
-        /// The provenance of the reference (URL or path).
-        provenance: String,
-    },
-}
-
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -115,13 +83,6 @@ pub enum Error {
         error: String,
     },
 
-    /// Failed to resolve a set of references.
-    #[error("Failed to resolve the following references {refs:?}")]
-    UnresolvedReferences {
-        /// The list of unresolved references.
-        refs: Vec<UnresolvedReference>,
-    },
-
     /// Failed to resolve a metric.
     #[error("Failed to resolve the metric '{r#ref}'")]
     FailToResolveMetric {
@@ -147,14 +108,53 @@ pub enum Error {
         message: String,
     },
 
-    /// The `any_of` constraints are unsatisfied for a group.
-    #[error("Some `any_of` constraints are unsatisfied for the group '{group_id}'.\nUnsatisfied `any_of` constraints: {any_of_constraints:#?}")]
-    UnsatisfiedAnyOfConstraints {
+    /// An unresolved attribute reference.
+    #[error("The following attribute reference is not resolved for the group '{group_id}'.\nAttribute reference: {attribute_ref}\nProvenance: {provenance}")]
+    UnresolvedAttributeRef {
+        /// The id of the group containing the attribute reference.
+        group_id: String,
+        /// The unresolved attribute reference.
+        attribute_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
+
+    /// An unresolved `extends` clause reference.
+    #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance}")]
+    UnresolvedExtendsRef {
+        /// The id of the group containing the `extends` clause reference.
+        group_id: String,
+        /// The unresolved `extends` clause reference.
+        extends_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
+
+    /// An unresolved `include` reference.
+    #[error("The following `include` reference is not resolved for the group '{group_id}'.\n`include` reference: {include_ref}\nProvenance: {provenance}")]
+    UnresolvedIncludeRef {
+        /// The id of the group containing the `include` reference.
+        group_id: String,
+        /// The unresolved `include` reference.
+        include_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
+
+    /// An `any_of` constraint that is not satisfied for a group.
+    #[error("The following `any_of` constraint is not satisfied for the group '{group_id}'.\n`any_of` constraint: {any_of:#?}\nMissing attributes: {missing_attributes:?}")]
+    UnsatisfiedAnyOfConstraint {
         /// The id of the group containing the unsatisfied `any_of` constraint.
         group_id: String,
-        /// The `any_of` constraints of the group that are not satisfied.
-        any_of_constraints: Vec<UnsatisfiedAnyOfConstraint>,
+        /// The `any_of` constraint that is not satisfied.
+        any_of: Constraint,
+        /// The detected missing attributes.
+        missing_attributes: Vec<String>,
     },
+
+    /// A container for multiple errors.
+    #[error("{:?}", Error::format_errors(.0))]
+    CompoundError(Vec<Error>),
 }
 
 /// A constraint that is not satisfied and its missing attributes.
@@ -164,6 +164,32 @@ pub struct UnsatisfiedAnyOfConstraint {
     pub any_of: Constraint,
     /// The detected missing attributes.
     pub missing_attributes: Vec<String>,
+}
+
+impl Error {
+    /// Creates a compound error from a list of errors.
+    /// Note: All compound errors are flattened.
+    pub fn compound_error(errors: Vec<Error>) -> Error {
+        Error::CompoundError(
+            errors
+                .into_iter()
+                .flat_map(|e| match e {
+                    Error::CompoundError(errors) => errors,
+                    e => vec![e],
+                })
+                .collect(),
+        )
+    }
+
+    /// Formats the given errors into a single string.
+    /// This used to render compound errors.
+    pub fn format_errors(errors: &[Error]) -> String {
+        errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<String>>()
+            .join("\n\n")
+    }
 }
 
 impl SchemaResolver {
