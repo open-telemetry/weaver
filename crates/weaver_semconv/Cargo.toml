@@ -15,3 +15,4 @@ ureq.workspace = true
 ordered-float.workspace = true
 
 validator = { version = "0.16.1", features = ["derive"] }
+glob = "0.3.1"

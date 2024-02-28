@@ -20,6 +20,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use glob::glob;
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -36,6 +37,24 @@ pub mod stability;
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    /// The semantic convention registry path pattern is invalid.
+    #[error("Invalid semantic convention registry path pattern '{path_pattern:?}'.\n{error}")]
+    InvalidRegistryPathPattern {
+        /// The path pattern pointing to the semantic convention registry.
+        path_pattern: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// Invalid semantic convention registry asset.
+    #[error("Invalid semantic convention registry asset (registry=`{path_pattern}`).\n{error}")]
+    InvalidRegistryAsset {
+        /// The path pattern pointing to the semantic convention registry.
+        path_pattern: String,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// The semantic convention asset was not found.
     #[error("Semantic convention registry {path_or_url:?} not found\n{error}")]
     CatalogNotFound {
@@ -281,6 +300,30 @@ struct MetricToResolve {
 }
 
 impl SemConvRegistry {
+    /// Create a new semantic convention registry.
+    ///
+    /// # Arguments
+    ///
+    /// * `path_pattern` - A glob pattern to load semantic convention registry from files.
+    ///
+    /// # Returns
+    ///
+    /// A new semantic convention registry.
+    pub fn try_from_path(path_pattern: &str) -> Result<Self, Error> {
+        let mut registry = SemConvRegistry::default();
+        for sc_entry in glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
+            path_pattern: path_pattern.to_string(),
+            error: e.to_string(),
+        })? {
+            let path_buf = sc_entry.map_err(|e| Error::InvalidRegistryAsset {
+                path_pattern: path_pattern.to_string(),
+                error: e.to_string(),
+            })?;
+            registry.load_from_file(path_buf.as_path())?;
+        }
+        Ok(registry)
+    }
+
     /// Load and add a semantic convention file to the semantic convention registry.
     pub fn load_from_file<P: AsRef<Path> + Clone>(&mut self, path: P) -> Result<(), Error> {
         let spec = SemConvSpec::load_from_file(path.clone())?;

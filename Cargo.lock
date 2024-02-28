@@ -3823,11 +3823,19 @@ name = "weaver_forge"
 version = "0.1.0"
 dependencies = [
  "convert_case",
+ "glob",
  "minijinja",
+ "rayon",
  "serde",
  "serde_yaml",
  "thiserror",
  "thread_local",
+ "weaver_cache",
+ "weaver_logger",
+ "weaver_resolved_schema",
+ "weaver_resolver",
+ "weaver_schema",
+ "weaver_semconv",
 ]
 
 [[package]]
@@ -3886,6 +3894,7 @@ dependencies = [
 name = "weaver_semconv"
 version = "0.1.0"
 dependencies = [
+ "glob",
  "ordered-float",
  "serde",
  "serde_yaml",
