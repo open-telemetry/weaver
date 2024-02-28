@@ -157,6 +157,16 @@ pub enum Error {
     CompoundError(Vec<Error>),
 }
 
+/// Handles a list of errors and returns a compound error if the list is not
+/// empty or () if the list is empty.
+pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::CompoundError(errors))
+    }
+}
+
 /// A constraint that is not satisfied and its missing attributes.
 #[derive(Debug)]
 pub struct UnsatisfiedAnyOfConstraint {

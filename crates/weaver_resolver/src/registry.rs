@@ -18,7 +18,7 @@ use crate::constraint::resolve_constraints;
 use crate::metrics::resolve_instrument;
 use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
-use crate::{Error, UnsatisfiedAnyOfConstraint};
+use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -115,9 +115,8 @@ pub fn resolve_semconv_registry(
                 }
             }
         }
-        if !errors.is_empty() {
-            return Err(Error::CompoundError(errors));
-        }
+
+        handle_errors(errors)?;
     }
 
     // Sort the attribute internal references in each group.
@@ -187,10 +186,7 @@ pub fn check_any_of_constraints(
         }
     }
 
-    if !errors.is_empty() {
-        return Err(Error::CompoundError(errors));
-    }
-
+    handle_errors(errors)?;
     Ok(())
 }
 
