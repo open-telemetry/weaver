@@ -1,6 +1,8 @@
 # Telemetry Schema Resolution Process
 
-Status: **Work-In-Progress**
+Resolution Process Status:
+- Semantic Convention Registry: **Fully Implemented**, **Partially Tested**
+- Application Telemetry Schema: **Partially Implemented**
 
 This crate describes the resolution process for the OpenTelemetry telemetry
 schema. The resolution process takes a telemetry schema and/or a semantic
@@ -36,7 +38,7 @@ involves the following steps:
   - Resolve iteratively all `extends` parent/child clauses until no more
     resolvable `extends` are found. The extended entity inherits prefix,
     attributes, and constraints from the parent entity.
-- Apply constraints `any_of` and `include` (not yet supported).
+- Apply constraints `any_of` and `include`.
 - Validate the resolved semantic conventions
   - No more unresolved `ref` or `extends` clauses. The unresolved list should
     be empty.

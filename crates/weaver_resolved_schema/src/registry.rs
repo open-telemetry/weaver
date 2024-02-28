@@ -6,6 +6,7 @@
 
 use crate::attribute::AttributeRef;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use crate::catalog::Stability;
 use crate::lineage::GroupLineage;
@@ -124,7 +125,7 @@ pub enum TypedGroup {
 }
 
 /// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Constraint {
     /// any_of accepts a list of sequences. Each sequence contains a list of
@@ -136,4 +137,45 @@ pub struct Constraint {
     /// semantic convention all constraints and required attributes that are
     /// not already defined in the current semantic convention.
     pub include: Option<String>,
+}
+
+impl Group {
+    /// Returns true if the group contains at least one `include` constraint.
+    pub fn has_include(&self) -> bool {
+        self.constraints.iter().any(|c| c.include.is_some())
+    }
+
+    /// Import attributes from the provided slice that do not exist in the
+    /// current group.
+    pub fn import_attributes_from(&mut self, attributes: &[AttributeRef]) {
+        for attr in attributes {
+            if !self.attributes.contains(attr) {
+                self.attributes.push(*attr);
+            }
+        }
+    }
+
+    /// Update the group constraints according to the provided constraints to
+    /// add and the `include` constraints to remove.
+    pub fn update_constraints(
+        &mut self,
+        constraints_to_add: Vec<Constraint>,
+        include_to_remove: HashSet<String>,
+    ) {
+        // Add the new constraints
+        self.constraints.extend(constraints_to_add);
+
+        // Remove the include constraints
+        self.constraints.retain(|c| {
+            c.include.is_none() || !include_to_remove.contains(c.include.as_ref().unwrap())
+        });
+    }
+
+    /// Returns the provenance of the group.
+    pub fn provenance(&self) -> &str {
+        match &self.lineage {
+            Some(lineage) => lineage.provenance(),
+            None => "unknown",
+        }
+    }
 }

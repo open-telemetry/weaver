@@ -56,6 +56,17 @@ impl AttributeCatalog {
         attributes.into_iter().map(|(attr, _)| attr).collect()
     }
 
+    /// Returns a list of indexed attribute names ordered by their references.
+    pub fn attribute_name_index(&self) -> Vec<String> {
+        let mut attributes: Vec<(&attribute::Attribute, &AttributeRef)> =
+            self.attribute_refs.iter().collect();
+        attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
+        attributes
+            .iter()
+            .map(|(attr, _)| attr.name.clone())
+            .collect()
+    }
+
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.
     /// Returns `None` if the attribute spec is a ref and it does not exist yet
     /// in the catalog.
