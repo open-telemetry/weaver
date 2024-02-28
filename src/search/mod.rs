@@ -316,7 +316,7 @@ fn search_schema_command(
     search_schema_tui(log, schema);
 }
 
-fn search_schema_tui(log: impl Logger + Sync + Clone + Sized, schema: TelemetrySchema) {
+fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
     let semconv_registry = schema.semantic_convention_catalog();
 
     let mut schema_builder = Schema::builder();
