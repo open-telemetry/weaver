@@ -22,7 +22,7 @@ pub struct CheckRegistry {
 
 /// Check a semantic convention registry.
 pub(crate) fn check_registry_command(
-    log: impl Logger + Sync + Clone + Sized,
+    log: impl Logger + Sync + Clone,
     cache: &Cache,
     registry_args: &CheckRegistry,
 ) {

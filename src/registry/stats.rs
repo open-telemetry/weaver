@@ -22,7 +22,7 @@ pub struct StatsRegistry {
 
 /// Compute stats on a semantic convention registry.
 pub(crate) fn stats_registry_command(
-    log: impl Logger + Sync + Clone + Sized,
+    log: impl Logger + Sync + Clone,
     cache: &Cache,
     registry_args: &StatsRegistry,
 ) {
