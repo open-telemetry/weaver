@@ -209,7 +209,7 @@ pub fn command_search(log: impl Logger + Sync + Clone, command: &SearchCommand) 
 
 /// Search semantic convention registry command [todo, WIP].
 fn search_registry_command2(
-    log: impl Logger + Sync + Clone + Sized,
+    log: impl Logger + Sync + Clone,
     cache: &Cache,
     registry_args: &SearchRegistry2,
 ) {
@@ -261,7 +261,7 @@ fn search_registry_command2(
 
 /// Search semantic convention registry command.
 fn search_registry_command(
-    log: impl Logger + Sync + Clone + Sized,
+    log: impl Logger + Sync + Clone,
     cache: &Cache,
     registry_args: &SearchRegistry,
 ) {
@@ -302,7 +302,7 @@ fn search_registry_command(
 
 /// Search schema command.
 fn search_schema_command(
-    log: impl Logger + Sync + Clone + Sized,
+    log: impl Logger + Sync + Clone,
     cache: &Cache,
     schema_args: &SearchSchema,
 ) {
@@ -316,7 +316,7 @@ fn search_schema_command(
     search_schema_tui(log, schema);
 }
 
-fn search_schema_tui(log: impl Logger + Sync + Clone + Sized + Sized, schema: TelemetrySchema) {
+fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
     let semconv_registry = schema.semantic_convention_catalog();
 
     let mut schema_builder = Schema::builder();

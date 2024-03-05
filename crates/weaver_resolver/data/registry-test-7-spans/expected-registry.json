@@ -2477,29 +2477,44 @@
         "events": []
       },
       "brief": "Semantic convention group for specific technologies",
-      "constraints": [
-        {
-          "any_of": [],
-          "include": "db.cassandra"
-        },
-        {
-          "any_of": [],
-          "include": "db.redis"
-        },
-        {
-          "any_of": [],
-          "include": "db.mongodb"
-        },
-        {
-          "any_of": [],
-          "include": "db.sql"
-        },
-        {
-          "any_of": [],
-          "include": "db.cosmosdb"
-        }
+      "constraints": [],
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        87,
+        88,
+        89,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108
       ],
-      "attributes": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml"
       }

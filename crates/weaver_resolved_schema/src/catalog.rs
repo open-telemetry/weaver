@@ -3,7 +3,7 @@
 //! Defines the catalog of attributes, metrics, and other telemetry items
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
-use crate::attribute::Attribute;
+use crate::attribute::{Attribute, AttributeRef};
 use crate::metric::Metric;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -30,4 +30,14 @@ pub enum Stability {
     Experimental,
     /// A stable definition.
     Stable,
+}
+
+impl Catalog {
+    /// Returns the attribute name from an attribute ref if it exists
+    /// in the catalog or None if it does not exist.
+    pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<&str> {
+        self.attributes
+            .get(attribute_ref.0 as usize)
+            .map(|attr| attr.name.as_ref())
+    }
 }

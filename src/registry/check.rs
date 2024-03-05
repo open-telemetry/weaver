@@ -22,7 +22,7 @@ pub struct CheckRegistry {
 
 /// Check a semantic convention registry.
 pub(crate) fn check_registry_command(
-    log: impl Logger + Sync + Clone + Sized,
+    log: impl Logger + Sync + Clone,
     cache: &Cache,
     registry_args: &CheckRegistry,
 ) {
@@ -44,7 +44,7 @@ pub(crate) fn check_registry_command(
     let mut attr_catalog = AttributeCatalog::default();
     let _ = resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
         .unwrap_or_else(|e| {
-            panic!("Failed to resolve the semantic convention registry, error: {e}");
+            panic!("Failed to resolve the semantic convention registry.\n{e}");
         });
 
     log.success(&format!(

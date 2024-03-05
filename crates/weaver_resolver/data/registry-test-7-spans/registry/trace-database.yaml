@@ -70,7 +70,7 @@ groups:
         tag: call-level-tech-specific-cassandra
         brief: >
           The keyspace name in Cassandra.
-        examples: ["mykeyspace"]
+        examples: [ "mykeyspace" ]
         note: For Cassandra the `db.name` should be set to the Cassandra keyspace name.
       - ref: db.cassandra.page_size
         tag: call-level-tech-specific-cassandra
@@ -97,7 +97,7 @@ groups:
         tag: call-level-tech-specific
         brief: >
           The HBase namespace.
-        examples: ['mynamespace']
+        examples: [ 'mynamespace' ]
         note: For HBase the `db.name` should be set to the HBase namespace.
 
   - id: db.couchdb
@@ -110,7 +110,7 @@ groups:
         tag: call-level-tech-specific
         brief: >
           The HTTP method + the target REST route.
-        examples: ['GET /{db}/{docid}']
+        examples: [ 'GET /{db}/{docid}' ]
         note: >
           In **CouchDB**, `db.operation` should be set to the HTTP method +
           the target REST route according to the API reference documentation.
@@ -132,7 +132,7 @@ groups:
         tag: call-level-tech-specific
         brief: >
           The full syntax of the Redis CLI command.
-        examples: ["HMSET myhash field1 'Hello' field2 'World'"]
+        examples: [ "HMSET myhash field1 'Hello' field2 'World'" ]
         note: >
           For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI.
           If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
@@ -227,7 +227,7 @@ groups:
           `failover_information` : Generated key to determine if region failover enabled.
              Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
              Default value is "NS".
-        examples: ['cosmos-netstandard-sdk/3.23.0\|3.23.1\|1\|X64\|Linux 5.4.0-1098-azure 104 18\|.NET Core 3.1.32\|S\|']
+        examples: [ 'cosmos-netstandard-sdk/3.23.0\|3.23.1\|1\|X64\|Linux 5.4.0-1098-azure 104 18\|.NET Core 3.1.32\|S\|' ]
         tag: call-level-tech-specific
       - ref: db.cosmosdb.connection_mode
         requirement_level:
@@ -261,3 +261,4 @@ groups:
       - include: 'db.mongodb'
       - include: 'db.sql'
       - include: 'db.cosmosdb'
+      - any_of: ['db.cassandra.page_size', 'db.cassandra.consistency_level', 'db.cassandra.table', 'db.cassandra.idempotence', 'db.cassandra.speculative_execution_count', 'db.cassandra.coordinator.id', 'db.cassandra.coordinator.dc']
