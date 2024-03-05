@@ -14,4 +14,4 @@ thiserror.workspace = true
 ureq.workspace = true
 ordered-float.workspace = true
 
-validator = { version = "0.16.1", features = ["derive"] }
+validator = { version = "0.17.0", features = ["derive"] }
