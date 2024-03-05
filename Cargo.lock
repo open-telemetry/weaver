@@ -3819,6 +3819,7 @@ dependencies = [
  "minijinja",
  "rayon",
  "serde",
+ "serde_json",
  "serde_yaml",
  "thiserror",
  "thread_local",

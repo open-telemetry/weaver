@@ -14,7 +14,7 @@ use crate::Error;
 use crate::Error::InvalidConfigFile;
 
 /// Case convention for naming of functions and structs.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum CaseConvention {
     #[serde(rename = "lowercase")]
@@ -90,7 +90,7 @@ impl CaseConvention {
 
 impl TargetConfig {
     pub fn try_new(lang_path: &Path) -> Result<TargetConfig, Error> {
-        let config_file = lang_path.join("config.yaml");
+        let config_file = lang_path.join("weaver.yaml");
         if config_file.exists() {
             let reader =
                 std::fs::File::open(config_file.clone()).map_err(|e| InvalidConfigFile {

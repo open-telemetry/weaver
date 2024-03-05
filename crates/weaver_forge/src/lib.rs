@@ -21,18 +21,17 @@ use std::task::Context;
 
 use glob::{glob, Paths};
 use minijinja::{Environment, path_loader};
+use minijinja::filters::abs;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
 use weaver_cache::Cache;
 use weaver_logger::Logger;
-use weaver_resolved_schema::registry::Registry;
+use weaver_resolved_schema::registry::{Group, Registry, TypedGroup};
 use weaver_resolver::SchemaResolver;
 use weaver_schema::event::Event;
 use weaver_schema::metric_group::MetricGroup;
 use weaver_schema::span::Span;
-use weaver_schema::TelemetrySchema;
-use weaver_schema::univariate_metric::UnivariateMetric;
 
 use crate::config::{DynamicGlobalConfig, TargetConfig};
 use crate::Error::{InternalError, InvalidTelemetrySchema, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile, TargetNotSupported, WriteGeneratedCodeFailed};
@@ -78,8 +77,11 @@ pub enum Error {
     },
 
     /// Invalid template file.
-    #[error("Invalid template file: {0}")]
-    InvalidTemplateFile(PathBuf),
+    #[error("Invalid template file '{template}': {error}")]
+    InvalidTemplateFile {
+        template: PathBuf,
+        error: String,
+    },
 
     /// Invalid template directory.
     #[error("Invalid template directory: {0}")]
@@ -126,44 +128,39 @@ impl Default for GeneratorConfig {
 }
 
 /// A pair {template, object} to generate code for.
+#[derive(Debug)]
 enum TemplateObjectPair<'a> {
-    Metric {
-        template: String,
-        metric: &'a UnivariateMetric,
+    Group {
+        absolute_template_path: PathBuf,
+        relative_template_path: PathBuf,
+        group: &'a Group,
     },
-    MetricGroup {
-        template: String,
-        metric_group: &'a MetricGroup,
+    Groups {
+        absolute_template_path: PathBuf,
+        relative_template_path: PathBuf,
+        groups: Vec<&'a Group>,
     },
-    Event {
-        template: String,
-        event: &'a Event,
-    },
-    Span {
-        template: String,
-        span: &'a Span,
-    },
-    Other {
-        template: String,
-        relative_path: PathBuf,
-        object: &'a TelemetrySchema,
+    Registry {
+        absolute_template_path: PathBuf,
+        relative_template_path: PathBuf,
+        registry: &'a Registry,
     },
 }
 
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
-pub struct TemplateEngine<'source> {
+pub struct TemplateEngine {
     /// Template path
     path: PathBuf,
 
+    /// Target configuration
+    target_config: TargetConfig,
+
     /// Global configuration
     config: Arc<DynamicGlobalConfig>,
-
-    /// Engine
-    engine: Environment<'source>,
 }
 
-impl TemplateEngine<'_> {
+impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
     pub fn try_new(target: &str, config: GeneratorConfig) -> Result<Self, Error> {
@@ -178,52 +175,15 @@ impl TemplateEngine<'_> {
             });
         }
 
-        let mut env = Environment::new();
-        env.set_loader(path_loader(target_path
-            .to_str()
-            .ok_or(InvalidTemplateDir(target_path.clone()))?
-        ));
-
-        let target_config = TargetConfig::try_new(&target_path)?;
-
-        let config = Arc::new(DynamicGlobalConfig::default());
-
-        // Register custom filters
-        env.add_filter("file_name", case_converter(target_config.file_name));
-        env.add_filter("function_name", case_converter(target_config.function_name));
-        env.add_filter("arg_name", case_converter(target_config.arg_name));
-        env.add_filter("struct_name", case_converter(target_config.struct_name));
-        env.add_filter("field_name", case_converter(target_config.field_name));
-        // env.add_filter("unique_attributes", extensions::unique_attributes);
-        // env.add_filter("instrument", extensions::instrument);
-        // env.add_filter("required", extensions::required);
-        // env.add_filter("not_required", extensions::not_required);
-        // env.add_filter("value", extensions::value);
-        // env.add_filter("with_value", extensions::with_value);
-        // env.add_filter("without_value", extensions::without_value);
-        // env.add_filter("with_enum", extensions::with_enum);
-        // env.add_filter("without_enum", extensions::without_enum);
-        // env.add_filter("comment", extensions::comment);
-        // env.add_filter(
-        //     "type_mapping",
-        //     extensions::TypeMapping {
-        //         type_mapping: target_config.type_mapping,
-        //     },
-        // );
-
-        // Register custom functions
-        // tera.register_function("config", functions::FunctionConfig::new(config.clone()));
-
-        // Register custom testers
-        // tera.register_tester("required", testers::is_required);
-        // tera.register_tester("not_required", testers::is_not_required);
-
         Ok(Self {
-            path: target_path,
-            engine: env,
-            config,
+            path: target_path.clone(),
+            target_config: TargetConfig::try_new(&target_path)?,
+            config: Arc::new(DynamicGlobalConfig::default()),
         })
     }
+
+    // ToDo Refactor InternalError
+    // ToDo Use compound error
 
     /// Generate assets from a semantic convention registry.
     pub fn generate_registry(
@@ -232,6 +192,56 @@ impl TemplateEngine<'_> {
         registry: &Registry,
         output_dir: PathBuf,
     ) -> Result<(), Error> {
+        let cache = Cache::try_new().unwrap_or_else(|e| {
+            _ = log.error(&e.to_string());
+            process::exit(1);
+        });
+
+        // Process recursively all files in the template directory
+        let mut lang_path = self.path.to_str().unwrap_or_default().to_string();
+        let paths = if lang_path.is_empty() {
+            glob("**/*").map_err(|e| InternalError(e.to_string()))?
+        } else {
+            lang_path.push_str("/**/*");
+            glob(lang_path.as_str()).map_err(|e| InternalError(e.to_string()))?
+        };
+
+        // List all {template, object} pairs to run in parallel the template
+        // engine as all pairs are independent.
+        self.list_registry_templates(&registry, paths)?
+            .into_par_iter()
+            .try_for_each(|pair| {
+                match pair {
+                    TemplateObjectPair::Group {
+                        absolute_template_path,
+                        relative_template_path,
+                        group
+                    } => {
+                        let ctx: serde_json::Value = serde_json::to_value(group)
+                            .map_err(|e| InternalError(e.to_string()))?;
+                        self.evaluate_template(log.clone(), ctx, absolute_template_path, relative_template_path, &output_dir)
+                    },
+                    TemplateObjectPair::Groups {
+                        absolute_template_path,
+                        relative_template_path,
+                        groups
+                    } => {
+                        let ctx: serde_json::Value = serde_json::to_value(groups)
+                            .map_err(|e| InternalError(e.to_string()))?;
+                        self.evaluate_template(log.clone(), ctx, absolute_template_path, relative_template_path, &output_dir)
+                    },
+                    TemplateObjectPair::Registry {
+                        absolute_template_path,
+                        relative_template_path,
+                        registry,
+                    } => {
+                        let ctx: serde_json::Value = serde_json::to_value(registry)
+                            .map_err(|e| InternalError(e.to_string()))?;
+                        self.evaluate_template(log.clone(), ctx, absolute_template_path, relative_template_path, &output_dir)
+                    }
+                }
+            })?;
+
         Ok(())
     }
 
@@ -265,146 +275,344 @@ impl TemplateEngine<'_> {
         // Build the list of all {template, object} pairs to generate code for
         // and process them in parallel.
         // All pairs are independent from each other so we can process them in parallel.
-        self.list_all_templates(&schema, paths)?
-            .into_par_iter()
-            .try_for_each(|pair| {
-                match pair {
-                    TemplateObjectPair::Metric { template, metric } => self.process_metric(
-                        log.clone(),
-                        &template,
-                        &schema_path,
-                        metric,
-                        &output_dir,
-                    ),
-                    TemplateObjectPair::MetricGroup {
-                        template,
-                        metric_group,
-                    } => self.process_metric_group(
-                        log.clone(),
-                        &template,
-                        &schema_path,
-                        metric_group,
-                        &output_dir,
-                    ),
-                    TemplateObjectPair::Event { template, event } => {
-                        self.process_event(log.clone(), &template, &schema_path, event, &output_dir)
-                    }
-                    TemplateObjectPair::Span { template, span } => {
-                        self.process_span(log.clone(), &template, &schema_path, span, &output_dir)
-                    }
-                    TemplateObjectPair::Other {
-                        template,
-                        relative_path,
-                        object,
-                    } => {
-                        // Process other templates
-                        // let context = &Context::from_serialize(object).map_err(|e| {
-                        //     InvalidTelemetrySchema {
-                        //         schema: schema_path.clone(),
-                        //         error: format!("{}", e),
-                        //     }
-                        // })?;
-                        //
-                        // log.loading(&format!("Generating file {}", template));
-                        // let generated_code = self.generate_code(log.clone(), &template, context)?;
-                        // let relative_path = relative_path.to_path_buf();
-                        // let generated_file =
-                        //     Self::save_generated_code(&output_dir, relative_path, generated_code)?;
-                        // log.success(&format!("Generated file {:?}", generated_file));
-                        Ok(())
-                    }
-                }
-            })?;
+        // self.list_all_templates(&schema, paths)?
+        //     .into_par_iter()
+        //     .try_for_each(|pair| {
+        //         match pair {
+        //             TemplateObjectPair::Metric { template, metric } => self.process_metric(
+        //                 log.clone(),
+        //                 &template,
+        //                 &schema_path,
+        //                 metric,
+        //                 &output_dir,
+        //             ),
+        //             TemplateObjectPair::MetricGroup {
+        //                 template,
+        //                 metric_group,
+        //             } => self.process_metric_group(
+        //                 log.clone(),
+        //                 &template,
+        //                 &schema_path,
+        //                 metric_group,
+        //                 &output_dir,
+        //             ),
+        //             TemplateObjectPair::Event { template, event } => {
+        //                 self.process_event(log.clone(), &template, &schema_path, event, &output_dir)
+        //             }
+        //             TemplateObjectPair::Span { template, span } => {
+        //                 self.process_span(log.clone(), &template, &schema_path, span, &output_dir)
+        //             }
+        //             TemplateObjectPair::Other {
+        //                 template,
+        //                 relative_path,
+        //                 object,
+        //             } => {
+        //                 // Process other templates
+        //                 // let context = &Context::from_serialize(object).map_err(|e| {
+        //                 //     InvalidTelemetrySchema {
+        //                 //         schema: schema_path.clone(),
+        //                 //         error: format!("{}", e),
+        //                 //     }
+        //                 // })?;
+        //                 //
+        //                 // log.loading(&format!("Generating file {}", template));
+        //                 // let generated_code = self.generate_code(log.clone(), &template, context)?;
+        //                 // let relative_path = relative_path.to_path_buf();
+        //                 // let generated_file =
+        //                 //     Self::save_generated_code(&output_dir, relative_path, generated_code)?;
+        //                 // log.success(&format!("Generated file {:?}", generated_file));
+        //                 Ok(())
+        //             }
+        //         }
+        //     })?;
 
         Ok(())
     }
 
+    fn evaluate_template(&self,
+                         log: impl Logger + Clone + Sync,
+                         ctx: serde_json::Value,
+                         absolute_template_path: PathBuf,
+                         relative_template_path: PathBuf,
+                         output_dir: &PathBuf,
+    ) -> Result<(), Error> {
+        let template_file_name = absolute_template_path.to_str().ok_or(InvalidTemplateFile{
+            template: absolute_template_path.clone(),
+            error: "".to_string()})?;
+        let template_source = fs::read_to_string(&absolute_template_path).map_err(|e| InvalidTemplateFile{
+            template: absolute_template_path.clone().into(),
+            error: e.to_string()})?;
+        let mut engine = self.template_engine();
+
+        engine.add_template(template_file_name, &template_source).map_err(|e| InternalError(e.to_string()))?;
+
+        _ = log.loading(&format!("Generating file {}", template_file_name));
+        let output = engine.get_template(template_file_name).map_err(|e| InternalError(e.to_string()))?
+            .render(ctx).map_err(|e| InternalError(e.to_string()))?;
+        let generated_file =
+            Self::save_generated_code(output_dir, relative_template_path, output)?;
+        _ = log.success(&format!("Generated file {:?}", generated_file));
+        Ok(())
+    }
+
+    fn template_engine(&self) -> Environment {
+        let mut env = Environment::new();
+
+        // Register custom filters
+        env.add_filter("file_name", case_converter(self.target_config.file_name.clone()));
+        env.add_filter("function_name", case_converter(self.target_config.function_name.clone()));
+        env.add_filter("arg_name", case_converter(self.target_config.arg_name.clone()));
+        env.add_filter("struct_name", case_converter(self.target_config.struct_name.clone()));
+        env.add_filter("field_name", case_converter(self.target_config.field_name.clone()));
+        // env.add_filter("unique_attributes", extensions::unique_attributes);
+        // env.add_filter("instrument", extensions::instrument);
+        // env.add_filter("required", extensions::required);
+        // env.add_filter("not_required", extensions::not_required);
+        // env.add_filter("value", extensions::value);
+        // env.add_filter("with_value", extensions::with_value);
+        // env.add_filter("without_value", extensions::without_value);
+        // env.add_filter("with_enum", extensions::with_enum);
+        // env.add_filter("without_enum", extensions::without_enum);
+        // env.add_filter("comment", extensions::comment);
+        // env.add_filter(
+        //     "type_mapping",
+        //     extensions::TypeMapping {
+        //         type_mapping: target_config.type_mapping,
+        //     },
+        // );
+
+        // Register custom functions
+        // tera.register_function("config", functions::FunctionConfig::new(config.clone()));
+
+        // Register custom testers
+        // tera.register_tester("required", testers::is_required);
+        // tera.register_tester("not_required", testers::is_not_required);
+        env
+    }
+
     /// Lists all {template, object} pairs derived from a template directory and a given
-    /// schema specification.
-    fn list_all_templates<'a>(
+    /// semantic convention registry.
+    fn list_registry_templates<'a>(
         &self,
-        schema: &'a TelemetrySchema,
+        registry: &'a Registry,
         paths: Paths,
     ) -> Result<Vec<TemplateObjectPair<'a>>, Error> {
         let mut templates = Vec::new();
-        if let Some(schema_spec) = &schema.schema {
-            for entry in paths {
-                if let Ok(tmpl_file_path) = entry {
-                    if tmpl_file_path.is_dir() {
-                        continue;
-                    }
-                    let relative_path = tmpl_file_path.strip_prefix(&self.path).unwrap();
-                    let tmpl_file = relative_path
-                        .to_str()
-                        .ok_or(InvalidTemplateFile(tmpl_file_path.clone()))?;
 
-                    if tmpl_file.ends_with(".macro.tera") {
-                        // Macro files are not templates.
-                        // They are included in other templates.
-                        // So we skip them.
-                        continue;
-                    }
-
-                    match tmpl_file_path.file_stem().and_then(|s| s.to_str()) {
-                        Some("metric") => {
-                            if let Some(resource_metrics) = schema_spec.resource_metrics.as_ref() {
-                                for metric in resource_metrics.metrics.iter() {
-                                    templates.push(TemplateObjectPair::Metric {
-                                        template: tmpl_file.into(),
-                                        metric,
-                                    })
-                                }
-                            }
-                        }
-                        Some("metric_group") => {
-                            if let Some(resource_metrics) = schema_spec.resource_metrics.as_ref() {
-                                for metric_group in resource_metrics.metric_groups.iter() {
-                                    templates.push(TemplateObjectPair::MetricGroup {
-                                        template: tmpl_file.into(),
-                                        metric_group,
-                                    })
-                                }
-                            }
-                        }
-                        Some("event") => {
-                            if let Some(events) = schema_spec.resource_events.as_ref() {
-                                for event in events.events.iter() {
-                                    templates.push(TemplateObjectPair::Event {
-                                        template: tmpl_file.into(),
-                                        event,
-                                    })
-                                }
-                            }
-                        }
-                        Some("span") => {
-                            if let Some(spans) = schema_spec.resource_spans.as_ref() {
-                                for span in spans.spans.iter() {
-                                    templates.push(TemplateObjectPair::Span {
-                                        template: tmpl_file.into(),
-                                        span,
-                                    })
-                                }
-                            }
-                        }
-                        _ => {
-                            // Remove the `tera` extension from the relative path
-                            let mut relative_path = relative_path.to_path_buf();
-                            _ = relative_path.set_extension("");
-
-                            templates.push(TemplateObjectPair::Other {
-                                template: tmpl_file.into(),
-                                relative_path,
-                                object: schema,
-                            })
-                        }
-                    }
-                } else {
-                    return Err(InvalidTemplateDirectory(self.path.clone()));
+        for entry in paths {
+            if let Ok(tmpl_file_path) = entry {
+                if tmpl_file_path.is_dir() {
+                    continue;
                 }
+                let relative_path = tmpl_file_path
+                    .strip_prefix(&self.path)
+                    .map_err(|e| InvalidTemplateDir(self.path.clone()))?;
+                let tmpl_file = tmpl_file_path
+                    .to_str()
+                    .ok_or(InvalidTemplateFile{template: tmpl_file_path.clone(), error: "".to_string() })?;
+
+                if tmpl_file.ends_with(".macro.j2") {
+                    // Macro files are not templates.
+                    // They are included in other templates.
+                    // So we skip them.
+                    continue;
+                }
+
+                if tmpl_file.ends_with("weaver.yaml") {
+                    // Skip weaver configuration file.
+                    continue;
+                }
+
+                match tmpl_file_path.file_stem().and_then(|s| s.to_str()) {
+                    Some("attribute_group") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file_path.to_path_buf(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("event") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file_path.to_path_buf(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("group") => {
+                        registry.groups.iter()
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file_path.to_path_buf(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("metric") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file.into(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("metric_group") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file.into(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("registry") => {
+                        templates.push(TemplateObjectPair::Registry {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            registry,
+                        });
+                    }
+                    Some("resource") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file.into(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("scope") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file.into(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("span") => {
+                        registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
+                            .for_each(|group| {
+                                templates.push(TemplateObjectPair::Group {
+                                    absolute_template_path: tmpl_file.into(),
+                                    relative_template_path: relative_path.to_path_buf(),
+                                    group,
+                                })
+                            });
+                    }
+                    Some("attribute_groups") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("events") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("groups") => {
+                        let groups = registry.groups.iter()
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("metrics") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("metric_groups") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("resources") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("scopes") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    Some("spans") => {
+                        let groups = registry.groups.iter()
+                            .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
+                            .collect::<Vec<&Group>>();
+                        templates.push(TemplateObjectPair::Groups {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            groups,
+                        })
+                    }
+                    _ => {
+                        templates.push(TemplateObjectPair::Registry {
+                            absolute_template_path: tmpl_file.into(),
+                            relative_template_path: relative_path.to_path_buf(),
+                            registry,
+                        })
+                    }
+                }
+            } else {
+                return Err(InvalidTemplateDirectory(self.path.clone()));
             }
         }
+
         Ok(templates)
     }
+
 
     /// Generate code.
     fn generate_code(
@@ -456,13 +664,12 @@ impl TemplateEngine<'_> {
         Ok(output_file_path)
     }
 
-    /// Process an univariate metric.
-    fn process_metric(
+    /// Process a registry group.
+    fn process_group(
         &self,
         log: impl Logger + Clone,
-        tmpl_file: &str,
-        schema_path: &Path,
-        metric: &UnivariateMetric,
+        tmpl_file: &PathBuf,
+        group: &Group,
         output_dir: &Path,
     ) -> Result<(), Error> {
         // if let UnivariateMetric::Metric { name, .. } = metric {
