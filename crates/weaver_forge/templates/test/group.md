@@ -5,20 +5,20 @@
 
 ## Brief
 
-{{ group.brief }} 
-
+{{ group.brief }}
 ## Attributes
 
-{%- for attribute in group.attributes %}
+{% for attribute in group.attributes -%}
 ### Attribute `{{ attribute.name }}`
 
+Requirement level: {{ attribute.requirement_level }}
 {% if attribute.tag -%}
-tag: {{ attribute.tag }}
+Tag: {{ attribute.tag }}
 {%- endif %}
 
 {{ attribute.brief }}
 
-{%- endfor %}
+{% endfor %}
 
 ## Provenance
 

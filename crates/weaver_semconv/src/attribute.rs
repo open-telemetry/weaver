@@ -43,7 +43,7 @@ pub enum AttributeSpec {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(skip_serializing_if = "Option::is_none")]
-        requirement_level: Option<RequirementLevelSpec>,
+        requirement_level: Option<RequirementLevel>,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -94,7 +94,7 @@ pub enum AttributeSpec {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(default)]
-        requirement_level: RequirementLevelSpec,
+        requirement_level: RequirementLevel,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -125,12 +125,12 @@ impl AttributeSpec {
         matches!(
             self,
             AttributeSpec::Ref {
-                requirement_level: Some(RequirementLevelSpec::Basic(
+                requirement_level: Some(RequirementLevel::Basic(
                     BasicRequirementLevelSpec::Required
                 )),
                 ..
             } | AttributeSpec::Id {
-                requirement_level: RequirementLevelSpec::Basic(BasicRequirementLevelSpec::Required),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 ..
             }
         )
@@ -372,10 +372,10 @@ pub enum ExamplesSpec {
 }
 
 /// The different requirement level specifications.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
-pub enum RequirementLevelSpec {
+pub enum RequirementLevel {
     /// A basic requirement level.
     Basic(BasicRequirementLevelSpec),
     /// A conditional requirement level.
@@ -393,23 +393,23 @@ pub enum RequirementLevelSpec {
 }
 
 /// Implements a human readable display for RequirementLevel.
-impl Display for RequirementLevelSpec {
+impl Display for RequirementLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            RequirementLevelSpec::Basic(brl) => write!(f, "{}", brl),
-            RequirementLevelSpec::ConditionallyRequired { text } => {
+            RequirementLevel::Basic(brl) => write!(f, "{}", brl),
+            RequirementLevel::ConditionallyRequired { text } => {
                 write!(f, "conditionally required (condition: {})", text)
             }
-            RequirementLevelSpec::Recommended { text } => write!(f, "recommended ({})", text),
+            RequirementLevel::Recommended { text } => write!(f, "recommended ({})", text),
         }
     }
 }
 
 // Specifies the default requirement level as defined in the OTel
 // specification.
-impl Default for RequirementLevelSpec {
+impl Default for RequirementLevel {
     fn default() -> Self {
-        RequirementLevelSpec::Basic(BasicRequirementLevelSpec::Recommended)
+        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
     }
 }
 

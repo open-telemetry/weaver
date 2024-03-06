@@ -11,8 +11,8 @@ use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, Resol
 use weaver_schema::attribute::Attribute;
 use weaver_schema::tags::Tags;
 use weaver_semconv::attribute::{
-    AttributeSpec, AttributeTypeSpec, BasicRequirementLevelSpec, ExamplesSpec,
-    PrimitiveOrArrayTypeSpec, RequirementLevelSpec, TemplateTypeSpec, ValueSpec,
+    AttributeSpec, AttributeTypeSpec, ExamplesSpec,
+    PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec,
 };
 use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
@@ -122,7 +122,7 @@ impl AttributeCatalog {
                         },
                         requirement_level: match requirement_level {
                             Some(requirement_level) => {
-                                semconv_to_resolved_req_level(requirement_level)
+                                requirement_level.clone()
                             }
                             None => {
                                 inherited_fields.push(FieldId::AttributeRequirementLevel);
@@ -212,7 +212,7 @@ impl AttributeCatalog {
                     brief: brief.clone().unwrap_or_default(),
                     examples: semconv_to_resolved_examples(examples),
                     tag: tag.clone(),
-                    requirement_level: semconv_to_resolved_req_level(requirement_level),
+                    requirement_level: requirement_level.clone(),
                     sampling_relevant: *sampling_relevant,
                     note: note.clone(),
                     stability: stability::resolve_stability(stability),
@@ -431,7 +431,7 @@ pub fn resolve_attribute(
             brief: brief.clone().unwrap_or_default(),
             examples: semconv_to_resolved_examples(examples),
             tag: tag.clone(),
-            requirement_level: semconv_to_resolved_req_level(requirement_level),
+            requirement_level: requirement_level.clone(),
             sampling_relevant: *sampling_relevant,
             note: note.clone(),
             stability: stability::resolve_stability(stability),
@@ -503,24 +503,6 @@ fn semconv_to_resolved_examples(examples: &Option<ExamplesSpec>) -> Option<attri
         ExamplesSpec::Bools(v) => attribute::Example::Bools { values: v.clone() },
         ExamplesSpec::Strings(v) => attribute::Example::Strings { values: v.clone() },
     })
-}
-
-fn semconv_to_resolved_req_level(req_level: &RequirementLevelSpec) -> attribute::RequirementLevel {
-    match req_level {
-        RequirementLevelSpec::Basic(level) => match level {
-            BasicRequirementLevelSpec::Required => attribute::RequirementLevel::Required,
-            BasicRequirementLevelSpec::Recommended => {
-                attribute::RequirementLevel::Recommended { text: None }
-            }
-            BasicRequirementLevelSpec::OptIn => attribute::RequirementLevel::OptIn,
-        },
-        RequirementLevelSpec::Recommended { text } => attribute::RequirementLevel::Recommended {
-            text: Some(text.clone()),
-        },
-        RequirementLevelSpec::ConditionallyRequired { text } => {
-            attribute::RequirementLevel::ConditionallyRequired { text: text.clone() }
-        }
-    }
 }
 
 #[allow(dead_code)] // ToDo Remove this once we have values in the resolved schema

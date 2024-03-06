@@ -10,7 +10,7 @@ use crate::value::Value;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use weaver_semconv::attribute::AttributeSpec;
+use weaver_semconv::attribute::{AttributeSpec, RequirementLevel};
 
 /// An attribute definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
@@ -214,28 +214,6 @@ impl Example {
             values: values.into_iter().map(OrderedFloat).collect(),
         }
     }
-}
-
-/// The different requirement levels.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
-#[serde(tag = "type")]
-pub enum RequirementLevel {
-    /// A required requirement level.
-    Required,
-    /// An optional requirement level.
-    Recommended {
-        /// The description of the recommendation.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        text: Option<String>,
-    },
-    /// An opt-in requirement level.
-    OptIn,
-    /// A conditional requirement level.
-    ConditionallyRequired {
-        /// The description of the condition.
-        #[serde(skip_serializing_if = "String::is_empty")]
-        text: String,
-    },
 }
 
 /// An internal reference to an attribute in the catalog.

@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use weaver_semconv::attribute::{AttributeTypeSpec, ExamplesSpec, RequirementLevelSpec, ValueSpec};
+use weaver_semconv::attribute::{AttributeTypeSpec, ExamplesSpec, RequirementLevel, ValueSpec};
 use weaver_semconv::stability::StabilitySpec;
 
 use crate::tags::Tags;
@@ -50,7 +50,7 @@ pub enum Attribute {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(skip_serializing_if = "Option::is_none")]
-        requirement_level: Option<RequirementLevelSpec>,
+        requirement_level: Option<RequirementLevel>,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -152,7 +152,7 @@ pub enum Attribute {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(default)]
-        requirement_level: RequirementLevelSpec,
+        requirement_level: RequirementLevel,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
