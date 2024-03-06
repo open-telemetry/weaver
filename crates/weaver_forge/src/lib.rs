@@ -271,7 +271,7 @@ impl TemplateEngine {
         let template_object = TemplateObject {
             file_name: Arc::new(Mutex::new(template_path.to_str().unwrap_or_default().to_string())),
         };
-        let mut engine = self.template_engine();
+        let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
             template: template_path.clone(),
             error: "".to_string(),
@@ -289,9 +289,10 @@ impl TemplateEngine {
     }
 
     /// Create a new template engine based on the target configuration.
-    fn template_engine(&self) -> Environment {
+    fn template_engine(&self) -> Result<Environment, Error> {
         let mut env = Environment::new();
         env.set_loader(path_loader(&self.path));
+        env.set_syntax(self.target_config.template_syntax.clone().into()).map_err(|e| InternalError(e.to_string()))?;
 
         // Register case conversion filters based on the target configuration
         env.add_filter("file_name", case_converter(self.target_config.file_name.clone()));
@@ -320,7 +321,7 @@ impl TemplateEngine {
         // Register custom testers
         // tera.register_tester("required", testers::is_required);
         // tera.register_tester("not_required", testers::is_not_required);
-        env
+        Ok(env)
     }
 
     /// Lists all {template, object} pairs derived from a template directory and a given

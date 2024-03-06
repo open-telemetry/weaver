@@ -15,7 +15,7 @@ weaver_schema = { path = "../weaver_schema" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "1.0.12", features = ["loader"] }
+minijinja = { version = "1.0.12", features = ["loader", "custom_syntax"] }
 thread_local = "1.1.7"
 convert_case = "0.6.0"
 glob = "0.3.1"

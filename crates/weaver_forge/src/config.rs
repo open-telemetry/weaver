@@ -54,6 +54,88 @@ pub struct TargetConfig {
     /// Type mapping for target specific types (OTel types -> Target language types).
     #[serde(default)]
     pub type_mapping: HashMap<String, String>,
+    /// Configuration for the template syntax.
+    #[serde(default)]
+    pub template_syntax: TemplateSyntax,
+}
+
+/// Syntax configuration for the template engine.
+#[derive(Deserialize, Debug, Clone)]
+pub struct TemplateSyntax {
+    /// The start of a block.
+    #[serde(default = "default_block_start")]
+    pub block_start: String,
+    /// The end of a block.
+    #[serde(default = "default_block_end")]
+    pub block_end: String,
+    /// The start of a variable.
+    #[serde(default = "default_variable_start")]
+    pub variable_start: String,
+    /// The end of a variable.
+    #[serde(default = "default_variable_end")]
+    pub variable_end: String,
+    /// The start of a comment.
+    #[serde(default = "default_comment_start")]
+    pub comment_start: String,
+    /// The end of a comment.
+    #[serde(default = "default_comment_end")]
+    pub comment_end: String,
+}
+
+/// Default block start delimiter.
+fn default_block_start() -> String {
+    "{%".to_string()
+}
+
+/// Default block end delimiter.
+fn default_block_end() -> String {
+    "%}".to_string()
+}
+
+/// Default variable start delimiter.
+fn default_variable_start() -> String {
+    "{{".to_string()
+}
+
+/// Default variable end delimiter.
+fn default_variable_end() -> String {
+    "}}".to_string()
+}
+
+/// Default comment start delimiter.
+fn default_comment_start() -> String {
+    "{#".to_string()
+}
+
+/// Default comment end delimiter.
+fn default_comment_end() -> String {
+    "#}".to_string()
+}
+
+impl From<TemplateSyntax> for minijinja::Syntax {
+    fn from(syntax: TemplateSyntax) -> Self {
+        minijinja::Syntax {
+            block_start: syntax.block_start.into(),
+            block_end: syntax.block_end.into(),
+            variable_start: syntax.variable_start.into(),
+            variable_end: syntax.variable_end.into(),
+            comment_start: syntax.comment_start.into(),
+            comment_end: syntax.comment_end.into(),
+        }
+    }
+}
+
+impl Default for TemplateSyntax {
+    fn default() -> Self {
+        TemplateSyntax {
+            block_start: default_block_start(),
+            block_end: default_block_end(),
+            variable_start: default_variable_start(),
+            variable_end: default_variable_end(),
+            comment_start: default_comment_start(),
+            comment_end: default_comment_end(),
+        }
+    }
 }
 
 impl Default for CaseConvention {
