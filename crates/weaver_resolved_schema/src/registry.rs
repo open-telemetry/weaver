@@ -8,8 +8,8 @@ use crate::attribute::AttributeRef;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::stability::Stability;
 
-use crate::catalog::Stability;
 use crate::lineage::GroupLineage;
 
 /// A semantic convention registry.

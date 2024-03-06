@@ -10,7 +10,7 @@ use validator::{Validate, ValidationError};
 
 use crate::attribute::{AttributeSpec, AttributeTypeSpec, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
-use crate::stability::StabilitySpec;
+use crate::stability::Stability;
 
 /// Group Spec contain the list of semantic conventions and it is the root node
 /// of each yaml file.
@@ -43,7 +43,7 @@ pub struct GroupSpec {
     /// present and stability differs from deprecated, this will result in an
     /// error.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<StabilitySpec>,
+    pub stability: Option<Stability>,
     /// Specifies if the semantic convention is deprecated. The string
     /// provided as <description> MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
@@ -90,7 +90,7 @@ fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
     // will result in an error.
     if group.deprecated.is_some()
         && group.stability.is_some()
-        && group.stability != Some(StabilitySpec::Deprecated)
+        && group.stability != Some(Stability::Deprecated)
     {
         return Err(ValidationError::new(
             "This group contains a deprecated field but the stability is not set to deprecated.",
@@ -155,7 +155,7 @@ fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
                 }
                 if deprecated.is_some()
                     && stability.is_some()
-                    && *stability != Some(StabilitySpec::Deprecated)
+                    && *stability != Some(Stability::Deprecated)
                 {
                     return Err(ValidationError::new("This attribute contains a deprecated field but the stability is not set to deprecated."));
                 }
@@ -167,7 +167,7 @@ fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
             } => {
                 if deprecated.is_some()
                     && stability.is_some()
-                    && *stability != Some(StabilitySpec::Deprecated)
+                    && *stability != Some(Stability::Deprecated)
                 {
                     return Err(ValidationError::new("This attribute contains a deprecated field but the stability is not set to deprecated."));
                 }

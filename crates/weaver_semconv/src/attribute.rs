@@ -8,7 +8,7 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-use crate::stability::StabilitySpec;
+use crate::stability::Stability;
 
 /// An attribute specification.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -60,7 +60,7 @@ pub enum AttributeSpec {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
@@ -110,7 +110,7 @@ pub enum AttributeSpec {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.

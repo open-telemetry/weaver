@@ -14,7 +14,6 @@ use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::stability::resolve_stability;
 use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
@@ -287,7 +286,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             note: group.spec.note,
             prefix: group.spec.prefix,
             extends: group.spec.extends,
-            stability: resolve_stability(&group.spec.stability),
+            stability: group.spec.stability,
             deprecated: group.spec.deprecated,
             constraints: resolve_constraints(&group.spec.constraints),
             attributes: vec![],

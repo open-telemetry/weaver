@@ -7,10 +7,11 @@
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
-use weaver_resolved_schema::catalog::{Catalog, Stability};
+use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Registry};
 use weaver_semconv::group::GroupType;
+use weaver_semconv::stability::Stability;
 
 /// A semantic convention registry used in the context of the template engine.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

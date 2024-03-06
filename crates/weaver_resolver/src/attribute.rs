@@ -18,7 +18,7 @@ use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionAttributeChanges;
 
-use crate::{stability, Error};
+use crate::Error;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
 #[derive(Deserialize, Debug, Default, PartialEq)]
@@ -144,7 +144,7 @@ impl AttributeCatalog {
                             }
                         },
                         stability: match stability {
-                            Some(_) => stability::resolve_stability(stability),
+                            Some(_) => stability.clone(),
                             None => {
                                 inherited_fields.push(FieldId::AttributeStability);
                                 root_attr.attribute.stability.clone()
@@ -215,7 +215,7 @@ impl AttributeCatalog {
                     requirement_level: requirement_level.clone(),
                     sampling_relevant: *sampling_relevant,
                     note: note.clone(),
-                    stability: stability::resolve_stability(stability),
+                    stability: stability.clone(),
                     deprecated: deprecated.clone(),
                     tags: None,
                     value: None,
@@ -434,7 +434,7 @@ pub fn resolve_attribute(
             requirement_level: requirement_level.clone(),
             sampling_relevant: *sampling_relevant,
             note: note.clone(),
-            stability: stability::resolve_stability(stability),
+            stability: stability.clone(),
             deprecated: deprecated.clone(),
             tags: None,
             value: None,

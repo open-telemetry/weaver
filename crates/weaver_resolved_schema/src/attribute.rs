@@ -4,13 +4,13 @@
 
 //! Specification of a resolved attribute.
 
-use crate::catalog::Stability;
 use crate::tags::Tags;
 use crate::value::Value;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use weaver_semconv::attribute::{AttributeSpec, RequirementLevel};
+use weaver_semconv::stability::Stability;
 
 /// An attribute definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]

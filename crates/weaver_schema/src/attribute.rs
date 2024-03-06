@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 
 use weaver_semconv::attribute::{AttributeTypeSpec, ExamplesSpec, RequirementLevel, ValueSpec};
-use weaver_semconv::stability::StabilitySpec;
+use weaver_semconv::stability::Stability;
 
 use crate::tags::Tags;
 use crate::Error;
@@ -67,7 +67,7 @@ pub enum Attribute {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
@@ -168,7 +168,7 @@ pub enum Attribute {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
