@@ -15,13 +15,14 @@ unused_extern_crates
 )]
 
 use std::{fs, process};
+use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::Context;
 
 use glob::{glob, Paths};
-use minijinja::{Environment, path_loader};
-use minijinja::filters::abs;
+use minijinja::{Environment, State, Value};
+use minijinja::value::{from_args, Object};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
@@ -145,6 +146,39 @@ enum TemplateObjectPair<'a> {
         relative_template_path: PathBuf,
         registry: &'a Registry,
     },
+}
+
+/// A template object accessible from the template.
+#[derive(Debug, Clone)]
+struct TemplateObject {
+    file_name: Arc<Mutex<String>>,
+}
+
+impl TemplateObject {
+    /// Get the file name of the template.
+    fn file_name(&self) -> PathBuf {
+        PathBuf::from(self.file_name.lock().unwrap().clone())
+    }
+}
+impl Display for TemplateObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("template file name: {}", self.file_name.lock().unwrap()))
+    }
+}
+
+impl Object for TemplateObject {
+    fn call_method(&self, _state: &State, name: &str, args: &[Value]) -> Result<Value, minijinja::Error> {
+        if name == "set_file_name" {
+            let (file_name,): (&str,) = from_args(args)?;
+            *self.file_name.lock().unwrap() = file_name.to_string();
+            Ok(Value::from(""))
+        } else {
+            Err(minijinja::Error::new(
+                minijinja::ErrorKind::UnknownMethod,
+                format!("template has no method named {name}"),
+            ))
+        }
+    }
 }
 
 /// Template engine for generating artifacts from a semantic convention
@@ -342,28 +376,34 @@ impl TemplateEngine {
         let template_source = fs::read_to_string(&absolute_template_path).map_err(|e| InvalidTemplateFile{
             template: absolute_template_path.clone().into(),
             error: e.to_string()})?;
+        let template_object = TemplateObject {
+            file_name: Arc::new(Mutex::new(relative_template_path.to_str().unwrap_or_default().to_string())),
+        };
         let mut engine = self.template_engine();
 
+        engine.add_global("template", Value::from_object(template_object.clone()));
         engine.add_template(template_file_name, &template_source).map_err(|e| InternalError(e.to_string()))?;
 
         _ = log.loading(&format!("Generating file {}", template_file_name));
         let output = engine.get_template(template_file_name).map_err(|e| InternalError(e.to_string()))?
             .render(ctx).map_err(|e| InternalError(e.to_string()))?;
         let generated_file =
-            Self::save_generated_code(output_dir, relative_template_path, output)?;
+            Self::save_generated_code(output_dir, template_object.file_name(), output)?;
         _ = log.success(&format!("Generated file {:?}", generated_file));
         Ok(())
     }
 
+    /// Create a new template engine based on the target configuration.
     fn template_engine(&self) -> Environment {
         let mut env = Environment::new();
 
-        // Register custom filters
+        // Register case conversion filters based on the target configuration
         env.add_filter("file_name", case_converter(self.target_config.file_name.clone()));
         env.add_filter("function_name", case_converter(self.target_config.function_name.clone()));
         env.add_filter("arg_name", case_converter(self.target_config.arg_name.clone()));
         env.add_filter("struct_name", case_converter(self.target_config.struct_name.clone()));
         env.add_filter("field_name", case_converter(self.target_config.field_name.clone()));
+
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
         // env.add_filter("required", extensions::required);

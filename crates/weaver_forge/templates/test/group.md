@@ -1,3 +1,5 @@
+{%- set file_name = id | file_name -%}
+{{- template.set_file_name("group/" ~ file_name ~ ".md") -}}
 # Group  `{{ id }}`
 
 file name: {{ id | file_name }}
