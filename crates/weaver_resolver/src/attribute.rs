@@ -10,10 +10,7 @@ use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
 use weaver_schema::attribute::Attribute;
 use weaver_schema::tags::Tags;
-use weaver_semconv::attribute::{
-    AttributeSpec, AttributeTypeSpec, ExamplesSpec, PrimitiveOrArrayTypeSpec, TemplateTypeSpec,
-    ValueSpec,
-};
+use weaver_semconv::attribute::{AttributeSpec, ValueSpec};
 use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionAttributeChanges;
@@ -107,7 +104,7 @@ impl AttributeCatalog {
                             }
                         },
                         examples: match examples {
-                            Some(_) => semconv_to_resolved_examples(examples),
+                            Some(_) => examples.clone(),
                             None => {
                                 inherited_fields.push(FieldId::AttributeExamples);
                                 root_attr.attribute.examples.clone()
@@ -206,9 +203,9 @@ impl AttributeCatalog {
                 // If it does not, add it to the catalog and return a new reference.
                 let attr = attribute::Attribute {
                     name: root_attr_id.clone(),
-                    r#type: semconv_to_resolved_attr_type(r#type),
+                    r#type: r#type.clone(),
                     brief: brief.clone().unwrap_or_default(),
-                    examples: semconv_to_resolved_examples(examples),
+                    examples: examples.clone(),
                     tag: tag.clone(),
                     requirement_level: requirement_level.clone(),
                     sampling_relevant: *sampling_relevant,
@@ -425,9 +422,9 @@ pub fn resolve_attribute(
             deprecated,
         } => Ok(attribute::Attribute {
             name: id.clone(),
-            r#type: semconv_to_resolved_attr_type(r#type),
+            r#type: r#type.clone(),
             brief: brief.clone().unwrap_or_default(),
-            examples: semconv_to_resolved_examples(examples),
+            examples: examples.clone(),
             tag: tag.clone(),
             requirement_level: requirement_level.clone(),
             sampling_relevant: *sampling_relevant,
@@ -438,69 +435,6 @@ pub fn resolve_attribute(
             value: None,
         }),
     }
-}
-
-fn semconv_to_resolved_attr_type(attr_type: &AttributeTypeSpec) -> attribute::AttributeType {
-    match attr_type {
-        AttributeTypeSpec::PrimitiveOrArray(poa) => match poa {
-            PrimitiveOrArrayTypeSpec::Boolean => attribute::AttributeType::Boolean,
-            PrimitiveOrArrayTypeSpec::Int => weaver_resolved_schema::attribute::AttributeType::Int,
-            PrimitiveOrArrayTypeSpec::Double => attribute::AttributeType::Double,
-            PrimitiveOrArrayTypeSpec::String => attribute::AttributeType::String,
-            PrimitiveOrArrayTypeSpec::Strings => attribute::AttributeType::Strings,
-            PrimitiveOrArrayTypeSpec::Ints => attribute::AttributeType::Ints,
-            PrimitiveOrArrayTypeSpec::Doubles => attribute::AttributeType::Doubles,
-            PrimitiveOrArrayTypeSpec::Booleans => attribute::AttributeType::Booleans,
-        },
-        AttributeTypeSpec::Template(template) => match template {
-            TemplateTypeSpec::Boolean => attribute::AttributeType::TemplateBoolean,
-            TemplateTypeSpec::Int => attribute::AttributeType::TemplateInt,
-            TemplateTypeSpec::Double => attribute::AttributeType::TemplateDouble,
-            TemplateTypeSpec::String => attribute::AttributeType::TemplateString,
-            TemplateTypeSpec::Strings => attribute::AttributeType::TemplateStrings,
-            TemplateTypeSpec::Ints => attribute::AttributeType::TemplateInts,
-            TemplateTypeSpec::Doubles => attribute::AttributeType::TemplateDoubles,
-            TemplateTypeSpec::Booleans => attribute::AttributeType::TemplateBooleans,
-        },
-        AttributeTypeSpec::Enum {
-            allow_custom_values,
-            members,
-        } => attribute::AttributeType::Enum {
-            allow_custom_values: *allow_custom_values,
-            members: members
-                .iter()
-                .map(|member| attribute::EnumEntries {
-                    id: member.id.clone(),
-                    value: match &member.value {
-                        ValueSpec::String(s) => {
-                            weaver_resolved_schema::value::Value::String { value: s.clone() }
-                        }
-                        ValueSpec::Int(i) => {
-                            weaver_resolved_schema::value::Value::Int { value: *i }
-                        }
-                        ValueSpec::Double(d) => {
-                            weaver_resolved_schema::value::Value::Double { value: *d }
-                        }
-                    },
-                    brief: member.brief.clone(),
-                    note: member.note.clone(),
-                })
-                .collect(),
-        },
-    }
-}
-
-fn semconv_to_resolved_examples(examples: &Option<ExamplesSpec>) -> Option<attribute::Example> {
-    examples.as_ref().map(|examples| match examples {
-        ExamplesSpec::Bool(v) => attribute::Example::Bool { value: *v },
-        ExamplesSpec::Int(v) => attribute::Example::Int { value: *v },
-        ExamplesSpec::Double(v) => attribute::Example::Double { value: *v },
-        ExamplesSpec::String(v) => attribute::Example::String { value: v.clone() },
-        ExamplesSpec::Ints(v) => attribute::Example::Ints { values: v.clone() },
-        ExamplesSpec::Doubles(v) => attribute::Example::Doubles { values: v.clone() },
-        ExamplesSpec::Bools(v) => attribute::Example::Bools { values: v.clone() },
-        ExamplesSpec::Strings(v) => attribute::Example::Strings { values: v.clone() },
-    })
 }
 
 #[allow(dead_code)] // ToDo Remove this once we have values in the resolved schema

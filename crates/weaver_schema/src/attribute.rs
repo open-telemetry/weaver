@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use weaver_semconv::attribute::{AttributeTypeSpec, ExamplesSpec, RequirementLevel, ValueSpec};
+use weaver_semconv::attribute::{AttributeType, Examples, RequirementLevel, ValueSpec};
 use weaver_semconv::stability::Stability;
 
 use crate::tags::Tags;
@@ -38,7 +38,7 @@ pub enum Attribute {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -131,7 +131,7 @@ pub enum Attribute {
         id: String,
         /// Either a string literal denoting the type as a primitive or an
         /// array type, a template type or an enum definition.
-        r#type: AttributeTypeSpec,
+        r#type: AttributeType,
         /// A brief description of the attribute.
         brief: String,
         /// Sequence of example values for the attribute or single example
@@ -140,7 +140,7 @@ pub enum Attribute {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         // #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.

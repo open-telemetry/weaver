@@ -600,8 +600,8 @@ mod tests {
                 test_dir, observed_attr_catalog_json
             );
 
-            let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
-            println!("{}", yaml);
+            // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
+            // println!("{}", yaml);
 
             // Check that the resolved registry matches the expected registry.
             let observed_registry_json = serde_json::to_string_pretty(&observed_registry)

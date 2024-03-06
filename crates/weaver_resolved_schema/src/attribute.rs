@@ -6,10 +6,9 @@
 
 use crate::tags::Tags;
 use crate::value::Value;
-use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use weaver_semconv::attribute::{AttributeSpec, RequirementLevel};
+use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
 /// An attribute definition.
@@ -30,7 +29,7 @@ pub struct Attribute {
     /// attribute. If only a single example is provided, it can directly
     /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub examples: Option<Example>,
+    pub examples: Option<Examples>,
     /// Associates a tag ("sub-group") to the attribute. It carries no
     /// particular semantic meaning but can be used e.g. for filtering
     /// in the markdown generator.
@@ -79,141 +78,6 @@ pub struct Attribute {
 pub struct UnresolvedAttribute {
     /// The attribute specification.
     pub spec: AttributeSpec,
-}
-
-/// The different types of attributes.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
-#[serde(tag = "type")]
-pub enum AttributeType {
-    /// A boolean attribute.
-    Boolean,
-    /// A integer attribute (signed 64 bit integer).
-    Int,
-    /// A double attribute (double precision floating point (IEEE 754-1985)).
-    Double,
-    /// A string attribute.
-    String,
-    /// An array of strings attribute.
-    Strings,
-    /// An array of integer attribute.
-    Ints,
-    /// An array of double attribute.
-    Doubles,
-    /// An array of boolean attribute.
-    Booleans,
-
-    /// A template boolean attribute.
-    TemplateBoolean,
-    /// A template integer attribute.
-    #[serde(rename = "template[int]")]
-    TemplateInt,
-    /// A template double attribute.
-    #[serde(rename = "template[double]")]
-    TemplateDouble,
-    /// A template string attribute.
-    #[serde(rename = "template[string]")]
-    TemplateString,
-    /// A template array of strings attribute.
-    #[serde(rename = "template[string[]]")]
-    TemplateStrings,
-    /// A template array of integer attribute.
-    #[serde(rename = "template[int[]]")]
-    TemplateInts,
-    /// A template array of double attribute.
-    #[serde(rename = "template[double[]]")]
-    TemplateDoubles,
-    /// A template array of boolean attribute.
-    #[serde(rename = "template[boolean[]]")]
-    TemplateBooleans,
-
-    /// An enum definition type.
-    Enum {
-        /// Set to false to not accept values other than the specified members.
-        /// It defaults to true.
-        allow_custom_values: bool,
-        /// List of enum entries.
-        members: Vec<EnumEntries>,
-    },
-}
-
-/// Possible enum entries.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
-#[serde(deny_unknown_fields)]
-pub struct EnumEntries {
-    /// String that uniquely identifies the enum entry.
-    pub id: String,
-    /// String, int, or boolean; value of the enum entry.
-    pub value: Value,
-    /// Brief description of the enum entry value.
-    /// It defaults to the value of id.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub brief: Option<String>,
-    /// Longer description.
-    /// It defaults to an empty string.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
-}
-
-/// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
-#[serde(tag = "type")]
-pub enum Example {
-    /// A boolean example.
-    Bool {
-        /// The value of the example.
-        value: bool,
-    },
-    /// A integer example.
-    Int {
-        /// The value of the example.
-        value: i64,
-    },
-    /// A double example.
-    Double {
-        /// The value of the example.
-        value: OrderedFloat<f64>,
-    },
-    /// A string example.
-    String {
-        /// The value of the example.
-        value: String,
-    },
-    /// A array of integers example.
-    Ints {
-        /// The value of the example.
-        values: Vec<i64>,
-    },
-    /// A array of doubles example.
-    Doubles {
-        /// The value of the example.
-        values: Vec<OrderedFloat<f64>>,
-    },
-    /// A array of bools example.
-    Bools {
-        /// The value of the example.
-        values: Vec<bool>,
-    },
-    /// A array of strings example.
-    Strings {
-        /// The value of the example.
-        values: Vec<String>,
-    },
-}
-
-impl Example {
-    /// Creates an example from a f64.
-    pub fn from_f64(value: f64) -> Self {
-        Example::Double {
-            value: OrderedFloat(value),
-        }
-    }
-
-    /// Creates an example from several f64.
-    pub fn from_f64s(values: Vec<f64>) -> Self {
-        Example::Doubles {
-            values: values.into_iter().map(OrderedFloat).collect(),
-        }
-    }
 }
 
 /// An internal reference to an attribute in the catalog.

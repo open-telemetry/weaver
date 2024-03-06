@@ -31,7 +31,7 @@ pub enum AttributeSpec {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -73,7 +73,7 @@ pub enum AttributeSpec {
         id: String,
         /// Either a string literal denoting the type as a primitive or an
         /// array type, a template type or an enum definition.
-        r#type: AttributeTypeSpec,
+        r#type: AttributeType,
         /// A brief description of the attribute.
         brief: Option<String>,
         /// Sequence of example values for the attribute or single example
@@ -82,7 +82,7 @@ pub enum AttributeSpec {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -173,7 +173,7 @@ impl AttributeSpec {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
-pub enum AttributeTypeSpec {
+pub enum AttributeType {
     /// Primitive or array type.
     PrimitiveOrArray(PrimitiveOrArrayTypeSpec),
     /// A template type.
@@ -190,12 +190,12 @@ pub enum AttributeTypeSpec {
 }
 
 /// Implements a human readable display for AttributeType.
-impl Display for AttributeTypeSpec {
+impl Display for AttributeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttributeTypeSpec::PrimitiveOrArray(t) => write!(f, "{}", t),
-            AttributeTypeSpec::Template(t) => write!(f, "{}", t),
-            AttributeTypeSpec::Enum { members, .. } => {
+            AttributeType::PrimitiveOrArray(t) => write!(f, "{}", t),
+            AttributeType::Template(t) => write!(f, "{}", t),
+            AttributeType::Enum { members, .. } => {
                 let entries = members
                     .iter()
                     .map(|m| m.id.clone())
@@ -349,10 +349,10 @@ impl Display for ValueSpec {
 }
 
 /// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
-pub enum ExamplesSpec {
+pub enum Examples {
     /// A boolean example.
     Bool(bool),
     /// A integer example.
@@ -433,5 +433,17 @@ impl Display for BasicRequirementLevelSpec {
             BasicRequirementLevelSpec::Recommended => write!(f, "recommended"),
             BasicRequirementLevelSpec::OptIn => write!(f, "opt-in"),
         }
+    }
+}
+
+impl Examples {
+    /// Creates an example from a f64.
+    pub fn from_f64(value: f64) -> Self {
+        Examples::Double(OrderedFloat(value))
+    }
+
+    /// Creates an example from several f64.
+    pub fn from_f64s(values: Vec<f64>) -> Self {
+        Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
     }
 }

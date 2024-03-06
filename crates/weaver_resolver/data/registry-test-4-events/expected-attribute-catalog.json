@@ -2,48 +2,37 @@
   {
     "name": "ios.state",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "active",
-          "value": {
-            "type": "String",
-            "value": "active"
-          },
-          "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n"
+          "value": "active",
+          "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
+          "note": null
         },
         {
           "id": "inactive",
-          "value": {
-            "type": "String",
-            "value": "inactive"
-          },
-          "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n"
+          "value": "inactive",
+          "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n",
+          "note": null
         },
         {
           "id": "background",
-          "value": {
-            "type": "String",
-            "value": "background"
-          },
-          "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n"
+          "value": "background",
+          "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n",
+          "note": null
         },
         {
           "id": "foreground",
-          "value": {
-            "type": "String",
-            "value": "foreground"
-          },
-          "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n"
+          "value": "foreground",
+          "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n",
+          "note": null
         },
         {
           "id": "terminate",
-          "value": {
-            "type": "String",
-            "value": "terminate"
-          },
-          "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n"
+          "value": "terminate",
+          "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n",
+          "note": null
         }
       ]
     },
@@ -54,32 +43,25 @@
   {
     "name": "android.state",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "created",
-          "value": {
-            "type": "String",
-            "value": "created"
-          },
-          "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n"
+          "value": "created",
+          "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",
+          "note": null
         },
         {
           "id": "background",
-          "value": {
-            "type": "String",
-            "value": "background"
-          },
-          "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n"
+          "value": "background",
+          "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n",
+          "note": null
         },
         {
           "id": "foreground",
-          "value": {
-            "type": "String",
-            "value": "foreground"
-          },
-          "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states."
+          "value": "foreground",
+          "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.",
+          "note": null
         }
       ]
     },
@@ -89,46 +71,31 @@
   },
   {
     "name": "feature_flag.key",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The unique identifier of the feature flag.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "logo-color"
-      ]
-    },
+    "examples": [
+      "logo-color"
+    ],
     "requirement_level": "required"
   },
   {
     "name": "feature_flag.provider_name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the service provider that performs the flag evaluation.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "Flag Manager"
-      ]
-    },
+    "examples": [
+      "Flag Manager"
+    ],
     "requirement_level": "recommended"
   },
   {
     "name": "feature_flag.variant",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "SHOULD be a semantic identifier for a value. If one is unavailable, a stringified version of the value can be used.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "red",
-        "true",
-        "on"
-      ]
-    },
+    "examples": [
+      "red",
+      "true",
+      "on"
+    ],
     "requirement_level": "recommended",
     "note": "A semantic identifier, commonly referred to as a variant, provides a means\nfor referring to a value without including the value itself. This can\nprovide additional context for understanding the meaning behind a value.\nFor example, the variant `red` maybe be used for the value `#c05543`.\n\nA stringified version of the value can be used in situations where a\nsemantic identifier is unavailable. String representation of the value\nshould be determined by the implementer."
   }

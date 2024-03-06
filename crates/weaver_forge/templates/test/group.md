@@ -17,7 +17,13 @@ Requirement level: {{ attribute.requirement_level }}
 Tag: {{ attribute.tag }}
 {%- endif %}
 
-{{ attribute.brief }}
+Brief: {{ attribute.brief }}
+
+Type: {{ attribute.type }}
+
+{% if attribute.note -%}
+Note: {{ attribute.note }}
+{%- endif %}
 
 {% if attribute.stability -%}
 Stability: {{ attribute.stability }}

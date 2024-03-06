@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use validator::{Validate, ValidationError};
 
-use crate::attribute::{AttributeSpec, AttributeTypeSpec, PrimitiveOrArrayTypeSpec};
+use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
 
@@ -183,12 +183,12 @@ fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
                 continue;
             }
 
-            if *r#type == AttributeTypeSpec::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String) {
+            if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String) {
                 return Err(ValidationError::new(
                     "This attribute is a string but it does not contain any examples.",
                 ));
             }
-            if *r#type == AttributeTypeSpec::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings) {
+            if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings) {
                 return Err(ValidationError::new(
                     "This attribute is a string array but it does not contain any examples.",
                 ));
