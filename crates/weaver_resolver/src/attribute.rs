@@ -11,8 +11,8 @@ use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, Resol
 use weaver_schema::attribute::Attribute;
 use weaver_schema::tags::Tags;
 use weaver_semconv::attribute::{
-    AttributeSpec, AttributeTypeSpec, ExamplesSpec,
-    PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec,
+    AttributeSpec, AttributeTypeSpec, ExamplesSpec, PrimitiveOrArrayTypeSpec, TemplateTypeSpec,
+    ValueSpec,
 };
 use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
@@ -121,9 +121,7 @@ impl AttributeCatalog {
                             }
                         },
                         requirement_level: match requirement_level {
-                            Some(requirement_level) => {
-                                requirement_level.clone()
-                            }
+                            Some(requirement_level) => requirement_level.clone(),
                             None => {
                                 inherited_fields.push(FieldId::AttributeRequirementLevel);
                                 root_attr.attribute.requirement_level.clone()

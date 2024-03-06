@@ -13,9 +13,7 @@
         2
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n"
   },
   {
@@ -31,9 +29,7 @@
         "myhost@8742@s8083jm"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
@@ -48,9 +44,7 @@
         "MyTopic"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
   {
@@ -65,9 +59,7 @@
         "/customers/{customerId}"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   },
   {
@@ -76,9 +68,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.temporary",
@@ -86,9 +76,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination_publish.anonymous",
@@ -96,9 +84,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination_publish.name",
@@ -113,9 +99,7 @@
         "MyTopic"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n"
   },
   {
@@ -128,9 +112,7 @@
       "type": "String",
       "value": "my-group"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.destination.partition",
@@ -142,9 +124,7 @@
       "type": "Int",
       "value": 2
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.message.key",
@@ -156,9 +136,7 @@
       "type": "String",
       "value": "myKey"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n"
   },
   {
@@ -171,9 +149,7 @@
       "type": "Int",
       "value": 42
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.message.tombstone",
@@ -181,9 +157,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the message is a tombstone.",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.conversation_id",
@@ -195,9 +169,7 @@
       "type": "String",
       "value": "MyConversationId"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.envelope.size",
@@ -209,9 +181,7 @@
       "type": "Int",
       "value": 2738
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n"
   },
   {
@@ -224,9 +194,7 @@
       "type": "String",
       "value": "452a7c7c7c7048c2f887f61572b18fc2"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.body.size",
@@ -238,9 +206,7 @@
       "type": "Int",
       "value": 1439
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n"
   },
   {
@@ -284,9 +250,7 @@
       ]
     },
     "brief": "A string identifying the kind of messaging operation.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If a custom value is used, it MUST be of low cardinality."
   },
   {
@@ -299,9 +263,7 @@
       "type": "String",
       "value": "myKey"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.client_group",
@@ -313,9 +275,7 @@
       "type": "String",
       "value": "myConsumerGroup"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.consumption_model",
@@ -342,9 +302,7 @@
       ]
     },
     "brief": "Model of message consumption. This only applies to consumer spans.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.delay_time_level",
@@ -356,9 +314,7 @@
       "type": "Int",
       "value": 3
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.delivery_timestamp",
@@ -370,9 +326,7 @@
       "type": "Int",
       "value": 1665987217045
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.group",
@@ -384,9 +338,7 @@
       "type": "String",
       "value": "myMessageGroup"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.keys",
@@ -401,9 +353,7 @@
         "keyB"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.tag",
@@ -415,9 +365,7 @@
       "type": "String",
       "value": "tagA"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.type",
@@ -460,9 +408,7 @@
       ]
     },
     "brief": "Type of message.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.namespace",
@@ -474,9 +420,7 @@
       "type": "String",
       "value": "myNamespace"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.gcp_pubsub.message.ordering_key",
@@ -488,9 +432,7 @@
       "type": "String",
       "value": "ordering_key"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.system",
@@ -581,9 +523,7 @@
       ]
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
@@ -599,8 +539,7 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
@@ -617,8 +556,7 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if available."
+      "conditionally_required": "if available."
     },
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   }

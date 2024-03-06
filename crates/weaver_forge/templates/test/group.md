@@ -12,12 +12,16 @@
 ### Attribute `{{ attribute.name }}`
 
 Requirement level: {{ attribute.requirement_level }}
+
 {% if attribute.tag -%}
 Tag: {{ attribute.tag }}
 {%- endif %}
 
 {{ attribute.brief }}
 
+{% if attribute.stability -%}
+Stability: {{ attribute.stability }}
+{%- endif %}
 {% endfor %}
 
 ## Provenance

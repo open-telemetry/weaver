@@ -593,6 +593,7 @@ mod tests {
             let observed_attr_catalog_json = serde_json::to_string_pretty(&observed_attr_catalog)
                 .expect("Failed to serialize observed attribute catalog");
 
+            // println!("Observed catalog: {}", observed_attr_catalog_json);
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
                 "Attribute catalog does not match for `{}`.\nObserved catalog:\n{}",
@@ -612,8 +613,8 @@ mod tests {
                 test_dir, observed_registry_json
             );
 
-            let yaml = serde_yaml::to_string(&observed_registry).unwrap();
-            println!("{}", yaml);
+            // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
+            // println!("{}", yaml);
         }
     }
 

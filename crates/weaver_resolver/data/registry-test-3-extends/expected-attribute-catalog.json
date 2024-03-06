@@ -25,11 +25,9 @@
         "500"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.body.size",
@@ -41,10 +39,8 @@
       "type": "Int",
       "value": 3495
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Experimental"
+    "requirement_level": "recommended",
+    "stability": "experimental"
   },
   {
     "name": "http.request.header",
@@ -59,11 +55,9 @@
         "http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.method",
@@ -162,11 +156,9 @@
         "HEAD"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.method_original",
@@ -182,10 +174,8 @@
         "foo"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.request.resend_count",
@@ -197,11 +187,9 @@
       "type": "Int",
       "value": 3
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.body.size",
@@ -213,10 +201,8 @@
       "type": "Int",
       "value": 3495
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Experimental"
+    "requirement_level": "recommended",
+    "stability": "experimental"
   },
   {
     "name": "http.response.header",
@@ -231,11 +217,9 @@
         "http.response.header.my-custom-header=[\"abc\", \"def\"]"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nUsers MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.status_code",
@@ -249,10 +233,8 @@
         200
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.route",
@@ -267,11 +249,9 @@
         "{controller}/{action}/{id?}"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "messaging.batch.message_count",
@@ -287,9 +267,7 @@
         2
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n"
   },
   {
@@ -305,9 +283,7 @@
         "myhost@8742@s8083jm"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
@@ -322,9 +298,7 @@
         "MyTopic"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
   {
@@ -339,9 +313,7 @@
         "/customers/{customerId}"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   },
   {
@@ -350,9 +322,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.temporary",
@@ -360,9 +330,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination_publish.anonymous",
@@ -370,9 +338,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination_publish.name",
@@ -387,9 +353,7 @@
         "MyTopic"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n"
   },
   {
@@ -402,9 +366,7 @@
       "type": "String",
       "value": "my-group"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.destination.partition",
@@ -416,9 +378,7 @@
       "type": "Int",
       "value": 2
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.message.key",
@@ -430,9 +390,7 @@
       "type": "String",
       "value": "myKey"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n"
   },
   {
@@ -445,9 +403,7 @@
       "type": "Int",
       "value": 42
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.message.tombstone",
@@ -455,9 +411,7 @@
       "type": "Boolean"
     },
     "brief": "A boolean that is true if the message is a tombstone.",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.conversation_id",
@@ -469,9 +423,7 @@
       "type": "String",
       "value": "MyConversationId"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.envelope.size",
@@ -483,9 +435,7 @@
       "type": "Int",
       "value": 2738
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n"
   },
   {
@@ -498,9 +448,7 @@
       "type": "String",
       "value": "452a7c7c7c7048c2f887f61572b18fc2"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.body.size",
@@ -512,9 +460,7 @@
       "type": "Int",
       "value": 1439
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n"
   },
   {
@@ -558,9 +504,7 @@
       ]
     },
     "brief": "A string identifying the kind of messaging operation.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If a custom value is used, it MUST be of low cardinality."
   },
   {
@@ -573,9 +517,7 @@
       "type": "String",
       "value": "myKey"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.client_group",
@@ -587,9 +529,7 @@
       "type": "String",
       "value": "myConsumerGroup"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.consumption_model",
@@ -616,9 +556,7 @@
       ]
     },
     "brief": "Model of message consumption. This only applies to consumer spans.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.delay_time_level",
@@ -630,9 +568,7 @@
       "type": "Int",
       "value": 3
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.delivery_timestamp",
@@ -644,9 +580,7 @@
       "type": "Int",
       "value": 1665987217045
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.group",
@@ -658,9 +592,7 @@
       "type": "String",
       "value": "myMessageGroup"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.keys",
@@ -675,9 +607,7 @@
         "keyB"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.tag",
@@ -689,9 +619,7 @@
       "type": "String",
       "value": "tagA"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.type",
@@ -734,9 +662,7 @@
       ]
     },
     "brief": "Type of message.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.namespace",
@@ -748,9 +674,7 @@
       "type": "String",
       "value": "myNamespace"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.gcp_pubsub.message.ordering_key",
@@ -762,9 +686,7 @@
       "type": "String",
       "value": "ordering_key"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.system",
@@ -855,9 +777,7 @@
       ]
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.icc",
@@ -869,9 +789,7 @@
       "type": "String",
       "value": "DE"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.mcc",
@@ -883,9 +801,7 @@
       "type": "String",
       "value": "310"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.mnc",
@@ -897,9 +813,7 @@
       "type": "String",
       "value": "001"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.name",
@@ -911,9 +825,7 @@
       "type": "String",
       "value": "sprint"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.connection.subtype",
@@ -1096,9 +1008,7 @@
       "type": "String",
       "value": "LTE"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.connection.type",
@@ -1148,9 +1058,7 @@
       "type": "String",
       "value": "wifi"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.local.address",
@@ -1165,10 +1073,8 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.local.port",
@@ -1182,10 +1088,8 @@
         65123
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.address",
@@ -1200,10 +1104,8 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.port",
@@ -1217,10 +1119,8 @@
         65123
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name",
@@ -1236,11 +1136,9 @@
         "mqtt"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
@@ -1252,11 +1150,9 @@
       "type": "String",
       "value": "3.1.1"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.transport",
@@ -1306,11 +1202,9 @@
         "udp"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.type",
@@ -1344,11 +1238,9 @@
         "ipv6"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.io.direction",
@@ -1379,9 +1271,7 @@
         "transmit"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "server.address",
@@ -1397,11 +1287,9 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -1417,11 +1305,9 @@
         443
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.scheme",
@@ -1437,10 +1323,8 @@
         "telnet"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "url.full",
@@ -1455,11 +1339,9 @@
         "//localhost"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.path",
@@ -1473,10 +1355,8 @@
         "/search"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "url.query",
@@ -1490,11 +1370,9 @@
         "q=OpenTelemetry"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.fragment",
@@ -1508,10 +1386,8 @@
         "SemConv"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.request.method",
@@ -1610,11 +1486,9 @@
         "HEAD"
       ]
     },
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.status_code",
@@ -1629,10 +1503,9 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If and only if one was received/sent."
+      "conditionally_required": "If and only if one was received/sent."
     },
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "error.type",
@@ -1661,11 +1534,10 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If request has ended with an error."
+      "conditionally_required": "If request has ended with an error."
     },
     "note": "If the request fails with an error before response status code was sent or received,\n`error.type` SHOULD be set to exception type (its fully-qualified class name, if applicable)\nor a component-specific low cardinality error identifier.\n\nIf response status code was sent or received and status indicates an error according to [HTTP span status definition](/docs/http/http-spans.md),\n`error.type` SHOULD be set to the status code number (represented as a string), an exception type (if thrown) or a component-specific error identifier.\n\nThe `error.type` value SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low, but\ntelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time, when no\nadditional filters are applied.\n\nIf the request has completed successfully, instrumentations SHOULD NOT set `error.type`.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name",
@@ -1681,11 +1553,10 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If not `http` and `network.protocol.version` is set."
+      "conditionally_required": "If not `http` and `network.protocol.version` is set."
     },
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
@@ -1702,11 +1573,9 @@
         "3"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.address",
@@ -1722,11 +1591,9 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "If an HTTP client request is explicitly made to an IP address, e.g. `http://x.x.x.x:8080`, then `server.address` SHOULD be the IP address `x.x.x.x`. A DNS lookup SHOULD NOT be used.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -1742,11 +1609,9 @@
         443
       ]
     },
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.scheme",
@@ -1761,10 +1626,8 @@
         "https"
       ]
     },
-    "requirement_level": {
-      "type": "OptIn"
-    },
-    "stability": "Stable"
+    "requirement_level": "opt_in",
+    "stability": "stable"
   },
   {
     "name": "http.route",
@@ -1780,11 +1643,10 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If and only if it's available"
+      "conditionally_required": "If and only if it's available"
     },
     "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.address",
@@ -1800,11 +1662,9 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -1821,11 +1681,10 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If `server.address` is set."
+      "conditionally_required": "If `server.address` is set."
     },
     "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.scheme",
@@ -1840,11 +1699,9 @@
         "https"
       ]
     },
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "messaging.system",
@@ -1935,9 +1792,7 @@
       ]
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": {
-      "type": "Required"
-    }
+    "requirement_level": "required"
   },
   {
     "name": "error.type",
@@ -1965,11 +1820,10 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If and only if the messaging operation has failed."
+      "conditionally_required": "If and only if the messaging operation has failed."
     },
     "note": "The `error.type` SHOULD be predictable and SHOULD have low cardinality.\nInstrumentations SHOULD document the list of errors they report.\n\nThe cardinality of `error.type` within one instrumentation library SHOULD be low.\nTelemetry consumers that aggregate data from multiple instrumentation libraries and applications\nshould be prepared for `error.type` to have high cardinality at query time when no\nadditional filters are applied.\n\nIf the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.\n\nIf a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),\nit's RECOMMENDED to:\n\n* Use a domain-specific attribute\n* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.address",
@@ -1986,11 +1840,10 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If available."
+      "conditionally_required": "If available."
     },
     "note": "This should be the IP/hostname of the broker (or other network-level peer) this specific message is sent to/received from.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name",
@@ -2006,11 +1859,9 @@
       ]
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
@@ -2023,11 +1874,9 @@
       "value": "3.1.1"
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "messaging.destination.name",
@@ -2043,8 +1892,7 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
@@ -2061,8 +1909,7 @@
       ]
     },
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if available."
+      "conditionally_required": "if available."
     },
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   }

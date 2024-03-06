@@ -48,9 +48,7 @@
       ]
     },
     "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.\n"
   },
   {
@@ -86,9 +84,7 @@
       ]
     },
     "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.\n"
   },
   {
@@ -103,9 +99,7 @@
         "logo-color"
       ]
     },
-    "requirement_level": {
-      "type": "Required"
-    }
+    "requirement_level": "required"
   },
   {
     "name": "feature_flag.provider_name",
@@ -119,9 +113,7 @@
         "Flag Manager"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "feature_flag.variant",
@@ -137,9 +129,7 @@
         "on"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "A semantic identifier, commonly referred to as a variant, provides a means\nfor referring to a value without including the value itself. This can\nprovide additional context for understanding the meaning behind a value.\nFor example, the variant `red` maybe be used for the value `#c05543`.\n\nA stringified version of the value can be used in situations where a\nsemantic identifier is unavailable. String representation of the value\nshould be determined by the implementer."
   }
 ]

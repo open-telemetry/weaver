@@ -10,9 +10,7 @@
       "value": "us-west-2"
     },
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.coordinator.id",
@@ -25,9 +23,7 @@
       "value": "be13faa2-8574-4d71-926d-27f16cf8a7af"
     },
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.consistency_level",
@@ -116,9 +112,7 @@
     },
     "brief": "The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).\n",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.idempotence",
@@ -127,9 +121,7 @@
     },
     "brief": "Whether or not the query is idempotent.\n",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.page_size",
@@ -144,9 +136,7 @@
       ]
     },
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.speculative_execution_count",
@@ -162,9 +152,7 @@
       ]
     },
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.table",
@@ -177,9 +165,7 @@
       "value": "mytable"
     },
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
@@ -193,9 +179,7 @@
       "value": "Server=(localdb)\\v11.0;Integrated Security=true;"
     },
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.client_id",
@@ -208,9 +192,7 @@
       "value": "3ba4827d-4422-483f-b59f-85b74211c11d"
     },
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.connection_mode",
@@ -238,9 +220,7 @@
     },
     "brief": "Cosmos client connection mode.",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.container",
@@ -253,9 +233,7 @@
       "value": "anystring"
     },
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.operation_type",
@@ -372,9 +350,7 @@
     },
     "brief": "CosmosDB Operation Type.",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.request_charge",
@@ -390,9 +366,7 @@
       ]
     },
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.request_content_length",
@@ -401,9 +375,7 @@
     },
     "brief": "Request payload size in bytes",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.status_code",
@@ -419,9 +391,7 @@
       ]
     },
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.sub_status_code",
@@ -437,9 +407,7 @@
       ]
     },
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.elasticsearch.cluster.name",
@@ -454,9 +422,7 @@
       ]
     },
     "tag": "tech-specific-elasticsearch",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.elasticsearch.node.name",
@@ -471,9 +437,7 @@
       ]
     },
     "tag": "tech-specific-elasticsearch",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.elasticsearch.path_parts",
@@ -489,9 +453,7 @@
       ]
     },
     "tag": "tech-specific-elasticsearch",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.\n"
   },
   {
@@ -508,9 +470,7 @@
       ]
     },
     "tag": "tech-specific-jdbc",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.mongodb.collection",
@@ -526,9 +486,7 @@
       ]
     },
     "tag": "tech-specific-mongodb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.mssql.instance_name",
@@ -541,9 +499,7 @@
       "value": "MSSQLSERVER"
     },
     "tag": "tech-specific-mssql",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).\n"
   },
   {
@@ -560,9 +516,7 @@
       ]
     },
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "In some SQL databases, the database name to be used is called \"schema name\". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).\n"
   },
   {
@@ -580,9 +534,7 @@
       ]
     },
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
   },
   {
@@ -600,9 +552,7 @@
       ]
     },
     "tag": "tech-specific-redis",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.sql.table",
@@ -618,9 +568,7 @@
       ]
     },
     "tag": "tech-specific-sql",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
@@ -637,9 +585,7 @@
       ]
     },
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.system",
@@ -1067,9 +1013,7 @@
     },
     "brief": "An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.",
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.user",
@@ -1085,9 +1029,7 @@
       ]
     },
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.instance.id",
@@ -1100,9 +1042,7 @@
       "value": "mysql-e26b99z.example.com"
     },
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "http.request.body.size",
@@ -1114,10 +1054,8 @@
       "type": "Int",
       "value": 3495
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Experimental"
+    "requirement_level": "recommended",
+    "stability": "experimental"
   },
   {
     "name": "http.request.header",
@@ -1132,11 +1070,9 @@
         "http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.method",
@@ -1235,11 +1171,9 @@
         "HEAD"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.method_original",
@@ -1255,10 +1189,8 @@
         "foo"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.request.resend_count",
@@ -1270,11 +1202,9 @@
       "type": "Int",
       "value": 3
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.body.size",
@@ -1286,10 +1216,8 @@
       "type": "Int",
       "value": 3495
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Experimental"
+    "requirement_level": "recommended",
+    "stability": "experimental"
   },
   {
     "name": "http.response.header",
@@ -1304,11 +1232,9 @@
         "http.response.header.my-custom-header=[\"abc\", \"def\"]"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nUsers MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.status_code",
@@ -1322,10 +1248,8 @@
         200
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.route",
@@ -1340,11 +1264,9 @@
         "{controller}/{action}/{id?}"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.carrier.icc",
@@ -1356,9 +1278,7 @@
       "type": "String",
       "value": "DE"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.mcc",
@@ -1370,9 +1290,7 @@
       "type": "String",
       "value": "310"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.mnc",
@@ -1384,9 +1302,7 @@
       "type": "String",
       "value": "001"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.name",
@@ -1398,9 +1314,7 @@
       "type": "String",
       "value": "sprint"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.connection.subtype",
@@ -1583,9 +1497,7 @@
       "type": "String",
       "value": "LTE"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.connection.type",
@@ -1635,9 +1547,7 @@
       "type": "String",
       "value": "wifi"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "network.local.address",
@@ -1652,10 +1562,8 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.local.port",
@@ -1669,10 +1577,8 @@
         65123
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.address",
@@ -1687,10 +1593,8 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.port",
@@ -1704,10 +1608,8 @@
         65123
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name",
@@ -1723,11 +1625,9 @@
         "mqtt"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
@@ -1739,11 +1639,9 @@
       "type": "String",
       "value": "3.1.1"
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.transport",
@@ -1793,11 +1691,9 @@
         "udp"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.type",
@@ -1831,11 +1727,9 @@
         "ipv6"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.io.direction",
@@ -1866,9 +1760,7 @@
         "transmit"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "server.address",
@@ -1884,11 +1776,9 @@
         "/tmp/my.sock"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -1904,11 +1794,9 @@
         443
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.scheme",
@@ -1924,10 +1812,8 @@
         "telnet"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "url.full",
@@ -1942,11 +1828,9 @@
         "//localhost"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.path",
@@ -1960,10 +1844,8 @@
         "/search"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "url.query",
@@ -1977,11 +1859,9 @@
         "q=OpenTelemetry"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.fragment",
@@ -1995,10 +1875,8 @@
         "SemConv"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "user_agent.original",
@@ -2013,10 +1891,8 @@
         "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"
       ]
     },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "db.system",
@@ -2444,9 +2320,7 @@
     },
     "brief": "An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.",
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Required"
-    }
+    "requirement_level": "required"
   },
   {
     "name": "db.connection_string",
@@ -2459,9 +2333,7 @@
       "value": "Server=(localdb)\\v11.0;Integrated Security=true;"
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.user",
@@ -2477,9 +2349,7 @@
       ]
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.jdbc.driver_classname",
@@ -2495,9 +2365,7 @@
       ]
     },
     "tag": "connection-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.name",
@@ -2514,8 +2382,7 @@
     },
     "tag": "call-level",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If applicable."
+      "conditionally_required": "If applicable."
     },
     "note": "In some SQL databases, the database name to be used is called \"schema name\". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).\n"
   },
@@ -2534,8 +2401,7 @@
     },
     "tag": "call-level",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "Should be collected by default only if there is sanitization that excludes sensitive information.\n"
+      "recommended": "Should be collected by default only if there is sanitization that excludes sensitive information.\n"
     }
   },
   {
@@ -2554,8 +2420,7 @@
     },
     "tag": "call-level",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If `db.statement` is not applicable."
+      "conditionally_required": "If `db.statement` is not applicable."
     },
     "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
   },
@@ -2574,11 +2439,9 @@
       ]
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -2596,11 +2459,10 @@
     },
     "tag": "connection-level",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If using a port other than the default port for this DBMS and if `server.address` is set."
+      "conditionally_required": "If using a port other than the default port for this DBMS and if `server.address` is set."
     },
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.peer.address",
@@ -2616,10 +2478,8 @@
       ]
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.port",
@@ -2635,10 +2495,9 @@
     },
     "tag": "connection-level",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "If `network.peer.address` is set."
+      "recommended": "If `network.peer.address` is set."
     },
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.transport",
@@ -2689,11 +2548,9 @@
       ]
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.type",
@@ -2728,11 +2585,9 @@
       ]
     },
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.instance.id",
@@ -2746,8 +2601,7 @@
     },
     "tag": "connection-level",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "If different from the `server.address`"
+      "recommended": "If different from the `server.address`"
     }
   },
   {
@@ -2761,9 +2615,7 @@
       "value": "MSSQLSERVER"
     },
     "tag": "connection-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).\n"
   },
   {
@@ -2779,9 +2631,7 @@
       ]
     },
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For Cassandra the `db.name` should be set to the Cassandra keyspace name."
   },
   {
@@ -2797,9 +2647,7 @@
       ]
     },
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.consistency_level",
@@ -2888,9 +2736,7 @@
     },
     "brief": "The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).\n",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.table",
@@ -2903,9 +2749,7 @@
       "value": "mytable"
     },
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
@@ -2915,9 +2759,7 @@
     },
     "brief": "Whether or not the query is idempotent.\n",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.speculative_execution_count",
@@ -2933,9 +2775,7 @@
       ]
     },
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.coordinator.id",
@@ -2948,9 +2788,7 @@
       "value": "be13faa2-8574-4d71-926d-27f16cf8a7af"
     },
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.coordinator.dc",
@@ -2963,9 +2801,7 @@
       "value": "us-west-2"
     },
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.name",
@@ -2980,9 +2816,7 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For HBase the `db.name` should be set to the HBase namespace."
   },
   {
@@ -2998,9 +2832,7 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).\n"
   },
   {
@@ -3019,8 +2851,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If other than the default database (`0`)."
+      "conditionally_required": "If other than the default database (`0`)."
     }
   },
   {
@@ -3036,9 +2867,7 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `\"HMSET myhash field1 'Hello' field2 'World'\"` would be a suitable value for `db.statement`.\n"
   },
   {
@@ -3055,9 +2884,7 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    }
+    "requirement_level": "required"
   },
   {
     "name": "http.request.method",
@@ -3157,11 +2984,9 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.operation",
@@ -3178,9 +3003,7 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
   },
   {
@@ -3196,11 +3019,9 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.statement",
@@ -3216,8 +3037,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "Should be collected by default for search-type queries and only if there is sanitization that excludes sensitive information.\n"
+      "recommended": "Should be collected by default for search-type queries and only if there is sanitization that excludes sensitive information.\n"
     }
   },
   {
@@ -3235,11 +3055,9 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -3256,11 +3074,9 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.elasticsearch.cluster.name",
@@ -3276,8 +3092,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Cluster\" HTTP response header.\n"
+      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Cluster\" HTTP response header.\n"
     }
   },
   {
@@ -3294,8 +3109,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Instance\" HTTP response header.\n"
+      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Instance\" HTTP response header.\n"
     }
   },
   {
@@ -3313,8 +3127,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when the url has dynamic values"
+      "conditionally_required": "when the url has dynamic values"
     },
     "note": "Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.\n"
   },
@@ -3332,9 +3145,7 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
@@ -3348,9 +3159,7 @@
       "value": "3ba4827d-4422-483f-b59f-85b74211c11d"
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.operation_type",
@@ -3468,8 +3277,7 @@
     "brief": "CosmosDB Operation Type.",
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when performing one of the operations in this list"
+      "conditionally_required": "when performing one of the operations in this list"
     }
   },
   {
@@ -3485,11 +3293,9 @@
       ]
     },
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.\n   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).\n   Default value is \"NS\".\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.cosmosdb.connection_mode",
@@ -3518,8 +3324,7 @@
     "brief": "Cosmos client connection mode.",
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if not `direct` (or pick gw as default)"
+      "conditionally_required": "if not `direct` (or pick gw as default)"
     }
   },
   {
@@ -3534,8 +3339,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if available"
+      "conditionally_required": "if available"
     }
   },
   {
@@ -3545,9 +3349,7 @@
     },
     "brief": "Request payload size in bytes",
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.status_code",
@@ -3564,8 +3366,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if response was received"
+      "conditionally_required": "if response was received"
     }
   },
   {
@@ -3583,8 +3384,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when response was received and contained sub-code."
+      "conditionally_required": "when response was received and contained sub-code."
     }
   },
   {
@@ -3602,8 +3402,7 @@
     },
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when available"
+      "conditionally_required": "when available"
     }
   }
 ]
