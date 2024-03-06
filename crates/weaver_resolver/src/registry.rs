@@ -8,15 +8,12 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
-use weaver_resolved_schema::registry::{Constraint, Group, Registry, TypedGroup};
+use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::ConvTypeSpec;
 use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::metrics::resolve_instrument;
-use crate::spans::resolve_span_kind;
 use crate::stability::resolve_stability;
 use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
@@ -285,24 +282,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
     UnresolvedGroup {
         group: Group {
             id: group.spec.id,
-            typed_group: match group.spec.r#type {
-                ConvTypeSpec::AttributeGroup => TypedGroup::AttributeGroup {},
-                ConvTypeSpec::Span => TypedGroup::Span {
-                    span_kind: group.spec.span_kind.as_ref().map(resolve_span_kind),
-                    events: group.spec.events,
-                },
-                ConvTypeSpec::Event => TypedGroup::Event {
-                    name: group.spec.name,
-                },
-                ConvTypeSpec::Metric => TypedGroup::Metric {
-                    metric_name: group.spec.metric_name,
-                    instrument: group.spec.instrument.as_ref().map(resolve_instrument),
-                    unit: group.spec.unit,
-                },
-                ConvTypeSpec::MetricGroup => TypedGroup::MetricGroup {},
-                ConvTypeSpec::Resource => TypedGroup::Resource {},
-                ConvTypeSpec::Scope => TypedGroup::Scope {},
-            },
+            r#type: group.spec.r#type,
             brief: group.spec.brief,
             note: group.spec.note,
             prefix: group.spec.prefix,
@@ -311,6 +291,12 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             deprecated: group.spec.deprecated,
             constraints: resolve_constraints(&group.spec.constraints),
             attributes: vec![],
+            span_kind: group.spec.span_kind,
+            events: group.spec.events,
+            metric_name: group.spec.metric_name,
+            instrument: group.spec.instrument,
+            unit: group.spec.unit,
+            name: group.spec.name,
             lineage: Some(GroupLineage::new(group.provenance.clone())),
         },
         attributes: attrs,

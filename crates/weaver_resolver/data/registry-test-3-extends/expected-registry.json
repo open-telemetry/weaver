@@ -3,9 +3,7 @@
   "groups": [
     {
       "id": "attributes.http.common",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Describes HTTP attributes.",
       "attributes": [
         62,
@@ -160,9 +158,7 @@
     },
     {
       "id": "attributes.http.client",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "HTTP Client attributes",
       "attributes": [
         62,
@@ -286,9 +282,7 @@
     },
     {
       "id": "attributes.http.server",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "HTTP Server attributes",
       "attributes": [
         62,
@@ -439,9 +433,7 @@
     },
     {
       "id": "messaging.attributes.common",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Common messaging attributes.",
       "prefix": "messaging",
       "attributes": [
@@ -632,9 +624,7 @@
     },
     {
       "id": "metric.messaging.attributes",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Common messaging metrics attributes.",
       "attributes": [
         56,
@@ -750,12 +740,7 @@
     },
     {
       "id": "metric.messaging.publish.duration",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "messaging.publish.duration",
-        "instrument": "Histogram",
-        "unit": "s"
-      },
+      "type": "metric",
       "brief": "Measures the duration of publish operation.",
       "attributes": [
         56,
@@ -767,6 +752,9 @@
         79,
         80
       ],
+      "metric_name": "messaging.publish.duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": {
@@ -823,12 +811,7 @@
     },
     {
       "id": "metric.messaging.receive.duration",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "messaging.receive.duration",
-        "instrument": "Histogram",
-        "unit": "s"
-      },
+      "type": "metric",
       "brief": "Measures the duration of receive operation.",
       "attributes": [
         56,
@@ -840,6 +823,9 @@
         79,
         80
       ],
+      "metric_name": "messaging.receive.duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": {
@@ -896,12 +882,7 @@
     },
     {
       "id": "metric.messaging.deliver.duration",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "messaging.deliver.duration",
-        "instrument": "Histogram",
-        "unit": "s"
-      },
+      "type": "metric",
       "brief": "Measures the duration of deliver operation.",
       "attributes": [
         56,
@@ -913,6 +894,9 @@
         79,
         80
       ],
+      "metric_name": "messaging.deliver.duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": {
@@ -969,12 +953,7 @@
     },
     {
       "id": "metric.messaging.publish.messages",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "messaging.publish.messages",
-        "instrument": "Counter",
-        "unit": "{message}"
-      },
+      "type": "metric",
       "brief": "Measures the number of published messages.",
       "attributes": [
         56,
@@ -986,6 +965,9 @@
         79,
         80
       ],
+      "metric_name": "messaging.publish.messages",
+      "instrument": "counter",
+      "unit": "{message}",
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": {
@@ -1042,12 +1024,7 @@
     },
     {
       "id": "metric.messaging.receive.messages",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "messaging.receive.messages",
-        "instrument": "Counter",
-        "unit": "{message}"
-      },
+      "type": "metric",
       "brief": "Measures the number of received messages.",
       "attributes": [
         56,
@@ -1059,6 +1036,9 @@
         79,
         80
       ],
+      "metric_name": "messaging.receive.messages",
+      "instrument": "counter",
+      "unit": "{message}",
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": {
@@ -1115,12 +1095,7 @@
     },
     {
       "id": "metric.messaging.deliver.messages",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "messaging.deliver.messages",
-        "instrument": "Counter",
-        "unit": "{message}"
-      },
+      "type": "metric",
       "brief": "Measures the number of delivered messages.",
       "attributes": [
         56,
@@ -1132,6 +1107,9 @@
         79,
         80
       ],
+      "metric_name": "messaging.deliver.messages",
+      "instrument": "counter",
+      "unit": "{message}",
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": {
@@ -1188,9 +1166,7 @@
     },
     {
       "id": "registry.error",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report an error.\n",
       "prefix": "error",
       "attributes": [
@@ -1202,9 +1178,7 @@
     },
     {
       "id": "registry.http",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "This document defines semantic convention attributes in the HTTP namespace.",
       "prefix": "http",
       "attributes": [
@@ -1224,9 +1198,7 @@
     },
     {
       "id": "registry.messaging",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
       "prefix": "messaging",
       "attributes": [
@@ -1267,9 +1239,7 @@
     },
     {
       "id": "registry.network",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "These attributes may be used for any network related operation.\n",
       "prefix": "network",
       "attributes": [
@@ -1295,9 +1265,7 @@
     },
     {
       "id": "server",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
       "prefix": "server",
       "attributes": [
@@ -1310,9 +1278,7 @@
     },
     {
       "id": "registry.url",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Attributes describing URL.",
       "prefix": "url",
       "attributes": [

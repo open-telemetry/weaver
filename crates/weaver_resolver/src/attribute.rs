@@ -14,7 +14,7 @@ use weaver_semconv::attribute::{
     AttributeSpec, AttributeTypeSpec, BasicRequirementLevelSpec, ExamplesSpec,
     PrimitiveOrArrayTypeSpec, RequirementLevelSpec, TemplateTypeSpec, ValueSpec,
 };
-use weaver_semconv::group::ConvTypeSpec;
+use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionAttributeChanges;
 
@@ -270,7 +270,7 @@ pub fn resolve_attributes(
         } = attribute
         {
             let attrs = semconv_registry
-                .attributes(attribute_group_ref, ConvTypeSpec::AttributeGroup)
+                .attributes(attribute_group_ref, GroupType::AttributeGroup)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![attribute_group_ref.clone()],
                     error: e.to_string(),
@@ -283,7 +283,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::ResourceRef { resource_ref, tags } = attribute {
             let attrs = semconv_registry
-                .attributes(resource_ref, ConvTypeSpec::Resource)
+                .attributes(resource_ref, GroupType::Resource)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![resource_ref.clone()],
                     error: e.to_string(),
@@ -296,7 +296,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::SpanRef { span_ref, tags } = attribute {
             let attrs = semconv_registry
-                .attributes(span_ref, ConvTypeSpec::Span)
+                .attributes(span_ref, GroupType::Span)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![span_ref.clone()],
                     error: e.to_string(),
@@ -309,7 +309,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::EventRef { event_ref, tags } = attribute {
             let attrs = semconv_registry
-                .attributes(event_ref, ConvTypeSpec::Event)
+                .attributes(event_ref, GroupType::Event)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![event_ref.clone()],
                     error: e.to_string(),

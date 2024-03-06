@@ -29,7 +29,8 @@ use serde::Serialize;
 use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::registry::{Registry, TypedGroup};
+use weaver_resolved_schema::registry::Registry;
+use weaver_semconv::group::GroupType;
 
 use crate::config::TargetConfig;
 use crate::extensions::attributes::attributes;
@@ -446,9 +447,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| {
-                                matches!(group.typed_group, TypedGroup::AttributeGroup { .. })
-                            })
+                            .filter(|group| matches!(group.r#type, GroupType::AttributeGroup))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -460,7 +459,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Event { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Event))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -480,7 +479,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Metric { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Metric))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -492,9 +491,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| {
-                                matches!(group.typed_group, TypedGroup::MetricGroup { .. })
-                            })
+                            .filter(|group| matches!(group.r#type, GroupType::MetricGroup))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -512,9 +509,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| {
-                                matches!(group.typed_group, TypedGroup::Resource { .. })
-                            })
+                            .filter(|group| matches!(group.r#type, GroupType::Resource))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -526,7 +521,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Scope { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Scope))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -538,7 +533,7 @@ impl TemplateEngine {
                         registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Span { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Span))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -550,9 +545,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| {
-                                matches!(group.typed_group, TypedGroup::AttributeGroup { .. })
-                            })
+                            .filter(|group| matches!(group.r#type, GroupType::AttributeGroup))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -563,7 +556,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Event { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Event))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -581,7 +574,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Metric { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Metric))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -592,9 +585,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| {
-                                matches!(group.typed_group, TypedGroup::MetricGroup { .. })
-                            })
+                            .filter(|group| matches!(group.r#type, GroupType::MetricGroup))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -605,9 +596,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| {
-                                matches!(group.typed_group, TypedGroup::Resource { .. })
-                            })
+                            .filter(|group| matches!(group.r#type, GroupType::Resource))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -618,7 +607,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Scope { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Scope))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -629,7 +618,7 @@ impl TemplateEngine {
                         let groups = registry
                             .groups
                             .iter()
-                            .filter(|group| matches!(group.typed_group, TypedGroup::Span { .. }))
+                            .filter(|group| matches!(group.r#type, GroupType::Span))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),

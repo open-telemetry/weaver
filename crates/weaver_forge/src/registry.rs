@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::{Catalog, Stability};
 use weaver_resolved_schema::lineage::GroupLineage;
-use weaver_resolved_schema::registry::{Constraint, Registry, TypedGroup};
+use weaver_resolved_schema::registry::{Constraint, Registry};
+use weaver_semconv::group::GroupType;
 
 /// A semantic convention registry used in the context of the template engine.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -28,7 +29,7 @@ pub struct TemplateGroup {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the group including the specific fields for each type.
-    pub typed_group: TypedGroup,
+    pub r#type: GroupType,
     /// A brief description of the semantic convention.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
@@ -86,7 +87,7 @@ impl TemplateRegistry {
             .iter()
             .map(|group| {
                 let id = group.id.clone();
-                let typed_group = group.typed_group.clone();
+                let group_type = group.r#type.clone();
                 let brief = group.brief.clone();
                 let note = group.note.clone();
                 let prefix = group.prefix.clone();
@@ -111,7 +112,7 @@ impl TemplateRegistry {
                 let lineage = group.lineage.clone();
                 TemplateGroup {
                     id,
-                    typed_group,
+                    r#type: group_type,
                     brief,
                     note,
                     prefix,

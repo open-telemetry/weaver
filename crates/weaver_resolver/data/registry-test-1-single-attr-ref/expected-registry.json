@@ -3,9 +3,7 @@
   "groups": [
     {
       "id": "metric.messaging.attributes",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Common messaging metrics attributes.",
       "attributes": [
         1
@@ -48,9 +46,7 @@
     },
     {
       "id": "registry.messaging",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
       "prefix": "messaging",
       "attributes": [
