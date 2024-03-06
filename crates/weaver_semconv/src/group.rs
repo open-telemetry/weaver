@@ -143,11 +143,24 @@ fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
         // will result in an error.
         match attribute {
             AttributeSpec::Id {
+                brief,
                 stability,
                 deprecated,
                 ..
+            } => {
+                if brief.is_none() && deprecated.is_none() {
+                    return Err(ValidationError::new(
+                        "This attribute is not deprecated and does not contain a brief field.",
+                    ));
+                }
+                if deprecated.is_some()
+                    && stability.is_some()
+                    && *stability != Some(StabilitySpec::Deprecated)
+                {
+                    return Err(ValidationError::new("This attribute contains a deprecated field but the stability is not set to deprecated."));
+                }
             }
-            | AttributeSpec::Ref {
+            AttributeSpec::Ref {
                 stability,
                 deprecated,
                 ..

@@ -52,13 +52,15 @@ pub fn widget<'a>(
             }
 
             // Brief
-            if !brief.trim().is_empty() {
-                text.push(Line::from(""));
-                text.push(Line::from(Span::styled(
-                    "Brief: ",
-                    Style::default().fg(theme.label),
-                )));
-                text.push(Line::from(brief.as_str()));
+            if let Some(brief) = brief {
+                if !brief.trim().is_empty() {
+                    text.push(Line::from(""));
+                    text.push(Line::from(Span::styled(
+                        "Brief: ",
+                        Style::default().fg(theme.label),
+                    )));
+                    text.push(Line::from(brief.as_str()));
+                }
             }
 
             // Note

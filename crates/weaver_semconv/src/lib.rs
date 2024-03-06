@@ -16,11 +16,11 @@
     unused_extern_crates
 )]
 
+use glob::glob;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use glob::glob;
 
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -897,6 +897,7 @@ mod tests {
             "data/network.yaml",
             "data/server.yaml",
             "data/url.yaml",
+            "data/exporter.yaml",
         ];
 
         let mut catalog = SemConvRegistry::default();

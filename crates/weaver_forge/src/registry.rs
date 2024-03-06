@@ -4,12 +4,12 @@
 //! catalog are resolved to the actual catalog entries to ease the template
 //! evaluation.
 
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::{Catalog, Stability};
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Registry, TypedGroup};
-use crate::Error;
 
 /// A semantic convention registry used in the context of the template engine.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -94,16 +94,20 @@ impl TemplateRegistry {
                 let stability = group.stability.clone();
                 let deprecated = group.deprecated.clone();
                 let constraints = group.constraints.clone();
-                let attributes = group.attributes.iter().flat_map(|attr_ref| {
-                    let attr = catalog.attribute(attr_ref).map(|a| a.clone());
-                    if attr.is_none() {
-                        errors.push(Error::AttributeNotFound {
-                            group_id: id.clone(),
-                            attr_ref: *attr_ref,
-                        });
-                    }
-                    attr
-                }).collect();
+                let attributes = group
+                    .attributes
+                    .iter()
+                    .flat_map(|attr_ref| {
+                        let attr = catalog.attribute(attr_ref).cloned();
+                        if attr.is_none() {
+                            errors.push(Error::AttributeNotFound {
+                                group_id: id.clone(),
+                                attr_ref: *attr_ref,
+                            });
+                        }
+                        attr
+                    })
+                    .collect();
                 let lineage = group.lineage.clone();
                 TemplateGroup {
                     id,
@@ -122,7 +126,7 @@ impl TemplateRegistry {
             .collect();
 
         if !errors.is_empty() {
-            return Err(Error::CompoundError(errors))
+            return Err(Error::CompoundError(errors));
         }
 
         Ok(Self {

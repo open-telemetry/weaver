@@ -75,7 +75,7 @@ pub enum AttributeSpec {
         /// array type, a template type or an enum definition.
         r#type: AttributeTypeSpec,
         /// A brief description of the attribute.
-        brief: String,
+        brief: Option<String>,
         /// Sequence of example values for the attribute or single example
         /// value. They are required only for string and string array
         /// attributes. Example values must be of the same type of the
@@ -148,7 +148,7 @@ impl AttributeSpec {
     pub fn brief(&self) -> String {
         match self {
             AttributeSpec::Ref { brief, .. } => brief.clone().unwrap_or_default(),
-            AttributeSpec::Id { brief, .. } => brief.clone(),
+            AttributeSpec::Id { brief, .. } => brief.clone().unwrap_or_default(),
         }
     }
 

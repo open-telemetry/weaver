@@ -209,7 +209,7 @@ impl AttributeCatalog {
                 let attr = attribute::Attribute {
                     name: root_attr_id.clone(),
                     r#type: semconv_to_resolved_attr_type(r#type),
-                    brief: brief.clone(),
+                    brief: brief.clone().unwrap_or_default(),
                     examples: semconv_to_resolved_examples(examples),
                     tag: tag.clone(),
                     requirement_level: semconv_to_resolved_req_level(requirement_level),
@@ -428,7 +428,7 @@ pub fn resolve_attribute(
         } => Ok(attribute::Attribute {
             name: id.clone(),
             r#type: semconv_to_resolved_attr_type(r#type),
-            brief: brief.clone(),
+            brief: brief.clone().unwrap_or_default(),
             examples: semconv_to_resolved_examples(examples),
             tag: tag.clone(),
             requirement_level: semconv_to_resolved_req_level(requirement_level),

@@ -226,7 +226,7 @@ impl From<&weaver_semconv::attribute::AttributeSpec> for Attribute {
             } => Attribute::Id {
                 id,
                 r#type,
-                brief,
+                brief: brief.unwrap_or_default(),
                 examples,
                 tag,
                 requirement_level,
@@ -327,7 +327,7 @@ impl Attribute {
                 {
                     let id = id.clone();
                     let r#type = r#type.clone();
-                    let mut brief = brief.clone();
+                    let mut brief = brief.clone().unwrap_or_default();
                     let mut examples = examples.clone();
                     let mut requirement_level = requirement_level.clone();
                     let mut tag = tag.clone();

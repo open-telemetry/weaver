@@ -5,13 +5,13 @@
 //! schemas.
 
 #![deny(
-missing_docs,
-clippy::print_stdout,
-unstable_features,
-unused_import_braces,
-unused_qualifications,
-unused_results,
-unused_extern_crates
+    missing_docs,
+    clippy::print_stdout,
+    unstable_features,
+    unused_import_braces,
+    unused_qualifications,
+    unused_results,
+    unused_extern_crates
 )]
 
 use std::fmt::{Debug, Display, Formatter};
@@ -20,8 +20,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use glob::{glob, Paths};
-use minijinja::{Environment, path_loader, State, Value};
 use minijinja::value::{from_args, Object};
+use minijinja::{path_loader, Environment, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -32,10 +32,13 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::{Registry, TypedGroup};
 
 use crate::config::TargetConfig;
-use crate::Error::{InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile, TargetNotSupported, WriteGeneratedCodeFailed};
 use crate::extensions::attributes::attributes;
 use crate::extensions::case_converter::case_converter;
 use crate::registry::{TemplateGroup, TemplateRegistry};
+use crate::Error::{
+    InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile,
+    TargetNotSupported, WriteGeneratedCodeFailed,
+};
 
 mod config;
 mod extensions;
@@ -67,7 +70,9 @@ pub enum Error {
     /// Invalid template directory.
     #[error("Invalid template directory {template_dir}: {error}")]
     InvalidTemplateDir {
+        /// Template directory.
         template_dir: PathBuf,
+        /// Error message.
         error: String,
     },
 
@@ -83,7 +88,9 @@ pub enum Error {
     /// Invalid template file.
     #[error("Invalid template file '{template}': {error}")]
     InvalidTemplateFile {
+        /// Template path.
         template: PathBuf,
+        /// Error message.
         error: String,
     },
 
@@ -172,14 +179,22 @@ impl TemplateObject {
 
 impl Display for TemplateObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("template file name: {}", self.file_name.lock().unwrap()))
+        f.write_str(&format!(
+            "template file name: {}",
+            self.file_name.lock().unwrap()
+        ))
     }
 }
 
 impl Object for TemplateObject {
-    fn call_method(&self, _state: &State, name: &str, args: &[Value]) -> Result<Value, minijinja::Error> {
+    fn call_method(
+        &self,
+        _state: &State,
+        name: &str,
+        args: &[Value],
+    ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name, ): (&str, ) = from_args(args)?;
+            let (file_name,): (&str,) = from_args(args)?;
             *self.file_name.lock().unwrap() = file_name.to_string();
             Ok(Value::from(""))
         } else {
@@ -201,10 +216,14 @@ pub struct TemplateEngine {
     target_config: TargetConfig,
 }
 
+/// Global context for the template engine.
 #[derive(Serialize, Debug)]
 pub struct Context<'a> {
+    /// The semantic convention registry.
     pub registry: &'a TemplateRegistry,
+    /// The group to generate doc or code for.
     pub group: Option<&'a TemplateGroup>,
+    /// The groups to generate doc or code for.
     pub groups: Option<Vec<&'a TemplateGroup>>,
 }
 
@@ -256,58 +275,59 @@ impl TemplateEngine {
         // engine as all pairs are independent.
         self.list_registry_templates(&template_registry, paths)?
             .into_par_iter()
-            .try_for_each(|pair| {
-                match pair {
-                    TemplateObjectPair::Group {
-                        template_path: relative_template_path,
-                        group
-                    } => {
-                        let ctx: serde_json::Value = serde_json::to_value(Context {
-                            registry: &template_registry,
-                            group: Some(group),
-                            groups: None,
-                        })
-                            .map_err(|e| InternalError(e.to_string()))?;
-                        self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
-                    }
-                    TemplateObjectPair::Groups {
-                        template_path: relative_template_path,
-                        groups
-                    } => {
-                        let ctx: serde_json::Value = serde_json::to_value(Context {
-                            registry: &template_registry,
-                            group: None,
-                            groups: Some(groups),
-                        })
-                            .map_err(|e| InternalError(e.to_string()))?;
-                        self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
-                    }
-                    TemplateObjectPair::Registry {
-                        template_path: relative_template_path,
+            .try_for_each(|pair| match pair {
+                TemplateObjectPair::Group {
+                    template_path: relative_template_path,
+                    group,
+                } => {
+                    let ctx: serde_json::Value = serde_json::to_value(Context {
+                        registry: &template_registry,
+                        group: Some(group),
+                        groups: None,
+                    })
+                    .map_err(|e| InternalError(e.to_string()))?;
+                    self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                }
+                TemplateObjectPair::Groups {
+                    template_path: relative_template_path,
+                    groups,
+                } => {
+                    let ctx: serde_json::Value = serde_json::to_value(Context {
+                        registry: &template_registry,
+                        group: None,
+                        groups: Some(groups),
+                    })
+                    .map_err(|e| InternalError(e.to_string()))?;
+                    self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                }
+                TemplateObjectPair::Registry {
+                    template_path: relative_template_path,
+                    registry,
+                } => {
+                    let ctx: serde_json::Value = serde_json::to_value(Context {
                         registry,
-                    } => {
-                        let ctx: serde_json::Value = serde_json::to_value(Context {
-                            registry: &registry,
-                            group: None,
-                            groups: None,
-                        })
-                            .map_err(|e| InternalError(e.to_string()))?;
-                        self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
-                    }
+                        group: None,
+                        groups: None,
+                    })
+                    .map_err(|e| InternalError(e.to_string()))?;
+                    self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
                 }
             })?;
 
         Ok(())
     }
 
-    fn evaluate_template(&self,
-                         log: impl Logger + Clone + Sync,
-                         ctx: serde_json::Value,
-                         template_path: PathBuf,
-                         output_dir: &PathBuf,
+    fn evaluate_template(
+        &self,
+        log: impl Logger + Clone + Sync,
+        ctx: serde_json::Value,
+        template_path: PathBuf,
+        output_dir: &Path,
     ) -> Result<(), Error> {
         let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(template_path.to_str().unwrap_or_default().to_string())),
+            file_name: Arc::new(Mutex::new(
+                template_path.to_str().unwrap_or_default().to_string(),
+            )),
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
@@ -318,8 +338,11 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
 
         _ = log.loading(&format!("Generating file {}", template_file));
-        let output = engine.get_template(template_file).map_err(|e| InternalError(e.to_string()))?
-            .render(ctx).map_err(|e| InternalError(e.to_string()))?;
+        let output = engine
+            .get_template(template_file)
+            .map_err(|e| InternalError(e.to_string()))?
+            .render(ctx)
+            .map_err(|e| InternalError(e.to_string()))?;
         let generated_file =
             Self::save_generated_code(output_dir, template_object.file_name(), output)?;
         _ = log.success(&format!("Generated file {:?}", generated_file));
@@ -330,14 +353,30 @@ impl TemplateEngine {
     fn template_engine(&self) -> Result<Environment, Error> {
         let mut env = Environment::new();
         env.set_loader(path_loader(&self.path));
-        env.set_syntax(self.target_config.template_syntax.clone().into()).map_err(|e| InternalError(e.to_string()))?;
+        env.set_syntax(self.target_config.template_syntax.clone().into())
+            .map_err(|e| InternalError(e.to_string()))?;
 
         // Register case conversion filters based on the target configuration
-        env.add_filter("file_name", case_converter(self.target_config.file_name.clone()));
-        env.add_filter("function_name", case_converter(self.target_config.function_name.clone()));
-        env.add_filter("arg_name", case_converter(self.target_config.arg_name.clone()));
-        env.add_filter("struct_name", case_converter(self.target_config.struct_name.clone()));
-        env.add_filter("field_name", case_converter(self.target_config.field_name.clone()));
+        env.add_filter(
+            "file_name",
+            case_converter(self.target_config.file_name.clone()),
+        );
+        env.add_filter(
+            "function_name",
+            case_converter(self.target_config.function_name.clone()),
+        );
+        env.add_filter(
+            "arg_name",
+            case_converter(self.target_config.arg_name.clone()),
+        );
+        env.add_filter(
+            "struct_name",
+            case_converter(self.target_config.struct_name.clone()),
+        );
+        env.add_filter(
+            "field_name",
+            case_converter(self.target_config.field_name.clone()),
+        );
 
         env.add_filter("attributes", attributes);
 
@@ -378,12 +417,17 @@ impl TemplateEngine {
                 if tmpl_file_path.is_dir() {
                     continue;
                 }
-                let relative_path = tmpl_file_path
-                    .strip_prefix(&self.path)
-                    .map_err(|e| InvalidTemplateDir { template_dir: self.path.clone(), error: e.to_string() })?;
-                let tmpl_file = tmpl_file_path
-                    .to_str()
-                    .ok_or(InvalidTemplateFile { template: tmpl_file_path.clone(), error: "".to_string() })?;
+                let relative_path =
+                    tmpl_file_path
+                        .strip_prefix(&self.path)
+                        .map_err(|e| InvalidTemplateDir {
+                            template_dir: self.path.clone(),
+                            error: e.to_string(),
+                        })?;
+                let tmpl_file = tmpl_file_path.to_str().ok_or(InvalidTemplateFile {
+                    template: tmpl_file_path.clone(),
+                    error: "".to_string(),
+                })?;
 
                 if tmpl_file.ends_with(".macro.j2") {
                     // Macro files are not templates.
@@ -399,8 +443,12 @@ impl TemplateEngine {
 
                 match tmpl_file_path.file_stem().and_then(|s| s.to_str()) {
                     Some("attribute_group") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| {
+                                matches!(group.typed_group, TypedGroup::AttributeGroup { .. })
+                            })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -409,8 +457,10 @@ impl TemplateEngine {
                             });
                     }
                     Some("event") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Event { .. }))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -419,17 +469,18 @@ impl TemplateEngine {
                             });
                     }
                     Some("group") => {
-                        registry.groups.iter()
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
+                        registry.groups.iter().for_each(|group| {
+                            templates.push(TemplateObjectPair::Group {
+                                template_path: relative_path.to_path_buf(),
+                                group,
+                            })
+                        });
                     }
                     Some("metric") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Metric { .. }))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -438,8 +489,12 @@ impl TemplateEngine {
                             });
                     }
                     Some("metric_group") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| {
+                                matches!(group.typed_group, TypedGroup::MetricGroup { .. })
+                            })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -454,8 +509,12 @@ impl TemplateEngine {
                         });
                     }
                     Some("resource") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| {
+                                matches!(group.typed_group, TypedGroup::Resource { .. })
+                            })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -464,8 +523,10 @@ impl TemplateEngine {
                             });
                     }
                     Some("scope") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Scope { .. }))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -474,8 +535,10 @@ impl TemplateEngine {
                             });
                     }
                     Some("span") => {
-                        registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
+                        registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Span { .. }))
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
                                     template_path: relative_path.to_path_buf(),
@@ -484,8 +547,12 @@ impl TemplateEngine {
                             });
                     }
                     Some("attribute_groups") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| {
+                                matches!(group.typed_group, TypedGroup::AttributeGroup { .. })
+                            })
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -493,8 +560,10 @@ impl TemplateEngine {
                         })
                     }
                     Some("events") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Event { .. }))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -502,16 +571,17 @@ impl TemplateEngine {
                         })
                     }
                     Some("groups") => {
-                        let groups = registry.groups.iter()
-                            .collect::<Vec<&TemplateGroup>>();
+                        let groups = registry.groups.iter().collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
                     Some("metrics") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Metric { .. }))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -519,8 +589,12 @@ impl TemplateEngine {
                         })
                     }
                     Some("metric_groups") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| {
+                                matches!(group.typed_group, TypedGroup::MetricGroup { .. })
+                            })
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -528,8 +602,12 @@ impl TemplateEngine {
                         })
                     }
                     Some("resources") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| {
+                                matches!(group.typed_group, TypedGroup::Resource { .. })
+                            })
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -537,8 +615,10 @@ impl TemplateEngine {
                         })
                     }
                     Some("scopes") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Scope { .. }))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
@@ -546,20 +626,20 @@ impl TemplateEngine {
                         })
                     }
                     Some("spans") => {
-                        let groups = registry.groups.iter()
-                            .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
+                        let groups = registry
+                            .groups
+                            .iter()
+                            .filter(|group| matches!(group.typed_group, TypedGroup::Span { .. }))
                             .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
-                    _ => {
-                        templates.push(TemplateObjectPair::Registry {
-                            template_path: relative_path.to_path_buf(),
-                            registry,
-                        })
-                    }
+                    _ => templates.push(TemplateObjectPair::Registry {
+                        template_path: relative_path.to_path_buf(),
+                        registry,
+                    }),
                 }
             } else {
                 return Err(InvalidTemplateDirectory(self.path.clone()));
@@ -607,21 +687,23 @@ mod tests {
     #[test]
     fn test() {
         let logger = TestLogger::default();
-        let engine = super::TemplateEngine::try_new(
-            "test",
-            super::GeneratorConfig::default(),
-        ).expect("Failed to create template engine");
+        let engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
+            .expect("Failed to create template engine");
 
-        let mut registry = SemConvRegistry::try_from_path("data/*.yaml").expect("Failed to load registry");
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
+        let mut registry =
+            SemConvRegistry::try_from_path("data/*.yaml").expect("Failed to load registry");
+        let schema =
+            SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
                 .expect("Failed to resolve registry");
 
-        engine.generate_registry(
-            logger,
-            &schema.registries[0],
-            &schema.catalog,
-            "output".into(),
-        ).expect("Failed to generate registry assets");
+        engine
+            .generate_registry(
+                logger,
+                &schema.registries[0],
+                &schema.catalog,
+                "output".into(),
+            )
+            .expect("Failed to generate registry assets");
 
         // let mut env = Environment::new();
         // env.add_template("hello.txt", "Hello {{ name }}!").unwrap();

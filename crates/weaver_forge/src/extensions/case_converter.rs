@@ -4,7 +4,7 @@
 
 use crate::config::CaseConvention;
 
-pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String  {
+pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String {
     match case_convention {
         CaseConvention::LowerCase => lower_case,
         CaseConvention::UpperCase => upper_case,
