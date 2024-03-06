@@ -14,28 +14,22 @@ unused_results,
 unused_extern_crates
 )]
 
-use std::{fs, process};
 use std::fmt::{Debug, Display, Formatter};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::task::Context;
 
 use glob::{glob, Paths};
-use minijinja::{Environment, State, Value};
+use minijinja::{Environment, path_loader, State, Value};
 use minijinja::value::{from_args, Object};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
-use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_resolved_schema::registry::{Group, Registry, TypedGroup};
-use weaver_resolver::SchemaResolver;
-use weaver_schema::event::Event;
-use weaver_schema::metric_group::MetricGroup;
-use weaver_schema::span::Span;
 
-use crate::config::{DynamicGlobalConfig, TargetConfig};
-use crate::Error::{InternalError, InvalidTelemetrySchema, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile, TargetNotSupported, WriteGeneratedCodeFailed};
+use crate::config::TargetConfig;
+use crate::Error::{InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile, TargetNotSupported, WriteGeneratedCodeFailed};
 use crate::extensions::case_converter::case_converter;
 
 mod config;
@@ -65,8 +59,11 @@ pub enum Error {
     },
 
     /// Invalid template directory.
-    #[error("Invalid template directory: {0}")]
-    InvalidTemplateDir(PathBuf),
+    #[error("Invalid template directory {template_dir}: {error}")]
+    InvalidTemplateDir {
+        template_dir: PathBuf,
+        error: String,
+    },
 
     /// Invalid telemetry schema.
     #[error("Invalid telemetry schema {schema}: {error}")]
@@ -132,18 +129,15 @@ impl Default for GeneratorConfig {
 #[derive(Debug)]
 enum TemplateObjectPair<'a> {
     Group {
-        absolute_template_path: PathBuf,
-        relative_template_path: PathBuf,
+        template_path: PathBuf,
         group: &'a Group,
     },
     Groups {
-        absolute_template_path: PathBuf,
-        relative_template_path: PathBuf,
+        template_path: PathBuf,
         groups: Vec<&'a Group>,
     },
     Registry {
-        absolute_template_path: PathBuf,
-        relative_template_path: PathBuf,
+        template_path: PathBuf,
         registry: &'a Registry,
     },
 }
@@ -160,6 +154,7 @@ impl TemplateObject {
         PathBuf::from(self.file_name.lock().unwrap().clone())
     }
 }
+
 impl Display for TemplateObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("template file name: {}", self.file_name.lock().unwrap()))
@@ -169,7 +164,7 @@ impl Display for TemplateObject {
 impl Object for TemplateObject {
     fn call_method(&self, _state: &State, name: &str, args: &[Value]) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name,): (&str,) = from_args(args)?;
+            let (file_name, ): (&str, ) = from_args(args)?;
             *self.file_name.lock().unwrap() = file_name.to_string();
             Ok(Value::from(""))
         } else {
@@ -189,9 +184,6 @@ pub struct TemplateEngine {
 
     /// Target configuration
     target_config: TargetConfig,
-
-    /// Global configuration
-    config: Arc<DynamicGlobalConfig>,
 }
 
 impl TemplateEngine {
@@ -212,7 +204,6 @@ impl TemplateEngine {
         Ok(Self {
             path: target_path.clone(),
             target_config: TargetConfig::try_new(&target_path)?,
-            config: Arc::new(DynamicGlobalConfig::default()),
         })
     }
 
@@ -226,11 +217,6 @@ impl TemplateEngine {
         registry: &Registry,
         output_dir: PathBuf,
     ) -> Result<(), Error> {
-        let cache = Cache::try_new().unwrap_or_else(|e| {
-            _ = log.error(&e.to_string());
-            process::exit(1);
-        });
-
         // Process recursively all files in the template directory
         let mut lang_path = self.path.to_str().unwrap_or_default().to_string();
         let paths = if lang_path.is_empty() {
@@ -247,31 +233,28 @@ impl TemplateEngine {
             .try_for_each(|pair| {
                 match pair {
                     TemplateObjectPair::Group {
-                        absolute_template_path,
-                        relative_template_path,
+                        template_path: relative_template_path,
                         group
                     } => {
                         let ctx: serde_json::Value = serde_json::to_value(group)
                             .map_err(|e| InternalError(e.to_string()))?;
-                        self.evaluate_template(log.clone(), ctx, absolute_template_path, relative_template_path, &output_dir)
-                    },
+                        self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                    }
                     TemplateObjectPair::Groups {
-                        absolute_template_path,
-                        relative_template_path,
+                        template_path: relative_template_path,
                         groups
                     } => {
                         let ctx: serde_json::Value = serde_json::to_value(groups)
                             .map_err(|e| InternalError(e.to_string()))?;
-                        self.evaluate_template(log.clone(), ctx, absolute_template_path, relative_template_path, &output_dir)
-                    },
+                        self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                    }
                     TemplateObjectPair::Registry {
-                        absolute_template_path,
-                        relative_template_path,
+                        template_path: relative_template_path,
                         registry,
                     } => {
                         let ctx: serde_json::Value = serde_json::to_value(registry)
                             .map_err(|e| InternalError(e.to_string()))?;
-                        self.evaluate_template(log.clone(), ctx, absolute_template_path, relative_template_path, &output_dir)
+                        self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
                     }
                 }
             })?;
@@ -279,113 +262,25 @@ impl TemplateEngine {
         Ok(())
     }
 
-    /// Generate assets from the templates.
-    pub fn generate(
-        &self,
-        log: impl Logger + Clone + Sync,
-        schema_path: PathBuf,
-        output_dir: PathBuf,
-    ) -> Result<(), Error> {
-        let cache = Cache::try_new().unwrap_or_else(|e| {
-            _ = log.error(&e.to_string());
-            process::exit(1);
-        });
-
-        let schema = SchemaResolver::resolve_schema_file(schema_path.clone(), &cache, log.clone())
-            .map_err(|e| InvalidTelemetrySchema {
-                schema: schema_path.clone(),
-                error: format!("{}", e),
-            })?;
-
-        // Process recursively all files in the template directory
-        let mut lang_path = self.path.to_str().unwrap_or_default().to_string();
-        let paths = if lang_path.is_empty() {
-            glob("**/*.tera").map_err(|e| InternalError(e.to_string()))?
-        } else {
-            lang_path.push_str("/**/*.tera");
-            glob(lang_path.as_str()).map_err(|e| InternalError(e.to_string()))?
-        };
-
-        // Build the list of all {template, object} pairs to generate code for
-        // and process them in parallel.
-        // All pairs are independent from each other so we can process them in parallel.
-        // self.list_all_templates(&schema, paths)?
-        //     .into_par_iter()
-        //     .try_for_each(|pair| {
-        //         match pair {
-        //             TemplateObjectPair::Metric { template, metric } => self.process_metric(
-        //                 log.clone(),
-        //                 &template,
-        //                 &schema_path,
-        //                 metric,
-        //                 &output_dir,
-        //             ),
-        //             TemplateObjectPair::MetricGroup {
-        //                 template,
-        //                 metric_group,
-        //             } => self.process_metric_group(
-        //                 log.clone(),
-        //                 &template,
-        //                 &schema_path,
-        //                 metric_group,
-        //                 &output_dir,
-        //             ),
-        //             TemplateObjectPair::Event { template, event } => {
-        //                 self.process_event(log.clone(), &template, &schema_path, event, &output_dir)
-        //             }
-        //             TemplateObjectPair::Span { template, span } => {
-        //                 self.process_span(log.clone(), &template, &schema_path, span, &output_dir)
-        //             }
-        //             TemplateObjectPair::Other {
-        //                 template,
-        //                 relative_path,
-        //                 object,
-        //             } => {
-        //                 // Process other templates
-        //                 // let context = &Context::from_serialize(object).map_err(|e| {
-        //                 //     InvalidTelemetrySchema {
-        //                 //         schema: schema_path.clone(),
-        //                 //         error: format!("{}", e),
-        //                 //     }
-        //                 // })?;
-        //                 //
-        //                 // log.loading(&format!("Generating file {}", template));
-        //                 // let generated_code = self.generate_code(log.clone(), &template, context)?;
-        //                 // let relative_path = relative_path.to_path_buf();
-        //                 // let generated_file =
-        //                 //     Self::save_generated_code(&output_dir, relative_path, generated_code)?;
-        //                 // log.success(&format!("Generated file {:?}", generated_file));
-        //                 Ok(())
-        //             }
-        //         }
-        //     })?;
-
-        Ok(())
-    }
-
     fn evaluate_template(&self,
                          log: impl Logger + Clone + Sync,
                          ctx: serde_json::Value,
-                         absolute_template_path: PathBuf,
-                         relative_template_path: PathBuf,
+                         template_path: PathBuf,
                          output_dir: &PathBuf,
     ) -> Result<(), Error> {
-        let template_file_name = absolute_template_path.to_str().ok_or(InvalidTemplateFile{
-            template: absolute_template_path.clone(),
-            error: "".to_string()})?;
-        let template_source = fs::read_to_string(&absolute_template_path).map_err(|e| InvalidTemplateFile{
-            template: absolute_template_path.clone().into(),
-            error: e.to_string()})?;
         let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(relative_template_path.to_str().unwrap_or_default().to_string())),
+            file_name: Arc::new(Mutex::new(template_path.to_str().unwrap_or_default().to_string())),
         };
         let mut engine = self.template_engine();
+        let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
+            template: template_path.clone(),
+            error: "".to_string(),
+        })?;
 
         engine.add_global("template", Value::from_object(template_object.clone()));
-        engine.add_template(template_file_name, &template_source).map_err(|e| InternalError(e.to_string()))?;
 
-        _ = log.loading(&format!("Generating file {}", template_file_name));
-        let output = engine.get_template(template_file_name).map_err(|e| InternalError(e.to_string()))?
+        _ = log.loading(&format!("Generating file {}", template_file));
+        let output = engine.get_template(template_file).map_err(|e| InternalError(e.to_string()))?
             .render(ctx).map_err(|e| InternalError(e.to_string()))?;
         let generated_file =
             Self::save_generated_code(output_dir, template_object.file_name(), output)?;
@@ -396,6 +291,7 @@ impl TemplateEngine {
     /// Create a new template engine based on the target configuration.
     fn template_engine(&self) -> Environment {
         let mut env = Environment::new();
+        env.set_loader(path_loader(&self.path));
 
         // Register case conversion filters based on the target configuration
         env.add_filter("file_name", case_converter(self.target_config.file_name.clone()));
@@ -421,9 +317,6 @@ impl TemplateEngine {
         //     },
         // );
 
-        // Register custom functions
-        // tera.register_function("config", functions::FunctionConfig::new(config.clone()));
-
         // Register custom testers
         // tera.register_tester("required", testers::is_required);
         // tera.register_tester("not_required", testers::is_not_required);
@@ -446,10 +339,10 @@ impl TemplateEngine {
                 }
                 let relative_path = tmpl_file_path
                     .strip_prefix(&self.path)
-                    .map_err(|e| InvalidTemplateDir(self.path.clone()))?;
+                    .map_err(|e| InvalidTemplateDir { template_dir: self.path.clone(), error: e.to_string() })?;
                 let tmpl_file = tmpl_file_path
                     .to_str()
-                    .ok_or(InvalidTemplateFile{template: tmpl_file_path.clone(), error: "".to_string() })?;
+                    .ok_or(InvalidTemplateFile { template: tmpl_file_path.clone(), error: "".to_string() })?;
 
                 if tmpl_file.ends_with(".macro.j2") {
                     // Macro files are not templates.
@@ -469,8 +362,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file_path.to_path_buf(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -480,8 +372,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file_path.to_path_buf(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -490,8 +381,7 @@ impl TemplateEngine {
                         registry.groups.iter()
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file_path.to_path_buf(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -501,8 +391,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file.into(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -512,16 +401,14 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file.into(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
                     }
                     Some("registry") => {
                         templates.push(TemplateObjectPair::Registry {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             registry,
                         });
                     }
@@ -530,8 +417,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file.into(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -541,8 +427,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file.into(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -552,8 +437,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
                             .for_each(|group| {
                                 templates.push(TemplateObjectPair::Group {
-                                    absolute_template_path: tmpl_file.into(),
-                                    relative_template_path: relative_path.to_path_buf(),
+                                    template_path: relative_path.to_path_buf(),
                                     group,
                                 })
                             });
@@ -563,8 +447,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -573,8 +456,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -582,8 +464,7 @@ impl TemplateEngine {
                         let groups = registry.groups.iter()
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -592,8 +473,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -602,8 +482,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -612,8 +491,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -622,8 +500,7 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
@@ -632,15 +509,13 @@ impl TemplateEngine {
                             .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
                             .collect::<Vec<&Group>>();
                         templates.push(TemplateObjectPair::Groups {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             groups,
                         })
                     }
                     _ => {
                         templates.push(TemplateObjectPair::Registry {
-                            absolute_template_path: tmpl_file.into(),
-                            relative_template_path: relative_path.to_path_buf(),
+                            template_path: relative_path.to_path_buf(),
                             registry,
                         })
                     }
@@ -651,29 +526,6 @@ impl TemplateEngine {
         }
 
         Ok(templates)
-    }
-
-
-    /// Generate code.
-    fn generate_code(
-        &self,
-        log: impl Logger,
-        tmpl_file: &str,
-        context: &Context,
-    ) -> Result<String, Error> {
-        // let generated_code = self.tera.render(tmpl_file, context).unwrap_or_else(|err| {
-        //     log.newline(1);
-        //     log.error(&format!("{}", err));
-        //     let mut cause = err.source();
-        //     while let Some(e) = cause {
-        //         log.error(&format!("- caused by: {}", e));
-        //         cause = e.source();
-        //     }
-        //     process::exit(1);
-        // });
-        let generated_code = "".to_string();
-
-        Ok(generated_code)
     }
 
     /// Save the generated code to the output directory.
@@ -702,167 +554,6 @@ impl TemplateEngine {
         })?;
 
         Ok(output_file_path)
-    }
-
-    /// Process a registry group.
-    fn process_group(
-        &self,
-        log: impl Logger + Clone,
-        tmpl_file: &PathBuf,
-        group: &Group,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
-        // if let UnivariateMetric::Metric { name, .. } = metric {
-        //     let context = &Context::from_serialize(metric).map_err(|e| InvalidTelemetrySchema {
-        //         schema: schema_path.to_path_buf(),
-        //         error: format!("{}", e),
-        //     })?;
-        //
-        //     // Reset the config
-        //     self.config.reset();
-        //
-        //     log.loading(&format!("Generating code for univariate metric `{}`", name));
-        //     let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
-        //
-        //     // Retrieve the file name from the config
-        //     let relative_path = {
-        //         match &self.config.get() {
-        //             None => {
-        //                 return Err(TemplateFileNameUndefined {
-        //                     template: PathBuf::from(tmpl_file),
-        //                 });
-        //             }
-        //             Some(file_name) => PathBuf::from(file_name.clone()),
-        //         }
-        //     };
-        //
-        //     // Save the generated code to the output directory
-        //     let generated_file =
-        //         Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        //     log.success(&format!("Generated file {:?}", generated_file));
-        // }
-
-        Ok(())
-    }
-
-    /// Process a metric group (multivariate).
-    fn process_metric_group(
-        &self,
-        log: impl Logger + Clone,
-        tmpl_file: &str,
-        schema_path: &Path,
-        metric: &MetricGroup,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
-        // let context = &Context::from_serialize(metric).map_err(|e| InvalidTelemetrySchema {
-        //     schema: schema_path.to_path_buf(),
-        //     error: format!("{}", e),
-        // })?;
-        //
-        // // Reset the config
-        // self.config.reset();
-        //
-        // log.loading(&format!(
-        //     "Generating code for multivariate metric `{}`",
-        //     metric.name
-        // ));
-        // let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
-        //
-        // // Retrieve the file name from the config
-        // let relative_path = {
-        //     match self.config.get() {
-        //         None => {
-        //             return Err(TemplateFileNameUndefined {
-        //                 template: PathBuf::from(tmpl_file),
-        //             });
-        //         }
-        //         Some(file_name) => PathBuf::from(file_name.clone()),
-        //     }
-        // };
-        //
-        // // Save the generated code to the output directory
-        // let generated_file = Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        // log.success(&format!("Generated file {:?}", generated_file));
-
-        Ok(())
-    }
-
-    /// Process an event.
-    fn process_event(
-        &self,
-        log: impl Logger + Clone,
-        tmpl_file: &str,
-        schema_path: &Path,
-        event: &Event,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
-        // let context = &Context::from_serialize(event).map_err(|e| InvalidTelemetrySchema {
-        //     schema: schema_path.to_path_buf(),
-        //     error: format!("{}", e),
-        // })?;
-        //
-        // // Reset the config
-        // self.config.reset();
-        //
-        // log.loading(&format!("Generating code for log `{}`", event.event_name));
-        // let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
-        //
-        // // Retrieve the file name from the config
-        // let relative_path = {
-        //     match self.config.get() {
-        //         None => {
-        //             return Err(TemplateFileNameUndefined {
-        //                 template: PathBuf::from(tmpl_file),
-        //             });
-        //         }
-        //         Some(file_name) => PathBuf::from(file_name.clone()),
-        //     }
-        // };
-        //
-        // // Save the generated code to the output directory
-        // let generated_file = Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        // log.success(&format!("Generated file {:?}", generated_file));
-
-        Ok(())
-    }
-
-    /// Process a span.
-    fn process_span(
-        &self,
-        log: impl Logger + Clone,
-        tmpl_file: &str,
-        schema_path: &Path,
-        span: &Span,
-        output_dir: &Path,
-    ) -> Result<(), Error> {
-        // let context = &Context::from_serialize(span).map_err(|e| InvalidTelemetrySchema {
-        //     schema: schema_path.to_path_buf(),
-        //     error: format!("{}", e),
-        // })?;
-        //
-        // // Reset the config
-        // self.config.reset();
-        //
-        // log.loading(&format!("Generating code for span `{}`", span.span_name));
-        // let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
-        //
-        // // Retrieve the file name from the config
-        // let relative_path = {
-        //     match self.config.get() {
-        //         None => {
-        //             return Err(TemplateFileNameUndefined {
-        //                 template: PathBuf::from(tmpl_file),
-        //             });
-        //         }
-        //         Some(file_name) => PathBuf::from(file_name.clone()),
-        //     }
-        // };
-        //
-        // // Save the generated code to the output directory
-        // let generated_file = Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        // log.success(&format!("Generated file {:?}", generated_file));
-
-        Ok(())
     }
 }
 
