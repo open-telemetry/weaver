@@ -1,19 +1,32 @@
-{%- set file_name = id | file_name -%}
+{%- set file_name = group.id | file_name -%}
 {{- template.set_file_name("group/" ~ file_name ~ ".md") -}}
-# {{ typed_group.type }}  `{{ id }}`
+
+# {{ group.typed_group.type }}  `{{ group.id }}`
 
 ## Brief
 
-{{ brief }} 
+{{ group.brief }} 
+
+## Attributes
+
+{%- for attribute in group.attributes %}
+### Attribute `{{ attribute.name }}`
+
+{% if attribute.tag -%}
+tag: {{ attribute.tag }}
+{%- endif %}
+
+{{ attribute.brief }}
+
+{%- endfor %}
 
 ## Provenance
 
-{{- debug() -}}
+Source: {{ group.lineage.provenance }}
 
-{{ lineage.attributes }}
+{{ debug() }}
 
-/*
-{%- for key, value in lineage.attributes -%}
-{{- key -}}
-{%- endfor -%}
-*/
+{%- for item in group.lineage.attributes -%}
+item: {{ group.lineage.attributes[item] }}
+{% endfor -%}
+

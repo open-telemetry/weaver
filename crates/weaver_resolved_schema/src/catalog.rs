@@ -40,4 +40,9 @@ impl Catalog {
             .get(attribute_ref.0 as usize)
             .map(|attr| attr.name.as_ref())
     }
+
+    /// Returns the attribute from an attribute ref if it exists.
+    pub fn attribute(&self, attribute_ref: &AttributeRef) -> Option<&Attribute> {
+        self.attributes.get(attribute_ref.0 as usize)
+    }
 }

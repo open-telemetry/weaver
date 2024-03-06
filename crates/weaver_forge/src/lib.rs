@@ -24,16 +24,22 @@ use minijinja::{Environment, path_loader, State, Value};
 use minijinja::value::{from_args, Object};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
+use serde::Serialize;
 
 use weaver_logger::Logger;
-use weaver_resolved_schema::registry::{Group, Registry, TypedGroup};
+use weaver_resolved_schema::attribute::AttributeRef;
+use weaver_resolved_schema::catalog::Catalog;
+use weaver_resolved_schema::registry::{Registry, TypedGroup};
 
 use crate::config::TargetConfig;
 use crate::Error::{InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile, TargetNotSupported, WriteGeneratedCodeFailed};
+use crate::extensions::attributes::attributes;
 use crate::extensions::case_converter::case_converter;
+use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
 mod extensions;
+mod registry;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug)]
@@ -105,6 +111,15 @@ pub enum Error {
         error: String,
     },
 
+    /// Attribute reference not found in the catalog.
+    #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
+    AttributeNotFound {
+        /// Group id.
+        group_id: String,
+        /// Attribute reference.
+        attr_ref: AttributeRef,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
@@ -130,15 +145,15 @@ impl Default for GeneratorConfig {
 enum TemplateObjectPair<'a> {
     Group {
         template_path: PathBuf,
-        group: &'a Group,
+        group: &'a TemplateGroup,
     },
     Groups {
         template_path: PathBuf,
-        groups: Vec<&'a Group>,
+        groups: Vec<&'a TemplateGroup>,
     },
     Registry {
         template_path: PathBuf,
-        registry: &'a Registry,
+        registry: &'a TemplateRegistry,
     },
 }
 
@@ -186,6 +201,13 @@ pub struct TemplateEngine {
     target_config: TargetConfig,
 }
 
+#[derive(Serialize, Debug)]
+pub struct Context<'a> {
+    pub registry: &'a TemplateRegistry,
+    pub group: Option<&'a TemplateGroup>,
+    pub groups: Option<Vec<&'a TemplateGroup>>,
+}
+
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
@@ -215,6 +237,7 @@ impl TemplateEngine {
         &self,
         log: impl Logger + Clone + Sync,
         registry: &Registry,
+        catalog: &Catalog,
         output_dir: PathBuf,
     ) -> Result<(), Error> {
         // Process recursively all files in the template directory
@@ -226,9 +249,12 @@ impl TemplateEngine {
             glob(lang_path.as_str()).map_err(|e| InternalError(e.to_string()))?
         };
 
+        let template_registry = TemplateRegistry::try_from_resolved_registry(registry, catalog)
+            .map_err(|e| InternalError(e.to_string()))?;
+
         // List all {template, object} pairs to run in parallel the template
         // engine as all pairs are independent.
-        self.list_registry_templates(&registry, paths)?
+        self.list_registry_templates(&template_registry, paths)?
             .into_par_iter()
             .try_for_each(|pair| {
                 match pair {
@@ -236,7 +262,11 @@ impl TemplateEngine {
                         template_path: relative_template_path,
                         group
                     } => {
-                        let ctx: serde_json::Value = serde_json::to_value(group)
+                        let ctx: serde_json::Value = serde_json::to_value(Context {
+                            registry: &template_registry,
+                            group: Some(group),
+                            groups: None,
+                        })
                             .map_err(|e| InternalError(e.to_string()))?;
                         self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
                     }
@@ -244,7 +274,11 @@ impl TemplateEngine {
                         template_path: relative_template_path,
                         groups
                     } => {
-                        let ctx: serde_json::Value = serde_json::to_value(groups)
+                        let ctx: serde_json::Value = serde_json::to_value(Context {
+                            registry: &template_registry,
+                            group: None,
+                            groups: Some(groups),
+                        })
                             .map_err(|e| InternalError(e.to_string()))?;
                         self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
                     }
@@ -252,7 +286,11 @@ impl TemplateEngine {
                         template_path: relative_template_path,
                         registry,
                     } => {
-                        let ctx: serde_json::Value = serde_json::to_value(registry)
+                        let ctx: serde_json::Value = serde_json::to_value(Context {
+                            registry: &registry,
+                            group: None,
+                            groups: None,
+                        })
                             .map_err(|e| InternalError(e.to_string()))?;
                         self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
                     }
@@ -301,6 +339,8 @@ impl TemplateEngine {
         env.add_filter("struct_name", case_converter(self.target_config.struct_name.clone()));
         env.add_filter("field_name", case_converter(self.target_config.field_name.clone()));
 
+        env.add_filter("attributes", attributes);
+
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
         // env.add_filter("required", extensions::required);
@@ -328,7 +368,7 @@ impl TemplateEngine {
     /// semantic convention registry.
     fn list_registry_templates<'a>(
         &self,
-        registry: &'a Registry,
+        registry: &'a TemplateRegistry,
         paths: Paths,
     ) -> Result<Vec<TemplateObjectPair<'a>>, Error> {
         let mut templates = Vec::new();
@@ -446,7 +486,7 @@ impl TemplateEngine {
                     Some("attribute_groups") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::AttributeGroup { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -455,7 +495,7 @@ impl TemplateEngine {
                     Some("events") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::Event { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -463,7 +503,7 @@ impl TemplateEngine {
                     }
                     Some("groups") => {
                         let groups = registry.groups.iter()
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -472,7 +512,7 @@ impl TemplateEngine {
                     Some("metrics") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::Metric { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -481,7 +521,7 @@ impl TemplateEngine {
                     Some("metric_groups") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::MetricGroup { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -490,7 +530,7 @@ impl TemplateEngine {
                     Some("resources") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::Resource { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -499,7 +539,7 @@ impl TemplateEngine {
                     Some("scopes") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::Scope { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -508,7 +548,7 @@ impl TemplateEngine {
                     Some("spans") => {
                         let groups = registry.groups.iter()
                             .filter(|group| if let TypedGroup::Span { .. } = group.typed_group { true } else { false })
-                            .collect::<Vec<&Group>>();
+                            .collect::<Vec<&TemplateGroup>>();
                         templates.push(TemplateObjectPair::Groups {
                             template_path: relative_path.to_path_buf(),
                             groups,
@@ -561,8 +601,7 @@ impl TemplateEngine {
 #[cfg(test)]
 mod tests {
     use weaver_logger::TestLogger;
-    use weaver_resolver::attribute::AttributeCatalog;
-    use weaver_resolver::registry::resolve_semconv_registry;
+    use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
     #[test]
@@ -573,15 +612,14 @@ mod tests {
             super::GeneratorConfig::default(),
         ).expect("Failed to create template engine");
 
-        let registry = SemConvRegistry::try_from_path("data/*.yaml").expect("Failed to load registry");
-        let mut attr_catalog = AttributeCatalog::default();
-        let resolved_registry =
-            resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &registry)
+        let mut registry = SemConvRegistry::try_from_path("data/*.yaml").expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
                 .expect("Failed to resolve registry");
 
         engine.generate_registry(
             logger,
-            &resolved_registry,
+            &schema.registries[0],
+            &schema.catalog,
             "output".into(),
         ).expect("Failed to generate registry assets");
 

@@ -4,6 +4,7 @@
 
 //! Specification of a resolved attribute.
 
+use std::fmt::Display;
 use crate::catalog::Stability;
 use crate::tags::Tags;
 use crate::value::Value;
@@ -240,3 +241,9 @@ pub enum RequirementLevel {
 /// An internal reference to an attribute in the catalog.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub struct AttributeRef(pub u32);
+
+impl Display for AttributeRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AttributeRef({})", self.0)
+    }
+}
