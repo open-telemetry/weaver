@@ -33,7 +33,6 @@ use weaver_resolved_schema::registry::Registry;
 use weaver_semconv::group::GroupType;
 
 use crate::config::TargetConfig;
-use crate::extensions::attributes::attributes;
 use crate::extensions::case_converter::case_converter;
 use crate::registry::{TemplateGroup, TemplateRegistry};
 use crate::Error::{
@@ -379,8 +378,6 @@ impl TemplateEngine {
             case_converter(self.target_config.field_name.clone()),
         );
 
-        env.add_filter("attributes", attributes);
-
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
         // env.add_filter("required", extensions::required);
@@ -668,6 +665,10 @@ impl TemplateEngine {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+    use std::fs;
+    use std::path::Path;
+    use walkdir::WalkDir;
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
@@ -689,13 +690,54 @@ mod tests {
                 logger,
                 &schema.registries[0],
                 &schema.catalog,
-                "output".into(),
+                "observed_output".into(),
             )
             .expect("Failed to generate registry assets");
 
-        // let mut env = Environment::new();
-        // env.add_template("hello.txt", "Hello {{ name }}!").unwrap();
-        // let template = env.get_template("hello.txt").unwrap();
-        // println!("{}", template.render(context! { name => "World" }).unwrap());
+        assert!(cmp_dir("expected_output", "observed_output").unwrap());
+    }
+
+    fn cmp_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Result<bool> {
+        let mut expected_files = HashSet::new();
+        let mut observed_files = HashSet::new();
+
+        // Walk through the first directory and add files to files1 set
+        for entry in WalkDir::new(&expected_dir).into_iter().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                let relative_path = path.strip_prefix(&expected_dir).unwrap();
+                _ = expected_files.insert(relative_path.to_path_buf());
+            }
+        }
+
+        // Walk through the second directory and add files to files2 set
+        for entry in WalkDir::new(&observed_dir).into_iter().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_file() {
+                let relative_path = path.strip_prefix(&observed_dir).unwrap();
+                _ = observed_files.insert(relative_path.to_path_buf());
+            }
+        }
+
+        // Assume directories are identical until proven otherwise
+        let mut are_identical = true;
+
+        // Compare files in both sets
+        for file in expected_files.intersection(&observed_files) {
+            let file1_content = fs::read_to_string(expected_dir.as_ref().join(file))?;
+            let file2_content = fs::read_to_string(observed_dir.as_ref().join(file))?;
+
+            if file1_content != file2_content {
+                are_identical = false;
+                break;
+            }
+        }
+
+        // If any file is unique to one directory, they are not identical
+        if !expected_files.difference(&observed_files).collect::<Vec<_>>().is_empty() || !observed_files.difference(&expected_files).collect::<Vec<_>>().is_empty() {
+            are_identical = false;
+        }
+
+        Ok(are_identical)
     }
 }
