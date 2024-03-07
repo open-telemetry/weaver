@@ -702,7 +702,10 @@ mod tests {
         let mut observed_files = HashSet::new();
 
         // Walk through the first directory and add files to files1 set
-        for entry in WalkDir::new(&expected_dir).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&expected_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let path = entry.path();
             if path.is_file() {
                 let relative_path = path.strip_prefix(&expected_dir).unwrap();
@@ -711,7 +714,10 @@ mod tests {
         }
 
         // Walk through the second directory and add files to files2 set
-        for entry in WalkDir::new(&observed_dir).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&observed_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let path = entry.path();
             if path.is_file() {
                 let relative_path = path.strip_prefix(&observed_dir).unwrap();
@@ -729,12 +735,25 @@ mod tests {
 
             if file1_content != file2_content {
                 are_identical = false;
+                eprintln!(
+                    "Files {:?} and {:?} are different",
+                    expected_dir.as_ref().join(file),
+                    observed_dir.as_ref().join(file)
+                );
                 break;
             }
         }
 
         // If any file is unique to one directory, they are not identical
-        if !expected_files.difference(&observed_files).collect::<Vec<_>>().is_empty() || !observed_files.difference(&expected_files).collect::<Vec<_>>().is_empty() {
+        if !expected_files
+            .difference(&observed_files)
+            .collect::<Vec<_>>()
+            .is_empty()
+            || !observed_files
+                .difference(&expected_files)
+                .collect::<Vec<_>>()
+                .is_empty()
+        {
             are_identical = false;
         }
 
