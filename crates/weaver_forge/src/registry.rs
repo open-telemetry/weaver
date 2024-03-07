@@ -10,7 +10,7 @@ use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Registry};
-use weaver_semconv::group::GroupType;
+use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
 /// A semantic convention registry used in the context of the template engine.
@@ -70,6 +70,33 @@ pub struct TemplateGroup {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<Attribute>,
+
+    /// Specifies the kind of the span.
+    /// Note: only valid if type is span (the default)
+    pub span_kind: Option<SpanKindSpec>,
+    /// List of strings that specify the ids of event semantic conventions
+    /// associated with this span semantic convention.
+    /// Note: only valid if type is span (the default)
+    #[serde(default)]
+    pub events: Vec<String>,
+    /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
+    /// Note: This field is required if type is metric.
+    pub metric_name: Option<String>,
+    /// The instrument type that should be used to record the metric. Note that
+    /// the semantic conventions must be written using the names of the
+    /// synchronous instrument types (counter, gauge, updowncounter and
+    /// histogram).
+    /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
+    /// Note: This field is required if type is metric.
+    pub instrument: Option<InstrumentSpec>,
+    /// The unit in which the metric is measured, which should adhere to the
+    /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+    /// Note: This field is required if type is metric.
+    pub unit: Option<String>,
+    /// The name of the event. If not specified, the prefix is used.
+    /// If prefix is empty (or unspecified), name is required.
+    pub name: Option<String>,
+
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lineage: Option<GroupLineage>,
@@ -122,6 +149,12 @@ impl TemplateRegistry {
                     deprecated,
                     constraints,
                     attributes,
+                    span_kind: group.span_kind.clone(),
+                    events: group.events.clone(),
+                    metric_name: group.metric_name.clone(),
+                    instrument: group.instrument.clone(),
+                    unit: group.unit.clone(),
+                    name: group.name.clone(),
                     lineage,
                 }
             })

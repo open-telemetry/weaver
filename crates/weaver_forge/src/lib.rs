@@ -430,10 +430,9 @@ impl TemplateEngine {
                     error: "".to_string(),
                 })?;
 
-                if tmpl_file.ends_with(".macro.j2") {
-                    // Macro files are not templates.
-                    // They are included in other templates.
-                    // So we skip them.
+                if tmpl_file.ends_with(".j2") {
+                    // Files with .j2 are either macros or included files
+                    // imported from the template files, so we skip them.
                     continue;
                 }
 

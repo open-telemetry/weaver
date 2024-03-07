@@ -1,0 +1,5 @@
+{%- if attribute.type is mapping %}
+- Type: Enum [{{ attribute.type.members | map(attribute="value") | join(", ") }}]
+{%- else %}
+- Type: {{ attribute.type }}
+{%- endif %}

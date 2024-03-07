@@ -1,13 +1,14 @@
-{%- set file_name = group.id | file_name -%}
-{{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
+# Semantic Convention Event Groups
 
+{% for group in groups %}
 ## Group `{{ group.id }}` ({{ group.type }})
 
 ### Brief
 
 {{ group.brief | trim }}
 
-prefix: {{ group.prefix }}
+Prefix: {{ group.prefix }}
+Name: {{ group.name }}
 
 ### Attributes
 
@@ -43,4 +44,5 @@ prefix: {{ group.prefix }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
+  {% endfor %}
   {% endfor %}
