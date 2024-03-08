@@ -53,6 +53,7 @@ weaver_template = { path = "crates/weaver_template" }
 weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
+weaver_forge = { path = "crates/weaver_forge" }
 
 clap = { version = "4.5.2", features = ["derive"] }
 crossterm = "0.27.0"
