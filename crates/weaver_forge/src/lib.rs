@@ -257,7 +257,7 @@ impl TemplateEngine {
         log: impl Logger + Clone + Sync,
         registry: &Registry,
         catalog: &Catalog,
-        output_dir: PathBuf,
+        output_dir: &Path,
     ) -> Result<(), Error> {
         // Process recursively all files in the template directory
         let mut lang_path = self.path.to_str().unwrap_or_default().to_string();
@@ -286,7 +286,7 @@ impl TemplateEngine {
                         groups: None,
                     })
                     .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
                 }
                 TemplateObjectPair::Groups {
                     template_path: relative_template_path,
@@ -298,7 +298,7 @@ impl TemplateEngine {
                         groups: Some(groups),
                     })
                     .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
                 }
                 TemplateObjectPair::Registry {
                     template_path: relative_template_path,
@@ -310,7 +310,7 @@ impl TemplateEngine {
                         groups: None,
                     })
                     .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, &output_dir)
+                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
                 }
             })?;
 
@@ -690,7 +690,7 @@ mod tests {
                 logger,
                 &schema.registries[0],
                 &schema.catalog,
-                "observed_output".into(),
+                Path::new("observed_output"),
             )
             .expect("Failed to generate registry assets");
 

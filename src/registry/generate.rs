@@ -3,15 +3,84 @@
 //! Generate artifacts for a semantic convention registry.
 
 use clap::Args;
+use std::path::PathBuf;
+
+use weaver_cache::Cache;
+use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_logger::Logger;
+use weaver_resolver::SchemaResolver;
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
-pub struct GenerateRegistry {
-    /// Registry to resolve
+pub struct RegistryGenerateArgs {
+    /// Target to generate the artifacts for.
+    pub target: String,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// Default is the `output` directory.
+    #[arg(default_value = "output")]
+    pub output: PathBuf,
+
+    /// Path to the directory where the templates are located.
+    /// Default is the `templates` directory.
+    #[arg(short = 't', long, default_value = "templates")]
+    pub templates: String,
+
+    /// Local path or Git URL of the semantic convention registry.
+    #[arg(
+        short = 'r',
+        long,
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+    )]
     pub registry: String,
 
-    /// Optional path in the git repository where the semantic convention
+    /// Optional path in the Git repository where the semantic convention
     /// registry is located
-    pub path: Option<String>,
-    // ToDo root template directory used to generate the artifacts
+    #[arg(short = 'd', long, default_value = "model")]
+    pub registry_git_sub_dir: Option<String>,
+}
+
+/// Generate artifacts from a semantic convention registry.
+pub(crate) fn command(
+    logger: impl Logger + Sync + Clone,
+    cache: &Cache,
+    args: &RegistryGenerateArgs,
+) {
+    logger.loading(&format!(
+        "Generating artifacts for the registry `{}`",
+        args.registry
+    ));
+
+    // Load the semantic convention registry into a local cache.
+    let mut registry = SchemaResolver::load_semconv_registry(
+        args.registry.to_string(),
+        args.registry_git_sub_dir.clone(),
+        cache,
+        logger.clone(),
+    )
+    .unwrap_or_else(|e| {
+        panic!("Failed to load and parse the semantic convention registry, error: {e}");
+    });
+
+    // Resolve the semantic convention registry.
+    let schema =
+        SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
+            .expect("Failed to resolve registry");
+
+    let engine = TemplateEngine::try_new(
+        &format!("registry/{}", args.target),
+        GeneratorConfig::default(),
+    )
+    .expect("Failed to create template engine");
+
+    engine
+        .generate_registry(
+            logger.clone(),
+            &schema.registries[0],
+            &schema.catalog,
+            args.output.as_path(),
+        )
+        .expect("Failed to generate registry assets");
+
+    logger.success("Artifacts generated successfully");
 }

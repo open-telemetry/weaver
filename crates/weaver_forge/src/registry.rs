@@ -57,7 +57,7 @@ pub struct TemplateGroup {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Specifies if the semantic convention is deprecated. The string
-    /// provided as <description> MUST specify why it's deprecated and/or what
+    /// provided as `description` MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<String>,
