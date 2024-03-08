@@ -6,15 +6,21 @@ use clap::Args;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
-pub struct SearchRegistry {
-    /// Git URL of the semantic convention registry
+pub struct RegistrySearchArgs {
+    /// Local path or Git URL of the semantic convention registry.
+    #[arg(
+        short = 'r',
+        long,
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+    )]
     pub registry: String,
 
-    /// Optional path in the git repository where the semantic convention
+    /// Optional path in the Git repository where the semantic convention
     /// registry is located
-    pub path: Option<String>,
+    #[arg(short = 'd', long, default_value = "model")]
+    pub registry_git_sub_dir: Option<String>,
 
     /// The telemetry schema containing the versions (url or file)
     #[arg(short, long)]
-    schema: Option<String>,
+    pub schema: Option<String>,
 }

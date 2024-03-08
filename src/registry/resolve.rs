@@ -7,16 +7,21 @@ use std::path::PathBuf;
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
-pub struct ResolveRegistry {
-    /// Registry to resolve
+pub struct RegistryResolveArgs {
+    /// Local path or Git URL of the semantic convention registry.
+    #[arg(
+        short = 'r',
+        long,
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+    )]
     pub registry: String,
 
-    /// Optional path in the git repository where the semantic convention
+    /// Optional path in the Git repository where the semantic convention
     /// registry is located
-    pub path: Option<String>,
+    #[arg(short = 'd', long, default_value = "model")]
+    pub registry_git_sub_dir: Option<String>,
 
     /// Output file to write the resolved schema to
     /// If not specified, the resolved schema is printed to stdout
-    #[arg(short, long)]
     pub output: Option<PathBuf>,
 }

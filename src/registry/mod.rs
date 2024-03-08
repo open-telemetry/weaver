@@ -4,20 +4,22 @@
 
 use clap::{Args, Subcommand};
 
-use crate::registry::generate::GenerateRegistry;
-use crate::registry::resolve::ResolveRegistry;
-use crate::registry::search::SearchRegistry;
-use check::CheckRegistry;
+use crate::registry::generate::RegistryGenerateArgs;
+use crate::registry::resolve::RegistryResolveArgs;
+use crate::registry::search::RegistrySearchArgs;
+use check::RegistryCheckArgs;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 
-use crate::registry::stats::StatsRegistry;
+use crate::registry::stats::RegistryStatsArgs;
+use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 
 mod check;
 mod generate;
 mod resolve;
 mod search;
 mod stats;
+mod update_markdown;
 
 /// Parameters for the `registry` command
 #[derive(Debug, Args)]
@@ -31,15 +33,17 @@ pub struct RegistryCommand {
 #[derive(Debug, Subcommand)]
 pub enum RegistrySubCommand {
     /// Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints).
-    Check(CheckRegistry),
-    /// Generates documentation or code for a registry (not yet implemented).
-    Generate(GenerateRegistry),
+    Check(RegistryCheckArgs),
+    /// Generates artifacts from a registry.
+    Generate(RegistryGenerateArgs),
     /// Resolves a registry (not yet implemented).
-    Resolve(ResolveRegistry),
+    Resolve(RegistryResolveArgs),
     /// Searches a registry (not yet implemented).
-    Search(SearchRegistry),
+    Search(RegistrySearchArgs),
     /// Calculate and display a set of general statistics on a registry (not yet implemented).
-    Stats(StatsRegistry),
+    Stats(RegistryStatsArgs),
+    /// Update markdown files that contain markers indicating the templates used to update the specified sections.
+    UpdateMarkdown(RegistryUpdateMarkdownArgs),
 }
 
 /// Manage a semantic convention registry.
@@ -50,16 +54,15 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
     });
 
     match &command.command {
-        RegistrySubCommand::Check(args) => check::check_registry_command(log, &cache, args),
-        RegistrySubCommand::Generate(_) => {
-            unimplemented!()
-        }
-        RegistrySubCommand::Stats(args) => stats::stats_registry_command(log, &cache, args),
+        RegistrySubCommand::Check(args) => check::command(log, &cache, args),
+        RegistrySubCommand::Generate(args) => generate::command(log, &cache, args),
+        RegistrySubCommand::Stats(args) => stats::command(log, &cache, args),
         RegistrySubCommand::Resolve(_) => {
             unimplemented!()
         }
         RegistrySubCommand::Search(_) => {
             unimplemented!()
         }
+        RegistrySubCommand::UpdateMarkdown(args) => update_markdown::command(log, &cache, args),
     }
 }

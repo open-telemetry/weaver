@@ -11,31 +11,33 @@ use weaver_resolver::SchemaResolver;
 
 /// Parameters for the `registry stats` sub-command
 #[derive(Debug, Args)]
-pub struct StatsRegistry {
+pub struct RegistryStatsArgs {
     /// Local path or Git URL of the semantic convention registry.
+    #[arg(
+        short = 'r',
+        long,
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+    )]
     pub registry: String,
 
     /// Optional path in the Git repository where the semantic convention
     /// registry is located
-    pub path: Option<String>,
+    #[arg(short = 'd', long, default_value = "model")]
+    pub registry_git_sub_dir: Option<String>,
 }
 
 /// Compute stats on a semantic convention registry.
-pub(crate) fn stats_registry_command(
-    log: impl Logger + Sync + Clone,
-    cache: &Cache,
-    registry_args: &StatsRegistry,
-) {
+pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
     log.loading(&format!(
         "Compute statistics on the registry `{}`",
-        registry_args.registry
+        args.registry
     ));
 
     // Load the semantic convention registry into a local cache.
     // No parsing errors should be observed.
     let semconv_specs = SchemaResolver::load_semconv_registry(
-        registry_args.registry.to_string(),
-        registry_args.path.clone(),
+        args.registry.to_string(),
+        args.registry_git_sub_dir.clone(),
         cache,
         log.clone(),
     )
@@ -45,7 +47,7 @@ pub(crate) fn stats_registry_command(
 
     // Resolve the semantic convention registry.
     let mut attr_catalog = AttributeCatalog::default();
-    let _ = resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
+    let _ = resolve_semconv_registry(&mut attr_catalog, &args.registry, &semconv_specs)
         .unwrap_or_else(|e| {
             panic!("Failed to resolve the semantic convention registry.\n{e}");
         });
