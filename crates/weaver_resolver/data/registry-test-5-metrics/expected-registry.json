@@ -1,11 +1,9 @@
 {
-  "registry_url": "https://semconv-registry.com",
+  "registry_url": "https://127.0.0.1",
   "groups": [
     {
       "id": "attributes.faas.common",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Describes FaaS attributes.",
       "prefix": "faas",
       "attributes": [
@@ -20,16 +18,14 @@
     },
     {
       "id": "metric.faas.invoke_duration",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.invoke_duration",
-        "instrument": "Histogram",
-        "unit": "s"
-      },
+      "type": "metric",
       "brief": "Measures the duration of the function's logic execution",
       "attributes": [
         0
       ],
+      "metric_name": "faas.invoke_duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -72,16 +68,14 @@
     },
     {
       "id": "metric.faas.init_duration",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.init_duration",
-        "instrument": "Histogram",
-        "unit": "s"
-      },
+      "type": "metric",
       "brief": "Measures the duration of the function's initialization, such as a cold start",
       "attributes": [
         0
       ],
+      "metric_name": "faas.init_duration",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -124,16 +118,14 @@
     },
     {
       "id": "metric.faas.coldstarts",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.coldstarts",
-        "instrument": "Counter",
-        "unit": "{coldstart}"
-      },
+      "type": "metric",
       "brief": "Number of invocation cold starts",
       "attributes": [
         0
       ],
+      "metric_name": "faas.coldstarts",
+      "instrument": "counter",
+      "unit": "{coldstart}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -176,16 +168,14 @@
     },
     {
       "id": "metric.faas.errors",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.errors",
-        "instrument": "Counter",
-        "unit": "{error}"
-      },
+      "type": "metric",
       "brief": "Number of invocation errors",
       "attributes": [
         0
       ],
+      "metric_name": "faas.errors",
+      "instrument": "counter",
+      "unit": "{error}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -228,16 +218,14 @@
     },
     {
       "id": "metric.faas.invocations",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.invocations",
-        "instrument": "Counter",
-        "unit": "{invocation}"
-      },
+      "type": "metric",
       "brief": "Number of successful invocations",
       "attributes": [
         0
       ],
+      "metric_name": "faas.invocations",
+      "instrument": "counter",
+      "unit": "{invocation}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -280,16 +268,14 @@
     },
     {
       "id": "metric.faas.timeouts",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.timeouts",
-        "instrument": "Counter",
-        "unit": "{timeout}"
-      },
+      "type": "metric",
       "brief": "Number of invocation timeouts",
       "attributes": [
         0
       ],
+      "metric_name": "faas.timeouts",
+      "instrument": "counter",
+      "unit": "{timeout}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -332,16 +318,14 @@
     },
     {
       "id": "metric.faas.mem_usage",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.mem_usage",
-        "instrument": "Histogram",
-        "unit": "By"
-      },
+      "type": "metric",
       "brief": "Distribution of max memory usage per invocation",
       "attributes": [
         0
       ],
+      "metric_name": "faas.mem_usage",
+      "instrument": "histogram",
+      "unit": "By",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -384,16 +368,14 @@
     },
     {
       "id": "metric.faas.cpu_usage",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.cpu_usage",
-        "instrument": "Histogram",
-        "unit": "s"
-      },
+      "type": "metric",
       "brief": "Distribution of CPU usage per invocation",
       "attributes": [
         0
       ],
+      "metric_name": "faas.cpu_usage",
+      "instrument": "histogram",
+      "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {
@@ -436,16 +418,14 @@
     },
     {
       "id": "metric.faas.net_io",
-      "typed_group": {
-        "type": "Metric",
-        "metric_name": "faas.net_io",
-        "instrument": "Histogram",
-        "unit": "By"
-      },
+      "type": "metric",
       "brief": "Distribution of net I/O usage per invocation",
       "attributes": [
         0
       ],
+      "metric_name": "faas.net_io",
+      "instrument": "histogram",
+      "unit": "By",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": {

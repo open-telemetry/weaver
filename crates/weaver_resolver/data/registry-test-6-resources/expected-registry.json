@@ -1,11 +1,9 @@
 {
-  "registry_url": "https://semconv-registry.com",
+  "registry_url": "https://127.0.0.1",
   "groups": [
     {
       "id": "registry.user_agent",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Describes user-agent attributes.",
       "prefix": "user_agent",
       "attributes": [
@@ -17,9 +15,7 @@
     },
     {
       "id": "browser",
-      "typed_group": {
-        "type": "Resource"
-      },
+      "type": "resource",
       "brief": "The web browser in which the application represented by the resource is running. The `browser.*` attributes MUST be used only for resources that represent applications running in a web browser (regardless of whether running on a mobile or desktop device).\n",
       "prefix": "browser",
       "attributes": [

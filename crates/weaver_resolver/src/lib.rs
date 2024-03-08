@@ -17,15 +17,16 @@ use regex::Regex;
 use url::Url;
 use walkdir::DirEntry;
 
-use crate::attribute::AttributeCatalog;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_resolved_schema::catalog::Catalog;
+use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::{SemConvImport, TelemetrySchema};
 use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
 use weaver_version::VersionChanges;
 
+use crate::attribute::AttributeCatalog;
 use crate::events::resolve_events;
 use crate::metrics::{resolve_metrics, semconv_to_resolved_metric};
 use crate::registry::resolve_semconv_registry;
@@ -39,35 +40,11 @@ mod metrics;
 pub mod registry;
 mod resource;
 mod spans;
-mod stability;
 mod tags;
 
 /// A resolver that can be used to resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
 pub struct SchemaResolver {}
-
-/// Different types of unresolved references.
-#[derive(Debug)]
-pub enum UnresolvedReference {
-    /// An unresolved attribute reference.
-    AttributeRef {
-        /// The id of the group containing the attribute reference.
-        group_id: String,
-        /// The unresolved attribute reference.
-        attribute_ref: String,
-        /// The provenance of the reference (URL or path).
-        provenance: String,
-    },
-    /// An unresolved `extends` clause reference.
-    ExtendsRef {
-        /// The id of the group containing the `extends` clause reference.
-        group_id: String,
-        /// The unresolved `extends` clause reference.
-        extends_ref: String,
-        /// The provenance of the reference (URL or path).
-        provenance: String,
-    },
-}
 
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug)]
@@ -105,13 +82,6 @@ pub enum Error {
         error: String,
     },
 
-    /// Failed to resolve a set of references.
-    #[error("Failed to resolve the following references {refs:?}")]
-    UnresolvedReferences {
-        /// The list of unresolved references.
-        refs: Vec<UnresolvedReference>,
-    },
-
     /// Failed to resolve a metric.
     #[error("Failed to resolve the metric '{r#ref}'")]
     FailToResolveMetric {
@@ -136,6 +106,99 @@ pub enum Error {
         /// The error that occurred.
         message: String,
     },
+
+    /// An unresolved attribute reference.
+    #[error("The following attribute reference is not resolved for the group '{group_id}'.\nAttribute reference: {attribute_ref}\nProvenance: {provenance}")]
+    UnresolvedAttributeRef {
+        /// The id of the group containing the attribute reference.
+        group_id: String,
+        /// The unresolved attribute reference.
+        attribute_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
+
+    /// An unresolved `extends` clause reference.
+    #[error("The following `extends` clause reference is not resolved for the group '{group_id}'.\n`extends` clause reference: {extends_ref}\nProvenance: {provenance}")]
+    UnresolvedExtendsRef {
+        /// The id of the group containing the `extends` clause reference.
+        group_id: String,
+        /// The unresolved `extends` clause reference.
+        extends_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
+
+    /// An unresolved `include` reference.
+    #[error("The following `include` reference is not resolved for the group '{group_id}'.\n`include` reference: {include_ref}\nProvenance: {provenance}")]
+    UnresolvedIncludeRef {
+        /// The id of the group containing the `include` reference.
+        group_id: String,
+        /// The unresolved `include` reference.
+        include_ref: String,
+        /// The provenance of the reference (URL or path).
+        provenance: String,
+    },
+
+    /// An `any_of` constraint that is not satisfied for a group.
+    #[error("The following `any_of` constraint is not satisfied for the group '{group_id}'.\n`any_of` constraint: {any_of:#?}\nMissing attributes: {missing_attributes:?}")]
+    UnsatisfiedAnyOfConstraint {
+        /// The id of the group containing the unsatisfied `any_of` constraint.
+        group_id: String,
+        /// The `any_of` constraint that is not satisfied.
+        any_of: Constraint,
+        /// The detected missing attributes.
+        missing_attributes: Vec<String>,
+    },
+
+    /// A container for multiple errors.
+    #[error("{:?}", Error::format_errors(.0))]
+    CompoundError(Vec<Error>),
+}
+
+/// Handles a list of errors and returns a compound error if the list is not
+/// empty or () if the list is empty.
+pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(Error::CompoundError(errors))
+    }
+}
+
+/// A constraint that is not satisfied and its missing attributes.
+#[derive(Debug)]
+pub struct UnsatisfiedAnyOfConstraint {
+    /// The `any_of` constraint that is not satisfied.
+    pub any_of: Constraint,
+    /// The detected missing attributes.
+    pub missing_attributes: Vec<String>,
+}
+
+impl Error {
+    /// Creates a compound error from a list of errors.
+    /// Note: All compound errors are flattened.
+    pub fn compound_error(errors: Vec<Error>) -> Error {
+        Error::CompoundError(
+            errors
+                .into_iter()
+                .flat_map(|e| match e {
+                    Error::CompoundError(errors) => errors,
+                    e => vec![e],
+                })
+                .collect(),
+        )
+    }
+
+    /// Formats the given errors into a single string.
+    /// This used to render compound errors.
+    pub fn format_errors(errors: &[Error]) -> String {
+        errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<String>>()
+            .join("\n\n")
+    }
 }
 
 impl SchemaResolver {
@@ -380,14 +443,16 @@ impl SchemaResolver {
             .map(semconv_to_resolved_metric)
             .collect();
 
+        let catalog = Catalog {
+            attributes: attr_catalog.drain_attributes(),
+            metrics,
+        };
+
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "1.0.0".to_string(),
             schema_url: "".to_string(),
             registries: vec![resolved_registry],
-            catalog: Catalog {
-                attributes: attr_catalog.drain_attributes(),
-                metrics,
-            },
+            catalog,
             resource: None,
             instrumentation_library: None,
             dependencies: vec![],

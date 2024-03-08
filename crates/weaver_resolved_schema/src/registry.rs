@@ -6,11 +6,11 @@
 
 use crate::attribute::AttributeRef;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::stability::Stability;
 
-use crate::catalog::Stability;
 use crate::lineage::GroupLineage;
-use crate::metric::Instrument;
-use crate::signal::SpanKind;
 
 /// A semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -29,7 +29,7 @@ pub struct Group {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the group including the specific fields for each type.
-    pub typed_group: TypedGroup,
+    pub r#type: GroupType,
     /// A brief description of the semantic convention.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
@@ -69,62 +69,40 @@ pub struct Group {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeRef>,
+
+    /// Specifies the kind of the span.
+    /// Note: only valid if type is span (the default)
+    pub span_kind: Option<SpanKindSpec>,
+    /// List of strings that specify the ids of event semantic conventions
+    /// associated with this span semantic convention.
+    /// Note: only valid if type is span (the default)
+    #[serde(default)]
+    pub events: Vec<String>,
+    /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
+    /// Note: This field is required if type is metric.
+    pub metric_name: Option<String>,
+    /// The instrument type that should be used to record the metric. Note that
+    /// the semantic conventions must be written using the names of the
+    /// synchronous instrument types (counter, gauge, updowncounter and
+    /// histogram).
+    /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
+    /// Note: This field is required if type is metric.
+    pub instrument: Option<InstrumentSpec>,
+    /// The unit in which the metric is measured, which should adhere to the
+    /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+    /// Note: This field is required if type is metric.
+    pub unit: Option<String>,
+    /// The name of the event. If not specified, the prefix is used.
+    /// If prefix is empty (or unspecified), name is required.
+    pub name: Option<String>,
+
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lineage: Option<GroupLineage>,
 }
 
-/// An enum representing the type of the group including the specific fields
-/// for each type.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(tag = "type")]
-pub enum TypedGroup {
-    /// A semantic convention group representing an attribute group.
-    AttributeGroup {},
-    /// A semantic convention group representing a span.
-    Span {
-        /// Specifies the kind of the span.
-        /// Note: only valid if type is span (the default)
-        span_kind: Option<SpanKind>,
-        /// List of strings that specify the ids of event semantic conventions
-        /// associated with this span semantic convention.
-        /// Note: only valid if type is span (the default)
-        #[serde(default)]
-        events: Vec<String>,
-    },
-    /// A semantic convention group representing an event.
-    Event {
-        /// The name of the event. If not specified, the prefix is used.
-        /// If prefix is empty (or unspecified), name is required.
-        name: Option<String>,
-    },
-    /// A semantic convention group representing a metric.
-    Metric {
-        /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
-        /// Note: This field is required if type is metric.
-        metric_name: Option<String>,
-        /// The instrument type that should be used to record the metric. Note that
-        /// the semantic conventions must be written using the names of the
-        /// synchronous instrument types (counter, gauge, updowncounter and
-        /// histogram).
-        /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
-        /// Note: This field is required if type is metric.
-        instrument: Option<Instrument>,
-        /// The unit in which the metric is measured, which should adhere to the
-        /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
-        /// Note: This field is required if type is metric.
-        unit: Option<String>,
-    },
-    /// A semantic convention group representing a metric group.
-    MetricGroup {},
-    /// A semantic convention group representing a resource.
-    Resource {},
-    /// A semantic convention group representing a scope.
-    Scope {},
-}
-
 /// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Constraint {
     /// any_of accepts a list of sequences. Each sequence contains a list of
@@ -136,4 +114,45 @@ pub struct Constraint {
     /// semantic convention all constraints and required attributes that are
     /// not already defined in the current semantic convention.
     pub include: Option<String>,
+}
+
+impl Group {
+    /// Returns true if the group contains at least one `include` constraint.
+    pub fn has_include(&self) -> bool {
+        self.constraints.iter().any(|c| c.include.is_some())
+    }
+
+    /// Import attributes from the provided slice that do not exist in the
+    /// current group.
+    pub fn import_attributes_from(&mut self, attributes: &[AttributeRef]) {
+        for attr in attributes {
+            if !self.attributes.contains(attr) {
+                self.attributes.push(*attr);
+            }
+        }
+    }
+
+    /// Update the group constraints according to the provided constraints to
+    /// add and the `include` constraints to remove.
+    pub fn update_constraints(
+        &mut self,
+        constraints_to_add: Vec<Constraint>,
+        include_to_remove: HashSet<String>,
+    ) {
+        // Add the new constraints
+        self.constraints.extend(constraints_to_add);
+
+        // Remove the include constraints
+        self.constraints.retain(|c| {
+            c.include.is_none() || !include_to_remove.contains(c.include.as_ref().unwrap())
+        });
+    }
+
+    /// Returns the provenance of the group.
+    pub fn provenance(&self) -> &str {
+        match &self.lineage {
+            Some(lineage) => lineage.provenance(),
+            None => "unknown",
+        }
+    }
 }

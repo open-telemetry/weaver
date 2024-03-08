@@ -1,624 +1,390 @@
 [
   {
     "name": "messaging.batch.message_count",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The number of messages sent, received, or processed in the scope of the batching operation.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        0,
-        1,
-        2
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      0,
+      1,
+      2
+    ],
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n"
   },
   {
     "name": "messaging.client_id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "A unique identifier for the client that consumes or produces a message.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "client-5",
-        "myhost@8742@s8083jm"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": [
+      "client-5",
+      "myhost@8742@s8083jm"
+    ],
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The message destination name",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "MyQueue",
-        "MyTopic"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "MyQueue",
+      "MyTopic"
+    ],
+    "requirement_level": "recommended",
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
   {
     "name": "messaging.destination.template",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Low cardinality representation of the messaging destination name",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "/customers/{customerId}"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "/customers/{customerId}"
+    ],
+    "requirement_level": "recommended",
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   },
   {
     "name": "messaging.destination.anonymous",
-    "type": {
-      "type": "Boolean"
-    },
+    "type": "boolean",
     "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.temporary",
-    "type": {
-      "type": "Boolean"
-    },
+    "type": "boolean",
     "brief": "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination_publish.anonymous",
-    "type": {
-      "type": "Boolean"
-    },
+    "type": "boolean",
     "brief": "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination_publish.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the original destination the message was published to",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "MyQueue",
-        "MyTopic"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "MyQueue",
+      "MyTopic"
+    ],
+    "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n"
   },
   {
     "name": "messaging.kafka.consumer.group",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.\n",
-    "examples": {
-      "type": "String",
-      "value": "my-group"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "my-group",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.destination.partition",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Partition the message is sent to.\n",
-    "examples": {
-      "type": "Int",
-      "value": 2
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": 2,
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.message.key",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Message keys in Kafka are used for grouping alike messages to ensure they're processed on the same partition. They differ from `messaging.message.id` in that they're not unique. If the key is `null`, the attribute MUST NOT be set.\n",
-    "examples": {
-      "type": "String",
-      "value": "myKey"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": "myKey",
+    "requirement_level": "recommended",
     "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n"
   },
   {
     "name": "messaging.kafka.message.offset",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The offset of a record in the corresponding Kafka partition.\n",
-    "examples": {
-      "type": "Int",
-      "value": 42
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": 42,
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.kafka.message.tombstone",
-    "type": {
-      "type": "Boolean"
-    },
+    "type": "boolean",
     "brief": "A boolean that is true if the message is a tombstone.",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.conversation_id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called \"Correlation ID\".\n",
-    "examples": {
-      "type": "String",
-      "value": "MyConversationId"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "MyConversationId",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.envelope.size",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The size of the message body and metadata in bytes.\n",
-    "examples": {
-      "type": "Int",
-      "value": 2738
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": 2738,
+    "requirement_level": "recommended",
     "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n"
   },
   {
     "name": "messaging.message.id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "A value used by the messaging system as an identifier for the message, represented as a string.",
-    "examples": {
-      "type": "String",
-      "value": "452a7c7c7c7048c2f887f61572b18fc2"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "452a7c7c7c7048c2f887f61572b18fc2",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.message.body.size",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The size of the message body in bytes.\n",
-    "examples": {
-      "type": "Int",
-      "value": 1439
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": 1439,
+    "requirement_level": "recommended",
     "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n"
   },
   {
     "name": "messaging.operation",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "publish",
-          "value": {
-            "type": "String",
-            "value": "publish"
-          },
-          "brief": "One or more messages are provided for publishing to an intermediary. If a single message is published, the context of the \"Publish\" span can be used as the creation context and no \"Create\" span needs to be created.\n"
+          "value": "publish",
+          "brief": "One or more messages are provided for publishing to an intermediary. If a single message is published, the context of the \"Publish\" span can be used as the creation context and no \"Create\" span needs to be created.\n",
+          "note": null
         },
         {
           "id": "create",
-          "value": {
-            "type": "String",
-            "value": "create"
-          },
-          "brief": "A message is created. \"Create\" spans always refer to a single message and are used to provide a unique creation context for messages in batch publishing scenarios.\n"
+          "value": "create",
+          "brief": "A message is created. \"Create\" spans always refer to a single message and are used to provide a unique creation context for messages in batch publishing scenarios.\n",
+          "note": null
         },
         {
           "id": "receive",
-          "value": {
-            "type": "String",
-            "value": "receive"
-          },
-          "brief": "One or more messages are requested by a consumer. This operation refers to pull-based scenarios, where consumers explicitly call methods of messaging SDKs to receive messages.\n"
+          "value": "receive",
+          "brief": "One or more messages are requested by a consumer. This operation refers to pull-based scenarios, where consumers explicitly call methods of messaging SDKs to receive messages.\n",
+          "note": null
         },
         {
           "id": "deliver",
-          "value": {
-            "type": "String",
-            "value": "deliver"
-          },
-          "brief": "One or more messages are passed to a consumer. This operation refers to push-based scenarios, where consumer register callbacks which get called by messaging SDKs.\n"
+          "value": "deliver",
+          "brief": "One or more messages are passed to a consumer. This operation refers to push-based scenarios, where consumer register callbacks which get called by messaging SDKs.\n",
+          "note": null
         }
       ]
     },
     "brief": "A string identifying the kind of messaging operation.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If a custom value is used, it MUST be of low cardinality."
   },
   {
     "name": "messaging.rabbitmq.destination.routing_key",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "RabbitMQ message routing key.\n",
-    "examples": {
-      "type": "String",
-      "value": "myKey"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "myKey",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.client_group",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Name of the RocketMQ producer/consumer group that is handling the message. The client type is identified by the SpanKind.\n",
-    "examples": {
-      "type": "String",
-      "value": "myConsumerGroup"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "myConsumerGroup",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.consumption_model",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "clustering",
-          "value": {
-            "type": "String",
-            "value": "clustering"
-          },
-          "brief": "Clustering consumption model"
+          "value": "clustering",
+          "brief": "Clustering consumption model",
+          "note": null
         },
         {
           "id": "broadcasting",
-          "value": {
-            "type": "String",
-            "value": "broadcasting"
-          },
-          "brief": "Broadcasting consumption model"
+          "value": "broadcasting",
+          "brief": "Broadcasting consumption model",
+          "note": null
         }
       ]
     },
     "brief": "Model of message consumption. This only applies to consumer spans.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.delay_time_level",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The delay time level for delay message, which determines the message delay time.\n",
-    "examples": {
-      "type": "Int",
-      "value": 3
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": 3,
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.delivery_timestamp",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The timestamp in milliseconds that the delay message is expected to be delivered to consumer.\n",
-    "examples": {
-      "type": "Int",
-      "value": 1665987217045
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": 1665987217045,
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.group",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.\n",
-    "examples": {
-      "type": "String",
-      "value": "myMessageGroup"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "myMessageGroup",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.keys",
-    "type": {
-      "type": "Strings"
-    },
+    "type": "string[]",
     "brief": "Key(s) of message, another way to mark message besides message id.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "keyA",
-        "keyB"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": [
+      "keyA",
+      "keyB"
+    ],
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.tag",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The secondary classifier of message besides topic.\n",
-    "examples": {
-      "type": "String",
-      "value": "tagA"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "tagA",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.message.type",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "normal",
-          "value": {
-            "type": "String",
-            "value": "normal"
-          },
-          "brief": "Normal message"
+          "value": "normal",
+          "brief": "Normal message",
+          "note": null
         },
         {
           "id": "fifo",
-          "value": {
-            "type": "String",
-            "value": "fifo"
-          },
-          "brief": "FIFO message"
+          "value": "fifo",
+          "brief": "FIFO message",
+          "note": null
         },
         {
           "id": "delay",
-          "value": {
-            "type": "String",
-            "value": "delay"
-          },
-          "brief": "Delay message"
+          "value": "delay",
+          "brief": "Delay message",
+          "note": null
         },
         {
           "id": "transaction",
-          "value": {
-            "type": "String",
-            "value": "transaction"
-          },
-          "brief": "Transaction message"
+          "value": "transaction",
+          "brief": "Transaction message",
+          "note": null
         }
       ]
     },
     "brief": "Type of message.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.rocketmq.namespace",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Namespace of RocketMQ resources, resources in different namespaces are individual.\n",
-    "examples": {
-      "type": "String",
-      "value": "myNamespace"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "myNamespace",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.gcp_pubsub.message.ordering_key",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
-    "examples": {
-      "type": "String",
-      "value": "ordering_key"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "ordering_key",
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.system",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "activemq",
-          "value": {
-            "type": "String",
-            "value": "activemq"
-          },
-          "brief": "Apache ActiveMQ"
+          "value": "activemq",
+          "brief": "Apache ActiveMQ",
+          "note": null
         },
         {
           "id": "aws_sqs",
-          "value": {
-            "type": "String",
-            "value": "aws_sqs"
-          },
-          "brief": "Amazon Simple Queue Service (SQS)"
+          "value": "aws_sqs",
+          "brief": "Amazon Simple Queue Service (SQS)",
+          "note": null
         },
         {
           "id": "azure_eventgrid",
-          "value": {
-            "type": "String",
-            "value": "azure_eventgrid"
-          },
-          "brief": "Azure Event Grid"
+          "value": "azure_eventgrid",
+          "brief": "Azure Event Grid",
+          "note": null
         },
         {
           "id": "azure_eventhubs",
-          "value": {
-            "type": "String",
-            "value": "azure_eventhubs"
-          },
-          "brief": "Azure Event Hubs"
+          "value": "azure_eventhubs",
+          "brief": "Azure Event Hubs",
+          "note": null
         },
         {
           "id": "azure_servicebus",
-          "value": {
-            "type": "String",
-            "value": "azure_servicebus"
-          },
-          "brief": "Azure Service Bus"
+          "value": "azure_servicebus",
+          "brief": "Azure Service Bus",
+          "note": null
         },
         {
           "id": "gcp_pubsub",
-          "value": {
-            "type": "String",
-            "value": "gcp_pubsub"
-          },
-          "brief": "Google Cloud Pub/Sub"
+          "value": "gcp_pubsub",
+          "brief": "Google Cloud Pub/Sub",
+          "note": null
         },
         {
           "id": "jms",
-          "value": {
-            "type": "String",
-            "value": "jms"
-          },
-          "brief": "Java Message Service"
+          "value": "jms",
+          "brief": "Java Message Service",
+          "note": null
         },
         {
           "id": "kafka",
-          "value": {
-            "type": "String",
-            "value": "kafka"
-          },
-          "brief": "Apache Kafka"
+          "value": "kafka",
+          "brief": "Apache Kafka",
+          "note": null
         },
         {
           "id": "rabbitmq",
-          "value": {
-            "type": "String",
-            "value": "rabbitmq"
-          },
-          "brief": "RabbitMQ"
+          "value": "rabbitmq",
+          "brief": "RabbitMQ",
+          "note": null
         },
         {
           "id": "rocketmq",
-          "value": {
-            "type": "String",
-            "value": "rocketmq"
-          },
-          "brief": "Apache RocketMQ"
+          "value": "rocketmq",
+          "brief": "Apache RocketMQ",
+          "note": null
         }
       ]
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The message destination name",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "MyQueue",
-        "MyTopic"
-      ]
-    },
+    "examples": [
+      "MyQueue",
+      "MyTopic"
+    ],
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
+      "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
   {
     "name": "messaging.destination.template",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Low cardinality representation of the messaging destination name",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "/customers/{customerId}"
-      ]
-    },
+    "examples": [
+      "/customers/{customerId}"
+    ],
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if available."
+      "conditionally_required": "if available."
     },
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   }

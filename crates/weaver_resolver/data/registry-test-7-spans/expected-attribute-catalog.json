@@ -1,3609 +1,2535 @@
 [
   {
     "name": "db.cassandra.coordinator.dc",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The data center of the coordinating node for a query.\n",
-    "examples": {
-      "type": "String",
-      "value": "us-west-2"
-    },
+    "examples": "us-west-2",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.coordinator.id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The ID of the coordinating node for a query.\n",
-    "examples": {
-      "type": "String",
-      "value": "be13faa2-8574-4d71-926d-27f16cf8a7af"
-    },
+    "examples": "be13faa2-8574-4d71-926d-27f16cf8a7af",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.consistency_level",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "all",
-          "value": {
-            "type": "String",
-            "value": "all"
-          }
+          "value": "all",
+          "brief": null,
+          "note": null
         },
         {
           "id": "each_quorum",
-          "value": {
-            "type": "String",
-            "value": "each_quorum"
-          }
+          "value": "each_quorum",
+          "brief": null,
+          "note": null
         },
         {
           "id": "quorum",
-          "value": {
-            "type": "String",
-            "value": "quorum"
-          }
+          "value": "quorum",
+          "brief": null,
+          "note": null
         },
         {
           "id": "local_quorum",
-          "value": {
-            "type": "String",
-            "value": "local_quorum"
-          }
+          "value": "local_quorum",
+          "brief": null,
+          "note": null
         },
         {
           "id": "one",
-          "value": {
-            "type": "String",
-            "value": "one"
-          }
+          "value": "one",
+          "brief": null,
+          "note": null
         },
         {
           "id": "two",
-          "value": {
-            "type": "String",
-            "value": "two"
-          }
+          "value": "two",
+          "brief": null,
+          "note": null
         },
         {
           "id": "three",
-          "value": {
-            "type": "String",
-            "value": "three"
-          }
+          "value": "three",
+          "brief": null,
+          "note": null
         },
         {
           "id": "local_one",
-          "value": {
-            "type": "String",
-            "value": "local_one"
-          }
+          "value": "local_one",
+          "brief": null,
+          "note": null
         },
         {
           "id": "any",
-          "value": {
-            "type": "String",
-            "value": "any"
-          }
+          "value": "any",
+          "brief": null,
+          "note": null
         },
         {
           "id": "serial",
-          "value": {
-            "type": "String",
-            "value": "serial"
-          }
+          "value": "serial",
+          "brief": null,
+          "note": null
         },
         {
           "id": "local_serial",
-          "value": {
-            "type": "String",
-            "value": "local_serial"
-          }
+          "value": "local_serial",
+          "brief": null,
+          "note": null
         }
       ]
     },
     "brief": "The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).\n",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.idempotence",
-    "type": {
-      "type": "Boolean"
-    },
+    "type": "boolean",
     "brief": "Whether or not the query is idempotent.\n",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.page_size",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The fetch size used for paging, i.e. how many rows will be returned at once.\n",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        5000
-      ]
-    },
+    "examples": [
+      5000
+    ],
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.speculative_execution_count",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.\n",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        0,
-        2
-      ]
-    },
+    "examples": [
+      0,
+      2
+    ],
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.table",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).",
-    "examples": {
-      "type": "String",
-      "value": "mytable"
-    },
+    "examples": "mytable",
     "tag": "tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
     "name": "db.connection_string",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The connection string used to connect to the database. It is recommended to remove embedded credentials.\n",
-    "examples": {
-      "type": "String",
-      "value": "Server=(localdb)\\v11.0;Integrated Security=true;"
-    },
+    "examples": "Server=(localdb)\\v11.0;Integrated Security=true;",
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.client_id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Unique Cosmos client instance id.",
-    "examples": {
-      "type": "String",
-      "value": "3ba4827d-4422-483f-b59f-85b74211c11d"
-    },
+    "examples": "3ba4827d-4422-483f-b59f-85b74211c11d",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.connection_mode",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "gateway",
-          "value": {
-            "type": "String",
-            "value": "gateway"
-          },
-          "brief": "Gateway (HTTP) connections mode"
+          "value": "gateway",
+          "brief": "Gateway (HTTP) connections mode",
+          "note": null
         },
         {
           "id": "direct",
-          "value": {
-            "type": "String",
-            "value": "direct"
-          },
-          "brief": "Direct connection."
+          "value": "direct",
+          "brief": "Direct connection.",
+          "note": null
         }
       ]
     },
     "brief": "Cosmos client connection mode.",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.container",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Cosmos DB container name.",
-    "examples": {
-      "type": "String",
-      "value": "anystring"
-    },
+    "examples": "anystring",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.operation_type",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "invalid",
-          "value": {
-            "type": "String",
-            "value": "Invalid"
-          }
+          "value": "Invalid",
+          "brief": null,
+          "note": null
         },
         {
           "id": "create",
-          "value": {
-            "type": "String",
-            "value": "Create"
-          }
+          "value": "Create",
+          "brief": null,
+          "note": null
         },
         {
           "id": "patch",
-          "value": {
-            "type": "String",
-            "value": "Patch"
-          }
+          "value": "Patch",
+          "brief": null,
+          "note": null
         },
         {
           "id": "read",
-          "value": {
-            "type": "String",
-            "value": "Read"
-          }
+          "value": "Read",
+          "brief": null,
+          "note": null
         },
         {
           "id": "read_feed",
-          "value": {
-            "type": "String",
-            "value": "ReadFeed"
-          }
+          "value": "ReadFeed",
+          "brief": null,
+          "note": null
         },
         {
           "id": "delete",
-          "value": {
-            "type": "String",
-            "value": "Delete"
-          }
+          "value": "Delete",
+          "brief": null,
+          "note": null
         },
         {
           "id": "replace",
-          "value": {
-            "type": "String",
-            "value": "Replace"
-          }
+          "value": "Replace",
+          "brief": null,
+          "note": null
         },
         {
           "id": "execute",
-          "value": {
-            "type": "String",
-            "value": "Execute"
-          }
+          "value": "Execute",
+          "brief": null,
+          "note": null
         },
         {
           "id": "query",
-          "value": {
-            "type": "String",
-            "value": "Query"
-          }
+          "value": "Query",
+          "brief": null,
+          "note": null
         },
         {
           "id": "head",
-          "value": {
-            "type": "String",
-            "value": "Head"
-          }
+          "value": "Head",
+          "brief": null,
+          "note": null
         },
         {
           "id": "head_feed",
-          "value": {
-            "type": "String",
-            "value": "HeadFeed"
-          }
+          "value": "HeadFeed",
+          "brief": null,
+          "note": null
         },
         {
           "id": "upsert",
-          "value": {
-            "type": "String",
-            "value": "Upsert"
-          }
+          "value": "Upsert",
+          "brief": null,
+          "note": null
         },
         {
           "id": "batch",
-          "value": {
-            "type": "String",
-            "value": "Batch"
-          }
+          "value": "Batch",
+          "brief": null,
+          "note": null
         },
         {
           "id": "query_plan",
-          "value": {
-            "type": "String",
-            "value": "QueryPlan"
-          }
+          "value": "QueryPlan",
+          "brief": null,
+          "note": null
         },
         {
           "id": "execute_javascript",
-          "value": {
-            "type": "String",
-            "value": "ExecuteJavaScript"
-          }
+          "value": "ExecuteJavaScript",
+          "brief": null,
+          "note": null
         }
       ]
     },
     "brief": "CosmosDB Operation Type.",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.request_charge",
-    "type": {
-      "type": "Double"
-    },
+    "type": "double",
     "brief": "RU consumed for that operation",
-    "examples": {
-      "type": "Doubles",
-      "values": [
-        46.18,
-        1.0
-      ]
-    },
+    "examples": [
+      46.18,
+      1.0
+    ],
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.request_content_length",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Request payload size in bytes",
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.status_code",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Cosmos DB status code.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        200,
-        201
-      ]
-    },
+    "examples": [
+      200,
+      201
+    ],
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.sub_status_code",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Cosmos DB sub status code.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        1000,
-        1002
-      ]
-    },
+    "examples": [
+      1000,
+      1002
+    ],
     "tag": "tech-specific-cosmosdb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.elasticsearch.cluster.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Represents the identifier of an Elasticsearch cluster.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "e9106fc68e3044f0b1475b04bf4ffd5f"
-      ]
-    },
+    "examples": [
+      "e9106fc68e3044f0b1475b04bf4ffd5f"
+    ],
     "tag": "tech-specific-elasticsearch",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.elasticsearch.node.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Represents the human-readable identifier of the node/instance to which a request was routed.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "instance-0000000001"
-      ]
-    },
+    "examples": [
+      "instance-0000000001"
+    ],
     "tag": "tech-specific-elasticsearch",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.elasticsearch.path_parts",
-    "type": {
-      "type": "template[string]"
-    },
+    "type": "template[string]",
     "brief": "A dynamic value in the url path.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "db.elasticsearch.path_parts.index=test-index",
-        "db.elasticsearch.path_parts.doc_id=123"
-      ]
-    },
+    "examples": [
+      "db.elasticsearch.path_parts.index=test-index",
+      "db.elasticsearch.path_parts.doc_id=123"
+    ],
     "tag": "tech-specific-elasticsearch",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.\n"
   },
   {
     "name": "db.jdbc.driver_classname",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "org.postgresql.Driver",
-        "com.microsoft.sqlserver.jdbc.SQLServerDriver"
-      ]
-    },
+    "examples": [
+      "org.postgresql.Driver",
+      "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+    ],
     "tag": "tech-specific-jdbc",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.mongodb.collection",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The MongoDB collection being accessed within the database stated in `db.name`.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "customers",
-        "products"
-      ]
-    },
+    "examples": [
+      "customers",
+      "products"
+    ],
     "tag": "tech-specific-mongodb",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.mssql.instance_name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The Microsoft SQL Server [instance name](https://docs.microsoft.com/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.\n",
-    "examples": {
-      "type": "String",
-      "value": "MSSQLSERVER"
-    },
+    "examples": "MSSQLSERVER",
     "tag": "tech-specific-mssql",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).\n"
   },
   {
     "name": "db.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "customers",
-        "main"
-      ]
-    },
+    "examples": [
+      "customers",
+      "main"
+    ],
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "In some SQL databases, the database name to be used is called \"schema name\". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).\n"
   },
   {
     "name": "db.operation",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "findAndModify",
-        "HMSET",
-        "SELECT"
-      ]
-    },
+    "examples": [
+      "findAndModify",
+      "HMSET",
+      "SELECT"
+    ],
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
   },
   {
     "name": "db.redis.database_index",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.\n",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        0,
-        1,
-        15
-      ]
-    },
+    "examples": [
+      0,
+      1,
+      15
+    ],
     "tag": "tech-specific-redis",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.sql.table",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the primary table that the operation is acting upon, including the database name (if applicable).",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "public.users",
-        "customers"
-      ]
-    },
+    "examples": [
+      "public.users",
+      "customers"
+    ],
     "tag": "tech-specific-sql",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
     "name": "db.statement",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The database statement being executed.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "SELECT * FROM wuser_table",
-        "SET mykey \"WuValue\""
-      ]
-    },
+    "examples": [
+      "SELECT * FROM wuser_table",
+      "SET mykey \"WuValue\""
+    ],
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.system",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "other_sql",
-          "value": {
-            "type": "String",
-            "value": "other_sql"
-          },
-          "brief": "Some other SQL database. Fallback only. See notes."
+          "value": "other_sql",
+          "brief": "Some other SQL database. Fallback only. See notes.",
+          "note": null
         },
         {
           "id": "mssql",
-          "value": {
-            "type": "String",
-            "value": "mssql"
-          },
-          "brief": "Microsoft SQL Server"
+          "value": "mssql",
+          "brief": "Microsoft SQL Server",
+          "note": null
         },
         {
           "id": "mssqlcompact",
-          "value": {
-            "type": "String",
-            "value": "mssqlcompact"
-          },
-          "brief": "Microsoft SQL Server Compact"
+          "value": "mssqlcompact",
+          "brief": "Microsoft SQL Server Compact",
+          "note": null
         },
         {
           "id": "mysql",
-          "value": {
-            "type": "String",
-            "value": "mysql"
-          },
-          "brief": "MySQL"
+          "value": "mysql",
+          "brief": "MySQL",
+          "note": null
         },
         {
           "id": "oracle",
-          "value": {
-            "type": "String",
-            "value": "oracle"
-          },
-          "brief": "Oracle Database"
+          "value": "oracle",
+          "brief": "Oracle Database",
+          "note": null
         },
         {
           "id": "db2",
-          "value": {
-            "type": "String",
-            "value": "db2"
-          },
-          "brief": "IBM Db2"
+          "value": "db2",
+          "brief": "IBM Db2",
+          "note": null
         },
         {
           "id": "postgresql",
-          "value": {
-            "type": "String",
-            "value": "postgresql"
-          },
-          "brief": "PostgreSQL"
+          "value": "postgresql",
+          "brief": "PostgreSQL",
+          "note": null
         },
         {
           "id": "redshift",
-          "value": {
-            "type": "String",
-            "value": "redshift"
-          },
-          "brief": "Amazon Redshift"
+          "value": "redshift",
+          "brief": "Amazon Redshift",
+          "note": null
         },
         {
           "id": "hive",
-          "value": {
-            "type": "String",
-            "value": "hive"
-          },
-          "brief": "Apache Hive"
+          "value": "hive",
+          "brief": "Apache Hive",
+          "note": null
         },
         {
           "id": "cloudscape",
-          "value": {
-            "type": "String",
-            "value": "cloudscape"
-          },
-          "brief": "Cloudscape"
+          "value": "cloudscape",
+          "brief": "Cloudscape",
+          "note": null
         },
         {
           "id": "hsqldb",
-          "value": {
-            "type": "String",
-            "value": "hsqldb"
-          },
-          "brief": "HyperSQL DataBase"
+          "value": "hsqldb",
+          "brief": "HyperSQL DataBase",
+          "note": null
         },
         {
           "id": "progress",
-          "value": {
-            "type": "String",
-            "value": "progress"
-          },
-          "brief": "Progress Database"
+          "value": "progress",
+          "brief": "Progress Database",
+          "note": null
         },
         {
           "id": "maxdb",
-          "value": {
-            "type": "String",
-            "value": "maxdb"
-          },
-          "brief": "SAP MaxDB"
+          "value": "maxdb",
+          "brief": "SAP MaxDB",
+          "note": null
         },
         {
           "id": "hanadb",
-          "value": {
-            "type": "String",
-            "value": "hanadb"
-          },
-          "brief": "SAP HANA"
+          "value": "hanadb",
+          "brief": "SAP HANA",
+          "note": null
         },
         {
           "id": "ingres",
-          "value": {
-            "type": "String",
-            "value": "ingres"
-          },
-          "brief": "Ingres"
+          "value": "ingres",
+          "brief": "Ingres",
+          "note": null
         },
         {
           "id": "firstsql",
-          "value": {
-            "type": "String",
-            "value": "firstsql"
-          },
-          "brief": "FirstSQL"
+          "value": "firstsql",
+          "brief": "FirstSQL",
+          "note": null
         },
         {
           "id": "edb",
-          "value": {
-            "type": "String",
-            "value": "edb"
-          },
-          "brief": "EnterpriseDB"
+          "value": "edb",
+          "brief": "EnterpriseDB",
+          "note": null
         },
         {
           "id": "cache",
-          "value": {
-            "type": "String",
-            "value": "cache"
-          },
-          "brief": "InterSystems Caché"
+          "value": "cache",
+          "brief": "InterSystems Caché",
+          "note": null
         },
         {
           "id": "adabas",
-          "value": {
-            "type": "String",
-            "value": "adabas"
-          },
-          "brief": "Adabas (Adaptable Database System)"
+          "value": "adabas",
+          "brief": "Adabas (Adaptable Database System)",
+          "note": null
         },
         {
           "id": "firebird",
-          "value": {
-            "type": "String",
-            "value": "firebird"
-          },
-          "brief": "Firebird"
+          "value": "firebird",
+          "brief": "Firebird",
+          "note": null
         },
         {
           "id": "derby",
-          "value": {
-            "type": "String",
-            "value": "derby"
-          },
-          "brief": "Apache Derby"
+          "value": "derby",
+          "brief": "Apache Derby",
+          "note": null
         },
         {
           "id": "filemaker",
-          "value": {
-            "type": "String",
-            "value": "filemaker"
-          },
-          "brief": "FileMaker"
+          "value": "filemaker",
+          "brief": "FileMaker",
+          "note": null
         },
         {
           "id": "informix",
-          "value": {
-            "type": "String",
-            "value": "informix"
-          },
-          "brief": "Informix"
+          "value": "informix",
+          "brief": "Informix",
+          "note": null
         },
         {
           "id": "instantdb",
-          "value": {
-            "type": "String",
-            "value": "instantdb"
-          },
-          "brief": "InstantDB"
+          "value": "instantdb",
+          "brief": "InstantDB",
+          "note": null
         },
         {
           "id": "interbase",
-          "value": {
-            "type": "String",
-            "value": "interbase"
-          },
-          "brief": "InterBase"
+          "value": "interbase",
+          "brief": "InterBase",
+          "note": null
         },
         {
           "id": "mariadb",
-          "value": {
-            "type": "String",
-            "value": "mariadb"
-          },
-          "brief": "MariaDB"
+          "value": "mariadb",
+          "brief": "MariaDB",
+          "note": null
         },
         {
           "id": "netezza",
-          "value": {
-            "type": "String",
-            "value": "netezza"
-          },
-          "brief": "Netezza"
+          "value": "netezza",
+          "brief": "Netezza",
+          "note": null
         },
         {
           "id": "pervasive",
-          "value": {
-            "type": "String",
-            "value": "pervasive"
-          },
-          "brief": "Pervasive PSQL"
+          "value": "pervasive",
+          "brief": "Pervasive PSQL",
+          "note": null
         },
         {
           "id": "pointbase",
-          "value": {
-            "type": "String",
-            "value": "pointbase"
-          },
-          "brief": "PointBase"
+          "value": "pointbase",
+          "brief": "PointBase",
+          "note": null
         },
         {
           "id": "sqlite",
-          "value": {
-            "type": "String",
-            "value": "sqlite"
-          },
-          "brief": "SQLite"
+          "value": "sqlite",
+          "brief": "SQLite",
+          "note": null
         },
         {
           "id": "sybase",
-          "value": {
-            "type": "String",
-            "value": "sybase"
-          },
-          "brief": "Sybase"
+          "value": "sybase",
+          "brief": "Sybase",
+          "note": null
         },
         {
           "id": "teradata",
-          "value": {
-            "type": "String",
-            "value": "teradata"
-          },
-          "brief": "Teradata"
+          "value": "teradata",
+          "brief": "Teradata",
+          "note": null
         },
         {
           "id": "vertica",
-          "value": {
-            "type": "String",
-            "value": "vertica"
-          },
-          "brief": "Vertica"
+          "value": "vertica",
+          "brief": "Vertica",
+          "note": null
         },
         {
           "id": "h2",
-          "value": {
-            "type": "String",
-            "value": "h2"
-          },
-          "brief": "H2"
+          "value": "h2",
+          "brief": "H2",
+          "note": null
         },
         {
           "id": "coldfusion",
-          "value": {
-            "type": "String",
-            "value": "coldfusion"
-          },
-          "brief": "ColdFusion IMQ"
+          "value": "coldfusion",
+          "brief": "ColdFusion IMQ",
+          "note": null
         },
         {
           "id": "cassandra",
-          "value": {
-            "type": "String",
-            "value": "cassandra"
-          },
-          "brief": "Apache Cassandra"
+          "value": "cassandra",
+          "brief": "Apache Cassandra",
+          "note": null
         },
         {
           "id": "hbase",
-          "value": {
-            "type": "String",
-            "value": "hbase"
-          },
-          "brief": "Apache HBase"
+          "value": "hbase",
+          "brief": "Apache HBase",
+          "note": null
         },
         {
           "id": "mongodb",
-          "value": {
-            "type": "String",
-            "value": "mongodb"
-          },
-          "brief": "MongoDB"
+          "value": "mongodb",
+          "brief": "MongoDB",
+          "note": null
         },
         {
           "id": "redis",
-          "value": {
-            "type": "String",
-            "value": "redis"
-          },
-          "brief": "Redis"
+          "value": "redis",
+          "brief": "Redis",
+          "note": null
         },
         {
           "id": "couchbase",
-          "value": {
-            "type": "String",
-            "value": "couchbase"
-          },
-          "brief": "Couchbase"
+          "value": "couchbase",
+          "brief": "Couchbase",
+          "note": null
         },
         {
           "id": "couchdb",
-          "value": {
-            "type": "String",
-            "value": "couchdb"
-          },
-          "brief": "CouchDB"
+          "value": "couchdb",
+          "brief": "CouchDB",
+          "note": null
         },
         {
           "id": "cosmosdb",
-          "value": {
-            "type": "String",
-            "value": "cosmosdb"
-          },
-          "brief": "Microsoft Azure Cosmos DB"
+          "value": "cosmosdb",
+          "brief": "Microsoft Azure Cosmos DB",
+          "note": null
         },
         {
           "id": "dynamodb",
-          "value": {
-            "type": "String",
-            "value": "dynamodb"
-          },
-          "brief": "Amazon DynamoDB"
+          "value": "dynamodb",
+          "brief": "Amazon DynamoDB",
+          "note": null
         },
         {
           "id": "neo4j",
-          "value": {
-            "type": "String",
-            "value": "neo4j"
-          },
-          "brief": "Neo4j"
+          "value": "neo4j",
+          "brief": "Neo4j",
+          "note": null
         },
         {
           "id": "geode",
-          "value": {
-            "type": "String",
-            "value": "geode"
-          },
-          "brief": "Apache Geode"
+          "value": "geode",
+          "brief": "Apache Geode",
+          "note": null
         },
         {
           "id": "elasticsearch",
-          "value": {
-            "type": "String",
-            "value": "elasticsearch"
-          },
-          "brief": "Elasticsearch"
+          "value": "elasticsearch",
+          "brief": "Elasticsearch",
+          "note": null
         },
         {
           "id": "memcached",
-          "value": {
-            "type": "String",
-            "value": "memcached"
-          },
-          "brief": "Memcached"
+          "value": "memcached",
+          "brief": "Memcached",
+          "note": null
         },
         {
           "id": "cockroachdb",
-          "value": {
-            "type": "String",
-            "value": "cockroachdb"
-          },
-          "brief": "CockroachDB"
+          "value": "cockroachdb",
+          "brief": "CockroachDB",
+          "note": null
         },
         {
           "id": "opensearch",
-          "value": {
-            "type": "String",
-            "value": "opensearch"
-          },
-          "brief": "OpenSearch"
+          "value": "opensearch",
+          "brief": "OpenSearch",
+          "note": null
         },
         {
           "id": "clickhouse",
-          "value": {
-            "type": "String",
-            "value": "clickhouse"
-          },
-          "brief": "ClickHouse"
+          "value": "clickhouse",
+          "brief": "ClickHouse",
+          "note": null
         },
         {
           "id": "spanner",
-          "value": {
-            "type": "String",
-            "value": "spanner"
-          },
-          "brief": "Cloud Spanner"
+          "value": "spanner",
+          "brief": "Cloud Spanner",
+          "note": null
         },
         {
           "id": "trino",
-          "value": {
-            "type": "String",
-            "value": "trino"
-          },
-          "brief": "Trino"
+          "value": "trino",
+          "brief": "Trino",
+          "note": null
         }
       ]
     },
     "brief": "An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.",
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.user",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Username for accessing the database.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "readonly_user",
-        "reporting_user"
-      ]
-    },
+    "examples": [
+      "readonly_user",
+      "reporting_user"
+    ],
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.instance.id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.\n",
-    "examples": {
-      "type": "String",
-      "value": "mysql-e26b99z.example.com"
-    },
+    "examples": "mysql-e26b99z.example.com",
     "tag": "db-generic",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "http.request.body.size",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.\n",
-    "examples": {
-      "type": "Int",
-      "value": 3495
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Experimental"
+    "examples": 3495,
+    "requirement_level": "recommended",
+    "stability": "experimental"
   },
   {
     "name": "http.request.header",
-    "type": {
-      "type": "template[string[]]"
-    },
+    "type": "template[string[]]",
     "brief": "HTTP request headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "http.request.header.content-type=[\"application/json\"]",
-        "http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "http.request.header.content-type=[\"application/json\"]",
+      "http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]"
+    ],
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.method",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "connect",
-          "value": {
-            "type": "String",
-            "value": "CONNECT"
-          },
-          "brief": "CONNECT method."
+          "value": "CONNECT",
+          "brief": "CONNECT method.",
+          "note": null
         },
         {
           "id": "delete",
-          "value": {
-            "type": "String",
-            "value": "DELETE"
-          },
-          "brief": "DELETE method."
+          "value": "DELETE",
+          "brief": "DELETE method.",
+          "note": null
         },
         {
           "id": "get",
-          "value": {
-            "type": "String",
-            "value": "GET"
-          },
-          "brief": "GET method."
+          "value": "GET",
+          "brief": "GET method.",
+          "note": null
         },
         {
           "id": "head",
-          "value": {
-            "type": "String",
-            "value": "HEAD"
-          },
-          "brief": "HEAD method."
+          "value": "HEAD",
+          "brief": "HEAD method.",
+          "note": null
         },
         {
           "id": "options",
-          "value": {
-            "type": "String",
-            "value": "OPTIONS"
-          },
-          "brief": "OPTIONS method."
+          "value": "OPTIONS",
+          "brief": "OPTIONS method.",
+          "note": null
         },
         {
           "id": "patch",
-          "value": {
-            "type": "String",
-            "value": "PATCH"
-          },
-          "brief": "PATCH method."
+          "value": "PATCH",
+          "brief": "PATCH method.",
+          "note": null
         },
         {
           "id": "post",
-          "value": {
-            "type": "String",
-            "value": "POST"
-          },
-          "brief": "POST method."
+          "value": "POST",
+          "brief": "POST method.",
+          "note": null
         },
         {
           "id": "put",
-          "value": {
-            "type": "String",
-            "value": "PUT"
-          },
-          "brief": "PUT method."
+          "value": "PUT",
+          "brief": "PUT method.",
+          "note": null
         },
         {
           "id": "trace",
-          "value": {
-            "type": "String",
-            "value": "TRACE"
-          },
-          "brief": "TRACE method."
+          "value": "TRACE",
+          "brief": "TRACE method.",
+          "note": null
         },
         {
           "id": "other",
-          "value": {
-            "type": "String",
-            "value": "_OTHER"
-          },
-          "brief": "Any HTTP method that the instrumentation has no prior knowledge of."
+          "value": "_OTHER",
+          "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
+          "note": null
         }
       ]
     },
     "brief": "HTTP request method.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "GET",
-        "POST",
-        "HEAD"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "GET",
+      "POST",
+      "HEAD"
+    ],
+    "requirement_level": "recommended",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.request.method_original",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Original HTTP method sent by the client in the request line.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "GeT",
-        "ACL",
-        "foo"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "GeT",
+      "ACL",
+      "foo"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.request.resend_count",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The ordinal number of request resending attempt (for any reason, including redirects).\n",
-    "examples": {
-      "type": "Int",
-      "value": 3
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": 3,
+    "requirement_level": "recommended",
     "note": "The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.body.size",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.\n",
-    "examples": {
-      "type": "Int",
-      "value": 3495
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Experimental"
+    "examples": 3495,
+    "requirement_level": "recommended",
+    "stability": "experimental"
   },
   {
     "name": "http.response.header",
-    "type": {
-      "type": "template[string[]]"
-    },
+    "type": "template[string[]]",
     "brief": "HTTP response headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "http.response.header.content-type=[\"application/json\"]",
-        "http.response.header.my-custom-header=[\"abc\", \"def\"]"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "http.response.header.content-type=[\"application/json\"]",
+      "http.response.header.my-custom-header=[\"abc\", \"def\"]"
+    ],
+    "requirement_level": "recommended",
     "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nUsers MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "http.response.status_code",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        200
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      200
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "http.route",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "/users/:userID?",
-        "{controller}/{action}/{id?}"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "/users/:userID?",
+      "{controller}/{action}/{id?}"
+    ],
+    "requirement_level": "recommended",
     "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.carrier.icc",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.",
-    "examples": {
-      "type": "String",
-      "value": "DE"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "DE",
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.mcc",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The mobile carrier country code.",
-    "examples": {
-      "type": "String",
-      "value": "310"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "310",
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.mnc",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The mobile carrier network code.",
-    "examples": {
-      "type": "String",
-      "value": "001"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "001",
+    "requirement_level": "recommended"
   },
   {
     "name": "network.carrier.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the mobile carrier.",
-    "examples": {
-      "type": "String",
-      "value": "sprint"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "sprint",
+    "requirement_level": "recommended"
   },
   {
     "name": "network.connection.subtype",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "gprs",
-          "value": {
-            "type": "String",
-            "value": "gprs"
-          },
-          "brief": "GPRS"
+          "value": "gprs",
+          "brief": "GPRS",
+          "note": null
         },
         {
           "id": "edge",
-          "value": {
-            "type": "String",
-            "value": "edge"
-          },
-          "brief": "EDGE"
+          "value": "edge",
+          "brief": "EDGE",
+          "note": null
         },
         {
           "id": "umts",
-          "value": {
-            "type": "String",
-            "value": "umts"
-          },
-          "brief": "UMTS"
+          "value": "umts",
+          "brief": "UMTS",
+          "note": null
         },
         {
           "id": "cdma",
-          "value": {
-            "type": "String",
-            "value": "cdma"
-          },
-          "brief": "CDMA"
+          "value": "cdma",
+          "brief": "CDMA",
+          "note": null
         },
         {
           "id": "evdo_0",
-          "value": {
-            "type": "String",
-            "value": "evdo_0"
-          },
-          "brief": "EVDO Rel. 0"
+          "value": "evdo_0",
+          "brief": "EVDO Rel. 0",
+          "note": null
         },
         {
           "id": "evdo_a",
-          "value": {
-            "type": "String",
-            "value": "evdo_a"
-          },
-          "brief": "EVDO Rev. A"
+          "value": "evdo_a",
+          "brief": "EVDO Rev. A",
+          "note": null
         },
         {
           "id": "cdma2000_1xrtt",
-          "value": {
-            "type": "String",
-            "value": "cdma2000_1xrtt"
-          },
-          "brief": "CDMA2000 1XRTT"
+          "value": "cdma2000_1xrtt",
+          "brief": "CDMA2000 1XRTT",
+          "note": null
         },
         {
           "id": "hsdpa",
-          "value": {
-            "type": "String",
-            "value": "hsdpa"
-          },
-          "brief": "HSDPA"
+          "value": "hsdpa",
+          "brief": "HSDPA",
+          "note": null
         },
         {
           "id": "hsupa",
-          "value": {
-            "type": "String",
-            "value": "hsupa"
-          },
-          "brief": "HSUPA"
+          "value": "hsupa",
+          "brief": "HSUPA",
+          "note": null
         },
         {
           "id": "hspa",
-          "value": {
-            "type": "String",
-            "value": "hspa"
-          },
-          "brief": "HSPA"
+          "value": "hspa",
+          "brief": "HSPA",
+          "note": null
         },
         {
           "id": "iden",
-          "value": {
-            "type": "String",
-            "value": "iden"
-          },
-          "brief": "IDEN"
+          "value": "iden",
+          "brief": "IDEN",
+          "note": null
         },
         {
           "id": "evdo_b",
-          "value": {
-            "type": "String",
-            "value": "evdo_b"
-          },
-          "brief": "EVDO Rev. B"
+          "value": "evdo_b",
+          "brief": "EVDO Rev. B",
+          "note": null
         },
         {
           "id": "lte",
-          "value": {
-            "type": "String",
-            "value": "lte"
-          },
-          "brief": "LTE"
+          "value": "lte",
+          "brief": "LTE",
+          "note": null
         },
         {
           "id": "ehrpd",
-          "value": {
-            "type": "String",
-            "value": "ehrpd"
-          },
-          "brief": "EHRPD"
+          "value": "ehrpd",
+          "brief": "EHRPD",
+          "note": null
         },
         {
           "id": "hspap",
-          "value": {
-            "type": "String",
-            "value": "hspap"
-          },
-          "brief": "HSPAP"
+          "value": "hspap",
+          "brief": "HSPAP",
+          "note": null
         },
         {
           "id": "gsm",
-          "value": {
-            "type": "String",
-            "value": "gsm"
-          },
-          "brief": "GSM"
+          "value": "gsm",
+          "brief": "GSM",
+          "note": null
         },
         {
           "id": "td_scdma",
-          "value": {
-            "type": "String",
-            "value": "td_scdma"
-          },
-          "brief": "TD-SCDMA"
+          "value": "td_scdma",
+          "brief": "TD-SCDMA",
+          "note": null
         },
         {
           "id": "iwlan",
-          "value": {
-            "type": "String",
-            "value": "iwlan"
-          },
-          "brief": "IWLAN"
+          "value": "iwlan",
+          "brief": "IWLAN",
+          "note": null
         },
         {
           "id": "nr",
-          "value": {
-            "type": "String",
-            "value": "nr"
-          },
-          "brief": "5G NR (New Radio)"
+          "value": "nr",
+          "brief": "5G NR (New Radio)",
+          "note": null
         },
         {
           "id": "nrnsa",
-          "value": {
-            "type": "String",
-            "value": "nrnsa"
-          },
-          "brief": "5G NRNSA (New Radio Non-Standalone)"
+          "value": "nrnsa",
+          "brief": "5G NRNSA (New Radio Non-Standalone)",
+          "note": null
         },
         {
           "id": "lte_ca",
-          "value": {
-            "type": "String",
-            "value": "lte_ca"
-          },
-          "brief": "LTE CA"
+          "value": "lte_ca",
+          "brief": "LTE CA",
+          "note": null
         }
       ]
     },
     "brief": "This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.",
-    "examples": {
-      "type": "String",
-      "value": "LTE"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "LTE",
+    "requirement_level": "recommended"
   },
   {
     "name": "network.connection.type",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "wifi",
-          "value": {
-            "type": "String",
-            "value": "wifi"
-          }
+          "value": "wifi",
+          "brief": null,
+          "note": null
         },
         {
           "id": "wired",
-          "value": {
-            "type": "String",
-            "value": "wired"
-          }
+          "value": "wired",
+          "brief": null,
+          "note": null
         },
         {
           "id": "cell",
-          "value": {
-            "type": "String",
-            "value": "cell"
-          }
+          "value": "cell",
+          "brief": null,
+          "note": null
         },
         {
           "id": "unavailable",
-          "value": {
-            "type": "String",
-            "value": "unavailable"
-          }
+          "value": "unavailable",
+          "brief": null,
+          "note": null
         },
         {
           "id": "unknown",
-          "value": {
-            "type": "String",
-            "value": "unknown"
-          }
+          "value": "unknown",
+          "brief": null,
+          "note": null
         }
       ]
     },
     "brief": "The internet connection type.",
-    "examples": {
-      "type": "String",
-      "value": "wifi"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": "wifi",
+    "requirement_level": "recommended"
   },
   {
     "name": "network.local.address",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Local address of the network connection - IP address or Unix domain socket name.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "10.1.2.80",
-        "/tmp/my.sock"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.local.port",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Local port number of the network connection.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        65123
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      65123
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.address",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Peer address of the network connection - IP address or Unix domain socket name.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "10.1.2.80",
-        "/tmp/my.sock"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.port",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Peer port number of the network connection.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        65123
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      65123
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "amqp",
-        "http",
-        "mqtt"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "amqp",
+      "http",
+      "mqtt"
+    ],
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": {
-      "type": "String",
-      "value": "3.1.1"
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": "3.1.1",
+    "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.transport",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "tcp",
-          "value": {
-            "type": "String",
-            "value": "tcp"
-          },
-          "brief": "TCP"
+          "value": "tcp",
+          "brief": "TCP",
+          "note": null
         },
         {
           "id": "udp",
-          "value": {
-            "type": "String",
-            "value": "udp"
-          },
-          "brief": "UDP"
+          "value": "udp",
+          "brief": "UDP",
+          "note": null
         },
         {
           "id": "pipe",
-          "value": {
-            "type": "String",
-            "value": "pipe"
-          },
-          "brief": "Named or anonymous pipe."
+          "value": "pipe",
+          "brief": "Named or anonymous pipe.",
+          "note": null
         },
         {
           "id": "unix",
-          "value": {
-            "type": "String",
-            "value": "unix"
-          },
-          "brief": "Unix domain socket"
+          "value": "unix",
+          "brief": "Unix domain socket",
+          "note": null
         }
       ]
     },
     "brief": "[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "tcp",
-        "udp"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "tcp",
+      "udp"
+    ],
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.type",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "ipv4",
-          "value": {
-            "type": "String",
-            "value": "ipv4"
-          },
-          "brief": "IPv4"
+          "value": "ipv4",
+          "brief": "IPv4",
+          "note": null
         },
         {
           "id": "ipv6",
-          "value": {
-            "type": "String",
-            "value": "ipv6"
-          },
-          "brief": "IPv6"
+          "value": "ipv6",
+          "brief": "IPv6",
+          "note": null
         }
       ]
     },
     "brief": "[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "ipv4",
-        "ipv6"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "ipv4",
+      "ipv6"
+    ],
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.io.direction",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "transmit",
-          "value": {
-            "type": "String",
-            "value": "transmit"
-          }
+          "value": "transmit",
+          "brief": null,
+          "note": null
         },
         {
           "id": "receive",
-          "value": {
-            "type": "String",
-            "value": "receive"
-          }
+          "value": "receive",
+          "brief": null,
+          "note": null
         }
       ]
     },
     "brief": "The network IO operation direction.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "transmit"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "examples": [
+      "transmit"
+    ],
+    "requirement_level": "recommended"
   },
   {
     "name": "server.address",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "example.com",
-        "10.1.2.80",
-        "/tmp/my.sock"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Server port number.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        80,
-        8080,
-        443
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.scheme",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "https",
-        "ftp",
-        "telnet"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "https",
+      "ftp",
+      "telnet"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "url.full",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "https://www.foo.bar/search?q=OpenTelemetry#SemConv",
-        "//localhost"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "https://www.foo.bar/search?q=OpenTelemetry#SemConv",
+      "//localhost"
+    ],
+    "requirement_level": "recommended",
     "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.path",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "/search"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "/search"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "url.query",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "q=OpenTelemetry"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "examples": [
+      "q=OpenTelemetry"
+    ],
+    "requirement_level": "recommended",
     "note": "Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "url.fragment",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "SemConv"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "SemConv"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "user_agent.original",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "CERN-LineMode/2.15 libwww/2.17b3",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"
-      ]
-    },
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "examples": [
+      "CERN-LineMode/2.15 libwww/2.17b3",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "db.system",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "other_sql",
-          "value": {
-            "type": "String",
-            "value": "other_sql"
-          },
-          "brief": "Some other SQL database. Fallback only. See notes."
+          "value": "other_sql",
+          "brief": "Some other SQL database. Fallback only. See notes.",
+          "note": null
         },
         {
           "id": "mssql",
-          "value": {
-            "type": "String",
-            "value": "mssql"
-          },
-          "brief": "Microsoft SQL Server"
+          "value": "mssql",
+          "brief": "Microsoft SQL Server",
+          "note": null
         },
         {
           "id": "mssqlcompact",
-          "value": {
-            "type": "String",
-            "value": "mssqlcompact"
-          },
-          "brief": "Microsoft SQL Server Compact"
+          "value": "mssqlcompact",
+          "brief": "Microsoft SQL Server Compact",
+          "note": null
         },
         {
           "id": "mysql",
-          "value": {
-            "type": "String",
-            "value": "mysql"
-          },
-          "brief": "MySQL"
+          "value": "mysql",
+          "brief": "MySQL",
+          "note": null
         },
         {
           "id": "oracle",
-          "value": {
-            "type": "String",
-            "value": "oracle"
-          },
-          "brief": "Oracle Database"
+          "value": "oracle",
+          "brief": "Oracle Database",
+          "note": null
         },
         {
           "id": "db2",
-          "value": {
-            "type": "String",
-            "value": "db2"
-          },
-          "brief": "IBM Db2"
+          "value": "db2",
+          "brief": "IBM Db2",
+          "note": null
         },
         {
           "id": "postgresql",
-          "value": {
-            "type": "String",
-            "value": "postgresql"
-          },
-          "brief": "PostgreSQL"
+          "value": "postgresql",
+          "brief": "PostgreSQL",
+          "note": null
         },
         {
           "id": "redshift",
-          "value": {
-            "type": "String",
-            "value": "redshift"
-          },
-          "brief": "Amazon Redshift"
+          "value": "redshift",
+          "brief": "Amazon Redshift",
+          "note": null
         },
         {
           "id": "hive",
-          "value": {
-            "type": "String",
-            "value": "hive"
-          },
-          "brief": "Apache Hive"
+          "value": "hive",
+          "brief": "Apache Hive",
+          "note": null
         },
         {
           "id": "cloudscape",
-          "value": {
-            "type": "String",
-            "value": "cloudscape"
-          },
-          "brief": "Cloudscape"
+          "value": "cloudscape",
+          "brief": "Cloudscape",
+          "note": null
         },
         {
           "id": "hsqldb",
-          "value": {
-            "type": "String",
-            "value": "hsqldb"
-          },
-          "brief": "HyperSQL DataBase"
+          "value": "hsqldb",
+          "brief": "HyperSQL DataBase",
+          "note": null
         },
         {
           "id": "progress",
-          "value": {
-            "type": "String",
-            "value": "progress"
-          },
-          "brief": "Progress Database"
+          "value": "progress",
+          "brief": "Progress Database",
+          "note": null
         },
         {
           "id": "maxdb",
-          "value": {
-            "type": "String",
-            "value": "maxdb"
-          },
-          "brief": "SAP MaxDB"
+          "value": "maxdb",
+          "brief": "SAP MaxDB",
+          "note": null
         },
         {
           "id": "hanadb",
-          "value": {
-            "type": "String",
-            "value": "hanadb"
-          },
-          "brief": "SAP HANA"
+          "value": "hanadb",
+          "brief": "SAP HANA",
+          "note": null
         },
         {
           "id": "ingres",
-          "value": {
-            "type": "String",
-            "value": "ingres"
-          },
-          "brief": "Ingres"
+          "value": "ingres",
+          "brief": "Ingres",
+          "note": null
         },
         {
           "id": "firstsql",
-          "value": {
-            "type": "String",
-            "value": "firstsql"
-          },
-          "brief": "FirstSQL"
+          "value": "firstsql",
+          "brief": "FirstSQL",
+          "note": null
         },
         {
           "id": "edb",
-          "value": {
-            "type": "String",
-            "value": "edb"
-          },
-          "brief": "EnterpriseDB"
+          "value": "edb",
+          "brief": "EnterpriseDB",
+          "note": null
         },
         {
           "id": "cache",
-          "value": {
-            "type": "String",
-            "value": "cache"
-          },
-          "brief": "InterSystems Caché"
+          "value": "cache",
+          "brief": "InterSystems Caché",
+          "note": null
         },
         {
           "id": "adabas",
-          "value": {
-            "type": "String",
-            "value": "adabas"
-          },
-          "brief": "Adabas (Adaptable Database System)"
+          "value": "adabas",
+          "brief": "Adabas (Adaptable Database System)",
+          "note": null
         },
         {
           "id": "firebird",
-          "value": {
-            "type": "String",
-            "value": "firebird"
-          },
-          "brief": "Firebird"
+          "value": "firebird",
+          "brief": "Firebird",
+          "note": null
         },
         {
           "id": "derby",
-          "value": {
-            "type": "String",
-            "value": "derby"
-          },
-          "brief": "Apache Derby"
+          "value": "derby",
+          "brief": "Apache Derby",
+          "note": null
         },
         {
           "id": "filemaker",
-          "value": {
-            "type": "String",
-            "value": "filemaker"
-          },
-          "brief": "FileMaker"
+          "value": "filemaker",
+          "brief": "FileMaker",
+          "note": null
         },
         {
           "id": "informix",
-          "value": {
-            "type": "String",
-            "value": "informix"
-          },
-          "brief": "Informix"
+          "value": "informix",
+          "brief": "Informix",
+          "note": null
         },
         {
           "id": "instantdb",
-          "value": {
-            "type": "String",
-            "value": "instantdb"
-          },
-          "brief": "InstantDB"
+          "value": "instantdb",
+          "brief": "InstantDB",
+          "note": null
         },
         {
           "id": "interbase",
-          "value": {
-            "type": "String",
-            "value": "interbase"
-          },
-          "brief": "InterBase"
+          "value": "interbase",
+          "brief": "InterBase",
+          "note": null
         },
         {
           "id": "mariadb",
-          "value": {
-            "type": "String",
-            "value": "mariadb"
-          },
-          "brief": "MariaDB"
+          "value": "mariadb",
+          "brief": "MariaDB",
+          "note": null
         },
         {
           "id": "netezza",
-          "value": {
-            "type": "String",
-            "value": "netezza"
-          },
-          "brief": "Netezza"
+          "value": "netezza",
+          "brief": "Netezza",
+          "note": null
         },
         {
           "id": "pervasive",
-          "value": {
-            "type": "String",
-            "value": "pervasive"
-          },
-          "brief": "Pervasive PSQL"
+          "value": "pervasive",
+          "brief": "Pervasive PSQL",
+          "note": null
         },
         {
           "id": "pointbase",
-          "value": {
-            "type": "String",
-            "value": "pointbase"
-          },
-          "brief": "PointBase"
+          "value": "pointbase",
+          "brief": "PointBase",
+          "note": null
         },
         {
           "id": "sqlite",
-          "value": {
-            "type": "String",
-            "value": "sqlite"
-          },
-          "brief": "SQLite"
+          "value": "sqlite",
+          "brief": "SQLite",
+          "note": null
         },
         {
           "id": "sybase",
-          "value": {
-            "type": "String",
-            "value": "sybase"
-          },
-          "brief": "Sybase"
+          "value": "sybase",
+          "brief": "Sybase",
+          "note": null
         },
         {
           "id": "teradata",
-          "value": {
-            "type": "String",
-            "value": "teradata"
-          },
-          "brief": "Teradata"
+          "value": "teradata",
+          "brief": "Teradata",
+          "note": null
         },
         {
           "id": "vertica",
-          "value": {
-            "type": "String",
-            "value": "vertica"
-          },
-          "brief": "Vertica"
+          "value": "vertica",
+          "brief": "Vertica",
+          "note": null
         },
         {
           "id": "h2",
-          "value": {
-            "type": "String",
-            "value": "h2"
-          },
-          "brief": "H2"
+          "value": "h2",
+          "brief": "H2",
+          "note": null
         },
         {
           "id": "coldfusion",
-          "value": {
-            "type": "String",
-            "value": "coldfusion"
-          },
-          "brief": "ColdFusion IMQ"
+          "value": "coldfusion",
+          "brief": "ColdFusion IMQ",
+          "note": null
         },
         {
           "id": "cassandra",
-          "value": {
-            "type": "String",
-            "value": "cassandra"
-          },
-          "brief": "Apache Cassandra"
+          "value": "cassandra",
+          "brief": "Apache Cassandra",
+          "note": null
         },
         {
           "id": "hbase",
-          "value": {
-            "type": "String",
-            "value": "hbase"
-          },
-          "brief": "Apache HBase"
+          "value": "hbase",
+          "brief": "Apache HBase",
+          "note": null
         },
         {
           "id": "mongodb",
-          "value": {
-            "type": "String",
-            "value": "mongodb"
-          },
-          "brief": "MongoDB"
+          "value": "mongodb",
+          "brief": "MongoDB",
+          "note": null
         },
         {
           "id": "redis",
-          "value": {
-            "type": "String",
-            "value": "redis"
-          },
-          "brief": "Redis"
+          "value": "redis",
+          "brief": "Redis",
+          "note": null
         },
         {
           "id": "couchbase",
-          "value": {
-            "type": "String",
-            "value": "couchbase"
-          },
-          "brief": "Couchbase"
+          "value": "couchbase",
+          "brief": "Couchbase",
+          "note": null
         },
         {
           "id": "couchdb",
-          "value": {
-            "type": "String",
-            "value": "couchdb"
-          },
-          "brief": "CouchDB"
+          "value": "couchdb",
+          "brief": "CouchDB",
+          "note": null
         },
         {
           "id": "cosmosdb",
-          "value": {
-            "type": "String",
-            "value": "cosmosdb"
-          },
-          "brief": "Microsoft Azure Cosmos DB"
+          "value": "cosmosdb",
+          "brief": "Microsoft Azure Cosmos DB",
+          "note": null
         },
         {
           "id": "dynamodb",
-          "value": {
-            "type": "String",
-            "value": "dynamodb"
-          },
-          "brief": "Amazon DynamoDB"
+          "value": "dynamodb",
+          "brief": "Amazon DynamoDB",
+          "note": null
         },
         {
           "id": "neo4j",
-          "value": {
-            "type": "String",
-            "value": "neo4j"
-          },
-          "brief": "Neo4j"
+          "value": "neo4j",
+          "brief": "Neo4j",
+          "note": null
         },
         {
           "id": "geode",
-          "value": {
-            "type": "String",
-            "value": "geode"
-          },
-          "brief": "Apache Geode"
+          "value": "geode",
+          "brief": "Apache Geode",
+          "note": null
         },
         {
           "id": "elasticsearch",
-          "value": {
-            "type": "String",
-            "value": "elasticsearch"
-          },
-          "brief": "Elasticsearch"
+          "value": "elasticsearch",
+          "brief": "Elasticsearch",
+          "note": null
         },
         {
           "id": "memcached",
-          "value": {
-            "type": "String",
-            "value": "memcached"
-          },
-          "brief": "Memcached"
+          "value": "memcached",
+          "brief": "Memcached",
+          "note": null
         },
         {
           "id": "cockroachdb",
-          "value": {
-            "type": "String",
-            "value": "cockroachdb"
-          },
-          "brief": "CockroachDB"
+          "value": "cockroachdb",
+          "brief": "CockroachDB",
+          "note": null
         },
         {
           "id": "opensearch",
-          "value": {
-            "type": "String",
-            "value": "opensearch"
-          },
-          "brief": "OpenSearch"
+          "value": "opensearch",
+          "brief": "OpenSearch",
+          "note": null
         },
         {
           "id": "clickhouse",
-          "value": {
-            "type": "String",
-            "value": "clickhouse"
-          },
-          "brief": "ClickHouse"
+          "value": "clickhouse",
+          "brief": "ClickHouse",
+          "note": null
         },
         {
           "id": "spanner",
-          "value": {
-            "type": "String",
-            "value": "spanner"
-          },
-          "brief": "Cloud Spanner"
+          "value": "spanner",
+          "brief": "Cloud Spanner",
+          "note": null
         },
         {
           "id": "trino",
-          "value": {
-            "type": "String",
-            "value": "trino"
-          },
-          "brief": "Trino"
+          "value": "trino",
+          "brief": "Trino",
+          "note": null
         }
       ]
     },
     "brief": "An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.",
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Required"
-    }
+    "requirement_level": "required"
   },
   {
     "name": "db.connection_string",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The connection string used to connect to the database. It is recommended to remove embedded credentials.\n",
-    "examples": {
-      "type": "String",
-      "value": "Server=(localdb)\\v11.0;Integrated Security=true;"
-    },
+    "examples": "Server=(localdb)\\v11.0;Integrated Security=true;",
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.user",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Username for accessing the database.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "readonly_user",
-        "reporting_user"
-      ]
-    },
+    "examples": [
+      "readonly_user",
+      "reporting_user"
+    ],
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.jdbc.driver_classname",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "org.postgresql.Driver",
-        "com.microsoft.sqlserver.jdbc.SQLServerDriver"
-      ]
-    },
+    "examples": [
+      "org.postgresql.Driver",
+      "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+    ],
     "tag": "connection-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "customers",
-        "main"
-      ]
-    },
+    "examples": [
+      "customers",
+      "main"
+    ],
     "tag": "call-level",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If applicable."
+      "conditionally_required": "If applicable."
     },
     "note": "In some SQL databases, the database name to be used is called \"schema name\". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).\n"
   },
   {
     "name": "db.statement",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The database statement being executed.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "SELECT * FROM wuser_table",
-        "SET mykey \"WuValue\""
-      ]
-    },
+    "examples": [
+      "SELECT * FROM wuser_table",
+      "SET mykey \"WuValue\""
+    ],
     "tag": "call-level",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "Should be collected by default only if there is sanitization that excludes sensitive information.\n"
+      "recommended": "Should be collected by default only if there is sanitization that excludes sensitive information.\n"
     }
   },
   {
     "name": "db.operation",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "findAndModify",
-        "HMSET",
-        "SELECT"
-      ]
-    },
+    "examples": [
+      "findAndModify",
+      "HMSET",
+      "SELECT"
+    ],
     "tag": "call-level",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If `db.statement` is not applicable."
+      "conditionally_required": "If `db.statement` is not applicable."
     },
     "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
   },
   {
     "name": "server.address",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Name of the database host.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "example.com",
-        "10.1.2.80",
-        "/tmp/my.sock"
-      ]
-    },
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Server port number.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        80,
-        8080,
-        443
-      ]
-    },
+    "examples": [
+      80,
+      8080,
+      443
+    ],
     "tag": "connection-level",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If using a port other than the default port for this DBMS and if `server.address` is set."
+      "conditionally_required": "If using a port other than the default port for this DBMS and if `server.address` is set."
     },
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.peer.address",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Peer address of the network connection - IP address or Unix domain socket name.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "10.1.2.80",
-        "/tmp/my.sock"
-      ]
-    },
+    "examples": [
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
-    "stability": "Stable"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.peer.port",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Peer port number of the network connection.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        65123
-      ]
-    },
+    "examples": [
+      65123
+    ],
     "tag": "connection-level",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "If `network.peer.address` is set."
+      "recommended": "If `network.peer.address` is set."
     },
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.transport",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "tcp",
-          "value": {
-            "type": "String",
-            "value": "tcp"
-          },
-          "brief": "TCP"
+          "value": "tcp",
+          "brief": "TCP",
+          "note": null
         },
         {
           "id": "udp",
-          "value": {
-            "type": "String",
-            "value": "udp"
-          },
-          "brief": "UDP"
+          "value": "udp",
+          "brief": "UDP",
+          "note": null
         },
         {
           "id": "pipe",
-          "value": {
-            "type": "String",
-            "value": "pipe"
-          },
-          "brief": "Named or anonymous pipe."
+          "value": "pipe",
+          "brief": "Named or anonymous pipe.",
+          "note": null
         },
         {
           "id": "unix",
-          "value": {
-            "type": "String",
-            "value": "unix"
-          },
-          "brief": "Unix domain socket"
+          "value": "unix",
+          "brief": "Unix domain socket",
+          "note": null
         }
       ]
     },
     "brief": "[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "tcp",
-        "udp"
-      ]
-    },
+    "examples": [
+      "tcp",
+      "udp"
+    ],
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "network.type",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "ipv4",
-          "value": {
-            "type": "String",
-            "value": "ipv4"
-          },
-          "brief": "IPv4"
+          "value": "ipv4",
+          "brief": "IPv4",
+          "note": null
         },
         {
           "id": "ipv6",
-          "value": {
-            "type": "String",
-            "value": "ipv6"
-          },
-          "brief": "IPv6"
+          "value": "ipv6",
+          "brief": "IPv6",
+          "note": null
         }
       ]
     },
     "brief": "[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "ipv4",
-        "ipv6"
-      ]
-    },
+    "examples": [
+      "ipv4",
+      "ipv6"
+    ],
     "tag": "connection-level",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.instance.id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.\n",
-    "examples": {
-      "type": "String",
-      "value": "mysql-e26b99z.example.com"
-    },
+    "examples": "mysql-e26b99z.example.com",
     "tag": "connection-level",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "If different from the `server.address`"
+      "recommended": "If different from the `server.address`"
     }
   },
   {
     "name": "db.mssql.instance_name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The Microsoft SQL Server [instance name](https://docs.microsoft.com/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.\n",
-    "examples": {
-      "type": "String",
-      "value": "MSSQLSERVER"
-    },
+    "examples": "MSSQLSERVER",
     "tag": "connection-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).\n"
   },
   {
     "name": "db.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The keyspace name in Cassandra.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "mykeyspace"
-      ]
-    },
+    "examples": [
+      "mykeyspace"
+    ],
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For Cassandra the `db.name` should be set to the Cassandra keyspace name."
   },
   {
     "name": "db.cassandra.page_size",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The fetch size used for paging, i.e. how many rows will be returned at once.\n",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        5000
-      ]
-    },
+    "examples": [
+      5000
+    ],
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.consistency_level",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "all",
-          "value": {
-            "type": "String",
-            "value": "all"
-          }
+          "value": "all",
+          "brief": null,
+          "note": null
         },
         {
           "id": "each_quorum",
-          "value": {
-            "type": "String",
-            "value": "each_quorum"
-          }
+          "value": "each_quorum",
+          "brief": null,
+          "note": null
         },
         {
           "id": "quorum",
-          "value": {
-            "type": "String",
-            "value": "quorum"
-          }
+          "value": "quorum",
+          "brief": null,
+          "note": null
         },
         {
           "id": "local_quorum",
-          "value": {
-            "type": "String",
-            "value": "local_quorum"
-          }
+          "value": "local_quorum",
+          "brief": null,
+          "note": null
         },
         {
           "id": "one",
-          "value": {
-            "type": "String",
-            "value": "one"
-          }
+          "value": "one",
+          "brief": null,
+          "note": null
         },
         {
           "id": "two",
-          "value": {
-            "type": "String",
-            "value": "two"
-          }
+          "value": "two",
+          "brief": null,
+          "note": null
         },
         {
           "id": "three",
-          "value": {
-            "type": "String",
-            "value": "three"
-          }
+          "value": "three",
+          "brief": null,
+          "note": null
         },
         {
           "id": "local_one",
-          "value": {
-            "type": "String",
-            "value": "local_one"
-          }
+          "value": "local_one",
+          "brief": null,
+          "note": null
         },
         {
           "id": "any",
-          "value": {
-            "type": "String",
-            "value": "any"
-          }
+          "value": "any",
+          "brief": null,
+          "note": null
         },
         {
           "id": "serial",
-          "value": {
-            "type": "String",
-            "value": "serial"
-          }
+          "value": "serial",
+          "brief": null,
+          "note": null
         },
         {
           "id": "local_serial",
-          "value": {
-            "type": "String",
-            "value": "local_serial"
-          }
+          "value": "local_serial",
+          "brief": null,
+          "note": null
         }
       ]
     },
     "brief": "The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).\n",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.table",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).",
-    "examples": {
-      "type": "String",
-      "value": "mytable"
-    },
+    "examples": "mytable",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
     "name": "db.cassandra.idempotence",
-    "type": {
-      "type": "Boolean"
-    },
+    "type": "boolean",
     "brief": "Whether or not the query is idempotent.\n",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.speculative_execution_count",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.\n",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        0,
-        2
-      ]
-    },
+    "examples": [
+      0,
+      2
+    ],
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.coordinator.id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The ID of the coordinating node for a query.\n",
-    "examples": {
-      "type": "String",
-      "value": "be13faa2-8574-4d71-926d-27f16cf8a7af"
-    },
+    "examples": "be13faa2-8574-4d71-926d-27f16cf8a7af",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.coordinator.dc",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The data center of the coordinating node for a query.\n",
-    "examples": {
-      "type": "String",
-      "value": "us-west-2"
-    },
+    "examples": "us-west-2",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The HBase namespace.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "mynamespace"
-      ]
-    },
+    "examples": [
+      "mynamespace"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For HBase the `db.name` should be set to the HBase namespace."
   },
   {
     "name": "db.operation",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The HTTP method + the target REST route.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "GET /{db}/{docid}"
-      ]
-    },
+    "examples": [
+      "GET /{db}/{docid}"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).\n"
   },
   {
     "name": "db.redis.database_index",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.\n",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        0,
-        1,
-        15
-      ]
-    },
+    "examples": [
+      0,
+      1,
+      15
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "If other than the default database (`0`)."
+      "conditionally_required": "If other than the default database (`0`)."
     }
   },
   {
     "name": "db.statement",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The full syntax of the Redis CLI command.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "HMSET myhash field1 'Hello' field2 'World'"
-      ]
-    },
+    "examples": [
+      "HMSET myhash field1 'Hello' field2 'World'"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `\"HMSET myhash field1 'Hello' field2 'World'\"` would be a suitable value for `db.statement`.\n"
   },
   {
     "name": "db.mongodb.collection",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The MongoDB collection being accessed within the database stated in `db.name`.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "customers",
-        "products"
-      ]
-    },
+    "examples": [
+      "customers",
+      "products"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    }
+    "requirement_level": "required"
   },
   {
     "name": "http.request.method",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "connect",
-          "value": {
-            "type": "String",
-            "value": "CONNECT"
-          },
-          "brief": "CONNECT method."
+          "value": "CONNECT",
+          "brief": "CONNECT method.",
+          "note": null
         },
         {
           "id": "delete",
-          "value": {
-            "type": "String",
-            "value": "DELETE"
-          },
-          "brief": "DELETE method."
+          "value": "DELETE",
+          "brief": "DELETE method.",
+          "note": null
         },
         {
           "id": "get",
-          "value": {
-            "type": "String",
-            "value": "GET"
-          },
-          "brief": "GET method."
+          "value": "GET",
+          "brief": "GET method.",
+          "note": null
         },
         {
           "id": "head",
-          "value": {
-            "type": "String",
-            "value": "HEAD"
-          },
-          "brief": "HEAD method."
+          "value": "HEAD",
+          "brief": "HEAD method.",
+          "note": null
         },
         {
           "id": "options",
-          "value": {
-            "type": "String",
-            "value": "OPTIONS"
-          },
-          "brief": "OPTIONS method."
+          "value": "OPTIONS",
+          "brief": "OPTIONS method.",
+          "note": null
         },
         {
           "id": "patch",
-          "value": {
-            "type": "String",
-            "value": "PATCH"
-          },
-          "brief": "PATCH method."
+          "value": "PATCH",
+          "brief": "PATCH method.",
+          "note": null
         },
         {
           "id": "post",
-          "value": {
-            "type": "String",
-            "value": "POST"
-          },
-          "brief": "POST method."
+          "value": "POST",
+          "brief": "POST method.",
+          "note": null
         },
         {
           "id": "put",
-          "value": {
-            "type": "String",
-            "value": "PUT"
-          },
-          "brief": "PUT method."
+          "value": "PUT",
+          "brief": "PUT method.",
+          "note": null
         },
         {
           "id": "trace",
-          "value": {
-            "type": "String",
-            "value": "TRACE"
-          },
-          "brief": "TRACE method."
+          "value": "TRACE",
+          "brief": "TRACE method.",
+          "note": null
         },
         {
           "id": "other",
-          "value": {
-            "type": "String",
-            "value": "_OTHER"
-          },
-          "brief": "Any HTTP method that the instrumentation has no prior knowledge of."
+          "value": "_OTHER",
+          "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
+          "note": null
         }
       ]
     },
     "brief": "HTTP request method.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "GET",
-        "POST",
-        "HEAD"
-      ]
-    },
+    "examples": [
+      "GET",
+      "POST",
+      "HEAD"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.operation",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The endpoint identifier for the request.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "search",
-        "ml.close_job",
-        "cat.aliases"
-      ]
-    },
+    "examples": [
+      "search",
+      "ml.close_job",
+      "cat.aliases"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
   },
   {
     "name": "url.full",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "https://localhost:9200/index/_search?q=user.id:kimchy"
-      ]
-    },
+    "examples": [
+      "https://localhost:9200/index/_search?q=user.id:kimchy"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Required"
-    },
+    "requirement_level": "required",
     "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.statement",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\""
-      ]
-    },
+    "examples": [
+      "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\""
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "Should be collected by default for search-type queries and only if there is sanitization that excludes sensitive information.\n"
+      "recommended": "Should be collected by default for search-type queries and only if there is sanitization that excludes sensitive information.\n"
     }
   },
   {
     "name": "server.address",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "example.com",
-        "10.1.2.80",
-        "/tmp/my.sock"
-      ]
-    },
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "server.port",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Server port number.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        80,
-        8080,
-        443
-      ]
-    },
+    "examples": [
+      80,
+      8080,
+      443
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.elasticsearch.cluster.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Represents the identifier of an Elasticsearch cluster.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "e9106fc68e3044f0b1475b04bf4ffd5f"
-      ]
-    },
+    "examples": [
+      "e9106fc68e3044f0b1475b04bf4ffd5f"
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Cluster\" HTTP response header.\n"
+      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Cluster\" HTTP response header.\n"
     }
   },
   {
     "name": "db.elasticsearch.node.name",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Represents the human-readable identifier of the node/instance to which a request was routed.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "instance-0000000001"
-      ]
-    },
+    "examples": [
+      "instance-0000000001"
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "Recommended",
-      "text": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Instance\" HTTP response header.\n"
+      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Instance\" HTTP response header.\n"
     }
   },
   {
     "name": "db.elasticsearch.path_parts",
-    "type": {
-      "type": "template[string]"
-    },
+    "type": "template[string]",
     "brief": "A dynamic value in the url path.\n",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "db.elasticsearch.path_parts.index=test-index",
-        "db.elasticsearch.path_parts.doc_id=123"
-      ]
-    },
+    "examples": [
+      "db.elasticsearch.path_parts.index=test-index",
+      "db.elasticsearch.path_parts.doc_id=123"
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when the url has dynamic values"
+      "conditionally_required": "when the url has dynamic values"
     },
     "note": "Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.\n"
   },
   {
     "name": "db.sql.table",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "The name of the primary table that the operation is acting upon, including the database name (if applicable).",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "public.users",
-        "customers"
-      ]
-    },
+    "examples": [
+      "public.users",
+      "customers"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
     "name": "db.cosmosdb.client_id",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Unique Cosmos client instance id.",
-    "examples": {
-      "type": "String",
-      "value": "3ba4827d-4422-483f-b59f-85b74211c11d"
-    },
+    "examples": "3ba4827d-4422-483f-b59f-85b74211c11d",
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.operation_type",
     "type": {
-      "type": "Enum",
       "allow_custom_values": true,
       "members": [
         {
           "id": "invalid",
-          "value": {
-            "type": "String",
-            "value": "Invalid"
-          }
+          "value": "Invalid",
+          "brief": null,
+          "note": null
         },
         {
           "id": "create",
-          "value": {
-            "type": "String",
-            "value": "Create"
-          }
+          "value": "Create",
+          "brief": null,
+          "note": null
         },
         {
           "id": "patch",
-          "value": {
-            "type": "String",
-            "value": "Patch"
-          }
+          "value": "Patch",
+          "brief": null,
+          "note": null
         },
         {
           "id": "read",
-          "value": {
-            "type": "String",
-            "value": "Read"
-          }
+          "value": "Read",
+          "brief": null,
+          "note": null
         },
         {
           "id": "read_feed",
-          "value": {
-            "type": "String",
-            "value": "ReadFeed"
-          }
+          "value": "ReadFeed",
+          "brief": null,
+          "note": null
         },
         {
           "id": "delete",
-          "value": {
-            "type": "String",
-            "value": "Delete"
-          }
+          "value": "Delete",
+          "brief": null,
+          "note": null
         },
         {
           "id": "replace",
-          "value": {
-            "type": "String",
-            "value": "Replace"
-          }
+          "value": "Replace",
+          "brief": null,
+          "note": null
         },
         {
           "id": "execute",
-          "value": {
-            "type": "String",
-            "value": "Execute"
-          }
+          "value": "Execute",
+          "brief": null,
+          "note": null
         },
         {
           "id": "query",
-          "value": {
-            "type": "String",
-            "value": "Query"
-          }
+          "value": "Query",
+          "brief": null,
+          "note": null
         },
         {
           "id": "head",
-          "value": {
-            "type": "String",
-            "value": "Head"
-          }
+          "value": "Head",
+          "brief": null,
+          "note": null
         },
         {
           "id": "head_feed",
-          "value": {
-            "type": "String",
-            "value": "HeadFeed"
-          }
+          "value": "HeadFeed",
+          "brief": null,
+          "note": null
         },
         {
           "id": "upsert",
-          "value": {
-            "type": "String",
-            "value": "Upsert"
-          }
+          "value": "Upsert",
+          "brief": null,
+          "note": null
         },
         {
           "id": "batch",
-          "value": {
-            "type": "String",
-            "value": "Batch"
-          }
+          "value": "Batch",
+          "brief": null,
+          "note": null
         },
         {
           "id": "query_plan",
-          "value": {
-            "type": "String",
-            "value": "QueryPlan"
-          }
+          "value": "QueryPlan",
+          "brief": null,
+          "note": null
         },
         {
           "id": "execute_javascript",
-          "value": {
-            "type": "String",
-            "value": "ExecuteJavaScript"
-          }
+          "value": "ExecuteJavaScript",
+          "brief": null,
+          "note": null
         }
       ]
     },
     "brief": "CosmosDB Operation Type.",
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when performing one of the operations in this list"
+      "conditionally_required": "when performing one of the operations in this list"
     }
   },
   {
     "name": "user_agent.original",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Full user-agent string is generated by Cosmos DB SDK",
-    "examples": {
-      "type": "Strings",
-      "values": [
-        "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|"
-      ]
-    },
+    "examples": [
+      "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|"
+    ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    },
+    "requirement_level": "recommended",
     "note": "The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.\n   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).\n   Default value is \"NS\".\n",
-    "stability": "Stable"
+    "stability": "stable"
   },
   {
     "name": "db.cosmosdb.connection_mode",
     "type": {
-      "type": "Enum",
       "allow_custom_values": false,
       "members": [
         {
           "id": "gateway",
-          "value": {
-            "type": "String",
-            "value": "gateway"
-          },
-          "brief": "Gateway (HTTP) connections mode"
+          "value": "gateway",
+          "brief": "Gateway (HTTP) connections mode",
+          "note": null
         },
         {
           "id": "direct",
-          "value": {
-            "type": "String",
-            "value": "direct"
-          },
-          "brief": "Direct connection."
+          "value": "direct",
+          "brief": "Direct connection.",
+          "note": null
         }
       ]
     },
     "brief": "Cosmos client connection mode.",
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if not `direct` (or pick gw as default)"
+      "conditionally_required": "if not `direct` (or pick gw as default)"
     }
   },
   {
     "name": "db.cosmosdb.container",
-    "type": {
-      "type": "String"
-    },
+    "type": "string",
     "brief": "Cosmos DB container name.",
-    "examples": {
-      "type": "String",
-      "value": "anystring"
-    },
+    "examples": "anystring",
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if available"
+      "conditionally_required": "if available"
     }
   },
   {
     "name": "db.cosmosdb.request_content_length",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Request payload size in bytes",
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "type": "Recommended"
-    }
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cosmosdb.status_code",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Cosmos DB status code.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        200,
-        201
-      ]
-    },
+    "examples": [
+      200,
+      201
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "if response was received"
+      "conditionally_required": "if response was received"
     }
   },
   {
     "name": "db.cosmosdb.sub_status_code",
-    "type": {
-      "type": "Int"
-    },
+    "type": "int",
     "brief": "Cosmos DB sub status code.",
-    "examples": {
-      "type": "Ints",
-      "values": [
-        1000,
-        1002
-      ]
-    },
+    "examples": [
+      1000,
+      1002
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when response was received and contained sub-code."
+      "conditionally_required": "when response was received and contained sub-code."
     }
   },
   {
     "name": "db.cosmosdb.request_charge",
-    "type": {
-      "type": "Double"
-    },
+    "type": "double",
     "brief": "RU consumed for that operation",
-    "examples": {
-      "type": "Doubles",
-      "values": [
-        46.18,
-        1.0
-      ]
-    },
+    "examples": [
+      46.18,
+      1.0
+    ],
     "tag": "call-level-tech-specific",
     "requirement_level": {
-      "type": "ConditionallyRequired",
-      "text": "when available"
+      "conditionally_required": "when available"
     }
   }
 ]

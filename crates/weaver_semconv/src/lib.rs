@@ -16,6 +16,7 @@
     unused_extern_crates
 )]
 
+use glob::glob;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
@@ -36,6 +37,24 @@ pub mod stability;
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    /// The semantic convention registry path pattern is invalid.
+    #[error("Invalid semantic convention registry path pattern '{path_pattern:?}'.\n{error}")]
+    InvalidRegistryPathPattern {
+        /// The path pattern pointing to the semantic convention registry.
+        path_pattern: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// Invalid semantic convention registry asset.
+    #[error("Invalid semantic convention registry asset (registry=`{path_pattern}`).\n{error}")]
+    InvalidRegistryAsset {
+        /// The path pattern pointing to the semantic convention registry.
+        path_pattern: String,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// The semantic convention asset was not found.
     #[error("Semantic convention registry {path_or_url:?} not found\n{error}")]
     CatalogNotFound {
@@ -281,6 +300,30 @@ struct MetricToResolve {
 }
 
 impl SemConvRegistry {
+    /// Create a new semantic convention registry.
+    ///
+    /// # Arguments
+    ///
+    /// * `path_pattern` - A glob pattern to load semantic convention registry from files.
+    ///
+    /// # Returns
+    ///
+    /// A new semantic convention registry.
+    pub fn try_from_path(path_pattern: &str) -> Result<Self, Error> {
+        let mut registry = SemConvRegistry::default();
+        for sc_entry in glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
+            path_pattern: path_pattern.to_string(),
+            error: e.to_string(),
+        })? {
+            let path_buf = sc_entry.map_err(|e| Error::InvalidRegistryAsset {
+                path_pattern: path_pattern.to_string(),
+                error: e.to_string(),
+            })?;
+            registry.load_from_file(path_buf.as_path())?;
+        }
+        Ok(registry)
+    }
+
     /// Load and add a semantic convention file to the semantic convention registry.
     pub fn load_from_file<P: AsRef<Path> + Clone>(&mut self, path: P) -> Result<(), Error> {
         let spec = SemConvSpec::load_from_file(path.clone())?;
@@ -363,12 +406,12 @@ impl SemConvRegistry {
             for group in spec.groups.iter() {
                 // Process attributes
                 match group.r#type {
-                    group::ConvTypeSpec::AttributeGroup
-                    | group::ConvTypeSpec::Span
-                    | group::ConvTypeSpec::Resource
-                    | group::ConvTypeSpec::Metric
-                    | group::ConvTypeSpec::Event
-                    | group::ConvTypeSpec::MetricGroup => {
+                    group::GroupType::AttributeGroup
+                    | group::GroupType::Span
+                    | group::GroupType::Resource
+                    | group::GroupType::Metric
+                    | group::GroupType::Event
+                    | group::GroupType::MetricGroup => {
                         let attributes_in_group = self.process_attributes(
                             provenance.clone(),
                             group.id.clone(),
@@ -378,16 +421,14 @@ impl SemConvRegistry {
                         )?;
 
                         let group_attributes = match group.r#type {
-                            group::ConvTypeSpec::AttributeGroup => {
+                            group::GroupType::AttributeGroup => {
                                 Some(&mut self.attr_grp_group_attributes)
                             }
-                            group::ConvTypeSpec::Span => Some(&mut self.span_group_attributes),
-                            group::ConvTypeSpec::Resource => {
-                                Some(&mut self.resource_group_attributes)
-                            }
-                            group::ConvTypeSpec::Metric => Some(&mut self.metric_group_attributes),
-                            group::ConvTypeSpec::Event => Some(&mut self.event_group_attributes),
-                            group::ConvTypeSpec::MetricGroup => {
+                            group::GroupType::Span => Some(&mut self.span_group_attributes),
+                            group::GroupType::Resource => Some(&mut self.resource_group_attributes),
+                            group::GroupType::Metric => Some(&mut self.metric_group_attributes),
+                            group::GroupType::Event => Some(&mut self.event_group_attributes),
+                            group::GroupType::MetricGroup => {
                                 Some(&mut self.metric_group_group_attributes)
                             }
                             _ => None,
@@ -418,7 +459,7 @@ impl SemConvRegistry {
 
                 // Process metrics
                 match group.r#type {
-                    group::ConvTypeSpec::Metric => {
+                    group::GroupType::Metric => {
                         let metric_name = if let Some(metric_name) = group.metric_name.as_ref() {
                             metric_name.clone()
                         } else {
@@ -476,7 +517,7 @@ impl SemConvRegistry {
                             }
                         }
                     }
-                    group::ConvTypeSpec::MetricGroup => {
+                    group::GroupType::MetricGroup => {
                         eprintln!("Warning: group type `metric_group` not implemented yet");
                     }
                     _ => {
@@ -578,17 +619,17 @@ impl SemConvRegistry {
     pub fn attributes(
         &self,
         r#ref: &str,
-        r#type: group::ConvTypeSpec,
+        r#type: group::GroupType,
     ) -> Result<HashMap<&String, &AttributeSpec>, Error> {
         let mut attributes = HashMap::new();
         let group_ids = match r#type {
-            group::ConvTypeSpec::AttributeGroup => self.attr_grp_group_attributes.get(r#ref),
-            group::ConvTypeSpec::Span => self.span_group_attributes.get(r#ref),
-            group::ConvTypeSpec::Event => self.event_group_attributes.get(r#ref),
-            group::ConvTypeSpec::Metric => self.metric_group_attributes.get(r#ref),
-            group::ConvTypeSpec::MetricGroup => self.metric_group_group_attributes.get(r#ref),
-            group::ConvTypeSpec::Resource => self.resource_group_attributes.get(r#ref),
-            group::ConvTypeSpec::Scope => panic!("Scope not implemented yet"),
+            group::GroupType::AttributeGroup => self.attr_grp_group_attributes.get(r#ref),
+            group::GroupType::Span => self.span_group_attributes.get(r#ref),
+            group::GroupType::Event => self.event_group_attributes.get(r#ref),
+            group::GroupType::Metric => self.metric_group_attributes.get(r#ref),
+            group::GroupType::MetricGroup => self.metric_group_group_attributes.get(r#ref),
+            group::GroupType::Resource => self.resource_group_attributes.get(r#ref),
+            group::GroupType::Scope => panic!("Scope not implemented yet"),
         };
         if let Some(group_ids) = group_ids {
             for attr_id in group_ids.ids.iter() {
@@ -854,6 +895,7 @@ mod tests {
             "data/network.yaml",
             "data/server.yaml",
             "data/url.yaml",
+            "data/exporter.yaml",
         ];
 
         let mut catalog = SemConvRegistry::default();

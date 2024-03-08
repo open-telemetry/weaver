@@ -10,15 +10,12 @@ use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
 use weaver_schema::attribute::Attribute;
 use weaver_schema::tags::Tags;
-use weaver_semconv::attribute::{
-    AttributeSpec, AttributeTypeSpec, BasicRequirementLevelSpec, ExamplesSpec,
-    PrimitiveOrArrayTypeSpec, RequirementLevelSpec, TemplateTypeSpec, ValueSpec,
-};
-use weaver_semconv::group::ConvTypeSpec;
+use weaver_semconv::attribute::{AttributeSpec, ValueSpec};
+use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionAttributeChanges;
 
-use crate::{stability, Error};
+use crate::Error;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
 #[derive(Deserialize, Debug, Default, PartialEq)]
@@ -54,6 +51,17 @@ impl AttributeCatalog {
             self.attribute_refs.into_iter().collect();
         attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
         attributes.into_iter().map(|(attr, _)| attr).collect()
+    }
+
+    /// Returns a list of indexed attribute names ordered by their references.
+    pub fn attribute_name_index(&self) -> Vec<String> {
+        let mut attributes: Vec<(&attribute::Attribute, &AttributeRef)> =
+            self.attribute_refs.iter().collect();
+        attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
+        attributes
+            .iter()
+            .map(|(attr, _)| attr.name.clone())
+            .collect()
     }
 
     /// Tries to resolve the given attribute spec (ref or id) from the catalog.
@@ -96,7 +104,7 @@ impl AttributeCatalog {
                             }
                         },
                         examples: match examples {
-                            Some(_) => semconv_to_resolved_examples(examples),
+                            Some(_) => examples.clone(),
                             None => {
                                 inherited_fields.push(FieldId::AttributeExamples);
                                 root_attr.attribute.examples.clone()
@@ -110,9 +118,7 @@ impl AttributeCatalog {
                             }
                         },
                         requirement_level: match requirement_level {
-                            Some(requirement_level) => {
-                                semconv_to_resolved_req_level(requirement_level)
-                            }
+                            Some(requirement_level) => requirement_level.clone(),
                             None => {
                                 inherited_fields.push(FieldId::AttributeRequirementLevel);
                                 root_attr.attribute.requirement_level.clone()
@@ -133,7 +139,7 @@ impl AttributeCatalog {
                             }
                         },
                         stability: match stability {
-                            Some(_) => stability::resolve_stability(stability),
+                            Some(_) => stability.clone(),
                             None => {
                                 inherited_fields.push(FieldId::AttributeStability);
                                 root_attr.attribute.stability.clone()
@@ -197,14 +203,14 @@ impl AttributeCatalog {
                 // If it does not, add it to the catalog and return a new reference.
                 let attr = attribute::Attribute {
                     name: root_attr_id.clone(),
-                    r#type: semconv_to_resolved_attr_type(r#type),
-                    brief: brief.clone(),
-                    examples: semconv_to_resolved_examples(examples),
+                    r#type: r#type.clone(),
+                    brief: brief.clone().unwrap_or_default(),
+                    examples: examples.clone(),
                     tag: tag.clone(),
-                    requirement_level: semconv_to_resolved_req_level(requirement_level),
+                    requirement_level: requirement_level.clone(),
                     sampling_relevant: *sampling_relevant,
                     note: note.clone(),
-                    stability: stability::resolve_stability(stability),
+                    stability: stability.clone(),
                     deprecated: deprecated.clone(),
                     tags: None,
                     value: None,
@@ -259,7 +265,7 @@ pub fn resolve_attributes(
         } = attribute
         {
             let attrs = semconv_registry
-                .attributes(attribute_group_ref, ConvTypeSpec::AttributeGroup)
+                .attributes(attribute_group_ref, GroupType::AttributeGroup)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![attribute_group_ref.clone()],
                     error: e.to_string(),
@@ -272,7 +278,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::ResourceRef { resource_ref, tags } = attribute {
             let attrs = semconv_registry
-                .attributes(resource_ref, ConvTypeSpec::Resource)
+                .attributes(resource_ref, GroupType::Resource)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![resource_ref.clone()],
                     error: e.to_string(),
@@ -285,7 +291,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::SpanRef { span_ref, tags } = attribute {
             let attrs = semconv_registry
-                .attributes(span_ref, ConvTypeSpec::Span)
+                .attributes(span_ref, GroupType::Span)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![span_ref.clone()],
                     error: e.to_string(),
@@ -298,7 +304,7 @@ pub fn resolve_attributes(
     for attribute in attributes.iter() {
         if let Attribute::EventRef { event_ref, tags } = attribute {
             let attrs = semconv_registry
-                .attributes(event_ref, ConvTypeSpec::Event)
+                .attributes(event_ref, GroupType::Event)
                 .map_err(|e| Error::FailToResolveAttributes {
                     ids: vec![event_ref.clone()],
                     error: e.to_string(),
@@ -416,99 +422,18 @@ pub fn resolve_attribute(
             deprecated,
         } => Ok(attribute::Attribute {
             name: id.clone(),
-            r#type: semconv_to_resolved_attr_type(r#type),
-            brief: brief.clone(),
-            examples: semconv_to_resolved_examples(examples),
+            r#type: r#type.clone(),
+            brief: brief.clone().unwrap_or_default(),
+            examples: examples.clone(),
             tag: tag.clone(),
-            requirement_level: semconv_to_resolved_req_level(requirement_level),
+            requirement_level: requirement_level.clone(),
             sampling_relevant: *sampling_relevant,
             note: note.clone(),
-            stability: stability::resolve_stability(stability),
+            stability: stability.clone(),
             deprecated: deprecated.clone(),
             tags: None,
             value: None,
         }),
-    }
-}
-
-fn semconv_to_resolved_attr_type(attr_type: &AttributeTypeSpec) -> attribute::AttributeType {
-    match attr_type {
-        AttributeTypeSpec::PrimitiveOrArray(poa) => match poa {
-            PrimitiveOrArrayTypeSpec::Boolean => attribute::AttributeType::Boolean,
-            PrimitiveOrArrayTypeSpec::Int => weaver_resolved_schema::attribute::AttributeType::Int,
-            PrimitiveOrArrayTypeSpec::Double => attribute::AttributeType::Double,
-            PrimitiveOrArrayTypeSpec::String => attribute::AttributeType::String,
-            PrimitiveOrArrayTypeSpec::Strings => attribute::AttributeType::Strings,
-            PrimitiveOrArrayTypeSpec::Ints => attribute::AttributeType::Ints,
-            PrimitiveOrArrayTypeSpec::Doubles => attribute::AttributeType::Doubles,
-            PrimitiveOrArrayTypeSpec::Booleans => attribute::AttributeType::Booleans,
-        },
-        AttributeTypeSpec::Template(template) => match template {
-            TemplateTypeSpec::Boolean => attribute::AttributeType::TemplateBoolean,
-            TemplateTypeSpec::Int => attribute::AttributeType::TemplateInt,
-            TemplateTypeSpec::Double => attribute::AttributeType::TemplateDouble,
-            TemplateTypeSpec::String => attribute::AttributeType::TemplateString,
-            TemplateTypeSpec::Strings => attribute::AttributeType::TemplateStrings,
-            TemplateTypeSpec::Ints => attribute::AttributeType::TemplateInts,
-            TemplateTypeSpec::Doubles => attribute::AttributeType::TemplateDoubles,
-            TemplateTypeSpec::Booleans => attribute::AttributeType::TemplateBooleans,
-        },
-        AttributeTypeSpec::Enum {
-            allow_custom_values,
-            members,
-        } => attribute::AttributeType::Enum {
-            allow_custom_values: *allow_custom_values,
-            members: members
-                .iter()
-                .map(|member| attribute::EnumEntries {
-                    id: member.id.clone(),
-                    value: match &member.value {
-                        ValueSpec::String(s) => {
-                            weaver_resolved_schema::value::Value::String { value: s.clone() }
-                        }
-                        ValueSpec::Int(i) => {
-                            weaver_resolved_schema::value::Value::Int { value: *i }
-                        }
-                        ValueSpec::Double(d) => {
-                            weaver_resolved_schema::value::Value::Double { value: *d }
-                        }
-                    },
-                    brief: member.brief.clone(),
-                    note: member.note.clone(),
-                })
-                .collect(),
-        },
-    }
-}
-
-fn semconv_to_resolved_examples(examples: &Option<ExamplesSpec>) -> Option<attribute::Example> {
-    examples.as_ref().map(|examples| match examples {
-        ExamplesSpec::Bool(v) => attribute::Example::Bool { value: *v },
-        ExamplesSpec::Int(v) => attribute::Example::Int { value: *v },
-        ExamplesSpec::Double(v) => attribute::Example::Double { value: *v },
-        ExamplesSpec::String(v) => attribute::Example::String { value: v.clone() },
-        ExamplesSpec::Ints(v) => attribute::Example::Ints { values: v.clone() },
-        ExamplesSpec::Doubles(v) => attribute::Example::Doubles { values: v.clone() },
-        ExamplesSpec::Bools(v) => attribute::Example::Bools { values: v.clone() },
-        ExamplesSpec::Strings(v) => attribute::Example::Strings { values: v.clone() },
-    })
-}
-
-fn semconv_to_resolved_req_level(req_level: &RequirementLevelSpec) -> attribute::RequirementLevel {
-    match req_level {
-        RequirementLevelSpec::Basic(level) => match level {
-            BasicRequirementLevelSpec::Required => attribute::RequirementLevel::Required,
-            BasicRequirementLevelSpec::Recommended => {
-                attribute::RequirementLevel::Recommended { text: None }
-            }
-            BasicRequirementLevelSpec::OptIn => attribute::RequirementLevel::OptIn,
-        },
-        RequirementLevelSpec::Recommended { text } => attribute::RequirementLevel::Recommended {
-            text: Some(text.clone()),
-        },
-        RequirementLevelSpec::ConditionallyRequired { text } => {
-            attribute::RequirementLevel::ConditionallyRequired { text: text.clone() }
-        }
     }
 }
 

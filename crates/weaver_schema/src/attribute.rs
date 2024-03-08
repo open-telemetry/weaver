@@ -6,8 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use weaver_semconv::attribute::{AttributeTypeSpec, ExamplesSpec, RequirementLevelSpec, ValueSpec};
-use weaver_semconv::stability::StabilitySpec;
+use weaver_semconv::attribute::{AttributeType, Examples, RequirementLevel, ValueSpec};
+use weaver_semconv::stability::Stability;
 
 use crate::tags::Tags;
 use crate::Error;
@@ -38,7 +38,7 @@ pub enum Attribute {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -50,7 +50,7 @@ pub enum Attribute {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(skip_serializing_if = "Option::is_none")]
-        requirement_level: Option<RequirementLevelSpec>,
+        requirement_level: Option<RequirementLevel>,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -67,7 +67,7 @@ pub enum Attribute {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
@@ -131,7 +131,7 @@ pub enum Attribute {
         id: String,
         /// Either a string literal denoting the type as a primitive or an
         /// array type, a template type or an enum definition.
-        r#type: AttributeTypeSpec,
+        r#type: AttributeType,
         /// A brief description of the attribute.
         brief: String,
         /// Sequence of example values for the attribute or single example
@@ -140,7 +140,7 @@ pub enum Attribute {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         // #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -152,7 +152,7 @@ pub enum Attribute {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(default)]
-        requirement_level: RequirementLevelSpec,
+        requirement_level: RequirementLevel,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -168,7 +168,7 @@ pub enum Attribute {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
@@ -226,7 +226,7 @@ impl From<&weaver_semconv::attribute::AttributeSpec> for Attribute {
             } => Attribute::Id {
                 id,
                 r#type,
-                brief,
+                brief: brief.unwrap_or_default(),
                 examples,
                 tag,
                 requirement_level,
@@ -327,7 +327,7 @@ impl Attribute {
                 {
                     let id = id.clone();
                     let r#type = r#type.clone();
-                    let mut brief = brief.clone();
+                    let mut brief = brief.clone().unwrap_or_default();
                     let mut examples = examples.clone();
                     let mut requirement_level = requirement_level.clone();
                     let mut tag = tag.clone();
