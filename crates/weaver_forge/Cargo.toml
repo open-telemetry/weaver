@@ -1,0 +1,26 @@
+[package]
+name = "weaver_forge"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+edition.workspace = true
+
+[dependencies]
+weaver_logger = { path = "../weaver_logger" }
+weaver_resolver = { path = "../weaver_resolver" }
+weaver_resolved_schema = { path = "../weaver_resolved_schema" }
+weaver_semconv = { path = "../weaver_semconv" }
+
+minijinja = { version = "1.0.12", features = ["loader", "custom_syntax"] }
+convert_case = "0.6.0"
+glob = "0.3.1"
+
+thiserror.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+walkdir.workspace = true
+

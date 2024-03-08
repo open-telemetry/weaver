@@ -8,7 +8,7 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-use crate::stability::StabilitySpec;
+use crate::stability::Stability;
 
 /// An attribute specification.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -31,7 +31,7 @@ pub enum AttributeSpec {
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -43,7 +43,7 @@ pub enum AttributeSpec {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(skip_serializing_if = "Option::is_none")]
-        requirement_level: Option<RequirementLevelSpec>,
+        requirement_level: Option<RequirementLevel>,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -60,7 +60,7 @@ pub enum AttributeSpec {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
@@ -73,16 +73,16 @@ pub enum AttributeSpec {
         id: String,
         /// Either a string literal denoting the type as a primitive or an
         /// array type, a template type or an enum definition.
-        r#type: AttributeTypeSpec,
+        r#type: AttributeType,
         /// A brief description of the attribute.
-        brief: String,
+        brief: Option<String>,
         /// Sequence of example values for the attribute or single example
         /// value. They are required only for string and string array
         /// attributes. Example values must be of the same type of the
         /// attribute. If only a single example is provided, it can directly
         /// be reported without encapsulating it into a sequence/dictionary.
         #[serde(skip_serializing_if = "Option::is_none")]
-        examples: Option<ExamplesSpec>,
+        examples: Option<Examples>,
         /// Associates a tag ("sub-group") to the attribute. It carries no
         /// particular semantic meaning but can be used e.g. for filtering
         /// in the markdown generator.
@@ -94,7 +94,7 @@ pub enum AttributeSpec {
         /// "conditionally_required", the string provided as <condition> MUST
         /// specify the conditions under which the attribute is required.
         #[serde(default)]
-        requirement_level: RequirementLevelSpec,
+        requirement_level: RequirementLevel,
         /// Specifies if the attribute is (especially) relevant for sampling
         /// and thus should be set at span start. It defaults to false.
         /// Note: this field is experimental.
@@ -110,7 +110,7 @@ pub enum AttributeSpec {
         /// present and stability differs from deprecated, this will result in an
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
-        stability: Option<StabilitySpec>,
+        stability: Option<Stability>,
         /// Specifies if the attribute is deprecated. The string
         /// provided as <description> MUST specify why it's deprecated and/or what
         /// to use instead. See also stability.
@@ -125,12 +125,12 @@ impl AttributeSpec {
         matches!(
             self,
             AttributeSpec::Ref {
-                requirement_level: Some(RequirementLevelSpec::Basic(
+                requirement_level: Some(RequirementLevel::Basic(
                     BasicRequirementLevelSpec::Required
                 )),
                 ..
             } | AttributeSpec::Id {
-                requirement_level: RequirementLevelSpec::Basic(BasicRequirementLevelSpec::Required),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 ..
             }
         )
@@ -148,7 +148,7 @@ impl AttributeSpec {
     pub fn brief(&self) -> String {
         match self {
             AttributeSpec::Ref { brief, .. } => brief.clone().unwrap_or_default(),
-            AttributeSpec::Id { brief, .. } => brief.clone(),
+            AttributeSpec::Id { brief, .. } => brief.clone().unwrap_or_default(),
         }
     }
 
@@ -173,7 +173,7 @@ impl AttributeSpec {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
-pub enum AttributeTypeSpec {
+pub enum AttributeType {
     /// Primitive or array type.
     PrimitiveOrArray(PrimitiveOrArrayTypeSpec),
     /// A template type.
@@ -190,12 +190,12 @@ pub enum AttributeTypeSpec {
 }
 
 /// Implements a human readable display for AttributeType.
-impl Display for AttributeTypeSpec {
+impl Display for AttributeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttributeTypeSpec::PrimitiveOrArray(t) => write!(f, "{}", t),
-            AttributeTypeSpec::Template(t) => write!(f, "{}", t),
-            AttributeTypeSpec::Enum { members, .. } => {
+            AttributeType::PrimitiveOrArray(t) => write!(f, "{}", t),
+            AttributeType::Template(t) => write!(f, "{}", t),
+            AttributeType::Enum { members, .. } => {
                 let entries = members
                     .iter()
                     .map(|m| m.id.clone())
@@ -349,10 +349,10 @@ impl Display for ValueSpec {
 }
 
 /// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
-pub enum ExamplesSpec {
+pub enum Examples {
     /// A boolean example.
     Bool(bool),
     /// A integer example.
@@ -372,10 +372,10 @@ pub enum ExamplesSpec {
 }
 
 /// The different requirement level specifications.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
-pub enum RequirementLevelSpec {
+pub enum RequirementLevel {
     /// A basic requirement level.
     Basic(BasicRequirementLevelSpec),
     /// A conditional requirement level.
@@ -393,23 +393,23 @@ pub enum RequirementLevelSpec {
 }
 
 /// Implements a human readable display for RequirementLevel.
-impl Display for RequirementLevelSpec {
+impl Display for RequirementLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            RequirementLevelSpec::Basic(brl) => write!(f, "{}", brl),
-            RequirementLevelSpec::ConditionallyRequired { text } => {
+            RequirementLevel::Basic(brl) => write!(f, "{}", brl),
+            RequirementLevel::ConditionallyRequired { text } => {
                 write!(f, "conditionally required (condition: {})", text)
             }
-            RequirementLevelSpec::Recommended { text } => write!(f, "recommended ({})", text),
+            RequirementLevel::Recommended { text } => write!(f, "recommended ({})", text),
         }
     }
 }
 
 // Specifies the default requirement level as defined in the OTel
 // specification.
-impl Default for RequirementLevelSpec {
+impl Default for RequirementLevel {
     fn default() -> Self {
-        RequirementLevelSpec::Basic(BasicRequirementLevelSpec::Recommended)
+        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
     }
 }
 
@@ -433,5 +433,17 @@ impl Display for BasicRequirementLevelSpec {
             BasicRequirementLevelSpec::Recommended => write!(f, "recommended"),
             BasicRequirementLevelSpec::OptIn => write!(f, "opt-in"),
         }
+    }
+}
+
+impl Examples {
+    /// Creates an example from a f64.
+    pub fn from_f64(value: f64) -> Self {
+        Examples::Double(OrderedFloat(value))
+    }
+
+    /// Creates an example from several f64.
+    pub fn from_f64s(values: Vec<f64>) -> Self {
+        Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
     }
 }

@@ -40,7 +40,6 @@ mod metrics;
 pub mod registry;
 mod resource;
 mod spans;
-mod stability;
 mod tags;
 
 /// A resolver that can be used to resolve telemetry schemas.

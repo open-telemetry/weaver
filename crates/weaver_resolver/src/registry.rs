@@ -8,16 +8,12 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
-use weaver_resolved_schema::registry::{Constraint, Group, Registry, TypedGroup};
+use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::ConvTypeSpec;
 use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::metrics::resolve_instrument;
-use crate::spans::resolve_span_kind;
-use crate::stability::resolve_stability;
 use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
@@ -285,32 +281,21 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
     UnresolvedGroup {
         group: Group {
             id: group.spec.id,
-            typed_group: match group.spec.r#type {
-                ConvTypeSpec::AttributeGroup => TypedGroup::AttributeGroup {},
-                ConvTypeSpec::Span => TypedGroup::Span {
-                    span_kind: group.spec.span_kind.as_ref().map(resolve_span_kind),
-                    events: group.spec.events,
-                },
-                ConvTypeSpec::Event => TypedGroup::Event {
-                    name: group.spec.name,
-                },
-                ConvTypeSpec::Metric => TypedGroup::Metric {
-                    metric_name: group.spec.metric_name,
-                    instrument: group.spec.instrument.as_ref().map(resolve_instrument),
-                    unit: group.spec.unit,
-                },
-                ConvTypeSpec::MetricGroup => TypedGroup::MetricGroup {},
-                ConvTypeSpec::Resource => TypedGroup::Resource {},
-                ConvTypeSpec::Scope => TypedGroup::Scope {},
-            },
+            r#type: group.spec.r#type,
             brief: group.spec.brief,
             note: group.spec.note,
             prefix: group.spec.prefix,
             extends: group.spec.extends,
-            stability: resolve_stability(&group.spec.stability),
+            stability: group.spec.stability,
             deprecated: group.spec.deprecated,
             constraints: resolve_constraints(&group.spec.constraints),
             attributes: vec![],
+            span_kind: group.spec.span_kind,
+            events: group.spec.events,
+            metric_name: group.spec.metric_name,
+            instrument: group.spec.instrument,
+            unit: group.spec.unit,
+            name: group.spec.name,
             lineage: Some(GroupLineage::new(group.provenance.clone())),
         },
         attributes: attrs,
@@ -608,14 +593,15 @@ mod tests {
             let observed_attr_catalog_json = serde_json::to_string_pretty(&observed_attr_catalog)
                 .expect("Failed to serialize observed attribute catalog");
 
+            // println!("Observed catalog: {}", observed_attr_catalog_json);
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
                 "Attribute catalog does not match for `{}`.\nObserved catalog:\n{}",
                 test_dir, observed_attr_catalog_json
             );
 
-            let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
-            println!("{}", yaml);
+            // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
+            // println!("{}", yaml);
 
             // Check that the resolved registry matches the expected registry.
             let observed_registry_json = serde_json::to_string_pretty(&observed_registry)
@@ -627,8 +613,8 @@ mod tests {
                 test_dir, observed_registry_json
             );
 
-            let yaml = serde_yaml::to_string(&observed_registry).unwrap();
-            println!("{}", yaml);
+            // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
+            // println!("{}", yaml);
         }
     }
 

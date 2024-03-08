@@ -3,9 +3,7 @@
   "groups": [
     {
       "id": "registry.db",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "This document defines the attributes used to describe telemetry in the context of databases.\n",
       "prefix": "db",
       "attributes": [
@@ -46,9 +44,7 @@
     },
     {
       "id": "registry.http",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "This document defines semantic convention attributes in the HTTP namespace.",
       "prefix": "http",
       "attributes": [
@@ -68,9 +64,7 @@
     },
     {
       "id": "registry.network",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "These attributes may be used for any network related operation.\n",
       "prefix": "network",
       "attributes": [
@@ -96,9 +90,7 @@
     },
     {
       "id": "server",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
       "prefix": "server",
       "attributes": [
@@ -111,9 +103,7 @@
     },
     {
       "id": "registry.url",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Attributes describing URL.",
       "prefix": "url",
       "attributes": [
@@ -129,9 +119,7 @@
     },
     {
       "id": "registry.user_agent",
-      "typed_group": {
-        "type": "AttributeGroup"
-      },
+      "type": "attribute_group",
       "brief": "Describes user-agent attributes.",
       "prefix": "user_agent",
       "attributes": [
@@ -143,11 +131,7 @@
     },
     {
       "id": "db",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": "Client",
-        "events": []
-      },
+      "type": "span",
       "brief": "This document defines the attributes used to perform database client calls.\n",
       "attributes": [
         62,
@@ -165,6 +149,8 @@
         74,
         75
       ],
+      "span_kind": "client",
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -561,11 +547,7 @@
     },
     {
       "id": "db.mssql",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Connection-level attributes for Microsoft SQL Server\n",
       "attributes": [
         62,
@@ -584,6 +566,8 @@
         75,
         76
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -706,11 +690,7 @@
     },
     {
       "id": "db.cassandra",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for Cassandra\n",
       "attributes": [
         62,
@@ -736,6 +716,8 @@
         83,
         84
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -1056,11 +1038,7 @@
     },
     {
       "id": "db.hbase",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for HBase\n",
       "attributes": [
         62,
@@ -1079,6 +1057,8 @@
         75,
         85
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -1189,11 +1169,7 @@
     },
     {
       "id": "db.couchdb",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for CouchDB\n",
       "attributes": [
         62,
@@ -1212,6 +1188,8 @@
         75,
         86
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -1322,11 +1300,7 @@
     },
     {
       "id": "db.redis",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for Redis\n",
       "attributes": [
         62,
@@ -1346,6 +1320,8 @@
         87,
         88
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -1482,11 +1458,7 @@
     },
     {
       "id": "db.mongodb",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for MongoDB\n",
       "attributes": [
         62,
@@ -1505,6 +1477,8 @@
         75,
         89
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -1623,11 +1597,7 @@
     },
     {
       "id": "db.elasticsearch",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for Elasticsearch\n",
       "attributes": [
         62,
@@ -1654,6 +1624,8 @@
         97,
         98
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -1968,11 +1940,7 @@
     },
     {
       "id": "db.sql",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for SQL databases\n",
       "attributes": [
         62,
@@ -1991,6 +1959,8 @@
         75,
         99
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -2113,11 +2083,7 @@
     },
     {
       "id": "db.cosmosdb",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Call-level attributes for Cosmos DB.\n",
       "prefix": "db.cosmosdb",
       "attributes": [
@@ -2145,6 +2111,8 @@
         107,
         108
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -2471,11 +2439,7 @@
     },
     {
       "id": "db.tech",
-      "typed_group": {
-        "type": "Span",
-        "span_kind": null,
-        "events": []
-      },
+      "type": "span",
       "brief": "Semantic convention group for specific technologies",
       "constraints": [],
       "attributes": [
@@ -2515,6 +2479,8 @@
         107,
         108
       ],
+      "span_kind": null,
+      "events": [],
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml"
       }

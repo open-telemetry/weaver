@@ -19,11 +19,10 @@ regex.workspace = true
 thiserror.workspace = true
 rayon.workspace = true
 serde_json.workspace = true
-serde_yaml.workspace = true
+walkdir.workspace = true
 
 url = "2.5.0"
-walkdir = "2.5.0"
-serde = { version = "1.0.196", features = ["derive"] }
+serde = { version = "1.0.197", features = ["derive"] }
 
 [dev-dependencies]
 glob = "0.3.1"
