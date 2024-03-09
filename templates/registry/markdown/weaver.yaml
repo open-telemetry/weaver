@@ -1,0 +1,10 @@
+templates:
+  - pattern: registry.md
+    filter: .
+    application_mode: single
+  - pattern: group.md
+    filter: .groups
+    application_mode: each
+  - pattern: groups.md
+    filter: .groups
+    application_mode: single

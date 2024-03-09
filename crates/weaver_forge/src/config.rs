@@ -6,10 +6,12 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use convert_case::{Case, Casing};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 
 use crate::Error;
 use crate::Error::InvalidConfigFile;
+use crate::filter::Filter;
 
 /// Case convention for naming of functions and structs.
 #[derive(Deserialize, Clone, Debug)]
@@ -57,6 +59,50 @@ pub struct TargetConfig {
     /// Configuration for the template syntax.
     #[serde(default)]
     pub template_syntax: TemplateSyntax,
+
+    /// Configuration for the templates.
+    #[serde(default)]
+    pub templates: Vec<TemplateConfig>,
+}
+
+/// Application mode defining how to apply a template on the result of a
+/// filter applied on a registry.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplicationMode {
+    /// Apply the template to the output of the filter as a whole.
+    Single,
+    /// Apply the template to each item of the list returned by the filter.
+    Each,
+}
+
+/// A template configuration.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct TemplateConfig {
+    /// The pattern used to identify when this template configuration must be
+    /// applied to a specific template file.
+    pub pattern: Glob,
+    /// The filter to apply to the registry before applying the template.
+    /// Applying a filter to a registry will return a list of elements from the
+    /// registry that satisfy the filter.
+    pub filter: Filter,
+    /// The mode to apply the template.
+    /// `single`: Apply the template to the output of the filter as a whole.
+    /// `each`: Apply the template to each item of the list returned by the filter.
+    pub application_mode: ApplicationMode,
+}
+
+/// A template matcher.
+pub struct TemplateMatcher<'a> {
+    templates: &'a [TemplateConfig],
+    glob_set: GlobSet,
+}
+
+impl <'a> TemplateMatcher<'a> {
+    pub fn matches<P: AsRef<Path>>(&self, path: P) -> Vec<&'a TemplateConfig> {
+        self.glob_set.matches(path).into_iter().map(|i| &self.templates[i]).collect()
+    }
 }
 
 /// Syntax configuration for the template engine.
@@ -177,5 +223,21 @@ impl TargetConfig {
         } else {
             Ok(TargetConfig::default())
         }
+    }
+
+    /// Return a template matcher for the target configuration.
+    pub fn template_matcher(&self) -> Result<TemplateMatcher, Error> {
+        let mut builder = GlobSetBuilder::new();
+
+        self.templates.iter().for_each(|template| {
+            _ = builder.add(template.pattern.clone());
+        });
+
+        builder.build().map_err(|e| Error::InvalidTemplatePattern {
+            error: e.to_string(),
+        }).map(|glob_set| TemplateMatcher {
+            templates: &self.templates,
+            glob_set,
+        })
     }
 }

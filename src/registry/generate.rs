@@ -73,14 +73,12 @@ pub(crate) fn command(
     )
     .expect("Failed to create template engine");
 
-    engine
-        .generate_registry(
-            logger.clone(),
-            &schema.registries[0],
-            &schema.catalog,
-            args.output.as_path(),
-        )
-        .expect("Failed to generate registry assets");
+    engine.generate(
+        logger.clone(),
+        &schema.registries[0],
+        &schema.catalog,
+        args.output.as_path(),
+    ).expect("Failed to generate artifacts");
 
     logger.success("Artifacts generated successfully");
 }

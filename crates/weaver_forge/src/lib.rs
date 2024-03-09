@@ -5,26 +5,27 @@
 //! schemas.
 
 #![deny(
-    missing_docs,
-    clippy::print_stdout,
-    unstable_features,
-    unused_import_braces,
-    unused_qualifications,
-    unused_results,
-    unused_extern_crates
+missing_docs,
+clippy::print_stdout,
+unstable_features,
+unused_import_braces,
+unused_qualifications,
+unused_results,
+unused_extern_crates
 )]
 
 use std::fmt::{Debug, Display, Formatter};
-use std::fs;
+use std::{clone, fs};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use glob::{glob, Paths};
+use minijinja::{Environment, path_loader, State, Value};
 use minijinja::value::{from_args, Object};
-use minijinja::{path_loader, Environment, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
+use walkdir::{DirEntry, WalkDir};
 
 use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::AttributeRef;
@@ -32,17 +33,15 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Registry;
 use weaver_semconv::group::GroupType;
 
-use crate::config::TargetConfig;
+use crate::config::{ApplicationMode, TargetConfig};
+use crate::Error::{CompoundError, InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile, TargetNotSupported, WriteGeneratedCodeFailed};
 use crate::extensions::case_converter::case_converter;
 use crate::registry::{TemplateGroup, TemplateRegistry};
-use crate::Error::{
-    InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile,
-    TargetNotSupported, WriteGeneratedCodeFailed,
-};
 
 mod config;
 mod extensions;
 mod registry;
+mod filter;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug)]
@@ -127,9 +126,35 @@ pub enum Error {
         attr_ref: AttributeRef,
     },
 
+    /// Filter error.
+    #[error("Filter '{filter}' failed: {error}")]
+    FilterError {
+        /// Filter that caused the error.
+        filter: String,
+        /// Error message.
+        error: String,
+    },
+
+    /// Invalid template pattern.
+    #[error("Invalid template pattern: {error}")]
+    InvalidTemplatePattern {
+        /// Error message.
+        error: String,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
+}
+
+/// Handles a list of errors and returns a compound error if the list is not
+/// empty or () if the list is empty.
+pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(CompoundError(errors))
+    }
 }
 
 /// General configuration for the generator.
@@ -194,7 +219,7 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name,): (&str,) = from_args(args)?;
+            let (file_name, ): (&str, ) = from_args(args)?;
             *self.file_name.lock().unwrap() = file_name.to_string();
             Ok(Value::from(""))
         } else {
@@ -227,6 +252,13 @@ pub struct Context<'a> {
     pub groups: Option<Vec<&'a TemplateGroup>>,
 }
 
+/// Global context for the template engine.
+#[derive(Serialize, Debug)]
+pub struct NewContext<'a> {
+    /// The semantic convention registry.
+    pub ctx: &'a serde_json::Value,
+}
+
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
@@ -250,6 +282,76 @@ impl TemplateEngine {
 
     // ToDo Refactor InternalError
     // ToDo Use compound error
+
+    /// Generate artifacts from the template directory, in parallel.
+    pub fn generate(
+        &self,
+        log: impl Logger + Clone + Sync,
+        registry: &Registry,
+        catalog: &Catalog,
+        output_dir: &Path,
+    ) -> Result<(), Error> {
+        // List all files in the target directory and its subdirectories
+        let files: Vec<DirEntry> = WalkDir::new(self.path.clone()).into_iter().filter_map(|e| {
+            // Skip directories that the owner of the running process does not
+            // have permission to access
+            e.ok()
+        }).filter(|dir_entry| dir_entry.path().is_file()).collect();
+
+        let config = TargetConfig::try_new(&self.path)?;
+        let tmpl_matcher = config.template_matcher()?;
+
+        let template_registry = TemplateRegistry::try_from_resolved_registry(registry, catalog)
+            .map_err(|e| InternalError(e.to_string()))?;
+        let template_registry = serde_json::to_value(template_registry).map_err(|e| InternalError(e.to_string()))?;
+
+        let errs = files.into_par_iter().filter_map(|file| {
+            let relative_path = match file.path().strip_prefix(&self.path) {
+                Ok(relative_path) => relative_path,
+                Err(e) => return Some(InvalidTemplateDir {
+                    template_dir: self.path.clone(),
+                    error: e.to_string(),
+                }),
+            };
+
+            for template in tmpl_matcher.matches(relative_path) {
+                let filtered_result = match template.filter.apply(template_registry.clone()) {
+                    Ok(result) => result,
+                    Err(e) => return Some(e),
+                };
+
+                match template.application_mode {
+                    // The filtered result is evaluated as a single object
+                    ApplicationMode::Single => {
+                        if let Err(e) = self.evaluate_template(log.clone(), serde_json::to_value(NewContext {ctx: &filtered_result }).unwrap(), relative_path, output_dir) {
+                            return Some(e);
+                        }
+                    }
+                    // The filtered result is evaluated as an array of objects
+                    // and each object is evaluated independently and in parallel
+                    // with the same template.
+                    ApplicationMode::Each => {
+                        if let Some(values) = filtered_result.as_array() {
+                            let errs = values.into_par_iter().filter_map(|result| {
+                                if let Err(e) = self.evaluate_template(log.clone(), serde_json::to_value(NewContext {ctx: &result}).unwrap(), relative_path, output_dir) {
+                                    return Some(e);
+                                }
+                                None
+                            }).collect::<Vec<Error>>();
+                            if errs.len() > 0 {
+                                return Some(CompoundError(errs));
+                            }
+                        } else if let Err(e) = self.evaluate_template(log.clone(), serde_json::to_value(NewContext {ctx: &filtered_result }).unwrap(), relative_path, output_dir) {
+                            return Some(e);
+                        }
+                    }
+                }
+            }
+            None
+        }).collect::<Vec<Error>>();
+
+        handle_errors(errs)
+    }
 
     /// Generate assets from a semantic convention registry.
     pub fn generate_registry(
@@ -285,8 +387,8 @@ impl TemplateEngine {
                         group: Some(group),
                         groups: None,
                     })
-                    .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
+                        .map_err(|e| InternalError(e.to_string()))?;
+                    self.evaluate_template(log.clone(), ctx, relative_template_path.as_path(), output_dir)
                 }
                 TemplateObjectPair::Groups {
                     template_path: relative_template_path,
@@ -297,8 +399,8 @@ impl TemplateEngine {
                         group: None,
                         groups: Some(groups),
                     })
-                    .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
+                        .map_err(|e| InternalError(e.to_string()))?;
+                    self.evaluate_template(log.clone(), ctx, relative_template_path.as_path(), output_dir)
                 }
                 TemplateObjectPair::Registry {
                     template_path: relative_template_path,
@@ -309,8 +411,8 @@ impl TemplateEngine {
                         group: None,
                         groups: None,
                     })
-                    .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
+                        .map_err(|e| InternalError(e.to_string()))?;
+                    self.evaluate_template(log.clone(), ctx, relative_template_path.as_path(), output_dir)
                 }
             })?;
 
@@ -321,7 +423,7 @@ impl TemplateEngine {
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
-        template_path: PathBuf,
+        template_path: &Path,
         output_dir: &Path,
     ) -> Result<(), Error> {
         let template_object = TemplateObject {
@@ -331,7 +433,7 @@ impl TemplateEngine {
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
-            template: template_path.clone(),
+            template: template_path.to_path_buf(),
             error: "".to_string(),
         })?;
 
@@ -668,7 +770,9 @@ mod tests {
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;
+
     use walkdir::WalkDir;
+
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
@@ -750,9 +854,9 @@ mod tests {
             .collect::<Vec<_>>()
             .is_empty()
             || !observed_files
-                .difference(&expected_files)
-                .collect::<Vec<_>>()
-                .is_empty()
+            .difference(&expected_files)
+            .collect::<Vec<_>>()
+            .is_empty()
         {
             are_identical = false;
         }
