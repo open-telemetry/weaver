@@ -1,5 +1,5 @@
 {%- set file_name = ctx.id | file_name -%}
-{{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
+{{- template.set_file_name("resource/" ~ file_name ~ ".md") -}}
 
 ## Group `{{ ctx.id }}` ({{ ctx.type }})
 

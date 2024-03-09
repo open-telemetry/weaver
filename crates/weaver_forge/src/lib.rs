@@ -15,7 +15,7 @@ unused_extern_crates
 )]
 
 use std::fmt::{Debug, Display, Formatter};
-use std::{clone, fs};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -40,7 +40,7 @@ use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
 mod extensions;
-mod registry;
+pub mod registry;
 mod filter;
 
 /// Errors emitted by this crate.
@@ -281,14 +281,24 @@ impl TemplateEngine {
     }
 
     // ToDo Refactor InternalError
-    // ToDo Use compound error
 
-    /// Generate artifacts from the template directory, in parallel.
-    pub fn generate(
+    /// Generate artifacts from a serializable context and a template directory,
+    /// in parallel.
+    ///
+    /// # Arguments
+    ///
+    /// * `log` - The logger to use for logging.
+    /// * `context` - The context to use for generating the artifacts.
+    /// * `output_dir` - The directory where the generated artifacts will be saved.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if the artifacts were generated successfully.
+    /// * `Err(error)` if an error occurred during the generation of the artifacts.
+    pub fn generate<T: Serialize>(
         &self,
         log: impl Logger + Clone + Sync,
-        registry: &Registry,
-        catalog: &Catalog,
+        context: &T,
         output_dir: &Path,
     ) -> Result<(), Error> {
         // List all files in the target directory and its subdirectories
@@ -301,9 +311,7 @@ impl TemplateEngine {
         let config = TargetConfig::try_new(&self.path)?;
         let tmpl_matcher = config.template_matcher()?;
 
-        let template_registry = TemplateRegistry::try_from_resolved_registry(registry, catalog)
-            .map_err(|e| InternalError(e.to_string()))?;
-        let template_registry = serde_json::to_value(template_registry).map_err(|e| InternalError(e.to_string()))?;
+        let context = serde_json::to_value(context).map_err(|e| InternalError(e.to_string()))?;
 
         let errs = files.into_par_iter().filter_map(|file| {
             let relative_path = match file.path().strip_prefix(&self.path) {
@@ -315,7 +323,7 @@ impl TemplateEngine {
             };
 
             for template in tmpl_matcher.matches(relative_path) {
-                let filtered_result = match template.filter.apply(template_registry.clone()) {
+                let filtered_result = match template.filter.apply(context.clone()) {
                     Ok(result) => result,
                     Err(e) => return Some(e),
                 };

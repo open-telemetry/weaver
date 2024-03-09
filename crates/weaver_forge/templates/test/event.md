@@ -1,4 +1,4 @@
-{%- set file_name = group.id | file_name -%}
+{%- set file_name = ctx.group.id | file_name -%}
 {{- template.set_file_name("event/" ~ file_name ~ ".md") -}}
 
 # Group `{{ group.id }}` ({{ group.type }})

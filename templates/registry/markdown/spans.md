@@ -1,17 +1,20 @@
-{%- set file_name = ctx.id | file_name -%}
-{{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
+# Semantic Convention Span Groups
 
-## Group `{{ ctx.id }}` ({{ ctx.type }})
+{% for group in ctx %}
+## Group `{{ group.id }}` ({{ group.type }})
 
 ### Brief
 
-{{ ctx.brief | trim }}
+{{ group.brief | trim }}
 
-prefix: {{ ctx.prefix }}
+{{ group.note | trim }}
+
+Prefix: {{ group.prefix }}
+Kind: {{ group.span_kind }}
 
 ### Attributes
 
-{% for attribute in ctx.attributes %}
+{% for attribute in group.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -43,4 +46,5 @@ prefix: {{ ctx.prefix }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
+  {% endfor %}
   {% endfor %}
