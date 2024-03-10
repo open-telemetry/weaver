@@ -1,7 +1,8 @@
 use clap::Parser;
 
 use registry::semconv_registry;
-use weaver_logger::ConsoleLogger;
+use weaver_logger::{ConsoleLogger, Logger};
+use weaver_logger::quiet::QuietLogger;
 
 use crate::cli::{Cli, Commands};
 #[cfg(feature = "experimental")]
@@ -22,8 +23,20 @@ mod search;
 
 fn main() {
     let cli = Cli::parse();
-    let log = ConsoleLogger::new(cli.debug);
 
+    let start = std::time::Instant::now();
+    if cli.quiet {
+        let log = QuietLogger::new();
+        run_command(&cli, log);
+    } else {
+        let log = ConsoleLogger::new(cli.debug);
+        run_command(&cli, log);
+    };
+    let elapsed = start.elapsed();
+    println!("Total execution time: {:?}s", elapsed.as_secs_f64());
+}
+
+fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) {
     match &cli.command {
         #[cfg(feature = "experimental")]
         Some(Commands::Resolve(params)) => {
