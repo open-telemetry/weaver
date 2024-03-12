@@ -1,20 +1,20 @@
-{%- set file_name = group.id | file_name -%}
+{%- set file_name = ctx.id | file_name -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 
-## Group `{{ group.id }}` ({{ group.type }})
+## Group `{{ ctx.id }}` ({{ ctx.type }})
 
 ### Brief
 
-{{ group.brief | trim }}
+{{ ctx.brief | trim }}
 
-{{ group.note | trim }}
+{{ ctx.note | trim }}
 
-Prefix: {{ group.prefix }}
-Kind: {{ group.span_kind }}
+Prefix: {{ ctx.prefix }}
+Kind: {{ ctx.span_kind }}
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in ctx.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}

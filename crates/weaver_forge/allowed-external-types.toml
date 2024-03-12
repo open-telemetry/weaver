@@ -5,6 +5,8 @@
 allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
+    "serde_json::value::Value",
     "weaver_logger::*",
     "weaver_resolved_schema::*",
+    "weaver_semconv::*",
 ]

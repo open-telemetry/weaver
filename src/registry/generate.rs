@@ -6,8 +6,9 @@ use clap::Args;
 use std::path::PathBuf;
 
 use weaver_cache::Cache;
-use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_forge::debug::print_dedup_errors;
 use weaver_forge::registry::TemplateRegistry;
+use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_logger::Logger;
 use weaver_resolver::SchemaResolver;
 
@@ -74,14 +75,20 @@ pub(crate) fn command(
     )
     .expect("Failed to create template engine");
 
-    let template_registry = TemplateRegistry::try_from_resolved_registry(&schema.registries[0], &schema.catalog)
-        .unwrap_or_else(|e| panic!("Failed to create the context for the template evaluation: {:?}", e));
+    let template_registry =
+        TemplateRegistry::try_from_resolved_registry(&schema.registries[0], &schema.catalog)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
 
-    engine.generate(
-        logger.clone(),
-        &template_registry,
-        args.output.as_path(),
-    ).expect("Failed to generate artifacts");
-
-    logger.success("Artifacts generated successfully");
+    match engine.generate(logger.clone(), &template_registry, args.output.as_path()) {
+        Ok(_) => logger.success("Artifacts generated successfully"),
+        Err(e) => {
+            print_dedup_errors(logger.clone(), e);
+            std::process::exit(1);
+        }
+    };
 }

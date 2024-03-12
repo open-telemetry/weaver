@@ -1,17 +1,17 @@
-{%- set file_name = group.id | file_name -%}
+{%- set file_name = ctx.id | file_name -%}
 {{- template.set_file_name("group/" ~ file_name ~ ".md") -}}
 
-# Group `{{ group.id }}` ({{ group.type }})
+# Group `{{ ctx.id }}` ({{ ctx.type }})
 
 ## Brief
 
-{{ group.brief | trim }}
+{{ ctx.brief | trim }}
 
-prefix: {{ group.prefix }}
+prefix: {{ ctx.prefix }}
 
 ## Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in ctx.attributes %}
 ### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -47,8 +47,8 @@ prefix: {{ group.prefix }}
 
 ## Provenance
 
-Source: {{ group.lineage.provenance }}
+Source: {{ ctx.lineage.provenance }}
 
-{% for item in group.lineage.attributes -%}
-item: {{ group.lineage.attributes[item] }}
+{% for item in ctx.lineage.attributes -%}
+item: {{ ctx.lineage.attributes[item] }}
 {% endfor -%}

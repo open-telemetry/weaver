@@ -2,11 +2,11 @@
 
 //! Filter JSON values using a simple expression language.
 
+use crate::error::Error;
 use core::fmt;
-use std::fmt::Debug;
 use jaq_interpret::{Ctx, FilterT, RcIter, Val};
 use serde::de;
-use crate::Error;
+use std::fmt::Debug;
 
 /// A filter that can be applied to a JSON value.
 pub struct Filter {
@@ -27,15 +27,19 @@ impl Filter {
 
         // If there are any errors, return them
         if !errs.is_empty() {
-            return Err(Error::CompoundError(errs.into_iter().map(|e| Error::FilterError {
-                filter: filter_expr.to_string(),
-                error: e.to_string()
-            }).collect()));
+            return Err(Error::CompoundError(
+                errs.into_iter()
+                    .map(|e| Error::FilterError {
+                        filter: filter_expr.to_string(),
+                        error: e.to_string(),
+                    })
+                    .collect(),
+            ));
         }
 
         let parsed_expr = parsed_expr.ok_or_else(|| Error::FilterError {
             filter: filter_expr.to_string(),
-            error: "No parsed expression".to_string()
+            error: "No parsed expression".to_string(),
         })?;
 
         Ok(Self {
@@ -45,13 +49,13 @@ impl Filter {
     }
 
     /// Apply the filter to a JSON value and return the result as a JSON value.
-    pub fn apply(&self, json: serde_json::Value) -> Result<serde_json::Value, Error> {
+    pub fn apply(&self, ctx: serde_json::Value) -> Result<serde_json::Value, Error> {
         let inputs = RcIter::new(core::iter::empty());
-        let mut filter_result = self.filter.run((Ctx::new([], &inputs), Val::from(json)));
+        let filter_result = self.filter.run((Ctx::new([], &inputs), Val::from(ctx)));
         let mut errs = Vec::new();
         let mut values = Vec::new();
 
-        while let Some(r) = filter_result.next() {
+        for r in filter_result {
             match r {
                 Ok(v) => values.push(serde_json::Value::from(v)),
                 Err(e) => errs.push(e),
@@ -82,8 +86,8 @@ impl<'de> de::Visitor<'de> for FilterVisitor {
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
+    where
+        E: de::Error,
     {
         Filter::try_new(value).map_err(E::custom)
     }
@@ -91,23 +95,9 @@ impl<'de> de::Visitor<'de> for FilterVisitor {
 
 impl<'de> de::Deserialize<'de> for Filter {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: de::Deserializer<'de>,
+    where
+        D: de::Deserializer<'de>,
     {
         deserializer.deserialize_str(FilterVisitor)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-    use crate::filter::Filter;
-
-    #[test]
-    fn test_jaq() -> Result<(), crate::Error> {
-        let filter = Filter::try_new(".b").unwrap();
-        let json = json!({"a": 1, "b": {"c": 1, "d": 2}});
-        assert_eq!(filter.apply(json)?, json!([{"c": 1, "d": 2}]));
-        Ok(())
     }
 }

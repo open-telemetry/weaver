@@ -3,8 +3,8 @@
 //! Logger in quiet mode.
 //! This logger only logs errors and warnings.
 
-use std::sync::{Arc, Mutex};
 use crate::Logger;
+use std::sync::{Arc, Mutex};
 
 /// A quient logger that can be used to log messages to the console.
 /// This logger is thread-safe and can be cloned.
@@ -24,13 +24,13 @@ impl QuietLogger {
 }
 
 impl Logger for QuietLogger {
-    /// Logs an trace message (only with debug enabled).
-    fn trace(&self, message: &str) -> &Self {
+    /// Logs a trace message (only with debug enabled).
+    fn trace(&self, _message: &str) -> &Self {
         self
     }
 
     /// Logs an info message.
-    fn info(&self, message: &str) -> &Self {
+    fn info(&self, _message: &str) -> &Self {
         self
     }
 
@@ -53,17 +53,17 @@ impl Logger for QuietLogger {
     }
 
     /// Logs a success message.
-    fn success(&self, message: &str) -> &Self {
+    fn success(&self, _message: &str) -> &Self {
         self
     }
 
     /// Logs a newline.
-    fn newline(&self, count: usize) -> &Self {
+    fn newline(&self, _count: usize) -> &Self {
         self
     }
 
     /// Indents the logger.
-    fn indent(&self, count: usize) -> &Self {
+    fn indent(&self, _count: usize) -> &Self {
         self
     }
 
@@ -73,12 +73,12 @@ impl Logger for QuietLogger {
     }
 
     /// Adds a style to the logger.
-    fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
+    fn add_style(&self, _name: &str, _styles: Vec<&'static str>) -> &Self {
         self
     }
 
     /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str) -> &Self {
+    fn loading(&self, _message: &str) -> &Self {
         self
     }
 
@@ -88,7 +88,7 @@ impl Logger for QuietLogger {
     }
 
     /// Logs a message without icon.
-    fn log(&self, message: &str) -> &Self {
+    fn log(&self, _message: &str) -> &Self {
         self
     }
 }

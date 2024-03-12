@@ -1,6 +1,6 @@
 # Semantic Convention Span Groups
 
-{% for group in groups %}
+{% for group in ctx %}
 ## Group `{{ group.id }}` ({{ group.type }})
 
 ### Brief

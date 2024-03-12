@@ -4,7 +4,7 @@
 //! catalog are resolved to the actual catalog entries to ease the template
 //! evaluation.
 
-use crate::Error;
+use crate::error::Error;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;

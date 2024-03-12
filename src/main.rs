@@ -1,8 +1,8 @@
 use clap::Parser;
 
 use registry::semconv_registry;
-use weaver_logger::{ConsoleLogger, Logger};
 use weaver_logger::quiet::QuietLogger;
+use weaver_logger::{ConsoleLogger, Logger};
 
 use crate::cli::{Cli, Commands};
 #[cfg(feature = "experimental")]

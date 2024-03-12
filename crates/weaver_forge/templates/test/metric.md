@@ -1,23 +1,23 @@
-{%- set file_name = group.id | file_name -%}
+{%- set file_name = ctx.id | file_name -%}
 {{- template.set_file_name("metric/" ~ file_name ~ ".md") -}}
 
-## Group `{{ group.id }}` ({{ group.type }})
+## Group `{{ ctx.id }}` ({{ ctx.type }})
 
 ### Brief
 
-{{ group.brief | trim }}
+{{ ctx.brief | trim }}
 
-{{ group.note | trim }}
+{{ ctx.note | trim }}
 
-Prefix: {{ group.prefix }}
-Metric: {{ group.metric_name }}
-Instrument: {{ group.instrument }}
-Unit: {{ group.unit }}
-Stability: {{ group.stability | capitalize }}
+Prefix: {{ ctx.prefix }}
+Metric: {{ ctx.metric_name }}
+Instrument: {{ ctx.instrument }}
+Unit: {{ ctx.unit }}
+Stability: {{ ctx.stability | capitalize }}
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in ctx.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}

@@ -1,6 +1,6 @@
 # Semantic Convention Event Groups
 
-{% for group in groups %}
+{% for group in ctx %}
 ## Group `{{ group.id }}` ({{ group.type }})
 
 ### Brief
