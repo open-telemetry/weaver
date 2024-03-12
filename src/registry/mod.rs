@@ -36,7 +36,7 @@ pub enum RegistrySubCommand {
     Check(RegistryCheckArgs),
     /// Generates artifacts from a registry.
     Generate(RegistryGenerateArgs),
-    /// Resolves a registry (not yet implemented).
+    /// Resolves a registry.
     Resolve(RegistryResolveArgs),
     /// Searches a registry (not yet implemented).
     Search(RegistrySearchArgs),
@@ -44,6 +44,23 @@ pub enum RegistrySubCommand {
     Stats(RegistryStatsArgs),
     /// Update markdown files that contain markers indicating the templates used to update the specified sections.
     UpdateMarkdown(RegistryUpdateMarkdownArgs),
+}
+
+/// Set of parameters used to specify a semantic convention registry.
+#[derive(Args, Debug)]
+pub struct RegistryArgs {
+    /// Local path or Git URL of the semantic convention registry.
+    #[arg(
+        short = 'r',
+        long,
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+    )]
+    pub registry: String,
+
+    /// Optional path in the Git repository where the semantic convention
+    /// registry is located
+    #[arg(short = 'd', long, default_value = "model")]
+    pub registry_git_sub_dir: Option<String>,
 }
 
 /// Manage a semantic convention registry.
@@ -57,9 +74,7 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         RegistrySubCommand::Check(args) => check::command(log, &cache, args),
         RegistrySubCommand::Generate(args) => generate::command(log, &cache, args),
         RegistrySubCommand::Stats(args) => stats::command(log, &cache, args),
-        RegistrySubCommand::Resolve(_) => {
-            unimplemented!()
-        }
+        RegistrySubCommand::Resolve(args) => resolve::command(log, &cache, args),
         RegistrySubCommand::Search(_) => {
             unimplemented!()
         }

@@ -64,11 +64,10 @@ Usage: weaver registry <COMMAND>
 Commands:
   check            Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints)
   generate         Generates artifacts from a registry
-  resolve          Resolves a registry (not yet implemented)
+  resolve          Resolves a registry
   search           Searches a registry (not yet implemented)
   stats            Calculate and display a set of general statistics on a registry (not yet implemented)
   update-markdown  Update markdown files that contain markers indicating the templates used to update the specified sections
-  help             Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help  Print help
@@ -86,8 +85,6 @@ Options:
           Local path or Git URL of the semantic convention registry to check [default: https://github.com/open-telemetry/semantic-conventions.git]
   -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
           Optional path in the Git repository where the semantic convention registry is located [default: model]
-  -h, --help
-          Print help
 ```
 
 ### Sub-Command `registry generate`
@@ -108,8 +105,43 @@ Options:
           Local path or Git URL of the semantic convention registry [default: https://github.com/open-telemetry/semantic-conventions.git]
   -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
           Optional path in the Git repository where the semantic convention registry is located [default: model]
-  -h, --help
-          Print help
+```
+
+### Sub-Command `registry resolve`
+
+```
+Resolves a registry
+
+Usage: weaver registry resolve [OPTIONS]
+
+Options:
+  -r, --registry <REGISTRY>
+          Local path or Git URL of the semantic convention registry
+
+          [default: https://github.com/open-telemetry/semantic-conventions.git]
+
+  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
+          Optional path in the Git repository where the semantic convention registry is located
+
+          [default: model]
+
+      --catalog
+          Flag to indicate if the shared catalog should be included in the resolved schema
+
+      --lineage
+          Flag to indicate if lineage information should be included in the resolved schema (not yet implemented)
+
+  -o, --output <OUTPUT>
+          Output file to write the resolved schema to If not specified, the resolved schema is printed to stdout
+
+  -f, --format <FORMAT>
+          Output format for the resolved schema If not specified, the resolved schema is printed in YAML format Supported formats: yaml, json Default format: yaml Example: `--format json`
+
+          [default: yaml]
+
+          Possible values:
+          - yaml: YAML format
+          - json: JSON format
 ```
 
 ### Crates Layout
