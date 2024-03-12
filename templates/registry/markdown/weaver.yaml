@@ -38,3 +38,6 @@ templates:
   - pattern: spans.md
     filter: .groups[] | select(.type == "span")
     application_mode: single
+  - pattern: groups_per_prefix.md
+    filter: '.groups | map(select(.prefix != null and .prefix != "")) | group_by(.prefix) | map({prefix: .[0].prefix, groups: .})'
+    application_mode: each
