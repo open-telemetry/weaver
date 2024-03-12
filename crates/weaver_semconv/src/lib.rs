@@ -732,7 +732,7 @@ impl SemConvRegistry {
                         format!("{}.{}", prefix, id)
                     };
                     if let AttributeSpec::Id { id, .. } = &mut attr {
-                        *id = fq_attr_id.clone();
+                        id.clone_from(&fq_attr_id)
                     }
                     let prev_val = self.all_attributes.insert(
                         fq_attr_id.clone(),
