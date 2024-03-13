@@ -3973,6 +3973,7 @@ dependencies = [
  "weaver_resolver",
  "weaver_schema",
  "weaver_semconv",
+ "weaver_semconv_gen",
  "weaver_template",
 ]
 
@@ -4073,6 +4074,23 @@ dependencies = [
  "thiserror",
  "ureq",
  "validator",
+]
+
+[[package]]
+name = "weaver_semconv_gen"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.12.1",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "walkdir",
+ "weaver_logger",
+ "weaver_resolved_schema",
+ "weaver_resolver",
+ "weaver_semconv",
 ]
 
 [[package]]

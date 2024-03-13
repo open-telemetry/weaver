@@ -54,6 +54,7 @@ weaver_resolver = { path = "crates/weaver_resolver" }
 weaver_template = { path = "crates/weaver_template" }
 weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_resolved_schema = { path = "crates/weaver_resolved_schema" }
+weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
 weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
