@@ -93,7 +93,7 @@ pub fn resolve_metrics(
 
                         // Initialize all/required_shared_attributes only if first metric.
                         if i == 0 {
-                            all_shared_attributes = inherited_attrs.clone();
+                            all_shared_attributes.clone_from(&inherited_attrs);
                             all_shared_attributes
                                 .iter()
                                 .filter(|attr| attr.is_required())

@@ -21,6 +21,10 @@ pub struct Cli {
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub debug: u8,
 
+    /// Turn the quiet mode on (i.e., minimal output)
+    #[arg(short, long)]
+    pub quiet: bool,
+
     /// List of supported commands
     #[command(subcommand)]
     pub command: Option<Commands>,

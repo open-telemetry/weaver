@@ -8,6 +8,8 @@ install:
     cargo install cargo-check-external-types
 
 pre-push-check:
+    rustup update
+    cargo clean
     cargo update
     cargo machete
     cargo fmt --all

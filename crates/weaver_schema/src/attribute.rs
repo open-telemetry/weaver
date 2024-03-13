@@ -266,27 +266,31 @@ impl Attribute {
     pub fn set_tags(&mut self, tags: &Option<Tags>) {
         match self {
             Attribute::Ref { tags: tags_ref, .. } => {
-                *tags_ref = tags.clone();
+                tags_ref.clone_from(tags);
             }
             Attribute::Id { tags: tags_id, .. } => {
-                *tags_id = tags.clone();
+                tags_id.clone_from(tags);
             }
             Attribute::AttributeGroupRef {
                 tags: tags_group, ..
             } => {
-                *tags_group = tags.clone();
+                tags_group.clone_from(tags);
             }
             Attribute::ResourceRef {
                 tags: tags_resource,
                 ..
             } => {
-                *tags_resource = tags.clone();
+                tags_resource.clone_from(tags);
             }
-            Attribute::SpanRef { tags, .. } => {
-                *tags = tags.clone();
+            Attribute::SpanRef {
+                tags: span_tags, ..
+            } => {
+                span_tags.clone_from(tags);
             }
-            Attribute::EventRef { tags, .. } => {
-                *tags = tags.clone();
+            Attribute::EventRef {
+                tags: event_tags, ..
+            } => {
+                event_tags.clone_from(tags);
             }
         }
     }
@@ -339,7 +343,7 @@ impl Attribute {
                     // Override process.
                     // Use the field values from the reference when defined in the reference.
                     if let Some(brief_from_ref) = brief_from_ref {
-                        brief = brief_from_ref.clone();
+                        brief.clone_from(brief_from_ref);
                     }
                     if let Some(requirement_level_from_ref) = requirement_level_from_ref {
                         requirement_level = requirement_level_from_ref.clone();
@@ -354,7 +358,7 @@ impl Attribute {
                         sampling_relevant = Some(*sampling_from_ref);
                     }
                     if let Some(note_from_ref) = note_from_ref {
-                        note = note_from_ref.clone();
+                        note.clone_from(note_from_ref);
                     }
                     if let Some(stability_from_ref) = stability_from_ref {
                         stability = Some(stability_from_ref.clone());

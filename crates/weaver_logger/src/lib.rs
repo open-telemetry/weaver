@@ -6,6 +6,8 @@
 #![deny(clippy::print_stdout)]
 #![deny(clippy::print_stderr)]
 
+pub mod quiet;
+
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 

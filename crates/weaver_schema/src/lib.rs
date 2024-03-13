@@ -233,7 +233,7 @@ impl TelemetrySchema {
                     }
                 }
                 None => {
-                    self.versions = parent_schema.versions.clone();
+                    self.versions.clone_from(&parent_schema.versions);
                 }
             }
         }

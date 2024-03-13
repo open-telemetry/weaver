@@ -1,20 +1,20 @@
-{%- set file_name = ctx.id | file_name -%}
-{{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
+{%- set file_name = ctx.prefix | file_name -%}
+{{- template.set_file_name("prefix/" ~ file_name ~ ".md") -}}
 
-## Group `{{ ctx.id }}` ({{ ctx.type }})
+# Semantic Convention Groups with Prefix `{{ ctx.prefix }}`
+
+{% for group in ctx.groups %}
+## Group `{{ group.id }}` ({{ group.type }})
 
 ### Brief
 
-{{ ctx.brief | trim }}
+{{ group.brief | trim }}
 
-{{ ctx.note | trim }}
-
-Prefix: {{ ctx.prefix }}
-Kind: {{ ctx.span_kind }}
+prefix: {{ group.prefix }}
 
 ### Attributes
 
-{% for attribute in ctx.attributes %}
+{% for attribute in group.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -47,3 +47,4 @@ Kind: {{ ctx.span_kind }}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
   {% endfor %}
+{% endfor %}

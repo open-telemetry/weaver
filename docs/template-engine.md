@@ -66,10 +66,6 @@ produced from the template:
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 ```
 
-> Note: Other naming conventions might be introduced in the future to facilitate
-the generation of assets (e.g., groups_per_prefix.md could be used to call the
-template with a list of groups sharing the same prefix).
-
 ## Configuration File
 
 The configuration file `weaver.yaml` is optional. It allows configuring the
@@ -107,6 +103,70 @@ template_syntax:
   variable_end: "}}"
   comment_start: "{#"
   comment_end: "#}"
+
+# Please uncomment the following templates to override the default template
+# mapping. Each template mapping specifies a jaq filter (compatible with jq)
+# to apply to every file matching the pattern. The application_mode specifies
+# how the template should be applied. The application_mode can be `each` or
+# `single`. The `each` mode will evaluate the template for each object selected
+# by the jaq filter. The `single` mode will evaluate the template once with all
+# the objects selected by the jq filter.
+#
+# Note: jaq is a Rust reimplementation of jq. Most of the jq filters are
+# supported. For more information, see https://github.com/01mf02/jaq
+#
+# templates:
+#  - pattern: "**/registry.md"
+#    filter: "."
+#    application_mode: single
+#  - pattern: "**/attribute_group.md"
+#    filter: ".groups[] | select(.type == \"attribute_group\")"
+#    application_mode: each
+#  - pattern: "**/attribute_groups.md"
+#    filter: ".groups[] | select(.type == \"attribute_group\")"
+#    application_mode: single
+#  - pattern: "**/event.md"
+#    filter: ".groups[] | select(.type == \"event\")"
+#    application_mode: each
+#  - pattern: "**/events.md"
+#    filter: ".groups[] | select(.type == \"event\")"
+#    application_mode: single
+#  - pattern: "**/group.md"
+#    filter: ".groups[] | select(.type == \"group\")"
+#    application_mode: each
+#  - pattern: "**/groups.md"
+#    filter: ".groups[] | select(.type == \"group\")"
+#    application_mode: single
+#  - pattern: "**/metric.md"
+#    filter: ".groups[] | select(.type == \"metric\")"
+#    application_mode: each
+#  - pattern: "**/metrics.md"
+#    filter: ".groups[] | select(.type == \"metric\")"
+#    application_mode: single
+#  - pattern: "**/metric_group.md"
+#    filter: ".groups[] | select(.type == \"metric_group\")"
+#    application_mode: each
+#  - pattern: "**/metric_groups.md"
+#    filter: ".groups[] | select(.type == \"metric_group\")"
+#    application_mode: single
+#  - pattern: "**/resource.md"
+#    filter: ".groups[] | select(.type == \"resource\")"
+#    application_mode: each
+#  - pattern: "**/resources.md"
+#    filter: ".groups[] | select(.type == \"resource\")"
+#    application_mode: single
+#  - pattern: "**/scope.md"
+#    filter: ".groups[] | select(.type == \"scope\")"
+#    application_mode: each
+#  - pattern: "**/scopes.md"
+#    filter: ".groups[] | select(.type == \"scope\")"
+#    application_mode: single
+#  - pattern: "**/span.md"
+#    filter: ".groups[] | select(.type == \"span\")"
+#    application_mode: each
+#  - pattern: "**/spans.md"
+#    filter: ".groups[] | select(.type == \"span\")"
+#    application_mode: single
 ```
 
 Supported case converters:

@@ -47,6 +47,7 @@ Commands:
 
 Options:
   -d, --debug...  Turn debugging information on
+  -q, --quiet     Turn the quiet mode on (i.e., minimal output)
   -h, --help      Print help
   -V, --version   Print version
 ```
@@ -61,76 +62,86 @@ Manage Semantic Convention Registry
 Usage: weaver registry <COMMAND>
 
 Commands:
-  check     Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints)
-  generate  Generates documentation or code for a registry (not yet implemented)
-  resolve   Resolves a registry (not yet implemented)
-  search    Searches a registry (not yet implemented)
-  stats     Calculate and display a set of general statistics on a registry (not yet implemented)
-  help      Print this message or the help of the given subcommand(s)
+  check            Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints)
+  generate         Generates artifacts from a registry
+  resolve          Resolves a registry
+  search           Searches a registry (not yet implemented)
+  stats            Calculate and display a set of general statistics on a registry (not yet implemented)
+  update-markdown  Update markdown files that contain markers indicating the templates used to update the specified sections
 
 Options:
   -h, --help  Print help
 ```
 
-### Command `search` (Experimental)
+### Sub-Command `registry check`
 
-This command provides an interactive terminal UI, allowing users to search for
-attributes and metrics specified within a given semantic convention registry or
-a telemetry schema (including dependencies).
+```
+Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints)
 
-To search into the OpenTelemetry Semantic Convention Registry, run the following
-command:
+Usage: weaver registry check [OPTIONS]
 
-```bash
-weaver search registry https://github.com/open-telemetry/semantic-conventions.git model 
+Options:
+  -r, --registry <REGISTRY>
+          Local path or Git URL of the semantic convention registry to check [default: https://github.com/open-telemetry/semantic-conventions.git]
+  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
+          Optional path in the Git repository where the semantic convention registry is located [default: model]
 ```
 
-To search into a telemetry schema, run the following command:
+### Sub-Command `registry generate`
 
-```bash
-weaver search schema demo/app-telemetry-schema.yaml
+```
+Generates artifacts from a registry
+
+Usage: weaver registry generate [OPTIONS] <TARGET> [OUTPUT]
+
+Arguments:
+  <TARGET>  Target to generate the artifacts for
+  [OUTPUT]  Path to the directory where the generated artifacts will be saved. Default is the `output` directory [default: output]
+
+Options:
+  -t, --templates <TEMPLATES>
+          Path to the directory where the templates are located. Default is the `templates` directory [default: templates]
+  -r, --registry <REGISTRY>
+          Local path or Git URL of the semantic convention registry [default: https://github.com/open-telemetry/semantic-conventions.git]
+  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
+          Optional path in the Git repository where the semantic convention registry is located [default: model]
 ```
 
-This search engine leverages [Tantivy](https://github.com/quickwit-oss/tantivy)
-and supports a simple [search syntax](https://docs.rs/tantivy/latest/tantivy/query/struct.QueryParser.html)
-in the search bar.
+### Sub-Command `registry resolve`
 
-### Command `resolve` (Experimental)
-
-This command resolves a schema or a semantic convention registry (not yet
-implemented) and displays the result on the standard output.
-Alternatively, the result can be written to a file if specified using the
-`--output` option. This command is primarily used for validating and debugging
-telemetry schemas and semantic convention registries.
-
-```bash
-weaver resolve schema telemetry-schema.yaml --output telemetry-schema-resolved.yaml
 ```
+Resolves a registry
 
-A "resolved schema" is one where:
-- All references have been resolved and expanded.
-- All overrides have been applied.
-- This resolved schema is what the code generator and upcoming plugins utilize.
+Usage: weaver registry resolve [OPTIONS]
 
-### Command `gen-client` (Experimental)
+Options:
+  -r, --registry <REGISTRY>
+          Local path or Git URL of the semantic convention registry
 
-This command generates a client SDK from a telemetry schema for a given language
-specified with the `--language` option.
+          [default: https://github.com/open-telemetry/semantic-conventions.git]
 
-```bash
-weaver gen-client --schema telemetry-schema.yaml --language go
-```
+  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
+          Optional path in the Git repository where the semantic convention registry is located
 
-In the future, users will be able to specify the protocol to use for the generated
-client SDK (i.e. OTLP or OTel Arrow Protocol) and few others options.
+          [default: model]
 
-### Command `languages` (Experimental)
+      --catalog
+          Flag to indicate if the shared catalog should be included in the resolved schema
 
-This command displays all the languages for which a client SDK/API can
-be generated.
+      --lineage
+          Flag to indicate if lineage information should be included in the resolved schema (not yet implemented)
 
-```bash
-weaver languages
+  -o, --output <OUTPUT>
+          Output file to write the resolved schema to If not specified, the resolved schema is printed to stdout
+
+  -f, --format <FORMAT>
+          Output format for the resolved schema If not specified, the resolved schema is printed in YAML format Supported formats: yaml, json Default format: yaml Example: `--format json`
+
+          [default: yaml]
+
+          Possible values:
+          - yaml: YAML format
+          - json: JSON format
 ```
 
 ### Crates Layout
@@ -153,16 +164,16 @@ crates.io.
 The following is a list of crates in the workspace, along with a brief
 description and the current status of each crate:
 
-| Crate                                                             | Description                                             | Status                 |
-|-------------------------------------------------------------------|---------------------------------------------------------|------------------------|
-| [weaver_semconv](crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                 | Alpha; Need more tests |
-| [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model              | Alpha; Need more tests |
-| [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                              | Work-In-Progress       |
-| [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                             | Work-In-Progress       |
-| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process                     | Work-In-Progress       |
-| [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache | Work-In-Progress       |
-| [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output               | Alpha                  |
-| [weaver_template](crates/weaver_template/README.md)               | Functions and Filters used in the template engine       | Work-In-Progress       |
+| Crate                                                             | Description                                                          | Status                  |
+|-------------------------------------------------------------------|----------------------------------------------------------------------|-------------------------|
+| [weaver_semconv](crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Alpha; Need more tests  |
+| [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha; Need more tests  |
+| [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress        |
+| [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                                          | Work-In-Progress        |
+| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process                                  | Work-In-Progress        |
+| [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress        |
+| [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                   |
+| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests  |
 
 Note 1: Alpha status means that the crate is in a usable state but may have
 limited functionality and/or may not be fully tested. 

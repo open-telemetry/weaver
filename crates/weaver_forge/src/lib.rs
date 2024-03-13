@@ -19,118 +19,35 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use glob::{glob, Paths};
 use minijinja::value::{from_args, Object};
 use minijinja::{path_loader, Environment, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
+use walkdir::{DirEntry, WalkDir};
 
+use error::Error;
+use error::Error::{
+    ContextSerializationFailed, InvalidTemplateDir, InvalidTemplateFile, TargetNotSupported,
+    TemplateEvaluationFailed, WriteGeneratedCodeFailed,
+};
 use weaver_logger::Logger;
-use weaver_resolved_schema::attribute::AttributeRef;
-use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::registry::Registry;
-use weaver_semconv::group::GroupType;
 
-use crate::config::TargetConfig;
+use crate::config::{ApplicationMode, TargetConfig};
+use crate::debug::error_summary;
+use crate::error::Error::InvalidConfigFile;
 use crate::extensions::case_converter::case_converter;
 use crate::registry::{TemplateGroup, TemplateRegistry};
-use crate::Error::{
-    InternalError, InvalidTemplateDir, InvalidTemplateDirectory, InvalidTemplateFile,
-    TargetNotSupported, WriteGeneratedCodeFailed,
-};
 
 mod config;
+pub mod debug;
+pub mod error;
 mod extensions;
-mod registry;
+mod filter;
+pub mod registry;
 
-/// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    /// Invalid config file.
-    #[error("Invalid config file `{config_file}`: {error}")]
-    InvalidConfigFile {
-        /// Config file.
-        config_file: PathBuf,
-        /// Error message.
-        error: String,
-    },
-
-    /// Target not found.
-    #[error(
-    "Target `{target}` not found in `{root_path}`. Use the command `targets` to list supported targets."
-    )]
-    TargetNotSupported {
-        /// Root path.
-        root_path: String,
-        /// Target name.
-        target: String,
-    },
-
-    /// Invalid template directory.
-    #[error("Invalid template directory {template_dir}: {error}")]
-    InvalidTemplateDir {
-        /// Template directory.
-        template_dir: PathBuf,
-        /// Error message.
-        error: String,
-    },
-
-    /// Invalid telemetry schema.
-    #[error("Invalid telemetry schema {schema}: {error}")]
-    InvalidTelemetrySchema {
-        /// Schema file.
-        schema: PathBuf,
-        /// Error message.
-        error: String,
-    },
-
-    /// Invalid template file.
-    #[error("Invalid template file '{template}': {error}")]
-    InvalidTemplateFile {
-        /// Template path.
-        template: PathBuf,
-        /// Error message.
-        error: String,
-    },
-
-    /// Invalid template directory.
-    #[error("Invalid template directory: {0}")]
-    InvalidTemplateDirectory(PathBuf),
-
-    /// Internal error.
-    #[error("Internal error: {0}")]
-    InternalError(String),
-
-    /// Template file name undefined.
-    #[error("File name undefined in the template `{template}`. To resolve this, use the function `config(file_name = <file_name, filter, or expression>)` to set the file name.")]
-    TemplateFileNameUndefined {
-        /// Template path.
-        template: PathBuf,
-    },
-
-    /// Write generated code failed.
-    #[error("Writing of the generated code {template} failed: {error}")]
-    WriteGeneratedCodeFailed {
-        /// Template path.
-        template: PathBuf,
-        /// Error message.
-        error: String,
-    },
-
-    /// Attribute reference not found in the catalog.
-    #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
-    AttributeNotFound {
-        /// Group id.
-        group_id: String,
-        /// Attribute reference.
-        attr_ref: AttributeRef,
-    },
-
-    /// A generic container for multiple errors.
-    #[error("Errors:\n{0:#?}")]
-    CompoundError(Vec<Error>),
-}
+/// Name of the Weaver configuration file.
+pub const WEAVER_YAML: &str = "weaver.yaml";
 
 /// General configuration for the generator.
 pub struct GeneratorConfig {
@@ -145,23 +62,6 @@ impl Default for GeneratorConfig {
             root_dir: PathBuf::from("templates"),
         }
     }
-}
-
-/// A pair {template, object} to generate code for.
-#[derive(Debug)]
-enum TemplateObjectPair<'a> {
-    Group {
-        template_path: PathBuf,
-        group: &'a TemplateGroup,
-    },
-    Groups {
-        template_path: PathBuf,
-        groups: Vec<&'a TemplateGroup>,
-    },
-    Registry {
-        template_path: PathBuf,
-        registry: &'a TemplateRegistry,
-    },
 }
 
 /// A template object accessible from the template.
@@ -227,6 +127,24 @@ pub struct Context<'a> {
     pub groups: Option<Vec<&'a TemplateGroup>>,
 }
 
+/// Global context for the template engine.
+#[derive(Serialize, Debug)]
+pub struct NewContext<'a> {
+    /// The semantic convention registry.
+    pub ctx: &'a serde_json::Value,
+}
+
+/// Convert a context into a serde_json::Value.
+impl TryInto<serde_json::Value> for NewContext<'_> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<serde_json::Value, Self::Error> {
+        serde_json::to_value(self).map_err(|e| ContextSerializationFailed {
+            error: e.to_string(),
+        })
+    }
+}
+
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
@@ -248,80 +166,138 @@ impl TemplateEngine {
         })
     }
 
-    // ToDo Refactor InternalError
-    // ToDo Use compound error
-
-    /// Generate assets from a semantic convention registry.
-    pub fn generate_registry(
+    /// Generate artifacts from a serializable context and a template directory,
+    /// in parallel.
+    ///
+    /// # Arguments
+    ///
+    /// * `log` - The logger to use for logging.
+    /// * `context` - The context to use for generating the artifacts.
+    /// * `output_dir` - The directory where the generated artifacts will be saved.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if the artifacts were generated successfully.
+    /// * `Err(error)` if an error occurred during the generation of the artifacts.
+    pub fn generate<T: Serialize>(
         &self,
         log: impl Logger + Clone + Sync,
-        registry: &Registry,
-        catalog: &Catalog,
+        context: &T,
         output_dir: &Path,
     ) -> Result<(), Error> {
-        // Process recursively all files in the template directory
-        let mut lang_path = self.path.to_str().unwrap_or_default().to_string();
-        let paths = if lang_path.is_empty() {
-            glob("**/*").map_err(|e| InternalError(e.to_string()))?
-        } else {
-            lang_path.push_str("/**/*");
-            glob(lang_path.as_str()).map_err(|e| InternalError(e.to_string()))?
-        };
+        // List all files in the target directory and its subdirectories
+        let files: Vec<DirEntry> = WalkDir::new(self.path.clone())
+            .into_iter()
+            .filter_map(|e| {
+                // Skip directories that the owner of the running process does not
+                // have permission to access
+                e.ok()
+            })
+            .filter(|dir_entry| dir_entry.path().is_file())
+            .collect();
 
-        let template_registry = TemplateRegistry::try_from_resolved_registry(registry, catalog)
-            .map_err(|e| InternalError(e.to_string()))?;
+        let config = TargetConfig::try_new(&self.path)?;
+        let tmpl_matcher = config.template_matcher()?;
 
-        // List all {template, object} pairs to run in parallel the template
-        // engine as all pairs are independent.
-        self.list_registry_templates(&template_registry, paths)?
+        // Create a read-only context for the filter evaluations
+        let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+            error: e.to_string(),
+        })?;
+
+        // Process all files in parallel
+        // - Filter the files that match the template pattern
+        // - Apply the filter to the context
+        // - Evaluate the template with the filtered context based on the
+        // application mode.
+        //   - If the application mode is single, the filtered context is
+        // evaluated as a single object.
+        //   - If the application mode is each, the filtered context is
+        // evaluated as an array of objects and each object is evaluated
+        // independently and in parallel with the same template.
+        let errs = files
             .into_par_iter()
-            .try_for_each(|pair| match pair {
-                TemplateObjectPair::Group {
-                    template_path: relative_template_path,
-                    group,
-                } => {
-                    let ctx: serde_json::Value = serde_json::to_value(Context {
-                        registry: &template_registry,
-                        group: Some(group),
-                        groups: None,
-                    })
-                    .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
-                }
-                TemplateObjectPair::Groups {
-                    template_path: relative_template_path,
-                    groups,
-                } => {
-                    let ctx: serde_json::Value = serde_json::to_value(Context {
-                        registry: &template_registry,
-                        group: None,
-                        groups: Some(groups),
-                    })
-                    .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
-                }
-                TemplateObjectPair::Registry {
-                    template_path: relative_template_path,
-                    registry,
-                } => {
-                    let ctx: serde_json::Value = serde_json::to_value(Context {
-                        registry,
-                        group: None,
-                        groups: None,
-                    })
-                    .map_err(|e| InternalError(e.to_string()))?;
-                    self.evaluate_template(log.clone(), ctx, relative_template_path, output_dir)
-                }
-            })?;
+            .filter_map(|file| {
+                let relative_path = match file.path().strip_prefix(&self.path) {
+                    Ok(relative_path) => relative_path,
+                    Err(e) => {
+                        return Some(InvalidTemplateDir {
+                            template_dir: self.path.clone(),
+                            error: e.to_string(),
+                        });
+                    }
+                };
 
-        Ok(())
+                for template in tmpl_matcher.matches(relative_path) {
+                    let filtered_result = match template.filter.apply(context.clone()) {
+                        Ok(result) => result,
+                        Err(e) => return Some(e),
+                    };
+
+                    match template.application_mode {
+                        // The filtered result is evaluated as a single object
+                        ApplicationMode::Single => {
+                            if let Err(e) = self.evaluate_template(
+                                log.clone(),
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()
+                                .ok()?,
+                                relative_path,
+                                output_dir,
+                            ) {
+                                return Some(e);
+                            }
+                        }
+                        // The filtered result is evaluated as an array of objects
+                        // and each object is evaluated independently and in parallel
+                        // with the same template.
+                        ApplicationMode::Each => {
+                            if let Some(values) = filtered_result.as_array() {
+                                let errs = values
+                                    .into_par_iter()
+                                    .filter_map(|result| {
+                                        if let Err(e) = self.evaluate_template(
+                                            log.clone(),
+                                            NewContext { ctx: result }.try_into().ok()?,
+                                            relative_path,
+                                            output_dir,
+                                        ) {
+                                            return Some(e);
+                                        }
+                                        None
+                                    })
+                                    .collect::<Vec<Error>>();
+                                if !errs.is_empty() {
+                                    return Some(Error::compound_error(errs));
+                                }
+                            } else if let Err(e) = self.evaluate_template(
+                                log.clone(),
+                                NewContext {
+                                    ctx: &filtered_result,
+                                }
+                                .try_into()
+                                .ok()?,
+                                relative_path,
+                                output_dir,
+                            ) {
+                                return Some(e);
+                            }
+                        }
+                    }
+                }
+                None
+            })
+            .collect::<Vec<Error>>();
+
+        error::handle_errors(errs)
     }
 
     fn evaluate_template(
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
-        template_path: PathBuf,
+        template_path: &Path,
         output_dir: &Path,
     ) -> Result<(), Error> {
         let template_object = TemplateObject {
@@ -331,18 +307,27 @@ impl TemplateEngine {
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
-            template: template_path.clone(),
+            template: template_path.to_path_buf(),
             error: "".to_string(),
         })?;
 
         engine.add_global("template", Value::from_object(template_object.clone()));
 
         _ = log.loading(&format!("Generating file {}", template_file));
-        let output = engine
+        let template = engine
             .get_template(template_file)
-            .map_err(|e| InternalError(e.to_string()))?
-            .render(ctx)
-            .map_err(|e| InternalError(e.to_string()))?;
+            .map_err(|e| InvalidTemplateFile {
+                template: template_path.to_path_buf(),
+                error: e.to_string(),
+            })?;
+
+        let output = template
+            .render(ctx.clone())
+            .map_err(|e| TemplateEvaluationFailed {
+                template: template_path.to_path_buf(),
+                error_id: e.to_string(),
+                error: error_summary(e),
+            })?;
         let generated_file =
             Self::save_generated_code(output_dir, template_object.file_name(), output)?;
         _ = log.success(&format!("Generated file {:?}", generated_file));
@@ -354,7 +339,10 @@ impl TemplateEngine {
         let mut env = Environment::new();
         env.set_loader(path_loader(&self.path));
         env.set_syntax(self.target_config.template_syntax.clone().into())
-            .map_err(|e| InternalError(e.to_string()))?;
+            .map_err(|e| InvalidConfigFile {
+                config_file: self.path.join(WEAVER_YAML),
+                error: e.to_string(),
+            })?;
 
         // Register case conversion filters based on the target configuration
         env.add_filter(
@@ -401,239 +389,6 @@ impl TemplateEngine {
         Ok(env)
     }
 
-    /// Lists all {template, object} pairs derived from a template directory and a given
-    /// semantic convention registry.
-    fn list_registry_templates<'a>(
-        &self,
-        registry: &'a TemplateRegistry,
-        paths: Paths,
-    ) -> Result<Vec<TemplateObjectPair<'a>>, Error> {
-        let mut templates = Vec::new();
-
-        for entry in paths {
-            if let Ok(tmpl_file_path) = entry {
-                if tmpl_file_path.is_dir() {
-                    continue;
-                }
-                let relative_path =
-                    tmpl_file_path
-                        .strip_prefix(&self.path)
-                        .map_err(|e| InvalidTemplateDir {
-                            template_dir: self.path.clone(),
-                            error: e.to_string(),
-                        })?;
-                let tmpl_file = tmpl_file_path.to_str().ok_or(InvalidTemplateFile {
-                    template: tmpl_file_path.clone(),
-                    error: "".to_string(),
-                })?;
-
-                if tmpl_file.ends_with(".j2") {
-                    // Files with .j2 are either macros or included files
-                    // imported from the template files, so we skip them.
-                    continue;
-                }
-
-                if tmpl_file.ends_with("weaver.yaml") {
-                    // Skip weaver configuration file.
-                    continue;
-                }
-
-                match tmpl_file_path.file_stem().and_then(|s| s.to_str()) {
-                    Some("attribute_group") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::AttributeGroup))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("event") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Event))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("group") => {
-                        registry.groups.iter().for_each(|group| {
-                            templates.push(TemplateObjectPair::Group {
-                                template_path: relative_path.to_path_buf(),
-                                group,
-                            })
-                        });
-                    }
-                    Some("metric") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Metric))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("metric_group") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::MetricGroup))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("registry") => {
-                        templates.push(TemplateObjectPair::Registry {
-                            template_path: relative_path.to_path_buf(),
-                            registry,
-                        });
-                    }
-                    Some("resource") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Resource))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("scope") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Scope))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("span") => {
-                        registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Span))
-                            .for_each(|group| {
-                                templates.push(TemplateObjectPair::Group {
-                                    template_path: relative_path.to_path_buf(),
-                                    group,
-                                })
-                            });
-                    }
-                    Some("attribute_groups") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::AttributeGroup))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("events") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Event))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("groups") => {
-                        let groups = registry.groups.iter().collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("metrics") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Metric))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("metric_groups") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::MetricGroup))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("resources") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Resource))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("scopes") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Scope))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    Some("spans") => {
-                        let groups = registry
-                            .groups
-                            .iter()
-                            .filter(|group| matches!(group.r#type, GroupType::Span))
-                            .collect::<Vec<&TemplateGroup>>();
-                        templates.push(TemplateObjectPair::Groups {
-                            template_path: relative_path.to_path_buf(),
-                            groups,
-                        })
-                    }
-                    _ => templates.push(TemplateObjectPair::Registry {
-                        template_path: relative_path.to_path_buf(),
-                        registry,
-                    }),
-                }
-            } else {
-                return Err(InvalidTemplateDirectory(self.path.clone()));
-            }
-        }
-
-        Ok(templates)
-    }
-
     /// Save the generated code to the output directory.
     fn save_generated_code(
         output_dir: &Path,
@@ -668,10 +423,14 @@ mod tests {
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;
+
     use walkdir::WalkDir;
+
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
+
+    use crate::registry::TemplateRegistry;
 
     #[test]
     fn test() {
@@ -685,13 +444,17 @@ mod tests {
             SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
                 .expect("Failed to resolve registry");
 
+        let template_registry =
+            TemplateRegistry::try_from_resolved_registry(&schema.registries[0], &schema.catalog)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to create the context for the template evaluation: {:?}",
+                        e
+                    )
+                });
+
         engine
-            .generate_registry(
-                logger,
-                &schema.registries[0],
-                &schema.catalog,
-                Path::new("observed_output"),
-            )
+            .generate(logger, &template_registry, Path::new("observed_output"))
             .expect("Failed to generate registry assets");
 
         assert!(cmp_dir("expected_output", "observed_output").unwrap());

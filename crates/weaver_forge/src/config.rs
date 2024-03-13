@@ -6,10 +6,13 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use convert_case::{Case, Casing};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 
-use crate::Error;
-use crate::Error::InvalidConfigFile;
+use crate::error::Error;
+use crate::error::Error::InvalidConfigFile;
+use crate::filter::Filter;
+use crate::WEAVER_YAML;
 
 /// Case convention for naming of functions and structs.
 #[derive(Deserialize, Clone, Debug)]
@@ -57,6 +60,146 @@ pub struct TargetConfig {
     /// Configuration for the template syntax.
     #[serde(default)]
     pub template_syntax: TemplateSyntax,
+
+    /// Configuration for the templates.
+    #[serde(default = "default_templates")]
+    pub templates: Vec<TemplateConfig>,
+}
+
+fn default_templates() -> Vec<TemplateConfig> {
+    vec![
+        TemplateConfig {
+            pattern: Glob::new("**/registry.md").unwrap(),
+            filter: Filter::try_new(".").expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/attribute_group.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/attribute_groups.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/event.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/events.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/group.md").unwrap(),
+            filter: Filter::try_new(".groups").expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/groups.md").unwrap(),
+            filter: Filter::try_new(".groups").expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/metric.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/metrics.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/resource.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/resources.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/scope.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/scopes.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/span.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/spans.md").unwrap(),
+            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
+                .expect("Invalid filter"),
+            application_mode: ApplicationMode::Single,
+        },
+    ]
+}
+
+/// Application mode defining how to apply a template on the result of a
+/// filter applied on a registry.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplicationMode {
+    /// Apply the template to the output of the filter as a whole.
+    Single,
+    /// Apply the template to each item of the list returned by the filter.
+    Each,
+}
+
+/// A template configuration.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct TemplateConfig {
+    /// The pattern used to identify when this template configuration must be
+    /// applied to a specific template file.
+    pub pattern: Glob,
+    /// The filter to apply to the registry before applying the template.
+    /// Applying a filter to a registry will return a list of elements from the
+    /// registry that satisfy the filter.
+    pub filter: Filter,
+    /// The mode to apply the template.
+    /// `single`: Apply the template to the output of the filter as a whole.
+    /// `each`: Apply the template to each item of the list returned by the filter.
+    pub application_mode: ApplicationMode,
+}
+
+/// A template matcher.
+pub struct TemplateMatcher<'a> {
+    templates: &'a [TemplateConfig],
+    glob_set: GlobSet,
+}
+
+impl<'a> TemplateMatcher<'a> {
+    pub fn matches<P: AsRef<Path>>(&self, path: P) -> Vec<&'a TemplateConfig> {
+        self.glob_set
+            .matches(path)
+            .into_iter()
+            .map(|i| &self.templates[i])
+            .collect()
+    }
 }
 
 /// Syntax configuration for the template engine.
@@ -163,7 +306,7 @@ impl CaseConvention {
 
 impl TargetConfig {
     pub fn try_new(lang_path: &Path) -> Result<TargetConfig, Error> {
-        let config_file = lang_path.join("weaver.yaml");
+        let config_file = lang_path.join(WEAVER_YAML);
         if config_file.exists() {
             let reader =
                 std::fs::File::open(config_file.clone()).map_err(|e| InvalidConfigFile {
@@ -177,5 +320,24 @@ impl TargetConfig {
         } else {
             Ok(TargetConfig::default())
         }
+    }
+
+    /// Return a template matcher for the target configuration.
+    pub fn template_matcher(&self) -> Result<TemplateMatcher, Error> {
+        let mut builder = GlobSetBuilder::new();
+
+        self.templates.iter().for_each(|template| {
+            _ = builder.add(template.pattern.clone());
+        });
+
+        builder
+            .build()
+            .map_err(|e| Error::InvalidTemplatePattern {
+                error: e.to_string(),
+            })
+            .map(|glob_set| TemplateMatcher {
+                templates: &self.templates,
+                glob_set,
+            })
     }
 }

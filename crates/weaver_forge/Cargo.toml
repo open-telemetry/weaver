@@ -13,9 +13,14 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "1.0.12", features = ["loader", "custom_syntax"] }
+minijinja = { version = "1.0.12", features = ["loader", "custom_syntax", "debug"] }
 convert_case = "0.6.0"
-glob = "0.3.1"
+globset = { version = "0.4.14", features = ["serde1"] }
+jaq-core = "1.2.1"
+jaq-std = "1.2.1"
+jaq-interpret = "1.2.1"
+jaq-parse = "1.0.2"
+indexmap = "2.2.5"
 
 thiserror.workspace = true
 serde.workspace = true
