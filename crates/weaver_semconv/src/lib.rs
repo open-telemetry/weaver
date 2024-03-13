@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::attribute::AttributeSpec;
-use crate::group::GroupSpec;
+use crate::group::{GroupSpec, GroupType};
 use crate::metric::MetricSpec;
 
 pub mod attribute;
@@ -233,6 +233,20 @@ pub struct SemConvRegistry {
     metric_group_group_attributes: HashMap<String, GroupIds>,
 }
 
+/// Statistics about the semantic convention registry.
+pub struct Stats {
+    /// Number of semconv files.
+    pub file_count: usize,
+    /// Number of semconv groups.
+    pub group_count: usize,
+    /// Breakdown of group statistics by type.
+    pub group_breakdown: HashMap<GroupType, usize>,
+    /// Number of attributes.
+    pub attribute_count: usize,
+    /// Number of metrics.
+    pub metric_count: usize,
+}
+
 /// Represents a collection of ids (attribute or metric ids).
 #[derive(Debug, Default)]
 struct GroupIds {
@@ -406,12 +420,12 @@ impl SemConvRegistry {
             for group in spec.groups.iter() {
                 // Process attributes
                 match group.r#type {
-                    group::GroupType::AttributeGroup
-                    | group::GroupType::Span
-                    | group::GroupType::Resource
-                    | group::GroupType::Metric
-                    | group::GroupType::Event
-                    | group::GroupType::MetricGroup => {
+                    GroupType::AttributeGroup
+                    | GroupType::Span
+                    | GroupType::Resource
+                    | GroupType::Metric
+                    | GroupType::Event
+                    | GroupType::MetricGroup => {
                         let attributes_in_group = self.process_attributes(
                             provenance.clone(),
                             group.id.clone(),
@@ -421,14 +435,14 @@ impl SemConvRegistry {
                         )?;
 
                         let group_attributes = match group.r#type {
-                            group::GroupType::AttributeGroup => {
+                            GroupType::AttributeGroup => {
                                 Some(&mut self.attr_grp_group_attributes)
                             }
-                            group::GroupType::Span => Some(&mut self.span_group_attributes),
-                            group::GroupType::Resource => Some(&mut self.resource_group_attributes),
-                            group::GroupType::Metric => Some(&mut self.metric_group_attributes),
-                            group::GroupType::Event => Some(&mut self.event_group_attributes),
-                            group::GroupType::MetricGroup => {
+                            GroupType::Span => Some(&mut self.span_group_attributes),
+                            GroupType::Resource => Some(&mut self.resource_group_attributes),
+                            GroupType::Metric => Some(&mut self.metric_group_attributes),
+                            GroupType::Event => Some(&mut self.event_group_attributes),
+                            GroupType::MetricGroup => {
                                 Some(&mut self.metric_group_group_attributes)
                             }
                             _ => None,
@@ -459,7 +473,7 @@ impl SemConvRegistry {
 
                 // Process metrics
                 match group.r#type {
-                    group::GroupType::Metric => {
+                    GroupType::Metric => {
                         let metric_name = if let Some(metric_name) = group.metric_name.as_ref() {
                             metric_name.clone()
                         } else {
@@ -517,7 +531,7 @@ impl SemConvRegistry {
                             }
                         }
                     }
-                    group::GroupType::MetricGroup => {
+                    GroupType::MetricGroup => {
                         eprintln!("Warning: group type `metric_group` not implemented yet");
                     }
                     _ => {
@@ -619,17 +633,17 @@ impl SemConvRegistry {
     pub fn attributes(
         &self,
         r#ref: &str,
-        r#type: group::GroupType,
+        r#type: GroupType,
     ) -> Result<HashMap<&String, &AttributeSpec>, Error> {
         let mut attributes = HashMap::new();
         let group_ids = match r#type {
-            group::GroupType::AttributeGroup => self.attr_grp_group_attributes.get(r#ref),
-            group::GroupType::Span => self.span_group_attributes.get(r#ref),
-            group::GroupType::Event => self.event_group_attributes.get(r#ref),
-            group::GroupType::Metric => self.metric_group_attributes.get(r#ref),
-            group::GroupType::MetricGroup => self.metric_group_group_attributes.get(r#ref),
-            group::GroupType::Resource => self.resource_group_attributes.get(r#ref),
-            group::GroupType::Scope => panic!("Scope not implemented yet"),
+            GroupType::AttributeGroup => self.attr_grp_group_attributes.get(r#ref),
+            GroupType::Span => self.span_group_attributes.get(r#ref),
+            GroupType::Event => self.event_group_attributes.get(r#ref),
+            GroupType::Metric => self.metric_group_attributes.get(r#ref),
+            GroupType::MetricGroup => self.metric_group_group_attributes.get(r#ref),
+            GroupType::Resource => self.resource_group_attributes.get(r#ref),
+            GroupType::Scope => panic!("Scope not implemented yet"),
         };
         if let Some(group_ids) = group_ids {
             for attr_id in group_ids.ids.iter() {
@@ -763,6 +777,24 @@ impl SemConvRegistry {
             }
         }
         Ok(attributes_in_group)
+    }
+
+    /// Returns a set of stats about the semantic convention registry.
+    pub fn stats(&self) -> Stats {
+        Stats {
+            file_count: self.specs.len(),
+            group_count: self.specs.iter().map(|sc| sc.spec.groups.len()).sum(),
+            group_breakdown: self
+                .specs
+                .iter()
+                .flat_map(|sc| sc.spec.groups.iter().map(|g| g.r#type.clone()))
+                .fold(HashMap::new(), |mut acc, group_type| {
+                    *acc.entry(group_type).or_insert(0) += 1;
+                    acc
+                }),
+            attribute_count: self.all_attributes.len(),
+            metric_count: self.all_metrics.len(),
+        }
     }
 }
 

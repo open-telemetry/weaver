@@ -3924,6 +3924,7 @@ dependencies = [
  "weaver_cache",
  "weaver_forge",
  "weaver_logger",
+ "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_schema",
  "weaver_semconv",

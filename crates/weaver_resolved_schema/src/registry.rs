@@ -4,13 +4,16 @@
 
 //! A semantic convention registry.
 
-use crate::attribute::AttributeRef;
+use std::collections::{BTreeMap, HashMap, HashSet};
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
+use crate::attribute::AttributeRef;
 use crate::lineage::GroupLineage;
+use crate::registry::GroupStats::{AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span};
 
 /// A semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -21,6 +24,17 @@ pub struct Registry {
     pub registry_url: String,
     /// A list of semantic convention groups.
     pub groups: Vec<Group>,
+}
+
+/// Statistics on a registry.
+#[derive(Debug, Serialize)]
+pub struct Stats {
+    /// Url of the registry.
+    pub url: String,
+    /// Total number of groups.
+    pub group_count: usize,
+    /// Breakdown of group statistics by type.
+    pub group_breakdown: HashMap<GroupType, GroupStats>,
 }
 
 /// Group specification.
@@ -101,6 +115,73 @@ pub struct Group {
     pub lineage: Option<GroupLineage>,
 }
 
+/// Common statistics for a group.
+#[derive(Debug, Serialize, Default)]
+pub struct CommonGroupStats {
+    /// Number of instances in this type of group.
+    pub count: usize,
+    /// Total number of attributes.
+    pub total_attribute_count: usize,
+    /// Total number of groups with a prefix.
+    pub total_with_prefix: usize,
+    /// Total number of groups with a note.
+    pub total_with_note: usize,
+    /// Stability breakdown.
+    pub stability_breakdown: HashMap<Stability, usize>,
+    /// Number of deprecated groups.
+    pub deprecated_count: usize,
+    /// Attribute cardinality breakdown.
+    pub attribute_card_breakdown: BTreeMap<usize, usize>,
+}
+
+/// Statistics on a group.
+#[derive(Debug, Serialize)]
+pub enum GroupStats {
+    /// Statistics for an attribute group.
+    AttributeGroup {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a metric.
+    Metric {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+        /// Metric names.
+        metric_names: HashSet<String>,
+        /// Instrument breakdown.
+        instrument_breakdown: HashMap<InstrumentSpec, usize>,
+        /// Unit breakdown.
+        unit_breakdown: HashMap<String, usize>,
+    },
+    /// Statistics for a metric group.
+    MetricGroup {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for an event.
+    Event {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a resource.
+    Resource {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a scope.
+    Scope {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
+    /// Statistics for a span.
+    Span {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+        /// Span kind breakdown.
+        span_kind_breakdown: HashMap<SpanKindSpec, usize>,
+    },
+}
+
 /// Allow to define additional requirements on the semantic convention.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq)]
 #[serde(deny_unknown_fields)]
@@ -114,6 +195,103 @@ pub struct Constraint {
     /// semantic convention all constraints and required attributes that are
     /// not already defined in the current semantic convention.
     pub include: Option<String>,
+}
+
+impl CommonGroupStats {
+    /// Update the statistics with the provided group.
+    pub fn update_stats(&mut self, group: &Group) {
+        self.count += 1;
+        self.total_attribute_count += group.attributes.len();
+        self.total_with_prefix += !group.prefix.is_empty() as usize;
+        self.total_with_note += !group.note.is_empty() as usize;
+        if let Some(stability) = group.stability.as_ref() {
+            *self.stability_breakdown.entry(stability.clone()).or_insert(0) += 1;
+        }
+        self.deprecated_count += group.deprecated.is_some() as usize;
+        *self.attribute_card_breakdown.entry(group.attributes.len()).or_insert(0) += 1;
+    }
+}
+
+impl Registry {
+    /// Statistics on a registry.
+    pub fn stats(&self) -> Stats {
+        Stats {
+            url: self.registry_url.clone(),
+            group_count: self.groups.len(),
+            group_breakdown: self.groups.iter().fold(HashMap::new(), |mut acc, group| {
+                let group_type = group.r#type.clone();
+
+                acc.entry(group_type)
+                    .and_modify(|stats| {
+                        match stats {
+                            AttributeGroup {
+                                common_stats
+                            } => {
+                                common_stats.update_stats(group);
+                            }
+                            Metric {
+                                common_stats,
+                                metric_names,
+                                instrument_breakdown,
+                                unit_breakdown,
+                            } => {
+                                common_stats.update_stats(group);
+                                metric_names.insert(group.metric_name.clone().unwrap());
+                                *instrument_breakdown.entry(group.instrument.clone().unwrap()).or_insert(0) += 1;
+                                *unit_breakdown.entry(group.unit.clone().unwrap()).or_insert(0) += 1;
+                            }
+                            MetricGroup {
+                                common_stats,
+                            } => {
+                                common_stats.update_stats(group);
+                            }
+                            Event {
+                                common_stats,
+                            } => {
+                                common_stats.update_stats(group);
+                            }
+                            Resource {
+                                common_stats,
+                            } => {
+                                common_stats.update_stats(group);
+                            }
+                            Scope {
+                                common_stats,
+                            } => {
+                                common_stats.update_stats(group);
+                            }
+                            Span {
+                                common_stats,
+                                span_kind_breakdown,
+                            } => {
+                                common_stats.update_stats(group);
+                                if let Some(span_kind) = group.span_kind.clone() {
+                                    *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
+                                }
+                            }
+                        }
+                    })
+                    .or_insert_with(|| match group.r#type {
+                        GroupType::AttributeGroup => AttributeGroup {common_stats: CommonGroupStats::default()},
+                        GroupType::Metric => Metric {
+                            common_stats: CommonGroupStats::default(),
+                            metric_names: HashSet::new(),
+                            instrument_breakdown: HashMap::new(),
+                            unit_breakdown: HashMap::new()
+                        },
+                        GroupType::MetricGroup => MetricGroup {common_stats: CommonGroupStats::default()},
+                        GroupType::Event => Event {common_stats: CommonGroupStats::default()},
+                        GroupType::Resource => Resource {common_stats: CommonGroupStats::default()},
+                        GroupType::Scope => Scope {common_stats: CommonGroupStats::default()},
+                        GroupType::Span => Span {
+                            common_stats: CommonGroupStats::default(),
+                            span_kind_breakdown: HashMap::new(),
+                        },
+                    });
+                acc
+            }),
+        }
+    }
 }
 
 impl Group {

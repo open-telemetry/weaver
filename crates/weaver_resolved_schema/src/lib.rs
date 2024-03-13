@@ -62,3 +62,29 @@ pub struct ResolvedTelemetrySchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub versions: Option<Versions>,
 }
+
+/// Statistics on a resolved telemetry schema.
+#[derive(Debug, Serialize)]
+pub struct Stats {
+    /// Total number of registries.
+    pub registry_count: usize,
+    /// Statistics on each registry.
+    pub registry_stats: Vec<registry::Stats>,
+    /// Statistics on the catalog.
+    pub catalog_stats: catalog::Stats,
+}
+
+impl ResolvedTelemetrySchema {
+    /// Compute statistics on the resolved telemetry schema.
+    pub fn stats(&self) -> Stats {
+        let mut registry_stats = Vec::new();
+        for registry in &self.registries {
+            registry_stats.push(registry.stats());
+        }
+        Stats {
+            registry_count: self.registries.len(),
+            registry_stats,
+            catalog_stats: self.catalog.stats(),
+        }
+    }
+}
