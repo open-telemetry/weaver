@@ -438,20 +438,23 @@ mod tests {
         let engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
             .expect("Failed to create template engine");
 
-        let mut registry =
-            SemConvRegistry::try_from_path("data/*.yaml").expect("Failed to load registry");
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
         let schema =
             SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
                 .expect("Failed to resolve registry");
 
-        let template_registry =
-            TemplateRegistry::try_from_resolved_registry(&schema.registries[0], &schema.catalog)
-                .unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to create the context for the template evaluation: {:?}",
-                        e
-                    )
-                });
+        let template_registry = TemplateRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         engine
             .generate(logger, &template_registry, Path::new("observed_output"))

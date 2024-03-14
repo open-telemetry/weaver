@@ -27,9 +27,12 @@ fn test_semconv_registry_resolution() {
         panic!("Failed to create the git cache repo, error: {e}");
     });
 
+    let registry_id = "default";
+
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
     let semconv_specs = SchemaResolver::load_semconv_registry(
+        registry_id,
         SEMCONV_REGISTRY_URL.to_string(),
         Some(SEMCONV_REGISTRY_MODEL.to_string()),
         &cache,

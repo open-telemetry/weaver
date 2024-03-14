@@ -13,10 +13,12 @@ use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;
 use crate::resource::Resource;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use weaver_version::Versions;
 
 pub mod attribute;
 pub mod catalog;
+mod error;
 pub mod instrumentation_library;
 pub mod lineage;
 pub mod metric;
@@ -25,6 +27,10 @@ pub mod resource;
 pub mod signal;
 pub mod tags;
 pub mod value;
+
+/// The registry ID for the OpenTelemetry semantic conventions.
+/// This ID is reserved and should not be used by any other registry.
+pub const OTEL_REGISTRY_ID: &str = "OTEL";
 
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
@@ -36,10 +42,10 @@ pub struct ResolvedTelemetrySchema {
     pub file_format: String,
     /// Schema URL that this file is published at.
     pub schema_url: String,
-    /// A list of semantic convention registries that can be used in this schema
+    /// A map of named semantic convention registries that can be used in this schema
     /// and its descendants.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub registries: Vec<Registry>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub registries: HashMap<String, Registry>,
     /// Catalog of unique items that are shared across multiple registries
     /// and signals.
     pub catalog: Catalog,
@@ -61,4 +67,40 @@ pub struct ResolvedTelemetrySchema {
     /// <https://github.com/open-telemetry/oteps/blob/main/text/0152-telemetry-schemas.md>
     #[serde(skip_serializing_if = "Option::is_none")]
     pub versions: Option<Versions>,
+}
+
+/// Statistics on a resolved telemetry schema.
+#[derive(Debug, Serialize)]
+pub struct Stats {
+    /// Total number of registries.
+    pub registry_count: usize,
+    /// Statistics on each registry.
+    pub registry_stats: Vec<registry::Stats>,
+    /// Statistics on the catalog.
+    pub catalog_stats: catalog::Stats,
+}
+
+impl ResolvedTelemetrySchema {
+    /// Get a registry by its ID.
+    pub fn registry(&self, registry_id: &str) -> Option<&Registry> {
+        self.registries.get(registry_id)
+    }
+
+    /// Get the catalog of the resolved telemetry schema.
+    pub fn catalog(&self) -> &Catalog {
+        &self.catalog
+    }
+
+    /// Compute statistics on the resolved telemetry schema.
+    pub fn stats(&self) -> Stats {
+        let mut registry_stats = Vec::new();
+        for registry in self.registries.values() {
+            registry_stats.push(registry.stats());
+        }
+        Stats {
+            registry_count: self.registries.len(),
+            registry_stats,
+            catalog_stats: self.catalog.stats(),
+        }
+    }
 }

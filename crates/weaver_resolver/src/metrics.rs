@@ -9,7 +9,6 @@ use weaver_schema::attribute::to_schema_attributes;
 use weaver_schema::metric_group::Metric;
 use weaver_schema::schema_spec::SchemaSpec;
 use weaver_schema::univariate_metric::UnivariateMetric;
-use weaver_semconv::group::InstrumentSpec;
 use weaver_semconv::SemConvRegistry;
 use weaver_version::VersionChanges;
 
@@ -154,35 +153,4 @@ pub fn resolve_metrics(
         }
     }
     Ok(())
-}
-
-/// Converts a semantic convention metric to a resolved metric that will be
-/// part of the catalog of metrics of a resolved telemetry schema.
-///
-/// Note: References to attribute of the metric are not part of the catalog of
-/// metrics but are part of the schema specification in the instrumentation
-/// library section.
-pub fn semconv_to_resolved_metric(
-    metric: &weaver_semconv::metric::MetricSpec,
-) -> weaver_resolved_schema::metric::Metric {
-    weaver_resolved_schema::metric::Metric {
-        name: metric.name.clone(),
-        brief: metric.brief.clone(),
-        note: metric.note.clone(),
-        instrument: resolve_instrument(&metric.instrument),
-        unit: metric.unit.clone(),
-        tags: None, // ToDo we need a mechanism to transmit tags here from the input schema.
-    }
-}
-
-/// Resolve a metric instrument.
-pub fn resolve_instrument(
-    instrument: &InstrumentSpec,
-) -> weaver_resolved_schema::metric::Instrument {
-    match instrument {
-        InstrumentSpec::Counter => weaver_resolved_schema::metric::Instrument::Counter,
-        InstrumentSpec::UpDownCounter => weaver_resolved_schema::metric::Instrument::UpDownCounter,
-        InstrumentSpec::Gauge => weaver_resolved_schema::metric::Instrument::Gauge,
-        InstrumentSpec::Histogram => weaver_resolved_schema::metric::Instrument::Histogram,
-    }
 }

@@ -53,8 +53,11 @@ pub(crate) fn command(
         args.registry
     ));
 
+    let registry_id = "default";
+
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
+        registry_id,
         args.registry.to_string(),
         args.registry_git_sub_dir.clone(),
         cache,
@@ -75,14 +78,18 @@ pub(crate) fn command(
     )
     .expect("Failed to create template engine");
 
-    let template_registry =
-        TemplateRegistry::try_from_resolved_registry(&schema.registries[0], &schema.catalog)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+    let template_registry = TemplateRegistry::try_from_resolved_registry(
+        schema
+            .registry(registry_id)
+            .expect("Failed to get the registry from the resolved schema"),
+        schema.catalog(),
+    )
+    .unwrap_or_else(|e| {
+        panic!(
+            "Failed to create the context for the template evaluation: {:?}",
+            e
+        )
+    });
 
     match engine.generate(logger.clone(), &template_registry, args.output.as_path()) {
         Ok(_) => logger.success("Artifacts generated successfully"),

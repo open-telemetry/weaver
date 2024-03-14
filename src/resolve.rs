@@ -65,7 +65,9 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
     });
     match command.command {
         ResolveSubCommand::Registry(ref command) => {
+            let registry_id = "default";
             let mut registry = SchemaResolver::semconv_registry_from_imports(
+                registry_id,
                 &[SemConvImport::GitUrl {
                     git_url: command.registry.clone(),
                     path: command.path.clone(),

@@ -30,9 +30,12 @@ pub struct RegistryCheckArgs {
 pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryCheckArgs) {
     log.loading(&format!("Checking registry `{}`", args.registry));
 
+    let registry_id = "default";
+
     // Load the semantic convention registry into a local cache.
     // No parsing errors should be observed.
     let semconv_specs = SchemaResolver::load_semconv_registry(
+        registry_id,
         args.registry.to_string(),
         args.registry_git_sub_dir.clone(),
         cache,

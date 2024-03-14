@@ -2,23 +2,20 @@
 
 //! Search a semantic convention registry.
 
+use crate::registry::RegistryArgs;
 use clap::Args;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
 pub struct RegistrySearchArgs {
-    /// Local path or Git URL of the semantic convention registry.
-    #[arg(
-        short = 'r',
-        long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
-    )]
-    pub registry: String,
+    /// Parameters to specify the semantic convention registry
+    #[command(flatten)]
+    registry: RegistryArgs,
 
-    /// Optional path in the Git repository where the semantic convention
-    /// registry is located
-    #[arg(short = 'd', long, default_value = "model")]
-    pub registry_git_sub_dir: Option<String>,
+    /// Flag to indicate if lineage information should be included in the
+    /// resolved schema (not yet implemented)
+    #[arg(long, default_value = "false")]
+    lineage: bool,
 
     /// The telemetry schema containing the versions (url or file)
     #[arg(short, long)]

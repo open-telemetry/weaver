@@ -200,7 +200,7 @@ fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
 }
 
 /// The different types of groups (specification).
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum GroupType {
     /// Attribute group (attribute_group type) defines a set of attributes that
@@ -232,7 +232,7 @@ impl Default for GroupType {
 }
 
 /// The span kind.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum SpanKindSpec {
     /// An internal span.
@@ -263,7 +263,7 @@ pub struct ConstraintSpec {
 }
 
 /// The type of the metric.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum InstrumentSpec {
     /// An up-down counter metric.

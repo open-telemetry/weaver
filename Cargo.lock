@@ -1652,9 +1652,9 @@ checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
 name = "hifijson"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85ef6b41c333e6dd2a4aaa59125a19b633cd17e7aaf372b2260809777bcdef4a"
+checksum = "18ae468bcb4dfecf0e4949ee28abbc99076b6a0077f51ddbc94dbfff8e6a870c"
 
 [[package]]
 name = "home"
@@ -3924,6 +3924,7 @@ dependencies = [
  "weaver_cache",
  "weaver_forge",
  "weaver_logger",
+ "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_schema",
  "weaver_semconv",
@@ -3978,6 +3979,7 @@ dependencies = [
  "ordered-float",
  "serde",
  "serde_json",
+ "thiserror",
  "weaver_semconv",
  "weaver_version",
 ]

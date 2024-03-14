@@ -11,6 +11,7 @@ edition.workspace = true
 weaver_version = { path = "../weaver_version" }
 weaver_semconv = { path = "../weaver_semconv" }
 
+thiserror.workspace = true
 serde.workspace = true
 ordered-float.workspace = true
 
