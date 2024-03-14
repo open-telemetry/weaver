@@ -13,6 +13,7 @@ use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;
 use crate::resource::Resource;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use weaver_version::Versions;
 
 pub mod attribute;
@@ -26,6 +27,10 @@ pub mod signal;
 pub mod tags;
 pub mod value;
 
+/// The registry ID for the OpenTelemetry semantic conventions.
+/// This ID is reserved and should not be used by any other registry.
+pub const OTEL_REGISTRY_ID: &str = "OTEL";
+
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
@@ -36,10 +41,10 @@ pub struct ResolvedTelemetrySchema {
     pub file_format: String,
     /// Schema URL that this file is published at.
     pub schema_url: String,
-    /// A list of semantic convention registries that can be used in this schema
+    /// A map of named semantic convention registries that can be used in this schema
     /// and its descendants.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub registries: Vec<Registry>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub registries: HashMap<String, Registry>,
     /// Catalog of unique items that are shared across multiple registries
     /// and signals.
     pub catalog: Catalog,
@@ -75,10 +80,25 @@ pub struct Stats {
 }
 
 impl ResolvedTelemetrySchema {
+    /// Get the official OpenTelemetry registry if imported in the schema.
+    pub fn otel_registry(&self) -> Option<&Registry> {
+        self.registries.get(OTEL_REGISTRY_ID)
+    }
+
+    /// Get a registry by its ID.
+    pub fn registry(&self, registry_id: &str) -> Option<&Registry> {
+        self.registries.get(registry_id)
+    }
+
+    /// Get the catalog of the resolved telemetry schema.
+    pub fn catalog(&self) -> &Catalog {
+        &self.catalog
+    }
+
     /// Compute statistics on the resolved telemetry schema.
     pub fn stats(&self) -> Stats {
         let mut registry_stats = Vec::new();
-        for registry in &self.registries {
+        for (_, registry) in &self.registries {
             registry_stats.push(registry.stats());
         }
         Stats {

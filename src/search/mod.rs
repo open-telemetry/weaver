@@ -213,7 +213,9 @@ fn search_registry_command2(
     cache: &Cache,
     registry_args: &SearchRegistry2,
 ) {
+    let registry_id = "default";
     let semconv_specs = SchemaResolver::load_semconv_registry(
+        registry_id,
         registry_args.registry.clone(),
         registry_args.path.clone(),
         cache,

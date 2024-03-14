@@ -62,8 +62,11 @@ pub(crate) fn command(
 ) {
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
+    let registry_id = "default";
+
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
+        registry_id,
         args.registry.registry.to_string(),
         args.registry.registry_git_sub_dir.clone(),
         cache,
@@ -90,8 +93,10 @@ pub(crate) fn command(
         // catalog of attributes.
         false => {
             let registry = TemplateRegistry::try_from_resolved_registry(
-                &schema.registries[0],
-                &schema.catalog,
+                &schema
+                    .registry(registry_id)
+                    .expect("Failed to get the registry from the resolved schema"),
+                schema.catalog(),
             )
             .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
             apply_format(&args.format, &registry)

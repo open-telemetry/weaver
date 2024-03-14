@@ -2,6 +2,7 @@
 
 //! Compute stats on a semantic convention registry.
 
+use crate::registry::RegistryArgs;
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
@@ -10,7 +11,6 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
-use crate::registry::RegistryArgs;
 
 /// Parameters for the `registry stats` sub-command
 #[derive(Debug, Args)]
@@ -22,25 +22,30 @@ pub struct RegistryStatsArgs {
 
 /// Compute stats on a semantic convention registry.
 pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
-    log.loading(&format!("Compute statistics on the registry `{}`", args.registry.registry));
+    log.loading(&format!(
+        "Compute statistics on the registry `{}`",
+        args.registry.registry
+    ));
+
+    let registry_id = "default";
 
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
+        registry_id,
         args.registry.registry.to_string(),
         args.registry.registry_git_sub_dir.clone(),
         cache,
         log.clone(),
     )
-        .unwrap_or_else(|e| {
-            panic!("Failed to load and parse the semantic convention registry, error: {e}");
-        });
+    .unwrap_or_else(|e| {
+        panic!("Failed to load and parse the semantic convention registry, error: {e}");
+    });
 
     display_semconv_registry_stats(&registry);
 
     // Resolve the semantic convention registry.
-    let schema =
-        SchemaResolver::resolve_semantic_convention_registry(&mut registry, log.clone())
-            .expect("Failed to resolve registry");
+    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log.clone())
+        .expect("Failed to resolve registry");
 
     display_schema_stats(&schema);
 }
@@ -64,10 +69,18 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                     display_common_group_stats(group_type, common_stats);
                     total_number_of_attributes += common_stats.total_attribute_count;
                 }
-                GroupStats::Metric { common_stats, metric_names, instrument_breakdown, unit_breakdown } => {
+                GroupStats::Metric {
+                    common_stats,
+                    metric_names,
+                    instrument_breakdown,
+                    unit_breakdown,
+                } => {
                     display_common_group_stats(group_type, common_stats);
                     total_number_of_attributes += common_stats.total_attribute_count;
-                    println!("      - Distinct number of metric names: {}", metric_names.len());
+                    println!(
+                        "      - Distinct number of metric names: {}",
+                        metric_names.len()
+                    );
                     println!("      - Instrument breakdown:");
                     for (instrument, count) in instrument_breakdown.iter() {
                         println!("        - {}: {}", instrument, count);
@@ -93,14 +106,16 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                     display_common_group_stats(group_type, common_stats);
                     total_number_of_attributes += common_stats.total_attribute_count;
                 }
-                GroupStats::Span { common_stats, span_kind_breakdown } => {
+                GroupStats::Span {
+                    common_stats,
+                    span_kind_breakdown,
+                } => {
                     display_common_group_stats(group_type, common_stats);
                     total_number_of_attributes += common_stats.total_attribute_count;
                     println!("      - Span kind breakdown:");
                     for (span_kind, count) in span_kind_breakdown.iter() {
                         println!("        - {:#?}: {}", span_kind, count);
                     }
-
                 }
             }
         }
@@ -108,7 +123,11 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
 
     let catalog_stats = &stats.catalog_stats;
     println!("Shared Catalog (after resolution and deduplication):");
-    println!("  - Number of deduplicated attributes: {} ({}%)", catalog_stats.attribute_count, catalog_stats.attribute_count * 100 / total_number_of_attributes);
+    println!(
+        "  - Number of deduplicated attributes: {} ({}%)",
+        catalog_stats.attribute_count,
+        catalog_stats.attribute_count * 100 / total_number_of_attributes
+    );
     println!("    - Attribute types breakdown:");
     for (attribute_type, count) in catalog_stats.attribute_type_breakdown.iter() {
         println!("      - {}: {}", attribute_type, count);
@@ -118,31 +137,63 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
         println!("      - {}: {}", requirement_level, count);
     }
     if !catalog_stats.stability_breakdown.is_empty() {
-        println!("    - Stability breakdown ({}%):", catalog_stats.stability_breakdown.values().sum::<usize>() * 100 / catalog_stats.attribute_count);
+        println!(
+            "    - Stability breakdown ({}%):",
+            catalog_stats.stability_breakdown.values().sum::<usize>() * 100
+                / catalog_stats.attribute_count
+        );
         for (stability, count) in catalog_stats.stability_breakdown.iter() {
             println!("      - {}: {}", stability, count);
         }
     }
     if catalog_stats.deprecated_count > 0 {
-        println!("    - Total number of deprecated attributes: {} ({}%)", catalog_stats.deprecated_count, catalog_stats.deprecated_count * 100 / catalog_stats.attribute_count);
+        println!(
+            "    - Total number of deprecated attributes: {} ({}%)",
+            catalog_stats.deprecated_count,
+            catalog_stats.deprecated_count * 100 / catalog_stats.attribute_count
+        );
     }
 }
 
 fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroupStats) {
     println!("    - {} {:#?}s", common_stats.count, group_type);
-    println!("      - Total number of attributes: {}", common_stats.total_attribute_count);
-    println!("        - [(attributes card: frequency), ...]: [{}]", common_stats.attribute_card_breakdown.iter().map(|(card, count)| format!("{}: {}", *card, *count)).collect::<Vec<_>>().join(", "));
-    println!("      - Number of group with a prefix: {} ({}%)", common_stats.total_with_prefix, common_stats.total_with_prefix * 100 / common_stats.count);
-    println!("      - Number of group with a note: {} ({}%)", common_stats.total_with_note, common_stats.total_with_note * 100 / common_stats.count);
+    println!(
+        "      - Total number of attributes: {}",
+        common_stats.total_attribute_count
+    );
+    println!(
+        "        - [(attributes card: frequency), ...]: [{}]",
+        common_stats
+            .attribute_card_breakdown
+            .iter()
+            .map(|(card, count)| format!("{}: {}", *card, *count))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    println!(
+        "      - Number of group with a prefix: {} ({}%)",
+        common_stats.total_with_prefix,
+        common_stats.total_with_prefix * 100 / common_stats.count
+    );
+    println!(
+        "      - Number of group with a note: {} ({}%)",
+        common_stats.total_with_note,
+        common_stats.total_with_note * 100 / common_stats.count
+    );
     if !common_stats.stability_breakdown.is_empty() {
-        println!("      - Stability breakdown ({}%):", common_stats.stability_breakdown.values().sum::<usize>() * 100 / common_stats.count);
+        println!(
+            "      - Stability breakdown ({}%):",
+            common_stats.stability_breakdown.values().sum::<usize>() * 100 / common_stats.count
+        );
         for (stability, count) in common_stats.stability_breakdown.iter() {
             println!("        - {}: {}", stability, count);
         }
     }
     if common_stats.deprecated_count > 0 {
-        println!("      - Total number of deprecated groups: {} ({}%)", common_stats.deprecated_count, common_stats.deprecated_count * 100 / common_stats.count);
+        println!(
+            "      - Total number of deprecated groups: {} ({}%)",
+            common_stats.deprecated_count,
+            common_stats.deprecated_count * 100 / common_stats.count
+        );
     }
 }
-
-

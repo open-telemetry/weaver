@@ -178,6 +178,9 @@ pub struct MetricSpecWithProvenance {
 /// specifications indexed by group id.
 #[derive(Default, Debug)]
 pub struct SemConvRegistry {
+    /// The id of the semantic convention registry.
+    id: String,
+
     /// The number of semantic convention assets added in the semantic convention registry.
     /// A asset can be a semantic convention loaded from a file or an URL.
     asset_count: usize,
@@ -315,16 +318,25 @@ struct MetricToResolve {
 
 impl SemConvRegistry {
     /// Create a new semantic convention registry.
+    pub fn new(id: &str) -> Self {
+        SemConvRegistry {
+            id: id.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Create a new semantic convention registry.
     ///
     /// # Arguments
     ///
+    /// * `registry_id` - The id of the semantic convention registry.
     /// * `path_pattern` - A glob pattern to load semantic convention registry from files.
     ///
     /// # Returns
     ///
     /// A new semantic convention registry.
-    pub fn try_from_path(path_pattern: &str) -> Result<Self, Error> {
-        let mut registry = SemConvRegistry::default();
+    pub fn try_from_path(registry_id: &str, path_pattern: &str) -> Result<Self, Error> {
+        let mut registry = SemConvRegistry::new(registry_id);
         for sc_entry in glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
             path_pattern: path_pattern.to_string(),
             error: e.to_string(),
@@ -336,6 +348,11 @@ impl SemConvRegistry {
             registry.load_from_file(path_buf.as_path())?;
         }
         Ok(registry)
+    }
+
+    /// Returns the id of the semantic convention registry.
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     /// Load and add a semantic convention file to the semantic convention registry.
@@ -435,16 +452,12 @@ impl SemConvRegistry {
                         )?;
 
                         let group_attributes = match group.r#type {
-                            GroupType::AttributeGroup => {
-                                Some(&mut self.attr_grp_group_attributes)
-                            }
+                            GroupType::AttributeGroup => Some(&mut self.attr_grp_group_attributes),
                             GroupType::Span => Some(&mut self.span_group_attributes),
                             GroupType::Resource => Some(&mut self.resource_group_attributes),
                             GroupType::Metric => Some(&mut self.metric_group_attributes),
                             GroupType::Event => Some(&mut self.event_group_attributes),
-                            GroupType::MetricGroup => {
-                                Some(&mut self.metric_group_group_attributes)
-                            }
+                            GroupType::MetricGroup => Some(&mut self.metric_group_group_attributes),
                             _ => None,
                         };
 

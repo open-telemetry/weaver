@@ -6,6 +6,7 @@
 #![deny(clippy::print_stdout)]
 #![deny(clippy::print_stderr)]
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
@@ -239,7 +240,9 @@ impl SchemaResolver {
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<(), Error> {
-        let sem_conv_catalog = Self::semconv_registry_from_schema(schema, cache, log.clone())?;
+        let registry_id = "default"; // ToDo add support for multiple registries
+        let sem_conv_catalog =
+            Self::semconv_registry_from_schema(registry_id, schema, cache, log.clone())?;
         let start = Instant::now();
 
         // Merges the versions of the parent schema into the current schema.
@@ -280,12 +283,14 @@ impl SchemaResolver {
 
     /// Loads and resolves a semantic convention registry from the given Git URL.
     pub fn resolve_semconv_registry(
+        registry_id: &str,
         registry_git_url: String,
         path: Option<String>,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
+            registry_id,
             &[SemConvImport::GitUrl {
                 git_url: registry_git_url,
                 path,
@@ -298,12 +303,14 @@ impl SchemaResolver {
 
     /// Loads a semantic convention registry from the given Git URL.
     pub fn load_semconv_registry(
+        registry_id: &str,
         registry_git_url: String,
         path: Option<String>,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
         Self::load_semconv_registry_from_imports(
+            registry_id,
             &[SemConvImport::GitUrl {
                 git_url: registry_git_url,
                 path,
@@ -367,11 +374,13 @@ impl SchemaResolver {
 
     /// Loads a semantic convention registry from the given schema.
     pub fn semconv_registry_from_schema(
+        registry_id: &str,
         schema: &TelemetrySchema,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
+            registry_id,
             &schema.merged_semantic_conventions(),
             ResolverConfig::default(),
             cache,
@@ -381,12 +390,14 @@ impl SchemaResolver {
 
     /// Loads a semantic convention registry from the given semantic convention imports.
     pub fn load_semconv_registry_from_imports(
+        registry_id: &str,
         imports: &[SemConvImport],
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
-        let registry = Self::create_semantic_convention_registry(imports, cache, log.clone())?;
+        let registry =
+            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone())?;
         log.success(&format!(
             "Loaded {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
             registry.asset_count(),
@@ -400,13 +411,15 @@ impl SchemaResolver {
 
     /// Loads a semantic convention registry from the given semantic convention imports.
     pub fn semconv_registry_from_imports(
+        registry_id: &str,
         imports: &[SemConvImport],
         resolver_config: ResolverConfig,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
-        let mut registry = Self::create_semantic_convention_registry(imports, cache, log.clone())?;
+        let mut registry =
+            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone())?;
         let warnings = registry
             .resolve(resolver_config)
             .map_err(|e| Error::SemConvError {
@@ -448,10 +461,13 @@ impl SchemaResolver {
             metrics,
         };
 
+        let mut registries = HashMap::new();
+        registries.insert(registry.id().into(), resolved_registry);
+
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "1.0.0".to_string(),
             schema_url: "".to_string(),
-            registries: vec![resolved_registry],
+            registries,
             catalog,
             resource: None,
             instrumentation_library: None,
@@ -524,12 +540,13 @@ impl SchemaResolver {
 
     /// Creates a semantic convention registry from the given telemetry schema.
     fn create_semantic_convention_registry(
+        registry_id: &str,
         sem_convs: &[SemConvImport],
         cache: &Cache,
         log: impl Logger + Sync,
     ) -> Result<SemConvRegistry, Error> {
         // Load all the semantic convention catalogs.
-        let mut sem_conv_catalog = SemConvRegistry::default();
+        let mut sem_conv_catalog = SemConvRegistry::new(registry_id);
         let total_file_count = sem_convs.len();
         let loaded_files_count = AtomicUsize::new(0);
         let error_count = AtomicUsize::new(0);
