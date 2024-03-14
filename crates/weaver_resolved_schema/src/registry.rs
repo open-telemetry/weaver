@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
-use crate::attribute::AttributeRef;
+use crate::attribute::{Attribute, AttributeRef};
+use crate::catalog::Catalog;
+use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
     AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span,
@@ -221,6 +223,17 @@ impl CommonGroupStats {
 }
 
 impl Registry {
+    /// Returns the groups of the specified type.
+    ///
+    /// # Arguments
+    ///
+    /// * `group_type` - The type of the groups to return.
+    pub fn groups(&self, group_type: GroupType) -> impl Iterator<Item = &Group> {
+        self.groups
+            .iter()
+            .filter(move |group| group_type == group.r#type)
+    }
+
     /// Statistics on a registry.
     pub fn stats(&self) -> Stats {
         Stats {
@@ -305,6 +318,39 @@ impl Registry {
 }
 
 impl Group {
+    /// Returns the fully resolved attributes of the group.
+    /// The attribute references are resolved via the provided catalog.
+    /// If an attribute reference is not found in the catalog, an error is
+    /// returned. The errors are collected and returned as a compound error.
+    ///
+    /// # Arguments
+    ///
+    /// * `catalog` - The catalog to resolve the attribute references.
+    ///
+    /// # Returns
+    ///
+    /// The fully resolved attributes of the group.
+    pub fn attributes<'a>(&'a self, catalog: &'a Catalog) -> Result<Vec<&'a Attribute>, Error> {
+        let mut errors = Vec::new();
+        let attributes = self
+            .attributes
+            .iter()
+            .flat_map(|attr_ref| match catalog.attribute(attr_ref) {
+                Some(attr) => Some(attr),
+                None => {
+                    errors.push(Error::AttributeNotFound {
+                        group_id: self.id.clone(),
+                        attr_ref: *attr_ref,
+                    });
+                    None
+                }
+            })
+            .collect();
+
+        handle_errors(errors)?;
+        Ok(attributes)
+    }
+
     /// Returns true if the group contains at least one `include` constraint.
     pub fn has_include(&self) -> bool {
         self.constraints.iter().any(|c| c.include.is_some())

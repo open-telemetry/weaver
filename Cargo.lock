@@ -3979,6 +3979,7 @@ dependencies = [
  "ordered-float",
  "serde",
  "serde_json",
+ "thiserror",
  "weaver_semconv",
  "weaver_version",
 ]

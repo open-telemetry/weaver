@@ -18,6 +18,7 @@ use weaver_version::Versions;
 
 pub mod attribute;
 pub mod catalog;
+mod error;
 pub mod instrumentation_library;
 pub mod lineage;
 pub mod metric;
@@ -80,11 +81,6 @@ pub struct Stats {
 }
 
 impl ResolvedTelemetrySchema {
-    /// Get the official OpenTelemetry registry if imported in the schema.
-    pub fn otel_registry(&self) -> Option<&Registry> {
-        self.registries.get(OTEL_REGISTRY_ID)
-    }
-
     /// Get a registry by its ID.
     pub fn registry(&self, registry_id: &str) -> Option<&Registry> {
         self.registries.get(registry_id)

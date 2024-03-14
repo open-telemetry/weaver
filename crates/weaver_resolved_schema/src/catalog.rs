@@ -4,24 +4,22 @@
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
 use crate::attribute::{Attribute, AttributeRef};
-use crate::metric::Metric;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
-/// A catalog of attributes, metrics, and other telemetry signals that are shared
-/// in the Resolved Telemetry Schema.
+/// A catalog of indexed attributes shared across semconv groups, or signals.
+/// Attribute references are used to refer to attributes in the catalog.
+///
+/// Note : In the future, this catalog could be extended with other entities.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<Attribute>,
-    /// Catalog of metrics used in the schema.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub metrics: Vec<Metric>,
 }
 
 /// Statistics on a catalog.
@@ -31,8 +29,6 @@ pub struct Stats {
     pub attribute_count: usize,
     /// Breakdown of attribute types.
     pub attribute_type_breakdown: BTreeMap<String, usize>,
-    /// Total number of metrics.
-    pub metric_count: usize,
     /// Breakdown of requirement levels.
     pub requirement_level_breakdown: BTreeMap<String, usize>,
     /// Breakdown of stability levels.
@@ -106,7 +102,6 @@ impl Catalog {
                 .iter()
                 .filter(|attr| attr.deprecated.is_some())
                 .count(),
-            metric_count: self.metrics.len(),
         }
     }
 }

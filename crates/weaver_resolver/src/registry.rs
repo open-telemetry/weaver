@@ -514,15 +514,19 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::error::Error;
 
     use glob::glob;
 
+    use weaver_logger::TestLogger;
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::{Constraint, Registry};
+    use weaver_semconv::group::GroupType;
     use weaver_semconv::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::{check_group_any_of_constraints, resolve_semconv_registry};
+    use crate::SchemaResolver;
 
     /// Test the resolution of semantic convention registries stored in the
     /// data directory. The provided test cases cover the following resolution
@@ -554,22 +558,12 @@ mod tests {
 
             println!("Testing `{}`", test_dir);
 
-            let mut sc_specs = SemConvRegistry::default();
-            for sc_entry in
-                glob(&format!("{}/registry/*.yaml", test_dir)).expect("Failed to read glob pattern")
-            {
-                let path_buf = sc_entry.expect("Failed to read semconv file");
-                let semconv_file = path_buf
-                    .to_str()
-                    .expect("Failed to convert semconv file to string");
-                let result = sc_specs.load_from_file(semconv_file);
-                assert!(
-                    result.is_ok(),
-                    "Failed to load semconv file `{}, error: {:#?}",
-                    semconv_file,
-                    result.err().unwrap()
-                );
-            }
+            let registry_id = "default";
+            let sc_specs = SemConvRegistry::try_from_path(
+                registry_id,
+                &format!("{}/registry/*.yaml", test_dir),
+            )
+            .expect("Failed to load semconv specs");
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
@@ -677,6 +671,53 @@ mod tests {
         ];
         let result = check_group_any_of_constraints("group", group_attr_names, &constraints);
         assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_api_usage() -> Result<(), Box<dyn Error>> {
+        let logger = TestLogger::new();
+        let registry_id = "local";
+        let registry_dir = "data/registry-test-7-spans/registry/*.yaml";
+
+        // Load a semantic convention registry from a local directory.
+        // Note: A method is also available to load a registry from a git
+        // repository.
+        let mut semconv_registry = SemConvRegistry::try_from_path(registry_id, registry_dir)?;
+
+        // Resolve the semantic convention registry.
+        let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(
+            &mut semconv_registry,
+            logger.clone(),
+        )?;
+
+        // Get the resolved registry by its ID.
+        let resolved_registry = resolved_schema.registry(registry_id).unwrap();
+
+        // Get the catalog of the resolved telemetry schema.
+        let catalog = resolved_schema.catalog();
+
+        // Scan over all the metrics
+        let mut metric_count = 0;
+        for metric in resolved_registry.groups(GroupType::Metric) {
+            metric_count += 1;
+            let _resolved_attributes = metric.attributes(catalog)?;
+            // Do something with the resolved attributes.
+        }
+        assert_eq!(
+            metric_count, 0,
+            "No metric in the resolved registry expected"
+        );
+
+        // Scan over all the spans
+        let mut span_count = 0;
+        for span in resolved_registry.groups(GroupType::Span) {
+            span_count += 1;
+            let _resolved_attributes = span.attributes(catalog)?;
+            // Do something with the resolved attributes.
+        }
+        assert_eq!(span_count, 11, "11 spans in the resolved registry expected");
 
         Ok(())
     }
