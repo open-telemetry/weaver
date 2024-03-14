@@ -10,7 +10,7 @@ edition.workspace = true
 [dependencies]
 tempdir = "0.3.7"
 dirs = "5.0.1"
-gix = { version = "0.58.0", default-features = false, features = [
+gix = { version = "0.60.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
