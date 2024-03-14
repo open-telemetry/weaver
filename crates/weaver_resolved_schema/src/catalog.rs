@@ -3,10 +3,10 @@
 //! Defines the catalog of attributes, metrics, and other telemetry items
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
-use std::collections::{BTreeMap, HashMap};
 use crate::attribute::{Attribute, AttributeRef};
 use crate::metric::Metric;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::stability::Stability;
@@ -63,10 +63,10 @@ impl Catalog {
                 .attributes
                 .iter()
                 .map(|attr| {
-                    if let AttributeType::Enum {members, ..} = &attr.r#type {
-                        (format!("enum(card:{:03})",members.len()), 1)
+                    if let AttributeType::Enum { members, .. } = &attr.r#type {
+                        (format!("enum(card:{:03})", members.len()), 1)
                     } else {
-                        (format!("{:#}",attr.r#type), 1)
+                        (format!("{:#}", attr.r#type), 1)
                     }
                 })
                 .fold(BTreeMap::new(), |mut acc, (k, v)| {
@@ -79,10 +79,12 @@ impl Catalog {
                 .map(|attr| {
                     let requirement_level = match &attr.requirement_level {
                         RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => "required",
-                        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => "recommended",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => {
+                            "recommended"
+                        }
                         RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => "opt_in",
-                        RequirementLevel::Recommended {..} => "recommended",
-                        RequirementLevel::ConditionallyRequired {..} => "conditionally_required",
+                        RequirementLevel::Recommended { .. } => "recommended",
+                        RequirementLevel::ConditionallyRequired { .. } => "conditionally_required",
                     };
                     (requirement_level.to_string(), 1)
                 })

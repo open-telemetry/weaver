@@ -2,8 +2,8 @@
 
 //! Search a semantic convention registry.
 
-use clap::Args;
 use crate::registry::RegistryArgs;
+use clap::Args;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]

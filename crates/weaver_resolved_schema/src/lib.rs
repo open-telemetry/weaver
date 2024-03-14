@@ -98,7 +98,7 @@ impl ResolvedTelemetrySchema {
     /// Compute statistics on the resolved telemetry schema.
     pub fn stats(&self) -> Stats {
         let mut registry_stats = Vec::new();
-        for (_, registry) in &self.registries {
+        for registry in &self.registries.values() {
             registry_stats.push(registry.stats());
         }
         Stats {

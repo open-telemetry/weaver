@@ -13,7 +13,9 @@ use weaver_semconv::stability::Stability;
 
 use crate::attribute::AttributeRef;
 use crate::lineage::GroupLineage;
-use crate::registry::GroupStats::{AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span};
+use crate::registry::GroupStats::{
+    AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span,
+};
 
 /// A semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -205,10 +207,16 @@ impl CommonGroupStats {
         self.total_with_prefix += !group.prefix.is_empty() as usize;
         self.total_with_note += !group.note.is_empty() as usize;
         if let Some(stability) = group.stability.as_ref() {
-            *self.stability_breakdown.entry(stability.clone()).or_insert(0) += 1;
+            *self
+                .stability_breakdown
+                .entry(stability.clone())
+                .or_insert(0) += 1;
         }
         self.deprecated_count += group.deprecated.is_some() as usize;
-        *self.attribute_card_breakdown.entry(group.attributes.len()).or_insert(0) += 1;
+        *self
+            .attribute_card_breakdown
+            .entry(group.attributes.len())
+            .or_insert(0) += 1;
     }
 }
 
@@ -222,67 +230,69 @@ impl Registry {
                 let group_type = group.r#type.clone();
 
                 acc.entry(group_type)
-                    .and_modify(|stats| {
-                        match stats {
-                            AttributeGroup {
-                                common_stats
-                            } => {
-                                common_stats.update_stats(group);
-                            }
-                            Metric {
-                                common_stats,
-                                metric_names,
-                                instrument_breakdown,
-                                unit_breakdown,
-                            } => {
-                                common_stats.update_stats(group);
-                                metric_names.insert(group.metric_name.clone().unwrap());
-                                *instrument_breakdown.entry(group.instrument.clone().unwrap()).or_insert(0) += 1;
-                                *unit_breakdown.entry(group.unit.clone().unwrap()).or_insert(0) += 1;
-                            }
-                            MetricGroup {
-                                common_stats,
-                            } => {
-                                common_stats.update_stats(group);
-                            }
-                            Event {
-                                common_stats,
-                            } => {
-                                common_stats.update_stats(group);
-                            }
-                            Resource {
-                                common_stats,
-                            } => {
-                                common_stats.update_stats(group);
-                            }
-                            Scope {
-                                common_stats,
-                            } => {
-                                common_stats.update_stats(group);
-                            }
-                            Span {
-                                common_stats,
-                                span_kind_breakdown,
-                            } => {
-                                common_stats.update_stats(group);
-                                if let Some(span_kind) = group.span_kind.clone() {
-                                    *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
-                                }
+                    .and_modify(|stats| match stats {
+                        AttributeGroup { common_stats } => {
+                            common_stats.update_stats(group);
+                        }
+                        Metric {
+                            common_stats,
+                            metric_names,
+                            instrument_breakdown,
+                            unit_breakdown,
+                        } => {
+                            common_stats.update_stats(group);
+                            metric_names.insert(group.metric_name.clone().unwrap());
+                            *instrument_breakdown
+                                .entry(group.instrument.clone().unwrap())
+                                .or_insert(0) += 1;
+                            *unit_breakdown
+                                .entry(group.unit.clone().unwrap())
+                                .or_insert(0) += 1;
+                        }
+                        MetricGroup { common_stats } => {
+                            common_stats.update_stats(group);
+                        }
+                        Event { common_stats } => {
+                            common_stats.update_stats(group);
+                        }
+                        Resource { common_stats } => {
+                            common_stats.update_stats(group);
+                        }
+                        Scope { common_stats } => {
+                            common_stats.update_stats(group);
+                        }
+                        Span {
+                            common_stats,
+                            span_kind_breakdown,
+                        } => {
+                            common_stats.update_stats(group);
+                            if let Some(span_kind) = group.span_kind.clone() {
+                                *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
                             }
                         }
                     })
                     .or_insert_with(|| match group.r#type {
-                        GroupType::AttributeGroup => AttributeGroup {common_stats: CommonGroupStats::default()},
+                        GroupType::AttributeGroup => AttributeGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
                         GroupType::Metric => Metric {
                             common_stats: CommonGroupStats::default(),
                             metric_names: HashSet::new(),
                             instrument_breakdown: HashMap::new(),
-                            unit_breakdown: HashMap::new()
+                            unit_breakdown: HashMap::new(),
                         },
-                        GroupType::MetricGroup => MetricGroup {common_stats: CommonGroupStats::default()},
-                        GroupType::Event => Event {common_stats: CommonGroupStats::default()},
-                        GroupType::Resource => Resource {common_stats: CommonGroupStats::default()},
-                        GroupType::Scope => Scope {common_stats: CommonGroupStats::default()},
+                        GroupType::MetricGroup => MetricGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Event => Event {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Resource => Resource {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Scope => Scope {
+                            common_stats: CommonGroupStats::default(),
+                        },
                         GroupType::Span => Span {
                             common_stats: CommonGroupStats::default(),
                             span_kind_breakdown: HashMap::new(),
