@@ -93,7 +93,7 @@ pub(crate) fn command(
         // catalog of attributes.
         false => {
             let registry = TemplateRegistry::try_from_resolved_registry(
-                &schema
+                schema
                     .registry(registry_id)
                     .expect("Failed to get the registry from the resolved schema"),
                 schema.catalog(),

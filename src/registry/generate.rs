@@ -79,7 +79,7 @@ pub(crate) fn command(
     .expect("Failed to create template engine");
 
     let template_registry = TemplateRegistry::try_from_resolved_registry(
-        &schema
+        schema
             .registry(registry_id)
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
