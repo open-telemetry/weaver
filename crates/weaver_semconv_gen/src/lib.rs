@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! This crate will generate code for markdown files.
+//! The entire crate is a rush job to catch feature parity w/ existing python tooling by
+//! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 #![deny(
     missing_docs,
@@ -20,7 +22,9 @@ use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::metric::{Metric,Instrument};
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec};
 use weaver_semconv::group::{GroupType, InstrumentSpec};
+use regex::Regex;
 use itertools::Itertools;
+use std::fs;
 
 
 /// Errors emitted by this crate.
@@ -47,8 +51,52 @@ pub enum Error {
         id: String,
         /// The filter for which attributes to display.
         filter: String,
-    }
+    },
+    /// Errors thrown when we are running a dry run and markdown doesn't match.
+    #[error("Markdown is not equal:\n{}", diff_output(.original, .updated))]
+    MarkdownIsNotEqual {
+        /// Original markdown value.
+        original: String,
+        /// Updated markdown value.
+        updated: String,
+        // TODO - smart diff.
+    },
+    /// Thrown when snippet header is invalid.
+    #[error("Could not parse snippet header: [{header}]")]
+    InvalidSnippetHeader {
+        /// Markdown snippet identifer <!-- semconv {header} -->
+        header: String,
+    },
+    /// Errors from using std io library.
+    #[error(transparent)]
+    StdIoError(#[from] std::io::Error),
 }
+
+// TODO - colors or other fun/fancy things.
+/// Constructs a "diff" string of the current snippet vs. updated on
+/// outlining any changes that may need to be updated.
+fn diff_output(original: &str, updated: &str) -> String {
+    let mut result = String::new();
+    let diff = 
+        similar::TextDiff::from_lines(original, updated);
+    for change in diff.iter_all_changes() {
+        let sign = match change.tag() {
+            similar::ChangeTag::Delete => "-",
+            similar::ChangeTag::Insert => "+",
+            similar::ChangeTag::Equal => " ",
+        };
+        result.push_str(&format!("{}{}", sign, change));
+    }
+    result
+}
+
+
+// Allows us to use `?` on std::io:Error in this crate.
+// impl From<std::io::Error> for Error {
+//     fn from(err: std::io::Error) -> Self {
+//         Self::StdIoError(err)
+//     }
+// }
 
 // TODO - this is based on https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/src/opentelemetry/semconv/templating/markdown/__init__.py#L503
 // We can likely model this much better.
@@ -73,7 +121,6 @@ pub struct GenerateMarkdownArgs {
     /// Arguments the user specified that we've parsed.
     args: Vec<MarkdownGenParameters>,
 }
-
 impl GenerateMarkdownArgs {
     /// TODO
     fn is_full(&self) -> bool {
@@ -98,38 +145,121 @@ impl GenerateMarkdownArgs {
     }
 }
 
-/// TODO - doc
-pub fn generate_markdown(schema: &ResolvedTelemetrySchema, args: GenerateMarkdownArgs) -> Result<String, Error> {
+/// Context around the generation of markdown that we use to avoid conflicts
+/// between multiple templates within the same markdown file.
+#[derive(Default)]
+struct GenerateMarkdownContext {
+    notes: Vec<String>
+}
 
+// The size a string is allowed to be before it is pushed into notes.
+const BREAK_COUNT: usize = 50;
+
+impl GenerateMarkdownContext {
+    /// Adds a note to the context and returns a link to its index.
+    fn add_note(&mut self, note: String) -> String {
+        self.notes.push(note);
+        let idx = self.notes.len();
+        format!("[{idx}]")
+    }
+
+    fn rendered_notes(&self) -> String {
+        let mut result = String::new();
+        for (counter, note) in self.notes.iter().enumerate() {
+            result.push_str(&format!("\n**[{}]:** {}\n", counter+1, note.trim()));
+        }
+        result
+    }
+}
+
+
+/// Constructs a markdown snippet (without header/closer)
+fn generate_markdown_snippet(schema: &ResolvedTelemetrySchema, args: GenerateMarkdownArgs) -> Result<String, Error> {
+    let mut ctx = GenerateMarkdownContext::default();
     if args.is_metric_table() {
         let view = MetricView::try_new(args.id.as_str(), schema)?;
         Ok(view.generate_markdown())
     } else {
         let other = AttributeTableView::try_new(args.id.as_str(), schema)?;
-        Ok(other.generate_markdown(&args)?)
+        Ok(other.generate_markdown(&args, &mut ctx)?)
     }
 }
 
-// --- Existing logic to chose render type based on enums. ---
-// if self.render_ctx.is_metric_table:
-// self.to_markdown_metric_table(semconv, output)
-// else:
-//     if isinstance(semconv, EventSemanticConvention):
-//         output.write(f"The event name MUST be `{semconv.name}`.\n\n")
-//     self.to_markdown_attribute_table(semconv, output)
 
-// if not self.render_ctx.is_remove_constraint:
-//     for cnst in semconv.constraints:
-//         self.to_markdown_constraint(cnst, output)
-// self.to_markdown_enum(output)
-
-// if isinstance(semconv, UnitSemanticConvention):
-//     self.to_markdown_unit_table(semconv.members, output)
-
-
-struct AttributeView<'a> {
-    attribute: &'a Attribute,
+fn parse_markdown_snippet_arg(arg: &str) -> Result<GenerateMarkdownArgs, Error> {
+    let regex = Regex::new(r"(?P<semconv_id>([a-z](\.?[a-z0-9_-]+)+))(?:\((?P<parameters>.*)\))?").unwrap();    
+    // TODO - handle () parameters
+    if let Some(id) = regex.captures(arg).and_then(|captures| captures.get(1)) {
+        Ok(GenerateMarkdownArgs {
+            id: id.as_str().to_string(),
+            args: vec!(),
+        })
+    } else {
+        Err(Error::InvalidSnippetHeader { header: arg.to_string() })
+    }
 }
+
+
+// TODO - This entire function could be optimised and reworked.
+fn update_markdown_contents(contents: &str, schema: &ResolvedTelemetrySchema) -> Result<String, Error> {
+    let mut result = String::new();
+    let mut handling_snippet = false;
+    let header_regex = Regex::new(r"<!--\s*semconv\s+(.+)-->").unwrap();
+    let tail = "<!-- endsemconv -->";
+    for line in contents.lines() {
+        if handling_snippet {
+            // TODO - more flexible handling of endsemconv strings.
+            if line.trim() == tail {
+                println!("Found tailing semconv statement");
+                result.push_str(line);
+                // TODO - do we always need this or did we trim oddly?
+                result.push_str("\n");
+                handling_snippet = false;
+            }
+        } else {
+            // Always push this line.
+            result.push_str(line);
+            // TODO - don't do this on last line.
+            result.push_str("\n");
+            // Check to see if line matches snippet request.
+            // If so, generate the snippet and continue.
+            if let Some(captures) = header_regex.captures(line) {
+                handling_snippet = true;
+                if let Some(args) = captures.get(1) {
+                    let arg = parse_markdown_snippet_arg(args.as_str())?;
+                    let snippet = generate_markdown_snippet(&schema, arg)?;
+                    result.push_str(&snippet);
+                } else {
+                    return Err(Error::InvalidSnippetHeader { header: line.to_string() });
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+
+/// Updates a single markdown file using the resolved schema.
+pub fn update_markdown(file: &str, 
+                       schema: &ResolvedTelemetrySchema,
+                       dry_run: bool) -> Result<(), Error> {
+    // TODO - throw error.
+    let original_markdown = fs::read_to_string(file).expect("Unable to read file");
+    let updated_markdown = update_markdown_contents(&original_markdown, schema)?;
+    if !dry_run {
+        fs::write(file, updated_markdown)?;
+        Ok(())
+    } else {
+        if original_markdown != updated_markdown {
+            Err(Error::MarkdownIsNotEqual {
+                original: original_markdown,
+                updated: updated_markdown,
+            })
+        } else {
+            Ok(())
+        }
+    }
+}
+
 
 /// Determines an enum's type by the type of its values.
 fn enum_type_string(members: &Vec<EnumEntriesSpec>) -> &'static str {
@@ -169,9 +299,37 @@ fn enum_examples_string(members: &Vec<EnumEntriesSpec>) -> String {
     members.iter().map(|entry| enum_value_string(&entry.value)).join(";")
 }
 
+
+struct AttributeView<'a> {
+    attribute: &'a Attribute,
+}
+
 impl <'a> AttributeView<'a> {
-    fn name(&self) -> &str {
-        self.attribute.name.as_str()
+
+    fn name(&self) -> String {
+        // Templates have `.<key>` after them.
+        match &self.attribute.r#type {
+            AttributeType::Template(_) => format!("{}.<key>", self.attribute.name),
+            _ => self.attribute.name.clone(),
+        }
+    }
+
+    fn attribute_registry_link(&self) -> String {
+        let reg_name = self.attribute.name.split(".").next().unwrap_or("");
+        // TODO - the existing build-tools semconv will look at currently
+        // generating markdown location to see if it's the same structure
+        // as where the attribute originated from.
+        //
+        // Going forward, link vs. not link should be an option in generation.
+        // OR we should move this to a template-render scenario.
+        format!("../attributes-registry/{reg_name}.md")
+    }
+
+    fn name_with_optional_link(&self) -> String {
+        
+        let name = self.name();
+        let rel_path = self.attribute_registry_link();
+        format!("[`{name}`]({rel_path})")
     }
 
     fn is_enum(&self) -> bool {
@@ -213,19 +371,33 @@ impl <'a> AttributeView<'a> {
           }
     }
 
-    fn description(&self) -> &str {
-        self.attribute.brief.as_str() // TODO - deal with notes?
+    fn description(&self, ctx: &mut GenerateMarkdownContext) -> String {
+        if self.attribute.note.is_empty() {
+            self.attribute.brief.trim().to_string()
+        } else {
+            format!("{} {}", self.attribute.brief.trim(), ctx.add_note(self.attribute.note.clone()))
+        }
     }
 
-    fn requirement(&self) -> String {
-        // TODO - deal with notes:
+    fn requirement(&self, ctx: &mut GenerateMarkdownContext) -> String {
         match &self.attribute.requirement_level {
             RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => "Required".to_string(),
             RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => "Recommended".to_string(),
             RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => "Opt-In".to_string(),
-            // TODO - Add text to notes if it's too long.
-            RequirementLevel::ConditionallyRequired { text } => format!("`Conditionally Required` {text}"),
-            RequirementLevel::Recommended { text } => format!("`Recommended` {text}"),
+            RequirementLevel::ConditionallyRequired { text } => {
+                if text.len() > BREAK_COUNT {
+                    format!("Conditionally Required: {}", ctx.add_note(text.clone()))
+                } else {
+                    format!("Conditionally Required: {text}")
+                }
+            },
+            RequirementLevel::Recommended { text } => {
+                if text.len() > BREAK_COUNT {
+                    format!("Recommended: {}", ctx.add_note(text.clone()))
+                } else {
+                    format!("Recommended: {text}")
+                }
+            },
         }
     }
 
@@ -273,7 +445,7 @@ impl <'a> AttributeTableView<'a> {
         .map(|a_ref| &self.schema.catalog.attributes[a_ref.0 as usize])
     }
 
-    pub fn generate_markdown(&self, args: &GenerateMarkdownArgs) -> Result<String, Error> {
+    fn generate_markdown(&self, args: &GenerateMarkdownArgs, ctx: &mut GenerateMarkdownContext) -> Result<String, Error> {        
         let mut result = String::new();
         if self.group.r#type == GroupType::Event {
             result.push_str(&format!("The event name MUST be `{}`\n\n", self.event_name()))
@@ -284,50 +456,55 @@ impl <'a> AttributeTableView<'a> {
         // - full
         // - tag filter
 
-        result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
+        // TODO - we should use link version and udpate tests/semconv upstream.
+        //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
+        result.push_str("| Attribute  | Type | Description  | Examples  | Requirement Level |\n");
         result.push_str("|---|---|---|---|---|\n");
 
         
         for attr in self.attributes()
                     .sorted_by_key(|a| a.name.as_str())
+                    .dedup_by(|x,y| x.name == y.name)
                     .map(|attribute| AttributeView { attribute }) {
-            // TODO - deal with notes.
             result.push_str(&format!("| {} | {} | {} | {} | {} |\n",
-                                     attr.name(),
+                                    attr.name_with_optional_link(),
                                     attr.type_string(),
-                                    attr.description(),
+                                    attr.description(ctx),
                                     attr.examples(),
-                                    attr.requirement()));
+                                    attr.requirement(ctx)));
         }
         // Add "note" footers
+        result.push_str(&ctx.rendered_notes());
+
 
         // Add sampling relevant callouts.
-        let sampling_relevant: Vec<&str> =
+        let sampling_relevant: Vec<AttributeView> =
           self.attributes()
           .filter(|a| a.sampling_relevant.unwrap_or(false))
-          .map(|a| a.name.as_str())
+          .map(|attribute| AttributeView { attribute })
           .collect();
         if sampling_relevant.len() > 0 {
             result.push_str("\nThe following attributes can be important for making sampling decisions ");
             result.push_str("and SHOULD be provided **at span creation time** (if provided at all):\n\n");
-            for name in sampling_relevant {
-                result.push_str(&format!(" * {name}\n"))
+            for a in sampling_relevant {
+                // TODO - existing output uses registry-link-name.
+                result.push_str(&format!("* {}\n", a.name_with_optional_link()))
             }
-            result.push_str("\n");
         }
 
         // Add enum footers
         for e in self.attributes()
                     .sorted_by_key(|a| a.name.as_str())
+                    .dedup_by(|x,y| x.name == y.name)
                     .map(|attribute| AttributeView { attribute })
                     .filter(|a| a.is_enum()) {
-           result.push_str("\n");
-           result.push_str(e.name());
-           result.push_str(" has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.\n");
+           result.push_str("\n`");
+           result.push_str(&e.name());
+           result.push_str("` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.\n");
            result.push_str("\n| Value  | Description |\n|---|---|\n");
            // TODO - enum table.
            for (value, description) in e.enum_spec_values() {
-            result.push_str(&format!("| {value} | {description} |\n"));
+            result.push_str(&format!("| {} | {} |\n", value, description.trim()));
            }
         }
         Ok(result)
@@ -410,11 +587,17 @@ mod tests {
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
-    use crate::{generate_markdown,GenerateMarkdownArgs,MarkdownGenParameters};
+    use crate::{update_markdown,GenerateMarkdownArgs,MarkdownGenParameters,Error};
 
+    fn force_print_error<T>(result: Result<T, Error>) -> T {
+        match result {
+            Err(err) => panic!("{}", err),
+            Ok(v) => v,
+        }
+    }
 
     #[test]
-    fn test_metric_table() {
+    fn test_metric_table() -> Result<(), Error> {
         let logger = TestLogger::default();
 
         let mut registry =
@@ -423,34 +606,8 @@ mod tests {
             SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
                 .expect("Failed to resolve registry");
 
-        let args = GenerateMarkdownArgs {
-            id: "trace.http.common".into(),
-            args: vec!(),
-        };
-        let result = generate_markdown(&schema, args).unwrap();
-        println!("{}", result);
-        assert_eq!(result, 
-r#"| Attribute  | Type | Description  | Examples  | Requirement Level |
-|---|---|---|---|---|
-| request.method_original |
-| request.body.size |
-| response.body.size |
-| http.request.method |
-| network.transport |
-| network.type |
-| user_agent.original |
-"#);
-
-        // TODO - We're still figuring out best way to adapt existing API.
-        let args = GenerateMarkdownArgs {
-            id: "metric.http.server.request.duration".into(),
-            args: vec!(MarkdownGenParameters::MetricTable),
-        };
-        let result = generate_markdown(&schema, args).unwrap();
-        println!("{}", result);
-        assert_eq!(result,
-r#"| Name     | Instrument Type | Unit (UCUM) | Description    |
-| -------- | --------------- | ----------- | -------------- |
-| jvm.memory.used | UpDownCounter | By | Measure of memory used. |"#);
+        // Check our test files.
+        force_print_error(update_markdown("data/http-span-full-attribute-table.md", &schema, true));
+        Ok(())
     }
 }

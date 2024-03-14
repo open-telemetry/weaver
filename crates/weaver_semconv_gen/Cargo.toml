@@ -13,6 +13,8 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 itertools = "0.12.1"
+similar = "2.4.0"
+regex = "1.10.3"
 
 thiserror.workspace = true
 serde.workspace = true
