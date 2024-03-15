@@ -18,7 +18,7 @@ The only ones weaver should pay attention to are the semconv specific directvies
 
 ## Common Attributes
 
-<!-- semconv trace.db(full) -->
+<!-- semconv trace.http.client(full) -->
 
 <!-- endsemconv -->
 
@@ -30,12 +30,12 @@ The only ones weaver should pay attention to are the semconv specific directvies
 
 # Tagged Attributes
 
-<!-- semconv registry.db(full,tag=tech-specific-cosmosdb) -->
+<!-- semconv registry.http(full,tag=tech-specific-cosmosdb) -->
 
 <!-- endsemconv -->
 
 # Metric Table
 
-<!-- semconv metric.jvm.memory.used(metric_table) -->
+<!-- semconv metric.http.server.request.duration(metric_table) -->
 
 <!-- endsemconv -->

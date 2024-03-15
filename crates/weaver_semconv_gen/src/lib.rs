@@ -22,9 +22,11 @@ use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::metric::{Metric,Instrument};
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec};
 use weaver_semconv::group::{GroupType, InstrumentSpec};
-use regex::Regex;
 use itertools::Itertools;
 use std::fs;
+
+mod parser;
+mod diff;
 
 
 /// Errors emitted by this crate.
@@ -53,7 +55,7 @@ pub enum Error {
         filter: String,
     },
     /// Errors thrown when we are running a dry run and markdown doesn't match.
-    #[error("Markdown is not equal:\n{}", diff_output(.original, .updated))]
+    #[error("Markdown is not equal:\n{}", diff::diff_output(.original, .updated))]
     MarkdownIsNotEqual {
         /// Original markdown value.
         original: String,
@@ -72,39 +74,13 @@ pub enum Error {
     StdIoError(#[from] std::io::Error),
 }
 
-// TODO - colors or other fun/fancy things.
-/// Constructs a "diff" string of the current snippet vs. updated on
-/// outlining any changes that may need to be updated.
-fn diff_output(original: &str, updated: &str) -> String {
-    let mut result = String::new();
-    let diff = 
-        similar::TextDiff::from_lines(original, updated);
-    for change in diff.iter_all_changes() {
-        let sign = match change.tag() {
-            similar::ChangeTag::Delete => "-",
-            similar::ChangeTag::Insert => "+",
-            similar::ChangeTag::Equal => " ",
-        };
-        result.push_str(&format!("{}{}", sign, change));
-    }
-    result
-}
 
-
-// Allows us to use `?` on std::io:Error in this crate.
-// impl From<std::io::Error> for Error {
-//     fn from(err: std::io::Error) -> Self {
-//         Self::StdIoError(err)
-//     }
-// }
 
 // TODO - this is based on https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/src/opentelemetry/semconv/templating/markdown/__init__.py#L503
 // We can likely model this much better.
 /// Parameters users can specify for generating markdown.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MarkdownGenParameters {
-    /// Don't display constraints
-    RemoveConstraints,
     /// Filter attributes to those with a given tag.
     Tag(String),
     /// Display all metrics in a group?
@@ -129,10 +105,10 @@ impl GenerateMarkdownArgs {
             _ => false,
         })
     }
-    /// TODO
-    fn is_remove_constraint(&self) -> bool {
+    /// Returns true if the omit requirement level flag was specified.
+    fn is_omit_requirement(&self) -> bool {
         self.args.iter().any(|a| match a {
-            MarkdownGenParameters::RemoveConstraints => true,
+            MarkdownGenParameters::OmitRequirementLevel => true,
             _ => false,
         })
     }
@@ -186,31 +162,13 @@ fn generate_markdown_snippet(schema: &ResolvedTelemetrySchema, args: GenerateMar
 }
 
 
-fn parse_markdown_snippet_arg(arg: &str) -> Result<GenerateMarkdownArgs, Error> {
-    let regex = Regex::new(r"(?P<semconv_id>([a-z](\.?[a-z0-9_-]+)+))(?:\((?P<parameters>.*)\))?").unwrap();    
-    // TODO - handle () parameters
-    if let Some(id) = regex.captures(arg).and_then(|captures| captures.get(1)) {
-        Ok(GenerateMarkdownArgs {
-            id: id.as_str().to_string(),
-            args: vec!(),
-        })
-    } else {
-        Err(Error::InvalidSnippetHeader { header: arg.to_string() })
-    }
-}
-
-
 // TODO - This entire function could be optimised and reworked.
 fn update_markdown_contents(contents: &str, schema: &ResolvedTelemetrySchema) -> Result<String, Error> {
     let mut result = String::new();
     let mut handling_snippet = false;
-    let header_regex = Regex::new(r"<!--\s*semconv\s+(.+)-->").unwrap();
-    let tail = "<!-- endsemconv -->";
     for line in contents.lines() {
         if handling_snippet {
-            // TODO - more flexible handling of endsemconv strings.
-            if line.trim() == tail {
-                println!("Found tailing semconv statement");
+            if parser::is_semconv_trailer(line) {
                 result.push_str(line);
                 // TODO - do we always need this or did we trim oddly?
                 result.push_str("\n");
@@ -223,15 +181,11 @@ fn update_markdown_contents(contents: &str, schema: &ResolvedTelemetrySchema) ->
             result.push_str("\n");
             // Check to see if line matches snippet request.
             // If so, generate the snippet and continue.
-            if let Some(captures) = header_regex.captures(line) {
+            if parser::is_markdown_snippet_directive(line) {
                 handling_snippet = true;
-                if let Some(args) = captures.get(1) {
-                    let arg = parse_markdown_snippet_arg(args.as_str())?;
-                    let snippet = generate_markdown_snippet(&schema, arg)?;
-                    result.push_str(&snippet);
-                } else {
-                    return Err(Error::InvalidSnippetHeader { header: line.to_string() });
-                }
+                let arg = parser::parse_markdown_snippet_directive(line)?;
+                let snippet = generate_markdown_snippet(&schema, arg)?;
+                result.push_str(&snippet);
             }
         }
     }
@@ -452,26 +406,38 @@ impl <'a> AttributeTableView<'a> {
         }
 
         // TODO - deal with
-        // - local
-        // - full
+        // - local / full (do we still support this?)
         // - tag filter
 
-        // TODO - we should use link version and udpate tests/semconv upstream.
-        //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
-        result.push_str("| Attribute  | Type | Description  | Examples  | Requirement Level |\n");
-        result.push_str("|---|---|---|---|---|\n");
+        if args.is_omit_requirement() {
+            result.push_str("| Attribute  | Type | Description  | Examples  |\n");
+            result.push_str("|---|---|---|---|\n");
+        } else {
+            // TODO - we should use link version and udpate tests/semconv upstream.
+            //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
+            result.push_str("| Attribute  | Type | Description  | Examples  | Requirement Level |\n");
+            result.push_str("|---|---|---|---|---|\n");
+        }
 
         
         for attr in self.attributes()
                     .sorted_by_key(|a| a.name.as_str())
                     .dedup_by(|x,y| x.name == y.name)
                     .map(|attribute| AttributeView { attribute }) {
-            result.push_str(&format!("| {} | {} | {} | {} | {} |\n",
-                                    attr.name_with_optional_link(),
-                                    attr.type_string(),
-                                    attr.description(ctx),
-                                    attr.examples(),
-                                    attr.requirement(ctx)));
+            if args.is_omit_requirement() {
+                result.push_str(&format!("| {} | {} | {} | {} |\n",
+                                        attr.name_with_optional_link(),
+                                        attr.type_string(),
+                                        attr.description(ctx),
+                                        attr.examples()));
+            } else {
+                result.push_str(&format!("| {} | {} | {} | {} | {} |\n",
+                                        attr.name_with_optional_link(),
+                                        attr.type_string(),
+                                        attr.description(ctx),
+                                        attr.examples(),
+                                        attr.requirement(ctx)));
+            }
         }
         // Add "note" footers
         result.push_str(&ctx.rendered_notes());
@@ -587,7 +553,7 @@ mod tests {
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
-    use crate::{update_markdown,GenerateMarkdownArgs,MarkdownGenParameters,Error};
+    use crate::{update_markdown,Error};
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -608,6 +574,7 @@ mod tests {
 
         // Check our test files.
         force_print_error(update_markdown("data/http-span-full-attribute-table.md", &schema, true));
+        force_print_error(update_markdown("data/test-markdown.md", &schema, true));
         Ok(())
     }
 }

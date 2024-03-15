@@ -4087,8 +4087,8 @@ name = "weaver_semconv_gen"
 version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
+ "nom",
  "rayon",
- "regex",
  "serde",
  "serde_json",
  "serde_yaml",
