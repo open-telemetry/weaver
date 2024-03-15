@@ -60,8 +60,8 @@ pub struct ResolveSchema {
 /// Resolve a schema file and print the result
 pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
-        log.error(&e.to_string());
-        std::process::exit(1);
+        _ = log.error(&e.to_string());
+        exit(1);
     });
     match command.command {
         ResolveSubCommand::Registry(ref command) => {
@@ -77,34 +77,34 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                 log.clone(),
             )
             .unwrap_or_else(|e| {
-                log.error(&e.to_string());
+                _ = log.error(&e.to_string());
                 exit(1);
             });
 
             let resolved_schema =
                 SchemaResolver::resolve_semantic_convention_registry(&mut registry, log.clone())
                     .unwrap_or_else(|e| {
-                        log.error(&e.to_string());
+                        _ = log.error(&e.to_string());
                         exit(1);
                     });
             match serde_yaml::to_string(&resolved_schema) {
                 Ok(yaml) => {
                     if let Some(output) = &command.output {
-                        log.loading(&format!(
+                        _=log.loading(&format!(
                             "Saving resolved registry to {}",
                             output
                                 .to_str()
                                 .unwrap_or("<unrepresentable-filename-not-utf8>")
                         ));
                         if let Err(e) = std::fs::write(output, &yaml) {
-                            log.error(&format!(
+                            _=log.error(&format!(
                                 "Failed to write to {}: {}",
                                 output.to_str().unwrap(),
                                 e
                             ));
                             exit(1)
                         }
-                        log.success(&format!(
+                        _=log.success(&format!(
                             "Saved resolved registry to '{}'",
                             output
                                 .to_str()
@@ -115,7 +115,7 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                     }
                 }
                 Err(e) => {
-                    log.error(&format!("{}", e));
+                    _=log.error(&format!("{}", e));
                     exit(1)
                 }
             }
@@ -128,21 +128,21 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                 Ok(schema) => match serde_yaml::to_string(&schema) {
                     Ok(yaml) => {
                         if let Some(output) = &command.output {
-                            log.loading(&format!(
+                            _=log.loading(&format!(
                                 "Saving resolved schema to {}",
                                 output
                                     .to_str()
                                     .unwrap_or("<unrepresentable-filename-not-utf8>")
                             ));
                             if let Err(e) = std::fs::write(output, &yaml) {
-                                log.error(&format!(
+                                _=log.error(&format!(
                                     "Failed to write to {}: {}",
                                     output.to_str().unwrap(),
                                     e
                                 ));
                                 exit(1)
                             }
-                            log.success(&format!(
+                            _=log.success(&format!(
                                 "Saved resolved schema to '{}'",
                                 output
                                     .to_str()
@@ -153,12 +153,12 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                         }
                     }
                     Err(e) => {
-                        log.error(&format!("{}", e));
+                        _=log.error(&format!("{}", e));
                         exit(1)
                     }
                 },
                 Err(e) => {
-                    log.error(&format!("{}", e));
+                    _=log.error(&format!("{}", e));
                     exit(1)
                 }
             }

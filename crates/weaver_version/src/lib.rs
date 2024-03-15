@@ -2,10 +2,6 @@
 
 //! The specification of the changes to apply to the schema for different versions.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::BufReader;
@@ -201,7 +197,7 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !resource_old_to_new_attributes.contains_key(old_name) {
-                            resource_old_to_new_attributes
+                            _ = resource_old_to_new_attributes
                                 .insert(old_name.clone(), new_name.clone());
                         }
                     });
@@ -216,7 +212,7 @@ impl Versions {
                     .flat_map(|change| change.rename_metrics.iter())
                     .for_each(|(old_name, new_name)| {
                         if !metric_old_to_new_names.contains_key(old_name) {
-                            metric_old_to_new_names.insert(old_name.clone(), new_name.clone());
+                            _ = metric_old_to_new_names.insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -230,7 +226,7 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !metric_old_to_new_attributes.contains_key(old_name) {
-                            metric_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = metric_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -243,7 +239,7 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !log_old_to_new_attributes.contains_key(old_name) {
-                            log_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = log_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -257,7 +253,7 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !span_old_to_new_attributes.contains_key(old_name) {
-                            span_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = span_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -281,7 +277,7 @@ impl Versions {
                     current_spec.extend(spec);
                 }
                 None => {
-                    self.versions.insert(version.clone(), spec);
+                    _ = self.versions.insert(version.clone(), spec);
                 }
             }
         }
@@ -325,7 +321,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    resource_change
+                    _ = resource_change
                         .rename_attributes
                         .attribute_map
                         .insert(old, new);
@@ -370,7 +366,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    metrics_change.rename_metrics.insert(old, new);
+                    _ = metrics_change.rename_metrics.insert(old, new);
                 }
             }
             if !metrics_change.rename_metrics.is_empty() {
@@ -415,7 +411,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    logs_change.rename_attributes.attribute_map.insert(old, new);
+                    _ = logs_change.rename_attributes.attribute_map.insert(old, new);
                 }
             }
             if !logs_change.rename_attributes.attribute_map.is_empty() {
@@ -459,7 +455,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    spans_change
+                    _ = spans_change
                         .rename_attributes
                         .attribute_map
                         .insert(old, new);
@@ -505,7 +501,7 @@ pub struct MetricsVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for crate::MetricsVersionAttributeChanges<'a> {
+impl<'a> VersionAttributeChanges for MetricsVersionAttributeChanges<'a> {
     /// Returns the new name of the given metric attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -518,7 +514,7 @@ pub struct LogsVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for crate::LogsVersionAttributeChanges<'a> {
+impl<'a> VersionAttributeChanges for LogsVersionAttributeChanges<'a> {
     /// Returns the new name of the given log attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -531,7 +527,7 @@ pub struct SpansVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for crate::SpansVersionAttributeChanges<'a> {
+impl<'a> VersionAttributeChanges for SpansVersionAttributeChanges<'a> {
     /// Returns the new name of the given span attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {

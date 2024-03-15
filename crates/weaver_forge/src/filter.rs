@@ -71,7 +71,7 @@ impl Filter {
 }
 
 impl Debug for Filter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Filter({})", self.filter_expr)
     }
 }
@@ -81,7 +81,7 @@ struct FilterVisitor;
 impl<'de> de::Visitor<'de> for FilterVisitor {
     type Value = Filter;
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("a filter string")
     }
 

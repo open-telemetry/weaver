@@ -243,7 +243,7 @@ impl Registry {
             group_breakdown: self.groups.iter().fold(HashMap::new(), |mut acc, group| {
                 let group_type = group.r#type.clone();
 
-                acc.entry(group_type)
+                _ = acc.entry(group_type)
                     .and_modify(|stats| match stats {
                         AttributeGroup { common_stats } => {
                             common_stats.update_stats(group);
@@ -255,7 +255,7 @@ impl Registry {
                             unit_breakdown,
                         } => {
                             common_stats.update_stats(group);
-                            metric_names.insert(
+                            _ = metric_names.insert(
                                 group
                                     .metric_name
                                     .clone()

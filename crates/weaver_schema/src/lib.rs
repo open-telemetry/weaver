@@ -2,12 +2,6 @@
 
 //! A Rust library for loading and validating telemetry schemas.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
-extern crate core;
-
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
@@ -319,7 +313,7 @@ impl TelemetrySchema {
     pub fn metric_groups(&self) -> Vec<&MetricGroup> {
         self.schema
             .as_ref()
-            .map_or(Vec::<&metric_group::MetricGroup>::new(), |schema| {
+            .map_or(Vec::<&MetricGroup>::new(), |schema| {
                 schema.metric_groups()
             })
     }

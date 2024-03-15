@@ -4,16 +4,6 @@
 //! and filters for working with semantic convention registries and telemetry
 //! schemas.
 
-#![deny(
-    missing_docs,
-    clippy::print_stdout,
-    unstable_features,
-    unused_import_braces,
-    unused_qualifications,
-    unused_results,
-    unused_extern_crates
-)]
-
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -89,7 +79,7 @@ impl Display for TemplateObject {
 impl Object for TemplateObject {
     fn call_method(
         &self,
-        _state: &State,
+        _state: &State<'_, '_>,
         name: &str,
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
@@ -335,7 +325,7 @@ impl TemplateEngine {
     }
 
     /// Create a new template engine based on the target configuration.
-    fn template_engine(&self) -> Result<Environment, Error> {
+    fn template_engine(&self) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
         env.set_loader(path_loader(&self.path));
         env.set_syntax(self.target_config.template_syntax.clone().into())

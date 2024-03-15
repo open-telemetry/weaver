@@ -218,7 +218,7 @@ impl AttributeCatalog {
                     value: None,
                 };
 
-                self.root_attributes.insert(
+                _ = self.root_attributes.insert(
                     root_attr_id,
                     AttributeWithGroupId {
                         attribute: attr.clone(),
@@ -245,17 +245,17 @@ impl AttributeCatalog {
 /// attributes.
 pub fn resolve_attributes(
     attributes: &[Attribute],
-    semconv_registry: &weaver_semconv::SemConvRegistry,
+    semconv_registry: &SemConvRegistry,
     version_changes: impl VersionAttributeChanges,
 ) -> Result<Vec<Attribute>, Error> {
     let mut resolved_attrs = BTreeMap::new();
     let mut copy_into_resolved_attrs =
-        |attrs: HashMap<&String, &weaver_semconv::attribute::AttributeSpec>,
+        |attrs: HashMap<&String, &AttributeSpec>,
          tags: &Option<Tags>| {
             for (attr_id, attr) in attrs {
                 let mut attr: Attribute = attr.into();
                 attr.set_tags(tags);
-                resolved_attrs.insert(attr_id.clone(), attr);
+                _ = resolved_attrs.insert(attr_id.clone(), attr);
             }
         };
 
@@ -326,7 +326,7 @@ pub fn resolve_attributes(
                     error: e.to_string(),
                 }
             })?;
-            resolved_attrs.insert(normalized_ref, resolved_attribute);
+            _ = resolved_attrs.insert(normalized_ref, resolved_attribute);
         }
     }
 
@@ -334,7 +334,7 @@ pub fn resolve_attributes(
     // Note: any resolved attributes with the same id will be overridden.
     for attribute in attributes.iter() {
         if let Attribute::Id { id, .. } = attribute {
-            resolved_attrs.insert(id.clone(), attribute.clone());
+            _ = resolved_attrs.insert(id.clone(), attribute.clone());
         }
     }
 

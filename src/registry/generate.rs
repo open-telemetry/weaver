@@ -48,7 +48,7 @@ pub(crate) fn command(
     cache: &Cache,
     args: &RegistryGenerateArgs,
 ) {
-    logger.loading(&format!(
+    _=logger.loading(&format!(
         "Generating artifacts for the registry `{}`",
         args.registry
     ));
@@ -92,7 +92,7 @@ pub(crate) fn command(
     });
 
     match engine.generate(logger.clone(), &template_registry, args.output.as_path()) {
-        Ok(_) => logger.success("Artifacts generated successfully"),
+        Ok(_) => _=logger.success("Artifacts generated successfully"),
         Err(e) => {
             print_dedup_errors(logger.clone(), e);
             std::process::exit(1);

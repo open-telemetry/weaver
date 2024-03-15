@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Template engine based on Tera.
+//! This crate is deprecated and will be removed in the future once the new
+//! template engine based on MiniJinja is used in all the code generators.
+
 use std::path::PathBuf;
 
 mod config;

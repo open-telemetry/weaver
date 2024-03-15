@@ -4,10 +4,6 @@
 //! A Resolved Telemetry Schema is self-contained and doesn't contain any
 //! external references to other schemas or semantic conventions.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
 use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;

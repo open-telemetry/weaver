@@ -6,16 +6,6 @@
 //! The YAML language syntax used to define a semantic convention file
 //! can be found [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md).
 
-#![deny(
-    missing_docs,
-    clippy::print_stdout,
-    unstable_features,
-    unused_import_braces,
-    unused_qualifications,
-    unused_results,
-    unused_extern_crates
-)]
-
 use glob::glob;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;

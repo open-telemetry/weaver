@@ -76,11 +76,24 @@ lto = true
 strip = true
 panic = "abort"
 
+[workspace.lints.rust]
+rust_2018_idioms = "warn"
+unused_lifetimes = "warn"
+# unreachable_pub = "warn"
+semicolon_in_expressions_from_macros = "warn"
+missing_docs = "deny"
+unstable_features = "deny"
+unused_import_braces = "deny"
+unused_qualifications = "deny"
+unused_results = "deny"
+unused_extern_crates = "deny"
+
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 cargo = { level = "deny", priority = -1 }
 unwrap_used = "deny"
 print_stdout = "deny"
+print_stderr = "deny"
 multiple_crate_versions = "allow"
 # this lint shows places where you could add the #must_use attribute.
 must-use-candidate = "warn"

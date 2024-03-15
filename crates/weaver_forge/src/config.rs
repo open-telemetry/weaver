@@ -323,7 +323,7 @@ impl TargetConfig {
     }
 
     /// Return a template matcher for the target configuration.
-    pub fn template_matcher(&self) -> Result<TemplateMatcher, Error> {
+    pub fn template_matcher(&self) -> Result<TemplateMatcher<'_>, Error> {
         let mut builder = GlobSetBuilder::new();
 
         self.templates.iter().for_each(|template| {
