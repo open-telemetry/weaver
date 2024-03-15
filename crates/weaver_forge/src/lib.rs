@@ -303,7 +303,7 @@ impl TemplateEngine {
 
         engine.add_global("template", Value::from_object(template_object.clone()));
 
-        _ = log.loading(&format!("Generating file {}", template_file));
+        log.loading(&format!("Generating file {}", template_file));
         let template = engine
             .get_template(template_file)
             .map_err(|e| InvalidTemplateFile {
@@ -320,7 +320,7 @@ impl TemplateEngine {
             })?;
         let generated_file =
             Self::save_generated_code(output_dir, template_object.file_name(), output)?;
-        _ = log.success(&format!("Generated file {:?}", generated_file));
+        log.success(&format!("Generated file {:?}", generated_file));
         Ok(())
     }
 

@@ -22,7 +22,7 @@ pub fn command_languages(log: impl Logger + Sync + Clone, params: &LanguagesPara
     let template_dir = match std::fs::read_dir(&params.templates) {
         Ok(dir) => dir,
         Err(e) => {
-            _ = log.error(&format!("Failed to read templates directory: {}", e));
+            log.error(&format!("Failed to read templates directory: {}", e));
             std::process::exit(1);
         }
     };
@@ -30,10 +30,13 @@ pub fn command_languages(log: impl Logger + Sync + Clone, params: &LanguagesPara
         if let Ok(entry) = entry {
             if entry.file_type().is_ok() {
                 log.indent(1);
-                log.log(&format!("- {}", entry.file_name().to_str().unwrap()));
+                log.log(&format!(
+                    "- {}",
+                    entry.file_name().to_str().expect("Invalid file name")
+                ));
             }
         } else {
-            _ = log.error("Failed to read template directory entry");
+            log.error("Failed to read template directory entry");
             std::process::exit(1);
         }
     }

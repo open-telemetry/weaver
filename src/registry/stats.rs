@@ -22,7 +22,7 @@ pub struct RegistryStatsArgs {
 
 /// Compute stats on a semantic convention registry.
 pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
-    _ = log.loading(&format!(
+    log.loading(&format!(
         "Compute statistics on the registry `{}`",
         args.registry.registry
     ));

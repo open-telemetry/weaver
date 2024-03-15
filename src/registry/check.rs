@@ -28,7 +28,7 @@ pub struct RegistryCheckArgs {
 
 /// Check a semantic convention registry.
 pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryCheckArgs) {
-    _ = log.loading(&format!("Checking registry `{}`", args.registry));
+    log.loading(&format!("Checking registry `{}`", args.registry));
 
     let registry_id = "default";
 
@@ -52,7 +52,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
             panic!("Failed to resolve the semantic convention registry.\n{e}");
         });
 
-    _ = log.success(&format!(
+    log.success(&format!(
         "Registry `{}` checked successfully",
         args.registry
     ));

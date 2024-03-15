@@ -272,14 +272,14 @@ impl SchemaResolver {
             .unwrap_or_default();
 
         // Resolve the references to the semantic conventions.
-        _ = log.loading("Solving semantic convention references");
+        log.loading("Solving semantic convention references");
         if let Some(schema) = schema.schema.as_mut() {
             resolve_resource(schema, &sem_conv_catalog, &version_changes)?;
             resolve_metrics(schema, &sem_conv_catalog, &version_changes)?;
             resolve_events(schema, &sem_conv_catalog, &version_changes)?;
             resolve_spans(schema, &sem_conv_catalog, version_changes)?;
         }
-        _ = log.success(&format!(
+        log.success(&format!(
             "Resolved schema '{}' ({:.2}s)",
             schema_path,
             start.elapsed().as_secs_f32()
@@ -336,13 +336,13 @@ impl SchemaResolver {
         log: impl Logger + Clone + Sync,
     ) -> Result<TelemetrySchema, Error> {
         let start = Instant::now();
-        _ = log.loading(&format!("Loading schema '{}'", schema_url_or_path));
+        log.loading(&format!("Loading schema '{}'", schema_url_or_path));
 
         let mut schema = TelemetrySchema::load(schema_url_or_path).map_err(|e| {
-            _ = log.error(&format!("Failed to load schema '{}'", schema_url_or_path));
+            log.error(&format!("Failed to load schema '{}'", schema_url_or_path));
             Error::TelemetrySchemaError(e)
         })?;
-        _ = log.success(&format!(
+        log.success(&format!(
             "Loaded schema '{}' ({:.2}s)",
             schema_url_or_path,
             start.elapsed().as_secs_f32()
@@ -359,19 +359,19 @@ impl SchemaResolver {
         log: impl Logger + Clone + Sync,
     ) -> Result<TelemetrySchema, Error> {
         let start = Instant::now();
-        _ = log.loading(&format!(
+        log.loading(&format!(
             "Loading schema '{}'",
             schema_path.as_ref().display()
         ));
 
         let mut schema = TelemetrySchema::load_from_file(schema_path.clone()).map_err(|e| {
-            _ = log.error(&format!(
+            log.error(&format!(
                 "Failed to load schema '{}'",
                 schema_path.as_ref().display()
             ));
             Error::TelemetrySchemaError(e)
         })?;
-        _ = log.success(&format!(
+        log.success(&format!(
             "Loaded schema '{}' ({:.2}s)",
             schema_path.as_ref().display(),
             start.elapsed().as_secs_f32()
@@ -408,7 +408,7 @@ impl SchemaResolver {
         let start = Instant::now();
         let registry =
             Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone())?;
-        _ = log.success(&format!(
+        log.success(&format!(
             "Loaded {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
             registry.asset_count(),
             registry.attribute_count(),
@@ -436,11 +436,10 @@ impl SchemaResolver {
                 message: e.to_string(),
             })?;
         for warning in warnings {
-            _ = log
-                .warn("Semantic convention warning")
-                .log(&warning.error.to_string());
+            log.warn("Semantic convention warning");
+            log.log(&warning.error.to_string());
         }
-        _ = log.success(&format!(
+        log.success(&format!(
             "Loaded {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
             registry.asset_count(),
             registry.attribute_count(),
@@ -480,7 +479,7 @@ impl SchemaResolver {
             versions: None, // ToDo LQ: Implement this!
         };
 
-        _ = log.success(&format!(
+        log.success(&format!(
             "Resolved {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
             registry.asset_count(),
             registry.attribute_count(),
@@ -499,12 +498,12 @@ impl SchemaResolver {
         let start = Instant::now();
         // Load the parent schema and merge it into the current schema.
         let parent_schema = if let Some(parent_schema_url) = schema.parent_schema_url.as_ref() {
-            _ = log.loading(&format!("Loading parent schema '{}'", parent_schema_url));
+            log.loading(&format!("Loading parent schema '{}'", parent_schema_url));
             let url_pattern = Regex::new(r"^(https|http|file):.*")
                 .expect("invalid regex, please report this bug");
             let parent_schema = if url_pattern.is_match(parent_schema_url) {
                 let url = Url::parse(parent_schema_url).map_err(|e| {
-                    _ = log.error(&format!(
+                    log.error(&format!(
                         "Failed to parset parent schema url '{}'",
                         parent_schema_url
                     ));
@@ -514,7 +513,7 @@ impl SchemaResolver {
                     }
                 })?;
                 TelemetrySchema::load_from_url(&url).map_err(|e| {
-                    _ = log.error(&format!(
+                    log.error(&format!(
                         "Failed to load parent schema '{}'",
                         parent_schema_url
                     ));
@@ -522,7 +521,7 @@ impl SchemaResolver {
                 })?
             } else {
                 TelemetrySchema::load_from_file(parent_schema_url).map_err(|e| {
-                    _ = log.error(&format!(
+                    log.error(&format!(
                         "Failed to load parent schema '{}'",
                         parent_schema_url
                     ));
@@ -530,7 +529,7 @@ impl SchemaResolver {
                 })?
             };
 
-            _ = log.success(&format!(
+            log.success(&format!(
                 "Loaded parent schema '{}' ({:.2}s)",
                 parent_schema_url,
                 start.elapsed().as_secs_f32()
@@ -566,13 +565,13 @@ impl SchemaResolver {
                     }
                     _ = loaded_files_count.fetch_add(1, Relaxed);
                     if error_count.load(Relaxed) == 0 {
-                        _ = log.loading(&format!(
+                        log.loading(&format!(
                             "Loaded {}/{} semantic convention files (no error detected)",
                             loaded_files_count.load(Relaxed),
                             total_file_count
                         ));
                     } else {
-                        _ = log.loading(&format!(
+                        log.loading(&format!(
                             "Loaded {}/{} semantic convention files ({} error(s) detected)",
                             loaded_files_count.load(Relaxed),
                             total_file_count,
@@ -591,7 +590,7 @@ impl SchemaResolver {
                     .append_sem_conv_spec(SemConvSpecWithProvenance { provenance, spec });
             }
             Err(e) => {
-                _ = log.error(&e.to_string());
+                log.error(&e.to_string());
                 errors.push(e);
             }
         });
@@ -699,7 +698,7 @@ mod test {
     fn resolve_schema() {
         let log = ConsoleLogger::new(0);
         let cache = Cache::try_new().unwrap_or_else(|e| {
-            _ = log.error(&e.to_string());
+            log.error(&e.to_string());
             std::process::exit(1);
         });
         let schema = SchemaResolver::resolve_schema_file(

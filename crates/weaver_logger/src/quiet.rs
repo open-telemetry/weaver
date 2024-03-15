@@ -26,49 +26,37 @@ impl QuietLogger {
 
 impl Logger for QuietLogger {
     /// Logs a trace message (only with debug enabled).
-    fn trace(&self, _message: &str) -> &Self {
-        self
-    }
+    fn trace(&self, _message: &str) {}
 
     /// Logs an info message.
-    fn info(&self, _message: &str) -> &Self {
-        self
-    }
+    fn info(&self, _message: &str) {}
 
     /// Logs a warning message.
-    fn warn(&self, message: &str) -> &Self {
+    fn warn(&self, message: &str) {
         _ = self
             .logger
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
-        self
     }
 
     /// Logs an error message.
-    fn error(&self, message: &str) -> &Self {
+    fn error(&self, message: &str) {
         _ = self
             .logger
             .lock()
             .expect("Failed to lock logger")
             .error(message);
-        self
     }
 
     /// Logs a success message.
-    fn success(&self, _message: &str) -> &Self {
-        self
-    }
+    fn success(&self, _message: &str) {}
 
     /// Logs a newline.
-    fn newline(&self, _count: usize) -> &Self {
-        self
-    }
+    fn newline(&self, _count: usize) {}
 
     /// Indents the logger.
-    fn indent(&self, _count: usize) -> &Self {
-        self
-    }
+    fn indent(&self, _count: usize) {}
 
     /// Stops a loading message.
     fn done(&self) {
@@ -81,9 +69,7 @@ impl Logger for QuietLogger {
     }
 
     /// Logs a loading message with a spinner.
-    fn loading(&self, _message: &str) -> &Self {
-        self
-    }
+    fn loading(&self, _message: &str) {}
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self {
@@ -91,7 +77,5 @@ impl Logger for QuietLogger {
     }
 
     /// Logs a message without icon.
-    fn log(&self, _message: &str) -> &Self {
-        self
-    }
+    fn log(&self, _message: &str) {}
 }

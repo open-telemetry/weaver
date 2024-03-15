@@ -88,6 +88,9 @@ unused_qualifications = "deny"
 unused_results = "deny"
 unused_extern_crates = "deny"
 
+[lints]
+workspace = true
+
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 cargo = { level = "deny", priority = -1 }

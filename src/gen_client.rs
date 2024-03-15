@@ -28,7 +28,7 @@ pub struct GenClientCommand {
 
 /// Generate a client SDK (application)
 pub fn command_gen_client(log: impl Logger + Sync + Clone, params: &GenClientCommand) {
-    _ = log.loading(&format!(
+    log.loading(&format!(
         "Generating client SDK for language {}",
         params.language
     ));
@@ -36,22 +36,21 @@ pub fn command_gen_client(log: impl Logger + Sync + Clone, params: &GenClientCom
     {
         Ok(gen) => gen,
         Err(e) => {
-            _ = log.error(&format!("{}", e));
+            log.error(&format!("{}", e));
             std::process::exit(1);
         }
     };
 
-    generator
+    _ = generator
         .generate(
             log.clone(),
             params.schema.clone(),
             params.output_dir.clone(),
         )
         .map_err(|e| {
-            _ = log.error(&format!("{}", e));
+            log.error(&format!("{}", e));
             std::process::exit(1);
-        })
-        .unwrap();
+        });
 
-    _ = log.success("Generated client SDK");
+    log.success("Generated client SDK");
 }
