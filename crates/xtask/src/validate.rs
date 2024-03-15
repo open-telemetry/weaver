@@ -16,8 +16,8 @@ use toml::Value;
 /// crates.
 /// - Each crate must have an allowed-external-types.toml file defining the types
 /// that are allowed to be used in the public API.
-/// - Each Cargo.toml must contain [lints] workspace = true and few other fields
-/// in the [package] section.
+/// - Each Cargo.toml must contain \[lints\] workspace = true and few other fields
+/// in the \[package\] section.
 pub fn run() -> anyhow::Result<()> {
     let mut errors = vec![];
 
