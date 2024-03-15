@@ -196,7 +196,7 @@ impl StatefulResults {
 /// Search for attributes and metrics in a schema file
 pub fn command_search(log: impl Logger + Sync + Clone, command: &SearchCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
-        _=log.error(&e.to_string());
+        _ = log.error(&e.to_string());
         std::process::exit(1);
     });
 
@@ -222,7 +222,7 @@ fn search_registry_command2(
         log.clone(),
     )
     .unwrap_or_else(|e| {
-        _=log.error(&format!("{}", e));
+        _ = log.error(&format!("{}", e));
         std::process::exit(1);
     });
 
@@ -230,7 +230,7 @@ fn search_registry_command2(
     let resolved_registry =
         resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
             .unwrap_or_else(|e| {
-                _=log.error(&format!("{}", e));
+                _ = log.error(&format!("{}", e));
                 std::process::exit(1);
             });
 
@@ -276,14 +276,14 @@ fn search_registry_command(
         log.clone(),
     )
     .unwrap_or_else(|e| {
-        _=log.error(&format!("{}", e));
+        _ = log.error(&format!("{}", e));
         std::process::exit(1);
     });
 
     let schema = if let Some(schema) = &registry_args.schema {
         let mut schema =
             SchemaResolver::resolve_schema(schema, cache, log.clone()).unwrap_or_else(|e| {
-                _=log.error(&format!("{}", e));
+                _ = log.error(&format!("{}", e));
                 std::process::exit(1);
             });
         schema.semantic_convention_registry = semconv_registry;
@@ -313,7 +313,7 @@ fn search_schema_command(
     let schema =
         SchemaResolver::resolve_schema_file(schema_args.schema.clone(), cache, log.clone())
             .unwrap_or_else(|e| {
-                _=log.error(&format!("{}", e));
+                _ = log.error(&format!("{}", e));
                 std::process::exit(1);
             });
 
@@ -403,7 +403,7 @@ fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
     };
 
     search_tui(&mut app).unwrap_or_else(|e| {
-        _=log.error(&format!("{}", e));
+        _ = log.error(&format!("{}", e));
         std::process::exit(1);
     });
 }

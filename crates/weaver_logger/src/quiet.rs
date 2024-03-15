@@ -37,7 +37,8 @@ impl Logger for QuietLogger {
 
     /// Logs a warning message.
     fn warn(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
@@ -46,7 +47,8 @@ impl Logger for QuietLogger {
 
     /// Logs an error message.
     fn error(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .error(message);

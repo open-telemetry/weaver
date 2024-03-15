@@ -93,7 +93,7 @@ pub fn unique_attributes(value: &Value, ctx: &HashMap<String, Value>) -> Result<
                                             // attribute already exists
                                             continue;
                                         }
-                                        _=unique_attributes.insert(id.clone(), attr.clone());
+                                        _ = unique_attributes.insert(id.clone(), attr.clone());
                                     }
                                 }
                             }

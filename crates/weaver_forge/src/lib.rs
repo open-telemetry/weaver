@@ -453,6 +453,7 @@ mod tests {
         assert!(cmp_dir("expected_output", "observed_output").unwrap());
     }
 
+    #[allow(clippy::print_stderr)]
     fn cmp_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Result<bool> {
         let mut expected_files = HashSet::new();
         let mut observed_files = HashSet::new();

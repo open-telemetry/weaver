@@ -442,7 +442,8 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
         let mut group_any_of_index = HashMap::new();
         for group in ureg.groups.iter() {
             if !group.group.has_include() {
-                _ = group_attrs_index.insert(group.group.id.clone(), group.group.attributes.clone());
+                _ = group_attrs_index
+                    .insert(group.group.id.clone(), group.group.attributes.clone());
                 _ = group_any_of_index.insert(
                     group.group.id.clone(),
                     group

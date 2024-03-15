@@ -436,7 +436,8 @@ impl SchemaResolver {
                 message: e.to_string(),
             })?;
         for warning in warnings {
-            _ = log.warn("Semantic convention warning")
+            _ = log
+                .warn("Semantic convention warning")
                 .log(&warning.error.to_string());
         }
         _ = log.success(&format!(

@@ -226,7 +226,8 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !metric_old_to_new_attributes.contains_key(old_name) {
-                            _ = metric_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = metric_old_to_new_attributes
+                                .insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -239,7 +240,8 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !log_old_to_new_attributes.contains_key(old_name) {
-                            _ = log_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = log_old_to_new_attributes
+                                .insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -253,7 +255,8 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !span_old_to_new_attributes.contains_key(old_name) {
-                            _ = span_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = span_old_to_new_attributes
+                                .insert(old_name.clone(), new_name.clone());
                         }
                     });
             }

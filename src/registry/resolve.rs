@@ -60,7 +60,7 @@ pub(crate) fn command(
     cache: &Cache,
     args: &RegistryResolveArgs,
 ) {
-    _=logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+    _ = logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let registry_id = "default";
 

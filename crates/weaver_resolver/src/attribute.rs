@@ -250,8 +250,7 @@ pub fn resolve_attributes(
 ) -> Result<Vec<Attribute>, Error> {
     let mut resolved_attrs = BTreeMap::new();
     let mut copy_into_resolved_attrs =
-        |attrs: HashMap<&String, &AttributeSpec>,
-         tags: &Option<Tags>| {
+        |attrs: HashMap<&String, &AttributeSpec>, tags: &Option<Tags>| {
             for (attr_id, attr) in attrs {
                 let mut attr: Attribute = attr.into();
                 attr.set_tags(tags);

@@ -166,7 +166,8 @@ impl Cache {
         };
 
         // Adds the repo to the git_repo_dirs hashmap.
-        _ = self.git_repo_dirs
+        _ = self
+            .git_repo_dirs
             .lock()
             .expect("git_repo_dirs lock failed")
             .insert(

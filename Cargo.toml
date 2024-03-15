@@ -97,3 +97,16 @@ print_stderr = "deny"
 multiple_crate_versions = "allow"
 # this lint shows places where you could add the #must_use attribute.
 must-use-candidate = "warn"
+
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+restriction = { level = "allow", priority = -1 }
+style = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+
+too_many_arguments = "allow"
+type_complexity = "allow"
+wrong_self_convention = "allow"
+rc_buffer = "warn"
+# str_to_string = "warn"

@@ -4,7 +4,6 @@
 
 pub mod quiet;
 
-
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 
@@ -70,7 +69,8 @@ impl Logger for ConsoleLogger {
     /// Logs an trace message (only with debug enabled).
     fn trace(&self, message: &str) -> &Self {
         if self.debug_level > 0 {
-            _ = self.logger
+            _ = self
+                .logger
                 .lock()
                 .expect("Failed to lock logger")
                 .log(message);
@@ -80,7 +80,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs an info message.
     fn info(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .info(message);
@@ -89,7 +90,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs a warning message.
     fn warn(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
@@ -98,7 +100,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs an error message.
     fn error(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .error(message);
@@ -107,7 +110,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs a success message.
     fn success(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .success(message);
@@ -116,7 +120,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs a newline.
     fn newline(&self, count: usize) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .newline(count);
@@ -125,7 +130,8 @@ impl Logger for ConsoleLogger {
 
     /// Indents the logger.
     fn indent(&self, count: usize) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .indent(count);
@@ -139,7 +145,8 @@ impl Logger for ConsoleLogger {
 
     /// Adds a style to the logger.
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .add_style(name, styles);
@@ -148,7 +155,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs a loading message with a spinner.
     fn loading(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .loading(message);
@@ -163,7 +171,8 @@ impl Logger for ConsoleLogger {
 
     /// Logs a message without icon.
     fn log(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .log(message);
@@ -284,7 +293,8 @@ impl Logger for TestLogger {
 
     /// Logs an info message.
     fn info(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .info(message);
@@ -293,29 +303,34 @@ impl Logger for TestLogger {
 
     /// Logs a warning message.
     fn warn(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
-        _ = self.warn_count
+        _ = self
+            .warn_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self
     }
 
     /// Logs an error message.
     fn error(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .error(message);
-        _ = self.error_count
+        _ = self
+            .error_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self
     }
 
     /// Logs a success message.
     fn success(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .success(message);
@@ -324,7 +339,8 @@ impl Logger for TestLogger {
 
     /// Logs a newline.
     fn newline(&self, count: usize) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .newline(count);
@@ -333,7 +349,8 @@ impl Logger for TestLogger {
 
     /// Indents the logger.
     fn indent(&self, count: usize) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .indent(count);
@@ -347,7 +364,8 @@ impl Logger for TestLogger {
 
     /// Adds a style to the logger.
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .add_style(name, styles);
@@ -356,7 +374,8 @@ impl Logger for TestLogger {
 
     /// Logs a loading message with a spinner.
     fn loading(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .loading(message);
@@ -371,7 +390,8 @@ impl Logger for TestLogger {
 
     /// Logs a message without icon.
     fn log(&self, message: &str) -> &Self {
-        _ = self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .log(message);

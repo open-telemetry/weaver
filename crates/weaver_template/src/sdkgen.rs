@@ -222,12 +222,12 @@ impl ClientSdkGenerator {
                             }
                         })?;
 
-                        _=log.loading(&format!("Generating file {}", template));
+                        _ = log.loading(&format!("Generating file {}", template));
                         let generated_code = self.generate_code(log.clone(), &template, context)?;
                         let relative_path = relative_path.to_path_buf();
                         let generated_file =
                             Self::save_generated_code(&output_dir, relative_path, generated_code)?;
-                        _=log.success(&format!("Generated file {:?}", generated_file));
+                        _ = log.success(&format!("Generated file {:?}", generated_file));
                         Ok(())
                     }
                 }
@@ -308,7 +308,7 @@ impl ClientSdkGenerator {
                         _ => {
                             // Remove the `tera` extension from the relative path
                             let mut relative_path = relative_path.to_path_buf();
-                            _=relative_path.set_extension("");
+                            _ = relative_path.set_extension("");
 
                             templates.push(TemplateObjectPair::Other {
                                 template: tmpl_file.into(),
@@ -392,7 +392,7 @@ impl ClientSdkGenerator {
             // Reset the config
             self.config.reset();
 
-            _=log.loading(&format!("Generating code for univariate metric `{}`", name));
+            _ = log.loading(&format!("Generating code for univariate metric `{}`", name));
             let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
 
             // Retrieve the file name from the config
@@ -410,7 +410,7 @@ impl ClientSdkGenerator {
             // Save the generated code to the output directory
             let generated_file =
                 Self::save_generated_code(output_dir, relative_path, generated_code)?;
-            _=log.success(&format!("Generated file {:?}", generated_file));
+            _ = log.success(&format!("Generated file {:?}", generated_file));
         }
 
         Ok(())
@@ -433,7 +433,7 @@ impl ClientSdkGenerator {
         // Reset the config
         self.config.reset();
 
-        _=log.loading(&format!(
+        _ = log.loading(&format!(
             "Generating code for multivariate metric `{}`",
             metric.name
         ));
@@ -453,7 +453,7 @@ impl ClientSdkGenerator {
 
         // Save the generated code to the output directory
         let generated_file = Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        _=log.success(&format!("Generated file {:?}", generated_file));
+        _ = log.success(&format!("Generated file {:?}", generated_file));
 
         Ok(())
     }
@@ -475,7 +475,7 @@ impl ClientSdkGenerator {
         // Reset the config
         self.config.reset();
 
-        _=log.loading(&format!("Generating code for log `{}`", event.event_name));
+        _ = log.loading(&format!("Generating code for log `{}`", event.event_name));
         let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
 
         // Retrieve the file name from the config
@@ -492,7 +492,7 @@ impl ClientSdkGenerator {
 
         // Save the generated code to the output directory
         let generated_file = Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        _=log.success(&format!("Generated file {:?}", generated_file));
+        _ = log.success(&format!("Generated file {:?}", generated_file));
 
         Ok(())
     }
@@ -514,7 +514,7 @@ impl ClientSdkGenerator {
         // Reset the config
         self.config.reset();
 
-        _=log.loading(&format!("Generating code for span `{}`", span.span_name));
+        _ = log.loading(&format!("Generating code for span `{}`", span.span_name));
         let generated_code = self.generate_code(log.clone(), tmpl_file, context)?;
 
         // Retrieve the file name from the config
@@ -531,7 +531,7 @@ impl ClientSdkGenerator {
 
         // Save the generated code to the output directory
         let generated_file = Self::save_generated_code(output_dir, relative_path, generated_code)?;
-        _=log.success(&format!("Generated file {:?}", generated_file));
+        _ = log.success(&format!("Generated file {:?}", generated_file));
 
         Ok(())
     }

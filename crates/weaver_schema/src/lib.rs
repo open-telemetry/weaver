@@ -313,9 +313,7 @@ impl TelemetrySchema {
     pub fn metric_groups(&self) -> Vec<&MetricGroup> {
         self.schema
             .as_ref()
-            .map_or(Vec::<&MetricGroup>::new(), |schema| {
-                schema.metric_groups()
-            })
+            .map_or(Vec::<&MetricGroup>::new(), |schema| schema.metric_groups())
     }
 
     /// Returns an iterator over the events.

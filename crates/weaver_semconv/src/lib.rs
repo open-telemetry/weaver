@@ -472,7 +472,7 @@ impl SemConvRegistry {
                         }
                     }
                     _ => {
-                        eprintln!(
+                        panic!(
                             "Warning: group type `{:?}` not implemented yet",
                             group.r#type
                         );
@@ -540,7 +540,7 @@ impl SemConvRegistry {
                         }
                     }
                     GroupType::MetricGroup => {
-                        eprintln!("Warning: group type `metric_group` not implemented yet");
+                        panic!("Warning: group type `metric_group` not implemented yet");
                     }
                     _ => {
                         // No metrics to process

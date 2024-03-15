@@ -90,21 +90,21 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
             match serde_yaml::to_string(&resolved_schema) {
                 Ok(yaml) => {
                     if let Some(output) = &command.output {
-                        _=log.loading(&format!(
+                        _ = log.loading(&format!(
                             "Saving resolved registry to {}",
                             output
                                 .to_str()
                                 .unwrap_or("<unrepresentable-filename-not-utf8>")
                         ));
                         if let Err(e) = std::fs::write(output, &yaml) {
-                            _=log.error(&format!(
+                            _ = log.error(&format!(
                                 "Failed to write to {}: {}",
                                 output.to_str().unwrap(),
                                 e
                             ));
                             exit(1)
                         }
-                        _=log.success(&format!(
+                        _ = log.success(&format!(
                             "Saved resolved registry to '{}'",
                             output
                                 .to_str()
@@ -115,7 +115,7 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                     }
                 }
                 Err(e) => {
-                    _=log.error(&format!("{}", e));
+                    _ = log.error(&format!("{}", e));
                     exit(1)
                 }
             }
@@ -128,21 +128,21 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                 Ok(schema) => match serde_yaml::to_string(&schema) {
                     Ok(yaml) => {
                         if let Some(output) = &command.output {
-                            _=log.loading(&format!(
+                            _ = log.loading(&format!(
                                 "Saving resolved schema to {}",
                                 output
                                     .to_str()
                                     .unwrap_or("<unrepresentable-filename-not-utf8>")
                             ));
                             if let Err(e) = std::fs::write(output, &yaml) {
-                                _=log.error(&format!(
+                                _ = log.error(&format!(
                                     "Failed to write to {}: {}",
                                     output.to_str().unwrap(),
                                     e
                                 ));
                                 exit(1)
                             }
-                            _=log.success(&format!(
+                            _ = log.success(&format!(
                                 "Saved resolved schema to '{}'",
                                 output
                                     .to_str()
@@ -153,12 +153,12 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                         }
                     }
                     Err(e) => {
-                        _=log.error(&format!("{}", e));
+                        _ = log.error(&format!("{}", e));
                         exit(1)
                     }
                 },
                 Err(e) => {
-                    _=log.error(&format!("{}", e));
+                    _ = log.error(&format!("{}", e));
                     exit(1)
                 }
             }

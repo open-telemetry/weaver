@@ -66,7 +66,7 @@ pub struct RegistryArgs {
 /// Manage a semantic convention registry.
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
-        _=log.error(&e.to_string());
+        _ = log.error(&e.to_string());
         std::process::exit(1);
     });
 

@@ -23,7 +23,7 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 fn test_semconv_registry_resolution() {
     let log = TestLogger::new();
     let cache = Cache::try_new().unwrap_or_else(|e| {
-        _=log.error(&e.to_string());
+        _ = log.error(&e.to_string());
         panic!("Failed to create the git cache repo, error: {e}");
     });
 
