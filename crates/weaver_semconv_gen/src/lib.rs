@@ -154,7 +154,7 @@ fn generate_markdown_snippet(schema: &ResolvedTelemetrySchema, args: GenerateMar
     let mut ctx = GenerateMarkdownContext::default();
     if args.is_metric_table() {
         let view = MetricView::try_new(args.id.as_str(), schema)?;
-        Ok(view.generate_markdown())
+        Ok(view.generate_markdown(&mut ctx))
     } else {
         let other = AttributeTableView::try_new(args.id.as_str(), schema)?;
         Ok(other.generate_markdown(&args, &mut ctx)?)
@@ -479,7 +479,8 @@ impl <'a> AttributeTableView<'a> {
 
 
 struct MetricView<'a> {
-    metric: &'a Metric,
+    group: &'a Group,
+    // metric: &'a Metric,
 }
 impl <'a> MetricView<'a> {
 
@@ -492,53 +493,57 @@ impl <'a> MetricView<'a> {
             schema.registries.iter().find_map(|r| {
                 r.groups.iter().find(|g| g.id == id)
             })
-            .filter(|g| g.r#type == GroupType::Metric)
-            // TODO - Since metric isn't working, we could just use group here.
-            .map(|g| {
-                println!("Looking for metric {:?} in catalog!", g.metric_name.as_ref());
-                schema.catalog.metrics.iter().find(|m| &m.name == g.metric_name.as_ref().unwrap())
-            }).flatten();
+            .filter(|g| g.r#type == GroupType::Metric);
+            // TODO - Since metric isn't working, we just use group here.
+            // .map(|g| {
+            //     println!("Looking for metric {:?} in catalog!", g.metric_name.as_ref());
+            //     schema.catalog.metrics.iter().find(|m| &m.name == g.metric_name.as_ref().unwrap())
+            // }).flatten();
 
         match metric {
-            Some(metric) => Ok(MetricView{metric}),
+            Some(group) => Ok(MetricView{group}),
             None => Err(Error::GroupMustBeMetric { id: id.to_string() }),
         }
     }
 
     fn metric_name(&self) -> &str {
-        &self.metric.name
+        self.group.metric_name.as_ref().map(|r| r.as_ref()).unwrap_or("")
     }
     fn instrument(&self) -> &'static str {        
-        match self.metric.instrument {
-            Instrument::UpDownCounter => "UpDownCounter",
-            Instrument::Counter => "Counter",
-            Instrument::Gauge => "Gauge",
-            Instrument::Histogram => "Histogram",
+        match self.group.instrument {
+            Some(InstrumentSpec::UpDownCounter) => "UpDownCounter",
+            Some(InstrumentSpec::Counter) => "Counter",
+            Some(InstrumentSpec::Gauge) => "Gauge",
+            Some(InstrumentSpec::Histogram) => "Histogram",
+            None => "Unknown",
         }
     }
     fn unit(&self) -> &str {
-        self.metric.unit.as_ref().map(|x| x.as_str()).unwrap_or("1")
+        self.group.unit.as_ref().map(|x| x.as_str()).unwrap_or("1")
     }
-    fn description(&self) -> &str {
-        &self.metric.brief
+    fn description(&self, ctx: &mut GenerateMarkdownContext) -> String {
+        // TODO - add note if needed.
+        if self.group.note.is_empty() {
+            self.group.brief.clone()
+        } else {
+            format!("{} {}", &self.group.brief, ctx.add_note(self.group.note.clone()))
+        }
     }
 
     // TODO - Does this belong here?
-    pub fn generate_markdown(&self) -> String {
+    pub fn generate_markdown(&self, ctx: &mut GenerateMarkdownContext) -> String {
         let mut result = String::new();
         result.push_str("| Name     | Instrument Type | Unit (UCUM) | Description    |\n");
         result.push_str("| -------- | --------------- | ----------- | -------------- |\n");
-        result.push_str(&format!("| {} | {} | {} | {} |\n", 
+        result.push_str(&format!("| `{}` | {} | `{}` | {} |\n", 
           self.metric_name(),
           self.instrument(),
           self.unit(),
-          self.description(),
+          self.description(ctx),
          ));
 
-         // TODO - Render notes.
-         if !self.metric.note.is_empty() {
-
-         }
+        // Add "note" footers
+        result.push_str(&ctx.rendered_notes());
 
          result
     }
@@ -563,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    fn test_metric_table() -> Result<(), Error> {
+    fn test_http_semconv() -> Result<(), Error> {
         let logger = TestLogger::default();
 
         let mut registry =
@@ -574,7 +579,7 @@ mod tests {
 
         // Check our test files.
         force_print_error(update_markdown("data/http-span-full-attribute-table.md", &schema, true));
-        force_print_error(update_markdown("data/test-markdown.md", &schema, true));
+        force_print_error(update_markdown("data/http-metric-semconv.md", &schema, true));
         Ok(())
     }
 }

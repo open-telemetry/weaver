@@ -26,5 +26,6 @@ pub fn diff_output(original: &str, updated: &str) -> String {
         };
         result.push_str(&format!("{}{} {}", color, sign, change));
     }
+    result.push_str(RESET);
     result
 }
