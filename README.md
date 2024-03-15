@@ -3,7 +3,8 @@
 ## Overview
 
 > At this stage, the project is being used as a **Proof of Concept** to explore and
-> refine the 'Application Telemetry Schema: Vision and Roadmap' [OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md),
+> refine the 'Application Telemetry Schema: Vision and
+> Roadmap' [OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md),
 > which has been approved and merged.
 >
 > This project is a **work in progress and is not ready for production use**.
@@ -22,6 +23,7 @@ must build it from source. To do so, you need to have Rust installed on your
 system (see [Install Rust](https://www.rust-lang.org/tools/install)).
 
 To build the tool:
+
 - In debug mode, run the following command:
   ```
   cargo build
@@ -164,19 +166,20 @@ crates.io.
 The following is a list of crates in the workspace, along with a brief
 description and the current status of each crate:
 
-| Crate                                                             | Description                                                          | Status                  |
-|-------------------------------------------------------------------|----------------------------------------------------------------------|-------------------------|
-| [weaver_semconv](crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Alpha; Need more tests  |
-| [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha; Need more tests  |
-| [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress        |
-| [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                                          | Work-In-Progress        |
-| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process                                  | Work-In-Progress        |
-| [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress        |
-| [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                   |
-| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests  |
+| Crate                                                             | Description                                                          | Status                 |
+|-------------------------------------------------------------------|----------------------------------------------------------------------|------------------------|
+| [weaver_semconv](crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Alpha; Need more tests |
+| [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha; Need more tests |
+| [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress       |
+| [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                                          | Work-In-Progress       |
+| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process                                  | Work-In-Progress       |
+| [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress       |
+| [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                  |
+| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests |
+| xtask                                                             | Set of tasks to validate the project                                 | Done                   |
 
 Note 1: Alpha status means that the crate is in a usable state but may have
-limited functionality and/or may not be fully tested. 
+limited functionality and/or may not be fully tested.
 
 Note 2: Work-In-Progress status means that the crate is still under active
 development.
@@ -197,6 +200,7 @@ Below is a diagram detailing the primary components of the OpenTelemetry Weaver 
 ## Links
 
 Internal links:
+
 - [Template Engine](docs/template-engine.md)
 - [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)
 - [Resolved Telemetry Schema](docs/resolved-telemetry-schema.md) (proposal)
@@ -204,20 +208,24 @@ Internal links:
 - [Change log](CHANGELOG.md)
 
 External links:
+
 - Application Telemetry Schema: Vision and Roadmap - [PR](https://github.com/open-telemetry/oteps/pull/243)
-- OpenTelemetry Telemetry Schema v1.2.0 [Draft](https://github.com/lquerel/oteps/blob/app-telemetry-schema-format/text/0241-telemetry-schema-ext.md) (not yet ready).
+- OpenTelemetry Telemetry Schema
+  v1.2.0 [Draft](https://github.com/lquerel/oteps/blob/app-telemetry-schema-format/text/0241-telemetry-schema-ext.md) (
+  not yet ready).
 - [OpenTelemetry Semantic Convention File Format](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 - [OpenTelemetry Schema File Format v1.1.0](https://opentelemetry.io/docs/specs/otel/schemas/file_format_v1.1.0/)
-- Presentation slides from the Semantic Convention SIG meeting on October 23, 2023 [here](https://docs.google.com/presentation/d/1nxt5VFlC1mUjZ8eecUYK4e4SxThpIVj1IRnIcodMsNI/edit?usp=sharing).
-- Meta/Facebook's [positional paper](https://research.facebook.com/publications/positional-paper-schema-first-application-telemetry/) 
-  presenting a similar approach but based on Thrift+Annotations+Automations.
+- Presentation slides from the Semantic Convention SIG meeting on October 23,
+  2023 [here](https://docs.google.com/presentation/d/1nxt5VFlC1mUjZ8eecUYK4e4SxThpIVj1IRnIcodMsNI/edit?usp=sharing).
+-
+Meta/Facebook's [positional paper](https://research.facebook.com/publications/positional-paper-schema-first-application-telemetry/)
+presenting a similar approach but based on Thrift+Annotations+Automations.
 
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue
 first to discuss what you would like to change. For more information, please
 read [CONTRIBUTING](CONTRIBUTING.md).
-
 
 ## License
 

@@ -23,6 +23,7 @@ edition = "2021"
 repository = "https://github.com/f5/otel-weaver"
 license = "Apache-2.0"
 publish = false
+rust-version = "1.76"
 
 [workspace.dependencies]
 serde = { version = "1.0.197", features = ["derive"] }
@@ -34,6 +35,7 @@ regex = "1.10.3"
 rayon = "1.9.0"
 ordered-float = { version = "4.2.0", features = ["serde"] }
 walkdir = "2.5.0"
+anyhow = "1.0.81"
 
 # Features definition =========================================================
 [features]
