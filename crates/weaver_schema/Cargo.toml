@@ -6,6 +6,10 @@ repository.workspace = true
 license.workspace = true
 publish.workspace = true
 edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 weaver_semconv = { path = "../weaver_semconv" }

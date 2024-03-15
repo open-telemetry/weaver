@@ -8,7 +8,7 @@ use ratatui::text::{Line, Span};
 use weaver_semconv::attribute::{AttributeSpec, BasicRequirementLevelSpec, RequirementLevel};
 
 /// Append attributes to the text.
-pub fn append_lines(attributes: &[AttributeSpec], text: &mut Vec<Line>, theme: &ThemeConfig) {
+pub fn append_lines(attributes: &[AttributeSpec], text: &mut Vec<Line<'_>>, theme: &ThemeConfig) {
     if !attributes.is_empty() {
         text.push(Line::from(Span::styled(
             "Attributes: ",

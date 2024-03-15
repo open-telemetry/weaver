@@ -28,6 +28,7 @@ impl Resource {
     }
 
     /// Returns the tags of the resource or None if not set.
+    #[must_use]
     pub fn tags(&self) -> Option<&Tags> {
         self.tags.as_ref()
     }

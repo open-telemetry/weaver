@@ -21,7 +21,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
                 .join(", ")
         });
 
-        index_writer
+        _ = index_writer
             .add_document(doc!(
                 fields.path => format!("schema/span/{}", span.span_name),
                 fields.brief => "",
@@ -43,7 +43,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
                     .join(", ")
             });
 
-            index_writer
+            _ = index_writer
                 .add_document(doc!(
                     fields.path => format!("schema/span/{}/event/{}", span.span_name, event.event_name),
                     fields.brief => "",

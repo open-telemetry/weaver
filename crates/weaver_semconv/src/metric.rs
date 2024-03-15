@@ -27,21 +27,25 @@ pub struct MetricSpec {
 
 impl MetricSpec {
     /// Returns the name of the metric.
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Returns the brief description of the metric.
+    #[must_use]
     pub fn brief(&self) -> &str {
         &self.brief
     }
 
     /// Returns the note on the metric.
+    #[must_use]
     pub fn note(&self) -> &str {
         &self.note
     }
 
     /// Returns the unit of the metric.
+    #[must_use]
     pub fn unit(&self) -> Option<&str> {
         self.unit.as_deref()
     }

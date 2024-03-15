@@ -168,7 +168,7 @@ pub fn check_any_of_constraints(
                     provenance: group.provenance().to_string(),
                 }),
                 Some(attr_name) => {
-                    group_attr_names.insert(attr_name.clone());
+                    _ = group_attr_names.insert(attr_name.clone());
                 }
             }
         }
@@ -379,7 +379,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
         let mut group_index = HashMap::new();
         for group in ureg.groups.iter() {
             if group.group.extends.is_none() {
-                group_index.insert(group.group.id.clone(), group.group.attributes.clone());
+                _ = group_index.insert(group.group.id.clone(), group.group.attributes.clone());
             }
         }
 
@@ -403,7 +403,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
                             );
                         }
                     }
-                    unresolved_group.group.extends.take();
+                    _ = unresolved_group.group.extends.take();
                     resolved_extends_count += 1;
                 } else {
                     unresolved_extends_count += 1;
@@ -442,8 +442,9 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
         let mut group_any_of_index = HashMap::new();
         for group in ureg.groups.iter() {
             if !group.group.has_include() {
-                group_attrs_index.insert(group.group.id.clone(), group.group.attributes.clone());
-                group_any_of_index.insert(
+                _ = group_attrs_index
+                    .insert(group.group.id.clone(), group.group.attributes.clone());
+                _ = group_any_of_index.insert(
                     group.group.id.clone(),
                     group
                         .group
@@ -473,7 +474,7 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
                 if let Some(include) = &constraint.include {
                     if let Some(attributes) = group_attrs_index.get(include) {
                         attributes_to_import.extend(attributes.iter().cloned());
-                        resolved_includes.insert(include.clone());
+                        _ = resolved_includes.insert(include.clone());
 
                         if let Some(any_of_constraints) = group_any_of_index.get(include) {
                             any_of_to_import.extend(any_of_constraints.iter().cloned());

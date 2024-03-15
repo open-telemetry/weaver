@@ -242,12 +242,14 @@ impl From<&weaver_semconv::attribute::AttributeSpec> for Attribute {
 }
 
 /// Convert a slice of semantic convention attributes to a vector of schema attributes.
+#[must_use]
 pub fn to_schema_attributes(attrs: &[weaver_semconv::attribute::AttributeSpec]) -> Vec<Attribute> {
     attrs.iter().map(|attr| attr.into()).collect()
 }
 
 impl Attribute {
     /// Returns the id or the reference of the attribute.
+    #[must_use]
     pub fn id(&self) -> String {
         match self {
             Attribute::Ref { r#ref, .. } => r#ref.clone(),

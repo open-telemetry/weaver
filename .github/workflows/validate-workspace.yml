@@ -1,0 +1,18 @@
+name: Validate the Cargo workspace.
+
+on: [pull_request]
+
+jobs:
+  validate-workspace:
+    name: Validate workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo xtask validate
+        run: cargo xtask validate

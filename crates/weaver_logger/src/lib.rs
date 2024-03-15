@@ -2,10 +2,6 @@
 
 //! A generic logger that can be used to log messages to the console.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
 pub mod quiet;
 
 use std::sync::atomic::AtomicUsize;
@@ -14,25 +10,25 @@ use std::sync::{Arc, Mutex};
 /// A trait that defines the interface of a logger.
 pub trait Logger {
     /// Logs an trace message (only with debug enabled).
-    fn trace(&self, message: &str) -> &Self;
+    fn trace(&self, message: &str);
 
     /// Logs an info message.
-    fn info(&self, message: &str) -> &Self;
+    fn info(&self, message: &str);
 
     /// Logs a warning message.
-    fn warn(&self, message: &str) -> &Self;
+    fn warn(&self, message: &str);
 
     /// Logs an error message.
-    fn error(&self, message: &str) -> &Self;
+    fn error(&self, message: &str);
 
     /// Logs a success message.
-    fn success(&self, message: &str) -> &Self;
+    fn success(&self, message: &str);
 
     /// Logs a newline.
-    fn newline(&self, count: usize) -> &Self;
+    fn newline(&self, count: usize);
 
     /// Indents the logger.
-    fn indent(&self, count: usize) -> &Self;
+    fn indent(&self, count: usize);
 
     /// Stops a loading message.
     fn done(&self);
@@ -41,13 +37,13 @@ pub trait Logger {
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self;
 
     /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str) -> &Self;
+    fn loading(&self, message: &str);
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self;
 
     /// Logs a message without icon.
-    fn log(&self, message: &str) -> &Self;
+    fn log(&self, message: &str);
 }
 
 /// A generic logger that can be used to log messages to the console.
@@ -60,6 +56,7 @@ pub struct ConsoleLogger {
 
 impl ConsoleLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new(debug_level: u8) -> Self {
         ConsoleLogger {
             logger: Arc::new(Mutex::new(paris::Logger::new())),
@@ -70,78 +67,79 @@ impl ConsoleLogger {
 
 impl Logger for ConsoleLogger {
     /// Logs an trace message (only with debug enabled).
-    fn trace(&self, message: &str) -> &Self {
+    fn trace(&self, message: &str) {
         if self.debug_level > 0 {
-            self.logger
+            _ = self
+                .logger
                 .lock()
                 .expect("Failed to lock logger")
                 .log(message);
         }
-        self
     }
 
     /// Logs an info message.
-    fn info(&self, message: &str) -> &Self {
-        self.logger
+    fn info(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .info(message);
-        self
     }
 
     /// Logs a warning message.
-    fn warn(&self, message: &str) -> &Self {
-        self.logger
+    fn warn(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
-        self
     }
 
     /// Logs an error message.
-    fn error(&self, message: &str) -> &Self {
-        self.logger
+    fn error(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .error(message);
-        self
     }
 
     /// Logs a success message.
-    fn success(&self, message: &str) -> &Self {
-        self.logger
+    fn success(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .success(message);
-        self
     }
 
     /// Logs a newline.
-    fn newline(&self, count: usize) -> &Self {
-        self.logger
+    fn newline(&self, count: usize) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .newline(count);
-        self
     }
 
     /// Indents the logger.
-    fn indent(&self, count: usize) -> &Self {
-        self.logger
+    fn indent(&self, count: usize) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .indent(count);
-        self
     }
 
     /// Stops a loading message.
     fn done(&self) {
-        self.logger.lock().expect("Failed to lock logger").done();
+        _ = self.logger.lock().expect("Failed to lock logger").done();
     }
 
     /// Adds a style to the logger.
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .add_style(name, styles);
@@ -149,27 +147,27 @@ impl Logger for ConsoleLogger {
     }
 
     /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str) -> &Self {
-        self.logger
+    fn loading(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .loading(message);
-        self
     }
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self {
-        self.logger.lock().expect("Failed to lock logger").same();
+        _ = self.logger.lock().expect("Failed to lock logger").same();
         self
     }
 
     /// Logs a message without icon.
-    fn log(&self, message: &str) -> &Self {
-        self.logger
+    fn log(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .log(message);
-        self
     }
 }
 
@@ -179,6 +177,7 @@ pub struct NullLogger {}
 
 impl NullLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new() -> Self {
         NullLogger {}
     }
@@ -186,39 +185,25 @@ impl NullLogger {
 
 impl Logger for NullLogger {
     /// Logs an trace message (only with debug enabled).
-    fn trace(&self, _: &str) -> &Self {
-        self
-    }
+    fn trace(&self, _: &str) {}
 
     /// Logs an info message.
-    fn info(&self, _: &str) -> &Self {
-        self
-    }
+    fn info(&self, _: &str) {}
 
     /// Logs a warning message.
-    fn warn(&self, _: &str) -> &Self {
-        self
-    }
+    fn warn(&self, _: &str) {}
 
     /// Logs an error message.
-    fn error(&self, _: &str) -> &Self {
-        self
-    }
+    fn error(&self, _: &str) {}
 
     /// Logs a success message.
-    fn success(&self, _: &str) -> &Self {
-        self
-    }
+    fn success(&self, _: &str) {}
 
     /// Logs a newline.
-    fn newline(&self, _: usize) -> &Self {
-        self
-    }
+    fn newline(&self, _: usize) {}
 
     /// Indents the logger.
-    fn indent(&self, _: usize) -> &Self {
-        self
-    }
+    fn indent(&self, _: usize) {}
 
     /// Stops a loading message.
     fn done(&self) {}
@@ -229,9 +214,7 @@ impl Logger for NullLogger {
     }
 
     /// Logs a loading message with a spinner.
-    fn loading(&self, _: &str) -> &Self {
-        self
-    }
+    fn loading(&self, _: &str) {}
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self {
@@ -239,9 +222,7 @@ impl Logger for NullLogger {
     }
 
     /// Logs a message without icon.
-    fn log(&self, _: &str) -> &Self {
-        self
-    }
+    fn log(&self, _: &str) {}
 }
 
 /// A logger that can be used in unit or integration tests.
@@ -255,6 +236,7 @@ pub struct TestLogger {
 
 impl TestLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new() -> Self {
         TestLogger {
             logger: Arc::new(Mutex::new(paris::Logger::new())),
@@ -264,11 +246,13 @@ impl TestLogger {
     }
 
     /// Returns the number of warning messages logged.
+    #[must_use]
     pub fn warn_count(&self) -> usize {
         self.warn_count.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Returns the number of error messages logged.
+    #[must_use]
     pub fn error_count(&self) -> usize {
         self.error_count.load(std::sync::atomic::Ordering::Relaxed)
     }
@@ -276,76 +260,77 @@ impl TestLogger {
 
 impl Logger for TestLogger {
     /// Logs a trace message (only with debug enabled).
-    fn trace(&self, _message: &str) -> &Self {
-        self
-    }
+    fn trace(&self, _message: &str) {}
 
     /// Logs an info message.
-    fn info(&self, message: &str) -> &Self {
-        self.logger
+    fn info(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .info(message);
-        self
     }
 
     /// Logs a warning message.
-    fn warn(&self, message: &str) -> &Self {
-        self.logger
+    fn warn(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
-        self.warn_count
+        _ = self
+            .warn_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self
     }
 
     /// Logs an error message.
-    fn error(&self, message: &str) -> &Self {
-        self.logger
+    fn error(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .error(message);
-        self.error_count
+        _ = self
+            .error_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self
     }
 
     /// Logs a success message.
-    fn success(&self, message: &str) -> &Self {
-        self.logger
+    fn success(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .success(message);
-        self
     }
 
     /// Logs a newline.
-    fn newline(&self, count: usize) -> &Self {
-        self.logger
+    fn newline(&self, count: usize) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .newline(count);
-        self
     }
 
     /// Indents the logger.
-    fn indent(&self, count: usize) -> &Self {
-        self.logger
+    fn indent(&self, count: usize) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .indent(count);
-        self
     }
 
     /// Stops a loading message.
     fn done(&self) {
-        self.logger.lock().expect("Failed to lock logger").done();
+        _ = self.logger.lock().expect("Failed to lock logger").done();
     }
 
     /// Adds a style to the logger.
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        self.logger
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .add_style(name, styles);
@@ -353,26 +338,26 @@ impl Logger for TestLogger {
     }
 
     /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str) -> &Self {
-        self.logger
+    fn loading(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .loading(message);
-        self
     }
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self {
-        self.logger.lock().expect("Failed to lock logger").same();
+        _ = self.logger.lock().expect("Failed to lock logger").same();
         self
     }
 
     /// Logs a message without icon.
-    fn log(&self, message: &str) -> &Self {
-        self.logger
+    fn log(&self, message: &str) {
+        _ = self
+            .logger
             .lock()
             .expect("Failed to lock logger")
             .log(message);
-        self
     }
 }

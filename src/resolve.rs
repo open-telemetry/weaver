@@ -61,7 +61,7 @@ pub struct ResolveSchema {
 pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());
-        std::process::exit(1);
+        exit(1);
     });
     match command.command {
         ResolveSubCommand::Registry(ref command) => {
@@ -99,7 +99,7 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                         if let Err(e) = std::fs::write(output, &yaml) {
                             log.error(&format!(
                                 "Failed to write to {}: {}",
-                                output.to_str().unwrap(),
+                                output.to_str().expect("Invalid filename"),
                                 e
                             ));
                             exit(1)
@@ -137,7 +137,7 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                             if let Err(e) = std::fs::write(output, &yaml) {
                                 log.error(&format!(
                                     "Failed to write to {}: {}",
-                                    output.to_str().unwrap(),
+                                    output.to_str().expect("Invalid filename"),
                                     e
                                 ));
                                 exit(1)

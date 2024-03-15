@@ -30,6 +30,7 @@ pub struct Event {
 
 impl Event {
     /// Returns an attribute by its name.
+    #[must_use]
     pub fn attribute(&self, id: &str) -> Option<&Attribute> {
         self.attributes.iter().find(|a| a.id() == id)
     }

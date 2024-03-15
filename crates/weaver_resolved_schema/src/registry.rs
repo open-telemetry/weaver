@@ -32,6 +32,7 @@ pub struct Registry {
 
 /// Statistics on a registry.
 #[derive(Debug, Serialize)]
+#[must_use]
 pub struct Stats {
     /// Url of the registry.
     pub url: String,
@@ -242,75 +243,86 @@ impl Registry {
             group_breakdown: self.groups.iter().fold(HashMap::new(), |mut acc, group| {
                 let group_type = group.r#type.clone();
 
-                acc.entry(group_type)
-                    .and_modify(|stats| match stats {
-                        AttributeGroup { common_stats } => {
-                            common_stats.update_stats(group);
-                        }
-                        Metric {
-                            common_stats,
-                            metric_names,
-                            instrument_breakdown,
-                            unit_breakdown,
-                        } => {
-                            common_stats.update_stats(group);
-                            metric_names.insert(group.metric_name.clone().unwrap());
-                            *instrument_breakdown
-                                .entry(group.instrument.clone().unwrap())
-                                .or_insert(0) += 1;
-                            *unit_breakdown
-                                .entry(group.unit.clone().unwrap())
-                                .or_insert(0) += 1;
-                        }
-                        MetricGroup { common_stats } => {
-                            common_stats.update_stats(group);
-                        }
-                        Event { common_stats } => {
-                            common_stats.update_stats(group);
-                        }
-                        Resource { common_stats } => {
-                            common_stats.update_stats(group);
-                        }
-                        Scope { common_stats } => {
-                            common_stats.update_stats(group);
-                        }
-                        Span {
-                            common_stats,
-                            span_kind_breakdown,
-                        } => {
-                            common_stats.update_stats(group);
-                            if let Some(span_kind) = group.span_kind.clone() {
-                                *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
+                _ =
+                    acc.entry(group_type)
+                        .and_modify(|stats| match stats {
+                            AttributeGroup { common_stats } => {
+                                common_stats.update_stats(group);
                             }
-                        }
-                    })
-                    .or_insert_with(|| match group.r#type {
-                        GroupType::AttributeGroup => AttributeGroup {
-                            common_stats: CommonGroupStats::default(),
-                        },
-                        GroupType::Metric => Metric {
-                            common_stats: CommonGroupStats::default(),
-                            metric_names: HashSet::new(),
-                            instrument_breakdown: HashMap::new(),
-                            unit_breakdown: HashMap::new(),
-                        },
-                        GroupType::MetricGroup => MetricGroup {
-                            common_stats: CommonGroupStats::default(),
-                        },
-                        GroupType::Event => Event {
-                            common_stats: CommonGroupStats::default(),
-                        },
-                        GroupType::Resource => Resource {
-                            common_stats: CommonGroupStats::default(),
-                        },
-                        GroupType::Scope => Scope {
-                            common_stats: CommonGroupStats::default(),
-                        },
-                        GroupType::Span => Span {
-                            common_stats: CommonGroupStats::default(),
-                            span_kind_breakdown: HashMap::new(),
-                        },
-                    });
+                            Metric {
+                                common_stats,
+                                metric_names,
+                                instrument_breakdown,
+                                unit_breakdown,
+                            } => {
+                                common_stats.update_stats(group);
+                                _ =
+                                    metric_names.insert(group.metric_name.clone().expect(
+                                        "metric_name is required as we are in a metric group",
+                                    ));
+                                *instrument_breakdown
+                                    .entry(group.instrument.clone().expect(
+                                        "instrument is required as we are in a metric group",
+                                    ))
+                                    .or_insert(0) += 1;
+                                *unit_breakdown
+                                    .entry(
+                                        group
+                                            .unit
+                                            .clone()
+                                            .expect("unit is required as we are in a metric group"),
+                                    )
+                                    .or_insert(0) += 1;
+                            }
+                            MetricGroup { common_stats } => {
+                                common_stats.update_stats(group);
+                            }
+                            Event { common_stats } => {
+                                common_stats.update_stats(group);
+                            }
+                            Resource { common_stats } => {
+                                common_stats.update_stats(group);
+                            }
+                            Scope { common_stats } => {
+                                common_stats.update_stats(group);
+                            }
+                            Span {
+                                common_stats,
+                                span_kind_breakdown,
+                            } => {
+                                common_stats.update_stats(group);
+                                if let Some(span_kind) = group.span_kind.clone() {
+                                    *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
+                                }
+                            }
+                        })
+                        .or_insert_with(|| match group.r#type {
+                            GroupType::AttributeGroup => AttributeGroup {
+                                common_stats: CommonGroupStats::default(),
+                            },
+                            GroupType::Metric => Metric {
+                                common_stats: CommonGroupStats::default(),
+                                metric_names: HashSet::new(),
+                                instrument_breakdown: HashMap::new(),
+                                unit_breakdown: HashMap::new(),
+                            },
+                            GroupType::MetricGroup => MetricGroup {
+                                common_stats: CommonGroupStats::default(),
+                            },
+                            GroupType::Event => Event {
+                                common_stats: CommonGroupStats::default(),
+                            },
+                            GroupType::Resource => Resource {
+                                common_stats: CommonGroupStats::default(),
+                            },
+                            GroupType::Scope => Scope {
+                                common_stats: CommonGroupStats::default(),
+                            },
+                            GroupType::Span => Span {
+                                common_stats: CommonGroupStats::default(),
+                                span_kind_breakdown: HashMap::new(),
+                            },
+                        });
                 acc
             }),
         }
@@ -352,6 +364,7 @@ impl Group {
     }
 
     /// Returns true if the group contains at least one `include` constraint.
+    #[must_use]
     pub fn has_include(&self) -> bool {
         self.constraints.iter().any(|c| c.include.is_some())
     }
@@ -378,11 +391,13 @@ impl Group {
 
         // Remove the include constraints
         self.constraints.retain(|c| {
-            c.include.is_none() || !include_to_remove.contains(c.include.as_ref().unwrap())
+            c.include.is_none()
+                || !include_to_remove.contains(c.include.as_ref().expect("include is not none"))
         });
     }
 
     /// Returns the provenance of the group.
+    #[must_use]
     pub fn provenance(&self) -> &str {
         match &self.lineage {
             Some(lineage) => lineage.provenance(),

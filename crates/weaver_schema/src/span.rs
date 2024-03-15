@@ -43,6 +43,7 @@ pub struct Span {
 
 impl Span {
     /// Returns an attribute by its name.
+    #[must_use]
     pub fn attribute(&self, id: &str) -> Option<&Attribute> {
         self.attributes.iter().find(|a| a.id() == id)
     }

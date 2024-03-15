@@ -137,6 +137,7 @@ pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
 impl Error {
     /// Creates a compound error from a list of errors.
     /// Note: All compound errors are flattened.
+    #[must_use]
     pub fn compound_error(errors: Vec<Self>) -> Self {
         CompoundError(
             errors
