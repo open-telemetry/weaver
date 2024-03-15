@@ -46,6 +46,7 @@ impl AttributeCatalog {
     }
 
     /// Returns a list of deduplicated attributes ordered by their references.
+    #[must_use]
     pub fn drain_attributes(self) -> Vec<attribute::Attribute> {
         let mut attributes: Vec<(attribute::Attribute, AttributeRef)> =
             self.attribute_refs.into_iter().collect();
@@ -54,6 +55,7 @@ impl AttributeCatalog {
     }
 
     /// Returns a list of indexed attribute names ordered by their references.
+    #[must_use]
     pub fn attribute_name_index(&self) -> Vec<String> {
         let mut attributes: Vec<(&attribute::Attribute, &AttributeRef)> =
             self.attribute_refs.iter().collect();
@@ -341,6 +343,7 @@ pub fn resolve_attributes(
 
 /// Merges the given main attributes with the inherited attributes.
 /// Main attributes have precedence over inherited attributes.
+#[must_use]
 pub fn merge_attributes(main_attrs: &[Attribute], inherited_attrs: &[Attribute]) -> Vec<Attribute> {
     let mut merged_attrs = main_attrs.to_vec();
     let main_attr_ids = main_attrs

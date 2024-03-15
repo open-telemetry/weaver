@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 /// The different types of values.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(tag = "type")]
+#[must_use]
 pub enum Value {
     /// A integer value.
     Int {

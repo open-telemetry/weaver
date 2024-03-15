@@ -85,6 +85,7 @@ pub struct FieldLineage {
 
 /// Group lineage.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[must_use]
 pub struct GroupLineage {
     /// The provenance of the group.
     provenance: String,
@@ -131,11 +132,13 @@ impl GroupLineage {
     }
 
     /// Returns the provenance of the group.
+    #[must_use]
     pub fn provenance(&self) -> &str {
         &self.provenance
     }
 
     /// Returns the lineage of the specified field.
+    #[must_use]
     pub fn field_lineage(&self, field_id: &FieldId) -> Option<&FieldLineage> {
         self.fields.get(field_id)
     }

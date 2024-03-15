@@ -7,7 +7,7 @@
 #![deny(clippy::print_stderr)]
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::time::Instant;
@@ -49,6 +49,7 @@ pub struct SchemaResolver {}
 
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug)]
+#[must_use]
 pub enum Error {
     /// A telemetry schema error.
     #[error("Telemetry schema error (error: {0:?})")]
@@ -152,6 +153,13 @@ pub enum Error {
         missing_attributes: Vec<String>,
     },
 
+    /// An invalid Schema path.
+    #[error("Invalid Schema path: {path}")]
+    InvalidSchemaPath {
+        /// The schema path.
+        path: PathBuf,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", Error::format_errors(.0))]
     CompoundError(Vec<Error>),
@@ -193,6 +201,7 @@ impl Error {
 
     /// Formats the given errors into a single string.
     /// This used to render compound errors.
+    #[must_use]
     pub fn format_errors(errors: &[Error]) -> String {
         errors
             .iter()
@@ -225,7 +234,12 @@ impl SchemaResolver {
         let mut schema = Self::load_schema_from_path(schema_path.clone(), log.clone())?;
         Self::resolve(
             &mut schema,
-            schema_path.as_ref().to_str().unwrap(),
+            schema_path
+                .as_ref()
+                .to_str()
+                .ok_or_else(|| Error::InvalidSchemaPath {
+                    path: schema_path.as_ref().to_path_buf(),
+                })?,
             cache,
             log,
         )?;

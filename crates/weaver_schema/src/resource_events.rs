@@ -26,11 +26,13 @@ pub struct ResourceEvents {
 
 impl ResourceEvents {
     /// Returns the number of events.
+    #[must_use]
     pub fn events_count(&self) -> usize {
         self.events.len()
     }
 
     /// Returns an event by name or None if not found.
+    #[must_use]
     pub fn event(&self, event_name: &str) -> Option<&Event> {
         self.events
             .iter()
@@ -38,6 +40,7 @@ impl ResourceEvents {
     }
 
     /// Returns a vector of events.
+    #[must_use]
     pub fn events(&self) -> Vec<&Event> {
         self.events.iter().collect()
     }

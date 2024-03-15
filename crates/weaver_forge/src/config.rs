@@ -69,88 +69,88 @@ pub struct TargetConfig {
 fn default_templates() -> Vec<TemplateConfig> {
     vec![
         TemplateConfig {
-            pattern: Glob::new("**/registry.md").unwrap(),
+            pattern: Glob::new("**/registry.md").expect("Invalid pattern"),
             filter: Filter::try_new(".").expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/attribute_group.md").unwrap(),
+            pattern: Glob::new("**/attribute_group.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/attribute_groups.md").unwrap(),
+            pattern: Glob::new("**/attribute_groups.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/event.md").unwrap(),
+            pattern: Glob::new("**/event.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"event\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/events.md").unwrap(),
+            pattern: Glob::new("**/events.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"event\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/group.md").unwrap(),
+            pattern: Glob::new("**/group.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups").expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/groups.md").unwrap(),
+            pattern: Glob::new("**/groups.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups").expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/metric.md").unwrap(),
+            pattern: Glob::new("**/metric.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/metrics.md").unwrap(),
+            pattern: Glob::new("**/metrics.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/resource.md").unwrap(),
+            pattern: Glob::new("**/resource.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/resources.md").unwrap(),
+            pattern: Glob::new("**/resources.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/scope.md").unwrap(),
+            pattern: Glob::new("**/scope.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/scopes.md").unwrap(),
+            pattern: Glob::new("**/scopes.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
-            pattern: Glob::new("**/span.md").unwrap(),
+            pattern: Glob::new("**/span.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"span\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
-            pattern: Glob::new("**/spans.md").unwrap(),
+            pattern: Glob::new("**/spans.md").expect("Invalid pattern"),
             filter: Filter::try_new(".groups[] | select(.type == \"span\")")
                 .expect("Invalid filter"),
             application_mode: ApplicationMode::Single,

@@ -131,7 +131,9 @@ impl Cache {
             repo_url: repo_url.to_string(),
             message: e.to_string(),
         })?
-        .with_shallow(Shallow::DepthAtRemote(NonZeroU32::new(1).unwrap()));
+        .with_shallow(Shallow::DepthAtRemote(
+            NonZeroU32::new(1).expect("1 is not zero"),
+        ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))

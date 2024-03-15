@@ -60,6 +60,7 @@ pub struct ConsoleLogger {
 
 impl ConsoleLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new(debug_level: u8) -> Self {
         ConsoleLogger {
             logger: Arc::new(Mutex::new(paris::Logger::new())),
@@ -179,6 +180,7 @@ pub struct NullLogger {}
 
 impl NullLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new() -> Self {
         NullLogger {}
     }
@@ -255,6 +257,7 @@ pub struct TestLogger {
 
 impl TestLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new() -> Self {
         TestLogger {
             logger: Arc::new(Mutex::new(paris::Logger::new())),
@@ -264,11 +267,13 @@ impl TestLogger {
     }
 
     /// Returns the number of warning messages logged.
+    #[must_use]
     pub fn warn_count(&self) -> usize {
         self.warn_count.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Returns the number of error messages logged.
+    #[must_use]
     pub fn error_count(&self) -> usize {
         self.error_count.load(std::sync::atomic::Ordering::Relaxed)
     }

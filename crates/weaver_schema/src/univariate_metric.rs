@@ -48,6 +48,7 @@ pub enum UnivariateMetric {
 
 impl UnivariateMetric {
     /// Returns the name of the metric.
+    #[must_use]
     pub fn name(&self) -> String {
         match self {
             UnivariateMetric::Ref { r#ref, .. } => r#ref.clone(),
@@ -56,6 +57,7 @@ impl UnivariateMetric {
     }
 
     /// Returns the brief description of the metric.
+    #[must_use]
     pub fn brief(&self) -> String {
         match self {
             UnivariateMetric::Ref { .. } => String::new(),
@@ -64,6 +66,7 @@ impl UnivariateMetric {
     }
 
     /// Returns the note on the metric.
+    #[must_use]
     pub fn note(&self) -> String {
         match self {
             UnivariateMetric::Ref { .. } => String::new(),
@@ -72,6 +75,7 @@ impl UnivariateMetric {
     }
 
     /// Returns the tags of the metric.
+    #[must_use]
     pub fn tags(&self) -> Option<&Tags> {
         match self {
             UnivariateMetric::Ref { tags, .. } => tags.as_ref(),
@@ -80,6 +84,7 @@ impl UnivariateMetric {
     }
 
     /// Returns an attribute by its id.
+    #[must_use]
     pub fn attribute(&self, id: &str) -> Option<&Attribute> {
         match self {
             UnivariateMetric::Ref { attributes, .. } => attributes.iter().find(|a| a.id() == id),

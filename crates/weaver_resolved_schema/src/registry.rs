@@ -32,6 +32,7 @@ pub struct Registry {
 
 /// Statistics on a registry.
 #[derive(Debug, Serialize)]
+#[must_use]
 pub struct Stats {
     /// Url of the registry.
     pub url: String,
@@ -254,12 +255,26 @@ impl Registry {
                             unit_breakdown,
                         } => {
                             common_stats.update_stats(group);
-                            metric_names.insert(group.metric_name.clone().unwrap());
+                            metric_names.insert(
+                                group
+                                    .metric_name
+                                    .clone()
+                                    .expect("metric_name is required as we are in a metric group"),
+                            );
                             *instrument_breakdown
-                                .entry(group.instrument.clone().unwrap())
+                                .entry(
+                                    group.instrument.clone().expect(
+                                        "instrument is required as we are in a metric group",
+                                    ),
+                                )
                                 .or_insert(0) += 1;
                             *unit_breakdown
-                                .entry(group.unit.clone().unwrap())
+                                .entry(
+                                    group
+                                        .unit
+                                        .clone()
+                                        .expect("unit is required as we are in a metric group"),
+                                )
                                 .or_insert(0) += 1;
                         }
                         MetricGroup { common_stats } => {
@@ -352,6 +367,7 @@ impl Group {
     }
 
     /// Returns true if the group contains at least one `include` constraint.
+    #[must_use]
     pub fn has_include(&self) -> bool {
         self.constraints.iter().any(|c| c.include.is_some())
     }
@@ -378,11 +394,13 @@ impl Group {
 
         // Remove the include constraints
         self.constraints.retain(|c| {
-            c.include.is_none() || !include_to_remove.contains(c.include.as_ref().unwrap())
+            c.include.is_none()
+                || !include_to_remove.contains(c.include.as_ref().expect("include is not none"))
         });
     }
 
     /// Returns the provenance of the group.
+    #[must_use]
     pub fn provenance(&self) -> &str {
         match &self.lineage {
             Some(lineage) => lineage.provenance(),

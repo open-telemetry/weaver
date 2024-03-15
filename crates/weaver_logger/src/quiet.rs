@@ -16,6 +16,7 @@ pub struct QuietLogger {
 
 impl QuietLogger {
     /// Creates a new logger.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             logger: Arc::new(Mutex::new(paris::Logger::new())),

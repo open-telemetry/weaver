@@ -71,6 +71,7 @@ pub struct ResolvedTelemetrySchema {
 
 /// Statistics on a resolved telemetry schema.
 #[derive(Debug, Serialize)]
+#[must_use]
 pub struct Stats {
     /// Total number of registries.
     pub registry_count: usize,
@@ -82,6 +83,7 @@ pub struct Stats {
 
 impl ResolvedTelemetrySchema {
     /// Get a registry by its ID.
+    #[must_use]
     pub fn registry(&self, registry_id: &str) -> Option<&Registry> {
         self.registries.get(registry_id)
     }

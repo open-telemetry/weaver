@@ -75,3 +75,12 @@ ignored = ["serde"]
 lto = true
 strip = true
 panic = "abort"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+print_stdout = "deny"
+multiple_crate_versions = "allow"
+# this lint shows places where you could add the #must_use attribute.
+must-use-candidate = "warn"

@@ -131,12 +131,14 @@ impl Versions {
     }
 
     /// Returns the most recent version or None if there are no versions.
+    #[must_use]
     pub fn latest_version(&self) -> Option<Version> {
         self.versions.keys().last().map(|v| Version(v.clone()))
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in ascending order.
+    #[must_use]
     pub fn versions_asc(&self) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .iter()
@@ -146,6 +148,7 @@ impl Versions {
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in descending order.
+    #[must_use]
     pub fn versions_desc(&self) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .iter()
@@ -156,6 +159,7 @@ impl Versions {
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in ascending order from the given version.
+    #[must_use]
     pub fn versions_asc_from(&self, version: Version) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .range(version.0..)
@@ -165,6 +169,7 @@ impl Versions {
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in descending order from the given version.
+    #[must_use]
     pub fn versions_desc_from(&self, version: &Version) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .range(..=version.0.clone())
@@ -178,6 +183,7 @@ impl Versions {
     /// The current supported changes are:
     /// - Renaming of attributes (for resources, logs and spans)
     /// - Renaming of metrics
+    #[must_use]
     pub fn version_changes_for(&self, version: &Version) -> VersionChanges {
         let mut resource_old_to_new_attributes: HashMap<String, String> = HashMap::new();
         let mut metric_old_to_new_names: HashMap<String, String> = HashMap::new();
@@ -282,11 +288,13 @@ impl Versions {
     }
 
     /// Returns true if the `Versions` is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.versions.is_empty()
     }
 
     /// Returns the number of versions.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.versions.len()
     }
@@ -533,6 +541,7 @@ impl<'a> VersionAttributeChanges for crate::SpansVersionAttributeChanges<'a> {
 
 impl VersionChanges {
     /// Returns the attribute changes to apply to the resources.
+    #[must_use]
     pub fn resource_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         ResourcesVersionAttributeChanges {
             version_changes: self,
@@ -540,6 +549,7 @@ impl VersionChanges {
     }
 
     /// Returns the attribute changes to apply to the metrics.
+    #[must_use]
     pub fn metric_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         MetricsVersionAttributeChanges {
             version_changes: self,
@@ -547,6 +557,7 @@ impl VersionChanges {
     }
 
     /// Returns the attribute changes to apply to the logs.
+    #[must_use]
     pub fn log_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         LogsVersionAttributeChanges {
             version_changes: self,
@@ -554,6 +565,7 @@ impl VersionChanges {
     }
 
     /// Returns the attribute changes to apply to the spans.
+    #[must_use]
     pub fn span_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         SpansVersionAttributeChanges {
             version_changes: self,
@@ -562,6 +574,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given resource attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_resource_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.resource_old_to_new_attributes.get(name) {
             new_name.clone()
@@ -572,6 +585,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given metric attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_metric_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.metric_old_to_new_attributes.get(name) {
             new_name.clone()
@@ -582,6 +596,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given metric or the given name if the metric
     /// has not been renamed.
+    #[must_use]
     pub fn get_metric_name(&self, name: &str) -> String {
         if let Some(new_name) = self.metric_old_to_new_names.get(name) {
             new_name.clone()
@@ -592,6 +607,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given log attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_log_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.log_old_to_new_attributes.get(name) {
             new_name.clone()
@@ -602,6 +618,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given span attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_span_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.span_old_to_new_attributes.get(name) {
             new_name.clone()

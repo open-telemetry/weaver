@@ -250,7 +250,9 @@ impl ClientSdkGenerator {
                     if tmpl_file_path.is_dir() {
                         continue;
                     }
-                    let relative_path = tmpl_file_path.strip_prefix(&self.lang_path).unwrap();
+                    let relative_path = tmpl_file_path
+                        .strip_prefix(&self.lang_path)
+                        .map_err(|e| InternalError(e.to_string()))?;
                     let tmpl_file = relative_path
                         .to_str()
                         .ok_or(InvalidTemplateFile(tmpl_file_path.clone()))?;

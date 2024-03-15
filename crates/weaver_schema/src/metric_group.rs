@@ -67,16 +67,19 @@ pub enum Metric {
 
 impl MetricGroup {
     /// Returns the name of the metric group
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Returns an attribute by its id.
+    #[must_use]
     pub fn attribute(&self, id: &str) -> Option<&Attribute> {
         self.attributes.iter().find(|a| a.id() == id)
     }
 
     /// Returns the tags of the metric group.
+    #[must_use]
     pub fn tags(&self) -> Option<&Tags> {
         self.tags.as_ref()
     }

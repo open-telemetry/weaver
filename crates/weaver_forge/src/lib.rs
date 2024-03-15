@@ -73,7 +73,7 @@ struct TemplateObject {
 impl TemplateObject {
     /// Get the file name of the template.
     fn file_name(&self) -> PathBuf {
-        PathBuf::from(self.file_name.lock().unwrap().clone())
+        PathBuf::from(self.file_name.lock().expect("Lock poisoned").clone())
     }
 }
 
@@ -81,7 +81,7 @@ impl Display for TemplateObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!(
             "template file name: {}",
-            self.file_name.lock().unwrap()
+            self.file_name.lock().expect("Lock poisoned")
         ))
     }
 }
@@ -95,7 +95,7 @@ impl Object for TemplateObject {
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
             let (file_name,): (&str,) = from_args(args)?;
-            *self.file_name.lock().unwrap() = file_name.to_string();
+            *self.file_name.lock().expect("Lock poisoned") = file_name.to_string();
             Ok(Value::from(""))
         } else {
             Err(minijinja::Error::new(

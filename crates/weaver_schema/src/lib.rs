@@ -214,6 +214,7 @@ impl TelemetrySchema {
     }
 
     /// Returns the semantic conventions for the schema and its parent schemas.
+    #[must_use]
     pub fn merged_semantic_conventions(&self) -> Vec<SemConvImport> {
         let mut result = vec![];
         if let Some(parent_schema) = self.parent_schema.as_ref() {
@@ -245,6 +246,7 @@ impl TelemetrySchema {
     }
 
     /// Returns the number of metrics.
+    #[must_use]
     pub fn metrics_count(&self) -> usize {
         self.schema
             .as_ref()
@@ -252,6 +254,7 @@ impl TelemetrySchema {
     }
 
     /// Returns the number of metric groups.
+    #[must_use]
     pub fn metric_groups_count(&self) -> usize {
         self.schema
             .as_ref()
@@ -259,6 +262,7 @@ impl TelemetrySchema {
     }
 
     /// Returns the number of events.
+    #[must_use]
     pub fn events_count(&self) -> usize {
         self.schema
             .as_ref()
@@ -266,6 +270,7 @@ impl TelemetrySchema {
     }
 
     /// Returns the number of spans.
+    #[must_use]
     pub fn spans_count(&self) -> usize {
         self.schema
             .as_ref()
@@ -273,11 +278,13 @@ impl TelemetrySchema {
     }
 
     /// Returns the number of versions.
+    #[must_use]
     pub fn version_count(&self) -> usize {
         self.versions.as_ref().map_or(0, |versions| versions.len())
     }
 
     /// Returns the metric by name or None if not found.
+    #[must_use]
     pub fn metric(&self, metric_name: &str) -> Option<&univariate_metric::UnivariateMetric> {
         self.schema
             .as_ref()
@@ -285,6 +292,7 @@ impl TelemetrySchema {
     }
 
     /// Returns the metric group by name or None if not found.
+    #[must_use]
     pub fn metric_group(&self, name: &str) -> Option<&MetricGroup> {
         self.schema
             .as_ref()
@@ -292,11 +300,13 @@ impl TelemetrySchema {
     }
 
     /// Returns a resource or None if not found.
+    #[must_use]
     pub fn resource(&self) -> Option<&resource::Resource> {
         self.schema.as_ref().and_then(|schema| schema.resource())
     }
 
     /// Returns a vector of metrics.
+    #[must_use]
     pub fn metrics(&self) -> Vec<&univariate_metric::UnivariateMetric> {
         self.schema.as_ref().map_or(
             Vec::<&univariate_metric::UnivariateMetric>::new(),
@@ -305,7 +315,8 @@ impl TelemetrySchema {
     }
 
     /// Returns a vector of metric groups.
-    pub fn metric_groups(&self) -> Vec<&metric_group::MetricGroup> {
+    #[must_use]
+    pub fn metric_groups(&self) -> Vec<&MetricGroup> {
         self.schema
             .as_ref()
             .map_or(Vec::<&metric_group::MetricGroup>::new(), |schema| {
@@ -314,6 +325,7 @@ impl TelemetrySchema {
     }
 
     /// Returns an iterator over the events.
+    #[must_use]
     pub fn events(&self) -> Vec<&Event> {
         self.schema
             .as_ref()
@@ -321,6 +333,7 @@ impl TelemetrySchema {
     }
 
     /// Returns a slice of spans.
+    #[must_use]
     pub fn spans(&self) -> Vec<&Span> {
         self.schema
             .as_ref()
@@ -328,6 +341,7 @@ impl TelemetrySchema {
     }
 
     /// Returns an event by name or None if not found.
+    #[must_use]
     pub fn event(&self, event_name: &str) -> Option<&Event> {
         self.schema
             .as_ref()
@@ -335,6 +349,7 @@ impl TelemetrySchema {
     }
 
     /// Returns a span by name or None if not found.
+    #[must_use]
     pub fn span(&self, span_name: &str) -> Option<&Span> {
         self.schema
             .as_ref()

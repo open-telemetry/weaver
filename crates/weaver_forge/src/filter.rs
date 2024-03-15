@@ -63,7 +63,7 @@ impl Filter {
         }
 
         if values.len() == 1 {
-            return Ok(values.pop().unwrap());
+            return Ok(values.pop().expect("values.len() == 1, should not happen"));
         }
 
         Ok(serde_json::Value::Array(values))
