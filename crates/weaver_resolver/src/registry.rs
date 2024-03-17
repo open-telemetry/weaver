@@ -2,7 +2,7 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Deserialize;
 
@@ -289,8 +289,10 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
         .spec
         .attributes
         .into_iter()
-        .map(|attr| UnresolvedAttribute { spec: attr })
-        .collect();
+        .map(|attr| {
+            UnresolvedAttribute { spec: attr }
+        })
+        .collect::<Vec<UnresolvedAttribute>>();
 
     UnresolvedGroup {
         group: Group {
@@ -525,7 +527,12 @@ fn resolve_inheritance_attrs(
     attrs_parent_group: &[UnresolvedAttribute],
     _group_lineage: Option<&mut GroupLineage>,       // ToDo compute the lineage
 ) -> Vec<UnresolvedAttribute> {
-    let mut resolved_attrs = HashMap::new();
+    // A map attribute_id -> attribute_spec.
+    //
+    // Note: we use a BTreeMap to ensure that the resolved attributes are
+    // sorted by their id in the resolved registry. This is useful for unit
+    // tests to ensure that the resolved registry is easy to compare.
+    let mut resolved_attrs = BTreeMap::new();
 
     // Inherit the attributes from the parent group.
     for parent_attr in attrs_parent_group.iter() {
@@ -670,10 +677,6 @@ mod tests {
                 .expect("Failed to convert test directory to string");
 
             println!("Testing `{}`", test_dir);
-
-            if !test_dir.ends_with("data/registry-test-3-extends") {
-                continue;
-            }
 
             let registry_id = "default";
             let sc_specs = SemConvRegistry::try_from_path(
