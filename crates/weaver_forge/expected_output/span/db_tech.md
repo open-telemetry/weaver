@@ -265,22 +265,58 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
   
   
-#### Attribute `db.name`
+#### Attribute `db.cassandra.consistency_level`
 
-The keyspace name in Cassandra.
+The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 
 
 
-For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
+  
+  
+#### Attribute `db.cassandra.coordinator.dc`
+
+The data center of the coordinating node for a query.
+
+
 
 - Requirement Level: Recommended
   
 - Tag: call-level-tech-specific-cassandra
   
 - Type: string
-- Examples: [
-    "mykeyspace",
-]
+- Examples: us-west-2
+  
+  
+#### Attribute `db.cassandra.coordinator.id`
+
+The ID of the coordinating node for a query.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: string
+- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
+  
+  
+#### Attribute `db.cassandra.idempotence`
+
+Whether or not the query is idempotent.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: boolean
   
   
 #### Attribute `db.cassandra.page_size`
@@ -297,47 +333,6 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 - Examples: [
     5000,
 ]
-  
-  
-#### Attribute `db.cassandra.consistency_level`
-
-The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
-  
-  
-#### Attribute `db.cassandra.table`
-
-The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
-
-
-This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: mytable
-  
-  
-#### Attribute `db.cassandra.idempotence`
-
-Whether or not the query is idempotent.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: boolean
   
   
 #### Attribute `db.cassandra.speculative_execution_count`
@@ -357,32 +352,37 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
 ]
   
   
-#### Attribute `db.cassandra.coordinator.id`
+#### Attribute `db.cassandra.table`
 
-The ID of the coordinating node for a query.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
-  
-  
-#### Attribute `db.cassandra.coordinator.dc`
-
-The data center of the coordinating node for a query.
+The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
 
 
+This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
 
 - Requirement Level: Recommended
   
 - Tag: call-level-tech-specific-cassandra
   
 - Type: string
-- Examples: us-west-2
+- Examples: mytable
+  
+  
+#### Attribute `db.name`
+
+The keyspace name in Cassandra.
+
+
+
+For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+
+- Requirement Level: Conditionally Required - If applicable.
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: string
+- Examples: [
+    "mykeyspace",
+]
   
   
 #### Attribute `db.redis.database_index`
@@ -411,7 +411,7 @@ The full syntax of the Redis CLI command.
 
 For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: call-level-tech-specific
   
@@ -469,39 +469,6 @@ Unique Cosmos client instance id.
 - Examples: 3ba4827d-4422-483f-b59f-85b74211c11d
   
   
-#### Attribute `db.cosmosdb.operation_type`
-
-CosmosDB Operation Type.
-
-
-- Requirement Level: Conditionally Required - when performing one of the operations in this list
-  
-- Tag: call-level-tech-specific
-  
-- Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
-  
-  
-#### Attribute `user_agent.original`
-
-Full user-agent string is generated by Cosmos DB SDK
-
-
-The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
-   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
-   Default value is "NS".
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `db.cosmosdb.connection_mode`
 
 Cosmos client connection mode.
@@ -525,6 +492,34 @@ Cosmos DB container name.
   
 - Type: string
 - Examples: anystring
+  
+  
+#### Attribute `db.cosmosdb.operation_type`
+
+CosmosDB Operation Type.
+
+
+- Requirement Level: Conditionally Required - when performing one of the operations in this list
+  
+- Tag: call-level-tech-specific
+  
+- Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
+  
+  
+#### Attribute `db.cosmosdb.request_charge`
+
+RU consumed for that operation
+
+
+- Requirement Level: Conditionally Required - when available
+  
+- Tag: call-level-tech-specific
+  
+- Type: double
+- Examples: [
+    46.18,
+    1.0,
+]
   
   
 #### Attribute `db.cosmosdb.request_content_length`
@@ -571,19 +566,24 @@ Cosmos DB sub status code.
 ]
   
   
-#### Attribute `db.cosmosdb.request_charge`
+#### Attribute `user_agent.original`
 
-RU consumed for that operation
+Full user-agent string is generated by Cosmos DB SDK
 
 
-- Requirement Level: Conditionally Required - when available
+The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
+   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
+   Default value is "NS".
+
+- Requirement Level: Recommended
   
 - Tag: call-level-tech-specific
   
-- Type: double
+- Type: string
 - Examples: [
-    46.18,
-    1.0,
+    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
 ]
+  
+- Stability: Stable
   
   

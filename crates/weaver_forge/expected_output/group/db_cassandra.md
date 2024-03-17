@@ -69,25 +69,6 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 ]
 
 
-### Attribute `db.name`
-
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
-
-
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-
-- Requirement Level: Conditionally Required - If applicable.
-
-- Tag: call-level
-
-- Type: string
-- Examples: [
-    "customers",
-    "main",
-]
-
-
 ### Attribute `db.statement`
 
 The database statement being executed.
@@ -262,22 +243,58 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
 
 
-### Attribute `db.name`
+### Attribute `db.cassandra.consistency_level`
 
-The keyspace name in Cassandra.
+The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 
 
 
-For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+- Requirement Level: Recommended
+
+- Tag: call-level-tech-specific-cassandra
+
+- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
+
+
+### Attribute `db.cassandra.coordinator.dc`
+
+The data center of the coordinating node for a query.
+
+
 
 - Requirement Level: Recommended
 
 - Tag: call-level-tech-specific-cassandra
 
 - Type: string
-- Examples: [
-    "mykeyspace",
-]
+- Examples: us-west-2
+
+
+### Attribute `db.cassandra.coordinator.id`
+
+The ID of the coordinating node for a query.
+
+
+
+- Requirement Level: Recommended
+
+- Tag: call-level-tech-specific-cassandra
+
+- Type: string
+- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
+
+
+### Attribute `db.cassandra.idempotence`
+
+Whether or not the query is idempotent.
+
+
+
+- Requirement Level: Recommended
+
+- Tag: call-level-tech-specific-cassandra
+
+- Type: boolean
 
 
 ### Attribute `db.cassandra.page_size`
@@ -294,47 +311,6 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 - Examples: [
     5000,
 ]
-
-
-### Attribute `db.cassandra.consistency_level`
-
-The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
-
-
-
-- Requirement Level: Recommended
-
-- Tag: call-level-tech-specific-cassandra
-
-- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
-
-
-### Attribute `db.cassandra.table`
-
-The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
-
-
-This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
-
-- Requirement Level: Recommended
-
-- Tag: call-level-tech-specific-cassandra
-
-- Type: string
-- Examples: mytable
-
-
-### Attribute `db.cassandra.idempotence`
-
-Whether or not the query is idempotent.
-
-
-
-- Requirement Level: Recommended
-
-- Tag: call-level-tech-specific-cassandra
-
-- Type: boolean
 
 
 ### Attribute `db.cassandra.speculative_execution_count`
@@ -354,32 +330,37 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
 ]
 
 
-### Attribute `db.cassandra.coordinator.id`
+### Attribute `db.cassandra.table`
 
-The ID of the coordinating node for a query.
-
-
-
-- Requirement Level: Recommended
-
-- Tag: call-level-tech-specific-cassandra
-
-- Type: string
-- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
+The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
 
 
-### Attribute `db.cassandra.coordinator.dc`
-
-The data center of the coordinating node for a query.
-
-
+This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
 
 - Requirement Level: Recommended
 
 - Tag: call-level-tech-specific-cassandra
 
 - Type: string
-- Examples: us-west-2
+- Examples: mytable
+
+
+### Attribute `db.name`
+
+The keyspace name in Cassandra.
+
+
+
+For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+
+- Requirement Level: Conditionally Required - If applicable.
+
+- Tag: call-level-tech-specific-cassandra
+
+- Type: string
+- Examples: [
+    "mykeyspace",
+]
 
 
 
@@ -387,21 +368,19 @@ The data center of the coordinating node for a query.
 
 Source: data/trace-database.yaml
 
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
@@ -409,3 +388,4 @@ item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Referen
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
