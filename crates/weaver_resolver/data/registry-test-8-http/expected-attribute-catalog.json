@@ -1,0 +1,78 @@
+[
+  {
+    "name": "network.protocol.name",
+    "type": "string",
+    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+    "examples": [
+      "amqp",
+      "http",
+      "mqtt"
+    ],
+    "requirement_level": "recommended",
+    "note": "The value SHOULD be normalized to lowercase.",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.version",
+    "type": "string",
+    "brief": "Version of the protocol specified in `network.protocol.name`.",
+    "examples": "3.1.1",
+    "requirement_level": "recommended",
+    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.",
+    "stability": "stable"
+  },
+  {
+    "name": "server.address",
+    "type": "string",
+    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.port",
+    "type": "int",
+    "brief": "Server port number.",
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": "recommended",
+    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.name",
+    "type": "string",
+    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+    "examples": [
+      "http",
+      "spdy"
+    ],
+    "requirement_level": {
+      "conditionally_required": "If not `http` and `network.protocol.version` is set."
+    },
+    "note": "The value SHOULD be normalized to lowercase.",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.version",
+    "type": "string",
+    "brief": "Version of the protocol specified in `network.protocol.name`.",
+    "examples": [
+      "1.0",
+      "1.1",
+      "2",
+      "3"
+    ],
+    "requirement_level": "recommended",
+    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.",
+    "stability": "stable"
+  }
+]
