@@ -13,28 +13,6 @@
     "stability": "stable"
   },
   {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": "3.1.1",
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.",
-    "stability": "stable"
-  },
-  {
-    "name": "server.address",
-    "type": "string",
-    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
-    "requirement_level": "recommended",
-    "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
-    "stability": "stable"
-  },
-  {
     "name": "server.port",
     "type": "int",
     "brief": "Server port number.",
@@ -62,17 +40,31 @@
     "stability": "stable"
   },
   {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Version of the protocol specified in `network.protocol.name`.",
+    "name": "server.port",
+    "type": "int",
+    "brief": "Port of the local HTTP server that received the request.\n",
     "examples": [
-      "1.0",
-      "1.1",
-      "2",
-      "3"
+      80,
+      8080,
+      443
     ],
-    "requirement_level": "recommended",
-    "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.",
+    "requirement_level": {
+      "conditionally_required": "If `server.address` is set."
+    },
+    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.port",
+    "type": "int",
+    "brief": "Port of the local HTTP server that received the request.\n",
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": "opt_in",
+    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n> **Warning**\n> Since this attribute is based on HTTP headers, opting in to it may allow an attacker\n> to trigger cardinality limits, degrading the usefulness of the metric.\n",
     "stability": "stable"
   }
 ]

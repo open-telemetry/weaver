@@ -7,14 +7,14 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
-use weaver_resolved_schema::lineage::{FieldId, FieldLineage, GroupLineage, ResolutionMode};
+use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
-use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
+use weaver_semconv::attribute::AttributeSpec;
 
+use crate::{Error, handle_errors, UnsatisfiedAnyOfConstraint};
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -71,15 +71,12 @@ pub fn resolve_semconv_registry(
     registry: &SemConvRegistry,
 ) -> Result<Registry, Error> {
     let mut ureg = unresolved_registry_from_specs(registry_url, registry);
-    let mut all_refs_resolved = true;
 
-    all_refs_resolved &= resolve_attribute_references(&mut ureg, attr_catalog);
-    all_refs_resolved &= resolve_extends_references(&mut ureg);
-    all_refs_resolved &= resolve_include_constraints(&mut ureg);
-
-    // If the resolution process fails, then we build an error containing all
-    // the unresolved references.
-    if !all_refs_resolved {
+    let all_extends_resolved = resolve_extends_references(&mut ureg);
+    if !all_extends_resolved {
+        // Some `extends` references could not be resolved. Either some of the
+        // `extends` references are pointing to non-existing groups or there is
+        // a circular dependency between groups.
         let mut errors = vec![];
         for group in ureg.groups.iter() {
             // Collect unresolved `extends` references.
@@ -90,6 +87,15 @@ pub fn resolve_semconv_registry(
                     provenance: group.provenance.clone(),
                 });
             }
+        }
+        handle_errors(errors)?;
+    }
+
+    let all_references_resolved= resolve_attribute_references(&mut ureg, attr_catalog);
+    if !all_references_resolved {
+        // Some attribute references are pointing to non-existing attributes.
+        let mut errors = vec![];
+        for group in ureg.groups.iter() {
             // Collect unresolved `ref` attributes.
             for attr in group.attributes.iter() {
                 if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
@@ -100,6 +106,15 @@ pub fn resolve_semconv_registry(
                     });
                 }
             }
+        }
+        handle_errors(errors)?;
+    }
+
+    let all_include_constraints_resolved= resolve_include_constraints(&mut ureg);
+    if !all_include_constraints_resolved {
+        // Some `include` constraints could not be resolved.
+        let mut errors = vec![];
+        for group in ureg.groups.iter() {
             // Collect unresolved `include` constraints.
             for constraint in group.group.constraints.iter() {
                 if let Some(include) = &constraint.include {
@@ -111,7 +126,6 @@ pub fn resolve_semconv_registry(
                 }
             }
         }
-
         handle_errors(errors)?;
     }
 
@@ -383,36 +397,22 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
         let mut unresolved_extends_count = 0;
         let mut resolved_extends_count = 0;
 
-        // Create a map group_id -> vector of attribute ref for groups
+        // Create a map group_id -> vector of attribute for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
         for group in ureg.groups.iter() {
             if group.group.extends.is_none() {
-                group_index.insert(group.group.id.clone(), group.group.attributes.clone());
+                group_index.insert(group.group.id.clone(), group.attributes.clone());
             }
         }
 
         // Iterate over all groups and resolve the `extends` clauses.
         for unresolved_group in ureg.groups.iter_mut() {
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
-                if let Some(attr_refs) = group_index.get(extends) {
-                    for attr_ref in attr_refs.iter() {
-                        unresolved_group.group.attributes.push(*attr_ref);
-
-                        // Update the lineage based on the inherited fields.
-                        // Note: the lineage is only updated if a group lineage is provided.
-                        if let Some(lineage) = unresolved_group.group.lineage.as_mut() {
-                            lineage.add_attribute_field_lineage(
-                                *attr_ref,
-                                FieldId::GroupAttributes,
-                                FieldLineage {
-                                    resolution_mode: ResolutionMode::Extends,
-                                    group_id: extends.clone(),
-                                },
-                            );
-                        }
-                    }
+                if let Some(attrs) = group_index.get(extends) {
+                    unresolved_group.attributes = resolve_inheritance_attrs(&unresolved_group.attributes, attrs, unresolved_group.group.lineage.as_mut());
                     unresolved_group.group.extends.take();
+                    group_index.insert(unresolved_group.group.id.clone(), unresolved_group.attributes.clone());
                     resolved_extends_count += 1;
                 } else {
                     unresolved_extends_count += 1;
@@ -520,6 +520,110 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
     true
 }
 
+fn resolve_inheritance_attrs(
+    attrs_group: &[UnresolvedAttribute],
+    attrs_parent_group: &[UnresolvedAttribute],
+    _group_lineage: Option<&mut GroupLineage>,       // ToDo compute the lineage
+) -> Vec<UnresolvedAttribute> {
+    let mut resolved_attrs = HashMap::new();
+
+    // Inherit the attributes from the parent group.
+    for parent_attr in attrs_parent_group.iter() {
+        match &parent_attr.spec {
+            AttributeSpec::Ref { r#ref, .. } => _ = resolved_attrs.insert(r#ref.clone(), parent_attr.spec.clone()),
+            AttributeSpec::Id { id, .. } => _ = resolved_attrs.insert(id.clone(), parent_attr.spec.clone()),
+        }
+    }
+
+    // Override the inherited attributes with the attributes from the group.
+    for attr in attrs_group.iter() {
+        match &attr.spec {
+            AttributeSpec::Ref { r#ref, .. } => {
+                if let Some(parent_attr) = resolved_attrs.get(r#ref) {
+                    _ = resolved_attrs.insert(r#ref.clone(), resolve_inheritance_attr(&attr.spec, parent_attr))
+                } else {
+                    _ = resolved_attrs.insert(r#ref.clone(), attr.spec.clone())
+                }
+            },
+            AttributeSpec::Id { id, .. } => _ = resolved_attrs.insert(id.clone(), attr.spec.clone()),
+        }
+    }
+
+    resolved_attrs.into_values().map(|spec| UnresolvedAttribute { spec }).collect()
+}
+
+fn resolve_inheritance_attr(
+    attr: &AttributeSpec,
+    parent_attr: &AttributeSpec,
+) -> AttributeSpec {
+    match attr {
+        AttributeSpec::Ref {
+            r#ref,
+            brief,
+            examples,
+            tag,
+            requirement_level,
+            sampling_relevant,
+            note,
+            stability,
+            deprecated
+        } => {
+            match parent_attr {
+                AttributeSpec::Ref {
+                    brief: parent_brief,
+                    examples: parent_examples,
+                    tag: parent_tag,
+                    requirement_level: parent_requirement_level,
+                    sampling_relevant: parent_sampling_relevant,
+                    note: parent_note,
+                    stability: parent_stability,
+                    deprecated: parent_deprecated, ..
+                } => {
+                    // attr and attr_parent are both references.
+                    AttributeSpec::Ref {
+                        r#ref: r#ref.clone(),
+                        brief: if brief.is_some() { brief.clone() } else { parent_brief.clone() },
+                        examples: if examples.is_some() { examples.clone() } else { parent_examples.clone() },
+                        tag: if tag.is_some() { tag.clone() } else { parent_tag.clone() },
+                        requirement_level: if requirement_level.is_some() { requirement_level.clone() } else { parent_requirement_level.clone() },
+                        sampling_relevant: if sampling_relevant.is_some() { sampling_relevant.clone() } else { parent_sampling_relevant.clone() },
+                        note: if note.is_some() { note.clone() } else { parent_note.clone() },
+                        stability: if stability.is_some() { stability.clone() } else { parent_stability.clone() },
+                        deprecated: if deprecated.is_some() { deprecated.clone() } else { parent_deprecated.clone() },
+                    }
+                }
+                AttributeSpec::Id {
+                    r#type: parent_type,
+                    brief: parent_brief,
+                    examples: parent_examples,
+                    tag: parent_tag,
+                    requirement_level: parent_requirement_level,
+                    sampling_relevant: parent_sampling_relevant,
+                    note: parent_note,
+                    stability: parent_stability,
+                    deprecated: parent_deprecated, ..
+                } => {
+                    // attr is a reference and attr_parent is an id.
+                    // We need to override the reference with the id.
+                    AttributeSpec::Id {
+                        id: r#ref.clone(),
+                        r#type: parent_type.clone(),
+                        brief: if brief.is_some() { brief.clone() } else { parent_brief.clone() },
+                        examples: if examples.is_some() { examples.clone() } else { parent_examples.clone() },
+                        tag: if tag.is_some() { tag.clone() } else { parent_tag.clone() },
+                        requirement_level: if requirement_level.is_some() { requirement_level.clone().expect("is_some so this can't happen") } else { parent_requirement_level.clone() },
+                        sampling_relevant: if sampling_relevant.is_some() { sampling_relevant.clone() } else { parent_sampling_relevant.clone() },
+                        note: if note.is_some() { note.clone().expect("is_some so this can't happen") } else { parent_note.clone() },
+                        stability: if stability.is_some() { stability.clone() } else { parent_stability.clone() },
+                        deprecated: if deprecated.is_some() { deprecated.clone() } else { parent_deprecated.clone() },
+                    }
+                }
+            }
+        }
+        AttributeSpec::Id { .. } => attr.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -567,7 +671,7 @@ mod tests {
 
             println!("Testing `{}`", test_dir);
 
-            if !test_dir.ends_with("data/registry-test-8-http") {
+            if !test_dir.ends_with("data/registry-test-3-extends") {
                 continue;
             }
 
@@ -576,7 +680,7 @@ mod tests {
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
             )
-            .expect("Failed to load semconv specs");
+                .expect("Failed to load semconv specs");
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
@@ -588,19 +692,19 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
                     .expect("Failed to open expected attribute catalog"),
             )
-            .expect("Failed to deserialize expected attribute catalog");
+                .expect("Failed to deserialize expected attribute catalog");
             let expected_registry: Registry = serde_json::from_reader(
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
-            .expect("Failed to deserialize expected registry");
+                .expect("Failed to deserialize expected registry");
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
             let observed_attr_catalog_json = serde_json::to_string_pretty(&observed_attr_catalog)
                 .expect("Failed to serialize observed attribute catalog");
 
-            //println!("Observed catalog: {}", observed_attr_catalog_json);
+            // println!("Observed catalog: {}", observed_attr_catalog_json);
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
                 "Attribute catalog does not match for `{}`.\nObserved catalog:\n{}",
@@ -647,8 +751,8 @@ mod tests {
             "attr2".to_string(),
             "attr3".to_string(),
         ]
-        .into_iter()
-        .collect();
+            .into_iter()
+            .collect();
         let constraints = vec![
             Constraint {
                 any_of: vec!["attr1".to_string(), "attr2".to_string()],
@@ -671,8 +775,8 @@ mod tests {
             "attr2".to_string(),
             "attr3".to_string(),
         ]
-        .into_iter()
-        .collect();
+            .into_iter()
+            .collect();
         let constraints = vec![
             Constraint {
                 any_of: vec!["attr4".to_string()],

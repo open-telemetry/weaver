@@ -1148,6 +1148,17 @@
     "stability": "stable"
   },
   {
+    "name": "url.scheme",
+    "type": "string",
+    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+    "examples": [
+      "http",
+      "https"
+    ],
+    "requirement_level": "opt_in",
+    "stability": "stable"
+  },
+  {
     "name": "server.port",
     "type": "int",
     "brief": "Port identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
@@ -1161,14 +1172,16 @@
     "stability": "stable"
   },
   {
-    "name": "url.scheme",
+    "name": "server.address",
     "type": "string",
-    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
+    "brief": "Name of the local HTTP server that received the request.\n",
     "examples": [
-      "http",
-      "https"
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
     ],
-    "requirement_level": "opt_in",
+    "requirement_level": "recommended",
+    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
     "stability": "stable"
   },
   {
@@ -1186,16 +1199,15 @@
     "stability": "stable"
   },
   {
-    "name": "server.address",
+    "name": "url.scheme",
     "type": "string",
-    "brief": "Name of the local HTTP server that received the request.\n",
+    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
     "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
+      "http",
+      "https"
     ],
-    "requirement_level": "recommended",
-    "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
+    "requirement_level": "required",
+    "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
     "stability": "stable"
   },
   {
@@ -1211,18 +1223,6 @@
       "conditionally_required": "If `server.address` is set."
     },
     "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
-    "stability": "stable"
-  },
-  {
-    "name": "url.scheme",
-    "type": "string",
-    "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "http",
-      "https"
-    ],
-    "requirement_level": "required",
-    "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
     "stability": "stable"
   },
   {
@@ -1359,6 +1359,18 @@
     "stability": "stable"
   },
   {
+    "name": "messaging.destination.template",
+    "type": "string",
+    "brief": "Low cardinality representation of the messaging destination name",
+    "examples": [
+      "/customers/{customerId}"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if available."
+    },
+    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
+  },
+  {
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
@@ -1370,17 +1382,5 @@
       "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
-  },
-  {
-    "name": "messaging.destination.template",
-    "type": "string",
-    "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
-    "requirement_level": {
-      "conditionally_required": "if available."
-    },
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   }
 ]
