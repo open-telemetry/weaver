@@ -30,7 +30,10 @@ pub fn command_languages(log: impl Logger + Sync + Clone, params: &LanguagesPara
         if let Ok(entry) = entry {
             if entry.file_type().is_ok() {
                 log.indent(1);
-                log.log(&format!("- {}", entry.file_name().to_str().unwrap()));
+                log.log(&format!(
+                    "- {}",
+                    entry.file_name().to_str().expect("Invalid file name")
+                ));
             }
         } else {
             log.error("Failed to read template directory entry");

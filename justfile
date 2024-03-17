@@ -18,14 +18,14 @@ pre-push-check:
     cargo doc --workspace --all-features --no-deps --document-private-items
     cargo deny check licenses
 
-pre-push: pre-push-check check-workspace check-external-types
+pre-push: pre-push-check validate-workspace check-external-types
     cargo depgraph --workspace-only | dot -Tsvg > docs/images/dependencies.svg
 
 upgrade:
     cargo upgrade
 
-check-workspace:
-    scripts/check_workspace.sh
+validate-workspace:
+    cargo xtask validate
 
 check-external-types:
     scripts/check_external_types.sh

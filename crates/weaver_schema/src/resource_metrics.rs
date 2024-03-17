@@ -34,28 +34,33 @@ pub struct ResourceMetrics {
 
 impl ResourceMetrics {
     /// Returns the number of metrics.
+    #[must_use]
     pub fn metrics_count(&self) -> usize {
         self.metrics.len()
     }
 
     /// Returns the number of metric groups.
+    #[must_use]
     pub fn metric_groups_count(&self) -> usize {
         self.metric_groups.len()
     }
 
     /// Returns a metric by name or None if not found.
     /// Note: this is a linear search.
+    #[must_use]
     pub fn metric(&self, name: &str) -> Option<&UnivariateMetric> {
         self.metrics.iter().find(|metric| metric.name() == name)
     }
 
     /// Returns a vector of metrics.
+    #[must_use]
     pub fn metrics(&self) -> Vec<&UnivariateMetric> {
         self.metrics.iter().collect()
     }
 
     /// Returns a metric group by name or None if not found.
     /// Note: this is a linear search.
+    #[must_use]
     pub fn metric_group(&self, name: &str) -> Option<&MetricGroup> {
         self.metric_groups
             .iter()
@@ -63,6 +68,7 @@ impl ResourceMetrics {
     }
 
     /// Returns a vector of metric groups.
+    #[must_use]
     pub fn metric_groups(&self) -> Vec<&MetricGroup> {
         self.metric_groups.iter().collect()
     }

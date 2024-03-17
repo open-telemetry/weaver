@@ -24,7 +24,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
                 .join(", ")
         });
 
-        index_writer
+        _ = index_writer
             .add_document(doc!(
                 fields.path => format!("schema/metric_group/{}", metric_group.name()),
                 fields.brief => "",

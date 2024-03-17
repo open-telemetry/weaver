@@ -79,7 +79,7 @@ pub fn resolve_metrics(
             )?
             .into_iter()
             .for_each(|attr| {
-                metric_group_attrs.insert(attr.id(), attr);
+                _ = metric_group_attrs.insert(attr.id(), attr);
             });
 
             // Process each metric defined in the metric group.
@@ -97,7 +97,7 @@ pub fn resolve_metrics(
                                 .iter()
                                 .filter(|attr| attr.is_required())
                                 .for_each(|attr| {
-                                    required_shared_attributes.insert(attr.id());
+                                    _ = required_shared_attributes.insert(attr.id());
                                 });
                         }
 

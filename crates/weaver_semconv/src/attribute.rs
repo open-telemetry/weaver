@@ -121,6 +121,7 @@ pub enum AttributeSpec {
 
 impl AttributeSpec {
     /// Returns true if the attribute is required.
+    #[must_use]
     pub fn is_required(&self) -> bool {
         matches!(
             self,
@@ -137,6 +138,7 @@ impl AttributeSpec {
     }
 
     /// Returns the id of the attribute.
+    #[must_use]
     pub fn id(&self) -> String {
         match self {
             AttributeSpec::Ref { r#ref, .. } => r#ref.clone(),
@@ -145,6 +147,7 @@ impl AttributeSpec {
     }
 
     /// Returns the brief of the attribute.
+    #[must_use]
     pub fn brief(&self) -> String {
         match self {
             AttributeSpec::Ref { brief, .. } => brief.clone().unwrap_or_default(),
@@ -153,6 +156,7 @@ impl AttributeSpec {
     }
 
     /// Returns the note of the attribute.
+    #[must_use]
     pub fn note(&self) -> String {
         match self {
             AttributeSpec::Ref { note, .. } => note.clone().unwrap_or_default(),
@@ -161,6 +165,7 @@ impl AttributeSpec {
     }
 
     /// Returns the tag of the attribute (if any).
+    #[must_use]
     pub fn tag(&self) -> Option<String> {
         match self {
             AttributeSpec::Ref { tag, .. } => tag.clone(),
@@ -438,11 +443,13 @@ impl Display for BasicRequirementLevelSpec {
 
 impl Examples {
     /// Creates an example from a f64.
+    #[must_use]
     pub fn from_f64(value: f64) -> Self {
         Examples::Double(OrderedFloat(value))
     }
 
     /// Creates an example from several f64.
+    #[must_use]
     pub fn from_f64s(values: Vec<f64>) -> Self {
         Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
     }

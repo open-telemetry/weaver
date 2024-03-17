@@ -23,6 +23,7 @@ edition = "2021"
 repository = "https://github.com/f5/otel-weaver"
 license = "Apache-2.0"
 publish = false
+rust-version = "1.76"
 
 [workspace.dependencies]
 serde = { version = "1.0.197", features = ["derive"] }
@@ -34,6 +35,7 @@ regex = "1.10.3"
 rayon = "1.9.0"
 ordered-float = { version = "4.2.0", features = ["serde"] }
 walkdir = "2.5.0"
+anyhow = "1.0.81"
 
 # Features definition =========================================================
 [features]
@@ -56,7 +58,7 @@ weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 
-clap = { version = "4.5.2", features = ["derive"] }
+clap = { version = "4.5.3", features = ["derive"] }
 crossterm = "0.27.0"
 ratatui = "0.26.1"
 tui-textarea = "0.4.0"
@@ -75,3 +77,41 @@ ignored = ["serde"]
 lto = true
 strip = true
 panic = "abort"
+
+[workspace.lints.rust]
+rust_2018_idioms = "warn"
+unused_lifetimes = "warn"
+# unreachable_pub = "warn"
+semicolon_in_expressions_from_macros = "warn"
+missing_docs = "deny"
+unstable_features = "deny"
+unused_import_braces = "deny"
+unused_qualifications = "deny"
+unused_results = "deny"
+unused_extern_crates = "deny"
+
+[lints]
+workspace = true
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+cargo = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+multiple_crate_versions = "allow"
+# this lint shows places where you could add the #must_use attribute.
+must-use-candidate = "warn"
+
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+restriction = { level = "allow", priority = -1 }
+style = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+
+too_many_arguments = "allow"
+type_complexity = "allow"
+wrong_self_convention = "allow"
+rc_buffer = "warn"
+# str_to_string = "warn"

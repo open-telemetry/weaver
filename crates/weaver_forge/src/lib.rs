@@ -4,16 +4,6 @@
 //! and filters for working with semantic convention registries and telemetry
 //! schemas.
 
-#![deny(
-    missing_docs,
-    clippy::print_stdout,
-    unstable_features,
-    unused_import_braces,
-    unused_qualifications,
-    unused_results,
-    unused_extern_crates
-)]
-
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -73,7 +63,7 @@ struct TemplateObject {
 impl TemplateObject {
     /// Get the file name of the template.
     fn file_name(&self) -> PathBuf {
-        PathBuf::from(self.file_name.lock().unwrap().clone())
+        PathBuf::from(self.file_name.lock().expect("Lock poisoned").clone())
     }
 }
 
@@ -81,7 +71,7 @@ impl Display for TemplateObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!(
             "template file name: {}",
-            self.file_name.lock().unwrap()
+            self.file_name.lock().expect("Lock poisoned")
         ))
     }
 }
@@ -89,13 +79,13 @@ impl Display for TemplateObject {
 impl Object for TemplateObject {
     fn call_method(
         &self,
-        _state: &State,
+        _state: &State<'_, '_>,
         name: &str,
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
             let (file_name,): (&str,) = from_args(args)?;
-            *self.file_name.lock().unwrap() = file_name.to_string();
+            *self.file_name.lock().expect("Lock poisoned") = file_name.to_string();
             Ok(Value::from(""))
         } else {
             Err(minijinja::Error::new(
@@ -313,7 +303,7 @@ impl TemplateEngine {
 
         engine.add_global("template", Value::from_object(template_object.clone()));
 
-        _ = log.loading(&format!("Generating file {}", template_file));
+        log.loading(&format!("Generating file {}", template_file));
         let template = engine
             .get_template(template_file)
             .map_err(|e| InvalidTemplateFile {
@@ -330,12 +320,12 @@ impl TemplateEngine {
             })?;
         let generated_file =
             Self::save_generated_code(output_dir, template_object.file_name(), output)?;
-        _ = log.success(&format!("Generated file {:?}", generated_file));
+        log.success(&format!("Generated file {:?}", generated_file));
         Ok(())
     }
 
     /// Create a new template engine based on the target configuration.
-    fn template_engine(&self) -> Result<Environment, Error> {
+    fn template_engine(&self) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
         env.set_loader(path_loader(&self.path));
         env.set_syntax(self.target_config.template_syntax.clone().into())
@@ -463,6 +453,7 @@ mod tests {
         assert!(cmp_dir("expected_output", "observed_output").unwrap());
     }
 
+    #[allow(clippy::print_stderr)]
     fn cmp_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Result<bool> {
         let mut expected_files = HashSet::new();
         let mut observed_files = HashSet::new();

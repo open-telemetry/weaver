@@ -355,7 +355,7 @@ fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
     schema::event::index(&schema, &fields, &mut index_writer);
     span::index(&schema, &fields, &mut index_writer);
 
-    index_writer
+    _ = index_writer
         .commit()
         .expect("Failed to commit index writer");
     let reader = index
@@ -433,7 +433,7 @@ fn search_tui(app: &mut SearchApp<'_>) -> Result<()> {
     Ok(())
 }
 
-fn ui(app: &mut SearchApp, frame: &mut Frame<'_>) {
+fn ui(app: &mut SearchApp<'_>, frame: &mut Frame<'_>) {
     let empty_search_box = app.search_area.is_empty();
     app.search_area.lines().iter().for_each(|query| {
         if let Some(current_query) = app.current_query.as_ref() {
@@ -482,7 +482,7 @@ fn ui(app: &mut SearchApp, frame: &mut Frame<'_>) {
         .style(normal_style)
         .height(1)
         .bottom_margin(0);
-    let rows: Vec<Row> = app
+    let rows: Vec<Row<'_>> = app
         .results
         .items
         .iter()
@@ -719,7 +719,7 @@ fn detail_area<'a>(app: &'a SearchApp<'a>, item: Option<&'a ResultItem>) -> Para
         .wrap(Wrap { trim: true })
 }
 
-fn update(app: &mut SearchApp) -> Result<()> {
+fn update(app: &mut SearchApp<'_>) -> Result<()> {
     if event::poll(std::time::Duration::from_millis(250))? {
         let event = event::read()?;
         if let event::Event::Key(key) = event {
@@ -733,7 +733,7 @@ fn update(app: &mut SearchApp) -> Result<()> {
                     KeyCode::Down => app.results.next(),
                     KeyCode::Enter => {}
                     _ => {
-                        app.search_area.input(event);
+                        _ = app.search_area.input(event);
                     }
                 }
             }
@@ -746,11 +746,11 @@ fn update(app: &mut SearchApp) -> Result<()> {
 
 fn run(app: &mut SearchApp<'_>) -> Result<()> {
     // ratatui terminal
-    let mut t = Terminal::new(CrosstermBackend::new(std::io::stderr()))?;
+    let mut t = Terminal::new(CrosstermBackend::new(io::stderr()))?;
 
     loop {
         // application render
-        t.draw(|f| {
+        _ = t.draw(|f| {
             ui(app, f);
         })?;
 

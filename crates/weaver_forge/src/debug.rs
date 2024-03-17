@@ -80,6 +80,6 @@ pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: Error) {
                 err.occurrences - 1
             ),
         };
-        _ = logger.error(&output);
+        logger.error(&output);
     });
 }

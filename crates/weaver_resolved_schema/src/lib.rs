@@ -4,10 +4,6 @@
 //! A Resolved Telemetry Schema is self-contained and doesn't contain any
 //! external references to other schemas or semantic conventions.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
 use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;
@@ -71,6 +67,7 @@ pub struct ResolvedTelemetrySchema {
 
 /// Statistics on a resolved telemetry schema.
 #[derive(Debug, Serialize)]
+#[must_use]
 pub struct Stats {
     /// Total number of registries.
     pub registry_count: usize,
@@ -82,6 +79,7 @@ pub struct Stats {
 
 impl ResolvedTelemetrySchema {
     /// Get a registry by its ID.
+    #[must_use]
     pub fn registry(&self, registry_id: &str) -> Option<&Registry> {
         self.registries.get(registry_id)
     }

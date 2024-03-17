@@ -20,7 +20,7 @@ pub fn index_semconv_attributes<'a>(
     index_writer: &mut IndexWriter,
 ) {
     for attr in attributes {
-        index_writer
+        _ = index_writer
             .add_document(doc!(
                 fields.path => format!("{}/attr/{}", path, attr.id()),
                 fields.brief => attr.brief(),
@@ -54,7 +54,7 @@ pub fn index_schema_attribute<'a>(
                     .join(", ")
             });
 
-            index_writer
+            _ = index_writer
                 .add_document(doc!(
                     fields.path => format!("{}/attr/{}", path, id),
                     fields.brief => brief.clone(),

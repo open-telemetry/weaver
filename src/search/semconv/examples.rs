@@ -7,7 +7,7 @@ use ratatui::prelude::{Line, Span, Style};
 use weaver_semconv::attribute::Examples;
 
 /// Append examples to the text.
-pub fn append_lines(examples: &Examples, text: &mut Vec<Line>, theme: &ThemeConfig) {
+pub fn append_lines(examples: &Examples, text: &mut Vec<Line<'_>>, theme: &ThemeConfig) {
     text.push(Line::from(Span::styled(
         "Examples: ",
         Style::default().fg(theme.label),

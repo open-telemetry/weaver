@@ -131,7 +131,9 @@ impl Cache {
             repo_url: repo_url.to_string(),
             message: e.to_string(),
         })?
-        .with_shallow(Shallow::DepthAtRemote(NonZeroU32::new(1).unwrap()));
+        .with_shallow(Shallow::DepthAtRemote(
+            NonZeroU32::new(1).expect("1 is not zero"),
+        ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -152,7 +154,7 @@ impl Cache {
             // Checks the existence of the path in the repo.
             // If the path doesn't exist, returns an error.
             if !git_repo_path.join(path).exists() {
-                return Err(Error::GitError {
+                return Err(GitError {
                     repo_url: repo_url.to_string(),
                     message: format!("Path `{}` not found in repo", path),
                 });
@@ -164,7 +166,8 @@ impl Cache {
         };
 
         // Adds the repo to the git_repo_dirs hashmap.
-        self.git_repo_dirs
+        _ = self
+            .git_repo_dirs
             .lock()
             .expect("git_repo_dirs lock failed")
             .insert(

@@ -2,12 +2,8 @@
 
 //! This crate implements the process of reference resolution for telemetry schemas.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::time::Instant;
@@ -49,6 +45,7 @@ pub struct SchemaResolver {}
 
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug)]
+#[must_use]
 pub enum Error {
     /// A telemetry schema error.
     #[error("Telemetry schema error (error: {0:?})")]
@@ -152,6 +149,13 @@ pub enum Error {
         missing_attributes: Vec<String>,
     },
 
+    /// An invalid Schema path.
+    #[error("Invalid Schema path: {path}")]
+    InvalidSchemaPath {
+        /// The schema path.
+        path: PathBuf,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", Error::format_errors(.0))]
     CompoundError(Vec<Error>),
@@ -193,6 +197,7 @@ impl Error {
 
     /// Formats the given errors into a single string.
     /// This used to render compound errors.
+    #[must_use]
     pub fn format_errors(errors: &[Error]) -> String {
         errors
             .iter()
@@ -225,7 +230,12 @@ impl SchemaResolver {
         let mut schema = Self::load_schema_from_path(schema_path.clone(), log.clone())?;
         Self::resolve(
             &mut schema,
-            schema_path.as_ref().to_str().unwrap(),
+            schema_path
+                .as_ref()
+                .to_str()
+                .ok_or_else(|| Error::InvalidSchemaPath {
+                    path: schema_path.as_ref().to_path_buf(),
+                })?,
             cache,
             log,
         )?;
@@ -426,8 +436,8 @@ impl SchemaResolver {
                 message: e.to_string(),
             })?;
         for warning in warnings {
-            log.warn("Semantic convention warning")
-                .log(&warning.error.to_string());
+            log.warn("Semantic convention warning");
+            log.log(&warning.error.to_string());
         }
         log.success(&format!(
             "Loaded {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
@@ -456,7 +466,7 @@ impl SchemaResolver {
         };
 
         let mut registries = HashMap::new();
-        registries.insert(registry.id().into(), resolved_registry);
+        _ = registries.insert(registry.id().into(), resolved_registry);
 
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "1.0.0".to_string(),
@@ -551,9 +561,9 @@ impl SchemaResolver {
                 let results = Self::import_sem_conv_specs(sem_conv_import, cache);
                 for result in results.iter() {
                     if result.is_err() {
-                        error_count.fetch_add(1, Relaxed);
+                        _ = error_count.fetch_add(1, Relaxed);
                     }
-                    loaded_files_count.fetch_add(1, Relaxed);
+                    _ = loaded_files_count.fetch_add(1, Relaxed);
                     if error_count.load(Relaxed) == 0 {
                         log.loading(&format!(
                             "Loaded {}/{} semantic convention files (no error detected)",

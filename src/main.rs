@@ -1,3 +1,7 @@
+//! Weaver CLI tool.
+
+#![allow(clippy::print_stdout)]
+
 use clap::Parser;
 
 use registry::semconv_registry;
