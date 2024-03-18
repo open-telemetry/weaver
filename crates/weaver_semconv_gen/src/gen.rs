@@ -342,7 +342,7 @@ impl<'a> AttributeTableView<'a> {
         ctx.write_rendered_notes(out)?;
 
         // Add sampling relevant callouts.
-        let sampling_relevant: Vec<AttributeView> = self
+        let sampling_relevant: Vec<AttributeView<'_>> = self
             .attributes()
             .filter(|a| a.sampling_relevant.unwrap_or(false))
             .map(|attribute| AttributeView { attribute })
