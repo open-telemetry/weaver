@@ -14,9 +14,12 @@
     unused_extern_crates
 )]
 
+use weaver_logger::Logger;
+use weaver_resolver::SchemaResolver;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_resolved_schema::registry::Group;
-use weaver_resolved_schema::attribute::Attribute;
+use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
+use weaver_semconv::SemConvRegistry;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec};
 use weaver_semconv::group::{GroupType, InstrumentSpec};
 use itertools::Itertools;
@@ -74,6 +77,14 @@ pub enum Error {
     /// Errors from using std fmt library.
     #[error(transparent)]
     StdFmtError(#[from] std::fmt::Error),
+
+    /// Errors from using weaver_semconv.
+    #[error(transparent)]
+    SemconvError(#[from] weaver_semconv::Error),
+
+    /// Errors from using weaver_resolver.
+    #[error(transparent)]
+    ResolverError(#[from] weaver_resolver::Error),
 }
 
 
@@ -163,14 +174,14 @@ impl GenerateMarkdownContext {
 
 
 /// Constructs a markdown snippet (without header/closer)
-fn generate_markdown_snippet(schema: &ResolvedTelemetrySchema, args: GenerateMarkdownArgs) -> Result<String, Error> {
+fn generate_markdown_snippet<'a>(lookup: &ResolvedSemconvRegistry, args: GenerateMarkdownArgs) -> Result<String, Error> {
     let mut ctx = GenerateMarkdownContext::default();
     let mut result = String::new();
     if args.is_metric_table() {
-        let view = MetricView::try_new(args.id.as_str(), schema)?;
+        let view = MetricView::try_new(args.id.as_str(), lookup)?;
         view.generate_markdown(&mut result, &mut ctx)?;
     } else {
-        let other = AttributeTableView::try_new(args.id.as_str(), schema)?;        
+        let other = AttributeTableView::try_new(args.id.as_str(), lookup)?;        
         other.generate_markdown(&mut result, &args, &mut ctx)?;
     }
     Ok(result)
@@ -178,7 +189,7 @@ fn generate_markdown_snippet(schema: &ResolvedTelemetrySchema, args: GenerateMar
 
 
 // TODO - This entire function could be optimised and reworked.
-fn update_markdown_contents(contents: &str, schema: &ResolvedTelemetrySchema) -> Result<String, Error> {
+fn update_markdown_contents<'a>(contents: &str, lookup: &ResolvedSemconvRegistry) -> Result<String, Error> {
     let mut result = String::new();
     let mut handling_snippet = false;
     for line in contents.lines() {
@@ -199,7 +210,7 @@ fn update_markdown_contents(contents: &str, schema: &ResolvedTelemetrySchema) ->
             if parser::is_markdown_snippet_directive(line) {
                 handling_snippet = true;
                 let arg = parser::parse_markdown_snippet_directive(line)?;
-                let snippet = generate_markdown_snippet(&schema, arg)?;
+                let snippet = generate_markdown_snippet(lookup, arg)?;
                 result.push_str(&snippet);
             }
         }
@@ -208,12 +219,12 @@ fn update_markdown_contents(contents: &str, schema: &ResolvedTelemetrySchema) ->
 }
 
 /// Updates a single markdown file using the resolved schema.
-pub fn update_markdown(file: &str, 
-                       schema: &ResolvedTelemetrySchema,
+pub fn update_markdown<'a>(file: &str,
+                       lookup: &ResolvedSemconvRegistry,
                        dry_run: bool) -> Result<(), Error> {
     // TODO - throw error.
     let original_markdown = fs::read_to_string(file).expect("Unable to read file");
-    let updated_markdown = update_markdown_contents(&original_markdown, schema)?;
+    let updated_markdown = update_markdown_contents(&original_markdown, lookup)?;
     if !dry_run {
         fs::write(file, updated_markdown)?;
         Ok(())
@@ -340,7 +351,7 @@ impl <'a> AttributeView<'a> {
                 write_enum_value_string(out, &m.value)?;
                 write!(out, " | ")?;
                 match m.brief.as_ref() {
-                    Some(v) => write!(out, "{v}")?,
+                    Some(v) => write!(out, "{}", v.trim())?,
                     None => (),
                 }
                 write!(out, " |\n")?;
@@ -424,16 +435,13 @@ impl <'a> AttributeView<'a> {
 
 struct AttributeTableView<'a> {
     group: &'a Group,
-    schema: &'a ResolvedTelemetrySchema,
+    lookup: &'a ResolvedSemconvRegistry,
 }
 
 impl <'a> AttributeTableView<'a> {
-    pub fn try_new(id: &str, schema: &'a ResolvedTelemetrySchema) -> Result<AttributeTableView<'a>, Error> {
-        let opt_group = schema.registries.iter().find_map(|r| {
-            r.groups.iter().find(|g| g.id == id)
-        });
-        match opt_group  {
-            Some(group) => Ok(AttributeTableView{group, schema}),
+    pub fn try_new(id: &str, lookup: &'a ResolvedSemconvRegistry) -> Result<AttributeTableView<'a>, Error> {
+        match lookup.find_group(id)  {
+            Some(group) => Ok(AttributeTableView{group, lookup}),
             None => Err(Error::GroupNotFound { id: id.to_string() }),
         }
     }
@@ -450,7 +458,7 @@ impl <'a> AttributeTableView<'a> {
 
     fn attributes(&self) -> impl Iterator<Item=&Attribute>{
         self.group.attributes.iter()
-        .map(|a_ref| &self.schema.catalog.attributes[a_ref.0 as usize])
+        .filter_map(|attr| self.lookup.attribute(attr))
     }
 
     fn generate_markdown<Out: Write>(&self, out: &mut Out, args: &GenerateMarkdownArgs, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {        
@@ -466,7 +474,7 @@ impl <'a> AttributeTableView<'a> {
             write!(out, "| Attribute  | Type | Description  | Examples  |\n")?;
             write!(out, "|---|---|---|---|\n")?;
         } else {
-            // TODO - we should use link version and udpate tests/semconv upstream.
+            // TODO - we should use link version and update tests/semconv upstream.
             //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
             write!(out, "| Attribute  | Type | Description  | Examples  | Requirement Level |\n")?;
             write!(out, "|---|---|---|---|---|\n")?;
@@ -536,15 +544,13 @@ struct MetricView<'a> {
 }
 impl <'a> MetricView<'a> {
 
-    pub fn try_new(id: &str, schema: &'a ResolvedTelemetrySchema) -> Result<MetricView<'a>, Error> {
+    pub fn try_new(id: &str, lookup: &'a ResolvedSemconvRegistry) -> Result<MetricView<'a>, Error> {
 
         // TODO - we first must look up a MetricRef(index),
         // then pull rom scheam.catalog.metrics[index]
 
         let metric =
-            schema.registries.iter().find_map(|r| {
-                r.groups.iter().find(|g| g.id == id)
-            })
+            lookup.find_group(id)
             .filter(|g| g.r#type == GroupType::Metric);
             // TODO - Since metric isn't working, we just use group here.
             // .map(|g| {
@@ -589,27 +595,56 @@ impl <'a> MetricView<'a> {
     pub fn generate_markdown<Out: Write>(&self, out: &mut Out, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {
         write!(out, "| Name     | Instrument Type | Unit (UCUM) | Description    |\n")?;
         write!(out, "| -------- | --------------- | ----------- | -------------- |\n")?;
-        write!(out, "| `{}` | `{}` | `", self.metric_name(), self.instrument())?;
+        write!(out, "| `{}` | {} | `", self.metric_name(), self.instrument())?;
         self.write_unit(out)?;
-        write!(out, "` | `")?;
+        write!(out, "` | ")?;
         self.write_description(out, ctx)?;
-        write!(out, "` |\n")?;
+        write!(out, " |\n")?;
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
         Ok(())
     }
 }
 
+/// The resolved Semantic Convention repository that is used to drive snipper generation.
+pub struct ResolvedSemconvRegistry {
+    schema: ResolvedTelemetrySchema,
+    registry_id: String,
+}
+impl ResolvedSemconvRegistry {
+    /// Resolve the semantic convention registry and make it available for rendering markdown snippets.
+    pub fn try_from_path(path_pattern: &str, log: impl Logger + Clone + Sync) -> Result<ResolvedSemconvRegistry, Error> {
+        let registry_id = "semantic_conventions";
+        let mut registry =
+            SemConvRegistry::try_from_path(registry_id, path_pattern)?;
+        let schema =
+            SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
+        let lookup = ResolvedSemconvRegistry { schema, registry_id: registry_id.into()};
+        Ok(lookup)
+    }
 
+    fn my_registry(&self) -> Option<&Registry> {
+        self.schema.registry(self.registry_id.as_str())
+    }
+
+    fn find_group(&self, id: &str) -> Option<&Group> {
+        self.my_registry().and_then(|r| {
+            r.groups.iter().find(|g| g.id == id)
+        })
+    }
+
+    /// Finds an attribute by reference.
+    fn attribute(&self, attr: &AttributeRef) -> Option<&Attribute> {
+        self.schema.catalog.attribute(attr)
+    }
+}
 
 
 #[cfg(test)]
 mod tests {
     use weaver_logger::TestLogger;
-    use weaver_resolver::SchemaResolver;
-    use weaver_semconv::SemConvRegistry;
 
-    use crate::{update_markdown,Error};
+    use crate::{update_markdown,Error, ResolvedSemconvRegistry};
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -621,16 +656,12 @@ mod tests {
     #[test]
     fn test_http_semconv() -> Result<(), Error> {
         let logger = TestLogger::default();
+        let lookup = ResolvedSemconvRegistry::try_from_path("data/**/*.yaml", logger.clone())?;
 
-        let mut registry =
-            SemConvRegistry::try_from_path("data/**/*.yaml").expect("Failed to load registry");
-        let schema =
-            SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
-                .expect("Failed to resolve registry");
 
         // Check our test files.
-        force_print_error(update_markdown("data/http-span-full-attribute-table.md", &schema, true));
-        force_print_error(update_markdown("data/http-metric-semconv.md", &schema, true));
+        force_print_error(update_markdown("data/http-span-full-attribute-table.md", &lookup, true));
+        force_print_error(update_markdown("data/http-metric-semconv.md", &lookup, true));
         Ok(())
     }
 }
