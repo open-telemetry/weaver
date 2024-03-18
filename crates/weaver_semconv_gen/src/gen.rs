@@ -32,7 +32,7 @@ impl GenerateMarkdownContext {
         format!("[{idx}]")
     }
 
-    /// Renderes stored notes into markdown format.
+    /// Renders stored notes into markdown format.
     fn write_rendered_notes<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         for (counter, note) in self.notes.iter().enumerate() {
             write!(out, "\n**[{}]:** {}\n", counter + 1, note.trim())?;
@@ -388,7 +388,7 @@ pub struct MetricView<'a> {
 impl<'a> MetricView<'a> {
     pub fn try_new(id: &str, lookup: &'a ResolvedSemconvRegistry) -> Result<MetricView<'a>, Error> {
         // TODO - we first must look up a MetricRef(index),
-        // then pull rom scheam.catalog.metrics[index]
+        // then pull from schema.catalog.metrics[index]
 
         let metric = lookup
             .find_group(id)

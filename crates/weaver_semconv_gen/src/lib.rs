@@ -64,7 +64,7 @@ pub enum Error {
     /// Thrown when snippet header is invalid.
     #[error("Could not parse snippet header: [{header}]")]
     InvalidSnippetHeader {
-        /// Markdown snippet identifer <!-- semconv {header} -->
+        /// Markdown snippet identifier <!-- semconv {header} -->
         header: String,
     },
     /// Errors from using std io library.
