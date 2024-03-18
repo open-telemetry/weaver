@@ -14,16 +14,14 @@
     unused_extern_crates
 )]
 
-use serde_json::Value;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_resolved_schema::registry::{Group, Registry};
-use weaver_resolved_schema::catalog::Catalog;
+use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::attribute::Attribute;
-use weaver_resolved_schema::metric::{Metric,Instrument};
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel, TemplateTypeSpec, ValueSpec};
 use weaver_semconv::group::{GroupType, InstrumentSpec};
 use itertools::Itertools;
 use std::fs;
+use std::fmt::Write;
 
 mod parser;
 mod diff;
@@ -72,6 +70,10 @@ pub enum Error {
     /// Errors from using std io library.
     #[error(transparent)]
     StdIoError(#[from] std::io::Error),
+
+    /// Errors from using std fmt library.
+    #[error(transparent)]
+    StdFmtError(#[from] std::fmt::Error),
 }
 
 
@@ -112,7 +114,7 @@ impl GenerateMarkdownArgs {
             _ => false,
         })
     }
-    /// TODO
+    /// Returns true if a metric table should be rendered.
     fn is_metric_table(&self) -> bool {
         self.args.iter().any(|a| match a {
             MarkdownGenParameters::MetricTable => true,
@@ -121,15 +123,17 @@ impl GenerateMarkdownArgs {
     }
 }
 
+
+// The size a string is allowed to be before it is pushed into notes.
+const BREAK_COUNT: usize = 50;
+
 /// Context around the generation of markdown that we use to avoid conflicts
 /// between multiple templates within the same markdown file.
 #[derive(Default)]
 struct GenerateMarkdownContext {
+    /// The notes that have been added to the current markdown snippet.
     notes: Vec<String>
 }
-
-// The size a string is allowed to be before it is pushed into notes.
-const BREAK_COUNT: usize = 50;
 
 impl GenerateMarkdownContext {
     /// Adds a note to the context and returns a link to its index.
@@ -139,6 +143,7 @@ impl GenerateMarkdownContext {
         format!("[{idx}]")
     }
 
+    /// Returns a string which redners the markdown notes.
     fn rendered_notes(&self) -> String {
         let mut result = String::new();
         for (counter, note) in self.notes.iter().enumerate() {
@@ -146,19 +151,29 @@ impl GenerateMarkdownContext {
         }
         result
     }
+
+    /// Renderes stored notes into markdown format.
+    fn write_rendered_notes<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        for (counter, note) in self.notes.iter().enumerate() {
+            write!(out, "\n**[{}]:** {}\n", counter+1, note.trim())?;
+        }
+        Ok(())
+    }
 }
 
 
 /// Constructs a markdown snippet (without header/closer)
 fn generate_markdown_snippet(schema: &ResolvedTelemetrySchema, args: GenerateMarkdownArgs) -> Result<String, Error> {
     let mut ctx = GenerateMarkdownContext::default();
+    let mut result = String::new();
     if args.is_metric_table() {
         let view = MetricView::try_new(args.id.as_str(), schema)?;
-        Ok(view.generate_markdown(&mut ctx))
+        view.generate_markdown(&mut result, &mut ctx)?;
     } else {
-        let other = AttributeTableView::try_new(args.id.as_str(), schema)?;
-        Ok(other.generate_markdown(&args, &mut ctx)?)
+        let other = AttributeTableView::try_new(args.id.as_str(), schema)?;        
+        other.generate_markdown(&mut result, &args, &mut ctx)?;
     }
+    Ok(result)
 }
 
 
@@ -228,29 +243,50 @@ fn enum_type_string(members: &Vec<EnumEntriesSpec>) -> &'static str {
     }
 }
 
-fn examples_string(examples: &Examples) -> String {
+fn write_example_list<Out: Write, Element: std::fmt::Display>(out: &mut Out, list: &Vec<Element>) -> Result<(), Error> {
+    let mut first = true;
+    for e in list {
+        if ! first {
+            write!(out, "; ")?;
+        }
+        write!(out, "`{e}`")?;
+        first = false;
+    }
+    Ok(())
+}
+
+fn write_examples_string<Out: Write>(out: &mut Out, examples: &Examples) -> Result<(), Error> {
     match examples {
-        Examples::Bool(value) => format!("`{value}`"),
-        Examples::Int(value) => format!("`{value}`"),
-        Examples::Double(value) => format!("`{value}`"),
-        Examples::String(value) => format!("`{value}`"),
-        Examples::Ints(values) => values.iter().map(|v| format!("`{v}`")).join("; "),
-        Examples::Doubles(values) => values.iter().map(|v| format!("`{v}`")).join("; "),
-        Examples::Bools(values) => values.iter().map(|v| format!("`{v}`")).join("; "),
-        Examples::Strings(values) => values.iter().map(|v| format!("`{v}`")).join("; "),
+        Examples::Bool(value) => Ok(write!(out, "`{value}`")?),
+        Examples::Int(value) => Ok(write!(out, "`{value}`")?),
+        Examples::Double(value) => Ok(write!(out, "`{value}`")?),
+        Examples::String(value) => Ok(write!(out, "`{value}`")?),
+        Examples::Ints(values) => write_example_list(out, values),
+        Examples::Doubles(values) => write_example_list(out, values),
+        Examples::Bools(values) => write_example_list(out, values),
+        Examples::Strings(values) => write_example_list(out, values),
     }
 }
 
-fn enum_value_string(value: &ValueSpec) -> String {
+fn write_enum_value_string<Out: Write>(out: &mut Out, value: &ValueSpec) -> Result<(), Error> {
     match value {
-        ValueSpec::Double(v) => format!("`{v}`"),
-        ValueSpec::Int(v) => format!("`{v}`"),
-        ValueSpec::String(v) => format!("`{v}`"),
+        ValueSpec::Double(v) => write!(out, "`{v}`")?,
+        ValueSpec::Int(v) => write!(out, "`{v}`")?,
+        ValueSpec::String(v) => write!(out, "`{v}`")?,
     }
+    Ok(())
 }
 
-fn enum_examples_string(members: &Vec<EnumEntriesSpec>) -> String {
-    members.iter().map(|entry| enum_value_string(&entry.value)).join(";")
+fn write_enum_examples_string<Out: Write>(out: &mut Out, members: &Vec<EnumEntriesSpec>) -> Result<(), Error> {
+    let mut first = true;
+    for entry in members {
+        if !first {
+            write!(out, "; ")?;
+        }
+        write_enum_value_string(out, &entry.value)?;
+        first = false;
+    }
+    Ok(())
 }
 
 
@@ -258,17 +294,17 @@ struct AttributeView<'a> {
     attribute: &'a Attribute,
 }
 
+/// Helper method to write markdown of attributes.
 impl <'a> AttributeView<'a> {
 
-    fn name(&self) -> String {
-        // Templates have `.<key>` after them.
+    fn write_name<T : Write>(&self, out: &mut T) -> Result<(), Error> {
         match &self.attribute.r#type {
-            AttributeType::Template(_) => format!("{}.<key>", self.attribute.name),
-            _ => self.attribute.name.clone(),
+            AttributeType::Template(_) => Ok(write!(out, "{}.<key>", self.attribute.name)?),
+            _ => Ok(write!(out, "{}", self.attribute.name)?),
         }
     }
 
-    fn attribute_registry_link(&self) -> String {
+    fn write_registry_link<T : Write>(&self, out: &mut T) -> Result<(), Error> {
         let reg_name = self.attribute.name.split(".").next().unwrap_or("");
         // TODO - the existing build-tools semconv will look at currently
         // generating markdown location to see if it's the same structure
@@ -276,14 +312,16 @@ impl <'a> AttributeView<'a> {
         //
         // Going forward, link vs. not link should be an option in generation.
         // OR we should move this to a template-render scenario.
-        format!("../attributes-registry/{reg_name}.md")
+        Ok(write!(out, "../attributes-registry/{reg_name}.md")?)
     }
 
-    fn name_with_optional_link(&self) -> String {
-        
-        let name = self.name();
-        let rel_path = self.attribute_registry_link();
-        format!("[`{name}`]({rel_path})")
+    fn write_name_with_optional_link<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        write!(out, "[`")?;
+        self.write_name(out)?;
+        write!(out, "`](")?;
+        self.write_registry_link(out)?;
+        write!(out, ")")?;
+        Ok(())
     }
 
     fn is_enum(&self) -> bool {
@@ -293,14 +331,23 @@ impl <'a> AttributeView<'a> {
         }
     }
 
-    fn enum_spec_values(&self) -> Vec<(String,String)> {
+    fn write_enum_spec_table<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        write!(out, "\n| Value  | Description |\n|---|---|\n")?;
         match &self.attribute.r#type {
-            AttributeType::Enum{members,..} => 
-              members.iter()
-              .map(|m| (enum_value_string(&m.value), m.brief.clone().unwrap_or("".to_string())))
-              .collect(),
-            _ => vec!(),
+            AttributeType::Enum{members,..} =>
+            for m in members {
+                write!(out, "| ")?;
+                write_enum_value_string(out, &m.value)?;
+                write!(out, " | ")?;
+                match m.brief.as_ref() {
+                    Some(v) => write!(out, "{v}")?,
+                    None => (),
+                }
+                write!(out, " |\n")?;
+            }
+            _ => (),
         }
+        Ok(())
     }
 
     fn type_string(&self) -> &'static str {
@@ -325,44 +372,51 @@ impl <'a> AttributeView<'a> {
           }
     }
 
-    fn description(&self, ctx: &mut GenerateMarkdownContext) -> String {
+    fn write_type_string<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        write!(out, "{}", self.type_string())?;
+        Ok(())
+    }
+
+    fn write_description<Out: Write>(&self, out: &mut Out, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {
         if self.attribute.note.is_empty() {
-            self.attribute.brief.trim().to_string()
+            write!(out, "{}", self.attribute.brief.trim())?;
+            Ok(())
         } else {
-            format!("{} {}", self.attribute.brief.trim(), ctx.add_note(self.attribute.note.clone()))
+            write!(out, "{} {}", self.attribute.brief.trim(), ctx.add_note(self.attribute.note.clone()))?;
+            Ok(())
         }
     }
 
-    fn requirement(&self, ctx: &mut GenerateMarkdownContext) -> String {
+    fn write_requirement<Out: Write>(&self, out: &mut Out, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {
         match &self.attribute.requirement_level {
-            RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => "Required".to_string(),
-            RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => "Recommended".to_string(),
-            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => "Opt-In".to_string(),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => Ok(write!(out, "Required")?),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => Ok(write!(out, "Recommended")?),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => Ok(write!(out, "Opt-In")?),
             RequirementLevel::ConditionallyRequired { text } => {
                 if text.len() > BREAK_COUNT {
-                    format!("Conditionally Required: {}", ctx.add_note(text.clone()))
+                    Ok(write!(out, "Conditionally Required: {}", ctx.add_note(text.clone()))?)
                 } else {
-                    format!("Conditionally Required: {text}")
+                    Ok(write!(out, "Conditionally Required: {text}")?)
                 }
             },
             RequirementLevel::Recommended { text } => {
                 if text.len() > BREAK_COUNT {
-                    format!("Recommended: {}", ctx.add_note(text.clone()))
+                    Ok(write!(out, "Recommended: {}", ctx.add_note(text.clone()))?)
                 } else {
-                    format!("Recommended: {text}")
+                    Ok(write!(out, "Recommended: {text}")?)
                 }
             },
         }
     }
 
-    fn examples(&self) -> String {
+    fn write_examples<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         match &self.attribute.examples {
-            Some(examples) => examples_string(examples),
+            Some(examples) => write_examples_string(out, examples),
             None => 
                 // Enums can pull examples from the enum if not otherwise specified.
                 match &self.attribute.r#type {
-                    AttributeType::Enum{members, ..} => enum_examples_string(members),
-                    _ => "".to_string(),
+                    AttributeType::Enum{members, ..} => write_enum_examples_string(out, members),
+                    _ => Ok(()),
             },
         }
     }
@@ -399,10 +453,9 @@ impl <'a> AttributeTableView<'a> {
         .map(|a_ref| &self.schema.catalog.attributes[a_ref.0 as usize])
     }
 
-    fn generate_markdown(&self, args: &GenerateMarkdownArgs, ctx: &mut GenerateMarkdownContext) -> Result<String, Error> {        
-        let mut result = String::new();
+    fn generate_markdown<Out: Write>(&self, out: &mut Out, args: &GenerateMarkdownArgs, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {        
         if self.group.r#type == GroupType::Event {
-            result.push_str(&format!("The event name MUST be `{}`\n\n", self.event_name()))
+            write!(out, "The event name MUST be `{}`\n\n", self.event_name())?;
         }
 
         // TODO - deal with
@@ -410,13 +463,13 @@ impl <'a> AttributeTableView<'a> {
         // - tag filter
 
         if args.is_omit_requirement() {
-            result.push_str("| Attribute  | Type | Description  | Examples  |\n");
-            result.push_str("|---|---|---|---|\n");
+            write!(out, "| Attribute  | Type | Description  | Examples  |\n")?;
+            write!(out, "|---|---|---|---|\n")?;
         } else {
             // TODO - we should use link version and udpate tests/semconv upstream.
             //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
-            result.push_str("| Attribute  | Type | Description  | Examples  | Requirement Level |\n");
-            result.push_str("|---|---|---|---|---|\n");
+            write!(out, "| Attribute  | Type | Description  | Examples  | Requirement Level |\n")?;
+            write!(out, "|---|---|---|---|---|\n")?;
         }
 
         
@@ -424,23 +477,24 @@ impl <'a> AttributeTableView<'a> {
                     .sorted_by_key(|a| a.name.as_str())
                     .dedup_by(|x,y| x.name == y.name)
                     .map(|attribute| AttributeView { attribute }) {
+                write!(out, "| ")?;
+                attr.write_name_with_optional_link(out)?;
+                write!(out, " | ")?;
+                attr.write_type_string(out)?;
+                write!(out, " | ")?;
+                attr.write_description(out, ctx)?;
+                write!(out, " | ")?;
+                attr.write_examples(out)?;
             if args.is_omit_requirement() {
-                result.push_str(&format!("| {} | {} | {} | {} |\n",
-                                        attr.name_with_optional_link(),
-                                        attr.type_string(),
-                                        attr.description(ctx),
-                                        attr.examples()));
+                write!(out, " |\n")?;
             } else {
-                result.push_str(&format!("| {} | {} | {} | {} | {} |\n",
-                                        attr.name_with_optional_link(),
-                                        attr.type_string(),
-                                        attr.description(ctx),
-                                        attr.examples(),
-                                        attr.requirement(ctx)));
+                write!(out, " | ")?;
+                attr.write_requirement(out, ctx)?;
+                write!(out, " |\n")?;
             }
         }
         // Add "note" footers
-        result.push_str(&ctx.rendered_notes());
+        ctx.write_rendered_notes(out)?;
 
 
         // Add sampling relevant callouts.
@@ -450,11 +504,13 @@ impl <'a> AttributeTableView<'a> {
           .map(|attribute| AttributeView { attribute })
           .collect();
         if sampling_relevant.len() > 0 {
-            result.push_str("\nThe following attributes can be important for making sampling decisions ");
-            result.push_str("and SHOULD be provided **at span creation time** (if provided at all):\n\n");
+            write!(out, "\nThe following attributes can be important for making sampling decisions ")?;
+            write!(out, "and SHOULD be provided **at span creation time** (if provided at all):\n\n")?;
             for a in sampling_relevant {
                 // TODO - existing output uses registry-link-name.
-                result.push_str(&format!("* {}\n", a.name_with_optional_link()))
+                write!(out, "* ")?;
+                a.write_name_with_optional_link(out)?;
+                write!(out, "\n")?;
             }
         }
 
@@ -464,16 +520,12 @@ impl <'a> AttributeTableView<'a> {
                     .dedup_by(|x,y| x.name == y.name)
                     .map(|attribute| AttributeView { attribute })
                     .filter(|a| a.is_enum()) {
-           result.push_str("\n`");
-           result.push_str(&e.name());
-           result.push_str("` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.\n");
-           result.push_str("\n| Value  | Description |\n|---|---|\n");
-           // TODO - enum table.
-           for (value, description) in e.enum_spec_values() {
-            result.push_str(&format!("| {} | {} |\n", value, description.trim()));
-           }
+           write!(out, "\n`")?;
+           e.write_name(out)?;
+           write!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.\n")?;
+          e.write_enum_spec_table(out)?;
         }
-        Ok(result)
+        Ok(())
     }
 }
 
@@ -518,34 +570,33 @@ impl <'a> MetricView<'a> {
             None => "Unknown",
         }
     }
-    fn unit(&self) -> &str {
-        self.group.unit.as_ref().map(|x| x.as_str()).unwrap_or("1")
+    fn write_unit<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        match self.group.unit.as_ref() {
+            Some(value) => write!(out, "{value}")?,
+            None => write!(out, "1")?,
+        }
+        Ok(())
     }
-    fn description(&self, ctx: &mut GenerateMarkdownContext) -> String {
+    fn write_description<Out: Write>(&self, out: &mut Out, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {
         // TODO - add note if needed.
         if self.group.note.is_empty() {
-            self.group.brief.clone()
+            write!(out, "{}", &self.group.brief)?
         } else {
-            format!("{} {}", &self.group.brief, ctx.add_note(self.group.note.clone()))
+            write!(out, "{} {}", &self.group.brief, ctx.add_note(self.group.note.clone()))?
         }
+        Ok(())
     }
-
-    // TODO - Does this belong here?
-    pub fn generate_markdown(&self, ctx: &mut GenerateMarkdownContext) -> String {
-        let mut result = String::new();
-        result.push_str("| Name     | Instrument Type | Unit (UCUM) | Description    |\n");
-        result.push_str("| -------- | --------------- | ----------- | -------------- |\n");
-        result.push_str(&format!("| `{}` | {} | `{}` | {} |\n", 
-          self.metric_name(),
-          self.instrument(),
-          self.unit(),
-          self.description(ctx),
-         ));
-
+    pub fn generate_markdown<Out: Write>(&self, out: &mut Out, ctx: &mut GenerateMarkdownContext) -> Result<(), Error> {
+        write!(out, "| Name     | Instrument Type | Unit (UCUM) | Description    |\n")?;
+        write!(out, "| -------- | --------------- | ----------- | -------------- |\n")?;
+        write!(out, "| `{}` | `{}` | `", self.metric_name(), self.instrument())?;
+        self.write_unit(out)?;
+        write!(out, "` | `")?;
+        self.write_description(out, ctx)?;
+        write!(out, "` |\n")?;
         // Add "note" footers
-        result.push_str(&ctx.rendered_notes());
-
-         result
+        ctx.write_rendered_notes(out)?;
+        Ok(())
     }
 }
 
