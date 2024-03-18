@@ -2,33 +2,29 @@
 
 //! Parsing Utilities.
 
-
-use crate::GenerateMarkdownArgs;
 use crate::Error;
+use crate::GenerateMarkdownArgs;
 use crate::MarkdownGenParameters;
 use nom::multi::many0_count;
 use nom::{
-    IResult,
-    bytes::complete::tag,
     branch::alt,
-    sequence::pair,
-    combinator::{opt,recognize,value},
+    bytes::complete::tag,
+    character::complete::{alpha1, alphanumeric1, multispace0},
+    combinator::{opt, recognize, value},
     multi::separated_list0,
-    character::complete::{multispace0,alpha1,alphanumeric1},
+    sequence::pair,
+    IResult,
 };
-
 
 /// exact string we expect for ending a semconv snippet.
 const SEMCONV_TRAILER: &'static str = "<!-- endsemconv -->";
 
 /// nom parser for tag values.
 fn parse_value(input: &str) -> IResult<&str, &str> {
-    recognize(
-        pair(
-          alt((alpha1, tag("_"))),
-          many0_count(alt((alphanumeric1, tag("_"), tag("-"))))
-        )
-      )(input)
+    recognize(pair(
+        alt((alpha1, tag("_"))),
+        many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
+    ))(input)
 }
 
 /// nom parser for tag={value}.
@@ -50,14 +46,21 @@ fn parse_markdown_metric_table(input: &str) -> IResult<&str, MarkdownGenParamete
 
 /// nom parser for omit_requirement_level.
 fn parse_markdown_omit(input: &str) -> IResult<&str, MarkdownGenParameters> {
-    value(MarkdownGenParameters::OmitRequirementLevel, tag("omit_requirement_level"))(input)
+    value(
+        MarkdownGenParameters::OmitRequirementLevel,
+        tag("omit_requirement_level"),
+    )(input)
 }
 
 /// nom parser for single parameters to semconv generation.
 fn parse_markdown_gen_parameter(input: &str) -> IResult<&str, MarkdownGenParameters> {
-    alt((parse_markdown_full, parse_markdown_metric_table, parse_markdown_omit, parse_markdown_gen_tag))(input)
+    alt((
+        parse_markdown_full,
+        parse_markdown_metric_table,
+        parse_markdown_omit,
+        parse_markdown_gen_tag,
+    ))(input)
 }
-
 
 /// nom parser for arguments to semconv generation. ({arg},{arg},..)
 fn parse_markdown_gen_parameters(input: &str) -> IResult<&str, Vec<MarkdownGenParameters>> {
@@ -83,10 +86,13 @@ fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs
     let (input, _) = multispace0(input)?;
     let (input, _) = tag("-->")(input)?;
 
-    Ok((input, GenerateMarkdownArgs {
-        id: id.to_string(),
-        args: opt_args.unwrap_or(Vec::new()),
-    }))
+    Ok((
+        input,
+        GenerateMarkdownArgs {
+            id: id.to_string(),
+            args: opt_args.unwrap_or(Vec::new()),
+        },
+    ))
 }
 
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
@@ -105,18 +111,20 @@ pub fn is_markdown_snippet_directive(line: &str) -> bool {
 
 /// Returns the markdown args for this markdown snippet directive.
 pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownArgs, Error> {
-   match parse_markdown_snippet_raw(line) {
-     Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
-     // TODO - Translate error message better?
-     _ => Err(Error::InvalidSnippetHeader { header: line.to_string() }),
-   }
+    match parse_markdown_snippet_raw(line) {
+        Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
+        // TODO - Translate error message better?
+        _ => Err(Error::InvalidSnippetHeader {
+            header: line.to_string(),
+        }),
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use crate::parser::{is_markdown_snippet_directive,is_semconv_trailer};
-    use crate::{Error,MarkdownGenParameters};
+    use crate::parser::{is_markdown_snippet_directive, is_semconv_trailer};
+    use crate::{Error, MarkdownGenParameters};
 
     use super::parse_markdown_snippet_directive;
     #[test]
@@ -127,13 +135,23 @@ mod tests {
 
     #[test]
     fn recognizes_header() {
-        assert!(is_markdown_snippet_directive("<!-- semconv my.id(full) -->"));
+        assert!(is_markdown_snippet_directive(
+            "<!-- semconv my.id(full) -->"
+        ));
         assert!(is_markdown_snippet_directive("<!-- semconv my.id -->"));
-        assert!(is_markdown_snippet_directive("<!-- semconv my.id(metric_table) -->"));
-        assert!(is_markdown_snippet_directive("<!-- semconv my.id(omit_requirement_level) -->"));
-        assert!(is_markdown_snippet_directive("<!-- semconv my.id(omit_requirement_level,tag=baz) -->"));
+        assert!(is_markdown_snippet_directive(
+            "<!-- semconv my.id(metric_table) -->"
+        ));
+        assert!(is_markdown_snippet_directive(
+            "<!-- semconv my.id(omit_requirement_level) -->"
+        ));
+        assert!(is_markdown_snippet_directive(
+            "<!-- semconv my.id(omit_requirement_level,tag=baz) -->"
+        ));
         assert!(!is_markdown_snippet_directive("hello"));
-        assert!(!is_markdown_snippet_directive("<!-- other semconv stuff -->"));
+        assert!(!is_markdown_snippet_directive(
+            "<!-- other semconv stuff -->"
+        ));
     }
 
     #[test]
@@ -147,7 +165,8 @@ mod tests {
         assert_eq!(result.args.len(), 1);
         assert_eq!(result.args[0], MarkdownGenParameters::MetricTable);
 
-        let result = parse_markdown_snippet_directive("<!-- semconv my.id(omit_requirement_level) -->")?;
+        let result =
+            parse_markdown_snippet_directive("<!-- semconv my.id(omit_requirement_level) -->")?;
         assert_eq!(result.id, "my.id");
         assert_eq!(result.args.len(), 1);
         assert_eq!(result.args[0], MarkdownGenParameters::OmitRequirementLevel);
@@ -155,8 +174,14 @@ mod tests {
         let result = parse_markdown_snippet_directive("<!-- semconv registry.messaging(omit_requirement_level,tag=tech-specific-rabbitmq) -->")?;
         assert_eq!(result.id, "registry.messaging");
         assert_eq!(result.args.len(), 2);
-        assert!(result.args.iter().any(|v| v == &MarkdownGenParameters::OmitRequirementLevel));
-        assert!(result.args.iter().any(|v| v == &MarkdownGenParameters::Tag("tech-specific-rabbitmq".into())));
+        assert!(result
+            .args
+            .iter()
+            .any(|v| v == &MarkdownGenParameters::OmitRequirementLevel));
+        assert!(result
+            .args
+            .iter()
+            .any(|v| v == &MarkdownGenParameters::Tag("tech-specific-rabbitmq".into())));
 
         Ok(())
     }

@@ -11,8 +11,7 @@ const RESET: &'static str = "\x1b[0m";
 /// outlining any changes that may need to be updated.
 pub fn diff_output(original: &str, updated: &str) -> String {
     let mut result = String::new();
-    let diff = 
-        similar::TextDiff::from_lines(original, updated);
+    let diff = similar::TextDiff::from_lines(original, updated);
     for change in diff.iter_all_changes() {
         let sign = match change.tag() {
             similar::ChangeTag::Delete => "-",
