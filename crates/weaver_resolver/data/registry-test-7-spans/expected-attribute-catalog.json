@@ -1937,27 +1937,6 @@
     "note": "If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).\n"
   },
   {
-    "name": "db.name",
-    "type": "string",
-    "brief": "The keyspace name in Cassandra.\n",
-    "examples": [
-      "mykeyspace"
-    ],
-    "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": "recommended",
-    "note": "For Cassandra the `db.name` should be set to the Cassandra keyspace name."
-  },
-  {
-    "name": "db.cassandra.page_size",
-    "type": "int",
-    "brief": "The fetch size used for paging, i.e. how many rows will be returned at once.\n",
-    "examples": [
-      5000
-    ],
-    "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": "recommended"
-  },
-  {
     "name": "db.cassandra.consistency_level",
     "type": {
       "allow_custom_values": true,
@@ -2035,18 +2014,35 @@
     "requirement_level": "recommended"
   },
   {
-    "name": "db.cassandra.table",
+    "name": "db.cassandra.coordinator.dc",
     "type": "string",
-    "brief": "The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).",
-    "examples": "mytable",
+    "brief": "The data center of the coordinating node for a query.\n",
+    "examples": "us-west-2",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": "recommended",
-    "note": "This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
+    "requirement_level": "recommended"
+  },
+  {
+    "name": "db.cassandra.coordinator.id",
+    "type": "string",
+    "brief": "The ID of the coordinating node for a query.\n",
+    "examples": "be13faa2-8574-4d71-926d-27f16cf8a7af",
+    "tag": "call-level-tech-specific-cassandra",
+    "requirement_level": "recommended"
   },
   {
     "name": "db.cassandra.idempotence",
     "type": "boolean",
     "brief": "Whether or not the query is idempotent.\n",
+    "tag": "call-level-tech-specific-cassandra",
+    "requirement_level": "recommended"
+  },
+  {
+    "name": "db.cassandra.page_size",
+    "type": "int",
+    "brief": "The fetch size used for paging, i.e. how many rows will be returned at once.\n",
+    "examples": [
+      5000
+    ],
     "tag": "call-level-tech-specific-cassandra",
     "requirement_level": "recommended"
   },
@@ -2062,20 +2058,26 @@
     "requirement_level": "recommended"
   },
   {
-    "name": "db.cassandra.coordinator.id",
+    "name": "db.cassandra.table",
     "type": "string",
-    "brief": "The ID of the coordinating node for a query.\n",
-    "examples": "be13faa2-8574-4d71-926d-27f16cf8a7af",
+    "brief": "The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).",
+    "examples": "mytable",
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "note": "This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.\n"
   },
   {
-    "name": "db.cassandra.coordinator.dc",
+    "name": "db.name",
     "type": "string",
-    "brief": "The data center of the coordinating node for a query.\n",
-    "examples": "us-west-2",
+    "brief": "The keyspace name in Cassandra.\n",
+    "examples": [
+      "mykeyspace"
+    ],
     "tag": "call-level-tech-specific-cassandra",
-    "requirement_level": "recommended"
+    "requirement_level": {
+      "conditionally_required": "If applicable."
+    },
+    "note": "For Cassandra the `db.name` should be set to the Cassandra keyspace name."
   },
   {
     "name": "db.name",
@@ -2085,7 +2087,9 @@
       "mynamespace"
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": "recommended",
+    "requirement_level": {
+      "conditionally_required": "If applicable."
+    },
     "note": "For HBase the `db.name` should be set to the HBase namespace."
   },
   {
@@ -2096,7 +2100,9 @@
       "GET /{db}/{docid}"
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": "recommended",
+    "requirement_level": {
+      "conditionally_required": "If `db.statement` is not applicable."
+    },
     "note": "In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).\n"
   },
   {
@@ -2121,7 +2127,9 @@
       "HMSET myhash field1 'Hello' field2 'World'"
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": "recommended",
+    "requirement_level": {
+      "recommended": "Should be collected by default only if there is sanitization that excludes sensitive information.\n"
+    },
     "note": "For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `\"HMSET myhash field1 'Hello' field2 'World'\"` would be a suitable value for `db.statement`.\n"
   },
   {
@@ -2134,6 +2142,69 @@
     ],
     "tag": "call-level-tech-specific",
     "requirement_level": "required"
+  },
+  {
+    "name": "db.elasticsearch.cluster.name",
+    "type": "string",
+    "brief": "Represents the identifier of an Elasticsearch cluster.\n",
+    "examples": [
+      "e9106fc68e3044f0b1475b04bf4ffd5f"
+    ],
+    "tag": "call-level-tech-specific",
+    "requirement_level": {
+      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Cluster\" HTTP response header.\n"
+    }
+  },
+  {
+    "name": "db.elasticsearch.node.name",
+    "type": "string",
+    "brief": "Represents the human-readable identifier of the node/instance to which a request was routed.\n",
+    "examples": [
+      "instance-0000000001"
+    ],
+    "tag": "call-level-tech-specific",
+    "requirement_level": {
+      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Instance\" HTTP response header.\n"
+    }
+  },
+  {
+    "name": "db.elasticsearch.path_parts",
+    "type": "template[string]",
+    "brief": "A dynamic value in the url path.\n",
+    "examples": [
+      "db.elasticsearch.path_parts.index=test-index",
+      "db.elasticsearch.path_parts.doc_id=123"
+    ],
+    "tag": "call-level-tech-specific",
+    "requirement_level": {
+      "conditionally_required": "when the url has dynamic values"
+    },
+    "note": "Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.\n"
+  },
+  {
+    "name": "db.operation",
+    "type": "string",
+    "brief": "The endpoint identifier for the request.",
+    "examples": [
+      "search",
+      "ml.close_job",
+      "cat.aliases"
+    ],
+    "tag": "call-level-tech-specific",
+    "requirement_level": "required",
+    "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
+  },
+  {
+    "name": "db.statement",
+    "type": "string",
+    "brief": "The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.",
+    "examples": [
+      "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\""
+    ],
+    "tag": "call-level-tech-specific",
+    "requirement_level": {
+      "recommended": "Should be collected by default for search-type queries and only if there is sanitization that excludes sensitive information.\n"
+    }
   },
   {
     "name": "http.request.method",
@@ -2214,46 +2285,9 @@
     "stability": "stable"
   },
   {
-    "name": "db.operation",
-    "type": "string",
-    "brief": "The endpoint identifier for the request.",
-    "examples": [
-      "search",
-      "ml.close_job",
-      "cat.aliases"
-    ],
-    "tag": "call-level-tech-specific",
-    "requirement_level": "required",
-    "note": "When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.\n"
-  },
-  {
-    "name": "url.full",
-    "type": "string",
-    "brief": "Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)",
-    "examples": [
-      "https://localhost:9200/index/_search?q=user.id:kimchy"
-    ],
-    "tag": "call-level-tech-specific",
-    "requirement_level": "required",
-    "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
-    "stability": "stable"
-  },
-  {
-    "name": "db.statement",
-    "type": "string",
-    "brief": "The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.",
-    "examples": [
-      "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\""
-    ],
-    "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "recommended": "Should be collected by default for search-type queries and only if there is sanitization that excludes sensitive information.\n"
-    }
-  },
-  {
     "name": "server.address",
     "type": "string",
-    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+    "brief": "Name of the database host.\n",
     "examples": [
       "example.com",
       "10.1.2.80",
@@ -2274,47 +2308,23 @@
       443
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": "recommended",
+    "requirement_level": {
+      "conditionally_required": "If using a port other than the default port for this DBMS and if `server.address` is set."
+    },
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
     "stability": "stable"
   },
   {
-    "name": "db.elasticsearch.cluster.name",
+    "name": "url.full",
     "type": "string",
-    "brief": "Represents the identifier of an Elasticsearch cluster.\n",
+    "brief": "Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)",
     "examples": [
-      "e9106fc68e3044f0b1475b04bf4ffd5f"
+      "https://localhost:9200/index/_search?q=user.id:kimchy"
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Cluster\" HTTP response header.\n"
-    }
-  },
-  {
-    "name": "db.elasticsearch.node.name",
-    "type": "string",
-    "brief": "Represents the human-readable identifier of the node/instance to which a request was routed.\n",
-    "examples": [
-      "instance-0000000001"
-    ],
-    "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "recommended": "When communicating with an Elastic Cloud deployment, this should be collected from the \"X-Found-Handling-Instance\" HTTP response header.\n"
-    }
-  },
-  {
-    "name": "db.elasticsearch.path_parts",
-    "type": "template[string]",
-    "brief": "A dynamic value in the url path.\n",
-    "examples": [
-      "db.elasticsearch.path_parts.index=test-index",
-      "db.elasticsearch.path_parts.doc_id=123"
-    ],
-    "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "conditionally_required": "when the url has dynamic values"
-    },
-    "note": "Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.\n"
+    "requirement_level": "required",
+    "note": "For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.\n`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.\n`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.\n",
+    "stability": "stable"
   },
   {
     "name": "db.sql.table",
@@ -2335,6 +2345,41 @@
     "examples": "3ba4827d-4422-483f-b59f-85b74211c11d",
     "tag": "call-level-tech-specific",
     "requirement_level": "recommended"
+  },
+  {
+    "name": "db.cosmosdb.connection_mode",
+    "type": {
+      "allow_custom_values": false,
+      "members": [
+        {
+          "id": "gateway",
+          "value": "gateway",
+          "brief": "Gateway (HTTP) connections mode",
+          "note": null
+        },
+        {
+          "id": "direct",
+          "value": "direct",
+          "brief": "Direct connection.",
+          "note": null
+        }
+      ]
+    },
+    "brief": "Cosmos client connection mode.",
+    "tag": "call-level-tech-specific",
+    "requirement_level": {
+      "conditionally_required": "if not `direct` (or pick gw as default)"
+    }
+  },
+  {
+    "name": "db.cosmosdb.container",
+    "type": "string",
+    "brief": "Cosmos DB container name.",
+    "examples": "anystring",
+    "tag": "call-level-tech-specific",
+    "requirement_level": {
+      "conditionally_required": "if available"
+    }
   },
   {
     "name": "db.cosmosdb.operation_type",
@@ -2440,50 +2485,16 @@
     }
   },
   {
-    "name": "user_agent.original",
-    "type": "string",
-    "brief": "Full user-agent string is generated by Cosmos DB SDK",
+    "name": "db.cosmosdb.request_charge",
+    "type": "double",
+    "brief": "RU consumed for that operation",
     "examples": [
-      "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|"
+      46.18,
+      1.0
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": "recommended",
-    "note": "The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.\n   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).\n   Default value is \"NS\".\n",
-    "stability": "stable"
-  },
-  {
-    "name": "db.cosmosdb.connection_mode",
-    "type": {
-      "allow_custom_values": false,
-      "members": [
-        {
-          "id": "gateway",
-          "value": "gateway",
-          "brief": "Gateway (HTTP) connections mode",
-          "note": null
-        },
-        {
-          "id": "direct",
-          "value": "direct",
-          "brief": "Direct connection.",
-          "note": null
-        }
-      ]
-    },
-    "brief": "Cosmos client connection mode.",
-    "tag": "call-level-tech-specific",
     "requirement_level": {
-      "conditionally_required": "if not `direct` (or pick gw as default)"
-    }
-  },
-  {
-    "name": "db.cosmosdb.container",
-    "type": "string",
-    "brief": "Cosmos DB container name.",
-    "examples": "anystring",
-    "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "conditionally_required": "if available"
+      "conditionally_required": "when available"
     }
   },
   {
@@ -2520,16 +2531,15 @@
     }
   },
   {
-    "name": "db.cosmosdb.request_charge",
-    "type": "double",
-    "brief": "RU consumed for that operation",
+    "name": "user_agent.original",
+    "type": "string",
+    "brief": "Full user-agent string is generated by Cosmos DB SDK",
     "examples": [
-      46.18,
-      1.0
+      "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|"
     ],
     "tag": "call-level-tech-specific",
-    "requirement_level": {
-      "conditionally_required": "when available"
-    }
+    "requirement_level": "recommended",
+    "note": "The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.\n   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).\n   Default value is \"NS\".\n",
+    "stability": "stable"
   }
 ]

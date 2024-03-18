@@ -1,0 +1,22 @@
+groups:
+  - id: attributes.http.common
+    type: attribute_group
+    brief: "Describes HTTP attributes."
+    attributes:
+      - ref: network.protocol.name
+        examples: ['http', 'spdy']
+        requirement_level:
+          conditionally_required: If not `http` and `network.protocol.version` is set.
+
+  - id: attributes.http.server
+    type: attribute_group
+    brief: 'HTTP Server attributes'
+    extends: attributes.http.common
+    attributes:
+      - ref: server.port
+        brief: >
+          Port of the local HTTP server that received the request.
+        note: >
+          See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).
+        requirement_level:
+          conditionally_required: If `server.address` is set.

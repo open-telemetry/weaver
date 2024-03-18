@@ -1,0 +1,291 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "attributes.http.common",
+      "type": "attribute_group",
+      "brief": "Describes HTTP attributes.",
+      "attributes": [
+        2
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-8-http/registry/http-common.yaml",
+        "attributes": {
+          "2": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "attributes.http.server",
+      "type": "attribute_group",
+      "brief": "HTTP Server attributes",
+      "attributes": [
+        2,
+        3
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-8-http/registry/http-common.yaml",
+        "attributes": {
+          "2": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "3": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric_attributes.http.server",
+      "type": "attribute_group",
+      "brief": "HTTP server attributes",
+      "attributes": [
+        2,
+        4
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-8-http/registry/http.yaml",
+        "attributes": {
+          "2": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "4": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "metric.http.server.request.duration",
+      "type": "metric",
+      "brief": "Duration of HTTP server requests.",
+      "stability": "stable",
+      "attributes": [
+        2,
+        4
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": "http.server.request.duration",
+      "instrument": "histogram",
+      "unit": "s",
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-8-http/registry/http.yaml",
+        "attributes": {
+          "2": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "4": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeTag": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.network",
+      "type": "attribute_group",
+      "brief": "These attributes may be used for any network related operation.\n",
+      "prefix": "network",
+      "attributes": [
+        0
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-8-http/registry/network.yaml"
+      }
+    },
+    {
+      "id": "server",
+      "type": "attribute_group",
+      "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
+      "prefix": "server",
+      "attributes": [
+        1
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-8-http/registry/server.yaml"
+      }
+    }
+  ]
+}

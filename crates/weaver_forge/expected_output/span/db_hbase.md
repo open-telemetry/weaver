@@ -72,25 +72,6 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 ]
   
   
-#### Attribute `db.name`
-
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
-
-
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-
-- Requirement Level: Conditionally Required - If applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "customers",
-    "main",
-]
-  
-  
 #### Attribute `db.statement`
 
 The database statement being executed.
@@ -273,7 +254,7 @@ The HBase namespace.
 
 For HBase the `db.name` should be set to the HBase namespace.
 
-- Requirement Level: Recommended
+- Requirement Level: Conditionally Required - If applicable.
   
 - Tag: call-level-tech-specific
   

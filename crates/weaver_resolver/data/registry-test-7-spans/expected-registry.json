@@ -38,6 +38,12 @@
         28,
         29
       ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/registry-db.yaml"
       }
@@ -58,6 +64,12 @@
         37,
         38
       ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/registry-http.yaml"
       }
@@ -84,6 +96,12 @@
         52,
         53
       ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/registry-network.yaml"
       }
@@ -97,6 +115,12 @@
         54,
         55
       ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/registry-server.yaml"
       }
@@ -113,6 +137,12 @@
         59,
         60
       ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/registry-url.yaml"
       }
@@ -125,6 +155,12 @@
       "attributes": [
         61
       ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/registry-user-agent.yaml"
       }
@@ -151,6 +187,10 @@
       ],
       "span_kind": "client",
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
@@ -568,91 +608,399 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "76": {
@@ -697,7 +1045,6 @@
         63,
         64,
         65,
-        66,
         67,
         68,
         69,
@@ -718,99 +1065,393 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "77": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
             "AttributeRequirementLevel": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
             },
             "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "64": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "65": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "67": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "68": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "69": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "70": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "71": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "72": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "73": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "74": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "75": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "77": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
             },
@@ -1004,6 +1645,78 @@
             }
           },
           "84": {
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "db.hbase",
+      "type": "span",
+      "brief": "Call-level attributes for HBase\n",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        85
+      ],
+      "span_kind": null,
+      "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
+      "lineage": {
+        "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "62": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "63": {
             "AttributeBrief": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
@@ -1032,125 +1745,314 @@
               "resolution_mode": "Reference",
               "group_id": "registry.db"
             }
-          }
-        }
-      }
-    },
-    {
-      "id": "db.hbase",
-      "type": "span",
-      "brief": "Call-level attributes for HBase\n",
-      "attributes": [
-        62,
-        63,
-        64,
-        65,
-        66,
-        67,
-        68,
-        69,
-        70,
-        71,
-        72,
-        73,
-        74,
-        75,
-        85
-      ],
-      "span_kind": null,
-      "events": [],
-      "lineage": {
-        "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": {
-          "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "85": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
             "AttributeRequirementLevel": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
             },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "65": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "67": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "68": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "69": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "70": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "71": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "72": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "73": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "74": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "75": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "85": {
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
@@ -1178,7 +2080,6 @@
         65,
         66,
         67,
-        68,
         69,
         70,
         71,
@@ -1190,98 +2091,376 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "86": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
             "AttributeRequirementLevel": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
             },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "64": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "65": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "66": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "67": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "69": {
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "70": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            }
+          },
+          "71": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "72": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "73": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "74": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            }
+          },
+          "75": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            }
+          },
+          "86": {
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
@@ -1308,7 +2487,6 @@
         64,
         65,
         66,
-        67,
         68,
         69,
         70,
@@ -1322,91 +2500,373 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "87": {
@@ -1436,10 +2896,6 @@
             }
           },
           "88": {
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
@@ -1479,91 +2935,399 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "89": {
@@ -1605,10 +3369,6 @@
         64,
         65,
         66,
-        67,
-        68,
-        69,
-        70,
         71,
         72,
         73,
@@ -1626,120 +3386,332 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
-            }
-          },
-          "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "90": {
             "AttributeBrief": {
               "resolution_mode": "Reference",
-              "group_id": "registry.http"
+              "group_id": "registry.db"
             },
             "AttributeExamples": {
               "resolution_mode": "Reference",
-              "group_id": "registry.http"
+              "group_id": "registry.db"
             },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "registry.http"
+              "group_id": "registry.db"
             },
             "AttributeNote": {
               "resolution_mode": "Reference",
-              "group_id": "registry.http"
+              "group_id": "registry.db"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "registry.http"
+              "group_id": "registry.db"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "registry.http"
+              "group_id": "registry.db"
             }
           },
           "91": {
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
               "group_id": "registry.db"
@@ -1760,23 +3732,27 @@
           "92": {
             "AttributeBrief": {
               "resolution_mode": "Reference",
-              "group_id": "registry.url"
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "registry.url"
+              "group_id": "registry.db"
             },
             "AttributeNote": {
               "resolution_mode": "Reference",
-              "group_id": "registry.url"
+              "group_id": "registry.db"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "registry.url"
+              "group_id": "registry.db"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "registry.url"
+              "group_id": "registry.db"
             }
           },
           "93": {
@@ -1798,40 +3774,50 @@
             }
           },
           "94": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "server"
+              "group_id": "registry.db"
             },
             "AttributeNote": {
               "resolution_mode": "Reference",
-              "group_id": "server"
+              "group_id": "registry.db"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "server"
+              "group_id": "registry.db"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "server"
+              "group_id": "registry.db"
             }
           },
           "95": {
             "AttributeBrief": {
               "resolution_mode": "Reference",
-              "group_id": "server"
+              "group_id": "registry.http"
             },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.http"
+            }
+          },
+          "96": {
             "AttributeExamples": {
               "resolution_mode": "Reference",
               "group_id": "server"
@@ -1857,82 +3843,52 @@
               "group_id": "server"
             }
           },
-          "96": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            }
-          },
           "97": {
             "AttributeBrief": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "server"
             },
             "AttributeExamples": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "server"
             },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "server"
             },
             "AttributeNote": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "server"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "server"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "server"
             }
           },
           "98": {
             "AttributeBrief": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.url"
             },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.url"
             },
             "AttributeNote": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.url"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.url"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.url"
             }
           }
         }
@@ -1961,91 +3917,399 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "99": {
@@ -2113,91 +4377,399 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml",
         "attributes": {
           "62": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "63": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "64": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "65": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "66": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "67": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "68": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "69": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "70": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "server"
             }
           },
           "71": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "72": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "73": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "74": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeRequirementLevel": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.network"
             }
           },
           "75": {
-            "GroupAttributes": {
-              "resolution_mode": "Extends",
-              "group_id": "db"
+            "AttributeBrief": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeSamplingRelevant": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeStability": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
+            },
+            "AttributeDeprecated": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             }
           },
           "100": {
@@ -2257,21 +4829,29 @@
             }
           },
           "102": {
-            "AttributeRequirementLevel": {
+            "AttributeBrief": {
               "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
+              "group_id": "registry.db"
+            },
+            "AttributeExamples": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
+              "group_id": "registry.db"
+            },
+            "AttributeNote": {
+              "resolution_mode": "Reference",
+              "group_id": "registry.db"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
+              "group_id": "registry.db"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
+              "group_id": "registry.db"
             }
           },
           "103": {
@@ -2409,29 +4989,21 @@
             }
           },
           "108": {
-            "AttributeBrief": {
+            "AttributeRequirementLevel": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.user_agent"
             },
             "AttributeSamplingRelevant": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.user_agent"
             },
             "AttributeStability": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.user_agent"
             },
             "AttributeDeprecated": {
               "resolution_mode": "Reference",
-              "group_id": "registry.db"
+              "group_id": "registry.user_agent"
             }
           }
         }
@@ -2441,7 +5013,6 @@
       "id": "db.tech",
       "type": "span",
       "brief": "Semantic convention group for specific technologies",
-      "constraints": [],
       "attributes": [
         62,
         63,
@@ -2481,6 +5052,10 @@
       ],
       "span_kind": null,
       "events": [],
+      "metric_name": null,
+      "instrument": null,
+      "unit": null,
+      "name": null,
       "lineage": {
         "provenance": "data/registry-test-7-spans/registry/trace-database.yaml"
       }
