@@ -17,7 +17,7 @@ use nom::{
 };
 
 /// exact string we expect for ending a semconv snippet.
-const SEMCONV_TRAILER: &'static str = "<!-- endsemconv -->";
+const SEMCONV_TRAILER: &str = "<!-- endsemconv -->";
 
 /// nom parser for tag values.
 fn parse_value(input: &str) -> IResult<&str, &str> {
@@ -103,10 +103,7 @@ pub fn is_semconv_trailer(line: &str) -> bool {
 
 /// Returns true if the line begins a markdown snippet directive and needs tobe parsed.
 pub fn is_markdown_snippet_directive(line: &str) -> bool {
-    match parse_markdown_snippet_raw(line) {
-        Ok((rest, _)) if rest.trim().is_empty() => true,
-        _ => false,
-    }
+    matches!(parse_markdown_snippet_raw(line), Ok((rest, _)) if rest.trim().is_empty())
 }
 
 /// Returns the markdown args for this markdown snippet directive.

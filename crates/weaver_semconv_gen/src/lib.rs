@@ -102,7 +102,7 @@ pub enum MarkdownGenParameters {
     /// Omit the requirement level.
     OmitRequirementLevel,
 }
-///
+/// Markdown-snippet generation arguments.
 pub struct GenerateMarkdownArgs {
     /// The id of the metric, event, span or attribute group to render.
     id: String,
@@ -110,26 +110,21 @@ pub struct GenerateMarkdownArgs {
     args: Vec<MarkdownGenParameters>,
 }
 impl GenerateMarkdownArgs {
-    /// TODO
-    fn is_full(&self) -> bool {
-        self.args.iter().any(|a| match a {
-            MarkdownGenParameters::Full => true,
-            _ => false,
-        })
-    }
+    // TODO
+    // fn is_full(&self) -> bool {
+    //     self.args.iter().any(|a| matches!(a, MarkdownGenParameters::Full))
+    // }
     /// Returns true if the omit requirement level flag was specified.
     fn is_omit_requirement(&self) -> bool {
-        self.args.iter().any(|a| match a {
-            MarkdownGenParameters::OmitRequirementLevel => true,
-            _ => false,
-        })
+        self.args
+            .iter()
+            .any(|a| matches!(a, MarkdownGenParameters::OmitRequirementLevel))
     }
     /// Returns true if a metric table should be rendered.
     fn is_metric_table(&self) -> bool {
-        self.args.iter().any(|a| match a {
-            MarkdownGenParameters::MetricTable => true,
-            _ => false,
-        })
+        self.args
+            .iter()
+            .any(|a| matches!(a, MarkdownGenParameters::MetricTable))
     }
 }
 
@@ -152,15 +147,6 @@ impl GenerateMarkdownContext {
         format!("[{idx}]")
     }
 
-    /// Returns a string which redners the markdown notes.
-    fn rendered_notes(&self) -> String {
-        let mut result = String::new();
-        for (counter, note) in self.notes.iter().enumerate() {
-            result.push_str(&format!("\n**[{}]:** {}\n", counter + 1, note.trim()));
-        }
-        result
-    }
-
     /// Renderes stored notes into markdown format.
     fn write_rendered_notes<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         for (counter, note) in self.notes.iter().enumerate() {
@@ -171,7 +157,7 @@ impl GenerateMarkdownContext {
 }
 
 /// Constructs a markdown snippet (without header/closer)
-fn generate_markdown_snippet<'a>(
+fn generate_markdown_snippet(
     lookup: &ResolvedSemconvRegistry,
     args: GenerateMarkdownArgs,
 ) -> Result<String, Error> {
@@ -188,7 +174,7 @@ fn generate_markdown_snippet<'a>(
 }
 
 // TODO - This entire function could be optimised and reworked.
-fn update_markdown_contents<'a>(
+fn update_markdown_contents(
     contents: &str,
     lookup: &ResolvedSemconvRegistry,
 ) -> Result<String, Error> {
@@ -199,14 +185,14 @@ fn update_markdown_contents<'a>(
             if parser::is_semconv_trailer(line) {
                 result.push_str(line);
                 // TODO - do we always need this or did we trim oddly?
-                result.push_str("\n");
+                result.push('\n');
                 handling_snippet = false;
             }
         } else {
             // Always push this line.
             result.push_str(line);
             // TODO - don't do this on last line.
-            result.push_str("\n");
+            result.push('\n');
             // Check to see if line matches snippet request.
             // If so, generate the snippet and continue.
             if parser::is_markdown_snippet_directive(line) {
@@ -221,26 +207,23 @@ fn update_markdown_contents<'a>(
 }
 
 /// Updates a single markdown file using the resolved schema.
-pub fn update_markdown<'a>(
+pub fn update_markdown(
     file: &str,
     lookup: &ResolvedSemconvRegistry,
     dry_run: bool,
 ) -> Result<(), Error> {
-    // TODO - throw error.
-    let original_markdown = fs::read_to_string(file).expect("Unable to read file");
+    let original_markdown = fs::read_to_string(file)?;
     let updated_markdown = update_markdown_contents(&original_markdown, lookup)?;
     if !dry_run {
         fs::write(file, updated_markdown)?;
         Ok(())
+    } else if original_markdown != updated_markdown {
+        Err(Error::MarkdownIsNotEqual {
+            original: original_markdown,
+            updated: updated_markdown,
+        })
     } else {
-        if original_markdown != updated_markdown {
-            Err(Error::MarkdownIsNotEqual {
-                original: original_markdown,
-                updated: updated_markdown,
-            })
-        } else {
-            Ok(())
-        }
+        Ok(())
     }
 }
 
@@ -323,7 +306,7 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_registry_link<T: Write>(&self, out: &mut T) -> Result<(), Error> {
-        let reg_name = self.attribute.name.split(".").next().unwrap_or("");
+        let reg_name = self.attribute.name.split('.').next().unwrap_or("");
         // TODO - the existing build-tools semconv will look at currently
         // generating markdown location to see if it's the same structure
         // as where the attribute originated from.
@@ -343,29 +326,22 @@ impl<'a> AttributeView<'a> {
     }
 
     fn is_enum(&self) -> bool {
-        match &self.attribute.r#type {
-            AttributeType::Enum { .. } => true,
-            _ => false,
-        }
+        matches!(&self.attribute.r#type, AttributeType::Enum { .. })
     }
 
     fn write_enum_spec_table<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         write!(out, "\n| Value  | Description |\n|---|---|\n")?;
-        match &self.attribute.r#type {
-            AttributeType::Enum { members, .. } => {
-                for m in members {
-                    write!(out, "| ")?;
-                    write_enum_value_string(out, &m.value)?;
-                    write!(out, " | ")?;
-                    match m.brief.as_ref() {
-                        Some(v) => write!(out, "{}", v.trim())?,
-                        None => (),
-                    }
-                    write!(out, " |\n")?;
+        if let AttributeType::Enum { members, .. } = &self.attribute.r#type {
+            for m in members {
+                write!(out, "| ")?;
+                write_enum_value_string(out, &m.value)?;
+                write!(out, " | ")?;
+                if let Some(v) = m.brief.as_ref() {
+                    write!(out, "{}", v.trim())?;
                 }
+                writeln!(out, " |")?;
             }
-            _ => (),
-        }
+        } // TODO - error message on not enum...
         Ok(())
     }
 
@@ -514,16 +490,16 @@ impl<'a> AttributeTableView<'a> {
         // - tag filter
 
         if args.is_omit_requirement() {
-            write!(out, "| Attribute  | Type | Description  | Examples  |\n")?;
-            write!(out, "|---|---|---|---|\n")?;
+            writeln!(out, "| Attribute  | Type | Description  | Examples  |")?;
+            writeln!(out, "|---|---|---|---|")?;
         } else {
             // TODO - we should use link version and update tests/semconv upstream.
             //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
-            write!(
+            writeln!(
                 out,
-                "| Attribute  | Type | Description  | Examples  | Requirement Level |\n"
+                "| Attribute  | Type | Description  | Examples  | Requirement Level |"
             )?;
-            write!(out, "|---|---|---|---|---|\n")?;
+            writeln!(out, "|---|---|---|---|---|")?;
         }
 
         for attr in self
@@ -541,11 +517,11 @@ impl<'a> AttributeTableView<'a> {
             write!(out, " | ")?;
             attr.write_examples(out)?;
             if args.is_omit_requirement() {
-                write!(out, " |\n")?;
+                writeln!(out, " |")?;
             } else {
                 write!(out, " | ")?;
                 attr.write_requirement(out, ctx)?;
-                write!(out, " |\n")?;
+                writeln!(out, " |")?;
             }
         }
         // Add "note" footers
@@ -557,7 +533,7 @@ impl<'a> AttributeTableView<'a> {
             .filter(|a| a.sampling_relevant.unwrap_or(false))
             .map(|attribute| AttributeView { attribute })
             .collect();
-        if sampling_relevant.len() > 0 {
+        if !sampling_relevant.is_empty() {
             write!(
                 out,
                 "\nThe following attributes can be important for making sampling decisions "
@@ -570,7 +546,7 @@ impl<'a> AttributeTableView<'a> {
                 // TODO - existing output uses registry-link-name.
                 write!(out, "* ")?;
                 a.write_name_with_optional_link(out)?;
-                write!(out, "\n")?;
+                writeln!(out)?;
             }
         }
 
@@ -584,7 +560,7 @@ impl<'a> AttributeTableView<'a> {
         {
             write!(out, "\n`")?;
             e.write_name(out)?;
-            write!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.\n")?;
+            writeln!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.")?;
             e.write_enum_spec_table(out)?;
         }
         Ok(())
@@ -661,13 +637,13 @@ impl<'a> MetricView<'a> {
         out: &mut Out,
         ctx: &mut GenerateMarkdownContext,
     ) -> Result<(), Error> {
-        write!(
+        writeln!(
             out,
-            "| Name     | Instrument Type | Unit (UCUM) | Description    |\n"
+            "| Name     | Instrument Type | Unit (UCUM) | Description    |"
         )?;
-        write!(
+        writeln!(
             out,
-            "| -------- | --------------- | ----------- | -------------- |\n"
+            "| -------- | --------------- | ----------- | -------------- |"
         )?;
         write!(
             out,
@@ -678,7 +654,7 @@ impl<'a> MetricView<'a> {
         self.write_unit(out)?;
         write!(out, "` | ")?;
         self.write_description(out, ctx)?;
-        write!(out, " |\n")?;
+        writeln!(out, " |")?;
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
         Ok(())

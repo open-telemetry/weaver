@@ -2,9 +2,9 @@
 
 //! Text diffing utilities.
 
-const GREEN: &'static str = "\x1b[32m";
-const RED: &'static str = "\x1b[31m";
-const RESET: &'static str = "\x1b[0m";
+const GREEN: &str = "\x1b[32m";
+const RED: &str = "\x1b[31m";
+const RESET: &str = "\x1b[0m";
 
 // TODO - allow disabling colors
 /// Constructs a "diff" string of the current snippet vs. updated on
