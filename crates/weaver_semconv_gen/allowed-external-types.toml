@@ -5,4 +5,5 @@
 allowed_external_types = [
     "weaver_semconv::Error",
     "weaver_resolver::Error",
+    "weaver_logger::Logger",
 ]
