@@ -26,16 +26,19 @@ pub struct ResourceSpans {
 
 impl ResourceSpans {
     /// Returns the number of spans.
+    #[must_use]
     pub fn spans_count(&self) -> usize {
         self.spans.len()
     }
 
     /// Returns a slice of spans.
+    #[must_use]
     pub fn spans(&self) -> Vec<&Span> {
         self.spans.iter().collect()
     }
 
     /// Returns a span by name or None if not found.
+    #[must_use]
     pub fn span(&self, name: &str) -> Option<&Span> {
         self.spans
             .iter()

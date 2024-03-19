@@ -19,7 +19,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
                 ..
             } = attr
             {
-                index_writer
+                _ = index_writer
                     .add_document(doc!(
                         fields.path => format!("schema/resource/attr/{}", the_id),
                         fields.brief => the_brief.as_str(),

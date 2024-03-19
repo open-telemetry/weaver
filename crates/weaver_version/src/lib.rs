@@ -2,10 +2,6 @@
 
 //! The specification of the changes to apply to the schema for different versions.
 
-#![deny(missing_docs)]
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
-
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::BufReader;
@@ -131,12 +127,14 @@ impl Versions {
     }
 
     /// Returns the most recent version or None if there are no versions.
+    #[must_use]
     pub fn latest_version(&self) -> Option<Version> {
         self.versions.keys().last().map(|v| Version(v.clone()))
     }
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in ascending order.
+    #[must_use]
     pub fn versions_asc(&self) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .iter()
@@ -146,6 +144,7 @@ impl Versions {
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in descending order.
+    #[must_use]
     pub fn versions_desc(&self) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .iter()
@@ -156,6 +155,7 @@ impl Versions {
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in ascending order from the given version.
+    #[must_use]
     pub fn versions_asc_from(&self, version: Version) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .range(version.0..)
@@ -165,6 +165,7 @@ impl Versions {
 
     /// Returns a vector of tuples containing the versions and their corresponding changes
     /// in descending order from the given version.
+    #[must_use]
     pub fn versions_desc_from(&self, version: &Version) -> Vec<(Version, &VersionSpec)> {
         self.versions
             .range(..=version.0.clone())
@@ -178,6 +179,7 @@ impl Versions {
     /// The current supported changes are:
     /// - Renaming of attributes (for resources, logs and spans)
     /// - Renaming of metrics
+    #[must_use]
     pub fn version_changes_for(&self, version: &Version) -> VersionChanges {
         let mut resource_old_to_new_attributes: HashMap<String, String> = HashMap::new();
         let mut metric_old_to_new_names: HashMap<String, String> = HashMap::new();
@@ -195,7 +197,7 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !resource_old_to_new_attributes.contains_key(old_name) {
-                            resource_old_to_new_attributes
+                            _ = resource_old_to_new_attributes
                                 .insert(old_name.clone(), new_name.clone());
                         }
                     });
@@ -210,7 +212,7 @@ impl Versions {
                     .flat_map(|change| change.rename_metrics.iter())
                     .for_each(|(old_name, new_name)| {
                         if !metric_old_to_new_names.contains_key(old_name) {
-                            metric_old_to_new_names.insert(old_name.clone(), new_name.clone());
+                            _ = metric_old_to_new_names.insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -224,7 +226,8 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !metric_old_to_new_attributes.contains_key(old_name) {
-                            metric_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = metric_old_to_new_attributes
+                                .insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -237,7 +240,8 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !log_old_to_new_attributes.contains_key(old_name) {
-                            log_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = log_old_to_new_attributes
+                                .insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -251,7 +255,8 @@ impl Versions {
                     .flat_map(|change| change.rename_attributes.attribute_map.iter())
                     .for_each(|(old_name, new_name)| {
                         if !span_old_to_new_attributes.contains_key(old_name) {
-                            span_old_to_new_attributes.insert(old_name.clone(), new_name.clone());
+                            _ = span_old_to_new_attributes
+                                .insert(old_name.clone(), new_name.clone());
                         }
                     });
             }
@@ -275,18 +280,20 @@ impl Versions {
                     current_spec.extend(spec);
                 }
                 None => {
-                    self.versions.insert(version.clone(), spec);
+                    _ = self.versions.insert(version.clone(), spec);
                 }
             }
         }
     }
 
     /// Returns true if the `Versions` is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.versions.is_empty()
     }
 
     /// Returns the number of versions.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.versions.len()
     }
@@ -317,7 +324,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    resource_change
+                    _ = resource_change
                         .rename_attributes
                         .attribute_map
                         .insert(old, new);
@@ -362,7 +369,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    metrics_change.rename_metrics.insert(old, new);
+                    _ = metrics_change.rename_metrics.insert(old, new);
                 }
             }
             if !metrics_change.rename_metrics.is_empty() {
@@ -407,7 +414,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    logs_change.rename_attributes.attribute_map.insert(old, new);
+                    _ = logs_change.rename_attributes.attribute_map.insert(old, new);
                 }
             }
             if !logs_change.rename_attributes.attribute_map.is_empty() {
@@ -451,7 +458,7 @@ impl VersionSpec {
                         }
                     }
                     // renaming not found in local changes, add it
-                    spans_change
+                    _ = spans_change
                         .rename_attributes
                         .attribute_map
                         .insert(old, new);
@@ -497,7 +504,7 @@ pub struct MetricsVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for crate::MetricsVersionAttributeChanges<'a> {
+impl<'a> VersionAttributeChanges for MetricsVersionAttributeChanges<'a> {
     /// Returns the new name of the given metric attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -510,7 +517,7 @@ pub struct LogsVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for crate::LogsVersionAttributeChanges<'a> {
+impl<'a> VersionAttributeChanges for LogsVersionAttributeChanges<'a> {
     /// Returns the new name of the given log attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -523,7 +530,7 @@ pub struct SpansVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for crate::SpansVersionAttributeChanges<'a> {
+impl<'a> VersionAttributeChanges for SpansVersionAttributeChanges<'a> {
     /// Returns the new name of the given span attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -533,6 +540,7 @@ impl<'a> VersionAttributeChanges for crate::SpansVersionAttributeChanges<'a> {
 
 impl VersionChanges {
     /// Returns the attribute changes to apply to the resources.
+    #[must_use]
     pub fn resource_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         ResourcesVersionAttributeChanges {
             version_changes: self,
@@ -540,6 +548,7 @@ impl VersionChanges {
     }
 
     /// Returns the attribute changes to apply to the metrics.
+    #[must_use]
     pub fn metric_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         MetricsVersionAttributeChanges {
             version_changes: self,
@@ -547,6 +556,7 @@ impl VersionChanges {
     }
 
     /// Returns the attribute changes to apply to the logs.
+    #[must_use]
     pub fn log_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         LogsVersionAttributeChanges {
             version_changes: self,
@@ -554,6 +564,7 @@ impl VersionChanges {
     }
 
     /// Returns the attribute changes to apply to the spans.
+    #[must_use]
     pub fn span_attribute_changes(&self) -> impl VersionAttributeChanges + '_ {
         SpansVersionAttributeChanges {
             version_changes: self,
@@ -562,6 +573,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given resource attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_resource_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.resource_old_to_new_attributes.get(name) {
             new_name.clone()
@@ -572,6 +584,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given metric attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_metric_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.metric_old_to_new_attributes.get(name) {
             new_name.clone()
@@ -582,6 +595,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given metric or the given name if the metric
     /// has not been renamed.
+    #[must_use]
     pub fn get_metric_name(&self, name: &str) -> String {
         if let Some(new_name) = self.metric_old_to_new_names.get(name) {
             new_name.clone()
@@ -592,6 +606,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given log attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_log_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.log_old_to_new_attributes.get(name) {
             new_name.clone()
@@ -602,6 +617,7 @@ impl VersionChanges {
 
     /// Returns the new name of the given span attribute or the given name if the attribute
     /// has not been renamed.
+    #[must_use]
     pub fn get_span_attribute_name(&self, name: &str) -> String {
         if let Some(new_name) = self.span_old_to_new_attributes.get(name) {
             new_name.clone()

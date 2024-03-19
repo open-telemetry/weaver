@@ -88,86 +88,6 @@ In some SQL databases, the database name to be used is called "schema name". In 
 ]
 
 
-### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-
-- Tag: call-level
-
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
-]
-
-
-### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-
-- Tag: call-level
-
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
-
-
-### Attribute `server.address`
-
-Name of the database host.
-
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-
-- Tag: connection-level
-
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-
-- Stability: Stable
-
-
-### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-
-- Tag: connection-level
-
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-
-- Stability: Stable
-
-
 ### Attribute `network.peer.address`
 
 Peer address of the network connection - IP address or Unix domain socket name.
@@ -262,137 +182,6 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
 
 
-### Attribute `http.request.method`
-
-HTTP request method.
-
-
-HTTP request method value SHOULD be "known" to the instrumentation.
-By default, this convention defines "known" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
-and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
-
-If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.
-
-If the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override
-the list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named
-OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods
-(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).
-
-HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
-Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
-Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
-
-- Requirement Level: Required
-
-- Tag: call-level-tech-specific
-
-- Type: Enum [CONNECT, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, TRACE, _OTHER]
-- Examples: [
-    "GET",
-    "POST",
-    "HEAD",
-]
-
-- Stability: Stable
-
-
-### Attribute `db.operation`
-
-The endpoint identifier for the request.
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Required
-
-- Tag: call-level-tech-specific
-
-- Type: string
-- Examples: [
-    "search",
-    "ml.close_job",
-    "cat.aliases",
-]
-
-
-### Attribute `url.full`
-
-Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)
-
-
-For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
-`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
-`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.
-
-- Requirement Level: Required
-
-- Tag: call-level-tech-specific
-
-- Type: string
-- Examples: [
-    "https://localhost:9200/index/_search?q=user.id:kimchy",
-]
-
-- Stability: Stable
-
-
-### Attribute `db.statement`
-
-The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.
-
-
-- Requirement Level: Optional
-
-- Tag: call-level-tech-specific
-
-- Type: string
-- Examples: [
-    "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\"",
-]
-
-
-### Attribute `server.address`
-
-Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-
-- Tag: call-level-tech-specific
-
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-
-- Stability: Stable
-
-
-### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-
-- Tag: call-level-tech-specific
-
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-
-- Stability: Stable
-
-
 ### Attribute `db.elasticsearch.cluster.name`
 
 Represents the identifier of an Elasticsearch cluster.
@@ -444,31 +233,159 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
 ]
 
 
+### Attribute `db.operation`
+
+The endpoint identifier for the request.
+
+
+When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
+
+- Requirement Level: Required
+
+- Tag: call-level-tech-specific
+
+- Type: string
+- Examples: [
+    "search",
+    "ml.close_job",
+    "cat.aliases",
+]
+
+
+### Attribute `db.statement`
+
+The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.
+
+
+- Requirement Level: Optional
+
+- Tag: call-level-tech-specific
+
+- Type: string
+- Examples: [
+    "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\"",
+]
+
+
+### Attribute `http.request.method`
+
+HTTP request method.
+
+
+HTTP request method value SHOULD be "known" to the instrumentation.
+By default, this convention defines "known" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
+and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
+
+If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.
+
+If the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override
+the list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named
+OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods
+(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).
+
+HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
+Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
+Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
+
+- Requirement Level: Required
+
+- Tag: call-level-tech-specific
+
+- Type: Enum [CONNECT, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, TRACE, _OTHER]
+- Examples: [
+    "GET",
+    "POST",
+    "HEAD",
+]
+
+- Stability: Stable
+
+
+### Attribute `server.address`
+
+Name of the database host.
+
+
+
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
+
+- Tag: call-level-tech-specific
+
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+
+- Stability: Stable
+
+
+### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+
+- Tag: call-level-tech-specific
+
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+
+- Stability: Stable
+
+
+### Attribute `url.full`
+
+Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)
+
+
+For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
+`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
+`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.
+
+- Requirement Level: Required
+
+- Tag: call-level-tech-specific
+
+- Type: string
+- Examples: [
+    "https://localhost:9200/index/_search?q=user.id:kimchy",
+]
+
+- Stability: Stable
+
+
 
 ## Provenance
 
 Source: data/trace-database.yaml
 
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.http", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.http", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.http", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.http", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.http", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.http", "resolution_mode": "Reference"}}
-item: {"AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.url", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.url", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.url", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.url", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.url", "resolution_mode": "Reference"}}
-item: {"AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
+item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
 item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}
-item: {"GroupAttributes": {"group_id": "db", "resolution_mode": "Extends"}}

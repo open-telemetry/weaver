@@ -627,25 +627,6 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 ]
   
   
-#### Attribute `db.name`
-
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
-
-
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-
-- Requirement Level: Conditionally Required - If applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "customers",
-    "main",
-]
-  
-  
 #### Attribute `db.statement`
 
 The database statement being executed.
@@ -820,22 +801,58 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
   
   
-#### Attribute `db.name`
+#### Attribute `db.cassandra.consistency_level`
 
-The keyspace name in Cassandra.
+The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 
 
 
-For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
+  
+  
+#### Attribute `db.cassandra.coordinator.dc`
+
+The data center of the coordinating node for a query.
+
+
 
 - Requirement Level: Recommended
   
 - Tag: call-level-tech-specific-cassandra
   
 - Type: string
-- Examples: [
-    "mykeyspace",
-]
+- Examples: us-west-2
+  
+  
+#### Attribute `db.cassandra.coordinator.id`
+
+The ID of the coordinating node for a query.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: string
+- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
+  
+  
+#### Attribute `db.cassandra.idempotence`
+
+Whether or not the query is idempotent.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: boolean
   
   
 #### Attribute `db.cassandra.page_size`
@@ -852,47 +869,6 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 - Examples: [
     5000,
 ]
-  
-  
-#### Attribute `db.cassandra.consistency_level`
-
-The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
-  
-  
-#### Attribute `db.cassandra.table`
-
-The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
-
-
-This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: mytable
-  
-  
-#### Attribute `db.cassandra.idempotence`
-
-Whether or not the query is idempotent.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: boolean
   
   
 #### Attribute `db.cassandra.speculative_execution_count`
@@ -912,32 +888,37 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
 ]
   
   
-#### Attribute `db.cassandra.coordinator.id`
+#### Attribute `db.cassandra.table`
 
-The ID of the coordinating node for a query.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
-  
-  
-#### Attribute `db.cassandra.coordinator.dc`
-
-The data center of the coordinating node for a query.
+The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
 
 
+This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
 
 - Requirement Level: Recommended
   
 - Tag: call-level-tech-specific-cassandra
   
 - Type: string
-- Examples: us-west-2
+- Examples: mytable
+  
+  
+#### Attribute `db.name`
+
+The keyspace name in Cassandra.
+
+
+
+For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+
+- Requirement Level: Conditionally Required - If applicable.
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: string
+- Examples: [
+    "mykeyspace",
+]
   
   
   
@@ -1012,25 +993,6 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 - Examples: [
     "org.postgresql.Driver",
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-]
-  
-  
-#### Attribute `db.name`
-
-This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
-
-
-In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
-
-- Requirement Level: Conditionally Required - If applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "customers",
-    "main",
 ]
   
   
@@ -1216,7 +1178,7 @@ The HBase namespace.
 
 For HBase the `db.name` should be set to the HBase namespace.
 
-- Requirement Level: Recommended
+- Requirement Level: Conditionally Required - If applicable.
   
 - Tag: call-level-tech-specific
   
@@ -1334,26 +1296,6 @@ The database statement being executed.
 - Examples: [
     "SELECT * FROM wuser_table",
     "SET mykey \"WuValue\"",
-]
-  
-  
-#### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
 ]
   
   
@@ -1502,7 +1444,7 @@ The HTTP method + the target REST route.
 
 In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
 
-- Requirement Level: Recommended
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
   
 - Tag: call-level-tech-specific
   
@@ -1603,23 +1545,6 @@ In some SQL databases, the database name to be used is called "schema name". In 
 - Examples: [
     "customers",
     "main",
-]
-  
-  
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
 ]
   
   
@@ -1806,7 +1731,7 @@ The full syntax of the Redis CLI command.
 
 For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: call-level-tech-specific
   
@@ -2195,86 +2120,6 @@ In some SQL databases, the database name to be used is called "schema name". In 
 ]
   
   
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
-]
-  
-  
-#### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
-  
-  
-#### Attribute `server.address`
-
-Name of the database host.
-
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Tag: connection-level
-  
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
-  
-- Tag: connection-level
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `network.peer.address`
 
 Peer address of the network connection - IP address or Unix domain socket name.
@@ -2369,137 +2214,6 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
   
   
-#### Attribute `http.request.method`
-
-HTTP request method.
-
-
-HTTP request method value SHOULD be "known" to the instrumentation.
-By default, this convention defines "known" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
-and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
-
-If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.
-
-If the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override
-the list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named
-OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods
-(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).
-
-HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
-Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
-Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
-
-- Requirement Level: Required
-  
-- Tag: call-level-tech-specific
-  
-- Type: Enum [CONNECT, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, TRACE, _OTHER]
-- Examples: [
-    "GET",
-    "POST",
-    "HEAD",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `db.operation`
-
-The endpoint identifier for the request.
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Required
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "search",
-    "ml.close_job",
-    "cat.aliases",
-]
-  
-  
-#### Attribute `url.full`
-
-Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)
-
-
-For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
-`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
-`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.
-
-- Requirement Level: Required
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "https://localhost:9200/index/_search?q=user.id:kimchy",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `db.statement`
-
-The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\"",
-]
-  
-  
-#### Attribute `server.address`
-
-Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `db.elasticsearch.cluster.name`
 
 Represents the identifier of an Elasticsearch cluster.
@@ -2549,6 +2263,138 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
     "db.elasticsearch.path_parts.index=test-index",
     "db.elasticsearch.path_parts.doc_id=123",
 ]
+  
+  
+#### Attribute `db.operation`
+
+The endpoint identifier for the request.
+
+
+When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
+
+- Requirement Level: Required
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "search",
+    "ml.close_job",
+    "cat.aliases",
+]
+  
+  
+#### Attribute `db.statement`
+
+The request body for a [search-type query](https://www.elastic.co/guide/en/elasticsearch/reference/current/search.html), as a json string.
+
+
+- Requirement Level: Optional
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\"",
+]
+  
+  
+#### Attribute `http.request.method`
+
+HTTP request method.
+
+
+HTTP request method value SHOULD be "known" to the instrumentation.
+By default, this convention defines "known" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)
+and the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).
+
+If the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.
+
+If the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override
+the list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named
+OTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods
+(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).
+
+HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
+Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
+Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
+
+- Requirement Level: Required
+  
+- Tag: call-level-tech-specific
+  
+- Type: Enum [CONNECT, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, TRACE, _OTHER]
+- Examples: [
+    "GET",
+    "POST",
+    "HEAD",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `server.address`
+
+Name of the database host.
+
+
+
+When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - If using a port other than the default port for this DBMS and if `server.address` is set.
+  
+- Tag: call-level-tech-specific
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `url.full`
+
+Absolute URL describing a network resource according to [RFC3986](https://www.rfc-editor.org/rfc/rfc3986)
+
+
+For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
+`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`. In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
+`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed) and SHOULD NOT be validated or modified except for sanitizing purposes.
+
+- Requirement Level: Required
+  
+- Tag: call-level-tech-specific
+  
+- Type: string
+- Examples: [
+    "https://localhost:9200/index/_search?q=user.id:kimchy",
+]
+  
+- Stability: Stable
   
   
   
@@ -3118,39 +2964,6 @@ Unique Cosmos client instance id.
 - Examples: 3ba4827d-4422-483f-b59f-85b74211c11d
   
   
-#### Attribute `db.cosmosdb.operation_type`
-
-CosmosDB Operation Type.
-
-
-- Requirement Level: Conditionally Required - when performing one of the operations in this list
-  
-- Tag: call-level-tech-specific
-  
-- Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
-  
-  
-#### Attribute `user_agent.original`
-
-Full user-agent string is generated by Cosmos DB SDK
-
-
-The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
-   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
-   Default value is "NS".
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `db.cosmosdb.connection_mode`
 
 Cosmos client connection mode.
@@ -3174,6 +2987,34 @@ Cosmos DB container name.
   
 - Type: string
 - Examples: anystring
+  
+  
+#### Attribute `db.cosmosdb.operation_type`
+
+CosmosDB Operation Type.
+
+
+- Requirement Level: Conditionally Required - when performing one of the operations in this list
+  
+- Tag: call-level-tech-specific
+  
+- Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
+  
+  
+#### Attribute `db.cosmosdb.request_charge`
+
+RU consumed for that operation
+
+
+- Requirement Level: Conditionally Required - when available
+  
+- Tag: call-level-tech-specific
+  
+- Type: double
+- Examples: [
+    46.18,
+    1.0,
+]
   
   
 #### Attribute `db.cosmosdb.request_content_length`
@@ -3220,20 +3061,25 @@ Cosmos DB sub status code.
 ]
   
   
-#### Attribute `db.cosmosdb.request_charge`
+#### Attribute `user_agent.original`
 
-RU consumed for that operation
+Full user-agent string is generated by Cosmos DB SDK
 
 
-- Requirement Level: Conditionally Required - when available
+The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
+   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
+   Default value is "NS".
+
+- Requirement Level: Recommended
   
 - Tag: call-level-tech-specific
   
-- Type: double
+- Type: string
 - Examples: [
-    46.18,
-    1.0,
+    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
 ]
+  
+- Stability: Stable
   
   
   
@@ -3504,22 +3350,58 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
   
   
-#### Attribute `db.name`
+#### Attribute `db.cassandra.consistency_level`
 
-The keyspace name in Cassandra.
+The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 
 
 
-For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
+  
+  
+#### Attribute `db.cassandra.coordinator.dc`
+
+The data center of the coordinating node for a query.
+
+
 
 - Requirement Level: Recommended
   
 - Tag: call-level-tech-specific-cassandra
   
 - Type: string
-- Examples: [
-    "mykeyspace",
-]
+- Examples: us-west-2
+  
+  
+#### Attribute `db.cassandra.coordinator.id`
+
+The ID of the coordinating node for a query.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: string
+- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
+  
+  
+#### Attribute `db.cassandra.idempotence`
+
+Whether or not the query is idempotent.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: boolean
   
   
 #### Attribute `db.cassandra.page_size`
@@ -3536,47 +3418,6 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 - Examples: [
     5000,
 ]
-  
-  
-#### Attribute `db.cassandra.consistency_level`
-
-The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
-  
-  
-#### Attribute `db.cassandra.table`
-
-The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
-
-
-This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: mytable
-  
-  
-#### Attribute `db.cassandra.idempotence`
-
-Whether or not the query is idempotent.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: boolean
   
   
 #### Attribute `db.cassandra.speculative_execution_count`
@@ -3596,32 +3437,37 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
 ]
   
   
-#### Attribute `db.cassandra.coordinator.id`
+#### Attribute `db.cassandra.table`
 
-The ID of the coordinating node for a query.
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific-cassandra
-  
-- Type: string
-- Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
-  
-  
-#### Attribute `db.cassandra.coordinator.dc`
-
-The data center of the coordinating node for a query.
+The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
 
 
+This mirrors the db.sql.table attribute but references cassandra rather than sql. It is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if it is provided by the library being instrumented. If the operation is acting upon an anonymous table, or more than one table, this value MUST NOT be set.
 
 - Requirement Level: Recommended
   
 - Tag: call-level-tech-specific-cassandra
   
 - Type: string
-- Examples: us-west-2
+- Examples: mytable
+  
+  
+#### Attribute `db.name`
+
+The keyspace name in Cassandra.
+
+
+
+For Cassandra the `db.name` should be set to the Cassandra keyspace name.
+
+- Requirement Level: Conditionally Required - If applicable.
+  
+- Tag: call-level-tech-specific-cassandra
+  
+- Type: string
+- Examples: [
+    "mykeyspace",
+]
   
   
 #### Attribute `db.redis.database_index`
@@ -3650,7 +3496,7 @@ The full syntax of the Redis CLI command.
 
 For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: call-level-tech-specific
   
@@ -3708,39 +3554,6 @@ Unique Cosmos client instance id.
 - Examples: 3ba4827d-4422-483f-b59f-85b74211c11d
   
   
-#### Attribute `db.cosmosdb.operation_type`
-
-CosmosDB Operation Type.
-
-
-- Requirement Level: Conditionally Required - when performing one of the operations in this list
-  
-- Tag: call-level-tech-specific
-  
-- Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
-  
-  
-#### Attribute `user_agent.original`
-
-Full user-agent string is generated by Cosmos DB SDK
-
-
-The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
-   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
-   Default value is "NS".
-
-- Requirement Level: Recommended
-  
-- Tag: call-level-tech-specific
-  
-- Type: string
-- Examples: [
-    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
-]
-  
-- Stability: Stable
-  
-  
 #### Attribute `db.cosmosdb.connection_mode`
 
 Cosmos client connection mode.
@@ -3764,6 +3577,34 @@ Cosmos DB container name.
   
 - Type: string
 - Examples: anystring
+  
+  
+#### Attribute `db.cosmosdb.operation_type`
+
+CosmosDB Operation Type.
+
+
+- Requirement Level: Conditionally Required - when performing one of the operations in this list
+  
+- Tag: call-level-tech-specific
+  
+- Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
+  
+  
+#### Attribute `db.cosmosdb.request_charge`
+
+RU consumed for that operation
+
+
+- Requirement Level: Conditionally Required - when available
+  
+- Tag: call-level-tech-specific
+  
+- Type: double
+- Examples: [
+    46.18,
+    1.0,
+]
   
   
 #### Attribute `db.cosmosdb.request_content_length`
@@ -3810,20 +3651,25 @@ Cosmos DB sub status code.
 ]
   
   
-#### Attribute `db.cosmosdb.request_charge`
+#### Attribute `user_agent.original`
 
-RU consumed for that operation
+Full user-agent string is generated by Cosmos DB SDK
 
 
-- Requirement Level: Conditionally Required - when available
+The user-agent value is generated by SDK which is a combination of<br> `sdk_version` : Current version of SDK. e.g. 'cosmos-netstandard-sdk/3.23.0'<br> `direct_pkg_version` : Direct package version used by Cosmos DB SDK. e.g. '3.23.1'<br> `number_of_client_instances` : Number of cosmos client instances created by the application. e.g. '1'<br> `type_of_machine_architecture` : Machine architecture. e.g. 'X64'<br> `operating_system` : Operating System. e.g. 'Linux 5.4.0-1098-azure 104 18'<br> `runtime_framework` : Runtime Framework. e.g. '.NET Core 3.1.32'<br> `failover_information` : Generated key to determine if region failover enabled.
+   Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
+   Default value is "NS".
+
+- Requirement Level: Recommended
   
 - Tag: call-level-tech-specific
   
-- Type: double
+- Type: string
 - Examples: [
-    46.18,
-    1.0,
+    "cosmos-netstandard-sdk/3.23.0\\|3.23.1\\|1\\|X64\\|Linux 5.4.0-1098-azure 104 18\\|.NET Core 3.1.32\\|S\\|",
 ]
+  
+- Stability: Stable
   
   
   

@@ -41,7 +41,7 @@ pub fn command_gen_client(log: impl Logger + Sync + Clone, params: &GenClientCom
         }
     };
 
-    generator
+    _ = generator
         .generate(
             log.clone(),
             params.schema.clone(),
@@ -50,8 +50,7 @@ pub fn command_gen_client(log: impl Logger + Sync + Clone, params: &GenClientCom
         .map_err(|e| {
             log.error(&format!("{}", e));
             std::process::exit(1);
-        })
-        .unwrap();
+        });
 
     log.success("Generated client SDK");
 }

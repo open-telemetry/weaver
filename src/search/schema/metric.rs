@@ -22,7 +22,7 @@ pub fn index_semconv_metrics<'a>(
     index_writer: &mut IndexWriter,
 ) {
     for metric in metrics {
-        index_writer
+        _ = index_writer
             .add_document(doc!(
                 fields.path => format!("{}/metric/{}", path, metric.name),
                 fields.brief => metric.brief(),
@@ -47,7 +47,7 @@ pub fn index_schema_metrics(
                 .join(", ")
         });
 
-        index_writer
+        _ = index_writer
             .add_document(doc!(
                 fields.path => format!("schema/metric/{}", metric.name()),
                 fields.brief => metric.brief(),

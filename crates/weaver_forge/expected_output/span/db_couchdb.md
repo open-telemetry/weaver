@@ -108,26 +108,6 @@ The database statement being executed.
 ]
   
   
-#### Attribute `db.operation`
-
-The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
-
-
-
-When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
-
-- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "findAndModify",
-    "HMSET",
-    "SELECT",
-]
-  
-  
 #### Attribute `server.address`
 
 Name of the database host.
@@ -273,7 +253,7 @@ The HTTP method + the target REST route.
 
 In **CouchDB**, `db.operation` should be set to the HTTP method + the target REST route according to the API reference documentation. For example, when retrieving a document, `db.operation` would be set to (literally, i.e., without replacing the placeholders with concrete values): [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
 
-- Requirement Level: Recommended
+- Requirement Level: Conditionally Required - If `db.statement` is not applicable.
   
 - Tag: call-level-tech-specific
   

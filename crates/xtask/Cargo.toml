@@ -1,0 +1,16 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+publish = false             # xtask is not meant to be published
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+toml = "0.8.12"
+
+[lints]
+workspace = true

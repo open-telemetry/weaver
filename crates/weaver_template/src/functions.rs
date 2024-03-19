@@ -24,7 +24,11 @@ impl FunctionConfig {
 impl Function for FunctionConfig {
     fn call(&self, args: &HashMap<String, Value>) -> Result<Value> {
         if let Some(file_name) = args.get("file_name") {
-            self.config.set(file_name.as_str().unwrap());
+            self.config.set(
+                file_name
+                    .as_str()
+                    .ok_or_else(|| tera::Error::msg("file_name must be a string"))?,
+            );
         }
         Ok(Value::Null)
     }

@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 #[serde(deny_unknown_fields)]
+#[must_use]
 pub struct Tags {
     /// The tags.
     pub tags: BTreeMap<String, String>,
@@ -25,11 +26,13 @@ pub struct Tags {
 
 impl Tags {
     /// Checks if the tags contain a specific tag.
+    #[must_use]
     pub fn has_tag(&self, tag: &str) -> bool {
         self.tags.contains_key(tag)
     }
 
     /// Gets a specific tag value from the tags if it exists or `None` otherwise.
+    #[must_use]
     pub fn get_tag(&self, tag: &str) -> Option<&String> {
         self.tags.get(tag)
     }
@@ -40,6 +43,7 @@ impl Tags {
     }
 
     /// Checks if the tags are empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.tags.is_empty()
     }
@@ -57,6 +61,7 @@ impl Tags {
 
 /// Merges two sets of tags. If a tag exists in both sets of tags, the tag from `tags`
 /// is used to override the tag from `parent_tags`.
+#[must_use]
 pub fn merge_with_override(tags: Option<&Tags>, parent_tags: Option<&Tags>) -> Option<Tags> {
     match (tags, parent_tags) {
         (Some(tags), Some(parent_tags)) => Some(tags.merge_with_override(parent_tags)),

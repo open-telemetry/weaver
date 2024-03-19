@@ -9,7 +9,7 @@ use weaver_schema::attribute::Attribute;
 use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
 
 /// Append attributes to the text.
-pub fn append_lines(attributes: &[Attribute], text: &mut Vec<Line>, theme: &ThemeConfig) {
+pub fn append_lines(attributes: &[Attribute], text: &mut Vec<Line<'_>>, theme: &ThemeConfig) {
     if !attributes.is_empty() {
         text.push(Line::from(Span::styled(
             "Attributes: ",

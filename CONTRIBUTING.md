@@ -12,7 +12,11 @@ Additionally, Weaver has its own CNCF slack channel at [#otel-weaver](https://cl
 
 ### How to build  and test a change
 
-TODO - write this, beyond `cargo test` at root directory.
+Run `cargo xtask validate` to check the structure of the project.
+
+Run `cargo test --all` to run the tests.
+
+**Run `just` before any push to pre-validate all the steps performed by CI.**
 
 ### How to send Pull Request
 

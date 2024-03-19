@@ -16,6 +16,7 @@ use weaver_semconv::stability::Stability;
 /// Note : In the future, this catalog could be extended with other entities.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
+#[must_use]
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -24,6 +25,7 @@ pub struct Catalog {
 
 /// Statistics on a catalog.
 #[derive(Debug, Serialize)]
+#[must_use]
 pub struct Stats {
     /// Total number of attributes.
     pub attribute_count: usize,
@@ -40,6 +42,7 @@ pub struct Stats {
 impl Catalog {
     /// Returns the attribute name from an attribute ref if it exists
     /// in the catalog or None if it does not exist.
+    #[must_use]
     pub fn attribute_name(&self, attribute_ref: &AttributeRef) -> Option<&str> {
         self.attributes
             .get(attribute_ref.0 as usize)
@@ -47,6 +50,7 @@ impl Catalog {
     }
 
     /// Returns the attribute from an attribute ref if it exists.
+    #[must_use]
     pub fn attribute(&self, attribute_ref: &AttributeRef) -> Option<&Attribute> {
         self.attributes.get(attribute_ref.0 as usize)
     }

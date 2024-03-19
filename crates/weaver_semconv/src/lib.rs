@@ -6,16 +6,6 @@
 //! The YAML language syntax used to define a semantic convention file
 //! can be found [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md).
 
-#![deny(
-    missing_docs,
-    clippy::print_stdout,
-    unstable_features,
-    unused_import_braces,
-    unused_qualifications,
-    unused_results,
-    unused_extern_crates
-)]
-
 use glob::glob;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -177,6 +167,7 @@ pub struct MetricSpecWithProvenance {
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
 #[derive(Default, Debug)]
+#[must_use]
 pub struct SemConvRegistry {
     /// The id of the semantic convention registry.
     id: String,
@@ -237,6 +228,7 @@ pub struct SemConvRegistry {
 }
 
 /// Statistics about the semantic convention registry.
+#[must_use]
 pub struct Stats {
     /// Number of semconv files.
     pub file_count: usize,
@@ -282,6 +274,7 @@ pub struct ResolverConfig {
 impl ResolverConfig {
     /// Returns a config instructing the resolver to keep
     /// the semantic convention group specs after the resolution.
+    #[must_use]
     pub fn with_keep_specs() -> Self {
         Self {
             keep_specs: true,
@@ -351,6 +344,7 @@ impl SemConvRegistry {
     }
 
     /// Returns the id of the semantic convention registry.
+    #[must_use]
     pub fn id(&self) -> &str {
         &self.id
     }
@@ -404,6 +398,7 @@ impl SemConvRegistry {
     }
 
     /// Returns the number of semantic convention assets added in the semantic convention registry.
+    #[must_use]
     pub fn asset_count(&self) -> usize {
         self.asset_count
     }
@@ -477,7 +472,7 @@ impl SemConvRegistry {
                         }
                     }
                     _ => {
-                        eprintln!(
+                        panic!(
                             "Warning: group type `{:?}` not implemented yet",
                             group.r#type
                         );
@@ -545,7 +540,7 @@ impl SemConvRegistry {
                         }
                     }
                     GroupType::MetricGroup => {
-                        eprintln!("Warning: group type `metric_group` not implemented yet");
+                        panic!("Warning: group type `metric_group` not implemented yet");
                     }
                     _ => {
                         // No metrics to process
@@ -615,17 +610,20 @@ impl SemConvRegistry {
     }
 
     /// Returns the number of unique attributes defined in the semantic convention registry.
+    #[must_use]
     pub fn attribute_count(&self) -> usize {
         self.all_attributes.len()
     }
 
     /// Returns the number of unique metrics defined in the semantic convention registry.
+    #[must_use]
     pub fn metric_count(&self) -> usize {
         self.all_metrics.len()
     }
 
     /// Returns an attribute definition from its reference or `None` if the
     /// reference does not exist.
+    #[must_use]
     pub fn attribute(&self, attr_ref: &str) -> Option<&AttributeSpec> {
         self.all_attributes
             .get(attr_ref)
@@ -634,6 +632,7 @@ impl SemConvRegistry {
 
     /// Returns an attribute definition and its provenance from its reference
     /// or `None` if the reference does not exist.
+    #[must_use]
     pub fn attribute_with_provenance(
         &self,
         attr_ref: &str,
@@ -706,6 +705,7 @@ impl SemConvRegistry {
 
     /// Returns a metric definition from its name or `None` if the
     /// name does not exist.
+    #[must_use]
     pub fn metric(&self, metric_name: &str) -> Option<&MetricSpec> {
         self.all_metrics
             .get(metric_name)
@@ -713,6 +713,7 @@ impl SemConvRegistry {
     }
 
     /// Returns a metric definition and its provenance from its name
+    #[must_use]
     pub fn metric_with_provenance(&self, metric_name: &str) -> Option<&MetricSpecWithProvenance> {
         self.all_metrics.get(metric_name)
     }

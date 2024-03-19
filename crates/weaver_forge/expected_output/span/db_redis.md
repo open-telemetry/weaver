@@ -91,23 +91,6 @@ In some SQL databases, the database name to be used is called "schema name". In 
 ]
   
   
-#### Attribute `db.statement`
-
-The database statement being executed.
-
-
-
-- Requirement Level: Optional
-  
-- Tag: call-level
-  
-- Type: string
-- Examples: [
-    "SELECT * FROM wuser_table",
-    "SET mykey \"WuValue\"",
-]
-  
-  
 #### Attribute `db.operation`
 
 The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
@@ -291,7 +274,7 @@ The full syntax of the Redis CLI command.
 
 For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI. If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
 
-- Requirement Level: Recommended
+- Requirement Level: Optional
   
 - Tag: call-level-tech-specific
   

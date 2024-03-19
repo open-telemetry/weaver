@@ -111,7 +111,8 @@ impl DynamicGlobalConfig {
     /// Set the file name for the current generated code.
     /// This method uses a thread local variable to store the file name.
     pub fn set(&self, file_name: &str) {
-        self.file_name
+        _ = self
+            .file_name
             .get_or(|| RefCell::new(None))
             .borrow_mut()
             .replace(file_name.to_owned());
@@ -129,7 +130,8 @@ impl DynamicGlobalConfig {
     /// Reset the file name for the current generated code.
     /// This method uses a thread local variable to store the file name.
     pub fn reset(&self) {
-        self.file_name
+        _ = self
+            .file_name
             .get_or(|| RefCell::new(None))
             .borrow_mut()
             .take();

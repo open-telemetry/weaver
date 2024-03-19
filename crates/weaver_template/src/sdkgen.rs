@@ -161,7 +161,7 @@ impl ClientSdkGenerator {
     ) -> Result<(), crate::Error> {
         let cache = Cache::try_new().unwrap_or_else(|e| {
             log.error(&e.to_string());
-            std::process::exit(1);
+            process::exit(1);
         });
 
         let schema = SchemaResolver::resolve_schema_file(schema_path.clone(), &cache, log.clone())
@@ -250,7 +250,9 @@ impl ClientSdkGenerator {
                     if tmpl_file_path.is_dir() {
                         continue;
                     }
-                    let relative_path = tmpl_file_path.strip_prefix(&self.lang_path).unwrap();
+                    let relative_path = tmpl_file_path
+                        .strip_prefix(&self.lang_path)
+                        .map_err(|e| InternalError(e.to_string()))?;
                     let tmpl_file = relative_path
                         .to_str()
                         .ok_or(InvalidTemplateFile(tmpl_file_path.clone()))?;
@@ -306,7 +308,7 @@ impl ClientSdkGenerator {
                         _ => {
                             // Remove the `tera` extension from the relative path
                             let mut relative_path = relative_path.to_path_buf();
-                            relative_path.set_extension("");
+                            _ = relative_path.set_extension("");
 
                             templates.push(TemplateObjectPair::Other {
                                 template: tmpl_file.into(),

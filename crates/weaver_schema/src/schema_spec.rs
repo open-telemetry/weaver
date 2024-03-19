@@ -42,6 +42,7 @@ pub struct SchemaSpec {
 
 impl SchemaSpec {
     /// Returns the number of metrics.
+    #[must_use]
     pub fn metrics_count(&self) -> usize {
         self.resource_metrics
             .as_ref()
@@ -49,6 +50,7 @@ impl SchemaSpec {
     }
 
     /// Returns the number of metric groups.
+    #[must_use]
     pub fn metric_groups_count(&self) -> usize {
         self.resource_metrics
             .as_ref()
@@ -56,6 +58,7 @@ impl SchemaSpec {
     }
 
     /// Returns the number of events.
+    #[must_use]
     pub fn events_count(&self) -> usize {
         self.resource_events
             .as_ref()
@@ -63,6 +66,7 @@ impl SchemaSpec {
     }
 
     /// Returns the number of spans.
+    #[must_use]
     pub fn spans_count(&self) -> usize {
         self.resource_spans
             .as_ref()
@@ -70,6 +74,7 @@ impl SchemaSpec {
     }
 
     /// Returns a metric by name or None if not found.
+    #[must_use]
     pub fn metric(&self, name: &str) -> Option<&UnivariateMetric> {
         self.resource_metrics
             .as_ref()
@@ -77,6 +82,7 @@ impl SchemaSpec {
     }
 
     /// Returns a metric group by name or None if not found.
+    #[must_use]
     pub fn metric_group(&self, name: &str) -> Option<&MetricGroup> {
         self.resource_metrics
             .as_ref()
@@ -84,11 +90,13 @@ impl SchemaSpec {
     }
 
     /// Returns a resource or None if not found.
+    #[must_use]
     pub fn resource(&self) -> Option<&Resource> {
         self.resource.as_ref()
     }
 
     /// Returns a vector of metrics.
+    #[must_use]
     pub fn metrics(&self) -> Vec<&UnivariateMetric> {
         self.resource_metrics
             .as_ref()
@@ -98,6 +106,7 @@ impl SchemaSpec {
     }
 
     /// Returns a vector of metric groups.
+    #[must_use]
     pub fn metric_groups(&self) -> Vec<&MetricGroup> {
         self.resource_metrics
             .as_ref()
@@ -107,6 +116,7 @@ impl SchemaSpec {
     }
 
     /// Returns a vector over the events.
+    #[must_use]
     pub fn events(&self) -> Vec<&Event> {
         self.resource_events
             .as_ref()
@@ -116,6 +126,7 @@ impl SchemaSpec {
     }
 
     /// Returns a slice of spans.
+    #[must_use]
     pub fn spans(&self) -> Vec<&Span> {
         self.resource_spans
             .as_ref()
@@ -123,6 +134,7 @@ impl SchemaSpec {
     }
 
     /// Returns an event by name or None if not found.
+    #[must_use]
     pub fn event(&self, event_name: &str) -> Option<&Event> {
         self.resource_events
             .as_ref()
@@ -130,6 +142,7 @@ impl SchemaSpec {
     }
 
     /// Returns a span by name or None if not found.
+    #[must_use]
     pub fn span(&self, span_name: &str) -> Option<&Span> {
         self.resource_spans
             .as_ref()
