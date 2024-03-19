@@ -119,7 +119,7 @@ pub fn resolve_metrics(
                                 metric_group_ref: metrics.name.clone(),
                                 metric_ref: referenced_metric.name.clone(),
                                 error: "Some required attributes are missing in this metric"
-                                    .to_string(),
+                                    .to_owned(),
                             });
                         }
 

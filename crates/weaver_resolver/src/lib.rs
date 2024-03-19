@@ -459,8 +459,8 @@ impl SchemaResolver {
         registries.insert(registry.id().into(), resolved_registry);
 
         let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_string(),
-            schema_url: "".to_string(),
+            file_format: "1.0.0".to_owned(),
+            schema_url: "".to_owned(),
             registries,
             catalog,
             resource: None,
@@ -651,7 +651,7 @@ impl SchemaResolver {
                                             // of the semantic convention file.
                                             let prefix = git_repo
                                                 .to_str()
-                                                .map(|s| s.to_string())
+                                                .map(|s| s.to_owned())
                                                 .unwrap_or_default();
                                             let path = format!(
                                                 "{}/{}",

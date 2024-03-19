@@ -171,7 +171,7 @@ impl ClientSdkGenerator {
             })?;
 
         // Process recursively all files in the template directory
-        let mut lang_path = self.lang_path.to_str().unwrap_or_default().to_string();
+        let mut lang_path = self.lang_path.to_str().unwrap_or_default().to_owned();
         let paths = if lang_path.is_empty() {
             glob("**/*.tera").map_err(|e| InternalError(e.to_string()))?
         } else {

@@ -165,7 +165,7 @@ pub fn check_any_of_constraints(
                 None => errors.push(Error::UnresolvedAttributeRef {
                     group_id: group.id.clone(),
                     attribute_ref: attr_ref.0.to_string(),
-                    provenance: group.provenance().to_string(),
+                    provenance: group.provenance().to_owned(),
                 }),
                 Some(attr_name) => {
                     group_attr_names.insert(attr_name.clone());
@@ -223,7 +223,7 @@ fn check_group_any_of_constraints(
         let errors = unsatisfied_any_of_constraints
             .into_values()
             .map(|v| Error::UnsatisfiedAnyOfConstraint {
-                group_id: group_id.to_string(),
+                group_id: group_id.to_owned(),
                 any_of: v.any_of,
                 missing_attributes: v.missing_attributes,
             })
@@ -261,7 +261,7 @@ fn unresolved_registry_from_specs(
 
     UnresolvedRegistry {
         registry: Registry {
-            registry_url: registry_url.to_string(),
+            registry_url: registry_url.to_owned(),
             groups: vec![],
         },
         groups,
