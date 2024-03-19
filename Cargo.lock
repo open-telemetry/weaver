@@ -3034,6 +3034,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "similar"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32fea41aca09ee824cc9724996433064c89f7777e60762749a4170a14abbfa21"
+
+[[package]]
 name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3973,6 +3979,7 @@ dependencies = [
  "weaver_resolver",
  "weaver_schema",
  "weaver_semconv",
+ "weaver_semconv_gen",
  "weaver_template",
 ]
 
@@ -4073,6 +4080,25 @@ dependencies = [
  "thiserror",
  "ureq",
  "validator",
+]
+
+[[package]]
+name = "weaver_semconv_gen"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.12.1",
+ "nom",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "similar",
+ "thiserror",
+ "walkdir",
+ "weaver_logger",
+ "weaver_resolved_schema",
+ "weaver_resolver",
+ "weaver_semconv",
 ]
 
 [[package]]

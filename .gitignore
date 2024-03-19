@@ -22,3 +22,6 @@ just.zsh
 # Miscellaneous files
 *.sw[op]
 *.DS_Store
+
+# test generated code
+**/observed_output/*
