@@ -577,6 +577,15 @@ fn resolve_inheritance_attrs(
         .collect()
 }
 
+/// Returns a clone of the first argument that is Some(T).
+fn first_some<T: Clone>(arg_1: &Option<T>, arg_2: &Option<T>) -> Option<T> {
+    if arg_1.is_some() {
+        arg_1.clone()
+    } else {
+        arg_2.clone()
+    }
+}
+
 fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -> AttributeSpec {
     match attr {
         AttributeSpec::Ref {
