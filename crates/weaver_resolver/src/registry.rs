@@ -617,8 +617,14 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                         brief: clone_first_some(brief, parent_brief),
                         examples: clone_first_some(examples, parent_examples),
                         tag: clone_first_some(tag, parent_tag),
-                        requirement_level: clone_first_some(requirement_level, parent_requirement_level),
-                        sampling_relevant: clone_first_some(sampling_relevant, parent_sampling_relevant),
+                        requirement_level: clone_first_some(
+                            requirement_level,
+                            parent_requirement_level,
+                        ),
+                        sampling_relevant: clone_first_some(
+                            sampling_relevant,
+                            parent_sampling_relevant,
+                        ),
                         note: clone_first_some(note, parent_note),
                         stability: clone_first_some(stability, parent_stability),
                         deprecated: clone_first_some(deprecated, parent_deprecated),
@@ -651,7 +657,10 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                         } else {
                             parent_requirement_level.clone()
                         },
-                        sampling_relevant: clone_first_some(sampling_relevant, parent_sampling_relevant),
+                        sampling_relevant: clone_first_some(
+                            sampling_relevant,
+                            parent_sampling_relevant,
+                        ),
                         note: if note.is_some() {
                             note.clone().expect("is_some so this can't happen")
                         } else {
