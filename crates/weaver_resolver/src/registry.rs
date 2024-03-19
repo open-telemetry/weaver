@@ -614,46 +614,14 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                     // attr and attr_parent are both references.
                     AttributeSpec::Ref {
                         r#ref: r#ref.clone(),
-                        brief: if brief.is_some() {
-                            brief.clone()
-                        } else {
-                            parent_brief.clone()
-                        },
-                        examples: if examples.is_some() {
-                            examples.clone()
-                        } else {
-                            parent_examples.clone()
-                        },
-                        tag: if tag.is_some() {
-                            tag.clone()
-                        } else {
-                            parent_tag.clone()
-                        },
-                        requirement_level: if requirement_level.is_some() {
-                            requirement_level.clone()
-                        } else {
-                            parent_requirement_level.clone()
-                        },
-                        sampling_relevant: if sampling_relevant.is_some() {
-                            *sampling_relevant
-                        } else {
-                            *parent_sampling_relevant
-                        },
-                        note: if note.is_some() {
-                            note.clone()
-                        } else {
-                            parent_note.clone()
-                        },
-                        stability: if stability.is_some() {
-                            stability.clone()
-                        } else {
-                            parent_stability.clone()
-                        },
-                        deprecated: if deprecated.is_some() {
-                            deprecated.clone()
-                        } else {
-                            parent_deprecated.clone()
-                        },
+                        brief: first_some(brief, parent_brief),
+                        examples: first_some(examples, parent_examples),
+                        tag: first_some(tag, parent_tag),
+                        requirement_level: first_some(requirement_level, parent_requirement_level),
+                        sampling_relevant: first_some(sampling_relevant, parent_sampling_relevant),
+                        note: first_some(note, parent_note),
+                        stability: first_some(stability, parent_stability),
+                        deprecated: first_some(deprecated, parent_deprecated),
                     }
                 }
                 AttributeSpec::Id {
