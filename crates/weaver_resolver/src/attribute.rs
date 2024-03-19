@@ -222,7 +222,7 @@ impl AttributeCatalog {
                     root_attr_id,
                     AttributeWithGroupId {
                         attribute: attr.clone(),
-                        group_id: group_id.to_string(),
+                        group_id: group_id.to_owned(),
                     },
                 );
                 Some(self.attribute_ref(attr))

@@ -86,7 +86,7 @@ impl Catalog {
                         RequirementLevel::Recommended { .. } => "recommended",
                         RequirementLevel::ConditionallyRequired { .. } => "conditionally_required",
                     };
-                    (requirement_level.to_string(), 1)
+                    (requirement_level.to_owned(), 1)
                 })
                 .fold(BTreeMap::new(), |mut acc, (k, v)| {
                     *acc.entry(k).or_insert(0) += v;

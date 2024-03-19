@@ -74,7 +74,7 @@ impl ClientSdkGenerator {
         let lang_path = config.template_dir.join(language);
 
         if !lang_path.exists() {
-            return Err(LanguageNotSupported(language.to_string()));
+            return Err(LanguageNotSupported(language.to_owned()));
         }
 
         let lang_dir_tree = match lang_path.to_str() {

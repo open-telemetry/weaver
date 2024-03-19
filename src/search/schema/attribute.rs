@@ -47,7 +47,7 @@ pub fn index_schema_attribute<'a>(
             ..
         } = attr
         {
-            let tags: String = tags.as_ref().map_or("".to_string(), |tags| {
+            let tags: String = tags.as_ref().map_or("".to_owned(), |tags| {
                 tags.iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect::<Vec<_>>()

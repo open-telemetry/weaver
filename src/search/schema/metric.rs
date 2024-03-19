@@ -40,7 +40,7 @@ pub fn index_schema_metrics(
     index_writer: &mut IndexWriter,
 ) {
     for metric in schema.metrics() {
-        let tags: String = metric.tags().map_or("".to_string(), |tags| {
+        let tags: String = metric.tags().map_or("".to_owned(), |tags| {
             tags.iter()
                 .map(|(k, v)| format!("{}: {}", k, v))
                 .collect::<Vec<_>>()

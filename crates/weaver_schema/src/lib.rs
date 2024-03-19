@@ -134,7 +134,7 @@ impl TelemetrySchema {
     pub fn load(schema: &str) -> Result<TelemetrySchema, Error> {
         if schema.starts_with("http://") || schema.starts_with("https://") {
             let schema_url = Url::parse(schema).map_err(|e| Error::SchemaNotFound {
-                path_or_url: schema.to_string(),
+                path_or_url: schema.to_owned(),
                 error: e.to_string(),
             })?;
             Self::load_from_url(&schema_url)

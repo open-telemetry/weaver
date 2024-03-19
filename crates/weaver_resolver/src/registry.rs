@@ -825,27 +825,23 @@ mod tests {
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and no constraint.
-        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string()]
+        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned()]
             .into_iter()
             .collect();
         let constraints = vec![];
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and multiple constraints (all satisfiable).
-        let group_attr_names = vec![
-            "attr1".to_string(),
-            "attr2".to_string(),
-            "attr3".to_string(),
-        ]
-        .into_iter()
-        .collect();
+        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned(), "attr3".to_owned()]
+            .into_iter()
+            .collect();
         let constraints = vec![
             Constraint {
-                any_of: vec!["attr1".to_string(), "attr2".to_string()],
+                any_of: vec!["attr1".to_owned(), "attr2".to_owned()],
                 include: None,
             },
             Constraint {
-                any_of: vec!["attr3".to_string()],
+                any_of: vec!["attr3".to_owned()],
                 include: None,
             },
             Constraint {
@@ -856,16 +852,12 @@ mod tests {
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and multiple constraints (one unsatisfiable).
-        let group_attr_names = vec![
-            "attr1".to_string(),
-            "attr2".to_string(),
-            "attr3".to_string(),
-        ]
-        .into_iter()
-        .collect();
+        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned(), "attr3".to_owned()]
+            .into_iter()
+            .collect();
         let constraints = vec![
             Constraint {
-                any_of: vec!["attr4".to_string()],
+                any_of: vec!["attr4".to_owned()],
                 include: None,
             },
             Constraint {
