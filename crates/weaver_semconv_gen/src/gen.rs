@@ -93,7 +93,7 @@ fn write_enum_value_string<Out: Write>(out: &mut Out, value: &ValueSpec) -> Resu
 
 fn write_enum_examples_string<Out: Write>(
     out: &mut Out,
-    members: &Vec<EnumEntriesSpec>,
+    members: &[EnumEntriesSpec],
 ) -> Result<(), Error> {
     let mut first = true;
     for entry in members {
