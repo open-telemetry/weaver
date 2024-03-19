@@ -4,16 +4,6 @@
 //! The entire crate is a rush job to catch feature parity w/ existing python tooling by
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
-#![deny(
-    missing_docs,
-    clippy::print_stdout,
-    unstable_features,
-    unused_import_braces,
-    unused_qualifications,
-    unused_results,
-    unused_extern_crates
-)]
-
 use std::fs;
 use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
