@@ -1,4 +1,4 @@
-# Semanticf Convention markdown updater
+# Semantic Convention markdown updater
 
 Status: **Work-In-Progress**
 

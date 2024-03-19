@@ -42,8 +42,8 @@ impl GenerateMarkdownContext {
 }
 
 /// Determines an enum's type by the type of its values.
-fn enum_type_string(members: &Vec<EnumEntriesSpec>) -> &'static str {
-    match members.as_slice() {
+fn enum_type_string(members: &[EnumEntriesSpec]) -> &'static str {
+    match members {
         [first, ..] => match first.value {
             ValueSpec::Double(_) => "double",
             ValueSpec::Int(_) => "int",
@@ -56,7 +56,7 @@ fn enum_type_string(members: &Vec<EnumEntriesSpec>) -> &'static str {
 
 fn write_example_list<Out: Write, Element: std::fmt::Display>(
     out: &mut Out,
-    list: &Vec<Element>,
+    list: &[Element],
 ) -> Result<(), Error> {
     let mut first = true;
     for e in list {
