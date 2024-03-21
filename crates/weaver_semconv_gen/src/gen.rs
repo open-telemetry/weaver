@@ -143,6 +143,15 @@ impl<'a> AttributeView<'a> {
         matches!(&self.attribute.r#type, AttributeType::Enum { .. })
     }
 
+    fn is_sampling_relevant(&self) -> bool {
+        self.attribute.sampling_relevant.unwrap_or(false)
+    }
+
+    fn has_tag(&self, tag: &str) -> bool {
+        // TODO - Also handle "tags"?
+        self.attribute.tag.as_ref().is_some_and(|t| t == tag)
+    }
+
     fn write_enum_spec_table<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         write!(out, "\n| Value  | Description |\n|---|---|\n")?;
         if let AttributeType::Enum { members, .. } = &self.attribute.r#type {
@@ -282,11 +291,14 @@ impl<'a> AttributeTableView<'a> {
         }
     }
 
-    fn attributes(&self) -> impl Iterator<Item = &Attribute> {
+    fn attributes(&self) -> impl Iterator<Item = AttributeView<'_>> {
         self.group
             .attributes
             .iter()
             .filter_map(|attr| self.lookup.attribute(attr))
+            .sorted_by_key(|a| a.name.as_str())
+            .dedup_by(|x, y| x.name == y.name)
+            .map(|attribute| AttributeView { attribute })
     }
 
     pub fn generate_markdown<Out: Write>(
@@ -301,14 +313,13 @@ impl<'a> AttributeTableView<'a> {
 
         // TODO - deal with
         // - local / full (do we still support this?)
-        // - tag filter
 
         if args.is_omit_requirement() {
             writeln!(out, "| Attribute  | Type | Description  | Examples  |")?;
             writeln!(out, "|---|---|---|---|")?;
         } else {
             // TODO - we should use link version and update tests/semconv upstream.
-            //result.push_str("| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |\n");
+            //writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |");
             writeln!(
                 out,
                 "| Attribute  | Type | Description  | Examples  | Requirement Level |"
@@ -316,12 +327,14 @@ impl<'a> AttributeTableView<'a> {
             writeln!(out, "|---|---|---|---|---|")?;
         }
 
-        for attr in self
-            .attributes()
-            .sorted_by_key(|a| a.name.as_str())
-            .dedup_by(|x, y| x.name == y.name)
-            .map(|attribute| AttributeView { attribute })
-        {
+        // If the user defined a tag, use it to filter attributes.
+        let attributes: Vec<AttributeView<'_>> = 
+            match args.tag_filter() {
+                Some(tag) => self.attributes().filter(|a| a.has_tag(tag)).collect(),
+                None => self.attributes().collect(),
+            };
+
+        for attr in &attributes {
             write!(out, "| ")?;
             attr.write_name_with_optional_link(out)?;
             write!(out, " | ")?;
@@ -344,8 +357,7 @@ impl<'a> AttributeTableView<'a> {
         // Add sampling relevant callouts.
         let sampling_relevant: Vec<AttributeView<'_>> = self
             .attributes()
-            .filter(|a| a.sampling_relevant.unwrap_or(false))
-            .map(|attribute| AttributeView { attribute })
+            .filter(|a| a.is_sampling_relevant())
             .collect();
         if !sampling_relevant.is_empty() {
             write!(
@@ -365,13 +377,7 @@ impl<'a> AttributeTableView<'a> {
         }
 
         // Add enum footers
-        for e in self
-            .attributes()
-            .sorted_by_key(|a| a.name.as_str())
-            .dedup_by(|x, y| x.name == y.name)
-            .map(|attribute| AttributeView { attribute })
-            .filter(|a| a.is_enum())
-        {
+        for e in attributes.iter().filter(|a| a.is_enum()) {
             write!(out, "\n`")?;
             e.write_name(out)?;
             writeln!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.")?;
@@ -387,17 +393,9 @@ pub struct MetricView<'a> {
 }
 impl<'a> MetricView<'a> {
     pub fn try_new(id: &str, lookup: &'a ResolvedSemconvRegistry) -> Result<MetricView<'a>, Error> {
-        // TODO - we first must look up a MetricRef(index),
-        // then pull from schema.catalog.metrics[index]
-
         let metric = lookup
             .find_group(id)
             .filter(|g| g.r#type == GroupType::Metric);
-        // TODO - Since metric isn't working, we just use group here.
-        // .map(|g| {
-        //     println!("Looking for metric {:?} in catalog!", g.metric_name.as_ref());
-        //     schema.catalog.metrics.iter().find(|m| &m.name == g.metric_name.as_ref().unwrap())
-        // }).flatten();
 
         match metric {
             Some(group) => Ok(MetricView { group }),
