@@ -290,9 +290,9 @@ fn search_registry_command(
         schema
     } else {
         TelemetrySchema {
-            file_format: "".to_string(),
+            file_format: "".to_owned(),
             parent_schema_url: None,
-            schema_url: "".to_string(),
+            schema_url: "".to_owned(),
             semantic_conventions: vec![],
             schema: None,
             versions: None,
@@ -459,8 +459,8 @@ fn ui(app: &mut SearchApp<'_>, frame: &mut Frame<'_>) {
                     let brief = values[1].value().as_text().unwrap_or_default();
 
                     app.results.items.push(ResultItem {
-                        path: path.to_string(),
-                        brief: brief.to_string(),
+                        path: path.to_owned(),
+                        brief: brief.to_owned(),
                     });
                 }
                 app.results.next();

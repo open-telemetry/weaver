@@ -331,11 +331,11 @@ impl SemConvRegistry {
     pub fn try_from_path(registry_id: &str, path_pattern: &str) -> Result<Self, Error> {
         let mut registry = SemConvRegistry::new(registry_id);
         for sc_entry in glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
-            path_pattern: path_pattern.to_string(),
+            path_pattern: path_pattern.to_owned(),
             error: e.to_string(),
         })? {
             let path_buf = sc_entry.map_err(|e| Error::InvalidRegistryAsset {
-                path_pattern: path_pattern.to_string(),
+                path_pattern: path_pattern.to_owned(),
                 error: e.to_string(),
             })?;
             registry.load_from_file(path_buf.as_path())?;
@@ -388,13 +388,13 @@ impl SemConvRegistry {
         let spec = SemConvSpec::load_from_url(sem_conv_url)?;
         if let Err(e) = spec.validate() {
             return Err(Error::InvalidCatalog {
-                path_or_url: sem_conv_url.to_string(),
+                path_or_url: sem_conv_url.to_owned(),
                 line: None,
                 column: None,
                 error: e.to_string(),
             });
         }
-        Ok((sem_conv_url.to_string(), spec))
+        Ok((sem_conv_url.to_owned(), spec))
     }
 
     /// Returns the number of semantic convention assets added in the semantic convention registry.
@@ -488,7 +488,7 @@ impl SemConvRegistry {
                             return Err(Error::InvalidMetric {
                                 path_or_url: provenance.clone(),
                                 group_id: group.id.clone(),
-                                error: "Metric without name".to_string(),
+                                error: "Metric without name".to_owned(),
                             });
                         };
                         let instrument = if let Some(instrument) = group.instrument.as_ref() {
@@ -497,7 +497,7 @@ impl SemConvRegistry {
                             return Err(Error::InvalidMetric {
                                 path_or_url: provenance.clone(),
                                 group_id: group.id.clone(),
-                                error: "Metric without instrument definition".to_string(),
+                                error: "Metric without instrument definition".to_owned(),
                             });
                         };
 
@@ -667,7 +667,7 @@ impl SemConvRegistry {
             }
         } else {
             return Err(Error::AttributeNotFound {
-                r#ref: r#ref.to_string(),
+                r#ref: r#ref.to_owned(),
             });
         }
         Ok(attributes)
@@ -840,7 +840,7 @@ impl SemConvSpec {
         let reader = ureq::get(semconv_url)
             .call()
             .map_err(|e| Error::CatalogNotFound {
-                path_or_url: semconv_url.to_string(),
+                path_or_url: semconv_url.to_owned(),
                 error: e.to_string(),
             })?
             .into_reader();
@@ -848,7 +848,7 @@ impl SemConvSpec {
         // Deserialize the telemetry schema from the content reader
         let catalog: SemConvSpec =
             serde_yaml::from_reader(reader).map_err(|e| Error::InvalidCatalog {
-                path_or_url: semconv_url.to_string(),
+                path_or_url: semconv_url.to_owned(),
                 line: e.location().map(|loc| loc.line()),
                 column: e.location().map(|loc| loc.column()),
                 error: e.to_string(),

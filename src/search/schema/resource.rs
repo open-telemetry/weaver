@@ -24,7 +24,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
                         fields.path => format!("schema/resource/attr/{}", the_id),
                         fields.brief => the_brief.as_str(),
                         fields.note => the_note.as_str(),
-                        fields.tag => the_tag.as_ref().unwrap_or(&"".to_string()).as_str(),
+                        fields.tag => the_tag.as_ref().unwrap_or(&"".to_owned()).as_str(),
                     ))
                     .expect("Failed to add document");
             }

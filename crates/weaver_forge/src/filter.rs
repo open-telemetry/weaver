@@ -30,7 +30,7 @@ impl Filter {
             return Err(Error::CompoundError(
                 errs.into_iter()
                     .map(|e| Error::FilterError {
-                        filter: filter_expr.to_string(),
+                        filter: filter_expr.to_owned(),
                         error: e.to_string(),
                     })
                     .collect(),
@@ -38,12 +38,12 @@ impl Filter {
         }
 
         let parsed_expr = parsed_expr.ok_or_else(|| Error::FilterError {
-            filter: filter_expr.to_string(),
-            error: "No parsed expression".to_string(),
+            filter: filter_expr.to_owned(),
+            error: "No parsed expression".to_owned(),
         })?;
 
         Ok(Self {
-            filter_expr: filter_expr.to_string(),
+            filter_expr: filter_expr.to_owned(),
             filter: ctx.compile(parsed_expr),
         })
     }

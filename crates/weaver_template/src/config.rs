@@ -115,7 +115,7 @@ impl DynamicGlobalConfig {
             .file_name
             .get_or(|| RefCell::new(None))
             .borrow_mut()
-            .replace(file_name.to_string());
+            .replace(file_name.to_owned());
     }
 
     /// Get the file name for the current generated code.

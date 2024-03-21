@@ -33,8 +33,8 @@ fn test_semconv_registry_resolution() {
     // No parsing errors should be observed.
     let semconv_specs = SchemaResolver::load_semconv_registry(
         registry_id,
-        SEMCONV_REGISTRY_URL.to_string(),
-        Some(SEMCONV_REGISTRY_MODEL.to_string()),
+        SEMCONV_REGISTRY_URL.to_owned(),
+        Some(SEMCONV_REGISTRY_MODEL.to_owned()),
         &cache,
         log.clone(),
     )

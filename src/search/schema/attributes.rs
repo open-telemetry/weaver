@@ -29,7 +29,7 @@ pub fn append_lines(attributes: &[Attribute], text: &mut Vec<Line<'_>>, theme: &
                 if let RequirementLevel::Basic(BasicRequirementLevelSpec::Required) =
                     requirement_level
                 {
-                    properties.push("required".to_string());
+                    properties.push("required".to_owned());
                 }
                 if let Some(tags) = tags {
                     if !tags.is_empty() {

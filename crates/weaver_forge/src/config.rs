@@ -227,32 +227,32 @@ pub struct TemplateSyntax {
 
 /// Default block start delimiter.
 fn default_block_start() -> String {
-    "{%".to_string()
+    "{%".to_owned()
 }
 
 /// Default block end delimiter.
 fn default_block_end() -> String {
-    "%}".to_string()
+    "%}".to_owned()
 }
 
 /// Default variable start delimiter.
 fn default_variable_start() -> String {
-    "{{".to_string()
+    "{{".to_owned()
 }
 
 /// Default variable end delimiter.
 fn default_variable_end() -> String {
-    "}}".to_string()
+    "}}".to_owned()
 }
 
 /// Default comment start delimiter.
 fn default_comment_start() -> String {
-    "{#".to_string()
+    "{#".to_owned()
 }
 
 /// Default comment end delimiter.
 fn default_comment_end() -> String {
-    "#}".to_string()
+    "#}".to_owned()
 }
 
 impl From<TemplateSyntax> for minijinja::Syntax {

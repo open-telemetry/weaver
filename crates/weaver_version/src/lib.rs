@@ -578,7 +578,7 @@ impl VersionChanges {
         if let Some(new_name) = self.resource_old_to_new_attributes.get(name) {
             new_name.clone()
         } else {
-            name.to_string()
+            name.to_owned()
         }
     }
 
@@ -589,7 +589,7 @@ impl VersionChanges {
         if let Some(new_name) = self.metric_old_to_new_attributes.get(name) {
             new_name.clone()
         } else {
-            name.to_string()
+            name.to_owned()
         }
     }
 
@@ -600,7 +600,7 @@ impl VersionChanges {
         if let Some(new_name) = self.metric_old_to_new_names.get(name) {
             new_name.clone()
         } else {
-            name.to_string()
+            name.to_owned()
         }
     }
 
@@ -611,7 +611,7 @@ impl VersionChanges {
         if let Some(new_name) = self.log_old_to_new_attributes.get(name) {
             new_name.clone()
         } else {
-            name.to_string()
+            name.to_owned()
         }
     }
 
@@ -622,7 +622,7 @@ impl VersionChanges {
         if let Some(new_name) = self.span_old_to_new_attributes.get(name) {
             new_name.clone()
         } else {
-            name.to_string()
+            name.to_owned()
         }
     }
 }
@@ -718,7 +718,7 @@ mod tests {
             .rename_attributes
             .attribute_map
             .get("messaging.kafka.client_id");
-        assert_eq!(observed_value, Some(&"messaging.client.id".to_string()));
+        assert_eq!(observed_value, Some(&"messaging.client.id".to_owned()));
 
         let v1_8 = app_versions
             .versions
@@ -728,35 +728,35 @@ mod tests {
             .rename_attributes
             .attribute_map
             .get("db.cassandra.keyspace");
-        assert_eq!(observed_value, Some(&"database.name".to_string()));
+        assert_eq!(observed_value, Some(&"database.name".to_owned()));
         let observed_value = v1_8.spans.as_ref().unwrap().changes[0]
             .rename_attributes
             .attribute_map
             .get("db.cassandra.keyspace");
-        assert_eq!(observed_value, Some(&"database.name".to_string()));
+        assert_eq!(observed_value, Some(&"database.name".to_owned()));
         let observed_value = v1_8.spans.as_ref().unwrap().changes[0]
             .rename_attributes
             .attribute_map
             .get("db.hbase.namespace");
-        assert_eq!(observed_value, Some(&"db.name".to_string()));
+        assert_eq!(observed_value, Some(&"db.name".to_owned()));
         let observed_value = v1_8.logs.as_ref().unwrap().changes[0]
             .rename_attributes
             .attribute_map
             .get("db.cassandra.keyspace");
-        assert_eq!(observed_value, Some(&"database.name".to_string()));
+        assert_eq!(observed_value, Some(&"database.name".to_owned()));
         let observed_value = v1_8.logs.as_ref().unwrap().changes[0]
             .rename_attributes
             .attribute_map
             .get("db.hbase.namespace");
-        assert_eq!(observed_value, Some(&"db.name".to_string()));
+        assert_eq!(observed_value, Some(&"db.name".to_owned()));
         let observed_value = v1_8.metrics.as_ref().unwrap().changes[0]
             .rename_metrics
             .get("m1");
-        assert_eq!(observed_value, Some(&"metric_1".to_string()));
+        assert_eq!(observed_value, Some(&"metric_1".to_owned()));
         let observed_value = v1_8.metrics.as_ref().unwrap().changes[0]
             .rename_metrics
             .get("m2");
-        assert_eq!(observed_value, Some(&"metric2".to_string()));
+        assert_eq!(observed_value, Some(&"metric2".to_owned()));
 
         let v1_7_1 = app_versions
             .versions
@@ -766,7 +766,7 @@ mod tests {
             .rename_attributes
             .attribute_map
             .get("db.cassandra.table");
-        assert_eq!(observed_value, Some(&"database.table".to_string()));
+        assert_eq!(observed_value, Some(&"database.table".to_owned()));
 
         // Transformations inherited from `parent_versions.yaml` and
         // initially not present in `app_versions.yaml`
@@ -779,13 +779,13 @@ mod tests {
             .get("process.runtime.jvm.cpu.utilization");
         assert_eq!(
             observed_value,
-            Some(&"process.runtime.jvm.cpu.recent_utilization".to_string())
+            Some(&"process.runtime.jvm.cpu.recent_utilization".to_owned())
         );
         let observed_value = v1_21.spans.as_ref().unwrap().changes[0]
             .rename_attributes
             .attribute_map
             .get("messaging.kafka.client_id");
-        assert_eq!(observed_value, Some(&"messaging.client_id".to_string()));
+        assert_eq!(observed_value, Some(&"messaging.client_id".to_owned()));
 
         let changes =
             app_versions.version_changes_for(app_versions.latest_version().as_ref().unwrap());

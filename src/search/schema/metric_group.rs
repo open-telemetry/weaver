@@ -17,7 +17,7 @@ use crate::search::DocFields;
 /// Build index for metrics.
 pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut IndexWriter) {
     for metric_group in schema.metric_groups() {
-        let tags: String = metric_group.tags().map_or("".to_string(), |tags| {
+        let tags: String = metric_group.tags().map_or("".to_owned(), |tags| {
             tags.iter()
                 .map(|(k, v)| format!("{}: {}", k, v))
                 .collect::<Vec<_>>()

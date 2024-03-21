@@ -222,7 +222,7 @@ impl AttributeCatalog {
                     root_attr_id,
                     AttributeWithGroupId {
                         attribute: attr.clone(),
-                        group_id: group_id.to_string(),
+                        group_id: group_id.to_owned(),
                     },
                 );
                 Some(self.attribute_ref(attr))
@@ -407,7 +407,7 @@ pub fn resolve_attribute(
                     .attribute(r#ref)
                     .ok_or(Error::FailToResolveAttributes {
                         ids: vec![r#ref.clone()],
-                        error: "Attribute ref not found in the resolved registry".to_string(),
+                        error: "Attribute ref not found in the resolved registry".to_owned(),
                     })?;
             resolve_attribute(registry, sem_conv_attr)
         }

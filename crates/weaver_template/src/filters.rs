@@ -36,7 +36,7 @@ pub fn instrument(value: &Value, _: &HashMap<String, Value>) -> Result<Value> {
     if let Value::String(metric_type) = value {
         match metric_type.as_str() {
             "counter" | "gauge" | "histogram" => Ok(Value::String(metric_type.clone())),
-            "updowncounter" => Ok(Value::String("up_down_counter".to_string())),
+            "updowncounter" => Ok(Value::String("up_down_counter".to_owned())),
             _ => Err(tera::Error::msg(format!(
                 "Filter instrument: unknown metric instrument {}",
                 metric_type
@@ -290,7 +290,7 @@ impl Filter for TypeMapping {
                 let enum_name = match ctx.get("enum") {
                     Some(Value::String(v)) => v.clone(),
                     Some(_) => return Err(tera::Error::msg(format!("Filter type_mapping: expected a string for the enum parameter, got {:?}", ctx.get("enum")))),
-                    _ => return Err(tera::Error::msg("Filter type_mapping: expected an enum parameter".to_string()))
+                    _ => return Err(tera::Error::msg("Filter type_mapping: expected an enum parameter".to_owned()))
                 };
                 Ok(Value::String(enum_name))
             }
@@ -312,7 +312,7 @@ pub fn comment(value: &Value, ctx: &HashMap<String, Value>) -> Result<Value> {
 
     let prefix = match ctx.get("prefix") {
         Some(Value::String(prefix)) => prefix.clone(),
-        _ => "".to_string(),
+        _ => "".to_owned(),
     };
 
     let mut lines = vec![];

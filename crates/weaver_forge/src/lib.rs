@@ -85,7 +85,7 @@ impl Object for TemplateObject {
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
             let (file_name,): (&str,) = from_args(args)?;
-            *self.file_name.lock().expect("Lock poisoned") = file_name.to_string();
+            file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
             Err(minijinja::Error::new(
@@ -146,7 +146,7 @@ impl TemplateEngine {
         if !target_path.exists() {
             return Err(TargetNotSupported {
                 root_path: config.root_dir.to_string_lossy().to_string(),
-                target: target.to_string(),
+                target: target.to_owned(),
             });
         }
 
@@ -292,13 +292,13 @@ impl TemplateEngine {
     ) -> Result<(), Error> {
         let template_object = TemplateObject {
             file_name: Arc::new(Mutex::new(
-                template_path.to_str().unwrap_or_default().to_string(),
+                template_path.to_str().unwrap_or_default().to_owned(),
             )),
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
             template: template_path.to_path_buf(),
-            error: "".to_string(),
+            error: "".to_owned(),
         })?;
 
         engine.add_global("template", Value::from_object(template_object.clone()));

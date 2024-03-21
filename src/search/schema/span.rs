@@ -14,7 +14,7 @@ use weaver_schema::TelemetrySchema;
 /// Build index for spans.
 pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut IndexWriter) {
     for span in schema.spans() {
-        let tags: String = span.tags.clone().map_or("".to_string(), |tags| {
+        let tags: String = span.tags.clone().map_or("".to_owned(), |tags| {
             tags.iter()
                 .map(|(k, v)| format!("{}: {}", k, v))
                 .collect::<Vec<_>>()
@@ -36,7 +36,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
             index_writer,
         );
         for event in span.events.iter() {
-            let tags: String = event.tags.clone().map_or("".to_string(), |tags| {
+            let tags: String = event.tags.clone().map_or("".to_owned(), |tags| {
                 tags.iter()
                     .map(|(k, v)| format!("{}: {}", k, v))
                     .collect::<Vec<_>>()

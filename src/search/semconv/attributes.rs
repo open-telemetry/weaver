@@ -26,7 +26,7 @@ pub fn append_lines(attributes: &[AttributeSpec], text: &mut Vec<Line<'_>>, them
                 if let RequirementLevel::Basic(BasicRequirementLevelSpec::Required) =
                     requirement_level
                 {
-                    properties.push("required".to_string());
+                    properties.push("required".to_owned());
                 }
                 let properties = if properties.is_empty() {
                     String::new()

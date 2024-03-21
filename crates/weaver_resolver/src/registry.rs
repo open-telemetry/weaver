@@ -179,7 +179,7 @@ pub fn check_any_of_constraints(
                 None => errors.push(Error::UnresolvedAttributeRef {
                     group_id: group.id.clone(),
                     attribute_ref: attr_ref.0.to_string(),
-                    provenance: group.provenance().to_string(),
+                    provenance: group.provenance().to_owned(),
                 }),
                 Some(attr_name) => {
                     _ = group_attr_names.insert(attr_name.clone());
@@ -237,7 +237,7 @@ fn check_group_any_of_constraints(
         let errors = unsatisfied_any_of_constraints
             .into_values()
             .map(|v| Error::UnsatisfiedAnyOfConstraint {
-                group_id: group_id.to_string(),
+                group_id: group_id.to_owned(),
                 any_of: v.any_of,
                 missing_attributes: v.missing_attributes,
             })
@@ -275,7 +275,7 @@ fn unresolved_registry_from_specs(
 
     UnresolvedRegistry {
         registry: Registry {
-            registry_url: registry_url.to_string(),
+            registry_url: registry_url.to_owned(),
             groups: vec![],
         },
         groups,
@@ -577,6 +577,15 @@ fn resolve_inheritance_attrs(
         .collect()
 }
 
+/// Returns a clone of the first argument that is Some(T).
+fn clone_first_some<T: Clone>(arg_1: &Option<T>, arg_2: &Option<T>) -> Option<T> {
+    if arg_1.is_some() {
+        arg_1.clone()
+    } else {
+        arg_2.clone()
+    }
+}
+
 fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -> AttributeSpec {
     match attr {
         AttributeSpec::Ref {
@@ -605,46 +614,20 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                     // attr and attr_parent are both references.
                     AttributeSpec::Ref {
                         r#ref: r#ref.clone(),
-                        brief: if brief.is_some() {
-                            brief.clone()
-                        } else {
-                            parent_brief.clone()
-                        },
-                        examples: if examples.is_some() {
-                            examples.clone()
-                        } else {
-                            parent_examples.clone()
-                        },
-                        tag: if tag.is_some() {
-                            tag.clone()
-                        } else {
-                            parent_tag.clone()
-                        },
-                        requirement_level: if requirement_level.is_some() {
-                            requirement_level.clone()
-                        } else {
-                            parent_requirement_level.clone()
-                        },
-                        sampling_relevant: if sampling_relevant.is_some() {
-                            *sampling_relevant
-                        } else {
-                            *parent_sampling_relevant
-                        },
-                        note: if note.is_some() {
-                            note.clone()
-                        } else {
-                            parent_note.clone()
-                        },
-                        stability: if stability.is_some() {
-                            stability.clone()
-                        } else {
-                            parent_stability.clone()
-                        },
-                        deprecated: if deprecated.is_some() {
-                            deprecated.clone()
-                        } else {
-                            parent_deprecated.clone()
-                        },
+                        brief: clone_first_some(brief, parent_brief),
+                        examples: clone_first_some(examples, parent_examples),
+                        tag: clone_first_some(tag, parent_tag),
+                        requirement_level: clone_first_some(
+                            requirement_level,
+                            parent_requirement_level,
+                        ),
+                        sampling_relevant: clone_first_some(
+                            sampling_relevant,
+                            parent_sampling_relevant,
+                        ),
+                        note: clone_first_some(note, parent_note),
+                        stability: clone_first_some(stability, parent_stability),
+                        deprecated: clone_first_some(deprecated, parent_deprecated),
                     }
                 }
                 AttributeSpec::Id {
@@ -664,21 +647,9 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                     AttributeSpec::Id {
                         id: r#ref.clone(),
                         r#type: parent_type.clone(),
-                        brief: if brief.is_some() {
-                            brief.clone()
-                        } else {
-                            parent_brief.clone()
-                        },
-                        examples: if examples.is_some() {
-                            examples.clone()
-                        } else {
-                            parent_examples.clone()
-                        },
-                        tag: if tag.is_some() {
-                            tag.clone()
-                        } else {
-                            parent_tag.clone()
-                        },
+                        brief: clone_first_some(brief, parent_brief),
+                        examples: clone_first_some(examples, parent_examples),
+                        tag: clone_first_some(tag, parent_tag),
                         requirement_level: if requirement_level.is_some() {
                             requirement_level
                                 .clone()
@@ -686,26 +657,17 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                         } else {
                             parent_requirement_level.clone()
                         },
-                        sampling_relevant: if sampling_relevant.is_some() {
-                            *sampling_relevant
-                        } else {
-                            *parent_sampling_relevant
-                        },
+                        sampling_relevant: clone_first_some(
+                            sampling_relevant,
+                            parent_sampling_relevant,
+                        ),
                         note: if note.is_some() {
                             note.clone().expect("is_some so this can't happen")
                         } else {
                             parent_note.clone()
                         },
-                        stability: if stability.is_some() {
-                            stability.clone()
-                        } else {
-                            parent_stability.clone()
-                        },
-                        deprecated: if deprecated.is_some() {
-                            deprecated.clone()
-                        } else {
-                            parent_deprecated.clone()
-                        },
+                        stability: clone_first_some(stability, parent_stability),
+                        deprecated: clone_first_some(deprecated, parent_deprecated),
                     }
                 }
             }
@@ -825,27 +787,23 @@ mod tests {
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and no constraint.
-        let group_attr_names = vec!["attr1".to_string(), "attr2".to_string()]
+        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned()]
             .into_iter()
             .collect();
         let constraints = vec![];
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and multiple constraints (all satisfiable).
-        let group_attr_names = vec![
-            "attr1".to_string(),
-            "attr2".to_string(),
-            "attr3".to_string(),
-        ]
-        .into_iter()
-        .collect();
+        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned(), "attr3".to_owned()]
+            .into_iter()
+            .collect();
         let constraints = vec![
             Constraint {
-                any_of: vec!["attr1".to_string(), "attr2".to_string()],
+                any_of: vec!["attr1".to_owned(), "attr2".to_owned()],
                 include: None,
             },
             Constraint {
-                any_of: vec!["attr3".to_string()],
+                any_of: vec!["attr3".to_owned()],
                 include: None,
             },
             Constraint {
@@ -856,16 +814,12 @@ mod tests {
         check_group_any_of_constraints("group", group_attr_names, &constraints)?;
 
         // Attributes and multiple constraints (one unsatisfiable).
-        let group_attr_names = vec![
-            "attr1".to_string(),
-            "attr2".to_string(),
-            "attr3".to_string(),
-        ]
-        .into_iter()
-        .collect();
+        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned(), "attr3".to_owned()]
+            .into_iter()
+            .collect();
         let constraints = vec![
             Constraint {
-                any_of: vec!["attr4".to_string()],
+                any_of: vec!["attr4".to_owned()],
                 include: None,
             },
             Constraint {
