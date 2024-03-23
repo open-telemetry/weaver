@@ -8,42 +8,45 @@
       "attributes": [
         2
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-8-http/registry/http-common.yaml",
-        "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+        "attributes": [
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -54,64 +57,76 @@
         2,
         3
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-8-http/registry/http-common.yaml",
-        "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+        "attributes": [
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "3": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.port",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -122,64 +137,76 @@
         2,
         4
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-8-http/registry/http.yaml",
-        "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+        "attributes": [
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "4": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.port",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -191,64 +218,79 @@
         2,
         4
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "http.server.request.duration",
       "instrument": "histogram",
       "unit": "s",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-8-http/registry/http.yaml",
-        "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+        "attributes": [
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "4": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.port",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -259,12 +301,6 @@
       "attributes": [
         0
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-8-http/registry/network.yaml"
       }
@@ -277,12 +313,6 @@
       "attributes": [
         1
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-8-http/registry/server.yaml"
       }

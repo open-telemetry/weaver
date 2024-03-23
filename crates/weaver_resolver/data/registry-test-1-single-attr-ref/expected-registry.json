@@ -10,38 +10,47 @@
       ],
       "lineage": {
         "provenance": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
-        "attributes": {
-          "1": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+        "attributes": [
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           }
-        }
+        ]
       }
     },
     {

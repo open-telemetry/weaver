@@ -28,42 +28,51 @@
       "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -78,42 +87,51 @@
       "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -128,42 +146,51 @@
       "unit": "{coldstart}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -178,42 +205,51 @@
       "unit": "{error}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -228,42 +264,51 @@
       "unit": "{invocation}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -278,42 +323,51 @@
       "unit": "{timeout}",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -328,42 +382,51 @@
       "unit": "By",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -378,42 +441,51 @@
       "unit": "s",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -428,42 +500,51 @@
       "unit": "By",
       "lineage": {
         "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": {
-          "0": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+        "attributes": [
+          {
+            "id": "faas.trigger",
+            "brief": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "examples": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "tag": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "requirement_level": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "note": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "stability": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "attributes.faas.common"
+            "deprecated": {
+              "Inherited": {
+                "from": "attributes.faas.common"
+              }
             }
           }
-        }
+        ]
       }
     }
   ]

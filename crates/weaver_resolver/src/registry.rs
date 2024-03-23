@@ -721,6 +721,10 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
+            // if !test_dir.ends_with("registry-test-8-http") {
+            //     // Skip the test for now as it is not yet supported.
+            //     continue;
+            // }
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
@@ -735,24 +739,20 @@ mod tests {
                 resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
                     .expect("Failed to resolve registry");
 
-            // Load the expected registry and attribute catalog.
-            let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
-                std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
-                    .expect("Failed to open expected attribute catalog"),
-            )
-            .expect("Failed to deserialize expected attribute catalog");
-            let expected_registry: Registry = serde_json::from_reader(
-                std::fs::File::open(format!("{}/expected-registry.json", test_dir))
-                    .expect("Failed to open expected registry"),
-            )
-            .expect("Failed to deserialize expected registry");
-
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
             let observed_attr_catalog_json = serde_json::to_string_pretty(&observed_attr_catalog)
                 .expect("Failed to serialize observed attribute catalog");
 
             // println!("Observed catalog: {}", observed_attr_catalog_json);
+
+            // Load the expected registry and attribute catalog.
+            let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
+                std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
+                    .expect("Failed to open expected attribute catalog"),
+            )
+                .expect("Failed to deserialize expected attribute catalog");
+
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
                 "Attribute catalog does not match for `{}`.\nObserved catalog:\n{}",
@@ -766,7 +766,14 @@ mod tests {
             let observed_registry_json = serde_json::to_string_pretty(&observed_registry)
                 .expect("Failed to serialize observed registry");
 
-            //println!("Observed registry: {}", observed_registry_json);
+            // println!("Observed registry: {}", observed_registry_json);
+
+            let expected_registry: Registry = serde_json::from_reader(
+                std::fs::File::open(format!("{}/expected-registry.json", test_dir))
+                    .expect("Failed to open expected registry"),
+            )
+                .expect("Failed to deserialize expected registry");
+
             assert_eq!(
                 observed_registry, expected_registry,
                 "Registry does not match for `{}`.\nObserved registry:\n{}",

@@ -12,154 +12,193 @@
         65,
         66
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
-        "attributes": {
-          "62": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+        "attributes": [
+          {
+            "id": "http.request.method",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "63": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+          {
+            "id": "http.response.status_code",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "64": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "65": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "66": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -176,228 +215,294 @@
         68,
         69
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
-        "attributes": {
-          "62": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "63": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+          {
+            "id": "http.request.method",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "64": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "http.response.status_code",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
+            },
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "65": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "66": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "67": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.address",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "68": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.port",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "69": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+          {
+            "id": "url.scheme",
+            "brief": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "note": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "stability": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -415,254 +520,329 @@
         72,
         73
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
-        "attributes": {
-          "62": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "63": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+          {
+            "id": "http.request.method",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "64": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "http.response.status_code",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
+            },
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "65": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "http.route",
+            "brief": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.http"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.http"
+              }
             }
           },
-          "66": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "70": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.http"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "71": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.address",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "72": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.port",
+            "brief": "Override",
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "73": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+          {
+            "id": "url.scheme",
+            "brief": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.url"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.url"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -678,188 +858,236 @@
         77,
         78
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/messaging-common.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -876,248 +1104,314 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -1134,248 +1428,317 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "messaging.publish.duration",
       "instrument": "histogram",
       "unit": "s",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -1392,248 +1755,317 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "messaging.receive.duration",
       "instrument": "histogram",
       "unit": "s",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -1650,248 +2082,317 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "messaging.deliver.duration",
       "instrument": "histogram",
       "unit": "s",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -1908,248 +2409,317 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "messaging.publish.messages",
       "instrument": "counter",
       "unit": "{message}",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -2166,248 +2736,317 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "messaging.receive.messages",
       "instrument": "counter",
       "unit": "{message}",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -2424,248 +3063,317 @@
         79,
         80
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "messaging.deliver.messages",
       "instrument": "counter",
       "unit": "{message}",
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": {
-          "56": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+        "attributes": [
+          {
+            "id": "error.type",
+            "brief": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": "Override",
+            "tag": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.error"
+              }
             }
           },
-          "74": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "messaging.destination.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "75": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+          {
+            "id": "messaging.destination.template",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.error"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "76": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+          {
+            "id": "messaging.system",
+            "brief": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "examples": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "tag": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "note": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
+            "stability": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.messaging"
+              }
             }
           },
-          "77": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.name",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": "Override",
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "78": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+          {
+            "id": "network.protocol.version",
+            "brief": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "examples": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "tag": "Override",
+            "requirement_level": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "note": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "stability": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
+            "deprecated": {
+              "Inherited": {
+                "from": "registry.network"
+              }
             }
           },
-          "79": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.address",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": "Override",
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": "Override",
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           },
-          "80": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "examples": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "tag": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "requirement_level": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "note": {
+              "Inherited": {
+                "from": "server"
+              }
             },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
+            "stability": {
+              "Inherited": {
+                "from": "server"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "server"
+              }
             }
           }
-        }
+        ]
       }
     },
     {
@@ -2676,12 +3384,6 @@
       "attributes": [
         0
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/registry-error.yaml"
       }
@@ -2702,12 +3404,6 @@
         8,
         9
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/registry-http.yaml"
       }
@@ -2749,12 +3445,6 @@
         38,
         39
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/registry-messaging.yaml"
       }
@@ -2781,12 +3471,6 @@
         53,
         54
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/registry-network.yaml"
       }
@@ -2800,12 +3484,6 @@
         55,
         56
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/registry-server.yaml"
       }
@@ -2822,12 +3500,6 @@
         60,
         61
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
         "provenance": "data/registry-test-3-extends/registry/registry-url.yaml"
       }
