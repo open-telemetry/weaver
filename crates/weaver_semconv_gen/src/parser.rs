@@ -110,9 +110,8 @@ pub fn is_markdown_snippet_directive(line: &str) -> bool {
 pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownArgs, Error> {
     match parse_markdown_snippet_raw(line) {
         Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
-        // TODO - Translate error message better?
         _ => Err(Error::InvalidSnippetHeader {
-            header: line.to_string(),
+            header: line.to_owned(),
         }),
     }
 }
