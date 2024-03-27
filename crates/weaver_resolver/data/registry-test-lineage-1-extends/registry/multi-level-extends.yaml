@@ -1,0 +1,16 @@
+groups:
+  - id: top.level
+    type: attribute_group
+    brief: 'Top level'
+    extends: intermediate.level
+  - id: intermediate.level
+    type: attribute_group
+    brief: 'Intermediate level'
+    extends: base.level
+  - id: base.level
+    type: attribute_group
+    brief: 'Base level'
+    attributes:
+      - id: server.port
+        type: string
+        brief: Server port

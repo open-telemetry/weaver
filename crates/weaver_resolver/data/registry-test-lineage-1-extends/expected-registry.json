@@ -1,0 +1,148 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "top.level",
+      "type": "attribute_group",
+      "brief": "Top level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-lineage-1-extends/registry/multi-level-extends.yaml",
+        "attributes": [
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "examples": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "tag": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "requirement_level": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "note": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "stability": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "tags": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            },
+            "value": {
+              "Inherited": {
+                "from": "intermediate.level"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "intermediate.level",
+      "type": "attribute_group",
+      "brief": "Intermediate level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-lineage-1-extends/registry/multi-level-extends.yaml",
+        "attributes": [
+          {
+            "id": "server.port",
+            "brief": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "examples": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "tag": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "requirement_level": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "sampling_relevant": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "note": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "stability": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "deprecated": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "tags": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            },
+            "value": {
+              "Inherited": {
+                "from": "base.level"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "base.level",
+      "type": "attribute_group",
+      "brief": "Base level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "provenance": "data/registry-test-lineage-1-extends/registry/multi-level-extends.yaml"
+      }
+    }
+  ]
+}

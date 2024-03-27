@@ -72,7 +72,9 @@ serde_json.workspace = true
 
 [package.metadata.cargo-machete]
 # force cargo machete to ignore the following crates
-ignored = ["serde"]
+# Remove this section one weaver_semconv_gen is ready to be used
+# in the project
+ignored = ["weaver_semconv_gen"]
 
 [profile.release]
 lto = true

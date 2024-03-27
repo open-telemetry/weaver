@@ -26,3 +26,9 @@ walkdir.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+# force cargo machete to ignore the following crates
+# remove this section once this crate is integrated into the rest
+# of the project
+ignored = ["serde", "rayon", "walkdir", "serde_json", "serde_yaml"]

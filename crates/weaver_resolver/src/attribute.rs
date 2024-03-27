@@ -93,8 +93,12 @@ impl AttributeCatalog {
                 if let Some(root_attr) = root_attr {
                     let mut resolver = AttributeLineageBuilder::new(
                         r#ref,
-                        FieldProvenance::Override,
-                        FieldProvenance::Inherited { from: root_attr.group_id.clone() }
+                        FieldProvenance::Override {
+                            r#in: group_id.to_owned(),
+                        },
+                        FieldProvenance::Inherited {
+                            from: root_attr.group_id.clone(),
+                        },
                     );
 
                     // Create a fully resolved attribute from an attribute spec
@@ -106,11 +110,18 @@ impl AttributeCatalog {
                         brief: resolver.brief(brief, &root_attr.attribute.brief),
                         examples: resolver.examples(examples, &root_attr.attribute.examples),
                         tag: resolver.tag(tag, &root_attr.attribute.tag),
-                        requirement_level: resolver.requirement_level(requirement_level, &root_attr.attribute.requirement_level),
-                        sampling_relevant: resolver.sampling_relevant(sampling_relevant, &root_attr.attribute.sampling_relevant),
+                        requirement_level: resolver.requirement_level(
+                            requirement_level,
+                            &root_attr.attribute.requirement_level,
+                        ),
+                        sampling_relevant: resolver.sampling_relevant(
+                            sampling_relevant,
+                            &root_attr.attribute.sampling_relevant,
+                        ),
                         note: resolver.note(note, &root_attr.attribute.note),
                         stability: resolver.stability(stability, &root_attr.attribute.stability),
-                        deprecated: resolver.deprecated(deprecated, &root_attr.attribute.deprecated),
+                        deprecated: resolver
+                            .deprecated(deprecated, &root_attr.attribute.deprecated),
                         tags: root_attr.attribute.tags.clone(),
                         value: root_attr.attribute.value.clone(),
                     };

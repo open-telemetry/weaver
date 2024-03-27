@@ -7,14 +7,14 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
-use weaver_resolved_schema::lineage::GroupLineage;
+use weaver_resolved_schema::lineage::{AttributeLineage, FieldProvenance, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
-use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
+use weaver_semconv::attribute::AttributeSpec;
 
+use crate::{Error, handle_errors, UnsatisfiedAnyOfConstraint};
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -411,7 +411,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
                 if let Some(attrs) = group_index.get(extends) {
                     unresolved_group.attributes = resolve_inheritance_attrs(
+                        &unresolved_group.group.id,
                         &unresolved_group.attributes,
+                        &extends,
                         attrs,
                         unresolved_group.group.lineage.as_mut(),
                     );
@@ -529,9 +531,11 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
 }
 
 fn resolve_inheritance_attrs(
+    group_id: &str,
     attrs_group: &[UnresolvedAttribute],
+    parent_group_id: &str,
     attrs_parent_group: &[UnresolvedAttribute],
-    _group_lineage: Option<&mut GroupLineage>, // ToDo compute the lineage
+    group_lineage: Option<&mut GroupLineage>,
 ) -> Vec<UnresolvedAttribute> {
     // A map attribute_id -> attribute_spec.
     //
@@ -539,15 +543,18 @@ fn resolve_inheritance_attrs(
     // sorted by their id in the resolved registry. This is useful for unit
     // tests to ensure that the resolved registry is easy to compare.
     let mut resolved_attrs = BTreeMap::new();
+    let mut lineage_attrs = HashMap::new();
 
     // Inherit the attributes from the parent group.
     for parent_attr in attrs_parent_group.iter() {
         match &parent_attr.spec {
             AttributeSpec::Ref { r#ref, .. } => {
-                _ = resolved_attrs.insert(r#ref.clone(), parent_attr.spec.clone())
+                _ = resolved_attrs.insert(r#ref.clone(), parent_attr.spec.clone());
+                _ = lineage_attrs.insert(r#ref.clone(), FieldProvenance::Inherited { from: parent_group_id.to_owned() })
             }
             AttributeSpec::Id { id, .. } => {
-                _ = resolved_attrs.insert(id.clone(), parent_attr.spec.clone())
+                _ = resolved_attrs.insert(id.clone(), parent_attr.spec.clone());
+                _ = lineage_attrs.insert(id.clone(), FieldProvenance::Inherited { from: parent_group_id.to_owned() })
             }
         }
     }
@@ -564,10 +571,20 @@ fn resolve_inheritance_attrs(
                 } else {
                     _ = resolved_attrs.insert(r#ref.clone(), attr.spec.clone())
                 }
+                _ = lineage_attrs.insert(r#ref.clone(), FieldProvenance::Override { r#in: group_id.to_owned() })
             }
             AttributeSpec::Id { id, .. } => {
-                _ = resolved_attrs.insert(id.clone(), attr.spec.clone())
+                let prev = resolved_attrs.insert(id.clone(), attr.spec.clone());
+                if let Some(_) = prev {
+                    _ = lineage_attrs.insert(id.clone(), FieldProvenance::Override { r#in: group_id.to_owned() })
+                }
             }
+        }
+    }
+
+    if let Some(group_lineage) = group_lineage {
+        for (id, provenance) in lineage_attrs {
+            group_lineage.add_attribute_lineage(AttributeLineage::with_provenance(&id, provenance));
         }
     }
 
@@ -682,6 +699,7 @@ mod tests {
     use std::error::Error;
 
     use glob::glob;
+    use serde::Serialize;
 
     use weaver_logger::TestLogger;
     use weaver_resolved_schema::attribute;
@@ -721,10 +739,10 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
-            // if !test_dir.ends_with("registry-test-8-http") {
-            //     // Skip the test for now as it is not yet supported.
-            //     continue;
-            // }
+            if !test_dir.ends_with("registry-test-lineage-1-extends") {
+                // Skip the test for now as it is not yet supported.
+                continue;
+            }
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
@@ -732,7 +750,7 @@ mod tests {
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
             )
-            .expect("Failed to load semconv specs");
+                .expect("Failed to load semconv specs");
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
@@ -741,10 +759,6 @@ mod tests {
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
-            let observed_attr_catalog_json = serde_json::to_string_pretty(&observed_attr_catalog)
-                .expect("Failed to serialize observed attribute catalog");
-
-            // println!("Observed catalog: {}", observed_attr_catalog_json);
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
@@ -755,19 +769,15 @@ mod tests {
 
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
-                "Attribute catalog does not match for `{}`.\nObserved catalog:\n{}",
-                test_dir, observed_attr_catalog_json
+                "Observed and expected attribute catalogs don't match for `{}`.\nExpected catalog:\n{}\nObserved catalog:\n{}",
+                test_dir, to_json(&expected_attr_catalog), to_json(&observed_attr_catalog)
             );
 
             // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
             // println!("{}", yaml);
+            println!("Observed registry:\n{}", to_json(&observed_registry));
 
             // Check that the resolved registry matches the expected registry.
-            let observed_registry_json = serde_json::to_string_pretty(&observed_registry)
-                .expect("Failed to serialize observed registry");
-
-            // println!("Observed registry: {}", observed_registry_json);
-
             let expected_registry: Registry = serde_json::from_reader(
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
@@ -776,8 +786,8 @@ mod tests {
 
             assert_eq!(
                 observed_registry, expected_registry,
-                "Registry does not match for `{}`.\nObserved registry:\n{}",
-                test_dir, observed_registry_json
+                "Expected and observed registry don't match for `{}`.\nObserved registry:\n{}\nExpected registry:\n{}",
+                test_dir, to_json(&observed_registry), to_json(&expected_registry)
             );
 
             // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
@@ -885,5 +895,9 @@ mod tests {
         assert_eq!(span_count, 11, "11 spans in the resolved registry expected");
 
         Ok(())
+    }
+
+    fn to_json<T : Serialize + ?Sized>(value: &T) -> String {
+        serde_json::to_string_pretty(value).unwrap()
     }
 }

@@ -2,8 +2,10 @@
 
 //! Data structures used to keep track of the lineage of a semantic convention.
 
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+
 use weaver_semconv::attribute::{Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
@@ -139,7 +141,10 @@ pub enum FieldProvenance {
     /// The field is locally defined.
     Local,
     /// The field is redefined locally at the reference level.
-    Override,
+    Override {
+        /// The entity id where the override occurred.
+        r#in: String,
+    },
     /// The field is inherited from a parent entity pointed by the
     /// `extends` clause.
     /// In semantic conventions, this is used to inherit fields from a parent
@@ -181,7 +186,7 @@ impl AttributeLineageBuilder {
     pub fn new(
         id: &str,
         lineage_if_local: FieldProvenance,
-        lineage_if_parent: FieldProvenance
+        lineage_if_parent: FieldProvenance,
     ) -> Self {
         Self {
             inner: AttributeLineage {
@@ -214,11 +219,7 @@ impl AttributeLineageBuilder {
     /// from the parent.
     /// This method updates the lineage information for the brief field to
     /// reflect the source of its value.
-    pub fn brief(
-        &mut self,
-        local_value: &Option<String>,
-        parent_value: &str,
-    ) -> String {
+    pub fn brief(&mut self, local_value: &Option<String>, parent_value: &str) -> String {
         if let Some(local_value) = local_value {
             self.inner.brief = Some(self.lineage_if_local.clone());
             local_value.clone()
@@ -235,11 +236,7 @@ impl AttributeLineageBuilder {
     /// from the parent.
     /// This method updates the lineage information for the note field to
     /// reflect the source of its value.
-    pub fn note(
-        &mut self,
-        local_value: &Option<String>,
-        parent_value: &str,
-    ) -> String {
+    pub fn note(&mut self, local_value: &Option<String>, parent_value: &str) -> String {
         if let Some(local_value) = local_value {
             self.inner.note = Some(self.lineage_if_local.clone());
             local_value.clone()
@@ -374,7 +371,25 @@ impl AttributeLineageBuilder {
             parent_value.clone()
         }
     }
+}
 
+impl AttributeLineage {
+    /// Creates a new attribute lineage with the same provenance for all fields.
+    pub fn with_provenance(id: &str, provenance: FieldProvenance) -> Self {
+        Self {
+            id: id.to_owned(),
+            brief: Some(provenance.clone()),
+            examples: Some(provenance.clone()),
+            tag: Some(provenance.clone()),
+            requirement_level: Some(provenance.clone()),
+            sampling_relevant: Some(provenance.clone()),
+            note: Some(provenance.clone()),
+            stability: Some(provenance.clone()),
+            deprecated: Some(provenance.clone()),
+            tags: Some(provenance.clone()),
+            value: Some(provenance.clone()),
+        }
+    }
 }
 
 impl GroupLineage {
@@ -396,10 +411,7 @@ impl GroupLineage {
     }
 
     /// Adds an attribute lineage.
-    pub fn add_attribute_lineage(
-        &mut self,
-        attribute_lineage: AttributeLineage,
-    ) {
+    pub fn add_attribute_lineage(&mut self, attribute_lineage: AttributeLineage) {
         self.attributes.push(attribute_lineage);
     }
 
