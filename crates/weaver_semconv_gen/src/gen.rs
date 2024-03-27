@@ -298,7 +298,7 @@ impl<'a> AttributeTableView<'a> {
     ) -> Result<AttributeTableView<'a>, Error> {
         match lookup.find_group(id) {
             Some(group) => Ok(AttributeTableView { group, lookup }),
-            None => Err(Error::GroupNotFound { id: id.to_string() }),
+            None => Err(Error::GroupNotFound { id: id.to_owned() }),
         }
     }
 
@@ -320,16 +320,12 @@ impl<'a> AttributeTableView<'a> {
             .iter()
             .filter_map(|attr| self.lookup.attribute(attr))
             .sorted_by(|lhs, rhs| {
-                let result = sort_ordinal_for_requirement(&lhs.requirement_level)
-                    - sort_ordinal_for_requirement(&rhs.requirement_level);
-
-                if result < 0 {
-                    std::cmp::Ordering::Less
-                } else if result > 0 {
-                    std::cmp::Ordering::Greater
-                } else {
-                    // Compare name.
-                    lhs.name.cmp(&rhs.name)
+                match sort_ordinal_for_requirement(&lhs.requirement_level)
+                    .cmp(&sort_ordinal_for_requirement(&rhs.requirement_level))
+                {
+                    // If requirement_level is the same, then we compare by string.
+                    std::cmp::Ordering::Equal => lhs.name.cmp(&rhs.name),
+                    other => other,
                 }
             })
             .dedup_by(|x, y| x.name == y.name)
@@ -435,7 +431,7 @@ impl<'a> MetricView<'a> {
 
         match metric {
             Some(group) => Ok(MetricView { group }),
-            None => Err(Error::GroupMustBeMetric { id: id.to_string() }),
+            None => Err(Error::GroupMustBeMetric { id: id.to_owned() }),
         }
     }
 

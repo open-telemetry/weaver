@@ -267,14 +267,12 @@ mod tests {
         // Note: We could update this to run all tests in parallel and join results.
         // For now we're just getting things working.
         let test_dirs = fs::read_dir("legacy_tests").unwrap();
-        for opt_dir in test_dirs {
-            if let Ok(dir) = opt_dir {
-                if dir.path().join("test.md").exists() {
-                    println!();
-                    println!("--- Running test: {} ---", dir.path().display());
-                    println!();
-                    force_print_error(run_legacy_test(dir.path()))
-                }
+        for dir in test_dirs.flatten() {
+            if dir.path().join("test.md").exists() {
+                println!();
+                println!("--- Running test: {} ---", dir.path().display());
+                println!();
+                force_print_error(run_legacy_test(dir.path()))
             }
         }
     }
