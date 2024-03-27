@@ -319,6 +319,8 @@ pub struct EnumEntriesSpec {
     /// Longer description.
     /// It defaults to an empty string.
     pub note: Option<String>,
+    /// Stability of this enum value.
+    pub stability: Option<Stability>,
 }
 
 /// Implements a human readable display for EnumEntries.
