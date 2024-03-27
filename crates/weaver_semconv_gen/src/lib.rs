@@ -231,10 +231,10 @@ impl ResolvedSemconvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use weaver_logger::TestLogger;
+    use crate::{update_markdown, Error, ResolvedSemconvRegistry};
     use std::fs;
     use std::path::PathBuf;
-    use crate::{update_markdown, Error, ResolvedSemconvRegistry};
+    use weaver_logger::TestLogger;
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn  run_legacy_tests() {
+    fn run_legacy_tests() {
         // Note: We could update this to run all tests in parallel and join results.
         // For now we're just getting things working.
         let test_dirs = fs::read_dir("legacy_tests").unwrap();

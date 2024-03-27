@@ -4,7 +4,6 @@
 
 use crate::{Error, GenerateMarkdownArgs, ResolvedSemconvRegistry};
 use itertools::Itertools;
-use weaver_semconv::stability::Stability;
 use std::fmt::Write;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
@@ -13,6 +12,7 @@ use weaver_semconv::attribute::{
     RequirementLevel, TemplateTypeSpec, ValueSpec,
 };
 use weaver_semconv::group::{GroupType, InstrumentSpec};
+use weaver_semconv::stability::Stability;
 
 // The size a string is allowed to be before it is pushed into notes.
 const BREAK_COUNT: usize = 50;
@@ -154,7 +154,10 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_enum_spec_table<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write!(out, "\n| Value  | Description | Stability |\n|---|---|---|\n")?;
+        write!(
+            out,
+            "\n| Value  | Description | Stability |\n|---|---|---|\n"
+        )?;
         if let AttributeType::Enum { members, .. } = &self.attribute.r#type {
             for m in members {
                 write!(out, "| ")?;
@@ -272,7 +275,6 @@ impl<'a> AttributeView<'a> {
     }
 }
 
-
 fn sort_ordinal_for_requirement(e: &RequirementLevel) -> i32 {
     // For now use ordinals from python.
     match e {
@@ -317,9 +319,9 @@ impl<'a> AttributeTableView<'a> {
             .attributes
             .iter()
             .filter_map(|attr| self.lookup.attribute(attr))
-            .sorted_by(|lhs, rhs| {               
-                let result = sort_ordinal_for_requirement(&lhs.requirement_level) -
-                sort_ordinal_for_requirement(&rhs.requirement_level);
+            .sorted_by(|lhs, rhs| {
+                let result = sort_ordinal_for_requirement(&lhs.requirement_level)
+                    - sort_ordinal_for_requirement(&rhs.requirement_level);
 
                 if result < 0 {
                     std::cmp::Ordering::Less
@@ -361,11 +363,10 @@ impl<'a> AttributeTableView<'a> {
         }
 
         // If the user defined a tag, use it to filter attributes.
-        let attributes: Vec<AttributeView<'_>> = 
-            match args.tag_filter() {
-                Some(tag) => self.attributes().filter(|a| a.has_tag(tag)).collect(),
-                None => self.attributes().collect(),
-            };
+        let attributes: Vec<AttributeView<'_>> = match args.tag_filter() {
+            Some(tag) => self.attributes().filter(|a| a.has_tag(tag)).collect(),
+            None => self.attributes().collect(),
+        };
 
         for attr in &attributes {
             write!(out, "| ")?;
