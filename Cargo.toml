@@ -32,7 +32,7 @@ serde_json = "1.0.114"
 thiserror = "1.0.58"
 ureq = "2.9.6"
 regex = "1.10.3"
-rayon = "1.9.0"
+rayon = "1.10.0"
 ordered-float = { version = "4.2.0", features = ["serde"] }
 walkdir = "2.5.0"
 anyhow = "1.0.81"
