@@ -273,7 +273,7 @@ impl<'a> AttributeView<'a> {
 }
 
 
-fn sort_oridinal_for_requirement(e: &RequirementLevel) -> i32 {
+fn sort_ordinal_for_requirement(e: &RequirementLevel) -> i32 {
     // For now use ordinals from python.
     match e {
         RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => 1,
@@ -318,8 +318,8 @@ impl<'a> AttributeTableView<'a> {
             .iter()
             .filter_map(|attr| self.lookup.attribute(attr))
             .sorted_by(|lhs, rhs| {               
-                let result = sort_oridinal_for_requirement(&lhs.requirement_level) -
-                sort_oridinal_for_requirement(&rhs.requirement_level);
+                let result = sort_ordinal_for_requirement(&lhs.requirement_level) -
+                sort_ordinal_for_requirement(&rhs.requirement_level);
 
                 if result < 0 {
                     std::cmp::Ordering::Less

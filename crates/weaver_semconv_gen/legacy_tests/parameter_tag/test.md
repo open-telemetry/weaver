@@ -1,6 +1,6 @@
 # DB
 
-<!-- Note: Compared to build-tools, we've removed any-of contraint text *AND* added attribute registry links. -->
+<!-- Note: Compared to build-tools, we've removed any-of constraint text *AND* added attribute registry links. -->
 
 <!-- semconv db(tag=connection-level) -->
 | Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |
