@@ -24,7 +24,7 @@ jaq-core = "1.2.1"
 jaq-std = "1.2.1"
 jaq-interpret = "1.2.1"
 jaq-parse = "1.0.2"
-indexmap = "2.2.5"
+indexmap = "2.2.6"
 
 thiserror.workspace = true
 serde.workspace = true
