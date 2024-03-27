@@ -4,6 +4,7 @@
 
 use crate::{Error, GenerateMarkdownArgs, ResolvedSemconvRegistry};
 use itertools::Itertools;
+use weaver_semconv::stability::Stability;
 use std::fmt::Write;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
@@ -153,7 +154,7 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_enum_spec_table<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write!(out, "\n| Value  | Description |\n|---|---|\n")?;
+        write!(out, "\n| Value  | Description | Stability |\n|---|---|---|\n")?;
         if let AttributeType::Enum { members, .. } = &self.attribute.r#type {
             for m in members {
                 write!(out, "| ")?;
@@ -162,9 +163,17 @@ impl<'a> AttributeView<'a> {
                 if let Some(v) = m.brief.as_ref() {
                     write!(out, "{}", v.trim())?;
                 }
+                // Stability.
+                write!(out, " | ")?;
+                match m.stability {
+                    Some(Stability::Stable) => write!(out, "Stable")?,
+                    Some(Stability::Deprecated) => write!(out, "Deprecated")?,
+                    Some(Stability::Experimental) | None => write!(out, "Experimental")?,
+                }
                 writeln!(out, " |")?;
             }
-        } // TODO - error message on not enum...
+        }
+        // TODO - error message on not enum?...
         Ok(())
     }
 
@@ -263,6 +272,18 @@ impl<'a> AttributeView<'a> {
     }
 }
 
+
+fn sort_oridinal_for_requirement(e: &RequirementLevel) -> i32 {
+    // For now use ordinals from python.
+    match e {
+        RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => 1,
+        RequirementLevel::ConditionallyRequired { .. } => 2,
+        RequirementLevel::Recommended { .. } => 3,
+        RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => 3,
+        RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => 4,
+    }
+}
+
 pub struct AttributeTableView<'a> {
     group: &'a Group,
     lookup: &'a ResolvedSemconvRegistry,
@@ -296,7 +317,19 @@ impl<'a> AttributeTableView<'a> {
             .attributes
             .iter()
             .filter_map(|attr| self.lookup.attribute(attr))
-            .sorted_by_key(|a| a.name.as_str())
+            .sorted_by(|lhs, rhs| {               
+                let result = sort_oridinal_for_requirement(&lhs.requirement_level) -
+                sort_oridinal_for_requirement(&rhs.requirement_level);
+
+                if result < 0 {
+                    std::cmp::Ordering::Less
+                } else if result > 0 {
+                    std::cmp::Ordering::Greater
+                } else {
+                    // Compare name.
+                    lhs.name.cmp(&rhs.name)
+                }
+            })
             .dedup_by(|x, y| x.name == y.name)
             .map(|attribute| AttributeView { attribute })
     }
@@ -319,11 +352,11 @@ impl<'a> AttributeTableView<'a> {
             writeln!(out, "|---|---|---|---|")?;
         } else {
             // TODO - we should use link version and update tests/semconv upstream.
-            //writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) |");
-            writeln!(
-                out,
-                "| Attribute  | Type | Description  | Examples  | Requirement Level |"
-            )?;
+            writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |")?;
+            // writeln!(
+            //     out,
+            //     "| Attribute  | Type | Description  | Examples  | Requirement Level |"
+            // )?;
             writeln!(out, "|---|---|---|---|---|")?;
         }
 
@@ -354,6 +387,8 @@ impl<'a> AttributeTableView<'a> {
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
 
+        // Add "constraints" notes.
+
         // Add sampling relevant callouts.
         let sampling_relevant: Vec<AttributeView<'_>> = self
             .attributes()
@@ -380,7 +415,7 @@ impl<'a> AttributeTableView<'a> {
         for e in attributes.iter().filter(|a| a.is_enum()) {
             write!(out, "\n`")?;
             e.write_name(out)?;
-            writeln!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used, otherwise a custom value MAY be used.")?;
+            writeln!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used; otherwise, a custom value MAY be used.")?;
             e.write_enum_spec_table(out)?;
         }
         Ok(())
