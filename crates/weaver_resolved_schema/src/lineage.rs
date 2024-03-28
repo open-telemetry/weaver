@@ -2,11 +2,11 @@
 
 //! Data structures used to keep track of the lineage of a semantic convention.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use weaver_semconv::attribute::{Examples, RequirementLevel};
+use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
 /// Resolution mode.
@@ -95,43 +95,16 @@ pub struct FieldLineage {
 pub struct AttributeLineage {
     /// The attribute id.
     pub id: String,
-    /// The lineage of the brief field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub brief: Option<FieldProvenance>,
-    /// The lineage of the examples field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub examples: Option<FieldProvenance>,
-    /// The lineage of the tag field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tag: Option<FieldProvenance>,
-    /// The lineage of the requirement level field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub requirement_level: Option<FieldProvenance>,
-    /// The lineage of the sampling relevant field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sampling_relevant: Option<FieldProvenance>,
-    /// The lineage of the note field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<FieldProvenance>,
-    /// The lineage of the stability field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stability: Option<FieldProvenance>,
-    /// The lineage of the deprecated field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<FieldProvenance>,
-    /// The lineage of the tags field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<FieldProvenance>,
-    /// The lineage of the value field.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<FieldProvenance>,
-}
-
-/// Attribute lineage builder.
-pub struct AttributeLineageBuilder {
-    inner: AttributeLineage,
-    lineage_if_local: FieldProvenance,
-    lineage_if_parent: FieldProvenance,
+    /// The group id where the attribute is coming from.
+    pub source_group: String,
+    /// A list of fields that are inherited from the source group.
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default)]
+    pub inherited_fields: BTreeSet<String>,
+    /// A list of fields that are overridden in the local group.
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    #[serde(default)]
+    pub locally_overridden_fields: BTreeSet<String>,
 }
 
 // ToDo rename this struct FieldLineage
@@ -162,8 +135,9 @@ pub enum FieldProvenance {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[must_use]
 pub struct GroupLineage {
-    /// The provenance of the group.
-    provenance: String,
+    /// The path or URL of the source file where the group is defined.
+    source_file: String,
+
     /// The lineage per group field.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(default)]
@@ -175,41 +149,82 @@ pub struct GroupLineage {
     attributes: Vec<AttributeLineage>,
 }
 
-impl AttributeLineageBuilder {
-    /// Creates a new attribute lineage builder.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - The id of the attribute.
-    /// * `lineage_if_local` - The lineage if the field is locally defined.
-    /// * `lineage_if_parent` - The lineage if the field is inherited from a parent entity.
-    pub fn new(
-        id: &str,
-        lineage_if_local: FieldProvenance,
-        lineage_if_parent: FieldProvenance,
-    ) -> Self {
+impl AttributeLineage {
+    /// Creates a new attribute lineage.
+    pub fn new(attr_id: &str, source_group: &str) -> Self {
         Self {
-            inner: AttributeLineage {
-                id: id.to_owned(),
-                brief: None,
-                examples: None,
-                tag: None,
-                requirement_level: None,
-                sampling_relevant: None,
-                note: None,
-                stability: None,
-                deprecated: None,
-                tags: None,
-                value: None,
-            },
-            lineage_if_local,
-            lineage_if_parent,
+            id: attr_id.to_owned(),
+            source_group: source_group.to_owned(),
+            inherited_fields: Default::default(),
+            locally_overridden_fields: Default::default(),
         }
     }
 
-    /// Builds the attribute lineage.
-    pub fn build(self) -> AttributeLineage {
-        self.inner
+    /// Creates a new attribute lineage by inheriting fields from the specified
+    /// source group.
+    pub fn inherit_from(source_group: &str, attr_spec: &AttributeSpec) -> Self {
+        let mut attr_lineage = Self {
+            id: attr_spec.id().clone(),
+            source_group: source_group.to_owned(),
+            inherited_fields: Default::default(),
+            locally_overridden_fields: Default::default(),
+        };
+        match attr_spec {
+            AttributeSpec::Ref { brief, examples, tag, requirement_level, sampling_relevant, note, stability, deprecated, .. } => {
+                if brief.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("brief".to_owned());
+                }
+                if examples.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("examples".to_owned());
+                }
+                if tag.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("tag".to_owned());
+                }
+                if requirement_level.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("requirement_level".to_owned());
+                }
+                if sampling_relevant.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("sampling_relevant".to_owned());
+                }
+                if note.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("note".to_owned());
+                }
+                if stability.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("stability".to_owned());
+                }
+                if deprecated.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("deprecated".to_owned());
+                }
+            }
+            AttributeSpec::Id { brief, examples, tag, sampling_relevant, stability, deprecated, .. } => {
+                if brief.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("brief".to_owned());
+                }
+                if examples.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("examples".to_owned());
+                }
+                if tag.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("tag".to_owned());
+                }
+                _ = attr_lineage.inherited_fields.insert("requirement_level".to_owned());
+                if sampling_relevant.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("sampling_relevant".to_owned());
+                }
+                _ = attr_lineage.inherited_fields.insert("note".to_owned());
+                if stability.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("stability".to_owned());
+                }
+                if deprecated.is_some() {
+                    _ = attr_lineage.inherited_fields.insert("deprecated".to_owned());
+                }
+            }
+        }
+        attr_lineage
+    }
+
+    /// Determines if the attribute lineage is empty.
+    pub fn is_empty(&self) -> bool {
+        self.inherited_fields.is_empty() && self.locally_overridden_fields.is_empty()
     }
 
     /// Determines the value of the brief field by evaluating the presence of a
@@ -217,14 +232,47 @@ impl AttributeLineageBuilder {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the brief field's lineage is marked as inherited
     /// from the parent.
-    /// This method updates the lineage information for the brief field to
-    /// reflect the source of its value.
     pub fn brief(&mut self, local_value: &Option<String>, parent_value: &str) -> String {
         if let Some(local_value) = local_value {
-            self.inner.brief = Some(self.lineage_if_local.clone());
+            _ = self.locally_overridden_fields.insert("brief".to_owned());
+            _ = self.inherited_fields.remove("brief");
             local_value.clone()
         } else {
-            self.inner.brief = Some(self.lineage_if_parent.clone());
+            _ = self.inherited_fields.insert("brief".to_owned());
+            parent_value.to_owned()
+        }
+    }
+
+    /// Determines the value of the brief field by evaluating the presence of a
+    /// local value. If a local value is provided, it is used, and the brief
+    /// field's lineage is marked as local. Otherwise, the specified parent
+    /// value is used, and the brief field's lineage is marked as inherited
+    /// from the parent.
+    pub fn optional_brief(&mut self, local_value: &Option<String>, parent_value: &Option<String>) -> Option<String> {
+        if local_value.is_some() {
+            _ = self.locally_overridden_fields.insert("brief".to_owned());
+            _ = self.inherited_fields.remove("brief");
+            local_value.clone()
+        } else {
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("brief".to_owned());
+            }
+            parent_value.clone()
+        }
+    }
+
+    /// Determines the value of the note field by evaluating the presence of a
+    /// local value. If a local value is provided, it is used, and the note
+    /// field's lineage is marked as local. Otherwise, the specified parent
+    /// value is used, and the note field's lineage is marked as inherited
+    /// from the parent.
+    pub fn note(&mut self, local_value: &Option<String>, parent_value: &str) -> String {
+        if let Some(local_value) = local_value {
+            _ = self.locally_overridden_fields.insert("note".to_owned());
+            _ = self.inherited_fields.remove("note");
+            local_value.clone()
+        } else {
+            _ = self.inherited_fields.insert("note".to_owned());
             parent_value.to_owned()
         }
     }
@@ -234,14 +282,35 @@ impl AttributeLineageBuilder {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the note field's lineage is marked as inherited
     /// from the parent.
-    /// This method updates the lineage information for the note field to
-    /// reflect the source of its value.
-    pub fn note(&mut self, local_value: &Option<String>, parent_value: &str) -> String {
-        if let Some(local_value) = local_value {
-            self.inner.note = Some(self.lineage_if_local.clone());
+    pub fn optional_note(&mut self, local_value: &Option<String>, parent_value: &Option<String>) -> Option<String> {
+        if local_value.is_some() {
+            _ = self.locally_overridden_fields.insert("note".to_owned());
+            _ = self.inherited_fields.remove("note");
             local_value.clone()
         } else {
-            self.inner.note = Some(self.lineage_if_parent.clone());
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("note".to_owned());
+            }
+            parent_value.clone()
+        }
+    }
+
+    /// Determines the value of the value field by evaluating the presence of a
+    /// local value. If a local value is provided, it is used, and the value
+    /// field's lineage is marked as local. Otherwise, the specified parent
+    /// value is used, and the value field's lineage is marked as inherited
+    /// from the parent.
+    pub fn requirement_level(
+        &mut self,
+        local_value: &Option<RequirementLevel>,
+        parent_value: &RequirementLevel,
+    ) -> RequirementLevel {
+        if let Some(local_value) = local_value {
+            _ = self.locally_overridden_fields.insert("requirement_level".to_owned());
+            _ = self.inherited_fields.remove("requirement_level");
+            local_value.clone()
+        } else {
+            _ = self.inherited_fields.insert("requirement_level".to_owned());
             parent_value.to_owned()
         }
     }
@@ -251,19 +320,20 @@ impl AttributeLineageBuilder {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the value field's lineage is marked as inherited
     /// from the parent.
-    /// This method updates the lineage information for the value field to
-    /// reflect the source of its value.
-    pub fn requirement_level(
+    pub fn optional_requirement_level(
         &mut self,
         local_value: &Option<RequirementLevel>,
-        parent_value: &RequirementLevel,
-    ) -> RequirementLevel {
-        if let Some(local_value) = local_value {
-            self.inner.requirement_level = Some(self.lineage_if_local.clone());
+        parent_value: &Option<RequirementLevel>,
+    ) -> Option<RequirementLevel> {
+        if local_value.is_some() {
+            _ = self.locally_overridden_fields.insert("requirement_level".to_owned());
+            _ = self.inherited_fields.remove("requirement_level");
             local_value.clone()
         } else {
-            self.inner.requirement_level = Some(self.lineage_if_parent.clone());
-            parent_value.to_owned()
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("requirement_level".to_owned());
+            }
+            parent_value.clone()
         }
     }
 
@@ -272,18 +342,19 @@ impl AttributeLineageBuilder {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the examples field's lineage is marked as inherited
     /// from the parent.
-    /// This method updates the lineage information for the examples field to
-    /// reflect the source of its value.
     pub fn examples(
         &mut self,
         local_value: &Option<Examples>,
         parent_value: &Option<Examples>,
     ) -> Option<Examples> {
         if local_value.is_some() {
-            self.inner.examples = Some(self.lineage_if_local.clone());
+            _ = self.locally_overridden_fields.insert("examples".to_owned());
+            _ = self.inherited_fields.remove("examples");
             local_value.clone()
         } else {
-            self.inner.examples = Some(self.lineage_if_parent.clone());
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("examples".to_owned());
+            }
             parent_value.clone()
         }
     }
@@ -293,18 +364,19 @@ impl AttributeLineageBuilder {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the stability field's lineage is marked as inherited
     /// from the parent.
-    /// This method updates the lineage information for the stability field to
-    /// reflect the source of its value.
     pub fn stability(
         &mut self,
         local_value: &Option<Stability>,
         parent_value: &Option<Stability>,
     ) -> Option<Stability> {
         if local_value.is_some() {
-            self.inner.stability = Some(self.lineage_if_local.clone());
+            _ = self.locally_overridden_fields.insert("stability".to_owned());
+            _ = self.inherited_fields.remove("stability");
             local_value.clone()
         } else {
-            self.inner.stability = Some(self.lineage_if_parent.clone());
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("stability".to_owned());
+            }
             parent_value.clone()
         }
     }
@@ -314,18 +386,19 @@ impl AttributeLineageBuilder {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the deprecated field's lineage is marked as inherited
     /// from the parent.
-    /// This method updates the lineage information for the deprecated field to
-    /// reflect the source of its value.
     pub fn deprecated(
         &mut self,
         local_value: &Option<String>,
         parent_value: &Option<String>,
     ) -> Option<String> {
         if local_value.is_some() {
-            self.inner.deprecated = Some(self.lineage_if_local.clone());
+            _ = self.locally_overridden_fields.insert("deprecated".to_owned());
+            _ = self.inherited_fields.remove("deprecated");
             local_value.clone()
         } else {
-            self.inner.deprecated = Some(self.lineage_if_parent.clone());
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("deprecated".to_owned());
+            }
             parent_value.clone()
         }
     }
@@ -343,10 +416,13 @@ impl AttributeLineageBuilder {
         parent_value: &Option<String>,
     ) -> Option<String> {
         if local_value.is_some() {
-            self.inner.tag = Some(self.lineage_if_local.clone());
+            _ = self.locally_overridden_fields.insert("tag".to_owned());
+            _ = self.inherited_fields.remove("tag");
             local_value.clone()
         } else {
-            self.inner.tag = Some(self.lineage_if_parent.clone());
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("tag".to_owned());
+            }
             parent_value.clone()
         }
     }
@@ -364,30 +440,14 @@ impl AttributeLineageBuilder {
         parent_value: &Option<bool>,
     ) -> Option<bool> {
         if local_value.is_some() {
-            self.inner.sampling_relevant = Some(self.lineage_if_local.clone());
+            _ = self.locally_overridden_fields.insert("sampling_relevant".to_owned());
+            _ = self.inherited_fields.remove("sampling_relevant");
             local_value.clone()
         } else {
-            self.inner.sampling_relevant = Some(self.lineage_if_parent.clone());
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("sampling_relevant".to_owned());
+            }
             parent_value.clone()
-        }
-    }
-}
-
-impl AttributeLineage {
-    /// Creates a new attribute lineage with the same provenance for all fields.
-    pub fn with_provenance(id: &str, provenance: FieldProvenance) -> Self {
-        Self {
-            id: id.to_owned(),
-            brief: Some(provenance.clone()),
-            examples: Some(provenance.clone()),
-            tag: Some(provenance.clone()),
-            requirement_level: Some(provenance.clone()),
-            sampling_relevant: Some(provenance.clone()),
-            note: Some(provenance.clone()),
-            stability: Some(provenance.clone()),
-            deprecated: Some(provenance.clone()),
-            tags: Some(provenance.clone()),
-            value: Some(provenance.clone()),
         }
     }
 }
@@ -396,7 +456,7 @@ impl GroupLineage {
     /// Creates a new group lineage.
     pub fn new(provenance: String) -> Self {
         Self {
-            provenance,
+            source_file: provenance,
             fields: BTreeMap::new(),
             attributes: Vec::new(),
         }
@@ -418,7 +478,7 @@ impl GroupLineage {
     /// Returns the provenance of the group.
     #[must_use]
     pub fn provenance(&self) -> &str {
-        &self.provenance
+        &self.source_file
     }
 
     /// Returns the lineage of the specified field.

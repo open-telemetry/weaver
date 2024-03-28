@@ -13,7 +13,7 @@
         3
       ],
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-common.yaml"
+        "source_file": "data/registry-test-5-metrics/registry/faas-common.yaml"
       }
     },
     {
@@ -27,50 +27,16 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -86,50 +52,16 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -145,50 +77,16 @@
       "instrument": "counter",
       "unit": "{coldstart}",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -204,50 +102,16 @@
       "instrument": "counter",
       "unit": "{error}",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -263,50 +127,16 @@
       "instrument": "counter",
       "unit": "{invocation}",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -322,50 +152,16 @@
       "instrument": "counter",
       "unit": "{timeout}",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -381,50 +177,16 @@
       "instrument": "histogram",
       "unit": "By",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -440,50 +202,16 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -499,50 +227,16 @@
       "instrument": "histogram",
       "unit": "By",
       "lineage": {
-        "provenance": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
         "attributes": [
           {
             "id": "faas.trigger",
-            "brief": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "attributes.faas.common"
-              }
-            }
+            "source_group": "attributes.faas.common",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }

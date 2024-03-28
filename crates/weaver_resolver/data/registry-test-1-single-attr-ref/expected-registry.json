@@ -9,46 +9,19 @@
         1
       ],
       "lineage": {
-        "provenance": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -62,7 +35,7 @@
         0
       ],
       "lineage": {
-        "provenance": "data/registry-test-1-single-attr-ref/registry/registry-messaging.yaml"
+        "source_file": "data/registry-test-1-single-attr-ref/registry/registry-messaging.yaml"
       }
     }
   ]

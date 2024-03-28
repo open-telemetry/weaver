@@ -13,190 +13,72 @@
         66
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
+        "source_file": "data/registry-test-3-extends/registry/http-common.yaml",
         "attributes": [
           {
             "id": "http.request.method",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "http.response.status_code",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples"
+            ]
           }
         ]
       }
@@ -216,291 +98,149 @@
         69
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
+        "source_file": "data/registry-test-3-extends/registry/http-common.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "http.request.method",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "http.response.status_code",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "http.request.method",
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "http.response.status_code",
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples"
+            ]
           },
           {
             "id": "server.address",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "requirement_level"
+            ]
           },
           {
             "id": "url.scheme",
-            "brief": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            }
+            "source_group": "registry.url",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -521,326 +261,162 @@
         73
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/http-common.yaml",
+        "source_file": "data/registry-test-3-extends/registry/http-common.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "http.request.method",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "http.response.status_code",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
-          },
-          {
-            "id": "http.route",
-            "brief": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.http"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "http.request.method",
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "http.response.status_code",
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "http.route",
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples"
+            ]
           },
           {
             "id": "server.address",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note"
+            ]
           },
           {
             "id": "server.port",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "url.scheme",
-            "brief": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.url"
-              }
-            }
+            "source_group": "registry.url",
+            "inherited_fields": [
+              "brief",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -859,233 +435,83 @@
         78
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/messaging-common.yaml",
+        "source_file": "data/registry-test-3-extends/registry/messaging-common.yaml",
         "attributes": [
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
           }
         ]
       }
@@ -1105,311 +531,145 @@
         80
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
-          },
-          {
-            "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
-          },
-          {
-            "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "messaging.attributes.common",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "messaging.attributes.common",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "messaging.attributes.common",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "messaging.attributes.common",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "messaging.attributes.common",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -1432,311 +692,159 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -1759,311 +867,159 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -2086,311 +1042,159 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -2413,311 +1217,159 @@
       "instrument": "counter",
       "unit": "{message}",
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -2740,311 +1392,159 @@
       "instrument": "counter",
       "unit": "{message}",
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -3067,311 +1567,159 @@
       "instrument": "counter",
       "unit": "{message}",
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "error.type",
-            "brief": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.error"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.system",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "examples",
+              "tag"
+            ]
           },
           {
             "id": "network.protocol.version",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "tag": "Override",
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "tag"
+            ]
           },
           {
             "id": "server.address",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric.messaging.attributes",
+            "inherited_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "error.type",
+            "source_group": "registry.error",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.name",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.destination.template",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "messaging.system",
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          {
+            "id": "server.address",
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           }
         ]
       }
@@ -3385,7 +1733,7 @@
         0
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/registry-error.yaml"
+        "source_file": "data/registry-test-3-extends/registry/registry-error.yaml"
       }
     },
     {
@@ -3405,7 +1753,7 @@
         9
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/registry-http.yaml"
+        "source_file": "data/registry-test-3-extends/registry/registry-http.yaml"
       }
     },
     {
@@ -3446,7 +1794,7 @@
         39
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/registry-messaging.yaml"
+        "source_file": "data/registry-test-3-extends/registry/registry-messaging.yaml"
       }
     },
     {
@@ -3472,7 +1820,7 @@
         54
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/registry-network.yaml"
+        "source_file": "data/registry-test-3-extends/registry/registry-network.yaml"
       }
     },
     {
@@ -3485,7 +1833,7 @@
         56
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/registry-server.yaml"
+        "source_file": "data/registry-test-3-extends/registry/registry-server.yaml"
       }
     },
     {
@@ -3501,7 +1849,7 @@
         61
       ],
       "lineage": {
-        "provenance": "data/registry-test-3-extends/registry/registry-url.yaml"
+        "source_file": "data/registry-test-3-extends/registry/registry-url.yaml"
       }
     }
   ]

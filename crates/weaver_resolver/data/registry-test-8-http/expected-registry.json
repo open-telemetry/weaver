@@ -9,42 +9,20 @@
         2
       ],
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http-common.yaml",
+        "source_file": "data/registry-test-8-http/registry/http-common.yaml",
         "attributes": [
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -58,73 +36,41 @@
         3
       ],
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http-common.yaml",
+        "source_file": "data/registry-test-8-http/registry/http-common.yaml",
         "attributes": [
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "attributes.http.common",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -138,73 +84,52 @@
         4
       ],
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http.yaml",
+        "source_file": "data/registry-test-8-http/registry/http.yaml",
         "attributes": [
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "attributes.http.server",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "attributes.http.server",
+            "inherited_fields": [
+              "brief"
+            ],
+            "locally_overridden_fields": [
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "server.port",
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -222,73 +147,50 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http.yaml",
+        "source_file": "data/registry-test-8-http/registry/http.yaml",
         "attributes": [
           {
             "id": "network.protocol.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.network"
-              }
-            }
+            "source_group": "metric_attributes.http.server",
+            "inherited_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
           {
             "id": "server.port",
-            "brief": "Override",
-            "examples": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "server"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "server"
-              }
-            }
+            "source_group": "metric_attributes.http.server",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.protocol.name",
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "server.port",
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -302,7 +204,7 @@
         0
       ],
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/network.yaml"
+        "source_file": "data/registry-test-8-http/registry/network.yaml"
       }
     },
     {
@@ -314,7 +216,7 @@
         1
       ],
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/server.yaml"
+        "source_file": "data/registry-test-8-http/registry/server.yaml"
       }
     }
   ]

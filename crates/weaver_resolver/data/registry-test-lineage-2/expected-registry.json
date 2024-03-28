@@ -1,0 +1,116 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "base.level",
+      "type": "attribute_group",
+      "brief": "Base level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-2/registry/groups.yaml"
+      }
+    },
+    {
+      "id": "registry.xyz",
+      "type": "attribute_group",
+      "brief": "Just a registry of attributes",
+      "attributes": [
+        1,
+        2,
+        3
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-2/registry/groups.yaml"
+      }
+    },
+    {
+      "id": "intermediate.level",
+      "type": "attribute_group",
+      "brief": "Intermediate level",
+      "attributes": [
+        4,
+        5
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-2/registry/groups.yaml",
+        "attributes": [
+          {
+            "id": "server.port",
+            "source_group": "base.level",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "top.level",
+      "type": "attribute_group",
+      "brief": "Top level",
+      "attributes": [
+        3,
+        6,
+        7,
+        8
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-2/registry/groups.yaml",
+        "attributes": [
+          {
+            "id": "network.protocol.name",
+            "source_group": "intermediate.level",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "server.port",
+            "source_group": "intermediate.level",
+            "inherited_fields": [
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples"
+            ]
+          },
+          {
+            "id": "network.protocol.version",
+            "source_group": "registry.xyz",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          {
+            "id": "network.type",
+            "source_group": "registry.xyz",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

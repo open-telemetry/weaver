@@ -10,7 +10,7 @@
         0
       ],
       "lineage": {
-        "provenance": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
+        "source_file": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
       }
     },
     {
@@ -26,38 +26,20 @@
         5
       ],
       "lineage": {
-        "provenance": "data/registry-test-6-resources/registry/resource-browser.yaml",
+        "source_file": "data/registry-test-6-resources/registry/resource-browser.yaml",
         "attributes": [
           {
             "id": "user_agent.original",
-            "brief": "Override",
-            "examples": "Override",
-            "tag": {
-              "Inherited": {
-                "from": "registry.user_agent"
-              }
-            },
-            "requirement_level": {
-              "Inherited": {
-                "from": "registry.user_agent"
-              }
-            },
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.user_agent"
-              }
-            },
-            "note": "Override",
-            "stability": {
-              "Inherited": {
-                "from": "registry.user_agent"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.user_agent"
-              }
-            }
+            "source_group": "registry.user_agent",
+            "inherited_fields": [
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note"
+            ]
           }
         ]
       }

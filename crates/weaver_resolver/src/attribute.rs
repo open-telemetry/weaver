@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute;
 use weaver_resolved_schema::attribute::AttributeRef;
-use weaver_resolved_schema::lineage::{AttributeLineageBuilder, FieldProvenance, GroupLineage};
+use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_schema::attribute::Attribute;
 use weaver_schema::tags::Tags;
 use weaver_semconv::attribute::{AttributeSpec, ValueSpec};
@@ -91,15 +91,7 @@ impl AttributeCatalog {
             } => {
                 let root_attr = self.root_attributes.get(r#ref);
                 if let Some(root_attr) = root_attr {
-                    let mut resolver = AttributeLineageBuilder::new(
-                        r#ref,
-                        FieldProvenance::Override {
-                            r#in: group_id.to_owned(),
-                        },
-                        FieldProvenance::Inherited {
-                            from: root_attr.group_id.clone(),
-                        },
-                    );
+                    let mut attr_lineage = AttributeLineage::new(r#ref, &root_attr.group_id);
 
                     // Create a fully resolved attribute from an attribute spec
                     // (ref) and override the root attribute with the new
@@ -107,20 +99,20 @@ impl AttributeCatalog {
                     let resolved_attr = attribute::Attribute {
                         name: r#ref.clone(),
                         r#type: root_attr.attribute.r#type.clone(),
-                        brief: resolver.brief(brief, &root_attr.attribute.brief),
-                        examples: resolver.examples(examples, &root_attr.attribute.examples),
-                        tag: resolver.tag(tag, &root_attr.attribute.tag),
-                        requirement_level: resolver.requirement_level(
+                        brief: attr_lineage.brief(brief, &root_attr.attribute.brief),
+                        examples: attr_lineage.examples(examples, &root_attr.attribute.examples),
+                        tag: attr_lineage.tag(tag, &root_attr.attribute.tag),
+                        requirement_level: attr_lineage.requirement_level(
                             requirement_level,
                             &root_attr.attribute.requirement_level,
                         ),
-                        sampling_relevant: resolver.sampling_relevant(
+                        sampling_relevant: attr_lineage.sampling_relevant(
                             sampling_relevant,
                             &root_attr.attribute.sampling_relevant,
                         ),
-                        note: resolver.note(note, &root_attr.attribute.note),
-                        stability: resolver.stability(stability, &root_attr.attribute.stability),
-                        deprecated: resolver
+                        note: attr_lineage.note(note, &root_attr.attribute.note),
+                        stability: attr_lineage.stability(stability, &root_attr.attribute.stability),
+                        deprecated: attr_lineage
                             .deprecated(deprecated, &root_attr.attribute.deprecated),
                         tags: root_attr.attribute.tags.clone(),
                         value: root_attr.attribute.value.clone(),
@@ -131,7 +123,7 @@ impl AttributeCatalog {
                     // Update the lineage based on the inherited fields.
                     // Note: the lineage is only updated if a group lineage is provided.
                     if let Some(lineage) = lineage {
-                        lineage.add_attribute_lineage(resolver.build());
+                        lineage.add_attribute_lineage(attr_lineage);
                     }
 
                     Some(attr_ref)

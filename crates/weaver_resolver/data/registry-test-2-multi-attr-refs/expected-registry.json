@@ -10,85 +10,31 @@
         31
       ],
       "lineage": {
-        "provenance": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
         "attributes": [
           {
             "id": "messaging.destination.name",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           },
           {
             "id": "messaging.destination.template",
-            "brief": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "examples": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "tag": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "requirement_level": "Override",
-            "sampling_relevant": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "note": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "stability": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            },
-            "deprecated": {
-              "Inherited": {
-                "from": "registry.messaging"
-              }
-            }
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           }
         ]
       }
@@ -131,7 +77,7 @@
         29
       ],
       "lineage": {
-        "provenance": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml"
+        "source_file": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml"
       }
     }
   ]
