@@ -31,7 +31,7 @@ fn parse_value(input: &str) -> IResult<&str, &str> {
 fn parse_markdown_gen_tag(input: &str) -> IResult<&str, MarkdownGenParameters> {
     let (input, _) = tag("tag=")(input)?;
     let (input, value) = parse_value(input)?;
-    Ok((input, MarkdownGenParameters::Tag(value.to_string())))
+    Ok((input, MarkdownGenParameters::Tag(value.to_owned())))
 }
 
 /// nom parser for full.
@@ -89,7 +89,7 @@ fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs
     Ok((
         input,
         GenerateMarkdownArgs {
-            id: id.to_string(),
+            id: id.to_owned(),
             args: opt_args.unwrap_or(Vec::new()),
         },
     ))
@@ -110,9 +110,8 @@ pub fn is_markdown_snippet_directive(line: &str) -> bool {
 pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownArgs, Error> {
     match parse_markdown_snippet_raw(line) {
         Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
-        // TODO - Translate error message better?
         _ => Err(Error::InvalidSnippetHeader {
-            header: line.to_string(),
+            header: line.to_owned(),
         }),
     }
 }

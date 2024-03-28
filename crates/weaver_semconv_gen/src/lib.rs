@@ -112,6 +112,14 @@ impl GenerateMarkdownArgs {
             .iter()
             .any(|a| matches!(a, MarkdownGenParameters::MetricTable))
     }
+
+    /// Returns the tag filter specified, if any.  Assumes only one.
+    fn tag_filter(&self) -> Option<&str> {
+        self.args.iter().find_map(|arg| match arg {
+            MarkdownGenParameters::Tag(value) => Some(value.as_str()),
+            _ => None,
+        })
+    }
 }
 
 /// Constructs a markdown snippet (without header/closer)
@@ -223,9 +231,10 @@ impl ResolvedSemconvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use weaver_logger::TestLogger;
-
     use crate::{update_markdown, Error, ResolvedSemconvRegistry};
+    use std::fs;
+    use std::path::PathBuf;
+    use weaver_logger::TestLogger;
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -251,5 +260,29 @@ mod tests {
             true,
         ));
         Ok(())
+    }
+
+    #[test]
+    fn run_legacy_tests() {
+        // Note: We could update this to run all tests in parallel and join results.
+        // For now we're just getting things working.
+        let test_dirs = fs::read_dir("legacy_tests").unwrap();
+        for dir in test_dirs.flatten() {
+            if dir.path().join("test.md").exists() {
+                println!();
+                println!("--- Running test: {} ---", dir.path().display());
+                println!();
+                force_print_error(run_legacy_test(dir.path()))
+            }
+        }
+    }
+
+    fn run_legacy_test(path: PathBuf) -> Result<(), Error> {
+        let logger = TestLogger::default();
+        let semconv_path = format!("{}/*.yaml", path.display());
+        let lookup = ResolvedSemconvRegistry::try_from_path(&semconv_path, logger.clone())?;
+        let test_path = path.join("test.md").display().to_string();
+        // Attempts to update the test - will fail if there is any difference in the generated markdown.
+        update_markdown(&test_path, &lookup, true)
     }
 }
