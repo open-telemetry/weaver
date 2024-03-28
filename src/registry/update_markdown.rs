@@ -75,6 +75,6 @@ pub(crate) fn command(
         }
     }
     if has_error {
-      panic!("weaver registry update-markdown failed.");
+        panic!("weaver registry update-markdown failed.");
     }
 }
