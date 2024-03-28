@@ -5,8 +5,8 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use std::fs;
-use weaver_logger::Logger;
 use weaver_cache::Cache;
+use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
