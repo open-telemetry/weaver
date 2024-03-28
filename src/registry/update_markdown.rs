@@ -74,5 +74,7 @@ pub(crate) fn command(
             log.error(&format!("{error}"));
         }
     }
-    panic!("weaver registry update-markdown failed.")
+    if has_error {
+      panic!("weaver registry update-markdown failed.");
+    }
 }
