@@ -59,7 +59,7 @@ weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 
-clap = { version = "4.5.3", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive"] }
 crossterm = "0.27.0"
 ratatui = "0.26.1"
 tui-textarea = "0.4.0"
