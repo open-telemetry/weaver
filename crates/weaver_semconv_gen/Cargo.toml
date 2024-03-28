@@ -9,6 +9,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+weaver_cache = { path = "../weaver_cache" }
 weaver_logger = { path = "../weaver_logger" }
 weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }

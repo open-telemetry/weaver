@@ -69,6 +69,7 @@ tantivy = "0.21.1"
 serde.workspace = true
 serde_yaml.workspace = true
 serde_json.workspace = true
+walkdir.workspace = true
 
 [package.metadata.cargo-machete]
 # force cargo machete to ignore the following crates
