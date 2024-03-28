@@ -47,7 +47,7 @@ pub(crate) fn command(
     .unwrap_or_else(|e| {
         panic!("Failed to resolve the semantic convention registry.\n{e}");
     });
-    log.success("Registry resolved succesfully");
+    log.success("Registry resolved successfully");
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
         let path = entry.path();
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
