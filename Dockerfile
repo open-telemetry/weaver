@@ -3,7 +3,7 @@
 FROM rust:1.76.0-alpine3.18 as weaver-build
 RUN apk add musl-dev
 WORKDIR /build
-# list out directories to avoid getting target
+# list out directories to avoid pulling local cargo `target/`
 COPY Cargo.toml /build/Cargo.toml
 COPY Cargo.lock /build/Cargo.lock
 COPY crates /build/crates
