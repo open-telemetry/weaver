@@ -3,7 +3,14 @@
 FROM rust:1.76.0-alpine3.18 as weaver-build
 RUN apk add musl-dev
 WORKDIR /build
-COPY . /build
+# list out directories to avoid getting target
+COPY Cargo.toml /build/Cargo.toml
+COPY Cargo.lock /build/Cargo.lock
+COPY crates /build/crates
+COPY data /build/data
+COPY src /build/src
+COPY templates /build/templates
+COPY tests build/tests
 RUN cargo build --release
 
 # The runtime image
