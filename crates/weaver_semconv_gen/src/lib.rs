@@ -5,6 +5,7 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use std::fs;
+use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
@@ -206,6 +207,31 @@ impl ResolvedSemconvRegistry {
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
         let mut registry = SemConvRegistry::try_from_path(registry_id, path_pattern)?;
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
+        let lookup = ResolvedSemconvRegistry {
+            schema,
+            registry_id: registry_id.into(),
+        };
+        Ok(lookup)
+    }
+
+    /// Resolve semconv registry (possibly from git), and make it available for rendering.
+    pub fn try_from_url(
+        // Local or GIT URL of semconv registry.
+        registry: String,
+        // Optional path where YAML files are located (default: model)
+        registry_sub_dir: Option<String>,
+        cache: &Cache,
+        log: impl Logger + Clone + Sync,
+    ) -> Result<ResolvedSemconvRegistry, Error> {
+        let registry_id = "semantic_conventions";
+        let mut registry = SchemaResolver::load_semconv_registry(
+            registry_id,
+            registry,
+            registry_sub_dir,
+            cache,
+            log.clone(),
+        )?;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
         let lookup = ResolvedSemconvRegistry {
             schema,
