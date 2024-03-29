@@ -91,7 +91,7 @@ impl AttributeCatalog {
             } => {
                 let root_attr = self.root_attributes.get(r#ref);
                 if let Some(root_attr) = root_attr {
-                    let mut attr_lineage = AttributeLineage::new(r#ref, &root_attr.group_id);
+                    let mut attr_lineage = AttributeLineage::new(&root_attr.group_id);
 
                     // Create a fully resolved attribute from an attribute spec
                     // (ref) and override the root attribute with the new
@@ -124,7 +124,7 @@ impl AttributeCatalog {
                     // Update the lineage based on the inherited fields.
                     // Note: the lineage is only updated if a group lineage is provided.
                     if let Some(lineage) = lineage {
-                        lineage.add_attribute_lineage(attr_lineage);
+                        lineage.add_attribute_lineage(r#ref.to_owned(), attr_lineage);
                     }
 
                     Some(attr_ref)

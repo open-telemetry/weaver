@@ -152,21 +152,8 @@
       "span_kind": "client",
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.system",
-            "source_group": "registry.db",
-            "inherited_fields": [
-              "brief",
-              "note"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -178,8 +165,19 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -191,8 +189,54 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -204,47 +248,59 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
-            "source_group": "registry.db",
+          "network.peer.address": {
+            "source_group": "registry.network",
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
             ],
             "locally_overridden_fields": [
               "requirement_level",
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
-            "source_group": "registry.db",
+          "network.transport": {
+            "source_group": "registry.network",
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
+              "note",
+              "requirement_level",
+              "stability"
             ],
             "locally_overridden_fields": [
-              "requirement_level",
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
-            "source_group": "registry.db",
+          "network.type": {
+            "source_group": "registry.network",
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
+              "note",
+              "requirement_level",
+              "stability"
             ],
             "locally_overridden_fields": [
-              "requirement_level",
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -257,90 +313,20 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
               "examples",
               "note",
               "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "registry.db",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note"
             ],
             "locally_overridden_fields": [
               "requirement_level",
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -366,115 +352,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -486,8 +365,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -499,8 +377,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -512,8 +389,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.mssql.instance_name",
+          "db.mssql.instance_name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -525,8 +401,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -538,8 +413,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -551,8 +425,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -564,8 +437,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -576,8 +448,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -589,8 +460,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -603,8 +473,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -617,8 +486,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -631,8 +499,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -645,8 +512,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -659,8 +525,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -673,7 +538,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -705,120 +570,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "examples",
-              "note",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.cassandra.consistency_level",
+        "attributes": {
+          "db.cassandra.consistency_level": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -829,8 +582,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cassandra.coordinator.dc",
+          "db.cassandra.coordinator.dc": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -842,8 +594,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cassandra.coordinator.id",
+          "db.cassandra.coordinator.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -855,8 +606,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cassandra.idempotence",
+          "db.cassandra.idempotence": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -867,21 +617,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cassandra.page_size",
-            "source_group": "registry.db",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.cassandra.speculative_execution_count",
+          "db.cassandra.page_size": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -893,8 +629,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cassandra.table",
+          "db.cassandra.speculative_execution_count": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -906,8 +641,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.connection_string",
+          "db.cassandra.table": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -919,8 +653,19 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -932,8 +677,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -945,8 +689,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "locally_overridden_fields": [
               "brief",
@@ -956,8 +699,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -969,8 +711,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -982,8 +723,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -994,8 +734,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1007,8 +746,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1021,8 +759,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1035,8 +772,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1049,8 +785,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1063,8 +798,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -1077,8 +811,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1091,7 +824,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1116,120 +849,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "examples",
-              "note",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1241,8 +862,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1254,8 +874,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1267,8 +886,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "locally_overridden_fields": [
               "brief",
@@ -1278,8 +896,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1291,8 +908,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1304,8 +920,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1316,8 +931,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1329,8 +943,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1343,8 +956,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1357,8 +969,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1371,8 +982,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1385,8 +995,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -1399,8 +1008,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1413,7 +1021,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1438,120 +1046,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "examples",
-              "note",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1563,8 +1059,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1576,8 +1071,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1589,8 +1083,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1602,8 +1095,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "locally_overridden_fields": [
               "brief",
@@ -1613,8 +1105,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1626,8 +1117,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1638,8 +1128,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1651,8 +1140,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1665,8 +1153,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1679,8 +1166,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1693,8 +1179,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1707,8 +1192,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -1721,8 +1205,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1735,7 +1218,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1761,120 +1244,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "examples",
-              "note",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1886,8 +1257,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1899,8 +1269,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1912,8 +1281,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1925,8 +1293,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1938,8 +1305,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.redis.database_index",
+          "db.redis.database_index": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1951,8 +1317,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "locally_overridden_fields": [
               "brief",
@@ -1962,8 +1327,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1974,8 +1338,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -1987,8 +1350,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2001,8 +1363,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2015,8 +1376,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2029,8 +1389,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2043,8 +1402,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -2057,8 +1415,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -2071,7 +1428,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -2097,115 +1454,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2217,8 +1467,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2230,8 +1479,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2243,8 +1491,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.mongodb.collection",
+          "db.mongodb.collection": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2256,8 +1503,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2269,8 +1515,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2282,8 +1527,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2295,8 +1539,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2307,8 +1550,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2320,8 +1562,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2334,8 +1575,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2348,8 +1588,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2362,8 +1601,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2376,8 +1614,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -2390,8 +1627,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -2404,7 +1640,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -2434,123 +1670,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "locally_overridden_fields": [
-              "brief",
-              "examples",
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "locally_overridden_fields": [
-              "brief",
-              "examples",
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2562,8 +1683,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.elasticsearch.cluster.name",
+          "db.elasticsearch.cluster.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2575,8 +1695,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.elasticsearch.node.name",
+          "db.elasticsearch.node.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2588,8 +1707,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.elasticsearch.path_parts",
+          "db.elasticsearch.path_parts": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2601,8 +1719,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2614,8 +1731,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2627,8 +1743,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2640,8 +1755,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "note"
@@ -2653,8 +1767,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "note"
@@ -2666,8 +1779,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2678,8 +1790,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2691,8 +1802,7 @@
               "tag"
             ]
           },
-          {
-            "id": "http.request.method",
+          "http.request.method": {
             "source_group": "registry.http",
             "inherited_fields": [
               "brief",
@@ -2705,8 +1815,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2719,8 +1828,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2733,8 +1841,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2747,8 +1854,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -2761,8 +1867,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -2775,8 +1880,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -2789,8 +1893,7 @@
               "tag"
             ]
           },
-          {
-            "id": "url.full",
+          "url.full": {
             "source_group": "registry.url",
             "inherited_fields": [
               "brief",
@@ -2803,7 +1906,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -2829,115 +1932,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2949,8 +1945,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2962,8 +1957,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2975,8 +1969,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -2988,8 +1981,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3001,8 +1993,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.sql.table",
+          "db.sql.table": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3014,8 +2005,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3027,8 +2017,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3039,8 +2028,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3052,8 +2040,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3066,8 +2053,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3080,8 +2066,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3094,8 +2079,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3108,8 +2092,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -3122,8 +2105,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -3136,7 +2118,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -3171,115 +2153,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
-        "attributes": [
-          {
-            "id": "db.connection_string",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.instance.id",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.jdbc.driver_classname",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "db.name",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.operation",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.statement",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.system",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.user",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.peer.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.transport",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "db",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "db",
-            "inherited_fields": [
-              "brief",
-              "tag"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "db",
-            "inherited_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.connection_string",
+        "attributes": {
+          "db.connection_string": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3291,8 +2166,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cosmosdb.client_id",
+          "db.cosmosdb.client_id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3304,8 +2178,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cosmosdb.connection_mode",
+          "db.cosmosdb.connection_mode": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3316,33 +2189,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cosmosdb.container",
-            "source_group": "registry.db",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.cosmosdb.operation_type",
-            "source_group": "registry.db",
-            "inherited_fields": [
-              "brief",
-              "note"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          {
-            "id": "db.cosmosdb.request_charge",
+          "db.cosmosdb.container": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3354,8 +2201,30 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cosmosdb.request_content_length",
+          "db.cosmosdb.operation_type": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.request_charge": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.request_content_length": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3366,8 +2235,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cosmosdb.status_code",
+          "db.cosmosdb.status_code": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3379,8 +2247,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.cosmosdb.sub_status_code",
+          "db.cosmosdb.sub_status_code": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3392,8 +2259,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.instance.id",
+          "db.instance.id": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3405,8 +2271,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.jdbc.driver_classname",
+          "db.jdbc.driver_classname": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3418,8 +2283,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.name",
+          "db.name": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3431,8 +2295,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.operation",
+          "db.operation": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3444,8 +2307,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.statement",
+          "db.statement": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3457,8 +2319,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.system",
+          "db.system": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3469,8 +2330,7 @@
               "tag"
             ]
           },
-          {
-            "id": "db.user",
+          "db.user": {
             "source_group": "registry.db",
             "inherited_fields": [
               "brief",
@@ -3482,8 +2342,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.address",
+          "network.peer.address": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3496,8 +2355,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.peer.port",
+          "network.peer.port": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3510,8 +2368,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.transport",
+          "network.transport": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3524,8 +2381,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.type",
+          "network.type": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -3538,8 +2394,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -3552,8 +2407,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -3566,8 +2420,7 @@
               "tag"
             ]
           },
-          {
-            "id": "user_agent.original",
+          "user_agent.original": {
             "source_group": "registry.user_agent",
             "inherited_fields": [
               "requirement_level",
@@ -3580,7 +2433,7 @@
               "tag"
             ]
           }
-        ]
+        }
       }
     },
     {

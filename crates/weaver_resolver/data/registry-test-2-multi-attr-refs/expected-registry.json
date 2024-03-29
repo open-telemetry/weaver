@@ -11,9 +11,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "messaging.destination.name",
+        "attributes": {
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -24,8 +23,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -36,7 +34,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {

@@ -13,9 +13,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/log-feature_flag.yaml",
-        "attributes": [
-          {
-            "id": "feature_flag.key",
+        "attributes": {
+          "feature_flag.key": {
             "source_group": "feature_flag",
             "inherited_fields": [
               "brief",
@@ -24,8 +23,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "feature_flag.provider_name",
+          "feature_flag.provider_name": {
             "source_group": "feature_flag",
             "inherited_fields": [
               "brief",
@@ -34,8 +32,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "feature_flag.variant",
+          "feature_flag.variant": {
             "source_group": "feature_flag",
             "inherited_fields": [
               "brief",
@@ -44,7 +41,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {

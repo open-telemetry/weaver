@@ -35,9 +35,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-lineage-2/registry/groups.yaml",
-        "attributes": [
-          {
-            "id": "server.port",
+        "attributes": {
+          "server.port": {
             "source_group": "base.level",
             "inherited_fields": [
               "brief",
@@ -48,7 +47,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -63,9 +62,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-lineage-2/registry/groups.yaml",
-        "attributes": [
-          {
-            "id": "network.protocol.name",
+        "attributes": {
+          "network.protocol.name": {
             "source_group": "intermediate.level",
             "inherited_fields": [
               "brief",
@@ -76,8 +74,25 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "network.protocol.version": {
+            "source_group": "registry.xyz",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.xyz",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
             "source_group": "intermediate.level",
             "inherited_fields": [
               "note",
@@ -88,28 +103,8 @@
               "brief",
               "examples"
             ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "registry.xyz",
-            "inherited_fields": [
-              "brief",
-              "note"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "registry.xyz",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
           }
-        ]
+        }
       }
     }
   ]

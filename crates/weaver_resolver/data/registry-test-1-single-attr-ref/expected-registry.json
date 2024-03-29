@@ -10,9 +10,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "messaging.destination.name",
+        "attributes": {
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -23,7 +22,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {

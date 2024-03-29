@@ -576,7 +576,7 @@ fn resolve_inheritance_attrs(
                         r#ref.clone(),
                         AttrWithLineage {
                             spec: attr.spec.clone(),
-                            lineage: AttributeLineage::new(&attr.spec.id(), group_id),
+                            lineage: AttributeLineage::new(group_id),
                         },
                     );
                 }
@@ -586,7 +586,7 @@ fn resolve_inheritance_attrs(
                     id.clone(),
                     AttrWithLineage {
                         spec: attr.spec.clone(),
-                        lineage: AttributeLineage::new(id, group_id),
+                        lineage: AttributeLineage::new(group_id),
                     },
                 );
             }
@@ -598,7 +598,10 @@ fn resolve_inheritance_attrs(
         inherited_attrs
             .map(|attr_with_lineage| {
                 if !attr_with_lineage.lineage.is_empty() {
-                    group_lineage.add_attribute_lineage(attr_with_lineage.lineage);
+                    group_lineage.add_attribute_lineage(
+                        attr_with_lineage.spec.id(),
+                        attr_with_lineage.lineage,
+                    );
                 }
                 UnresolvedAttribute {
                     spec: attr_with_lineage.spec,
@@ -741,10 +744,10 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
-            if !test_dir.ends_with("registry-test-8-http") {
-                // Skip the test for now as it is not yet supported.
-                continue;
-            }
+            // if !test_dir.ends_with("registry-test-lineage-2") {
+            //     // Skip the test for now as it is not yet supported.
+            //     continue;
+            // }
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
@@ -777,7 +780,7 @@ mod tests {
 
             // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
             // println!("{}", yaml);
-            println!("Observed registry:\n{}", to_json(&observed_registry));
+            // println!("Observed registry:\n{}", to_json(&observed_registry));
 
             // Check that the resolved registry matches the expected registry.
             let expected_registry: Registry = serde_json::from_reader(

@@ -27,9 +27,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-6-resources/registry/resource-browser.yaml",
-        "attributes": [
-          {
-            "id": "user_agent.original",
+        "attributes": {
+          "user_agent.original": {
             "source_group": "registry.user_agent",
             "inherited_fields": [
               "requirement_level",
@@ -41,7 +40,7 @@
               "note"
             ]
           }
-        ]
+        }
       }
     }
   ]

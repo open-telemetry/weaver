@@ -10,9 +10,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-8-http/registry/http-common.yaml",
-        "attributes": [
-          {
-            "id": "network.protocol.name",
+        "attributes": {
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -24,7 +23,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -37,17 +36,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-8-http/registry/http-common.yaml",
-        "attributes": [
-          {
-            "id": "network.protocol.name",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
+        "attributes": {
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -59,8 +49,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -72,7 +61,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -85,28 +74,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-8-http/registry/http.yaml",
-        "attributes": [
-          {
-            "id": "network.protocol.name",
-            "source_group": "attributes.http.server",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "attributes.http.server",
-            "inherited_fields": [
-              "brief"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
+        "attributes": {
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -118,8 +87,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -131,7 +99,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -148,26 +116,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-8-http/registry/http.yaml",
-        "attributes": [
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric_attributes.http.server",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "server.port",
-            "source_group": "metric_attributes.http.server",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
+        "attributes": {
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -179,8 +129,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -192,7 +141,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {

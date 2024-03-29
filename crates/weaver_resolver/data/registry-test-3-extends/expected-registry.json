@@ -14,35 +14,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/http-common.yaml",
-        "attributes": [
-          {
-            "id": "http.request.method",
-            "source_group": "registry.http",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "http.response.status_code",
-            "source_group": "registry.http",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -54,8 +27,31 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "http.request.method": {
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "http.response.status_code": {
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -67,8 +63,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -80,7 +75,7 @@
               "examples"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -99,47 +94,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/http-common.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples",
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "http.request.method",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "http.response.status_code",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -151,8 +107,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "http.request.method",
+          "http.request.method": {
             "source_group": "registry.http",
             "inherited_fields": [
               "brief",
@@ -164,8 +119,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "http.response.status_code",
+          "http.response.status_code": {
             "source_group": "registry.http",
             "inherited_fields": [
               "brief",
@@ -177,8 +131,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -190,8 +143,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -203,8 +155,7 @@
               "examples"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -216,8 +167,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -229,8 +179,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "url.scheme",
+          "url.scheme": {
             "source_group": "registry.url",
             "inherited_fields": [
               "brief",
@@ -242,7 +191,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -262,47 +211,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/http-common.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples",
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "http.request.method",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "http.response.status_code",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "attributes.http.common",
-            "inherited_fields": [
-              "examples"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -314,8 +224,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "http.request.method",
+          "http.request.method": {
             "source_group": "registry.http",
             "inherited_fields": [
               "brief",
@@ -327,8 +236,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "http.response.status_code",
+          "http.response.status_code": {
             "source_group": "registry.http",
             "inherited_fields": [
               "brief",
@@ -340,8 +248,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "http.route",
+          "http.route": {
             "source_group": "registry.http",
             "inherited_fields": [
               "brief",
@@ -353,8 +260,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -366,8 +272,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -379,8 +284,7 @@
               "examples"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -392,8 +296,7 @@
               "note"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "examples",
@@ -405,8 +308,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "url.scheme",
+          "url.scheme": {
             "source_group": "registry.url",
             "inherited_fields": [
               "brief",
@@ -418,7 +320,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -436,20 +338,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/messaging-common.yaml",
-        "attributes": [
-          {
-            "id": "messaging.system",
-            "source_group": "registry.messaging",
-            "inherited_fields": [
-              "brief",
-              "note"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -461,8 +351,43 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.address",
+          "messaging.system": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "tag"
+            ]
+          },
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -474,8 +399,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -484,36 +408,8 @@
               "requirement_level",
               "stability"
             ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "requirement_level",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "tag"
-            ]
           }
-        ]
+        }
       }
     },
     {
@@ -532,47 +428,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "messaging.attributes.common",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "messaging.attributes.common",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "messaging.attributes.common",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "messaging.attributes.common",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "messaging.attributes.common",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -584,8 +441,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -596,8 +452,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -608,8 +463,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -619,8 +473,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -633,8 +486,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -647,8 +499,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -660,8 +511,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -671,7 +521,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -693,61 +543,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.template",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -759,8 +556,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -771,8 +567,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -783,8 +578,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -794,8 +588,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -808,8 +601,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -822,8 +614,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -835,8 +626,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -846,7 +636,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -868,61 +658,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.template",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -934,8 +671,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -946,8 +682,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -958,8 +693,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -969,8 +703,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -983,8 +716,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -997,8 +729,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1010,8 +741,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1021,7 +751,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1043,61 +773,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.template",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -1109,8 +786,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1121,8 +797,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1133,8 +808,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1144,8 +818,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1158,8 +831,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1172,8 +844,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1185,8 +856,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1196,7 +866,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1218,61 +888,8 @@
       "unit": "{message}",
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.template",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -1284,8 +901,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1296,8 +912,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1308,8 +923,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1319,8 +933,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1333,8 +946,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1347,8 +959,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1360,8 +971,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1371,7 +981,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1393,61 +1003,8 @@
       "unit": "{message}",
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.template",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -1459,8 +1016,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1471,8 +1027,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1483,8 +1038,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1494,8 +1048,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1508,8 +1061,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1522,8 +1074,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1535,8 +1086,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1546,7 +1096,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -1568,61 +1118,8 @@
       "unit": "{message}",
       "lineage": {
         "source_file": "data/registry-test-3-extends/registry/metrics-messaging.yaml",
-        "attributes": [
-          {
-            "id": "error.type",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.destination.template",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "messaging.system",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.protocol.name",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "examples",
-              "tag"
-            ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "tag"
-            ]
-          },
-          {
-            "id": "server.address",
-            "source_group": "metric.messaging.attributes",
-            "inherited_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "error.type",
+        "attributes": {
+          "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
@@ -1634,8 +1131,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.name",
+          "messaging.destination.name": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1646,8 +1142,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.destination.template",
+          "messaging.destination.template": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1658,8 +1153,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "messaging.system",
+          "messaging.system": {
             "source_group": "registry.messaging",
             "inherited_fields": [
               "brief",
@@ -1669,8 +1163,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "network.protocol.name",
+          "network.protocol.name": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1683,8 +1176,7 @@
               "tag"
             ]
           },
-          {
-            "id": "network.protocol.version",
+          "network.protocol.version": {
             "source_group": "registry.network",
             "inherited_fields": [
               "brief",
@@ -1697,8 +1189,7 @@
               "tag"
             ]
           },
-          {
-            "id": "server.address",
+          "server.address": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1710,8 +1201,7 @@
               "requirement_level"
             ]
           },
-          {
-            "id": "server.port",
+          "server.port": {
             "source_group": "server",
             "inherited_fields": [
               "brief",
@@ -1721,7 +1211,7 @@
               "stability"
             ]
           }
-        ]
+        }
       }
     },
     {

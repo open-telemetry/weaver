@@ -37,9 +37,26 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-lineage-0/registry/groups.yaml",
-        "attributes": [
-          {
-            "id": "server.port",
+        "attributes": {
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
             "source_group": "registry.server",
             "inherited_fields": [
               "brief",
@@ -48,28 +65,8 @@
             "locally_overridden_fields": [
               "requirement_level"
             ]
-          },
-          {
-            "id": "network.protocol.version",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          {
-            "id": "network.type",
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
           }
-        ]
+        }
       }
     }
   ]

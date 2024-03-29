@@ -28,9 +28,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -38,7 +37,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -53,9 +52,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -63,7 +61,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -78,9 +76,8 @@
       "unit": "{coldstart}",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -88,7 +85,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -103,9 +100,8 @@
       "unit": "{error}",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -113,7 +109,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -128,9 +124,8 @@
       "unit": "{invocation}",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -138,7 +133,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -153,9 +148,8 @@
       "unit": "{timeout}",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -163,7 +157,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -178,9 +172,8 @@
       "unit": "By",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -188,7 +181,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -203,9 +196,8 @@
       "unit": "s",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -213,7 +205,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -228,9 +220,8 @@
       "unit": "By",
       "lineage": {
         "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
-        "attributes": [
-          {
-            "id": "faas.trigger",
+        "attributes": {
+          "faas.trigger": {
             "source_group": "attributes.faas.common",
             "inherited_fields": [
               "brief",
@@ -238,7 +229,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     }
   ]

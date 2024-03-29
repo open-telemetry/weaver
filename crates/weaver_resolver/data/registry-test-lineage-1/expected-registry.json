@@ -10,9 +10,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-lineage-1/registry/groups.yaml",
-        "attributes": [
-          {
-            "id": "server.port",
+        "attributes": {
+          "server.port": {
             "source_group": "intermediate.level",
             "inherited_fields": [
               "brief",
@@ -20,7 +19,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {
@@ -32,9 +31,8 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-lineage-1/registry/groups.yaml",
-        "attributes": [
-          {
-            "id": "server.port",
+        "attributes": {
+          "server.port": {
             "source_group": "base.level",
             "inherited_fields": [
               "brief",
@@ -42,7 +40,7 @@
               "requirement_level"
             ]
           }
-        ]
+        }
       }
     },
     {

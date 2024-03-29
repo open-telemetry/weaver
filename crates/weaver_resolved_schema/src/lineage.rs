@@ -13,9 +13,6 @@ use weaver_semconv::stability::Stability;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct AttributeLineage {
-    /// The attribute id.
-    pub id: String,
-
     /// The group id where the attribute is coming from.
     pub source_group: String,
 
@@ -49,9 +46,8 @@ pub struct GroupLineage {
 impl AttributeLineage {
     /// Creates a new attribute lineage.
     #[must_use]
-    pub fn new(attr_id: &str, source_group: &str) -> Self {
+    pub fn new(source_group: &str) -> Self {
         Self {
-            id: attr_id.to_owned(),
             source_group: source_group.to_owned(),
             inherited_fields: Default::default(),
             locally_overridden_fields: Default::default(),
@@ -63,7 +59,6 @@ impl AttributeLineage {
     #[must_use]
     pub fn inherit_from(source_group: &str, attr_spec: &AttributeSpec) -> Self {
         let mut attr_lineage = Self {
-            id: attr_spec.id().clone(),
             source_group: source_group.to_owned(),
             inherited_fields: Default::default(),
             locally_overridden_fields: Default::default(),
@@ -410,8 +405,8 @@ impl GroupLineage {
     }
 
     /// Adds an attribute lineage.
-    pub fn add_attribute_lineage(&mut self, attribute_lineage: AttributeLineage) {
-        _ = self.attributes.insert(attribute_lineage.id.clone(), attribute_lineage);
+    pub fn add_attribute_lineage(&mut self, attr_id: String, attribute_lineage: AttributeLineage) {
+        _ = self.attributes.insert(attr_id, attribute_lineage);
     }
 
     /// Returns the source file of the group (path or URL).
