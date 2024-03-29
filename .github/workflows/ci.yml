@@ -44,7 +44,8 @@ jobs:
         uses: arduino/setup-protoc@v2
       - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo test --no-run --workspace --all-features
+        # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+        run: cargo test --no-run --workspace
       - name: Default features
         run: cargo test --workspace
       - name: All features
