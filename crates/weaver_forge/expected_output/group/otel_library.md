@@ -38,7 +38,7 @@ prefix: otel.library
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/exporter.yaml
 

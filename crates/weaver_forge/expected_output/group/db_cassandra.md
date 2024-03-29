@@ -364,182 +364,112 @@ For Cassandra the `db.name` should be set to the Cassandra keyspace name.
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/trace-database.yaml
 
-attribute: db.connection_string
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: db.instance.id
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.jdbc.driver_classname
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: db.name
-  - source group: db
-  - inherited fields: requirement_level
-  - locally overridden fields: brief, examples, note, tag
-
-attribute: db.operation
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.statement
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.system
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.user
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: network.peer.address
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: network.peer.port
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: network.transport
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: network.type
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: server.address
-  - source group: db
-  - inherited fields: brief, tag
-  - locally overridden fields: 
-
-attribute: server.port
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.cassandra.consistency_level
-  - source group: registry.db
-  - inherited fields: brief, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.cassandra.coordinator.dc
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.cassandra.coordinator.id
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.cassandra.idempotence
-  - source group: registry.db
-  - inherited fields: brief, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.cassandra.page_size
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.cassandra.speculative_execution_count
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.cassandra.table
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.connection_string
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.instance.id
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
-
-attribute: db.jdbc.driver_classname
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: db.name
-  - source group: registry.db
+attribute: 
+  - source group: 
   - inherited fields: 
-  - locally overridden fields: brief, examples, note, requirement_level, tag
+  - locally overridden fields: 
 
-attribute: db.operation
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.statement
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.system
-  - source group: registry.db
-  - inherited fields: brief, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.user
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: network.peer.address
-  - source group: registry.network
-  - inherited fields: brief, examples, note, requirement_level, stability
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: network.peer.port
-  - source group: registry.network
-  - inherited fields: brief, examples, note, stability
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: network.transport
-  - source group: registry.network
-  - inherited fields: brief, examples, note, requirement_level, stability
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: network.type
-  - source group: registry.network
-  - inherited fields: brief, examples, note, requirement_level, stability
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: server.address
-  - source group: server
-  - inherited fields: examples, note, requirement_level, stability
-  - locally overridden fields: brief, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: server.port
-  - source group: server
-  - inherited fields: brief, examples, note, stability
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 

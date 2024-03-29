@@ -48,7 +48,7 @@ When observed from the client side, and when communicating through an intermedia
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/registry-server.yaml
 

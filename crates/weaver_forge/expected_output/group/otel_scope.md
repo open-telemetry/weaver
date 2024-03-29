@@ -40,7 +40,7 @@ The version of the instrumentation scope - (`InstrumentationScope.Version` in OT
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/exporter.yaml
 

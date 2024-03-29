@@ -366,172 +366,102 @@ For network calls, URL usually has `scheme://host[:port][path][?query][#fragment
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/trace-database.yaml
 
-attribute: db.connection_string
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: db.instance.id
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.jdbc.driver_classname
-  - source group: db
-  - inherited fields: tag
-  - locally overridden fields: 
-
-attribute: db.name
-  - source group: db
-  - inherited fields: requirement_level, tag
-  - locally overridden fields: 
-
-attribute: db.operation
-  - source group: db
+attribute: 
+  - source group: 
   - inherited fields: 
-  - locally overridden fields: brief, examples, requirement_level, tag
+  - locally overridden fields: 
 
-attribute: db.statement
-  - source group: db
+attribute: 
+  - source group: 
   - inherited fields: 
-  - locally overridden fields: brief, examples, requirement_level, tag
-
-attribute: db.system
-  - source group: db
-  - inherited fields: requirement_level, tag
   - locally overridden fields: 
 
-attribute: db.user
-  - source group: db
-  - inherited fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
   - locally overridden fields: 
 
-attribute: network.peer.address
-  - source group: db
-  - inherited fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
   - locally overridden fields: 
 
-attribute: network.peer.port
-  - source group: db
-  - inherited fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
   - locally overridden fields: 
 
-attribute: network.transport
-  - source group: db
-  - inherited fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
   - locally overridden fields: 
 
-attribute: network.type
-  - source group: db
-  - inherited fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
   - locally overridden fields: 
 
-attribute: server.address
-  - source group: db
-  - inherited fields: brief
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: server.port
-  - source group: db
-  - inherited fields: requirement_level
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.connection_string
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.elasticsearch.cluster.name
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.elasticsearch.node.name
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.elasticsearch.path_parts
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.instance.id
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.jdbc.driver_classname
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.name
-  - source group: registry.db
-  - inherited fields: brief, examples, note
-  - locally overridden fields: requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.operation
-  - source group: registry.db
-  - inherited fields: note
-  - locally overridden fields: brief, examples, requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.statement
-  - source group: registry.db
-  - inherited fields: note
-  - locally overridden fields: brief, examples, requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 
-attribute: db.system
-  - source group: registry.db
-  - inherited fields: brief, note
-  - locally overridden fields: requirement_level, tag
-
-attribute: db.user
-  - source group: registry.db
-  - inherited fields: brief, examples, note, requirement_level
-  - locally overridden fields: tag
-
-attribute: http.request.method
-  - source group: registry.http
-  - inherited fields: brief, examples, note, stability
-  - locally overridden fields: requirement_level, tag
-
-attribute: network.peer.address
-  - source group: registry.network
-  - inherited fields: brief, examples, note, requirement_level, stability
-  - locally overridden fields: tag
-
-attribute: network.peer.port
-  - source group: registry.network
-  - inherited fields: brief, examples, note, stability
-  - locally overridden fields: requirement_level, tag
-
-attribute: network.transport
-  - source group: registry.network
-  - inherited fields: brief, examples, note, requirement_level, stability
-  - locally overridden fields: tag
-
-attribute: network.type
-  - source group: registry.network
-  - inherited fields: brief, examples, note, requirement_level, stability
-  - locally overridden fields: tag
-
-attribute: server.address
-  - source group: server
-  - inherited fields: examples, note, requirement_level, stability
-  - locally overridden fields: brief, tag
-
-attribute: server.port
-  - source group: server
-  - inherited fields: brief, examples, note, stability
-  - locally overridden fields: requirement_level, tag
-
-attribute: url.full
-  - source group: registry.url
-  - inherited fields: brief, note, stability
-  - locally overridden fields: examples, requirement_level, tag
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 

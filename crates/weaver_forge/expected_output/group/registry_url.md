@@ -94,7 +94,7 @@ The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/registry-url.yaml
 

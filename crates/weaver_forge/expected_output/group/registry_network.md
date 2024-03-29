@@ -226,7 +226,7 @@ The network IO operation direction.
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/registry-network.yaml
 

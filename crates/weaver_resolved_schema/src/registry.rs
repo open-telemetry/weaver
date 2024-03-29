@@ -405,7 +405,7 @@ impl Group {
     #[must_use]
     pub fn provenance(&self) -> &str {
         match &self.lineage {
-            Some(lineage) => lineage.provenance(),
+            Some(lineage) => lineage.source_file(),
             None => "unknown",
         }
     }

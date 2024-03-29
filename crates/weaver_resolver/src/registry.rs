@@ -741,10 +741,10 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
-            // if !test_dir.ends_with("registry-test-8-http") {
-            //     // Skip the test for now as it is not yet supported.
-            //     continue;
-            // }
+            if !test_dir.ends_with("registry-test-8-http") {
+                // Skip the test for now as it is not yet supported.
+                continue;
+            }
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
@@ -777,7 +777,7 @@ mod tests {
 
             // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
             // println!("{}", yaml);
-            // println!("Observed registry:\n{}", to_json(&observed_registry));
+            println!("Observed registry:\n{}", to_json(&observed_registry));
 
             // Check that the resolved registry matches the expected registry.
             let expected_registry: Registry = serde_json::from_reader(

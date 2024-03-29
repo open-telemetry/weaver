@@ -10,7 +10,7 @@ prefix:
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/jvm-metrics.yaml
 

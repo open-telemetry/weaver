@@ -45,7 +45,7 @@ prefix: {{ ctx.prefix }}
 {% endif %}
 {% endfor %}
 
-## Provenance
+## Lineage
 
 Source file: {{ ctx.lineage.source_file }}
 

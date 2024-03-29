@@ -46,7 +46,7 @@ Garbage collector action is generally obtained via [GarbageCollectionNotificatio
 
 
 
-## Provenance
+## Lineage
 
 Source file: data/jvm-metrics.yaml
 
