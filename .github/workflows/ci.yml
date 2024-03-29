@@ -100,7 +100,7 @@ jobs:
           RUSTDOCFLAGS: -D warnings
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
         # run: cargo doc --workspace --all-features --no-deps --document-private-items
-        run: cargo doc --workspace --all-features --no-deps --document-private-items
+        run: cargo doc --workspace --no-deps --document-private-items
   rustfmt:
     name: rustfmt
     runs-on: ubuntu-latest
@@ -153,9 +153,9 @@ jobs:
       - name: Install protoc
         uses: arduino/setup-protoc@v2
       - name: Check
+        # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
+        # [ToDo LQ] Re-enable --all-features once the issue is resolved
         run: >
-          # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
-          # [ToDo LQ] Re-enable --all-features once the issue is resolved
           cargo clippy --workspace --all-targets --message-format=json -- -D warnings --allow deprecated
           | clippy-sarif
           | tee clippy-results.sarif
