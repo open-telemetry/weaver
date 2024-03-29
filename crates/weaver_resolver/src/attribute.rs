@@ -111,7 +111,8 @@ impl AttributeCatalog {
                             &root_attr.attribute.sampling_relevant,
                         ),
                         note: attr_lineage.note(note, &root_attr.attribute.note),
-                        stability: attr_lineage.stability(stability, &root_attr.attribute.stability),
+                        stability: attr_lineage
+                            .stability(stability, &root_attr.attribute.stability),
                         deprecated: attr_lineage
                             .deprecated(deprecated, &root_attr.attribute.deprecated),
                         tags: root_attr.attribute.tags.clone(),

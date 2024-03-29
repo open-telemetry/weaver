@@ -55,6 +55,7 @@ pub struct TargetConfig {
     #[serde(default)]
     pub field_name: CaseConvention,
     /// Type mapping for target specific types (OTel types -> Target language types).
+    #[allow(dead_code)] // will be used later in the project
     #[serde(default)]
     pub type_mapping: HashMap<String, String>,
     /// Configuration for the template syntax.

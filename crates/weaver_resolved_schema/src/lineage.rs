@@ -151,6 +151,7 @@ pub struct GroupLineage {
 
 impl AttributeLineage {
     /// Creates a new attribute lineage.
+    #[must_use]
     pub fn new(attr_id: &str, source_group: &str) -> Self {
         Self {
             id: attr_id.to_owned(),
@@ -162,6 +163,7 @@ impl AttributeLineage {
 
     /// Creates a new attribute lineage by inheriting fields from the specified
     /// source group.
+    #[must_use]
     pub fn inherit_from(source_group: &str, attr_spec: &AttributeSpec) -> Self {
         let mut attr_lineage = Self {
             id: attr_spec.id().clone(),
@@ -170,7 +172,17 @@ impl AttributeLineage {
             locally_overridden_fields: Default::default(),
         };
         match attr_spec {
-            AttributeSpec::Ref { brief, examples, tag, requirement_level, sampling_relevant, note, stability, deprecated, .. } => {
+            AttributeSpec::Ref {
+                brief,
+                examples,
+                tag,
+                requirement_level,
+                sampling_relevant,
+                note,
+                stability,
+                deprecated,
+                ..
+            } => {
                 if brief.is_some() {
                     _ = attr_lineage.inherited_fields.insert("brief".to_owned());
                 }
@@ -181,10 +193,14 @@ impl AttributeLineage {
                     _ = attr_lineage.inherited_fields.insert("tag".to_owned());
                 }
                 if requirement_level.is_some() {
-                    _ = attr_lineage.inherited_fields.insert("requirement_level".to_owned());
+                    _ = attr_lineage
+                        .inherited_fields
+                        .insert("requirement_level".to_owned());
                 }
                 if sampling_relevant.is_some() {
-                    _ = attr_lineage.inherited_fields.insert("sampling_relevant".to_owned());
+                    _ = attr_lineage
+                        .inherited_fields
+                        .insert("sampling_relevant".to_owned());
                 }
                 if note.is_some() {
                     _ = attr_lineage.inherited_fields.insert("note".to_owned());
@@ -193,10 +209,20 @@ impl AttributeLineage {
                     _ = attr_lineage.inherited_fields.insert("stability".to_owned());
                 }
                 if deprecated.is_some() {
-                    _ = attr_lineage.inherited_fields.insert("deprecated".to_owned());
+                    _ = attr_lineage
+                        .inherited_fields
+                        .insert("deprecated".to_owned());
                 }
             }
-            AttributeSpec::Id { brief, examples, tag, sampling_relevant, stability, deprecated, .. } => {
+            AttributeSpec::Id {
+                brief,
+                examples,
+                tag,
+                sampling_relevant,
+                stability,
+                deprecated,
+                ..
+            } => {
                 if brief.is_some() {
                     _ = attr_lineage.inherited_fields.insert("brief".to_owned());
                 }
@@ -206,16 +232,22 @@ impl AttributeLineage {
                 if tag.is_some() {
                     _ = attr_lineage.inherited_fields.insert("tag".to_owned());
                 }
-                _ = attr_lineage.inherited_fields.insert("requirement_level".to_owned());
+                _ = attr_lineage
+                    .inherited_fields
+                    .insert("requirement_level".to_owned());
                 if sampling_relevant.is_some() {
-                    _ = attr_lineage.inherited_fields.insert("sampling_relevant".to_owned());
+                    _ = attr_lineage
+                        .inherited_fields
+                        .insert("sampling_relevant".to_owned());
                 }
                 _ = attr_lineage.inherited_fields.insert("note".to_owned());
                 if stability.is_some() {
                     _ = attr_lineage.inherited_fields.insert("stability".to_owned());
                 }
                 if deprecated.is_some() {
-                    _ = attr_lineage.inherited_fields.insert("deprecated".to_owned());
+                    _ = attr_lineage
+                        .inherited_fields
+                        .insert("deprecated".to_owned());
                 }
             }
         }
@@ -223,6 +255,7 @@ impl AttributeLineage {
     }
 
     /// Determines if the attribute lineage is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.inherited_fields.is_empty() && self.locally_overridden_fields.is_empty()
     }
@@ -248,7 +281,11 @@ impl AttributeLineage {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the brief field's lineage is marked as inherited
     /// from the parent.
-    pub fn optional_brief(&mut self, local_value: &Option<String>, parent_value: &Option<String>) -> Option<String> {
+    pub fn optional_brief(
+        &mut self,
+        local_value: &Option<String>,
+        parent_value: &Option<String>,
+    ) -> Option<String> {
         if local_value.is_some() {
             _ = self.locally_overridden_fields.insert("brief".to_owned());
             _ = self.inherited_fields.remove("brief");
@@ -282,7 +319,11 @@ impl AttributeLineage {
     /// field's lineage is marked as local. Otherwise, the specified parent
     /// value is used, and the note field's lineage is marked as inherited
     /// from the parent.
-    pub fn optional_note(&mut self, local_value: &Option<String>, parent_value: &Option<String>) -> Option<String> {
+    pub fn optional_note(
+        &mut self,
+        local_value: &Option<String>,
+        parent_value: &Option<String>,
+    ) -> Option<String> {
         if local_value.is_some() {
             _ = self.locally_overridden_fields.insert("note".to_owned());
             _ = self.inherited_fields.remove("note");
@@ -306,7 +347,9 @@ impl AttributeLineage {
         parent_value: &RequirementLevel,
     ) -> RequirementLevel {
         if let Some(local_value) = local_value {
-            _ = self.locally_overridden_fields.insert("requirement_level".to_owned());
+            _ = self
+                .locally_overridden_fields
+                .insert("requirement_level".to_owned());
             _ = self.inherited_fields.remove("requirement_level");
             local_value.clone()
         } else {
@@ -326,7 +369,9 @@ impl AttributeLineage {
         parent_value: &Option<RequirementLevel>,
     ) -> Option<RequirementLevel> {
         if local_value.is_some() {
-            _ = self.locally_overridden_fields.insert("requirement_level".to_owned());
+            _ = self
+                .locally_overridden_fields
+                .insert("requirement_level".to_owned());
             _ = self.inherited_fields.remove("requirement_level");
             local_value.clone()
         } else {
@@ -370,7 +415,9 @@ impl AttributeLineage {
         parent_value: &Option<Stability>,
     ) -> Option<Stability> {
         if local_value.is_some() {
-            _ = self.locally_overridden_fields.insert("stability".to_owned());
+            _ = self
+                .locally_overridden_fields
+                .insert("stability".to_owned());
             _ = self.inherited_fields.remove("stability");
             local_value.clone()
         } else {
@@ -392,7 +439,9 @@ impl AttributeLineage {
         parent_value: &Option<String>,
     ) -> Option<String> {
         if local_value.is_some() {
-            _ = self.locally_overridden_fields.insert("deprecated".to_owned());
+            _ = self
+                .locally_overridden_fields
+                .insert("deprecated".to_owned());
             _ = self.inherited_fields.remove("deprecated");
             local_value.clone()
         } else {
@@ -440,14 +489,16 @@ impl AttributeLineage {
         parent_value: &Option<bool>,
     ) -> Option<bool> {
         if local_value.is_some() {
-            _ = self.locally_overridden_fields.insert("sampling_relevant".to_owned());
+            _ = self
+                .locally_overridden_fields
+                .insert("sampling_relevant".to_owned());
             _ = self.inherited_fields.remove("sampling_relevant");
-            local_value.clone()
+            *local_value
         } else {
             if parent_value.is_some() {
                 _ = self.inherited_fields.insert("sampling_relevant".to_owned());
             }
-            parent_value.clone()
+            *parent_value
         }
     }
 }

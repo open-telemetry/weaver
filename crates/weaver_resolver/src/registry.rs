@@ -9,12 +9,12 @@ use serde::Deserialize;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
-use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 use weaver_semconv::attribute::AttributeSpec;
+use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
 
-use crate::{Error, handle_errors, UnsatisfiedAnyOfConstraint};
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
+use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -413,7 +413,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
                     unresolved_group.attributes = resolve_inheritance_attrs(
                         &unresolved_group.group.id,
                         &unresolved_group.attributes,
-                        &extends,
+                        extends,
                         attrs,
                         unresolved_group.group.lineage.as_mut(),
                     );
@@ -565,20 +565,30 @@ fn resolve_inheritance_attrs(
     for attr in attrs_group.iter() {
         match &attr.spec {
             AttributeSpec::Ref { r#ref, .. } => {
-                if let Some(AttrWithLineage { spec: parent_attr, lineage }) = inherited_attrs.get_mut(r#ref) {
+                if let Some(AttrWithLineage {
+                    spec: parent_attr,
+                    lineage,
+                }) = inherited_attrs.get_mut(r#ref)
+                {
                     *parent_attr = resolve_inheritance_attr(&attr.spec, parent_attr, lineage);
                 } else {
-                    _ = inherited_attrs.insert(r#ref.clone(), AttrWithLineage {
-                        spec: attr.spec.clone(),
-                        lineage: AttributeLineage::new(&attr.spec.id(), group_id),
-                    });
+                    _ = inherited_attrs.insert(
+                        r#ref.clone(),
+                        AttrWithLineage {
+                            spec: attr.spec.clone(),
+                            lineage: AttributeLineage::new(&attr.spec.id(), group_id),
+                        },
+                    );
                 }
             }
             AttributeSpec::Id { id, .. } => {
-                _ = inherited_attrs.insert(id.clone(), AttrWithLineage {
-                    spec: attr.spec.clone(),
-                    lineage: AttributeLineage::new(id, group_id),
-                });
+                _ = inherited_attrs.insert(
+                    id.clone(),
+                    AttrWithLineage {
+                        spec: attr.spec.clone(),
+                        lineage: AttributeLineage::new(id, group_id),
+                    },
+                );
             }
         }
     }
@@ -590,13 +600,15 @@ fn resolve_inheritance_attrs(
                 if !attr_with_lineage.lineage.is_empty() {
                     group_lineage.add_attribute_lineage(attr_with_lineage.lineage);
                 }
-                UnresolvedAttribute { spec: attr_with_lineage.spec }
+                UnresolvedAttribute {
+                    spec: attr_with_lineage.spec,
+                }
             })
             .collect()
     } else {
         inherited_attrs
-            .map(|attr_with_lineage| {
-                UnresolvedAttribute { spec: attr_with_lineage.spec }
+            .map(|attr_with_lineage| UnresolvedAttribute {
+                spec: attr_with_lineage.spec,
             })
             .collect()
     }
@@ -641,10 +653,8 @@ fn resolve_inheritance_attr(
                             requirement_level,
                             parent_requirement_level,
                         ),
-                        sampling_relevant: lineage.sampling_relevant(
-                            sampling_relevant,
-                            parent_sampling_relevant,
-                        ),
+                        sampling_relevant: lineage
+                            .sampling_relevant(sampling_relevant, parent_sampling_relevant),
                         note: lineage.optional_note(note, parent_note),
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
@@ -670,12 +680,11 @@ fn resolve_inheritance_attr(
                         brief: lineage.optional_brief(brief, parent_brief),
                         examples: lineage.examples(examples, parent_examples),
                         tag: lineage.tag(tag, parent_tag),
-                        requirement_level: lineage.requirement_level(requirement_level, parent_requirement_level),
-                        sampling_relevant: lineage.sampling_relevant(
-                            sampling_relevant,
-                            parent_sampling_relevant,
-                        ),
-                        note: lineage.note(note,parent_note),
+                        requirement_level: lineage
+                            .requirement_level(requirement_level, parent_requirement_level),
+                        sampling_relevant: lineage
+                            .sampling_relevant(sampling_relevant, parent_sampling_relevant),
+                        note: lineage.note(note, parent_note),
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
                     }
@@ -743,7 +752,7 @@ mod tests {
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
             )
-                .expect("Failed to load semconv specs");
+            .expect("Failed to load semconv specs");
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
@@ -758,7 +767,7 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
                     .expect("Failed to open expected attribute catalog"),
             )
-                .expect("Failed to deserialize expected attribute catalog");
+            .expect("Failed to deserialize expected attribute catalog");
 
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
@@ -775,7 +784,7 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
-                .expect("Failed to deserialize expected registry");
+            .expect("Failed to deserialize expected registry");
 
             assert_eq!(
                 observed_registry, expected_registry,

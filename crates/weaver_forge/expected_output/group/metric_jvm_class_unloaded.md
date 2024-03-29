@@ -12,5 +12,5 @@ prefix:
 
 ## Provenance
 
-Source: data/jvm-metrics.yaml
+Source file: data/jvm-metrics.yaml
 

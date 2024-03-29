@@ -40,5 +40,5 @@ prefix: otel.library
 
 ## Provenance
 
-Source: data/exporter.yaml
+Source file: data/exporter.yaml
 

@@ -50,5 +50,5 @@ When observed from the client side, and when communicating through an intermedia
 
 ## Provenance
 
-Source: data/registry-server.yaml
+Source file: data/registry-server.yaml
 

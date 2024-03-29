@@ -474,5 +474,5 @@ An identifier (address, unique name, or any other identifier) of the database in
 
 ## Provenance
 
-Source: data/registry-db.yaml
+Source file: data/registry-db.yaml
 

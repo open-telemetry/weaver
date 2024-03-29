@@ -42,5 +42,5 @@ The version of the instrumentation scope - (`InstrumentationScope.Version` in OT
 
 ## Provenance
 
-Source: data/exporter.yaml
+Source file: data/exporter.yaml
 

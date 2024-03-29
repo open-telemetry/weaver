@@ -265,19 +265,75 @@ An identifier (address, unique name, or any other identifier) of the database in
 
 ## Provenance
 
-Source: data/trace-database.yaml
+Source file: data/trace-database.yaml
 
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
-item: {"AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "server", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "server", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeRequirementLevel": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.network", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.network", "resolution_mode": "Reference"}}
-item: {"AttributeBrief": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeDeprecated": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeExamples": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeNote": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeSamplingRelevant": {"group_id": "registry.db", "resolution_mode": "Reference"}, "AttributeStability": {"group_id": "registry.db", "resolution_mode": "Reference"}}
+attribute: db.system
+  - source group: registry.db
+  - inherited fields: brief, note
+  - locally overridden fields: requirement_level, tag
+
+attribute: db.connection_string
+  - source group: registry.db
+  - inherited fields: brief, examples, note, requirement_level
+  - locally overridden fields: tag
+
+attribute: db.user
+  - source group: registry.db
+  - inherited fields: brief, examples, note, requirement_level
+  - locally overridden fields: tag
+
+attribute: db.jdbc.driver_classname
+  - source group: registry.db
+  - inherited fields: brief, examples, note, requirement_level
+  - locally overridden fields: tag
+
+attribute: db.name
+  - source group: registry.db
+  - inherited fields: brief, examples, note
+  - locally overridden fields: requirement_level, tag
+
+attribute: db.statement
+  - source group: registry.db
+  - inherited fields: brief, examples, note
+  - locally overridden fields: requirement_level, tag
+
+attribute: db.operation
+  - source group: registry.db
+  - inherited fields: brief, examples, note
+  - locally overridden fields: requirement_level, tag
+
+attribute: server.address
+  - source group: server
+  - inherited fields: examples, note, requirement_level, stability
+  - locally overridden fields: brief, tag
+
+attribute: server.port
+  - source group: server
+  - inherited fields: brief, examples, note, stability
+  - locally overridden fields: requirement_level, tag
+
+attribute: network.peer.address
+  - source group: registry.network
+  - inherited fields: brief, examples, note, requirement_level, stability
+  - locally overridden fields: tag
+
+attribute: network.peer.port
+  - source group: registry.network
+  - inherited fields: brief, examples, note, stability
+  - locally overridden fields: requirement_level, tag
+
+attribute: network.transport
+  - source group: registry.network
+  - inherited fields: brief, examples, note, requirement_level, stability
+  - locally overridden fields: tag
+
+attribute: network.type
+  - source group: registry.network
+  - inherited fields: brief, examples, note, requirement_level, stability
+  - locally overridden fields: tag
+
+attribute: db.instance.id
+  - source group: registry.db
+  - inherited fields: brief, examples, note
+  - locally overridden fields: requirement_level, tag
+

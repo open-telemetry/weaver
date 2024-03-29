@@ -228,5 +228,5 @@ The network IO operation direction.
 
 ## Provenance
 
-Source: data/registry-network.yaml
+Source file: data/registry-network.yaml
 

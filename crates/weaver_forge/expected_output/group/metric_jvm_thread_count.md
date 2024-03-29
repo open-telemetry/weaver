@@ -40,5 +40,5 @@ State of the thread.
 
 ## Provenance
 
-Source: data/jvm-metrics.yaml
+Source file: data/jvm-metrics.yaml
 

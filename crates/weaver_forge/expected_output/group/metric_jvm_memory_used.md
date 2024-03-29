@@ -47,5 +47,15 @@ The type of memory.
 
 ## Provenance
 
-Source: data/jvm-metrics.yaml
+Source file: data/jvm-metrics.yaml
+
+attribute: pool.name
+  - source group: attributes.jvm.memory
+  - inherited fields: brief, examples, note, requirement_level, stability
+  - locally overridden fields: 
+
+attribute: type
+  - source group: attributes.jvm.memory
+  - inherited fields: brief, examples, note, requirement_level, stability
+  - locally overridden fields: 
 

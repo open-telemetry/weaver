@@ -47,5 +47,5 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
 
 ## Provenance
 
-Source: data/jvm-metrics.yaml
+Source file: data/jvm-metrics.yaml
 
