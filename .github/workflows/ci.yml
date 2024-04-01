@@ -3,11 +3,12 @@ name: CI
 permissions:
   contents: read
 
-on:
-  pull_request:
-  push:
-    branches:
-      - main
+on: [push, pull_request]
+#on:
+#  pull_request:
+#  push:
+#    branches:
+#      - main
 
 env:
   RUST_BACKTRACE: 1
