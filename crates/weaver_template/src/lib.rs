@@ -14,6 +14,7 @@ mod testers;
 
 /// An error that can occur while generating a client SDK.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Invalid config file.
     #[error("Invalid config file `{config_file}`: {error}")]

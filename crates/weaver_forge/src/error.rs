@@ -8,6 +8,7 @@ use weaver_resolved_schema::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone)]
+#[non_exhaustive]
 pub enum Error {
     /// Invalid config file.
     #[error("Invalid config file `{config_file}`: {error}")]

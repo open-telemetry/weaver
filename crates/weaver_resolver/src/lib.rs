@@ -46,6 +46,7 @@ pub struct SchemaResolver {}
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug)]
 #[must_use]
+#[non_exhaustive]
 pub enum Error {
     /// A telemetry schema error.
     #[error("Telemetry schema error (error: {0:?})")]

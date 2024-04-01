@@ -29,6 +29,7 @@ pub mod spans_version;
 
 /// An error that can occur while loading or resolving version changes.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// The `versions` file was not found.
     #[error("Versions {path_or_url:?} not found\n{error:?}")]

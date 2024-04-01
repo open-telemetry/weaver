@@ -26,6 +26,7 @@ pub mod stability;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// The semantic convention registry path pattern is invalid.
     #[error("Invalid semantic convention registry path pattern '{path_pattern:?}'.\n{error}")]

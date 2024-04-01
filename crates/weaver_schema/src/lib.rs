@@ -35,6 +35,7 @@ pub mod univariate_metric;
 
 /// An error that can occur while loading a telemetry schema.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// The telemetry schema was not found.
     #[error("Schema {path_or_url:?} not found\n{error:?}")]

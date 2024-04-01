@@ -21,6 +21,7 @@ use tempdir::TempDir;
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Home directory not found.
     #[error("Home directory not found")]
