@@ -38,6 +38,12 @@ pub(crate) fn command(
     cache: &Cache,
     args: &RegistryUpdateMarkdownArgs,
 ) {
+    fn is_markdown(entry: &walkdir::DirEntry) -> bool {
+        let path = entry.path();
+        let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
+        path.is_file() && extension == "md"
+    }
+
     let registry = ResolvedSemconvRegistry::try_from_url(
         args.registry.clone(),
         args.registry_git_sub_dir.clone(),
@@ -48,11 +54,6 @@ pub(crate) fn command(
         panic!("Failed to resolve the semantic convention registry.\n{e}");
     });
     log.success("Registry resolved successfully");
-    fn is_markdown(entry: &walkdir::DirEntry) -> bool {
-        let path = entry.path();
-        let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
-        path.is_file() && extension == "md"
-    }
     let operation = if args.dry_run {
         "Validating"
     } else {

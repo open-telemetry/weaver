@@ -57,13 +57,6 @@ pub fn instrument(value: &Value, _: &HashMap<String, Value>) -> Result<Value> {
 /// The result is a list of unique attributes sorted by their id or an empty list if no attributes
 /// are found.
 pub fn unique_attributes(value: &Value, ctx: &HashMap<String, Value>) -> Result<Value> {
-    let mut unique_attributes = BTreeMap::new();
-
-    let recursive = match ctx.get("recursive") {
-        Some(Value::Bool(v)) => *v,
-        _ => false,
-    };
-
     fn visit_attributes(
         value: &Value,
         unique_attributes: &mut BTreeMap<String, Value>,
@@ -105,6 +98,12 @@ pub fn unique_attributes(value: &Value, ctx: &HashMap<String, Value>) -> Result<
             _ => {}
         }
     }
+
+    let mut unique_attributes = BTreeMap::new();
+    let recursive = match ctx.get("recursive") {
+        Some(Value::Bool(v)) => *v,
+        _ => false,
+    };
 
     visit_attributes(
         value,
