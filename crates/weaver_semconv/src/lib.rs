@@ -429,7 +429,7 @@ impl SemConvRegistry {
         let mut metrics_to_resolve = HashMap::new();
 
         // Add all the attributes with an id to the semantic convention registry.
-        for SemConvSpecWithProvenance { spec, provenance } in self.specs.clone().into_iter() {
+        for SemConvSpecWithProvenance { spec, provenance } in self.specs.clone() {
             for group in spec.groups.iter() {
                 // Process attributes
                 match group.r#type {
@@ -551,7 +551,7 @@ impl SemConvRegistry {
         }
 
         // Resolve all the attributes with a reference.
-        for attr_to_resolve in attributes_to_resolve.into_iter() {
+        for attr_to_resolve in attributes_to_resolve {
             let resolved_attr = self.all_attributes.get(&attr_to_resolve.r#ref);
 
             if resolved_attr.is_none() {
@@ -748,7 +748,7 @@ impl SemConvRegistry {
         attributes_to_resolve: &mut Vec<AttributeToResolve>,
     ) -> Result<HashSet<String>, Error> {
         let mut attributes_in_group = HashSet::new();
-        for mut attr in attrs.into_iter() {
+        for mut attr in attrs {
             match &attr {
                 AttributeSpec::Id { id, .. } => {
                     // The attribute has an id, so add it to the semantic convention registry

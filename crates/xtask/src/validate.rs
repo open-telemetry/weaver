@@ -81,6 +81,7 @@ pub fn run() -> anyhow::Result<()> {
             eprintln!("{}", error);
             eprintln!()
         }
+        #[allow(clippy::exit)]  // This is an expected exit
         std::process::exit(1);
     }
 
