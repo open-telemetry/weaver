@@ -32,7 +32,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
         registry_id,
-        args.registry.registry.to_string(),
+        args.registry.registry.clone(),
         args.registry.registry_git_sub_dir.clone(),
         cache,
         log.clone(),

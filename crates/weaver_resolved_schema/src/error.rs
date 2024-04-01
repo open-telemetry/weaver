@@ -41,7 +41,7 @@ impl Error {
                 .into_iter()
                 .flat_map(|e| match e {
                     CompoundError(errors) => errors,
-                    e @ AttributeNotFound{ .. } => vec![e],
+                    e @ AttributeNotFound { .. } => vec![e],
                 })
                 .collect(),
         )

@@ -39,7 +39,7 @@ anyhow = "1.0.81"
 
 # Features definition =========================================================
 [features]
-experimental = []
+experimental = ["tantivy"]
 
 # Crate definitions ===========================================================
 [[bin]]
@@ -63,7 +63,7 @@ clap = { version = "4.5.3", features = ["derive"] }
 crossterm = "0.27.0"
 ratatui = "0.26.1"
 tui-textarea = "0.4.0"
-tantivy = "0.21.1"
+tantivy = { version = "0.21.1", optional = true }
 
 # workspace dependencies
 serde.workspace = true
@@ -170,16 +170,9 @@ trait_duplication_in_bounds = "warn"
 verbose_file_reads = "warn"
 wildcard_imports = "warn"
 zero_sized_map_values = "warn"
+string_to_string = "warn"
 
 #exhaustive_enums = "warn"
-
-##
-#bool_assert_comparison = "allow"
-#branches_sharing_code = "allow"
-#collapsible_else_if = "allow"
 #doc_markdown = "warn"
 #exhaustive_structs = "warn"
-#if_same_then_else = "allow"
-#let_and_return = "allow"  # sometimes good to name what you are returning
-#string_to_string = "warn"
 #todo = "warn"

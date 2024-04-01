@@ -299,7 +299,7 @@ mod tests {
                 println!();
                 println!("--- Running test: {} ---", dir.path().display());
                 println!();
-                force_print_error(run_legacy_test(dir.path()))
+                force_print_error(run_legacy_test(dir.path()));
             }
         }
     }

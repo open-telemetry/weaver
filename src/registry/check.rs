@@ -36,7 +36,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     // No parsing errors should be observed.
     let semconv_specs = SchemaResolver::load_semconv_registry(
         registry_id,
-        args.registry.to_string(),
+        args.registry.clone(),
         args.registry_git_sub_dir.clone(),
         cache,
         log.clone(),

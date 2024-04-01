@@ -700,6 +700,7 @@ mod test {
         let log = ConsoleLogger::new(0);
         let cache = Cache::try_new().unwrap_or_else(|e| {
             log.error(&e.to_string());
+            #[allow(clippy::exit)] // Expected exit
             std::process::exit(1);
         });
         let schema = SchemaResolver::resolve_schema_file(

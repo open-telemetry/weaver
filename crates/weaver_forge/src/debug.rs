@@ -72,7 +72,7 @@ pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: Error) {
     }
     dedup_errs.iter().for_each(|(_, err)| {
         let output = match err.occurrences {
-            1 => err.error.to_string(),
+            1 => err.error.clone(),
             2 => format!("{}\n\nFound 1 similar error", err.error),
             _ => format!(
                 "{}\n\nFound {} similar errors",

@@ -58,7 +58,7 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
         registry_id,
-        args.registry.to_string(),
+        args.registry.clone(),
         args.registry_git_sub_dir.clone(),
         cache,
         logger.clone(),
@@ -95,7 +95,7 @@ pub(crate) fn command(
         Ok(_) => logger.success("Artifacts generated successfully"),
         Err(e) => {
             print_dedup_errors(logger.clone(), e);
-            #[allow(clippy::exit)]  // Expected behavior
+            #[allow(clippy::exit)] // Expected behavior
             std::process::exit(1);
         }
     };
