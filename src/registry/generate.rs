@@ -95,6 +95,7 @@ pub(crate) fn command(
         Ok(_) => logger.success("Artifacts generated successfully"),
         Err(e) => {
             print_dedup_errors(logger.clone(), e);
+            #[allow(clippy::exit)]  // Expected behavior
             std::process::exit(1);
         }
     };

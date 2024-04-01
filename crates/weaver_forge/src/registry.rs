@@ -126,7 +126,7 @@ impl TemplateRegistry {
                 let attributes = group
                     .attributes
                     .iter()
-                    .flat_map(|attr_ref| {
+                    .filter_map(|attr_ref| {
                         let attr = catalog.attribute(attr_ref).cloned();
                         if attr.is_none() {
                             errors.push(Error::AttributeNotFound {

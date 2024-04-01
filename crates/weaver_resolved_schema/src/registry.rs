@@ -347,7 +347,7 @@ impl Group {
         let attributes = self
             .attributes
             .iter()
-            .flat_map(|attr_ref| match catalog.attribute(attr_ref) {
+            .filter_map(|attr_ref| match catalog.attribute(attr_ref) {
                 Some(attr) => Some(attr),
                 None => {
                     errors.push(Error::AttributeNotFound {
