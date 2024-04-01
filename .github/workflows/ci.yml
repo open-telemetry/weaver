@@ -45,11 +45,13 @@ jobs:
         uses: arduino/setup-protoc@v2
       - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo test --no-run --workspace --all-features
+        # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+        run: cargo test --no-run --workspace
       - name: Default features
         run: cargo test --workspace
-      - name: All features
-        run: cargo test --workspace --all-features
+# [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+#      - name: All features
+#        run: cargo test --workspace --all-features
       - name: No-default features
         run: cargo test --workspace --no-default-features
   msrv:
@@ -67,8 +69,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Default features
         run: cargo check --workspace --all-targets
-      - name: All features
-        run: cargo check --workspace --all-targets --all-features
+# [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+#      - name: All features
+#        run: cargo check --workspace --all-targets --all-features
       - name: No-default features
         run: cargo check --workspace --all-targets --no-default-features
   lockfile:
@@ -99,9 +102,11 @@ jobs:
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --all-features --no-deps --document-private-items
+        # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+        # run: cargo doc --workspace --all-features --no-deps --document-private-items
+        run: cargo doc --workspace --no-deps --document-private-items
   rustfmt:
-    name: rustfmt
+    name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -117,6 +122,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
   check-external-types:
+    name: Check external types
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -132,7 +138,7 @@ jobs:
           cargo install cargo-check-external-types
           ./scripts/check_external_types.sh
   clippy:
-    name: clippy
+    name: Clippy
     runs-on: ubuntu-latest
     permissions:
       security-events: write # to upload sarif results
@@ -152,8 +158,10 @@ jobs:
       - name: Install protoc
         uses: arduino/setup-protoc@v2
       - name: Check
+        # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
+        # [ToDo LQ] Re-enable --all-features once the issue is resolved
         run: >
-          cargo clippy --workspace --all-features --all-targets --message-format=json -- -D warnings --allow deprecated
+          cargo clippy --workspace --all-targets --message-format=json -- -D warnings --allow deprecated
           | clippy-sarif
           | tee clippy-results.sarif
           | sarif-fmt
@@ -164,7 +172,7 @@ jobs:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
       - name: Report status
-        run: cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated
+        run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
