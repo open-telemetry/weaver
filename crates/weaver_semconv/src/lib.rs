@@ -216,6 +216,12 @@ pub struct SemConvRegistry {
     event_group_attributes: HashMap<String, GroupIds>,
 
     /// Collection of attribute ids index by group id and defined in a
+    /// `scope` semantic convention group.
+    /// Attribute ids are references to of attributes defined in the
+    /// all_attributes field.
+    scope_group_attributes: HashMap<String, GroupIds>,
+
+    /// Collection of attribute ids index by group id and defined in a
     /// `metric` semantic convention group.
     /// Attribute ids are references to of attributes defined in the
     /// all_attributes field.
@@ -438,6 +444,7 @@ impl SemConvRegistry {
                     | GroupType::Resource
                     | GroupType::Metric
                     | GroupType::Event
+                    | GroupType::Scope
                     | GroupType::MetricGroup => {
                         let attributes_in_group = self.process_attributes(
                             provenance.clone(),
@@ -454,7 +461,7 @@ impl SemConvRegistry {
                             GroupType::Metric => Some(&mut self.metric_group_attributes),
                             GroupType::Event => Some(&mut self.event_group_attributes),
                             GroupType::MetricGroup => Some(&mut self.metric_group_group_attributes),
-                            _ => None,
+                            GroupType::Scope => Some(&mut self.scope_group_attributes),
                         };
 
                         if let Some(group_attributes) = group_attributes {
@@ -471,12 +478,6 @@ impl SemConvRegistry {
                                 prev_group_ids,
                             )?;
                         }
-                    }
-                    _ => {
-                        panic!(
-                            "Warning: group type `{:?}` not implemented yet",
-                            group.r#type
-                        );
                     }
                 }
 
