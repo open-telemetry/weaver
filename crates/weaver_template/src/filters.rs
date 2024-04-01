@@ -324,7 +324,7 @@ pub fn comment(value: &Value, ctx: &HashMap<String, Value>) -> Result<Value> {
                     Value::Array(values) => {
                         for value in values {
                             if let Value::String(value) = value {
-                                wrap_comment(value, "- ", &mut lines)
+                                wrap_comment(value, "- ", &mut lines);
                             }
                         }
                     }

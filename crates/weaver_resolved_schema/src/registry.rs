@@ -13,7 +13,7 @@ use weaver_semconv::stability::Stability;
 
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;
-use crate::error::{handle_errors, Error};
+use crate::error::{Error, handle_errors};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
     AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span,
@@ -229,7 +229,7 @@ impl Registry {
     /// # Arguments
     ///
     /// * `group_type` - The type of the groups to return.
-    pub fn groups(&self, group_type: GroupType) -> impl Iterator<Item = &Group> {
+    pub fn groups(&self, group_type: GroupType) -> impl Iterator<Item=&Group> {
         self.groups
             .iter()
             .filter(move |group| group_type == group.r#type)
@@ -347,15 +347,12 @@ impl Group {
         let attributes = self
             .attributes
             .iter()
-            .filter_map(|attr_ref| match catalog.attribute(attr_ref) {
-                Some(attr) => Some(attr),
-                None => {
-                    errors.push(Error::AttributeNotFound {
-                        group_id: self.id.clone(),
-                        attr_ref: *attr_ref,
-                    });
-                    None
-                }
+            .filter_map(|attr_ref| if let Some(attr) = catalog.attribute(attr_ref) { Some(attr) } else {
+                errors.push(Error::AttributeNotFound {
+                    group_id: self.id.clone(),
+                    attr_ref: *attr_ref,
+                });
+                None
             })
             .collect();
 

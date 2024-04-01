@@ -72,9 +72,9 @@ pub(crate) fn command(
         cache,
         logger.clone(),
     )
-    .unwrap_or_else(|e| {
-        panic!("Failed to load and parse the semantic convention registry, error: {e}");
-    });
+        .unwrap_or_else(|e| {
+            panic!("Failed to load and parse the semantic convention registry, error: {e}");
+        });
 
     // Resolve the semantic convention registry.
     let schema =
@@ -98,25 +98,24 @@ pub(crate) fn command(
                     .expect("Failed to get the registry from the resolved schema"),
                 schema.catalog(),
             )
-            .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
+                .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
             apply_format(&args.format, &registry)
                 .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
         }
     }
-    .and_then(|s| match args.output {
-        // Write the resolved registry to a file.
-        Some(ref path) => std::fs::write(path, s)
-            .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}")),
-        // Print the resolved registry to stdout.
-        None => {
+        .and_then(|s| if let Some(ref path) = args.output {
+            // Write the resolved registry to a file.
+            std::fs::write(path, s)
+                .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
+        } else {
+            // Print the resolved registry to stdout.
             println!("{}", s);
             Ok(())
-        }
-    })
-    .unwrap_or_else(|e| {
-        // Capture all the errors
-        panic!("{}", e);
-    });
+        })
+        .unwrap_or_else(|e| {
+            // Capture all the errors
+            panic!("{}", e);
+        });
 }
 
 fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {

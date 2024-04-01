@@ -146,7 +146,7 @@ pub fn resolve_metrics(
                 version_changes.metric_attribute_changes(),
             )?;
             for attr in all_shared_attributes {
-                _ = metric_group_attrs.insert(attr.id(), attr)
+                _ = metric_group_attrs.insert(attr.id(), attr);
             }
 
             metrics.attributes = metric_group_attrs.into_values().collect();

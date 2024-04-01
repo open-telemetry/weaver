@@ -544,10 +544,10 @@ fn resolve_inheritance_attrs(
     for parent_attr in attrs_parent_group.iter() {
         match &parent_attr.spec {
             AttributeSpec::Ref { r#ref, .. } => {
-                _ = resolved_attrs.insert(r#ref.clone(), parent_attr.spec.clone())
+                _ = resolved_attrs.insert(r#ref.clone(), parent_attr.spec.clone());
             }
             AttributeSpec::Id { id, .. } => {
-                _ = resolved_attrs.insert(id.clone(), parent_attr.spec.clone())
+                _ = resolved_attrs.insert(id.clone(), parent_attr.spec.clone());
             }
         }
     }
@@ -560,13 +560,13 @@ fn resolve_inheritance_attrs(
                     _ = resolved_attrs.insert(
                         r#ref.clone(),
                         resolve_inheritance_attr(&attr.spec, parent_attr),
-                    )
+                    );
                 } else {
-                    _ = resolved_attrs.insert(r#ref.clone(), attr.spec.clone())
+                    _ = resolved_attrs.insert(r#ref.clone(), attr.spec.clone());
                 }
             }
             AttributeSpec::Id { id, .. } => {
-                _ = resolved_attrs.insert(id.clone(), attr.spec.clone())
+                _ = resolved_attrs.insert(id.clone(), attr.spec.clone());
             }
         }
     }

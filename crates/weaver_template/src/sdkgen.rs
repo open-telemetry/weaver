@@ -271,7 +271,7 @@ impl ClientSdkGenerator {
                                     templates.push(TemplateObjectPair::Metric {
                                         template: tmpl_file.into(),
                                         metric,
-                                    })
+                                    });
                                 }
                             }
                         }
@@ -281,7 +281,7 @@ impl ClientSdkGenerator {
                                     templates.push(TemplateObjectPair::MetricGroup {
                                         template: tmpl_file.into(),
                                         metric_group,
-                                    })
+                                    });
                                 }
                             }
                         }
@@ -291,7 +291,7 @@ impl ClientSdkGenerator {
                                     templates.push(TemplateObjectPair::Event {
                                         template: tmpl_file.into(),
                                         event,
-                                    })
+                                    });
                                 }
                             }
                         }
@@ -301,7 +301,7 @@ impl ClientSdkGenerator {
                                     templates.push(TemplateObjectPair::Span {
                                         template: tmpl_file.into(),
                                         span,
-                                    })
+                                    });
                                 }
                             }
                         }
@@ -314,7 +314,7 @@ impl ClientSdkGenerator {
                                 template: tmpl_file.into(),
                                 relative_path,
                                 object: schema,
-                            })
+                            });
                         }
                     }
                 } else {
