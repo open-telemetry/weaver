@@ -30,6 +30,11 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Whether or not to run updates in dry-run mode.
     #[arg(long, default_value = "false")]
     pub dry_run: bool,
+
+    /// Optional path to the attribute registry.
+    /// If provided, all attributes will be linked here.
+    #[arg(long)]
+    pub attribute_regsitry_base_url: Option<String>,
 }
 
 /// Update markdown files.
@@ -67,9 +72,12 @@ pub(crate) fn command(
         })
     {
         log.info(&format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) =
-            update_markdown(&entry.path().display().to_string(), &registry, args.dry_run)
-        {
+        if let Err(error) = update_markdown(
+            &entry.path().display().to_string(),
+            &registry,
+            args.dry_run,
+            args.attribute_regsitry_base_url.as_deref(),
+        ) {
             has_error = true;
             log.error(&format!("{error}"));
         }
