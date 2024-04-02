@@ -4,11 +4,6 @@ permissions:
   contents: read
 
 on: [push, pull_request]
-#on:
-#  pull_request:
-#  push:
-#    branches:
-#      - main
 
 env:
   RUST_BACKTRACE: 1
@@ -55,7 +50,7 @@ jobs:
       - name: No-default features
         run: cargo test --workspace --no-default-features
   msrv:
-    name: "Check MSRV: 1.70.0"
+    name: Check MSRV
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
