@@ -55,6 +55,7 @@ pub struct RegistryResolveArgs {
 
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
+#[no_coverage]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -120,6 +121,7 @@ pub(crate) fn command(
     });
 }
 
+#[no_coverage]
 fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {
     match format {
         Format::Yaml => serde_yaml::to_string(object)

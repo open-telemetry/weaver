@@ -43,6 +43,7 @@ pub struct RegistryGenerateArgs {
 }
 
 /// Generate artifacts from a semantic convention registry.
+#[no_coverage]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,

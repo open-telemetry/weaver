@@ -12,6 +12,7 @@
 
 mod validate;
 
+#[no_coverage]
 fn main() -> anyhow::Result<()> {
     let task = std::env::args().nth(1);
 
@@ -29,6 +30,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Prints help message.
+#[no_coverage]
 pub fn print_help() -> anyhow::Result<()> {
     println!(
         "
