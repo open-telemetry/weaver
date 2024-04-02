@@ -8,6 +8,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use url::Url;
+use weaver_semconv::path::RegistryPath;
 
 use weaver_semconv::SemConvRegistry;
 use weaver_version::Versions;
@@ -86,7 +87,7 @@ pub struct TelemetrySchema {
     /// The semantic conventions that are imported by the current schema (optional).
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub semantic_conventions: Vec<SemConvImport>,
+    pub semantic_conventions: Vec<RegistryPath>,
     /// Definition of the telemetry schema for an application or a library.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub schema: Option<SchemaSpec>,
@@ -209,7 +210,7 @@ impl TelemetrySchema {
 
     /// Returns the semantic conventions for the schema and its parent schemas.
     #[must_use]
-    pub fn merged_semantic_conventions(&self) -> Vec<SemConvImport> {
+    pub fn merged_semantic_conventions(&self) -> Vec<RegistryPath> {
         let mut result = vec![];
         if let Some(parent_schema) = self.parent_schema.as_ref() {
             result.extend(parent_schema.merged_semantic_conventions().iter().cloned());

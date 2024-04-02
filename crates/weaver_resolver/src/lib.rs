@@ -19,7 +19,8 @@ use weaver_logger::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_schema::{SemConvImport, TelemetrySchema};
+use weaver_schema::TelemetrySchema;
+use weaver_semconv::path::RegistryPath;
 use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
 use weaver_version::VersionChanges;
 
@@ -301,7 +302,7 @@ impl SchemaResolver {
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
             registry_id,
-            &[SemConvImport::GitUrl {
+            &[RegistryPath::GitUrl {
                 git_url: registry_git_url,
                 path,
             }],
@@ -314,20 +315,11 @@ impl SchemaResolver {
     /// Loads a semantic convention registry from the given Git URL.
     pub fn load_semconv_registry(
         registry_id: &str,
-        registry_git_url: String,
-        path: Option<String>,
+        registry_path: RegistryPath,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
-        Self::load_semconv_registry_from_imports(
-            registry_id,
-            &[SemConvImport::GitUrl {
-                git_url: registry_git_url,
-                path,
-            }],
-            cache,
-            log.clone(),
-        )
+        Self::load_semconv_registry_from_imports(registry_id, &[registry_path], cache, log.clone())
     }
 
     /// Loads a telemetry schema from the given URL or path.
@@ -401,7 +393,7 @@ impl SchemaResolver {
     /// Loads a semantic convention registry from the given semantic convention imports.
     pub fn load_semconv_registry_from_imports(
         registry_id: &str,
-        imports: &[SemConvImport],
+        imports: &[RegistryPath],
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<SemConvRegistry, Error> {
@@ -422,7 +414,7 @@ impl SchemaResolver {
     /// Loads a semantic convention registry from the given semantic convention imports.
     pub fn semconv_registry_from_imports(
         registry_id: &str,
-        imports: &[SemConvImport],
+        imports: &[RegistryPath],
         resolver_config: ResolverConfig,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
@@ -545,7 +537,7 @@ impl SchemaResolver {
     /// Creates a semantic convention registry from the given telemetry schema.
     fn create_semantic_convention_registry(
         registry_id: &str,
-        sem_convs: &[SemConvImport],
+        sem_convs: &[RegistryPath],
         cache: &Cache,
         log: impl Logger + Sync,
     ) -> Result<SemConvRegistry, Error> {
@@ -600,90 +592,91 @@ impl SchemaResolver {
         Ok(sem_conv_catalog)
     }
 
-    /// Imports the semantic convention specifications from the given import declaration.
+    /// Imports the semantic convention specifications from the given registry path.
     /// This function returns a vector of results because the import declaration can be a
     /// URL or a git URL (containing potentially multiple semantic convention specifications).
     fn import_sem_conv_specs(
-        import_decl: &SemConvImport,
+        registry_path: &RegistryPath,
         cache: &Cache,
     ) -> Vec<Result<(String, SemConvSpec), Error>> {
-        match import_decl {
-            SemConvImport::Url { url } => {
-                let spec = SemConvRegistry::load_sem_conv_spec_from_url(url).map_err(|e| {
-                    Error::SemConvError {
+        match registry_path {
+            RegistryPath::Local { path } => Self::import_semconv_from_local_path(path.into(), path),
+            RegistryPath::GitUrl { git_url, path } => {
+                match cache.git_repo(git_url.clone(), path.clone()) {
+                    Ok(local_git_repo) => {
+                        Self::import_semconv_from_local_path(local_git_repo, git_url)
+                    }
+                    Err(e) => vec![Err(Error::SemConvError {
                         message: e.to_string(),
-                    }
-                });
-                vec![spec]
-            }
-            SemConvImport::GitUrl { git_url, path } => {
-                fn is_hidden(entry: &DirEntry) -> bool {
-                    entry
-                        .file_name()
-                        .to_str()
-                        .map(|s| s.starts_with('.'))
-                        .unwrap_or(false)
+                    })],
                 }
-                fn is_semantic_convention_file(entry: &DirEntry) -> bool {
-                    let path = entry.path();
-                    let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
-                    let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
-                    path.is_file()
-                        && (extension == "yaml" || extension == "yml")
-                        && file_name != "schema-next.yaml"
-                }
-
-                let mut result = vec![];
-                let git_repo = cache.git_repo(git_url.clone(), path.clone()).map_err(|e| {
-                    Error::SemConvError {
-                        message: e.to_string(),
-                    }
-                });
-
-                if let Ok(git_repo) = git_repo {
-                    // Loads the semantic convention specifications from the git repo.
-                    // All yaml files are recursively loaded from the given path.
-                    for entry in walkdir::WalkDir::new(git_repo.clone())
-                        .into_iter()
-                        .filter_entry(|e| !is_hidden(e))
-                    {
-                        match entry {
-                            Ok(entry) => {
-                                if is_semantic_convention_file(&entry) {
-                                    let spec =
-                                        SemConvRegistry::load_sem_conv_spec_from_file(entry.path())
-                                            .map_err(|e| Error::SemConvError {
-                                                message: e.to_string(),
-                                            });
-                                    result.push(match spec {
-                                        Ok((path, spec)) => {
-                                            // Replace the local path with the git URL combined with the relative path
-                                            // of the semantic convention file.
-                                            let prefix = git_repo
-                                                .to_str()
-                                                .map(|s| s.to_owned())
-                                                .unwrap_or_default();
-                                            let path = format!(
-                                                "{}/{}",
-                                                git_url,
-                                                &path[prefix.len() + 1..]
-                                            );
-                                            Ok((path, spec))
-                                        }
-                                        Err(e) => Err(e),
-                                    });
-                                }
-                            }
-                            Err(e) => result.push(Err(Error::SemConvError {
-                                message: e.to_string(),
-                            })),
-                        }
-                    }
-                }
-
-                result
             }
         }
+    }
+
+    /// Imports the semantic convention specifications from the given local path.
+    ///
+    /// # Arguments
+    /// * `local_path` - The local path containing the semantic convention files.
+    /// * `registry_path_repr` - The representation of the registry path (URL or path).
+    fn import_semconv_from_local_path(
+        local_path: PathBuf,
+        registry_path_repr: &str,
+    ) -> Vec<Result<(String, SemConvSpec), Error>> {
+        fn is_hidden(entry: &DirEntry) -> bool {
+            entry
+                .file_name()
+                .to_str()
+                .map(|s| s.starts_with('.'))
+                .unwrap_or(false)
+        }
+        fn is_semantic_convention_file(entry: &DirEntry) -> bool {
+            let path = entry.path();
+            let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
+            let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
+            path.is_file()
+                && (extension == "yaml" || extension == "yml")
+                && file_name != "schema-next.yaml"
+        }
+
+        let mut result = vec![];
+
+        // Loads the semantic convention specifications from the git repo.
+        // All yaml files are recursively loaded from the given path.
+        for entry in walkdir::WalkDir::new(local_path.clone())
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+        {
+            match entry {
+                Ok(entry) => {
+                    if is_semantic_convention_file(&entry) {
+                        let spec = SemConvRegistry::load_sem_conv_spec_from_file(entry.path())
+                            .map_err(|e| Error::SemConvError {
+                                message: e.to_string(),
+                            });
+                        result.push(match spec {
+                            Ok((path, spec)) => {
+                                // Replace the local path with the git URL combined with the relative path
+                                // of the semantic convention file.
+                                let prefix = local_path
+                                    .to_str()
+                                    .map(|s| s.to_owned())
+                                    .unwrap_or_default();
+                                let path =
+                                    format!("{}/{}", registry_path_repr, &path[prefix.len() + 1..]);
+                                Ok((path, spec))
+                            }
+                            Err(e) => Err(e),
+                        });
+                    }
+                }
+                Err(e) => result.push(Err(Error::SemConvError {
+                    message: e.to_string(),
+                })),
+            }
+        }
+
+        result
     }
 }
 
