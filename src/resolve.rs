@@ -2,14 +2,14 @@
 
 //! Command to resolve a schema file, then output and display the results on the console.
 
-use clap::{Args, Subcommand};
+use clap::{command, Args, Subcommand};
 use std::path::PathBuf;
 use std::process::exit;
 use weaver_cache::Cache;
 
+use crate::registry::RegistryPath;
 use weaver_logger::Logger;
 use weaver_resolver::SchemaResolver;
-use weaver_schema::SemConvImport;
 use weaver_semconv::ResolverConfig;
 
 /// Specify the `resolve` command
@@ -68,7 +68,7 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
             let registry_id = "default";
             let mut registry = SchemaResolver::semconv_registry_from_imports(
                 registry_id,
-                &[SemConvImport::GitUrl {
+                &[weaver_semconv::path::RegistryPath::GitUrl {
                     git_url: command.registry.clone(),
                     path: command.path.clone(),
                 }],

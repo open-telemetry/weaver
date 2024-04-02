@@ -3,6 +3,7 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
+use crate::registry::{semconv_registry_path_from, RegistryPath};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
@@ -20,7 +21,7 @@ pub struct RegistryUpdateMarkdownArgs {
         long,
         default_value = "https://github.com/open-telemetry/semantic-conventions.git"
     )]
-    pub registry: String,
+    pub registry: RegistryPath,
 
     /// Optional path in the Git repository where the semantic convention
     /// registry is located
@@ -39,8 +40,7 @@ pub(crate) fn command(
     args: &RegistryUpdateMarkdownArgs,
 ) {
     let registry = ResolvedSemconvRegistry::try_from_url(
-        args.registry.clone(),
-        args.registry_git_sub_dir.clone(),
+        semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
         log.clone(),
     )
