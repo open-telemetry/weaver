@@ -128,6 +128,7 @@ impl GenerateMarkdownArgs {
 fn generate_markdown_snippet(
     lookup: &ResolvedSemconvRegistry,
     args: GenerateMarkdownArgs,
+    attribute_registry_base_url: Option<&str>,
 ) -> Result<String, Error> {
     let mut ctx = GenerateMarkdownContext::default();
     let mut result = String::new();
@@ -136,7 +137,7 @@ fn generate_markdown_snippet(
         view.generate_markdown(&mut result, &mut ctx)?;
     } else {
         let other = AttributeTableView::try_new(args.id.as_str(), lookup)?;
-        other.generate_markdown(&mut result, &args, &mut ctx)?;
+        other.generate_markdown(&mut result, &args, &mut ctx, attribute_registry_base_url)?;
     }
     Ok(result)
 }
@@ -145,6 +146,7 @@ fn generate_markdown_snippet(
 fn update_markdown_contents(
     contents: &str,
     lookup: &ResolvedSemconvRegistry,
+    attribute_registry_base_url: Option<&str>,
 ) -> Result<String, Error> {
     let mut result = String::new();
     let mut handling_snippet = false;
@@ -166,7 +168,7 @@ fn update_markdown_contents(
             if parser::is_markdown_snippet_directive(line) {
                 handling_snippet = true;
                 let arg = parser::parse_markdown_snippet_directive(line)?;
-                let snippet = generate_markdown_snippet(lookup, arg)?;
+                let snippet = generate_markdown_snippet(lookup, arg, attribute_registry_base_url)?;
                 result.push_str(&snippet);
             }
         }
@@ -179,9 +181,11 @@ pub fn update_markdown(
     file: &str,
     lookup: &ResolvedSemconvRegistry,
     dry_run: bool,
+    attribute_registry_base_url: Option<&str>,
 ) -> Result<(), Error> {
     let original_markdown = fs::read_to_string(file)?;
-    let updated_markdown = update_markdown_contents(&original_markdown, lookup)?;
+    let updated_markdown =
+        update_markdown_contents(&original_markdown, lookup, attribute_registry_base_url)?;
     if !dry_run {
         fs::write(file, updated_markdown)?;
         Ok(())
@@ -266,17 +270,19 @@ mod tests {
     fn test_http_semconv() -> Result<(), Error> {
         let logger = TestLogger::default();
         let lookup = ResolvedSemconvRegistry::try_from_path("data/**/*.yaml", logger.clone())?;
-
+        let attribute_registry_url = "../attributes-registry";
         // Check our test files.
         force_print_error(update_markdown(
             "data/http-span-full-attribute-table.md",
             &lookup,
             true,
+            Some(attribute_registry_url),
         ));
         force_print_error(update_markdown(
             "data/http-metric-semconv.md",
             &lookup,
             true,
+            Some(attribute_registry_url),
         ));
         Ok(())
     }
@@ -302,6 +308,6 @@ mod tests {
         let lookup = ResolvedSemconvRegistry::try_from_path(&semconv_path, logger.clone())?;
         let test_path = path.join("test.md").display().to_string();
         // Attempts to update the test - will fail if there is any difference in the generated markdown.
-        update_markdown(&test_path, &lookup, true)
+        update_markdown(&test_path, &lookup, true, None)
     }
 }
