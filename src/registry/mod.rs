@@ -64,7 +64,7 @@ pub struct RegistryArgs {
 }
 
 /// Manage a semantic convention registry.
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());

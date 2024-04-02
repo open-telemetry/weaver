@@ -27,7 +27,7 @@ pub struct RegistryCheckArgs {
 }
 
 /// Check a semantic convention registry.
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryCheckArgs) {
     log.loading(&format!("Checking registry `{}`", args.registry));
 

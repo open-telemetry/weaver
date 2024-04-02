@@ -18,7 +18,7 @@ use toml::Value;
 /// that are allowed to be used in the public API.
 /// - Each Cargo.toml must contain \[lints\] workspace = true and few other fields
 /// in the \[package\] section.
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 pub fn run() -> anyhow::Result<()> {
     let mut errors = vec![];
 
@@ -91,7 +91,7 @@ pub fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 fn check_presence_of(path: &Path, file_name: &str, crate_name: &str, errors: &mut Vec<Error>) {
     let readme_path = path.join(file_name);
     if !readme_path.exists() {
@@ -103,7 +103,7 @@ fn check_presence_of(path: &Path, file_name: &str, crate_name: &str, errors: &mu
     }
 }
 
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 fn check_path_is_true<P: AsRef<Path>>(
     cargo_toml_path: P,
     path: &[&str],
@@ -144,7 +144,7 @@ fn check_path_is_true<P: AsRef<Path>>(
 }
 
 /// Checks the `package` section of a Cargo.toml file.
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 fn check_package<P: AsRef<Path>>(cargo_toml_path: P, toml: &Value) -> anyhow::Result<()> {
     let package = toml.get("package").ok_or_else(|| {
         anyhow::anyhow!(
@@ -186,7 +186,7 @@ fn check_package<P: AsRef<Path>>(cargo_toml_path: P, toml: &Value) -> anyhow::Re
 }
 
 /// Checks the `lints` section of a Cargo.toml file.
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 fn check_lints_workspace<P: AsRef<Path>>(cargo_toml_path: P, toml: &Value) -> anyhow::Result<()> {
     let expected_lints = r#"Please add the following to your crate Cargo.toml:
 [lints]

@@ -27,7 +27,7 @@ pub struct GenClientCommand {
 }
 
 /// Generate a client SDK (application)
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 pub fn command_gen_client(log: impl Logger + Sync + Clone, params: &GenClientCommand) {
     log.loading(&format!(
         "Generating client SDK for language {}",

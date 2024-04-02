@@ -25,7 +25,7 @@ mod resolve;
 #[cfg(feature = "experimental")]
 mod search;
 
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 fn main() {
     let cli = Cli::parse();
 
@@ -41,7 +41,7 @@ fn main() {
     println!("Total execution time: {:?}s", elapsed.as_secs_f64());
 }
 
-#[no_coverage]
+#[cfg(not(tarpaulin_include))]
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) {
     match &cli.command {
         #[cfg(feature = "experimental")]
