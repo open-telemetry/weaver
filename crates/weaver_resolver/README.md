@@ -46,7 +46,15 @@ involves the following steps:
     be empty.
   - All constraints satisfied.
 
-## Lineage
+## Lineage (experimental)
+
+> **Note**: The lineage feature is experimental and has not yet been fully
+> discussed with the OpenTelemetry community.
+> The intent is to include the lineage information in the resolved application
+> telemetry schema to provide a way to trace the origin of each field in the
+> schema. A discussion will be opened in the OpenTelemetry community to discuss
+> the inclusion of this feature as an optional part or as a mandatory part of
+> the resolved schema.
 
 The resolution process can optionally compute the lineage for each attribute of
 a semantic convention registry. The lineage as such is not part of the syntax
@@ -94,6 +102,7 @@ follows:
             "source_group": "<group id>",
             // The field names inherited from the source group. This field is
             // present only if the attribute is inherited.
+            // We assume all are inherited unless overridden.
             "inherited_fields": [ "<field name>", /* ... */ ],
             // The field names overridden in the local group.
             "locally_overridden_fields": [ "<field name>", /* ... */ ],
@@ -105,10 +114,22 @@ follows:
 }
 ```
 
-Important note: Fields that appear in the group but are not mentioned in the
+Important note: Attributes that appear in the group but are not mentioned in the
 lineage, by convention, have the lineage of the current group.
 
 With this information, it is possible for each field of an attribute to trace
 inheritance relationships, overrides or local redefinitions, global references
 to attributes. The definition of an attribute's fields can be a complex mix of
 definitions coming from several attribute groups.
+
+> **Open question/concern**: Handling of relative paths versus absolute URLs in
+> application telemetry schema resolution. The concern addresses the evolution
+> of file references within the schema, questioning whether a consumer retains
+> these as relative paths or converts them to absolute URLs based on the
+> original source's location. The issue is illustrated through the process
+> where the Semantic Convention (Semconv) resolves its metrics with lineage via
+> relative paths, and Application A subsequently creates its own schema using
+> Semconv. The core question is whether lineage references will display relative
+> paths, URLs, or both. Additionally, there's worry about the scalability of
+> using the `source_file` string field to track origins as resolutions progress
+> from Semconv to application levels. 
