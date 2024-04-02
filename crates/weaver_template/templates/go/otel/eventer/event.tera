@@ -1,0 +1,57 @@
+{% import "required_attrs.macro.tera" as required %}
+{% import "optional_attrs.macro.tera" as optional %}
+{# Define the file name for the generated code #}
+{%- set file_name = event_name | file_name -%}
+{{- config(file_name="otel/eventer/event_" ~ file_name ~ "/event.go") -}}
+// SPDX-License-Identifier: Apache-2.0
+
+package {{ event_name | file_name }}
+
+import (
+    "context"
+
+    otel_attr "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/trace"
+
+    client "go_test/pkg/otel"
+    "go_test/pkg/otel/attribute"
+)
+
+// Event records a new `{{ event_name }}` event with
+// the given required attributes.
+func Event(
+    {{- required::declare_args(attrs=attributes) }}
+    optionalAttributes ...{{ optional::attr_type(prefix="Span") }},
+) {
+    EventWithContext(
+        context.TODO(),
+    {%- for attr in attributes | required | without_value %}
+        {{attr.id | arg_name}},
+    {%- endfor %}
+        optionalAttributes...,
+    )
+}
+
+// EventWithContext records a new `{{ event_name }}` event with
+// the given context and required attributes.
+func EventWithContext(
+    ctx context.Context,
+    {{- required::declare_args(attrs=attributes) }}
+    optionalAttributes ...{{ optional::attr_type(prefix="Span") }},
+) {
+
+    ctx, span := client.Tracer.Start(ctx, "{{ event_name }}",
+    {%- for attr in attributes | with_value %}
+        trace.WithAttributes(attribute.{{ attr.id | function_name }}Key.{{attr.type | type_mapping(enum=attr.id) | function_name}}({{attr.value | value}})),
+    {%- endfor %}
+    {%- for attr in attributes | required | without_value %}
+        trace.WithAttributes({{ attr.id | arg_name }}.Attribute()),
+    {%- endfor %}
+    )
+    for _, opt := range optionalAttributes {
+    	span.SetAttributes(opt.Attribute())
+    }
+}
+
+{{ required::declare_attrs(attrs=attributes) }}
+{{ optional::declare_attrs(marker="Span", attrs=attributes) }}

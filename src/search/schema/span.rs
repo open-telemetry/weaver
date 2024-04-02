@@ -12,6 +12,7 @@ use tantivy::{doc, IndexWriter};
 use weaver_schema::TelemetrySchema;
 
 /// Build index for spans.
+#[cfg(not(tarpaulin_include))]
 pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut IndexWriter) {
     for span in schema.spans() {
         let tags: String = span.tags.clone().map_or("".to_owned(), |tags| {
@@ -62,6 +63,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
 }
 
 /// Render a span details.
+#[cfg(not(tarpaulin_include))]
 pub fn widget<'a>(
     span: Option<&'a weaver_schema::span::Span>,
     provenance: &'a str,

@@ -83,3 +83,36 @@ pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: Error) {
         logger.error(&output);
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::Error::TargetNotSupported;
+
+    #[test]
+    fn test_print_dedup_errors() {
+        let logger = weaver_logger::TestLogger::new();
+        let error = CompoundError(vec![
+            TargetNotSupported {
+                // <-- These 3 errors are deduplicated
+                root_path: "target".to_owned(),
+                target: "target".to_owned(),
+            },
+            TargetNotSupported {
+                root_path: "target".to_owned(),
+                target: "target".to_owned(),
+            },
+            TargetNotSupported {
+                root_path: "target".to_owned(),
+                target: "target".to_owned(),
+            },
+            TargetNotSupported {
+                // <-- This error is not deduplicated
+                root_path: "target".to_owned(),
+                target: "other_target".to_owned(),
+            },
+        ]);
+        print_dedup_errors(logger.clone(), error);
+        assert_eq!(logger.error_count(), 2);
+    }
+}

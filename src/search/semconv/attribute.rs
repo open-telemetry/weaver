@@ -11,6 +11,7 @@ use weaver_semconv::AttributeSpecWithProvenance;
 
 use crate::search::semconv::examples;
 
+#[cfg(not(tarpaulin_include))]
 pub fn widget<'a>(
     attribute: Option<&'a AttributeSpecWithProvenance>,
     theme: &'a ThemeConfig,

@@ -15,6 +15,7 @@ use crate::search::theme::ThemeConfig;
 use crate::search::DocFields;
 
 /// Build index for semantic convention metrics.
+#[cfg(not(tarpaulin_include))]
 pub fn index_semconv_metrics<'a>(
     metrics: impl Iterator<Item = &'a weaver_semconv::metric::MetricSpec>,
     path: &str,
@@ -34,6 +35,7 @@ pub fn index_semconv_metrics<'a>(
 }
 
 /// Build index for schema metrics.
+#[cfg(not(tarpaulin_include))]
 pub fn index_schema_metrics(
     schema: &TelemetrySchema,
     fields: &DocFields,
@@ -67,6 +69,7 @@ pub fn index_schema_metrics(
 }
 
 /// Render a metric details.
+#[cfg(not(tarpaulin_include))]
 pub fn widget<'a>(
     metric: Option<&'a UnivariateMetric>,
     provenance: &'a str,
