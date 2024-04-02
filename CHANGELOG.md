@@ -55,6 +55,18 @@ All notable changes to this project will be documented in this file.
 
 ### ⚙️ Miscellaneous Tasks
 
+- *(coverage)* Improve test coverage
+- *(coverage)* Remove xtask and main command line from the code coverage
+- *(coverage)* Apply `tarpaulin` coverage to the entire workspace
+- *(install)* Add `cargo tarpaulin` in the list of tools to install
+- *(build)* Trigger ci.yml workflow for all push and pull request
+- *(coverage)* Add test code coverage with cargo tarpaulin
+- *(clippy)* Add more clippy lints
+- *(clippy)* Fix more clippy issues
+- *(clippy)* Fix explicit_into_iter_loop clippy issue
+- *(git)* Make the output dir invisible for git
+- *(changelog)* Add git cliff configuration
+- *(code)* Make error enums non-exhaustive
 - *(code)* Implement #54
 - *(code)* Fix str_to_string clippy lint issues
 - *(code)* Implement #54 + new clippy lint rule
@@ -86,4 +98,3 @@ All notable changes to this project will be documented in this file.
 - Add cargo lock file.
 - *(dep)* Bump dependency versions
 - Migrate f5/otel-weaver repo to open-telemetry/weaver repo
-
