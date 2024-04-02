@@ -34,7 +34,7 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Optional path to the attribute registry.
     /// If provided, all attributes will be linked here.
     #[arg(long)]
-    pub attribute_regsitry_base_url: Option<String>,
+    pub attribute_registry_base_url: Option<String>,
 }
 
 /// Update markdown files.
@@ -76,7 +76,7 @@ pub(crate) fn command(
             &entry.path().display().to_string(),
             &registry,
             args.dry_run,
-            args.attribute_regsitry_base_url.as_deref(),
+            args.attribute_registry_base_url.as_deref(),
         ) {
             has_error = true;
             log.error(&format!("{error}"));
