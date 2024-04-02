@@ -180,7 +180,7 @@ SHOULD include the [application root](/docs/http/http-spans.md#http-server-defin
 
 
 
-## Provenance
+## Lineage
 
-Source: data/registry-http.yaml
+Source file: data/registry-http.yaml
 

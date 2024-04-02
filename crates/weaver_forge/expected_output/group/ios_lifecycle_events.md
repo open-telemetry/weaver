@@ -25,7 +25,7 @@ The iOS lifecycle states are defined in the [UIApplicationDelegate documentation
 
 
 
-## Provenance
+## Lineage
 
-Source: data/mobile-events.yaml
+Source file: data/mobile-events.yaml
 

@@ -13,9 +13,15 @@ pre-push-check:
     cargo update
     cargo machete
     cargo fmt --all
-    cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated
+    # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
+    # [ToDo LQ] Re-enable --all-features once the issue is resolved
+    # cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated
+    cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
     cargo test --all
-    cargo doc --workspace --all-features --no-deps --document-private-items
+    # [workaround] removed --all-features due to an issue in one of the dependency in Tantity (zstd-safe)
+    # [ToDo LQ] Re-enable --all-features once the issue is resolved
+    # cargo doc --workspace --all-features --no-deps --document-private-items
+    cargo doc --workspace --no-deps --document-private-items
     cargo deny check licenses
 
 pre-push: pre-push-check validate-workspace check-external-types

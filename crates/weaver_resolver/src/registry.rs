@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use serde::Deserialize;
 
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
-use weaver_resolved_schema::lineage::GroupLineage;
+use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
@@ -397,7 +397,7 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
         let mut unresolved_extends_count = 0;
         let mut resolved_extends_count = 0;
 
-        // Create a map group_id -> vector of attribute for groups
+        // Create a map group_id -> attributes for groups
         // that don't have an `extends` clause.
         let mut group_index = HashMap::new();
         for group in ureg.groups.iter() {
@@ -411,7 +411,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
             if let Some(extends) = unresolved_group.group.extends.as_ref() {
                 if let Some(attrs) = group_index.get(extends) {
                     unresolved_group.attributes = resolve_inheritance_attrs(
+                        &unresolved_group.group.id,
                         &unresolved_group.attributes,
+                        extends,
                         attrs,
                         unresolved_group.group.lineage.as_mut(),
                     );
@@ -529,64 +531,97 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
 }
 
 fn resolve_inheritance_attrs(
+    group_id: &str,
     attrs_group: &[UnresolvedAttribute],
+    parent_group_id: &str,
     attrs_parent_group: &[UnresolvedAttribute],
-    _group_lineage: Option<&mut GroupLineage>, // ToDo compute the lineage
+    group_lineage: Option<&mut GroupLineage>,
 ) -> Vec<UnresolvedAttribute> {
-    // A map attribute_id -> attribute_spec.
+    struct AttrWithLineage {
+        spec: AttributeSpec,
+        lineage: AttributeLineage,
+    }
+
+    // A map attribute_id -> attribute_spec + lineage.
     //
-    // Note: we use a BTreeMap to ensure that the resolved attributes are
-    // sorted by their id in the resolved registry. This is useful for unit
-    // tests to ensure that the resolved registry is easy to compare.
-    let mut resolved_attrs = BTreeMap::new();
+    // Note: we use a BTreeMap to ensure that the attributes are sorted by
+    // their id in the resolved registry. This is useful for unit tests to
+    // ensure that the resolved registry is easy to compare.
+    let mut inherited_attrs = BTreeMap::new();
 
     // Inherit the attributes from the parent group.
     for parent_attr in attrs_parent_group.iter() {
-        match &parent_attr.spec {
-            AttributeSpec::Ref { r#ref, .. } => {
-                _ = resolved_attrs.insert(r#ref.clone(), parent_attr.spec.clone())
-            }
-            AttributeSpec::Id { id, .. } => {
-                _ = resolved_attrs.insert(id.clone(), parent_attr.spec.clone())
-            }
-        }
+        let attr_id = parent_attr.spec.id();
+        _ = inherited_attrs.insert(
+            attr_id.clone(),
+            AttrWithLineage {
+                spec: parent_attr.spec.clone(),
+                lineage: AttributeLineage::inherit_from(parent_group_id, &parent_attr.spec),
+            },
+        );
     }
 
     // Override the inherited attributes with the attributes from the group.
     for attr in attrs_group.iter() {
         match &attr.spec {
             AttributeSpec::Ref { r#ref, .. } => {
-                if let Some(parent_attr) = resolved_attrs.get(r#ref) {
-                    _ = resolved_attrs.insert(
-                        r#ref.clone(),
-                        resolve_inheritance_attr(&attr.spec, parent_attr),
-                    )
+                if let Some(AttrWithLineage {
+                    spec: parent_attr,
+                    lineage,
+                }) = inherited_attrs.get_mut(r#ref)
+                {
+                    *parent_attr = resolve_inheritance_attr(&attr.spec, parent_attr, lineage);
                 } else {
-                    _ = resolved_attrs.insert(r#ref.clone(), attr.spec.clone())
+                    _ = inherited_attrs.insert(
+                        r#ref.clone(),
+                        AttrWithLineage {
+                            spec: attr.spec.clone(),
+                            lineage: AttributeLineage::new(group_id),
+                        },
+                    );
                 }
             }
             AttributeSpec::Id { id, .. } => {
-                _ = resolved_attrs.insert(id.clone(), attr.spec.clone())
+                _ = inherited_attrs.insert(
+                    id.clone(),
+                    AttrWithLineage {
+                        spec: attr.spec.clone(),
+                        lineage: AttributeLineage::new(group_id),
+                    },
+                );
             }
         }
     }
 
-    resolved_attrs
-        .into_values()
-        .map(|spec| UnresolvedAttribute { spec })
-        .collect()
-}
-
-/// Returns a clone of the first argument that is Some(T).
-fn clone_first_some<T: Clone>(arg_1: &Option<T>, arg_2: &Option<T>) -> Option<T> {
-    if arg_1.is_some() {
-        arg_1.clone()
+    let inherited_attrs = inherited_attrs.into_values();
+    if let Some(group_lineage) = group_lineage {
+        inherited_attrs
+            .map(|attr_with_lineage| {
+                if !attr_with_lineage.lineage.is_empty() {
+                    group_lineage.add_attribute_lineage(
+                        attr_with_lineage.spec.id(),
+                        attr_with_lineage.lineage,
+                    );
+                }
+                UnresolvedAttribute {
+                    spec: attr_with_lineage.spec,
+                }
+            })
+            .collect()
     } else {
-        arg_2.clone()
+        inherited_attrs
+            .map(|attr_with_lineage| UnresolvedAttribute {
+                spec: attr_with_lineage.spec,
+            })
+            .collect()
     }
 }
 
-fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -> AttributeSpec {
+fn resolve_inheritance_attr(
+    attr: &AttributeSpec,
+    parent_attr: &AttributeSpec,
+    lineage: &mut AttributeLineage,
+) -> AttributeSpec {
     match attr {
         AttributeSpec::Ref {
             r#ref,
@@ -614,20 +649,18 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                     // attr and attr_parent are both references.
                     AttributeSpec::Ref {
                         r#ref: r#ref.clone(),
-                        brief: clone_first_some(brief, parent_brief),
-                        examples: clone_first_some(examples, parent_examples),
-                        tag: clone_first_some(tag, parent_tag),
-                        requirement_level: clone_first_some(
+                        brief: lineage.optional_brief(brief, parent_brief),
+                        examples: lineage.examples(examples, parent_examples),
+                        tag: lineage.tag(tag, parent_tag),
+                        requirement_level: lineage.optional_requirement_level(
                             requirement_level,
                             parent_requirement_level,
                         ),
-                        sampling_relevant: clone_first_some(
-                            sampling_relevant,
-                            parent_sampling_relevant,
-                        ),
-                        note: clone_first_some(note, parent_note),
-                        stability: clone_first_some(stability, parent_stability),
-                        deprecated: clone_first_some(deprecated, parent_deprecated),
+                        sampling_relevant: lineage
+                            .sampling_relevant(sampling_relevant, parent_sampling_relevant),
+                        note: lineage.optional_note(note, parent_note),
+                        stability: lineage.stability(stability, parent_stability),
+                        deprecated: lineage.deprecated(deprecated, parent_deprecated),
                     }
                 }
                 AttributeSpec::Id {
@@ -647,27 +680,16 @@ fn resolve_inheritance_attr(attr: &AttributeSpec, parent_attr: &AttributeSpec) -
                     AttributeSpec::Id {
                         id: r#ref.clone(),
                         r#type: parent_type.clone(),
-                        brief: clone_first_some(brief, parent_brief),
-                        examples: clone_first_some(examples, parent_examples),
-                        tag: clone_first_some(tag, parent_tag),
-                        requirement_level: if requirement_level.is_some() {
-                            requirement_level
-                                .clone()
-                                .expect("is_some so this can't happen")
-                        } else {
-                            parent_requirement_level.clone()
-                        },
-                        sampling_relevant: clone_first_some(
-                            sampling_relevant,
-                            parent_sampling_relevant,
-                        ),
-                        note: if note.is_some() {
-                            note.clone().expect("is_some so this can't happen")
-                        } else {
-                            parent_note.clone()
-                        },
-                        stability: clone_first_some(stability, parent_stability),
-                        deprecated: clone_first_some(deprecated, parent_deprecated),
+                        brief: lineage.optional_brief(brief, parent_brief),
+                        examples: lineage.examples(examples, parent_examples),
+                        tag: lineage.tag(tag, parent_tag),
+                        requirement_level: lineage
+                            .requirement_level(requirement_level, parent_requirement_level),
+                        sampling_relevant: lineage
+                            .sampling_relevant(sampling_relevant, parent_sampling_relevant),
+                        note: lineage.note(note, parent_note),
+                        stability: lineage.stability(stability, parent_stability),
+                        deprecated: lineage.deprecated(deprecated, parent_deprecated),
                     }
                 }
             }
@@ -682,6 +704,7 @@ mod tests {
     use std::error::Error;
 
     use glob::glob;
+    use serde::Serialize;
 
     use weaver_logger::TestLogger;
     use weaver_resolved_schema::attribute;
@@ -721,6 +744,10 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
+            // if !test_dir.ends_with("registry-test-lineage-2") {
+            //     // Skip the test for now as it is not yet supported.
+            //     continue;
+            // }
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
@@ -735,42 +762,37 @@ mod tests {
                 resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
                     .expect("Failed to resolve registry");
 
+            // Check that the resolved attribute catalog matches the expected attribute catalog.
+            let observed_attr_catalog = attr_catalog.drain_attributes();
+
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
                 std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
                     .expect("Failed to open expected attribute catalog"),
             )
             .expect("Failed to deserialize expected attribute catalog");
+
+            assert_eq!(
+                observed_attr_catalog, expected_attr_catalog,
+                "Observed and expected attribute catalogs don't match for `{}`.\nExpected catalog:\n{}\nObserved catalog:\n{}",
+                test_dir, to_json(&expected_attr_catalog), to_json(&observed_attr_catalog)
+            );
+
+            // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
+            // println!("{}", yaml);
+            // println!("Observed registry:\n{}", to_json(&observed_registry));
+
+            // Check that the resolved registry matches the expected registry.
             let expected_registry: Registry = serde_json::from_reader(
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
             .expect("Failed to deserialize expected registry");
 
-            // Check that the resolved attribute catalog matches the expected attribute catalog.
-            let observed_attr_catalog = attr_catalog.drain_attributes();
-            let observed_attr_catalog_json = serde_json::to_string_pretty(&observed_attr_catalog)
-                .expect("Failed to serialize observed attribute catalog");
-
-            // println!("Observed catalog: {}", observed_attr_catalog_json);
-            assert_eq!(
-                observed_attr_catalog, expected_attr_catalog,
-                "Attribute catalog does not match for `{}`.\nObserved catalog:\n{}",
-                test_dir, observed_attr_catalog_json
-            );
-
-            // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
-            // println!("{}", yaml);
-
-            // Check that the resolved registry matches the expected registry.
-            let observed_registry_json = serde_json::to_string_pretty(&observed_registry)
-                .expect("Failed to serialize observed registry");
-
-            //println!("Observed registry: {}", observed_registry_json);
             assert_eq!(
                 observed_registry, expected_registry,
-                "Registry does not match for `{}`.\nObserved registry:\n{}",
-                test_dir, observed_registry_json
+                "Expected and observed registry don't match for `{}`.\nObserved registry:\n{}\nExpected registry:\n{}",
+                test_dir, to_json(&observed_registry), to_json(&expected_registry)
             );
 
             // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
@@ -878,5 +900,9 @@ mod tests {
         assert_eq!(span_count, 11, "11 spans in the resolved registry expected");
 
         Ok(())
+    }
+
+    fn to_json<T: Serialize + ?Sized>(value: &T) -> String {
+        serde_json::to_string_pretty(value).unwrap()
     }
 }

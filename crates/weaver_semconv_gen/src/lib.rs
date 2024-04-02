@@ -11,6 +11,7 @@ use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
+use weaver_semconv::path::RegistryPath;
 use weaver_semconv::SemConvRegistry;
 
 mod diff;
@@ -221,21 +222,13 @@ impl ResolvedSemconvRegistry {
 
     /// Resolve semconv registry (possibly from git), and make it available for rendering.
     pub fn try_from_url(
-        // Local or GIT URL of semconv registry.
-        registry: String,
-        // Optional path where YAML files are located (default: model)
-        registry_sub_dir: Option<String>,
+        registry_path: RegistryPath,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let mut registry = SchemaResolver::load_semconv_registry(
-            registry_id,
-            registry,
-            registry_sub_dir,
-            cache,
-            log.clone(),
-        )?;
+        let mut registry =
+            SchemaResolver::load_semconv_registry(registry_id, registry_path, cache, log.clone())?;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
         let lookup = ResolvedSemconvRegistry {
             schema,

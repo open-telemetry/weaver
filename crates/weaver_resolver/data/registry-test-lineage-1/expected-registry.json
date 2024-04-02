@@ -1,0 +1,58 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "top.level",
+      "type": "attribute_group",
+      "brief": "Top level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-1/registry/groups.yaml",
+        "attributes": {
+          "server.port": {
+            "source_group": "intermediate.level",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "intermediate.level",
+      "type": "attribute_group",
+      "brief": "Intermediate level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-1/registry/groups.yaml",
+        "attributes": {
+          "server.port": {
+            "source_group": "base.level",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "base.level",
+      "type": "attribute_group",
+      "brief": "Base level",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-1/registry/groups.yaml"
+      }
+    }
+  ]
+}

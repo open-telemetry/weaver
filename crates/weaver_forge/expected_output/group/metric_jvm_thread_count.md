@@ -38,7 +38,7 @@ State of the thread.
 
 
 
-## Provenance
+## Lineage
 
-Source: data/jvm-metrics.yaml
+Source file: data/jvm-metrics.yaml
 

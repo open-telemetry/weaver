@@ -35,8 +35,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Default features
         run: cargo test --workspace
-      - name: All features
-        run: cargo test --workspace --all-features
+# [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+#      - name: All features
+#        run: cargo test --workspace --all-features
       - name: No-default features
         run: cargo test --workspace --no-default-features
   latest:
@@ -54,7 +55,8 @@ jobs:
         run: cargo update
       - name: Default features
         run: cargo test --workspace --all-targets
-      - name: All features
-        run: cargo test --workspace --all-targets --all-features
+# [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+#      - name: All features
+#        run: cargo test --workspace --all-targets --all-features
       - name: No-default features
         run: cargo test --workspace --all-targets --no-default-features

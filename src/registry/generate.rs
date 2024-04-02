@@ -5,6 +5,7 @@
 use clap::Args;
 use std::path::PathBuf;
 
+use crate::registry::{semconv_registry_path_from, RegistryPath};
 use weaver_cache::Cache;
 use weaver_forge::debug::print_dedup_errors;
 use weaver_forge::registry::TemplateRegistry;
@@ -34,7 +35,7 @@ pub struct RegistryGenerateArgs {
         long,
         default_value = "https://github.com/open-telemetry/semantic-conventions.git"
     )]
-    pub registry: String,
+    pub registry: RegistryPath,
 
     /// Optional path in the Git repository where the semantic convention
     /// registry is located
@@ -58,8 +59,7 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
         registry_id,
-        args.registry.to_string(),
-        args.registry_git_sub_dir.clone(),
+        semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
         logger.clone(),
     )

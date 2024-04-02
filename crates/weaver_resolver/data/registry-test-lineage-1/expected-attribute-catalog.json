@@ -1,0 +1,8 @@
+[
+  {
+    "name": "server.port",
+    "type": "string",
+    "brief": "Server port",
+    "requirement_level": "recommended"
+  }
+]
