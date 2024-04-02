@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize};
 
 /// A semantic convention registry path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(untagged)]
 pub enum RegistryPath {
     /// A local path to the semantic convention registry.
     Local {
         /// The local path to the semantic convention directory.
-        path: String,
+        local_path: String,
     },
     /// A git URL to the semantic convention registry.
     GitUrl {

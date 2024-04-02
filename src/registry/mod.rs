@@ -64,9 +64,9 @@ impl FromStr for RegistryPath {
     /// Parse a string into a `RegistryPath`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.starts_with("http://") || s.starts_with("https://") {
-            Ok(Self::Url(s.to_string()))
+            Ok(Self::Url(s.to_owned()))
         } else {
-            Ok(Self::Local(s.to_string()))
+            Ok(Self::Local(s.to_owned()))
         }
     }
 }
@@ -125,9 +125,9 @@ pub fn semconv_registry_path_from(
     path: &Option<String>,
 ) -> weaver_semconv::path::RegistryPath {
     match registry {
-        RegistryPath::Local(path) => {
-            weaver_semconv::path::RegistryPath::Local { path: path.clone() }
-        }
+        RegistryPath::Local(path) => weaver_semconv::path::RegistryPath::Local {
+            local_path: path.clone(),
+        },
         RegistryPath::Url(url) => weaver_semconv::path::RegistryPath::GitUrl {
             git_url: url.clone(),
             path: path.clone(),

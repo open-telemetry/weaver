@@ -600,7 +600,9 @@ impl SchemaResolver {
         cache: &Cache,
     ) -> Vec<Result<(String, SemConvSpec), Error>> {
         match registry_path {
-            RegistryPath::Local { path } => Self::import_semconv_from_local_path(path.into(), path),
+            RegistryPath::Local { local_path: path } => {
+                Self::import_semconv_from_local_path(path.into(), path)
+            }
             RegistryPath::GitUrl { git_url, path } => {
                 match cache.git_repo(git_url.clone(), path.clone()) {
                     Ok(local_git_repo) => {

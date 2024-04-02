@@ -110,26 +110,6 @@ pub struct TelemetrySchema {
     pub semantic_convention_registry: SemConvRegistry,
 }
 
-/// A semantic convention import.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-#[serde(untagged)]
-pub enum SemConvImport {
-    /// Variant to import a semantic convention from a URL.
-    Url {
-        /// The URL of the semantic convention.
-        url: String,
-    },
-    /// Variant to import semantic conventions from a git repo.
-    GitUrl {
-        /// The git URL of the semantic convention git repo.
-        git_url: String,
-        /// An optional path to the semantic convention directory containing
-        /// the semantic convention files.
-        path: Option<String>,
-    },
-}
-
 impl TelemetrySchema {
     /// Loads a telemetry schema from an URL or a local path.
     pub fn load(schema: &str) -> Result<TelemetrySchema, Error> {
