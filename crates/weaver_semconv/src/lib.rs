@@ -22,6 +22,7 @@ use crate::metric::MetricSpec;
 pub mod attribute;
 pub mod group;
 pub mod metric;
+pub mod path;
 pub mod stability;
 
 /// An error that can occur while loading a semantic convention registry.

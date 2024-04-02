@@ -27,7 +27,7 @@ Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field
 
 
 
-## Provenance
+## Lineage
 
-Source: data/registry-user-agent.yaml
+Source file: data/registry-user-agent.yaml
 

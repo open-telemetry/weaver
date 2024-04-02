@@ -43,5 +43,14 @@ prefix: {{ group.prefix }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
-  {% endfor %}
+{% if group.lineage.attributes %}
+{% set attr_lineage = group.lineage.attributes[attribute.name] %}
+{% if attr_lineage %}
+Lineage:
+- source group: {{ attr_lineage.source_group }}
+- inherited fields: {{ attr_lineage.inherited_fields | join(", ") }}
+- locally overridden fields: {{ attr_lineage.locally_overridden_fields | join(", ") }}
+{% endif %}
+{% endif %}
+{% endfor %}
 {% endfor %}

@@ -3,6 +3,7 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
+use crate::registry::{semconv_registry_path_from, RegistryPath};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
@@ -20,7 +21,7 @@ pub struct RegistryUpdateMarkdownArgs {
         long,
         default_value = "https://github.com/open-telemetry/semantic-conventions.git"
     )]
-    pub registry: String,
+    pub registry: RegistryPath,
 
     /// Optional path in the Git repository where the semantic convention
     /// registry is located
@@ -30,6 +31,11 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Whether or not to run updates in dry-run mode.
     #[arg(long, default_value = "false")]
     pub dry_run: bool,
+
+    /// Optional path to the attribute registry.
+    /// If provided, all attributes will be linked here.
+    #[arg(long)]
+    pub attribute_registry_base_url: Option<String>,
 }
 
 /// Update markdown files.
@@ -45,8 +51,7 @@ pub(crate) fn command(
     }
 
     let registry = ResolvedSemconvRegistry::try_from_url(
-        args.registry.clone(),
-        args.registry_git_sub_dir.clone(),
+        semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
         log.clone(),
     )
@@ -68,9 +73,12 @@ pub(crate) fn command(
         })
     {
         log.info(&format!("{}: ${}", operation, entry.path().display()));
-        if let Err(error) =
-            update_markdown(&entry.path().display().to_string(), &registry, args.dry_run)
-        {
+        if let Err(error) = update_markdown(
+            &entry.path().display().to_string(),
+            &registry,
+            args.dry_run,
+            args.attribute_registry_base_url.as_deref(),
+        ) {
             has_error = true;
             log.error(&format!("{error}"));
         }

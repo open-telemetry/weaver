@@ -91,14 +91,16 @@ pub struct Group {
 
     /// Specifies the kind of the span.
     /// Note: only valid if type is span (the default)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub span_kind: Option<SpanKindSpec>,
     /// List of strings that specify the ids of event semantic conventions
     /// associated with this span semantic convention.
     /// Note: only valid if type is span (the default)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub events: Vec<String>,
     /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
     /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub metric_name: Option<String>,
     /// The instrument type that should be used to record the metric. Note that
     /// the semantic conventions must be written using the names of the
@@ -106,13 +108,16 @@ pub struct Group {
     /// histogram).
     /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
     /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub instrument: Option<InstrumentSpec>,
     /// The unit in which the metric is measured, which should adhere to the
     /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
     /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
     /// The lineage of the group.
@@ -401,7 +406,7 @@ impl Group {
     #[must_use]
     pub fn provenance(&self) -> &str {
         match &self.lineage {
-            Some(lineage) => lineage.provenance(),
+            Some(lineage) => lineage.source_file(),
             None => "unknown",
         }
     }

@@ -3,14 +3,16 @@
 //! Commands to manage a semantic convention registry.
 
 use clap::{Args, Subcommand};
+use std::fmt::Display;
+use std::str::FromStr;
 
-use crate::registry::generate::RegistryGenerateArgs;
-use crate::registry::resolve::RegistryResolveArgs;
-use crate::registry::search::RegistrySearchArgs;
 use check::RegistryCheckArgs;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 
+use crate::registry::generate::RegistryGenerateArgs;
+use crate::registry::resolve::RegistryResolveArgs;
+use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 
@@ -46,6 +48,41 @@ pub enum RegistrySubCommand {
     UpdateMarkdown(RegistryUpdateMarkdownArgs),
 }
 
+/// Path to a semantic convention registry.
+/// The path can be a local directory or a Git URL.
+#[derive(Debug, Clone)]
+pub enum RegistryPath {
+    Local(String),
+    Url(String),
+}
+
+/// Implement the `FromStr` trait for `RegistryPath`, so that it can be used as
+/// a command-line argument.
+impl FromStr for RegistryPath {
+    type Err = String;
+
+    /// Parse a string into a `RegistryPath`.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("http://") || s.starts_with("https://") {
+            Ok(Self::Url(s.to_owned()))
+        } else {
+            Ok(Self::Local(s.to_owned()))
+        }
+    }
+}
+
+/// Implement the `Display` trait for `RegistryPath`, so that it can be printed
+/// to the console.
+impl Display for RegistryPath {
+    /// Format the `RegistryPath` as a string.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegistryPath::Local(path) => write!(f, "{}", path),
+            RegistryPath::Url(url) => write!(f, "{}", url),
+        }
+    }
+}
+
 /// Set of parameters used to specify a semantic convention registry.
 #[derive(Args, Debug)]
 pub struct RegistryArgs {
@@ -55,7 +92,7 @@ pub struct RegistryArgs {
         long,
         default_value = "https://github.com/open-telemetry/semantic-conventions.git"
     )]
-    pub registry: String,
+    pub registry: RegistryPath,
 
     /// Optional path in the Git repository where the semantic convention
     /// registry is located
@@ -81,5 +118,21 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
             unimplemented!()
         }
         RegistrySubCommand::UpdateMarkdown(args) => update_markdown::command(log, &cache, args),
+    }
+}
+
+/// Convert a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
+pub fn semconv_registry_path_from(
+    registry: &RegistryPath,
+    path: &Option<String>,
+) -> weaver_semconv::path::RegistryPath {
+    match registry {
+        RegistryPath::Local(path) => weaver_semconv::path::RegistryPath::Local {
+            local_path: path.clone(),
+        },
+        RegistryPath::Url(url) => weaver_semconv::path::RegistryPath::GitUrl {
+            git_url: url.clone(),
+            path: path.clone(),
+        },
     }
 }

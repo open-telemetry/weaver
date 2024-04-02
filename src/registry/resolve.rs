@@ -12,7 +12,7 @@ use weaver_forge::registry::TemplateRegistry;
 use weaver_logger::Logger;
 use weaver_resolver::SchemaResolver;
 
-use crate::registry::RegistryArgs;
+use crate::registry::{semconv_registry_path_from, RegistryArgs};
 
 /// Supported output formats for the resolved schema
 #[derive(Debug, Clone, ValueEnum)]
@@ -68,8 +68,7 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
         registry_id,
-        args.registry.registry.clone(),
-        args.registry.registry_git_sub_dir.clone(),
+        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
         cache,
         logger.clone(),
     )

@@ -505,6 +505,9 @@ mod tests {
                     expected_dir.as_ref().join(file),
                     observed_dir.as_ref().join(file)
                 );
+
+                eprintln!("Expected file content: {}", file1_content);
+                eprintln!("Observed file content: {}", file2_content);
                 break;
             }
         }

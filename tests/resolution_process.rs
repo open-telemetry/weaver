@@ -7,6 +7,7 @@ use weaver_logger::{Logger, TestLogger};
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
+use weaver_semconv::path::RegistryPath;
 
 /// The URL of the official semantic convention registry.
 const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
@@ -33,8 +34,10 @@ fn test_semconv_registry_resolution() {
     // No parsing errors should be observed.
     let semconv_specs = SchemaResolver::load_semconv_registry(
         registry_id,
-        SEMCONV_REGISTRY_URL.to_owned(),
-        Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+        RegistryPath::GitUrl {
+            git_url: SEMCONV_REGISTRY_URL.to_owned(),
+            path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+        },
         &cache,
         log.clone(),
     )

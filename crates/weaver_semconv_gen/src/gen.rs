@@ -120,23 +120,28 @@ impl<'a> AttributeView<'a> {
         }
     }
 
-    fn write_registry_link<T: Write>(&self, out: &mut T) -> Result<(), Error> {
+    fn write_registry_link<T: Write>(&self, out: &mut T, prefix: &str) -> Result<(), Error> {
         let reg_name = self.attribute.name.split('.').next().unwrap_or("");
-        // TODO - the existing build-tools semconv will look at currently
-        // generating markdown location to see if it's the same structure
-        // as where the attribute originated from.
-        //
-        // Going forward, link vs. not link should be an option in generation.
-        // OR we should move this to a template-render scenario.
-        Ok(write!(out, "../attributes-registry/{reg_name}.md")?)
+        // TODO - We should try to link to the name itself, instead
+        // of just the correct group.
+        Ok(write!(out, "{prefix}/{reg_name}.md")?)
     }
 
-    fn write_name_with_optional_link<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write!(out, "[`")?;
-        self.write_name(out)?;
-        write!(out, "`](")?;
-        self.write_registry_link(out)?;
-        write!(out, ")")?;
+    fn write_name_with_optional_link<Out: Write>(
+        &self,
+        out: &mut Out,
+        attribute_registry_base_url: Option<&str>,
+    ) -> Result<(), Error> {
+        match attribute_registry_base_url {
+            Some(prefix) => {
+                write!(out, "[`")?;
+                self.write_name(out)?;
+                write!(out, "`](")?;
+                self.write_registry_link(out, prefix)?;
+                write!(out, ")")?;
+            }
+            None => self.write_name(out)?,
+        }
         Ok(())
     }
 
@@ -337,6 +342,7 @@ impl<'a> AttributeTableView<'a> {
         out: &mut Out,
         args: &GenerateMarkdownArgs,
         ctx: &mut GenerateMarkdownContext,
+        attribute_registry_base_url: Option<&str>,
     ) -> Result<(), Error> {
         if self.group.r#type == GroupType::Event {
             write!(out, "The event name MUST be `{}`\n\n", self.event_name())?;
@@ -366,7 +372,7 @@ impl<'a> AttributeTableView<'a> {
 
         for attr in &attributes {
             write!(out, "| ")?;
-            attr.write_name_with_optional_link(out)?;
+            attr.write_name_with_optional_link(out, attribute_registry_base_url)?;
             write!(out, " | ")?;
             attr.write_type_string(out)?;
             write!(out, " | ")?;
@@ -401,9 +407,8 @@ impl<'a> AttributeTableView<'a> {
                 "and SHOULD be provided **at span creation time** (if provided at all):\n\n"
             )?;
             for a in sampling_relevant {
-                // TODO - existing output uses registry-link-name.
                 write!(out, "* ")?;
-                a.write_name_with_optional_link(out)?;
+                a.write_name_with_optional_link(out, attribute_registry_base_url)?;
                 writeln!(out)?;
             }
         }

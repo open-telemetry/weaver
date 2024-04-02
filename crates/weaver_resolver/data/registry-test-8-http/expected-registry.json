@@ -8,40 +8,20 @@
       "attributes": [
         2
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http-common.yaml",
+        "source_file": "data/registry-test-8-http/registry/http-common.yaml",
         "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            }
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           }
         }
       }
@@ -54,62 +34,32 @@
         2,
         3
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http-common.yaml",
+        "source_file": "data/registry-test-8-http/registry/http-common.yaml",
         "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            }
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
-          "3": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            }
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         }
       }
@@ -122,62 +72,32 @@
         2,
         4
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http.yaml",
+        "source_file": "data/registry-test-8-http/registry/http.yaml",
         "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            }
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
-          "4": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            }
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         }
       }
@@ -191,62 +111,35 @@
         2,
         4
       ],
-      "span_kind": null,
-      "events": [],
       "metric_name": "http.server.request.duration",
       "instrument": "histogram",
       "unit": "s",
-      "name": null,
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/http.yaml",
+        "source_file": "data/registry-test-8-http/registry/http.yaml",
         "attributes": {
-          "2": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.network"
-            }
+          "network.protocol.name": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level"
+            ]
           },
-          "4": {
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "server"
-            }
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
           }
         }
       }
@@ -259,14 +152,8 @@
       "attributes": [
         0
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/network.yaml"
+        "source_file": "data/registry-test-8-http/registry/network.yaml"
       }
     },
     {
@@ -277,14 +164,8 @@
       "attributes": [
         1
       ],
-      "span_kind": null,
-      "events": [],
-      "metric_name": null,
-      "instrument": null,
-      "unit": null,
-      "name": null,
       "lineage": {
-        "provenance": "data/registry-test-8-http/registry/server.yaml"
+        "source_file": "data/registry-test-8-http/registry/server.yaml"
       }
     }
   ]

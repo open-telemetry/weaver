@@ -2,7 +2,7 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::RegistryArgs;
+use crate::registry::{semconv_registry_path_from, RegistryArgs};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
@@ -33,8 +33,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     // Load the semantic convention registry into a local cache.
     let mut registry = SchemaResolver::load_semconv_registry(
         registry_id,
-        args.registry.registry.clone(),
-        args.registry.registry_git_sub_dir.clone(),
+        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
         cache,
         log.clone(),
     )

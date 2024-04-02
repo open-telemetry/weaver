@@ -2,6 +2,7 @@
 
 //! Command to generate a client SDK.
 
+use std::env::args;
 use std::io;
 use std::path::PathBuf;
 
@@ -26,6 +27,7 @@ use tantivy::schema::{Field, Schema, STORED, TEXT};
 use tantivy::{Index, IndexWriter, ReloadPolicy};
 use tui_textarea::TextArea;
 
+use crate::registry::{semconv_registry_path_from, RegistryPath};
 use theme::ThemeConfig;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
@@ -82,7 +84,7 @@ pub struct SearchRegistry {
 #[derive(Debug, Args)]
 pub struct SearchRegistry2 {
     /// Git URL of the semantic convention registry
-    pub registry: String,
+    pub registry: RegistryPath,
 
     /// Optional path in the git repository where the semantic convention
     /// registry is located
@@ -218,8 +220,7 @@ fn search_registry_command2(
     let registry_id = "default";
     let semconv_specs = SchemaResolver::load_semconv_registry(
         registry_id,
-        registry_args.registry.clone(),
-        registry_args.path.clone(),
+        semconv_registry_path_from(&registry_args.registry, &registry_args.path),
         cache,
         log.clone(),
     )

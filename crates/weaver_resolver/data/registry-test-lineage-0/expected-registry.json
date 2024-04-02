@@ -1,0 +1,73 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "registry.server",
+      "type": "attribute_group",
+      "brief": "Registry server",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-0/registry/groups.yaml"
+      }
+    },
+    {
+      "id": "registry.network",
+      "type": "attribute_group",
+      "brief": "Registry network",
+      "attributes": [
+        1,
+        2,
+        3
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-0/registry/groups.yaml"
+      }
+    },
+    {
+      "id": "top.level.group",
+      "type": "attribute_group",
+      "brief": "Top level group",
+      "attributes": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-lineage-0/registry/groups.yaml",
+        "attributes": {
+          "network.protocol.version": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level"
+            ]
+          },
+          "server.port": {
+            "source_group": "registry.server",
+            "inherited_fields": [
+              "brief",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

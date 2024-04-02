@@ -43,12 +43,14 @@ prefix: {{ ctx.prefix }}
 {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
 {% endif %}
+
+{% if ctx.lineage.attributes %}
+{% set attr_lineage = ctx.lineage.attributes[attribute.name] %}
+{% if attr_lineage %}
+Lineage: 
+- source group: {{ attr_lineage.source_group }}
+- inherited fields: {{ attr_lineage.inherited_fields | join(", ") }}
+- locally overridden fields: {{ attr_lineage.locally_overridden_fields | join(", ") }}
+{% endif %}
+{% endif %}
 {% endfor %}
-
-## Provenance
-
-Source: {{ ctx.lineage.provenance }}
-
-{% for item in ctx.lineage.attributes -%}
-item: {{ ctx.lineage.attributes[item] }}
-{% endfor -%}
