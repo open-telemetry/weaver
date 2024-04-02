@@ -45,7 +45,17 @@ The type of memory.
 
 
 
-## Provenance
+## Lineage
 
-Source: data/jvm-metrics.yaml
+Source file: data/jvm-metrics.yaml
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
+
+attribute: 
+  - source group: 
+  - inherited fields: 
+  - locally overridden fields: 
 

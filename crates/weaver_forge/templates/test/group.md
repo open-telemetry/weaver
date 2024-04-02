@@ -45,10 +45,14 @@ prefix: {{ ctx.prefix }}
 {% endif %}
 {% endfor %}
 
-## Provenance
+## Lineage
 
-Source: {{ ctx.lineage.provenance }}
+Source file: {{ ctx.lineage.source_file }}
 
 {% for item in ctx.lineage.attributes -%}
-item: {{ ctx.lineage.attributes[item] }}
+attribute: {{ item.id }}
+  - source group: {{ item.source_group }}
+  - inherited fields: {{ item.inherited_fields | join(", ") }}
+  - locally overridden fields: {{ item.locally_overridden_fields | join(", ") }}
+
 {% endfor -%}

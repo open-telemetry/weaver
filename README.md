@@ -172,7 +172,7 @@ description and the current status of each crate:
 | [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha; Need more tests |
 | [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress       |
 | [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                                          | Work-In-Progress       |
-| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process                                  | Work-In-Progress       |
+| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process + Lineage                        | Work-In-Progress       |
 | [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress       |
 | [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                  |
 | [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests |

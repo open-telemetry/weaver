@@ -25,7 +25,7 @@ The Android lifecycle states are defined in [Activity lifecycle callbacks](https
 
 
 
-## Provenance
+## Lineage
 
-Source: data/mobile-events.yaml
+Source file: data/mobile-events.yaml
 

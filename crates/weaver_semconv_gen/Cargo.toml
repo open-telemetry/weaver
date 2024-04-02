@@ -15,7 +15,7 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 itertools = "0.12.1"
-similar = "2.4.0"
+similar = "2.5.0"
 nom = "7.1.3"
 
 thiserror.workspace = true
@@ -27,3 +27,9 @@ walkdir.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+# force cargo machete to ignore the following crates
+# remove this section once this crate is integrated into the rest
+# of the project
+ignored = ["serde", "rayon", "walkdir", "serde_json", "serde_yaml"]

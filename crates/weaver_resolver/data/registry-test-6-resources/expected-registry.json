@@ -10,7 +10,7 @@
         0
       ],
       "lineage": {
-        "provenance": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
+        "source_file": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
       }
     },
     {
@@ -26,29 +26,19 @@
         5
       ],
       "lineage": {
-        "provenance": "data/registry-test-6-resources/registry/resource-browser.yaml",
+        "source_file": "data/registry-test-6-resources/registry/resource-browser.yaml",
         "attributes": {
-          "5": {
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
-            },
-            "AttributeRequirementLevel": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.user_agent"
-            }
+          "user_agent.original": {
+            "source_group": "registry.user_agent",
+            "inherited_fields": [
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note"
+            ]
           }
         }
       }

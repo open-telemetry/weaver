@@ -10,67 +10,29 @@
         31
       ],
       "lineage": {
-        "provenance": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
+        "source_file": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
         "attributes": {
-          "30": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            }
+          "messaging.destination.name": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           },
-          "31": {
-            "AttributeBrief": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeExamples": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeTag": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeSamplingRelevant": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeNote": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeStability": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            },
-            "AttributeDeprecated": {
-              "resolution_mode": "Reference",
-              "group_id": "registry.messaging"
-            }
+          "messaging.destination.template": {
+            "source_group": "registry.messaging",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           }
         }
       }
@@ -113,7 +75,7 @@
         29
       ],
       "lineage": {
-        "provenance": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml"
+        "source_file": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml"
       }
     }
   ]
