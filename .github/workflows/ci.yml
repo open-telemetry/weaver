@@ -188,3 +188,8 @@ jobs:
         run: cargo install cargo-tarpaulin
       - name: Gather coverage
         run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: open-telemetry/weaver
