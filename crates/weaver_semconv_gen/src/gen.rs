@@ -470,14 +470,14 @@ impl<'a> MetricView<'a> {
     ) -> Result<(), Error> {
         // TODO - add note if needed.
         if self.group.note.is_empty() {
-            write!(out, "{}", &self.group.brief)?
+            write!(out, "{}", &self.group.brief)?;
         } else {
             write!(
                 out,
                 "{} {}",
                 &self.group.brief,
                 ctx.add_note(self.group.note.clone())
-            )?
+            )?;
         }
         Ok(())
     }

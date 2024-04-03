@@ -288,3 +288,43 @@ impl Display for InstrumentSpec {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::attribute::Examples;
+
+    #[test]
+    fn test_validate_group() {
+        let group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::Span,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "test".to_owned(),
+            extends: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            attributes: vec![AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: None,
+                stability: Some(Stability::Deprecated),
+                deprecated: Some("true".to_owned()),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+            }],
+            constraints: vec![],
+            span_kind: Some(SpanKindSpec::Client),
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+        };
+        assert!(validate_group(&group).is_ok());
+    }
+}

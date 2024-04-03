@@ -13,6 +13,7 @@ use tantivy::{doc, IndexWriter};
 use weaver_schema::attribute::Attribute;
 
 /// Build index for semantic convention attributes.
+#[cfg(not(tarpaulin_include))]
 pub fn index_semconv_attributes<'a>(
     attributes: impl Iterator<Item = &'a weaver_semconv::attribute::AttributeSpec>,
     path: &str,
@@ -32,6 +33,7 @@ pub fn index_semconv_attributes<'a>(
 }
 
 /// Build index for schema attributes.
+#[cfg(not(tarpaulin_include))]
 pub fn index_schema_attribute<'a>(
     attributes: impl Iterator<Item = &'a Attribute>,
     path: &str,
@@ -67,6 +69,7 @@ pub fn index_schema_attribute<'a>(
 }
 
 /// Render an attribute details.
+#[cfg(not(tarpaulin_include))]
 pub fn widget<'a>(
     attribute: Option<&'a Attribute>,
     provenance: &'a str,

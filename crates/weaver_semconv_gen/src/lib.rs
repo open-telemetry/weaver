@@ -22,6 +22,7 @@ use crate::gen::{AttributeTableView, GenerateMarkdownContext, MetricView};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Thrown when we are unable to find a semconv by id.
     #[error("Could not find: {id}")]
@@ -297,7 +298,7 @@ mod tests {
                 println!();
                 println!("--- Running test: {} ---", dir.path().display());
                 println!();
-                force_print_error(run_legacy_test(dir.path()))
+                force_print_error(run_legacy_test(dir.path()));
             }
         }
     }

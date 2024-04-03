@@ -16,6 +16,7 @@ pub struct LanguagesParams {
 }
 
 /// List of supported languages
+#[cfg(not(tarpaulin_include))]
 pub fn command_languages(log: impl Logger + Sync + Clone, params: &LanguagesParams) {
     // List all directories in the templates directory
     log.log("List of supported languages:");

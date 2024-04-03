@@ -25,3 +25,5 @@ just.zsh
 
 # test generated code
 **/observed_output/*
+
+/output

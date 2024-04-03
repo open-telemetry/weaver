@@ -15,6 +15,7 @@ use crate::search::theme::ThemeConfig;
 use crate::search::DocFields;
 
 /// Build index for metrics.
+#[cfg(not(tarpaulin_include))]
 pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut IndexWriter) {
     for metric_group in schema.metric_groups() {
         let tags: String = metric_group.tags().map_or("".to_owned(), |tags| {
@@ -36,6 +37,7 @@ pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut In
 }
 
 /// Render a metric details.
+#[cfg(not(tarpaulin_include))]
 pub fn widget<'a>(
     metric_group: Option<&'a MetricGroup>,
     provenance: &'a str,

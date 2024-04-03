@@ -8,6 +8,7 @@ use weaver_schema::attribute::Attribute;
 use weaver_schema::TelemetrySchema;
 
 /// Build index for resources.
+#[cfg(not(tarpaulin_include))]
 pub fn index(schema: &TelemetrySchema, fields: &DocFields, index_writer: &mut IndexWriter) {
     if let Some(resource) = schema.resource() {
         for attr in resource.attributes() {

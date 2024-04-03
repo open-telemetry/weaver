@@ -3,11 +3,7 @@ name: CI
 permissions:
   contents: read
 
-on:
-  pull_request:
-  push:
-    branches:
-      - main
+on: [push, pull_request]
 
 env:
   RUST_BACKTRACE: 1
@@ -54,7 +50,7 @@ jobs:
       - name: No-default features
         run: cargo test --workspace --no-default-features
   msrv:
-    name: "Check MSRV: 1.70.0"
+    name: Check MSRV
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -105,7 +101,7 @@ jobs:
         # run: cargo doc --workspace --all-features --no-deps --document-private-items
         run: cargo doc --workspace --no-deps --document-private-items
   rustfmt:
-    name: rustfmt
+    name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -121,6 +117,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
   check-external-types:
+    name: Check external types
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -136,7 +133,7 @@ jobs:
           cargo install cargo-check-external-types
           ./scripts/check_external_types.sh
   clippy:
-    name: clippy
+    name: Clippy
     runs-on: ubuntu-latest
     permissions:
       security-events: write # to upload sarif results
@@ -171,3 +168,23 @@ jobs:
           wait-for-processing: true
       - name: Report status
         run: cargo clippy --workspace --all-targets -- -D warnings --allow deprecated
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Gather coverage
+        run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: open-telemetry/weaver

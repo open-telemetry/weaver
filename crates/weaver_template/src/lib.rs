@@ -14,6 +14,7 @@ mod testers;
 
 /// An error that can occur while generating a client SDK.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Invalid config file.
     #[error("Invalid config file `{config_file}`: {error}")]
@@ -88,5 +89,29 @@ impl Default for GeneratorConfig {
         Self {
             template_dir: PathBuf::from("templates"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sdkgen::ClientSdkGenerator;
+    use weaver_logger::Logger;
+
+    #[test]
+    fn test_default_generator_config() {
+        let log = weaver_logger::ConsoleLogger::new(0);
+        let generator = ClientSdkGenerator::try_new("go", GeneratorConfig::default()).unwrap();
+
+        generator
+            .generate(
+                log.clone(),
+                "schemas/app-telemetry-schema.yaml".into(),
+                "output".into(),
+            )
+            .inspect_err(|e| {
+                log.error(&format!("{}", e));
+            })
+            .expect("Failed to generate client SDK");
     }
 }

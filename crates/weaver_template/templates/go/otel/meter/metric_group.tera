@@ -1,0 +1,20 @@
+{% import "required_attrs.macro.tera" as required %}
+{% import "optional_attrs.macro.tera" as optional %}
+{# Define the file name for the generated code #}
+{%- set file_name = name | file_name -%}
+{{- config(file_name="otel/meter/metric_group_" ~ file_name ~ "/metric_group.go") -}}
+// SPDX-License-Identifier: Apache-2.0
+
+package {{ name | file_name }}
+
+import (
+	otel_attr "go.opentelemetry.io/otel/attribute"
+
+	"go_test/pkg/otel/attribute"
+)
+
+type Int64Observer func() (int64, {% for attr in attributes | required | without_value %}{{attr.id | struct_name}}ReqAttrWrapper, {% endfor %}[]OptionalMetricAttribute, error)
+type Float64Observer func() (float64, {% for attr in attributes | required | without_value %}{{attr.id | struct_name}}ReqAttrWrapper, {% endfor %}[]OptionalMetricAttribute, error)
+
+{{ required::declare_attrs(attrs=attributes) }}
+{{ optional::declare_attrs(marker="Metric", attrs=attributes) }}

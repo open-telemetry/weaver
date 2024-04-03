@@ -101,9 +101,11 @@ pub struct RegistryArgs {
 }
 
 /// Manage a semantic convention registry.
+#[cfg(not(tarpaulin_include))]
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());
+        #[allow(clippy::exit)] // Expected behavior
         std::process::exit(1);
     });
 

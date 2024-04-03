@@ -10,6 +10,7 @@ use weaver_semconv::MetricSpecWithProvenance;
 
 use crate::search::semconv::attributes;
 
+#[cfg(not(tarpaulin_include))]
 pub fn widget<'a>(
     metric: Option<&'a MetricSpecWithProvenance>,
     theme: &'a ThemeConfig,

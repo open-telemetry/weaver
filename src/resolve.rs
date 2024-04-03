@@ -58,6 +58,7 @@ pub struct ResolveSchema {
 }
 
 /// Resolve a schema file and print the result
+#[cfg(not(tarpaulin_include))]
 pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());

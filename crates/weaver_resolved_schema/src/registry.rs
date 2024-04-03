@@ -352,9 +352,10 @@ impl Group {
         let attributes = self
             .attributes
             .iter()
-            .flat_map(|attr_ref| match catalog.attribute(attr_ref) {
-                Some(attr) => Some(attr),
-                None => {
+            .filter_map(|attr_ref| {
+                if let Some(attr) = catalog.attribute(attr_ref) {
+                    Some(attr)
+                } else {
                     errors.push(Error::AttributeNotFound {
                         group_id: self.id.clone(),
                         attr_ref: *attr_ref,

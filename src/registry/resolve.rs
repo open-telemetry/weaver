@@ -55,6 +55,7 @@ pub struct RegistryResolveArgs {
 
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -102,12 +103,13 @@ pub(crate) fn command(
                 .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
         }
     }
-    .and_then(|s| match args.output {
-        // Write the resolved registry to a file.
-        Some(ref path) => std::fs::write(path, s)
-            .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}")),
-        // Print the resolved registry to stdout.
-        None => {
+    .and_then(|s| {
+        if let Some(ref path) = args.output {
+            // Write the resolved registry to a file.
+            std::fs::write(path, s)
+                .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
+        } else {
+            // Print the resolved registry to stdout.
             println!("{}", s);
             Ok(())
         }
@@ -118,6 +120,7 @@ pub(crate) fn command(
     });
 }
 
+#[cfg(not(tarpaulin_include))]
 fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {
     match format {
         Format::Yaml => serde_yaml::to_string(object)

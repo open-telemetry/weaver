@@ -47,6 +47,7 @@ pub struct SchemaResolver {}
 /// An error that can occur while resolving a telemetry schema.
 #[derive(thiserror::Error, Debug)]
 #[must_use]
+#[non_exhaustive]
 pub enum Error {
     /// A telemetry schema error.
     #[error("Telemetry schema error (error: {0:?})")]
@@ -694,6 +695,7 @@ mod test {
         let log = ConsoleLogger::new(0);
         let cache = Cache::try_new().unwrap_or_else(|e| {
             log.error(&e.to_string());
+            #[allow(clippy::exit)] // Expected exit
             std::process::exit(1);
         });
         let schema = SchemaResolver::resolve_schema_file(

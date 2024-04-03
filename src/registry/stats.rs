@@ -21,6 +21,7 @@ pub struct RegistryStatsArgs {
 }
 
 /// Compute stats on a semantic convention registry.
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
     log.loading(&format!(
         "Compute statistics on the registry `{}`",
@@ -49,12 +50,14 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     display_schema_stats(&schema);
 }
 
+#[cfg(not(tarpaulin_include))]
 fn display_semconv_registry_stats(semconv_registry: &SemConvRegistry) {
     let stats = semconv_registry.stats();
     println!("Semantic Convention Registry Stats:");
     println!("  - Total number of files: {}", stats.file_count);
 }
 
+#[cfg(not(tarpaulin_include))]
 fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
     let stats = schema.stats();
     println!("Resolved Telemetry Schema Stats:");
@@ -154,6 +157,7 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroupStats) {
     println!("    - {} {:#?}s", common_stats.count, group_type);
     println!(

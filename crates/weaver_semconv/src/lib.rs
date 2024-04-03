@@ -27,6 +27,7 @@ pub mod stability;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// The semantic convention registry path pattern is invalid.
     #[error("Invalid semantic convention registry path pattern '{path_pattern:?}'.\n{error}")]
@@ -214,6 +215,12 @@ pub struct SemConvRegistry {
     /// Attribute ids are references to of attributes defined in the
     /// all_attributes field.
     event_group_attributes: HashMap<String, GroupIds>,
+
+    /// Collection of attribute ids index by group id and defined in a
+    /// `scope` semantic convention group.
+    /// Attribute ids are references to of attributes defined in the
+    /// all_attributes field.
+    scope_group_attributes: HashMap<String, GroupIds>,
 
     /// Collection of attribute ids index by group id and defined in a
     /// `metric` semantic convention group.
@@ -429,7 +436,7 @@ impl SemConvRegistry {
         let mut metrics_to_resolve = HashMap::new();
 
         // Add all the attributes with an id to the semantic convention registry.
-        for SemConvSpecWithProvenance { spec, provenance } in self.specs.clone().into_iter() {
+        for SemConvSpecWithProvenance { spec, provenance } in self.specs.clone() {
             for group in spec.groups.iter() {
                 // Process attributes
                 match group.r#type {
@@ -438,6 +445,7 @@ impl SemConvRegistry {
                     | GroupType::Resource
                     | GroupType::Metric
                     | GroupType::Event
+                    | GroupType::Scope
                     | GroupType::MetricGroup => {
                         let attributes_in_group = self.process_attributes(
                             provenance.clone(),
@@ -454,7 +462,7 @@ impl SemConvRegistry {
                             GroupType::Metric => Some(&mut self.metric_group_attributes),
                             GroupType::Event => Some(&mut self.event_group_attributes),
                             GroupType::MetricGroup => Some(&mut self.metric_group_group_attributes),
-                            _ => None,
+                            GroupType::Scope => Some(&mut self.scope_group_attributes),
                         };
 
                         if let Some(group_attributes) = group_attributes {
@@ -471,12 +479,6 @@ impl SemConvRegistry {
                                 prev_group_ids,
                             )?;
                         }
-                    }
-                    _ => {
-                        panic!(
-                            "Warning: group type `{:?}` not implemented yet",
-                            group.r#type
-                        );
                     }
                 }
 
@@ -551,7 +553,7 @@ impl SemConvRegistry {
         }
 
         // Resolve all the attributes with a reference.
-        for attr_to_resolve in attributes_to_resolve.into_iter() {
+        for attr_to_resolve in attributes_to_resolve {
             let resolved_attr = self.all_attributes.get(&attr_to_resolve.r#ref);
 
             if resolved_attr.is_none() {
@@ -748,7 +750,7 @@ impl SemConvRegistry {
         attributes_to_resolve: &mut Vec<AttributeToResolve>,
     ) -> Result<HashSet<String>, Error> {
         let mut attributes_in_group = HashSet::new();
-        for mut attr in attrs.into_iter() {
+        for mut attr in attrs {
             match &attr {
                 AttributeSpec::Id { id, .. } => {
                     // The attribute has an id, so add it to the semantic convention registry
@@ -761,7 +763,7 @@ impl SemConvRegistry {
                         format!("{}.{}", prefix, id)
                     };
                     if let AttributeSpec::Id { id, .. } = &mut attr {
-                        id.clone_from(&fq_attr_id)
+                        id.clone_from(&fq_attr_id);
                     }
                     let prev_val = self.all_attributes.insert(
                         fq_attr_id.clone(),

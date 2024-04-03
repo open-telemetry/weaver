@@ -145,9 +145,9 @@ pub fn resolve_metrics(
                 semconv_registry,
                 version_changes.metric_attribute_changes(),
             )?;
-            all_shared_attributes
-                .into_iter()
-                .for_each(|attr| _ = metric_group_attrs.insert(attr.id(), attr));
+            for attr in all_shared_attributes {
+                _ = metric_group_attrs.insert(attr.id(), attr);
+            }
 
             metrics.attributes = metric_group_attrs.into_values().collect();
         }

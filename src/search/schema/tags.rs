@@ -7,6 +7,7 @@ use ratatui::prelude::{Line, Span, Style};
 use weaver_schema::tags::Tags;
 
 /// Append tags to the text.
+#[cfg(not(tarpaulin_include))]
 pub fn append_lines<'a>(tags: Option<&'a Tags>, text: &mut Vec<Line<'_>>, theme: &'a ThemeConfig) {
     if let Some(tags) = tags {
         if tags.is_empty() {

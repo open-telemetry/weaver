@@ -416,6 +416,7 @@ mod tests {
 
     use walkdir::WalkDir;
 
+    use crate::debug::print_dedup_errors;
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
@@ -447,7 +448,14 @@ mod tests {
         });
 
         engine
-            .generate(logger, &template_registry, Path::new("observed_output"))
+            .generate(
+                logger.clone(),
+                &template_registry,
+                Path::new("observed_output"),
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
             .expect("Failed to generate registry assets");
 
         assert!(cmp_dir("expected_output", "observed_output").unwrap());

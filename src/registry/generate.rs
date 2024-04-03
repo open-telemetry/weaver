@@ -44,6 +44,7 @@ pub struct RegistryGenerateArgs {
 }
 
 /// Generate artifacts from a semantic convention registry.
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -95,6 +96,7 @@ pub(crate) fn command(
         Ok(_) => logger.success("Artifacts generated successfully"),
         Err(e) => {
             print_dedup_errors(logger.clone(), e);
+            #[allow(clippy::exit)] // Expected behavior
             std::process::exit(1);
         }
     };

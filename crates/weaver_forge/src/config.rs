@@ -57,6 +57,8 @@ pub struct TargetConfig {
     /// Type mapping for target specific types (OTel types -> Target language types).
     #[allow(dead_code)] // will be used later in the project
     #[serde(default)]
+    #[allow(dead_code)]
+    // ToDo create a Jinja macro to generate the mapping semconv -> target language
     pub type_mapping: HashMap<String, String>,
     /// Configuration for the template syntax.
     #[serde(default)]

@@ -6,6 +6,8 @@ install:
     cargo install cargo-edit
     rustup install nightly-2023-10-10   # used by cargo-check-external-types
     cargo install cargo-check-external-types
+    cargo install git-cliff
+    cargo install cargo-tarpaulin
 
 pre-push-check:
     rustup update

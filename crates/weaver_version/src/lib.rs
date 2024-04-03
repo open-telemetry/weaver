@@ -29,6 +29,7 @@ pub mod spans_version;
 
 /// An error that can occur while loading or resolving version changes.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// The `versions` file was not found.
     #[error("Versions {path_or_url:?} not found\n{error:?}")]
@@ -274,7 +275,7 @@ impl Versions {
     /// Update the current `Versions` to include the transformations of the parent `Versions`.
     /// Transformations of the current `Versions` take precedence over the parent `Versions`.
     pub fn extend(&mut self, parent_versions: Versions) {
-        for (version, spec) in parent_versions.versions.into_iter() {
+        for (version, spec) in parent_versions.versions {
             match self.versions.get_mut(&version) {
                 Some(current_spec) => {
                     current_spec.extend(spec);

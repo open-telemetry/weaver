@@ -3,7 +3,7 @@
 //! Error types and utilities.
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::CompoundError;
+use crate::error::Error::{AttributeNotFound, CompoundError};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone)]
@@ -41,7 +41,7 @@ impl Error {
                 .into_iter()
                 .flat_map(|e| match e {
                     CompoundError(errors) => errors,
-                    e => vec![e],
+                    e @ AttributeNotFound { .. } => vec![e],
                 })
                 .collect(),
         )

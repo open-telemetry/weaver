@@ -21,6 +21,7 @@ use tempdir::TempDir;
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Home directory not found.
     #[error("Home directory not found")]
@@ -108,7 +109,7 @@ impl Cache {
         // in the git_repo_dirs hashmap.
         let git_repo_dir = TempDir::new_in(self.path.as_path(), "git-repo").map_err(|e| {
             Error::GitRepoNotCreated {
-                repo_url: repo_url.to_string(),
+                repo_url: repo_url.clone(),
                 message: e.to_string(),
             }
         })?;
@@ -128,7 +129,7 @@ impl Cache {
             open::Options::isolated(),
         )
         .map_err(|e| GitError {
-            repo_url: repo_url.to_string(),
+            repo_url: repo_url.clone(),
             message: e.to_string(),
         })?
         .with_shallow(Shallow::DepthAtRemote(
@@ -138,14 +139,14 @@ impl Cache {
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
             .map_err(|e| GitError {
-                repo_url: repo_url.to_string(),
+                repo_url: repo_url.clone(),
                 message: e.to_string(),
             })?;
 
         let (_repo, _outcome) = prepare
             .main_worktree(progress::Discard, &AtomicBool::new(false))
             .map_err(|e| GitError {
-                repo_url: repo_url.to_string(),
+                repo_url: repo_url.clone(),
                 message: e.to_string(),
             })?;
 
@@ -155,7 +156,7 @@ impl Cache {
             // If the path doesn't exist, returns an error.
             if !git_repo_path.join(path).exists() {
                 return Err(GitError {
-                    repo_url: repo_url.to_string(),
+                    repo_url: repo_url.clone(),
                     message: format!("Path `{}` not found in repo", path),
                 });
             }
@@ -171,7 +172,7 @@ impl Cache {
             .lock()
             .expect("git_repo_dirs lock failed")
             .insert(
-                repo_url.to_string(),
+                repo_url.clone(),
                 GitRepo {
                     temp_dir: git_repo_dir,
                     path: git_repo_path,

@@ -12,6 +12,7 @@
 
 mod validate;
 
+#[cfg(not(tarpaulin_include))]
 fn main() -> anyhow::Result<()> {
     let task = std::env::args().nth(1);
 
@@ -29,6 +30,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Prints help message.
+#[cfg(not(tarpaulin_include))]
 pub fn print_help() -> anyhow::Result<()> {
     println!(
         "

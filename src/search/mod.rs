@@ -196,6 +196,7 @@ impl StatefulResults {
 }
 
 /// Search for attributes and metrics in a schema file
+#[cfg(not(tarpaulin_include))]
 pub fn command_search(log: impl Logger + Sync + Clone, command: &SearchCommand) {
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());
@@ -210,6 +211,7 @@ pub fn command_search(log: impl Logger + Sync + Clone, command: &SearchCommand) 
 }
 
 /// Search semantic convention registry command [todo, WIP].
+#[cfg(not(tarpaulin_include))]
 fn search_registry_command2(
     log: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -263,6 +265,7 @@ fn search_registry_command2(
 }
 
 /// Search semantic convention registry command.
+#[cfg(not(tarpaulin_include))]
 fn search_registry_command(
     log: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -306,6 +309,7 @@ fn search_registry_command(
 }
 
 /// Search schema command.
+#[cfg(not(tarpaulin_include))]
 fn search_schema_command(
     log: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -321,6 +325,7 @@ fn search_schema_command(
     search_schema_tui(log, schema);
 }
 
+#[cfg(not(tarpaulin_include))]
 fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
     let semconv_registry = schema.semantic_convention_catalog();
 
@@ -409,6 +414,7 @@ fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
     });
 }
 
+#[cfg(not(tarpaulin_include))]
 fn search_tui(app: &mut SearchApp<'_>) -> Result<()> {
     // Startup
     let stdout = io::stdout();
@@ -534,6 +540,7 @@ fn ui(app: &mut SearchApp<'_>, frame: &mut Frame<'_>) {
     frame.render_widget(app.search_area.widget(), outer_layout[1]);
 }
 
+#[cfg(not(tarpaulin_include))]
 fn summary_area<'a>(app: &'a SearchApp<'a>) -> Paragraph<'a> {
     let area_title = "Summary";
     let semconv_catalog = app.schema.semantic_convention_catalog();
@@ -579,6 +586,7 @@ fn summary_area<'a>(app: &'a SearchApp<'a>) -> Paragraph<'a> {
         .wrap(Wrap { trim: true })
 }
 
+#[cfg(not(tarpaulin_include))]
 fn detail_area<'a>(app: &'a SearchApp<'a>, item: Option<&'a ResultItem>) -> Paragraph<'a> {
     let mut area_title = "Details";
     let paragraph = if let Some(item) = item {
@@ -720,6 +728,7 @@ fn detail_area<'a>(app: &'a SearchApp<'a>, item: Option<&'a ResultItem>) -> Para
         .wrap(Wrap { trim: true })
 }
 
+#[cfg(not(tarpaulin_include))]
 fn update(app: &mut SearchApp<'_>) -> Result<()> {
     if event::poll(std::time::Duration::from_millis(250))? {
         let event = event::read()?;
@@ -745,6 +754,7 @@ fn update(app: &mut SearchApp<'_>) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 fn run(app: &mut SearchApp<'_>) -> Result<()> {
     // ratatui terminal
     let mut t = Terminal::new(CrosstermBackend::new(io::stderr()))?;
