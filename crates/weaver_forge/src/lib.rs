@@ -355,6 +355,7 @@ impl TemplateEngine {
             "field_name",
             case_converter(self.target_config.field_name.clone()),
         );
+        env.add_filter("flatten", flatten);
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
@@ -406,6 +407,20 @@ impl TemplateEngine {
 
         Ok(output_file_path)
     }
+}
+
+// Helper filter to work around lack of `list.append()` support in minijinja.
+// Will take a list of lists and return a new list containing only elements of sublists.
+fn flatten(
+    value: Value,
+) -> Result<Value, minijinja::Error> {
+    let mut result = Vec::new();
+    for sublist in value.try_iter()? {
+        for item in sublist.try_iter()? {
+            result.push(item);
+        }
+    }
+    Ok(Value::from(result))
 }
 
 #[cfg(test)]
