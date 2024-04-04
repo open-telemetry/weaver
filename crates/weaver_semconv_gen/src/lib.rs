@@ -6,6 +6,7 @@
 
 use std::fs;
 use weaver_cache::Cache;
+use weaver_diff::diff_output;
 use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
@@ -14,7 +15,6 @@ use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
 use weaver_semconv::SemConvRegistry;
 
-mod diff;
 mod gen;
 mod parser;
 
@@ -46,7 +46,7 @@ pub enum Error {
         filter: String,
     },
     /// Errors thrown when we are running a dry run and markdown doesn't match.
-    #[error("Markdown is not equal:\n{}", diff::diff_output(.original, .updated))]
+    #[error("Markdown is not equal:\n{}", diff_output(.original, .updated))]
     MarkdownIsNotEqual {
         /// Original markdown value.
         original: String,

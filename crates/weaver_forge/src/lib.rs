@@ -430,6 +430,7 @@ mod tests {
     use walkdir::WalkDir;
 
     use crate::debug::print_dedup_errors;
+    use weaver_diff::diff_output;
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
@@ -519,8 +520,10 @@ mod tests {
                     observed_dir.as_ref().join(file)
                 );
 
-                eprintln!("Expected file content: {}", file1_content);
-                eprintln!("Observed file content: {}", file2_content);
+                eprintln!(
+                    "Found differences:\n{}",
+                    diff_output(&file1_content, &file2_content)
+                );
                 break;
             }
         }
