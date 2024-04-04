@@ -1,4 +1,0 @@
-## flatten
-- one
-- two
-- three
