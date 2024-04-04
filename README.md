@@ -197,6 +197,10 @@ Below is a diagram detailing the primary components of the OpenTelemetry Weaver 
 
 ![OpenTelemetry Weaver Platform](docs/images/otel-weaver-platform.png)
 
+## Weaver Enhancement Proposals
+
+- [Policy Engine](docs/policy-engine.md)
+
 ## Links
 
 Internal links:
