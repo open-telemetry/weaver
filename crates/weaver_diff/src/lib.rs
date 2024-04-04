@@ -8,7 +8,7 @@ const GREEN: &str = "\x1b[32m";
 const RED: &str = "\x1b[31m";
 const RESET: &str = "\x1b[0m";
 
-/// Constructs a "diff" string of the orignal vs. updated.
+/// Constructs a "diff" string of the original vs. updated.
 /// Will create colorized (ANSI) output w/ `+` representing additions and `-` representing removals.
 pub fn diff_output(original: &str, updated: &str) -> String {
     let mut result = String::new();
