@@ -199,7 +199,8 @@ Below is a diagram detailing the primary components of the OpenTelemetry Weaver 
 
 ## Weaver Enhancement Proposals
 
-- [Policy Engine](docs/policy-engine.md)
+- [Policy Engine](docs/proposals/policy-engine.md)
+- [Application Telemetry Schema Integration](docs/proposals/application-telemetry-schema.md)
 
 ## Links
 
