@@ -411,9 +411,7 @@ impl TemplateEngine {
 
 // Helper filter to work around lack of `list.append()` support in minijinja.
 // Will take a list of lists and return a new list containing only elements of sublists.
-fn flatten(
-    value: Value,
-) -> Result<Value, minijinja::Error> {
+fn flatten(value: Value) -> Result<Value, minijinja::Error> {
     let mut result = Vec::new();
     for sublist in value.try_iter()? {
         for item in sublist.try_iter()? {

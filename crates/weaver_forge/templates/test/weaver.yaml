@@ -13,3 +13,8 @@ type_mapping:
   "double[]": "[]double"
   "boolean[]": "[]bool"
   "string[]": "[]string"
+
+templates:
+  - pattern: builtin.md
+    filter: .groups[]
+    application_mode: single
