@@ -1,5 +1,11 @@
 # Semantic Convention Attribute Groups
 
+## flatten
+{%- set test = [["one", "two"], ["three"]] | flatten -%}
+{% for item in test %}
+- {{item}}
+{%- endfor -%}
+
 {% for group in ctx %}
 ## Group `{{ group.id }}` ({{ group.type }})
 
