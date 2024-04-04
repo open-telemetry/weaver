@@ -1,5 +1,8 @@
 # OpenTelemetry Weaver (status: Prototype)
 
+[![build](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/open-telemetry/weaver/graph/badge.svg?token=tmWKFoMT2G)](https://codecov.io/gh/open-telemetry/weaver)
+
 ## Overview
 
 > At this stage, the project is being used as a **Proof of Concept** to explore and
