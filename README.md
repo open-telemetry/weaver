@@ -176,6 +176,7 @@ description and the current status of each crate:
 | [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress       |
 | [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                  |
 | [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests |
+| [weaver_policy_engine](crates/weaver_policy_engine/README.md)     | Policy engine to enforce policies on telemetry data          | Work-In-Progress       |
 | xtask                                                             | Set of tasks to validate the project                                 | Done                   |
 
 Note 1: Alpha status means that the crate is in a usable state but may have
