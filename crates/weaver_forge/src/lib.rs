@@ -520,7 +520,10 @@ mod tests {
                     observed_dir.as_ref().join(file)
                 );
 
-                eprintln!("Found differences:\n{}", diff_output(&file1_content, &file2_content));
+                eprintln!(
+                    "Found differences:\n{}",
+                    diff_output(&file1_content, &file2_content)
+                );
                 break;
             }
         }

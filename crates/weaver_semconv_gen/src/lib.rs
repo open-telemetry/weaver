@@ -6,6 +6,7 @@
 
 use std::fs;
 use weaver_cache::Cache;
+use weaver_diff::diff_output;
 use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
@@ -13,7 +14,6 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
 use weaver_semconv::SemConvRegistry;
-use weaver_diff::diff_output;
 
 mod gen;
 mod parser;
