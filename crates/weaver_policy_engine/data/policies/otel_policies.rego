@@ -8,7 +8,7 @@ package otel
 
 # ========= Violation rules applied on unresolved semconv files =========
 
-# A registry attribute groups containing at least one `ref` attribute is
+# A registry `attribute_group` containing at least one `ref` attribute is
 # considered invalid.
 violations[violation] {
     group := input.groups[_]
@@ -24,8 +24,8 @@ violations[violation] {
     }
 }
 
-# Attributes whose stability is not `deprecated` but have the deprecated field
-# set to true are invalid.
+# An attribute whose stability is not `deprecated` but has the deprecated field
+# set to true is invalid.
 violations[violation] {
     group := input.groups[_]
     attr := group.attributes[_]
