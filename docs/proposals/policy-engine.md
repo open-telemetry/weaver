@@ -42,7 +42,7 @@ The '[regorus](https://github.com/microsoft/regorus)' project by Microsoft could
 without having a dependency on the OPA toolchain, making weaver easy to use in
 any CI/CD pipeline, such as OpenTelemetry or pipelines of any vendor/company.
 
-# Policies on unresolved semantic conventions
+### Policies on unresolved semantic conventions
 
 The policy verification could operate as follows:
 - Read semconv files of the new version
@@ -138,7 +138,7 @@ groups:
 violations and could be removed if not needed.
 
 
-# Policies on resolved semantic conventions
+### Policies on resolved semantic conventions
 
 The policy verification could operate as follows:
 - Read and Resolve semconv files of the new version
