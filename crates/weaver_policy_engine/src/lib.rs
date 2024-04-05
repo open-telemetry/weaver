@@ -4,14 +4,39 @@
 //! project. The project `regorus` is the policy engine used in this crate to
 //! evaluate policies.
 
+mod engine;
+
 /// An error that can occur while evaluating policies.
 #[derive(thiserror::Error, Debug)]
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
     /// An invalid policy.
-    #[error("Invalid policy, error: {error:?})")]
-    InvalidPolicy {
+    #[error("Invalid policy file '{file}', error: {error})")]
+    InvalidPolicyFile {
+        /// The file that caused the error.
+        file: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// An invalid data.
+    #[error("Invalid data, error: {error})")]
+    InvalidData {
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// An invalid input.
+    #[error("Invalid input, error: {error})")]
+    InvalidInput {
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// Query evaluation error.
+    #[error("Query evaluation error: {error}")]
+    QueryEvaluationError {
         /// The error that occurred.
         error: String,
     },

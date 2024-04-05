@@ -4414,6 +4414,8 @@ name = "weaver_policy_engine"
 version = "0.1.0"
 dependencies = [
  "regorus",
+ "serde",
+ "serde_json",
  "thiserror",
  "weaver_resolved_schema",
 ]
