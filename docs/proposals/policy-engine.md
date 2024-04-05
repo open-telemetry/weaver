@@ -54,9 +54,18 @@ Example of a policy expressed in `Rego`:
 ```rego
 package otel
 
-# A registry attribute groups containing at least one `ref` attribute is considered invalid.
+# Conventions for OTel:
+# - `data` holds the current released semconv, which is known to be valid.
+# - `input` holds the new candidate semconv version, whose validity is unknown.
+#
+# Note: `data` and `input` are predefined variables in Rego.
+
+# ========= Violation rules applied on unresolved semconv files =========
+
+# A registry attribute groups containing at least one `ref` attribute is
+# considered invalid.
 violations[violation] {
-    group := data.groups[_]
+    group := input.groups[_]
     startswith(group.id, "registry.")
     attr := group.attributes[_]
     attr.ref != null
@@ -69,11 +78,12 @@ violations[violation] {
     }
 }
 
-# An attribute marked as stable and deprecated is invalid.
+# Attributes whose stability is not `deprecated` but have the deprecated field
+# set to true are invalid.
 violations[violation] {
-    group := data.groups[_]
+    group := input.groups[_]
     attr := group.attributes[_]
-    attr.stability == "stable"
+    attr.stability != "deprecaded"
     attr.deprecated
     violation := {
         "violation": "invalid_attribute_deprecated_stable",
@@ -84,10 +94,60 @@ violations[violation] {
     }
 }
 
-# other violations rules here...
+# An attribute cannot be removed from a group that has already been released.
+violations[violation] {
+    old_group := data.groups[_]
+    old_attr := old_group.attributes[_]
+    not attr_exists_in_new_group(old_group.id, old_attr.id)
+
+    violation := {
+        "violation": "attribute_removed",
+        "group": old_group.id,
+        "attr": old_attr.id,
+        "severity": "high",
+        "category": "schema_evolution"
+    }
+}
+
+# ========= Helper rules =========
+
+# Check if an attribute from the old group exists in the new
+# group's attributes
+attr_exists_in_new_group(group_id, attr_id) {
+    new_group := input.groups[_]
+    new_group.id == group_id
+    attr := new_group.attributes[_]
+    attr.id == attr_id
+}
 ```
 
 These policies applied to the following semconv file...
+
+The already released version (data):
+```yaml
+groups:
+  - id: registry.network1
+    prefix: network
+    type: attribute_group
+    brief: >
+      These attributes may be used for any network related operation.
+    attributes:
+      - id: protocol.name
+        stability: stable
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        note: The value SHOULD be normalized to lowercase.
+        examples: ['amqp', 'http', 'mqtt']
+        deprecated: true
+      - id: protocol.name.3
+        stability: stable
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        note: The value SHOULD be normalized to lowercase.
+        examples: ['amqp', 'http', 'mqtt']
+```
+
+The unreleased version (input):
 ```yaml
 groups:
   - id: registry.network
@@ -130,6 +190,13 @@ groups:
     "group": "registry.network",
     "severity": "high",
     "violation": "invalid_registry_ref_attribute"
+  },
+  {
+    "attr": "protocol.name.3",
+    "category": "schema_evolution",
+    "group": "registry.network1",
+    "severity": "high",
+    "violation": "attribute_removed"
   }
 ]
 ```
