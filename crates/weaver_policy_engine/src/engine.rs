@@ -178,6 +178,7 @@ mod tests {
         let mut engine = Engine::new();
         engine.add_policy("data/policies/infra.rego")?;
         let infra = create_infra();
+        println!("{}", serde_json::to_string_pretty(&infra)?);
         engine.add_data(&infra)?;
         let allow = engine.eval_bool_query("data.infra.allow".to_owned())?;
         assert!(allow);
@@ -194,6 +195,18 @@ mod tests {
         println!("{}", serde_json::to_string_pretty(&results)?);
         assert_eq!(results.result.len(), 1);
         // ToDo
+        Ok(())
+    }
+
+    #[test]
+    fn test_otel_policies() -> Result<(), Box<dyn std::error::Error>> {
+        let mut engine = Engine::new();
+        engine.add_policy("data/policies/otel_policies.rego")?;
+        let yaml = std::fs::read_to_string("data/registries/registry.network.yaml")?;
+        let resolved_schema: Value = serde_yaml::from_str(&yaml)?;
+        engine.add_data(&resolved_schema)?;
+        let results = engine.eval_query("data.otel.violations".to_owned())?;
+        println!("{}", serde_json::to_string_pretty(&results)?);
         Ok(())
     }
 

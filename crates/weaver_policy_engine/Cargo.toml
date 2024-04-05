@@ -19,6 +19,7 @@ weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
 
 regorus = "0.1.2"
 
