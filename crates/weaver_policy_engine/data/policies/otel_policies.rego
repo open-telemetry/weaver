@@ -10,49 +10,27 @@ package otel
 
 # A registry `attribute_group` containing at least one `ref` attribute is
 # considered invalid.
-violations[violation] {
+violations[v_registry("invalid_registry_ref_attribute", group.id, attr.ref)] {
     group := input.groups[_]
     startswith(group.id, "registry.")
     attr := group.attributes[_]
     attr.ref != null
-    violation := {
-        "violation": "invalid_registry_ref_attribute",
-        "group": group.id,
-        "attr": attr.ref,
-        "severity": "high",
-        "category": "registry"
-    }
 }
 
 # An attribute whose stability is not `deprecated` but has the deprecated field
 # set to true is invalid.
-violations[violation] {
+violations[v_attribute("invalid_attribute_deprecated_stable", group.id, attr.id)] {
     group := input.groups[_]
     attr := group.attributes[_]
     attr.stability != "deprecaded"
     attr.deprecated
-    violation := {
-        "violation": "invalid_attribute_deprecated_stable",
-        "group": group.id,
-        "attr": attr.id,
-        "severity": "high",
-        "category": "attribute"
-    }
 }
 
 # An attribute cannot be removed from a group that has already been released.
-violations[violation] {
+violations[v_schema_evolution("attribute_removed", old_group.id, old_attr.id)] {
     old_group := data.groups[_]
     old_attr := old_group.attributes[_]
     not attr_exists_in_new_group(old_group.id, old_attr.id)
-
-    violation := {
-        "violation": "attribute_removed",
-        "group": old_group.id,
-        "attr": old_attr.id,
-        "severity": "high",
-        "category": "schema_evolution"
-    }
 }
 
 # ========= Helper rules =========
@@ -64,4 +42,37 @@ attr_exists_in_new_group(group_id, attr_id) {
     new_group.id == group_id
     attr := new_group.attributes[_]
     attr.id == attr_id
+}
+
+# Build a schema evolution violation
+v_schema_evolution(violation_id, group_id, attr_id) = violation {
+    violation := {
+        "violation": violation_id,
+        "group": group_id,
+        "attr": attr_id,
+        "severity": "high",
+        "category": "schema_evolution"
+    }
+}
+
+# Build a registry violation
+v_registry(violation_id, group_id, attr_id) = violation {
+    violation := {
+        "violation": violation_id,
+        "group": group_id,
+        "attr": attr_id,
+        "severity": "high",
+        "category": "registry"
+    }
+}
+
+# Build a attribute violation
+v_attribute(violation_id, group_id, attr_id) = violation {
+    violation := {
+        "violation": violation_id,
+        "group": group_id,
+        "attr": attr_id,
+        "severity": "high",
+        "category": "attribute"
+    }
 }
