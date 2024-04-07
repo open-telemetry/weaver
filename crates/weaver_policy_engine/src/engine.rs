@@ -211,7 +211,7 @@ mod tests {
         let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
         engine.set_input(&new_semconv)?;
 
-        let results = engine.eval_query("data.otel.violation".to_owned())?;
+        let results = engine.eval_query("data.otel.detect".to_owned())?;
         println!("{}", serde_json::to_string_pretty(&results)?);
         Ok(())
     }

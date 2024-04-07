@@ -10,7 +10,7 @@ package otel
 
 # A registry `attribute_group` containing at least one `ref` attribute is
 # considered invalid.
-violation[_registry("invalid_registry_ref_attribute", group.id, attr.ref)] {
+detect[violation_registry("invalid_registry_ref_attribute", group.id, attr.ref)] {
     group := input.groups[_]
     startswith(group.id, "registry.")
     attr := group.attributes[_]
@@ -19,7 +19,7 @@ violation[_registry("invalid_registry_ref_attribute", group.id, attr.ref)] {
 
 # An attribute whose stability is not `deprecated` but has the deprecated field
 # set to true is invalid.
-violation[_attribute("invalid_attribute_deprecated_stable", group.id, attr.id)] {
+detect[violation_attribute("invalid_attribute_deprecated_stable", group.id, attr.id)] {
     group := input.groups[_]
     attr := group.attributes[_]
     attr.stability != "deprecaded"
@@ -27,7 +27,7 @@ violation[_attribute("invalid_attribute_deprecated_stable", group.id, attr.id)] 
 }
 
 # An attribute cannot be removed from a group that has already been released.
-violation[_schema_evolution("attribute_removed", old_group.id, old_attr.id)] {
+detect[violation_schema_evolution("attribute_removed", old_group.id, old_attr.id)] {
     old_group := data.groups[_]
     old_attr := old_group.attributes[_]
     not attr_exists_in_new_group(old_group.id, old_attr.id)
@@ -45,7 +45,7 @@ attr_exists_in_new_group(group_id, attr_id) {
 }
 
 # Build a schema evolution violation
-_schema_evolution(violation_id, group_id, attr_id) = violation {
+violation_schema_evolution(violation_id, group_id, attr_id) = violation {
     violation := {
         "violation": violation_id,
         "group": group_id,
@@ -56,7 +56,7 @@ _schema_evolution(violation_id, group_id, attr_id) = violation {
 }
 
 # Build a registry violation
-_registry(violation_id, group_id, attr_id) = violation {
+violation_registry(violation_id, group_id, attr_id) = violation {
     violation := {
         "violation": violation_id,
         "group": group_id,
@@ -67,7 +67,7 @@ _registry(violation_id, group_id, attr_id) = violation {
 }
 
 # Build a attribute violation
-_attribute(violation_id, group_id, attr_id) = violation {
+violation_attribute(violation_id, group_id, attr_id) = violation {
     violation := {
         "violation": violation_id,
         "group": group_id,
