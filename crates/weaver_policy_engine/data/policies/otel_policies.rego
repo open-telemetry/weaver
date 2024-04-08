@@ -10,7 +10,7 @@ package otel
 
 # A registry `attribute_group` containing at least one `ref` attribute is
 # considered invalid.
-detect[violation_registry("invalid_registry_ref_attribute", group.id, attr.ref)] {
+deny[attr_registry_violation("registry_with_ref_attr", group.id, attr.ref)] {
     group := input.groups[_]
     startswith(group.id, "registry.")
     attr := group.attributes[_]
@@ -19,7 +19,7 @@ detect[violation_registry("invalid_registry_ref_attribute", group.id, attr.ref)]
 
 # An attribute whose stability is not `deprecated` but has the deprecated field
 # set to true is invalid.
-detect[violation_attribute("invalid_attribute_deprecated_stable", group.id, attr.id)] {
+deny[attr_violation("attr_stability_deprecated", group.id, attr.id)] {
     group := input.groups[_]
     attr := group.attributes[_]
     attr.stability != "deprecaded"
@@ -27,13 +27,14 @@ detect[violation_attribute("invalid_attribute_deprecated_stable", group.id, attr
 }
 
 # An attribute cannot be removed from a group that has already been released.
-detect[violation_schema_evolution("attribute_removed", old_group.id, old_attr.id)] {
+deny[schema_evolution_violation("attr_removed", old_group.id, old_attr.id)] {
     old_group := data.groups[_]
     old_attr := old_group.attributes[_]
     not attr_exists_in_new_group(old_group.id, old_attr.id)
 }
 
-# ========= Helper rules =========
+
+# ========= Helper functions =========
 
 # Check if an attribute from the old group exists in the new
 # group's attributes
@@ -44,35 +45,35 @@ attr_exists_in_new_group(group_id, attr_id) {
     attr.id == attr_id
 }
 
+# Build an attribute registry violation
+attr_registry_violation(violation_id, group_id, attr_id) = violation {
+    violation := {
+        "id": violation_id,
+        "type": "semconv_attribute",
+        "category": "attrigute_registry",
+        "group": group_id,
+        "attr": attr_id,
+    }
+}
+
+# Build an attribute violation
+attr_violation(violation_id, group_id, attr_id) = violation {
+    violation := {
+        "id": violation_id,
+        "type": "semconv_attribute",
+        "category": "attrigute",
+        "group": group_id,
+        "attr": attr_id,
+    }
+}
+
 # Build a schema evolution violation
-violation_schema_evolution(violation_id, group_id, attr_id) = violation {
+schema_evolution_violation(violation_id, group_id, attr_id) = violation {
     violation := {
-        "violation": violation_id,
+        "id": violation_id,
+        "type": "semconv_attribute",
+        "category": "schema_evolution",
         "group": group_id,
         "attr": attr_id,
-        "severity": "high",
-        "category": "schema_evolution"
-    }
-}
-
-# Build a registry violation
-violation_registry(violation_id, group_id, attr_id) = violation {
-    violation := {
-        "violation": violation_id,
-        "group": group_id,
-        "attr": attr_id,
-        "severity": "high",
-        "category": "registry"
-    }
-}
-
-# Build a attribute violation
-violation_attribute(violation_id, group_id, attr_id) = violation {
-    violation := {
-        "violation": violation_id,
-        "group": group_id,
-        "attr": attr_id,
-        "severity": "high",
-        "category": "attribute"
     }
 }

@@ -5,6 +5,7 @@
 //! evaluate policies.
 
 mod engine;
+mod violation;
 
 /// An error that can occur while evaluating policies.
 #[derive(thiserror::Error, Debug)]
@@ -34,9 +35,9 @@ pub enum Error {
         error: String,
     },
 
-    /// Query evaluation error.
-    #[error("Query evaluation error: {error}")]
-    QueryEvaluationError {
+    /// Violation evaluation error.
+    #[error("Violation evaluation error: {error}")]
+    ViolationEvaluationError {
         /// The error that occurred.
         error: String,
     },
