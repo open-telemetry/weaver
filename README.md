@@ -196,7 +196,7 @@ documentation generation, dashboard creation, and more.
 
 Below is a diagram detailing the primary components of the OpenTelemetry Weaver tool.
 
-![OpenTelemetry Weaver Platform](docs/images/otel-weaver-platform.png)
+![OpenTelemetry Weaver Platform](docs/images/otel-weaver-platform.svg)
 
 ## Links
 
