@@ -164,6 +164,8 @@ mod tests {
         let violations = engine.find_violations("otel")?;
         assert_eq!(violations.len(), 3);
 
+        println!("Violations: {}", serde_json::to_string_pretty(&violations)?);
+
         for violation in violations {
             assert_eq!(expected_violations.get(violation.id()), Some(&violation));
         }
