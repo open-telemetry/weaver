@@ -87,6 +87,10 @@ Options:
           Local path or Git URL of the semantic convention registry to check [default: https://github.com/open-telemetry/semantic-conventions.git]
   -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
           Optional path in the Git repository where the semantic convention registry is located [default: model]
+  -b, --before-resolution-policies <BEFORE_RESOLUTION_POLICIES>
+          Optional list of policy files to check against the files of the semantic convention registry before the resolution process
+  -h, --help
+          Print help
 ```
 
 ### Sub-Command `registry generate`
