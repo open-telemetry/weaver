@@ -99,11 +99,11 @@ pub struct GenerateMarkdownArgs {
     args: Vec<MarkdownGenParameters>,
 }
 impl GenerateMarkdownArgs {
-    // TODO
-    // fn is_full(&self) -> bool {
-    //     self.args.iter().any(|a| matches!(a, MarkdownGenParameters::Full))
-    // }
-    /// Returns true if the omit requirement level flag was specified.
+    // Returns true if the `full` flag was specified.
+    fn is_full(&self) -> bool {
+        self.args.iter().any(|a| matches!(a, MarkdownGenParameters::Full))
+    }
+    /// Returns true if the `omit_requirement_level` flag was specified.
     fn is_omit_requirement(&self) -> bool {
         self.args
             .iter()
@@ -250,6 +250,25 @@ impl ResolvedSemconvRegistry {
     /// Finds an attribute by reference.
     fn attribute(&self, attr: &AttributeRef) -> Option<&Attribute> {
         self.schema.catalog.attribute(attr)
+    }
+
+    /// Determines if the attribute is not further inhereted from group_id in any other file.
+    /// For example , if attribute x.y is defined in group "a", and referenced in "b", the attribute would be local to "b".
+    /// Why do we call this local? - It's an inherited mechanism from build-tools.
+    fn is_attribute_local(&self, group_id: &str, attribute_id: &str) -> bool {
+        // Note: This isn't correct just yet, we're always getting true.
+        let found_inheritance_or_ref = self.my_registry().map(|r| {
+            r.groups.iter().any(|g| {
+                g.lineage.as_ref().and_then(|l| {
+                    l.attributes.get(attribute_id)
+                })
+                .map(|al| {
+                    al.source_group == group_id
+                })
+                .unwrap_or(false)
+            })
+        }).unwrap_or(true);
+        !found_inheritance_or_ref
     }
 }
 

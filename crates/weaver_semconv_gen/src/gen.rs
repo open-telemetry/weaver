@@ -107,6 +107,15 @@ fn write_enum_examples_string<Out: Write>(
     Ok(())
 }
 
+fn write_stability_badge<Out: Write>(out: &mut Out, stability: &Option<Stability>) -> Result<(), Error> {
+    match stability {
+        Some(Stability::Stable) => write!(out, "![Stable](https://img.shields.io/badge/-stable-lightgreen)")?,
+        Some(Stability::Deprecated) => write!(out, "![Deprecated](https://img.shields.io/badge/-deprecated-red)")?,
+        Some(Stability::Experimental) | None => write!(out, "![Experimental](https://img.shields.io/badge/-experimental-blue)")?,
+    }
+    Ok(()) 
+}
+
 struct AttributeView<'a> {
     attribute: &'a Attribute,
 }
@@ -173,11 +182,7 @@ impl<'a> AttributeView<'a> {
                 }
                 // Stability.
                 write!(out, " | ")?;
-                match m.stability {
-                    Some(Stability::Stable) => write!(out, "Stable")?,
-                    Some(Stability::Deprecated) => write!(out, "Deprecated")?,
-                    Some(Stability::Experimental) | None => write!(out, "Experimental")?,
-                }
+                write_stability_badge(out, &m.stability)?;
                 writeln!(out, " |")?;
             }
         }
@@ -238,28 +243,28 @@ impl<'a> AttributeView<'a> {
     ) -> Result<(), Error> {
         match &self.attribute.requirement_level {
             RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => {
-                Ok(write!(out, "Required")?)
+                Ok(write!(out, "`Required`")?)
             }
             RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => {
-                Ok(write!(out, "Recommended")?)
+                Ok(write!(out, "`Recommended`")?)
             }
-            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => Ok(write!(out, "Opt-In")?),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => Ok(write!(out, "`Opt-In`")?),
             RequirementLevel::ConditionallyRequired { text } => {
                 if text.len() > BREAK_COUNT {
                     Ok(write!(
                         out,
-                        "Conditionally Required: {}",
+                        "`Conditionally Required` {}",
                         ctx.add_note(text.clone())
                     )?)
                 } else {
-                    Ok(write!(out, "Conditionally Required: {text}")?)
+                    Ok(write!(out, "`Conditionally Required` {text}")?)
                 }
             }
             RequirementLevel::Recommended { text } => {
                 if text.len() > BREAK_COUNT {
-                    Ok(write!(out, "Recommended: {}", ctx.add_note(text.clone()))?)
+                    Ok(write!(out, "`Recommended` {}", ctx.add_note(text.clone()))?)
                 } else {
-                    Ok(write!(out, "Recommended: {text}")?)
+                    Ok(write!(out, "`Recommended` {text}")?)
                 }
             }
         }
@@ -277,6 +282,10 @@ impl<'a> AttributeView<'a> {
                 }
             }
         }
+    }
+
+    fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        write_stability_badge(out, &self.attribute.stability)
     }
 }
 
@@ -319,11 +328,18 @@ impl<'a> AttributeTableView<'a> {
         }
     }
 
-    fn attributes(&self) -> impl Iterator<Item = AttributeView<'_>> {
+    fn is_attribute_local(&self, id: &str) -> bool {
+       self.lookup.is_attribute_local(&self.group.id, id)
+    }
+
+    /// Returns attributes sorted for rendering.
+    /// is_full - denotes if all inhereted attributes should be included or just locally defined ones.
+    fn attributes(&self, is_full: bool) -> impl Iterator<Item = AttributeView<'_>> {
         self.group
             .attributes
             .iter()
             .filter_map(|attr| self.lookup.attribute(attr))
+            .filter(|a| is_full || self.is_attribute_local(&a.name))
             .sorted_by(|lhs, rhs| {
                 match sort_ordinal_for_requirement(&lhs.requirement_level)
                     .cmp(&sort_ordinal_for_requirement(&rhs.requirement_level))
@@ -348,26 +364,18 @@ impl<'a> AttributeTableView<'a> {
             write!(out, "The event name MUST be `{}`\n\n", self.event_name())?;
         }
 
-        // TODO - deal with
-        // - local / full (do we still support this?)
-
         if args.is_omit_requirement() {
-            writeln!(out, "| Attribute  | Type | Description  | Examples  |")?;
-            writeln!(out, "|---|---|---|---|")?;
-        } else {
-            // TODO - we should use link version and update tests/semconv upstream.
-            writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |")?;
-            // writeln!(
-            //     out,
-            //     "| Attribute  | Type | Description  | Examples  | Requirement Level |"
-            // )?;
+            writeln!(out, "| Attribute  | Type | Description  | Examples  | Stability |")?;
             writeln!(out, "|---|---|---|---|---|")?;
+        } else {
+            writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |")?;
+            writeln!(out, "|---|---|---|---|---|---|")?;
         }
 
         // If the user defined a tag, use it to filter attributes.
         let attributes: Vec<AttributeView<'_>> = match args.tag_filter() {
-            Some(tag) => self.attributes().filter(|a| a.has_tag(tag)).collect(),
-            None => self.attributes().collect(),
+            Some(tag) => self.attributes(args.is_full()).filter(|a| a.has_tag(tag)).collect(),
+            None => self.attributes(args.is_full()).collect(),
         };
 
         for attr in &attributes {
@@ -380,21 +388,23 @@ impl<'a> AttributeTableView<'a> {
             write!(out, " | ")?;
             attr.write_examples(out)?;
             if args.is_omit_requirement() {
-                writeln!(out, " |")?;
+                write!(out, " | ")?;
             } else {
                 write!(out, " | ")?;
                 attr.write_requirement(out, ctx)?;
-                writeln!(out, " |")?;
+                write!(out, " | ")?;
             }
+            attr.write_stability(out)?;
+            writeln!(out, " |")?;
         }
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
 
-        // Add "constraints" notes.
+        // No longer doing - Add "constraints" notes.
 
         // Add sampling relevant callouts.
         let sampling_relevant: Vec<AttributeView<'_>> = self
-            .attributes()
+            .attributes(args.is_full())
             .filter(|a| a.is_sampling_relevant())
             .collect();
         if !sampling_relevant.is_empty() {
@@ -481,6 +491,9 @@ impl<'a> MetricView<'a> {
         }
         Ok(())
     }
+    fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
+        write_stability_badge(out, &self.group.stability)
+    }
     pub fn generate_markdown<Out: Write>(
         &self,
         out: &mut Out,
@@ -488,11 +501,11 @@ impl<'a> MetricView<'a> {
     ) -> Result<(), Error> {
         writeln!(
             out,
-            "| Name     | Instrument Type | Unit (UCUM) | Description    |"
+            "| Name     | Instrument Type | Unit (UCUM) | Description    | Stability |"
         )?;
         writeln!(
             out,
-            "| -------- | --------------- | ----------- | -------------- |"
+            "| -------- | --------------- | ----------- | -------------- | --------- |"
         )?;
         write!(
             out,
@@ -503,6 +516,8 @@ impl<'a> MetricView<'a> {
         self.write_unit(out)?;
         write!(out, "` | ")?;
         self.write_description(out, ctx)?;
+        write!(out, " | ")?;
+        self.write_stability(out)?;
         writeln!(out, " |")?;
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
