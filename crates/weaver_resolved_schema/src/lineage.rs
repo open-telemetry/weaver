@@ -40,7 +40,7 @@ pub struct GroupLineage {
     /// This is important to keep unit tests stable.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     #[serde(default)]
-    pub attributes: BTreeMap<String, AttributeLineage>,
+    attributes: BTreeMap<String, AttributeLineage>,
 }
 
 impl AttributeLineage {

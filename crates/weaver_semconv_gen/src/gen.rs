@@ -107,13 +107,25 @@ fn write_enum_examples_string<Out: Write>(
     Ok(())
 }
 
-fn write_stability_badge<Out: Write>(out: &mut Out, stability: &Option<Stability>) -> Result<(), Error> {
+fn write_stability_badge<Out: Write>(
+    out: &mut Out,
+    stability: &Option<Stability>,
+) -> Result<(), Error> {
     match stability {
-        Some(Stability::Stable) => write!(out, "![Stable](https://img.shields.io/badge/-stable-lightgreen)")?,
-        Some(Stability::Deprecated) => write!(out, "![Deprecated](https://img.shields.io/badge/-deprecated-red)")?,
-        Some(Stability::Experimental) | None => write!(out, "![Experimental](https://img.shields.io/badge/-experimental-blue)")?,
+        Some(Stability::Stable) => write!(
+            out,
+            "![Stable](https://img.shields.io/badge/-stable-lightgreen)"
+        )?,
+        Some(Stability::Deprecated) => write!(
+            out,
+            "![Deprecated](https://img.shields.io/badge/-deprecated-red)"
+        )?,
+        Some(Stability::Experimental) | None => write!(
+            out,
+            "![Experimental](https://img.shields.io/badge/-experimental-blue)"
+        )?,
     }
-    Ok(()) 
+    Ok(())
 }
 
 struct AttributeView<'a> {
@@ -248,7 +260,9 @@ impl<'a> AttributeView<'a> {
             RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => {
                 Ok(write!(out, "`Recommended`")?)
             }
-            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => Ok(write!(out, "`Opt-In`")?),
+            RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => {
+                Ok(write!(out, "`Opt-In`")?)
+            }
             RequirementLevel::ConditionallyRequired { text } => {
                 if text.len() > BREAK_COUNT {
                     Ok(write!(
@@ -317,19 +331,16 @@ impl<'a> AttributeTableView<'a> {
     }
 
     fn event_name(&self) -> &str {
-        // TODO - exception if group is not an event.
         match &self.group.name {
             Some(value) => value.as_str(),
-            None =>
-            // TODO - exception if prefix is empty.
-            {
-                self.group.prefix.as_str()
-            }
+            None => self.group.prefix.as_str(),
         }
     }
 
     fn is_attribute_local(&self, id: &str) -> bool {
-       self.lookup.is_attribute_local(&self.group.id, id)
+        // TODO - Fix finding local attributes.
+        // These are attributes NOT pulled in via `extend` or `constraint.include`
+        true
     }
 
     /// Returns attributes sorted for rendering.
@@ -360,23 +371,34 @@ impl<'a> AttributeTableView<'a> {
         ctx: &mut GenerateMarkdownContext,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<(), Error> {
+        // If the user defined a tag, use it to filter attributes.
+        let attributes: Vec<AttributeView<'_>> = match args.tag_filter() {
+            Some(tag) => self
+                .attributes(args.is_full())
+                .filter(|a| a.has_tag(tag))
+                .collect(),
+            None => self.attributes(args.is_full()).collect(),
+        };
+
+        // Don't generate markdown if no attributes available.
+        if attributes.is_empty() {
+            return Ok(());
+        }
+
         if self.group.r#type == GroupType::Event {
             write!(out, "The event name MUST be `{}`\n\n", self.event_name())?;
         }
 
         if args.is_omit_requirement() {
-            writeln!(out, "| Attribute  | Type | Description  | Examples  | Stability |")?;
+            writeln!(
+                out,
+                "| Attribute  | Type | Description  | Examples  | Stability |"
+            )?;
             writeln!(out, "|---|---|---|---|---|")?;
         } else {
             writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |")?;
             writeln!(out, "|---|---|---|---|---|---|")?;
         }
-
-        // If the user defined a tag, use it to filter attributes.
-        let attributes: Vec<AttributeView<'_>> = match args.tag_filter() {
-            Some(tag) => self.attributes(args.is_full()).filter(|a| a.has_tag(tag)).collect(),
-            None => self.attributes(args.is_full()).collect(),
-        };
 
         for attr in &attributes {
             write!(out, "| ")?;
