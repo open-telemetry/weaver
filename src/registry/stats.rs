@@ -36,6 +36,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
         semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
         cache,
         log.clone(),
+        None,
     )
     .unwrap_or_else(|e| {
         panic!("Failed to load and parse the semantic convention registry, error: {e}");

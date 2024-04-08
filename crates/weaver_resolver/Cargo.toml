@@ -18,6 +18,7 @@ weaver_schema = { path = "../weaver_schema" }
 weaver_version = { path = "../weaver_version" }
 weaver_cache = { path = "../weaver_cache" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
+weaver_policy_engine = { path = "../weaver_policy_engine" }
 
 regex.workspace = true
 thiserror.workspace = true

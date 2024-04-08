@@ -164,7 +164,7 @@ impl ClientSdkGenerator {
             process::exit(1);
         });
 
-        let schema = SchemaResolver::resolve_schema_file(schema_path.clone(), &cache, log.clone())
+        let schema = SchemaResolver::resolve_schema_file(schema_path.clone(), &cache, log.clone(), None)
             .map_err(|e| InvalidTelemetrySchema {
                 schema: schema_path.clone(),
                 error: format!("{}", e),

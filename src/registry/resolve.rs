@@ -71,6 +71,7 @@ pub(crate) fn command(
         semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
         cache,
         logger.clone(),
+        None,
     )
     .unwrap_or_else(|e| {
         panic!("Failed to load and parse the semantic convention registry, error: {e}");

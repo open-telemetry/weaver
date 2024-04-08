@@ -58,6 +58,7 @@ weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
 weaver_schema = { path = "crates/weaver_schema" }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
+weaver_policy_engine = { path = "crates/weaver_policy_engine" }
 
 clap = { version = "4.5.4", features = ["derive"] }
 crossterm = "0.27.0"

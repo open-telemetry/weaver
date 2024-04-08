@@ -16,12 +16,13 @@ use walkdir::DirEntry;
 
 use weaver_cache::Cache;
 use weaver_logger::Logger;
+use weaver_policy_engine::violation::Violation;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::TelemetrySchema;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
+use weaver_semconv::path::RegistryPath;
 use weaver_version::VersionChanges;
 
 use crate::attribute::AttributeCatalog;
@@ -158,6 +159,15 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// A policy violation error.
+    #[error("Policy violation: {violation}, provenance: {provenance}")]
+    PolicyViolation {
+        /// The provenance of the violation (URL or path).
+        provenance: String,
+        /// The violation.
+        violation: Violation,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", Error::format_errors(.0))]
     CompoundError(Vec<Error>),
@@ -207,6 +217,17 @@ impl Error {
             .collect::<Vec<String>>()
             .join("\n\n")
     }
+
+    /// Logs one or multiple errors (if current error is a 1CompoundError`)
+    /// using the given logger.
+    pub fn log(&self, logger: impl Logger + Clone + Sync) {
+        match self {
+            Error::CompoundError(errors) => for error in errors {
+                error.log(logger.clone());
+            }
+            _ => logger.error(&self.to_string()),
+        }
+    }
 }
 
 impl SchemaResolver {
@@ -216,9 +237,10 @@ impl SchemaResolver {
         schema_url_or_path: &str,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<TelemetrySchema, Error> {
         let mut schema = Self::load_schema(schema_url_or_path, log.clone())?;
-        Self::resolve(&mut schema, schema_url_or_path, cache, log)?;
+        Self::resolve(&mut schema, schema_url_or_path, cache, log, policy_engine)?;
 
         Ok(schema)
     }
@@ -228,6 +250,7 @@ impl SchemaResolver {
         schema_path: P,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<TelemetrySchema, Error> {
         let mut schema = Self::load_schema_from_path(schema_path.clone(), log.clone())?;
         Self::resolve(
@@ -240,6 +263,7 @@ impl SchemaResolver {
                 })?,
             cache,
             log,
+            policy_engine,
         )?;
 
         Ok(schema)
@@ -251,10 +275,11 @@ impl SchemaResolver {
         schema_path: &str,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<(), Error> {
         let registry_id = "default"; // ToDo add support for multiple registries
         let sem_conv_catalog =
-            Self::semconv_registry_from_schema(registry_id, schema, cache, log.clone())?;
+            Self::semconv_registry_from_schema(registry_id, schema, cache, log.clone(), policy_engine)?;
         let start = Instant::now();
 
         // Merges the versions of the parent schema into the current schema.
@@ -300,6 +325,7 @@ impl SchemaResolver {
         path: Option<String>,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
             registry_id,
@@ -310,6 +336,7 @@ impl SchemaResolver {
             ResolverConfig::default(),
             cache,
             log.clone(),
+            policy_engine,
         )
     }
 
@@ -319,8 +346,9 @@ impl SchemaResolver {
         registry_path: RegistryPath,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
-        Self::load_semconv_registry_from_imports(registry_id, &[registry_path], cache, log.clone())
+        Self::load_semconv_registry_from_imports(registry_id, &[registry_path], cache, log.clone(), policy_engine)
     }
 
     /// Loads a telemetry schema from the given URL or path.
@@ -381,6 +409,7 @@ impl SchemaResolver {
         schema: &TelemetrySchema,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
             registry_id,
@@ -388,6 +417,7 @@ impl SchemaResolver {
             ResolverConfig::default(),
             cache,
             log.clone(),
+            policy_engine,
         )
     }
 
@@ -397,15 +427,14 @@ impl SchemaResolver {
         imports: &[RegistryPath],
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
         let registry =
-            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone())?;
+            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone(), policy_engine)?;
         log.success(&format!(
-            "Loaded {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
+            "Loaded {} semantic convention files ({:.2}s)",
             registry.asset_count(),
-            registry.attribute_count(),
-            registry.metric_count(),
             start.elapsed().as_secs_f32()
         ));
 
@@ -419,10 +448,11 @@ impl SchemaResolver {
         resolver_config: ResolverConfig,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
         let mut registry =
-            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone())?;
+            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone(), policy_engine)?;
         let warnings = registry
             .resolve(resolver_config)
             .map_err(|e| Error::SemConvError {
@@ -541,6 +571,7 @@ impl SchemaResolver {
         sem_convs: &[RegistryPath],
         cache: &Cache,
         log: impl Logger + Sync,
+        policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         // Load all the semantic convention catalogs.
         let mut sem_conv_catalog = SemConvRegistry::new(registry_id);
@@ -577,6 +608,38 @@ impl SchemaResolver {
             .collect();
 
         let mut errors = vec![];
+
+        if let Some(policy_engine) = policy_engine {
+            // Check policies in parallel
+            errors.extend(result
+                .par_iter()
+                .flat_map(|semconv| {
+                    let mut errors = Vec::new();
+                    if let Ok((path, semconv)) = semconv {
+                        // Create a local policy engine inheriting the policies
+                        // from the global policy engine
+                        let mut policy_engine = policy_engine.clone();
+
+                        match policy_engine.set_input(semconv) {
+                            Ok(_) => {
+                                match policy_engine.check() {
+                                    Ok(violations) => for violation in violations {
+                                        errors.push(Error::PolicyViolation { provenance: path.clone(), violation });
+                                    }
+                                    Err(e) => errors.push(Error::SemConvError {
+                                        message: format!("Invalid policy evaluation for file '{path}': {e}"),
+                                    })
+                                }
+                            }
+                            Err(e) => errors.push(Error::SemConvError {
+                                message: format!("Invalid policy engine input for file '{path}': {e}"),
+                            })
+                        }
+                    }
+                    errors
+                }).collect::<Vec<Error>>());
+        }
+
         result.into_iter().for_each(|result| match result {
             Ok((provenance, spec)) => {
                 sem_conv_catalog
@@ -588,7 +651,7 @@ impl SchemaResolver {
             }
         });
 
-        // ToDo LQ: Propagate the errors!
+        handle_errors(errors)?;
 
         Ok(sem_conv_catalog)
     }
@@ -622,6 +685,7 @@ impl SchemaResolver {
     /// # Arguments
     /// * `local_path` - The local path containing the semantic convention files.
     /// * `registry_path_repr` - The representation of the registry path (URL or path).
+    /// * `policy_engine` - An optional policy engine to check the semantic convention files.
     fn import_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
@@ -702,6 +766,7 @@ mod test {
             "../../data/app-telemetry-schema.yaml",
             &cache,
             log,
+            None,
         );
         assert!(schema.is_ok(), "{:#?}", schema.err().unwrap());
     }
