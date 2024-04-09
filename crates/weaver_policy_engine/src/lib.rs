@@ -51,31 +51,7 @@ pub enum Error {
     CompoundError(Vec<Error>),
 }
 
-/// Handles a list of errors and returns a compound error if the list is not
-/// empty or () if the list is empty.
-pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::CompoundError(errors))
-    }
-}
-
 impl Error {
-    /// Creates a compound error from a list of errors.
-    /// Note: All compound errors are flattened.
-    pub fn compound_error(errors: Vec<Error>) -> Error {
-        Error::CompoundError(
-            errors
-                .into_iter()
-                .flat_map(|e| match e {
-                    Error::CompoundError(errors) => errors,
-                    e => vec![e],
-                })
-                .collect(),
-        )
-    }
-
     /// Formats the given errors into a single string.
     /// This used to render compound errors.
     #[must_use]
@@ -203,7 +179,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use crate::violation::Violation;
-    use crate::Engine;
+    use crate::{Engine, Error};
     use serde_yaml::Value;
     use std::collections::HashMap;
 
@@ -249,8 +225,42 @@ mod tests {
 
         for violation in violations {
             assert_eq!(expected_violations.get(violation.id()), Some(&violation));
+            println!("{}", violation);
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_invalid_policy() {
+        let mut engine = Engine::new();
+        let result = engine.add_policy("data/policies/invalid_policy.rego");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_data() {
+        let mut engine = Engine::new();
+        let result = engine.add_data(&"invalid data");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_violation_object() {
+        let mut engine = Engine::new();
+        engine.add_policy("data/policies/invalid_violation_object.rego").unwrap();
+
+        let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml").unwrap();
+        let new_semconv: Value = serde_yaml::from_str(&new_semconv).unwrap();
+        engine.set_input(&new_semconv).unwrap();
+
+        let result = engine.check();
+        assert!(result.is_err());
+
+        let observed_errors = Error::format_errors(&[result.unwrap_err()]);
+        assert_eq!(
+            observed_errors,
+            "Violation evaluation error: missing field `type`"
+        );
     }
 }

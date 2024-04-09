@@ -8,6 +8,7 @@ use std::fmt::{Display, Formatter};
 /// Enum representing the different types of violations.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub enum Violation {
     /// A violation related to semantic convention attributes.
     SemconvAttribute {
