@@ -99,11 +99,13 @@ pub struct GenerateMarkdownArgs {
     args: Vec<MarkdownGenParameters>,
 }
 impl GenerateMarkdownArgs {
-    // TODO
-    // fn is_full(&self) -> bool {
-    //     self.args.iter().any(|a| matches!(a, MarkdownGenParameters::Full))
-    // }
-    /// Returns true if the omit requirement level flag was specified.
+    // Returns true if the `full` flag was specified.
+    fn is_full(&self) -> bool {
+        self.args
+            .iter()
+            .any(|a| matches!(a, MarkdownGenParameters::Full))
+    }
+    /// Returns true if the `omit_requirement_level` flag was specified.
     fn is_omit_requirement(&self) -> bool {
         self.args
             .iter()
