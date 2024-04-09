@@ -1,6 +1,12 @@
 version: 2
 updates:
+  # Update cargo packages
   - package-ecosystem: "cargo" 
+    directory: "/"
+    schedule:
+      interval: "daily"
+  # Update github action values
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
