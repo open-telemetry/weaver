@@ -210,6 +210,7 @@ Below is a diagram detailing the primary components of the OpenTelemetry Weaver 
 Internal links:
 
 - [Template Engine](docs/template-engine.md)
+- [Policy Engine](crates/weaver_policy_engine/README.md)
 - [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)
 - [Resolved Telemetry Schema](docs/resolved-telemetry-schema.md) (proposal)
 - [Internal crates interdependencies](docs/dependencies.md)
