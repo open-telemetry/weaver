@@ -355,6 +355,7 @@ impl TemplateEngine {
             "field_name",
             case_converter(self.target_config.field_name.clone()),
         );
+        env.add_filter("flatten", flatten);
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
@@ -408,6 +409,18 @@ impl TemplateEngine {
     }
 }
 
+// Helper filter to work around lack of `list.append()` support in minijinja.
+// Will take a list of lists and return a new list containing only elements of sublists.
+fn flatten(value: Value) -> Result<Value, minijinja::Error> {
+    let mut result = Vec::new();
+    for sublist in value.try_iter()? {
+        for item in sublist.try_iter()? {
+            result.push(item);
+        }
+    }
+    Ok(Value::from(result))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -417,6 +430,7 @@ mod tests {
     use walkdir::WalkDir;
 
     use crate::debug::print_dedup_errors;
+    use weaver_diff::diff_output;
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
@@ -506,8 +520,10 @@ mod tests {
                     observed_dir.as_ref().join(file)
                 );
 
-                eprintln!("Expected file content: {}", file1_content);
-                eprintln!("Observed file content: {}", file2_content);
+                eprintln!(
+                    "Found differences:\n{}",
+                    diff_output(&file1_content, &file2_content)
+                );
                 break;
             }
         }

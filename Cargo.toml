@@ -49,6 +49,7 @@ name = "weaver"
 
 [dependencies]
 # local crates dependencies
+weaver_diff = { path = "crates/weaver_diff" }
 weaver_logger = { path = "crates/weaver_logger" }
 weaver_resolver = { path = "crates/weaver_resolver" }
 weaver_template = { path = "crates/weaver_template" }
