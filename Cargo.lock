@@ -711,29 +711,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_filter"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a009aa4810eb158359dda09d0c87378e4bbb89b5a801f016885a4707ba24f7ea"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b35839ba51819680ba087cd351788c9a3c476841207e0b8cee0b04722343b9"
-dependencies = [
- "anstream",
- "anstyle",
- "env_filter",
- "humantime",
- "log",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1855,12 +1832,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humantime"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
-
-[[package]]
 name = "hyper"
 version = "0.14.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2344,14 +2315,15 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
 name = "minijinja"
-version = "1.0.17"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b7eb3568385ed7a6594dd0b27b8fb52a8d952b80bf3c9b6bc65027ecf004923"
+checksum = "3b336675fcf16523beb1e8f7da0e9d1e588390ff0f0df24b8fdf00826fb82d51"
 dependencies = [
  "aho-corasick",
  "memo-map",
  "self_cell",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2979,8 +2951,7 @@ checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 [[package]]
 name = "regorus"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f01b11bdcd295d4c24d17d8248bb77e7664e3f288481a72e9013ec8d27f9064"
+source = "git+https://github.com/lquerel/regorus.git?branch=main#baf979852c051d5828fca2efd803605be74a1171"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2988,14 +2959,12 @@ dependencies = [
  "compact-rc",
  "constant_time_eq",
  "data-encoding",
- "env_logger",
  "hex",
  "hmac",
  "itertools 0.12.1",
  "jsonschema",
  "jsonwebtoken",
  "lazy_static",
- "log",
  "md-5",
  "num",
  "rand 0.8.5",
@@ -4364,7 +4333,6 @@ dependencies = [
  "tui-textarea",
  "walkdir",
  "weaver_cache",
- "weaver_diff",
  "weaver_forge",
  "weaver_logger",
  "weaver_policy_engine",

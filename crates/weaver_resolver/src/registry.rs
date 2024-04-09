@@ -744,7 +744,7 @@ mod tests {
                 .to_str()
                 .expect("Failed to convert test directory to string");
 
-            // if !test_dir.ends_with("registry-test-lineage-2") {
+            // if !test_dir.ends_with("registry-test-7-spans") {
             //     // Skip the test for now as it is not yet supported.
             //     continue;
             // }

@@ -28,7 +28,7 @@ rust-version = "1.76"
 [workspace.dependencies]
 serde = { version = "1.0.197", features = ["derive"] }
 serde_yaml = "0.9.32"
-serde_json = "1.0.115"
+serde_json = { version = "1.0.115"}
 thiserror = "1.0.58"
 ureq = "2.9.6"
 regex = "1.10.3"
@@ -49,7 +49,6 @@ name = "weaver"
 
 [dependencies]
 # local crates dependencies
-weaver_diff = { path = "crates/weaver_diff" }
 weaver_logger = { path = "crates/weaver_logger" }
 weaver_resolver = { path = "crates/weaver_resolver" }
 weaver_template = { path = "crates/weaver_template" }
@@ -72,12 +71,6 @@ serde.workspace = true
 serde_yaml.workspace = true
 serde_json.workspace = true
 walkdir.workspace = true
-
-[package.metadata.cargo-machete]
-# force cargo machete to ignore the following crates
-# Remove this section one weaver_semconv_gen is ready to be used
-# in the project
-ignored = ["weaver_semconv_gen"]
 
 [profile.release]
 lto = true
