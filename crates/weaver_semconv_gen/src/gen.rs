@@ -337,7 +337,7 @@ impl<'a> AttributeTableView<'a> {
         }
     }
 
-    fn is_attribute_local(&self, id: &str) -> bool {
+    fn is_attribute_local(&self, _id: &str) -> bool {
         // TODO - Fix finding local attributes.
         // These are attributes NOT pulled in via `extend` or `constraint.include`
         true
