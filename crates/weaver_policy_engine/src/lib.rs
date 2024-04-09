@@ -248,9 +248,12 @@ mod tests {
     #[test]
     fn test_invalid_violation_object() {
         let mut engine = Engine::new();
-        engine.add_policy("data/policies/invalid_violation_object.rego").unwrap();
+        engine
+            .add_policy("data/policies/invalid_violation_object.rego")
+            .unwrap();
 
-        let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml").unwrap();
+        let new_semconv =
+            std::fs::read_to_string("data/registries/registry.network.new.yaml").unwrap();
         let new_semconv: Value = serde_yaml::from_str(&new_semconv).unwrap();
         engine.set_input(&new_semconv).unwrap();
 
