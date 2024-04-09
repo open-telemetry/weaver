@@ -1,6 +1,9 @@
 # Semantic Convention Attribute Groups
 
-
+## flatten
+- one
+- two
+- three
 ## Group `attributes.jvm.memory` (attribute_group)
 
 ### Brief

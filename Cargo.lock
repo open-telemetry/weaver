@@ -4364,6 +4364,7 @@ dependencies = [
  "tui-textarea",
  "walkdir",
  "weaver_cache",
+ "weaver_diff",
  "weaver_forge",
  "weaver_logger",
  "weaver_policy_engine",
@@ -4386,6 +4387,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_diff"
+version = "0.1.0"
+dependencies = [
+ "similar",
+]
+
+[[package]]
 name = "weaver_forge"
 version = "0.1.0"
 dependencies = [
@@ -4403,6 +4411,7 @@ dependencies = [
  "serde_yaml",
  "thiserror",
  "walkdir",
+ "weaver_diff",
  "weaver_logger",
  "weaver_resolved_schema",
  "weaver_resolver",
@@ -4492,9 +4501,9 @@ version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
  "nom",
- "similar",
  "thiserror",
  "weaver_cache",
+ "weaver_diff",
  "weaver_logger",
  "weaver_resolved_schema",
  "weaver_resolver",
