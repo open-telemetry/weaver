@@ -21,8 +21,8 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::TelemetrySchema;
-use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
 use weaver_semconv::path::RegistryPath;
+use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
 use weaver_version::VersionChanges;
 
 use crate::attribute::AttributeCatalog;
@@ -222,8 +222,10 @@ impl Error {
     /// using the given logger.
     pub fn log(&self, logger: impl Logger + Clone + Sync) {
         match self {
-            Error::CompoundError(errors) => for error in errors {
-                error.log(logger.clone());
+            Error::CompoundError(errors) => {
+                for error in errors {
+                    error.log(logger.clone());
+                }
             }
             _ => logger.error(&self.to_string()),
         }
@@ -278,8 +280,13 @@ impl SchemaResolver {
         policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<(), Error> {
         let registry_id = "default"; // ToDo add support for multiple registries
-        let sem_conv_catalog =
-            Self::semconv_registry_from_schema(registry_id, schema, cache, log.clone(), policy_engine)?;
+        let sem_conv_catalog = Self::semconv_registry_from_schema(
+            registry_id,
+            schema,
+            cache,
+            log.clone(),
+            policy_engine,
+        )?;
         let start = Instant::now();
 
         // Merges the versions of the parent schema into the current schema.
@@ -348,7 +355,13 @@ impl SchemaResolver {
         log: impl Logger + Clone + Sync,
         policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
-        Self::load_semconv_registry_from_imports(registry_id, &[registry_path], cache, log.clone(), policy_engine)
+        Self::load_semconv_registry_from_imports(
+            registry_id,
+            &[registry_path],
+            cache,
+            log.clone(),
+            policy_engine,
+        )
     }
 
     /// Loads a telemetry schema from the given URL or path.
@@ -430,8 +443,13 @@ impl SchemaResolver {
         policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
-        let registry =
-            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone(), policy_engine)?;
+        let registry = Self::create_semantic_convention_registry(
+            registry_id,
+            imports,
+            cache,
+            log.clone(),
+            policy_engine,
+        )?;
         log.success(&format!(
             "Loaded {} semantic convention files ({:.2}s)",
             registry.asset_count(),
@@ -451,8 +469,13 @@ impl SchemaResolver {
         policy_engine: Option<&weaver_policy_engine::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
-        let mut registry =
-            Self::create_semantic_convention_registry(registry_id, imports, cache, log.clone(), policy_engine)?;
+        let mut registry = Self::create_semantic_convention_registry(
+            registry_id,
+            imports,
+            cache,
+            log.clone(),
+            policy_engine,
+        )?;
         let warnings = registry
             .resolve(resolver_config)
             .map_err(|e| Error::SemConvError {
@@ -611,33 +634,43 @@ impl SchemaResolver {
 
         if let Some(policy_engine) = policy_engine {
             // Check policies in parallel
-            errors.extend(result
-                .par_iter()
-                .flat_map(|semconv| {
-                    let mut errors = Vec::new();
-                    if let Ok((path, semconv)) = semconv {
-                        // Create a local policy engine inheriting the policies
-                        // from the global policy engine
-                        let mut policy_engine = policy_engine.clone();
+            errors.extend(
+                result
+                    .par_iter()
+                    .flat_map(|semconv| {
+                        let mut errors = Vec::new();
+                        if let Ok((path, semconv)) = semconv {
+                            // Create a local policy engine inheriting the policies
+                            // from the global policy engine
+                            let mut policy_engine = policy_engine.clone();
 
-                        match policy_engine.set_input(semconv) {
-                            Ok(_) => {
-                                match policy_engine.check() {
-                                    Ok(violations) => for violation in violations {
-                                        errors.push(Error::PolicyViolation { provenance: path.clone(), violation });
+                            match policy_engine.set_input(semconv) {
+                                Ok(_) => match policy_engine.check() {
+                                    Ok(violations) => {
+                                        for violation in violations {
+                                            errors.push(Error::PolicyViolation {
+                                                provenance: path.clone(),
+                                                violation,
+                                            });
+                                        }
                                     }
                                     Err(e) => errors.push(Error::SemConvError {
-                                        message: format!("Invalid policy evaluation for file '{path}': {e}"),
-                                    })
-                                }
+                                        message: format!(
+                                            "Invalid policy evaluation for file '{path}': {e}"
+                                        ),
+                                    }),
+                                },
+                                Err(e) => errors.push(Error::SemConvError {
+                                    message: format!(
+                                        "Invalid policy engine input for file '{path}': {e}"
+                                    ),
+                                }),
                             }
-                            Err(e) => errors.push(Error::SemConvError {
-                                message: format!("Invalid policy engine input for file '{path}': {e}"),
-                            })
                         }
-                    }
-                    errors
-                }).collect::<Vec<Error>>());
+                        errors
+                    })
+                    .collect::<Vec<Error>>(),
+            );
         }
 
         result.into_iter().for_each(|result| match result {

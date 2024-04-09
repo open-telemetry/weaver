@@ -2,9 +2,9 @@
 
 //! Check a semantic convention registry.
 
-use std::path::PathBuf;
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use clap::Args;
+use std::path::PathBuf;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_policy_engine::Engine;
@@ -40,16 +40,14 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     log.loading(&format!("Checking registry `{}`", args.registry));
 
     let registry_id = "default";
-    let policy_engine  = if args.before_resolution_policies.is_empty() {
+    let policy_engine = if args.before_resolution_policies.is_empty() {
         None
     } else {
         let mut engine = Engine::new();
         for policy in &args.before_resolution_policies {
-            engine
-                .add_policy(policy)
-                .unwrap_or_else(|e| {
-                    panic!("Invalid policy file `{:?}`, error: {e}", policy);
-                });
+            engine.add_policy(policy).unwrap_or_else(|e| {
+                panic!("Invalid policy file `{:?}`, error: {e}", policy);
+            });
         }
         Some(engine)
     };
@@ -65,6 +63,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     )
     .unwrap_or_else(|e| {
         e.log(log.clone());
+        #[allow(clippy::exit)] // We are exiting in a CLI tool
         std::process::exit(1);
     });
 
@@ -74,6 +73,7 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     let _ = resolve_semconv_registry(&mut attr_catalog, &registry_path, &semconv_specs)
         .unwrap_or_else(|e| {
             e.log(log.clone());
+            #[allow(clippy::exit)] // We are exiting in a CLI tool
             std::process::exit(1);
         });
 

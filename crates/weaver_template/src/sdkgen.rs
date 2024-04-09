@@ -164,11 +164,12 @@ impl ClientSdkGenerator {
             process::exit(1);
         });
 
-        let schema = SchemaResolver::resolve_schema_file(schema_path.clone(), &cache, log.clone(), None)
-            .map_err(|e| InvalidTelemetrySchema {
-                schema: schema_path.clone(),
-                error: format!("{}", e),
-            })?;
+        let schema =
+            SchemaResolver::resolve_schema_file(schema_path.clone(), &cache, log.clone(), None)
+                .map_err(|e| InvalidTelemetrySchema {
+                    schema: schema_path.clone(),
+                    error: format!("{}", e),
+                })?;
 
         // Process recursively all files in the template directory
         let mut lang_path = self.lang_path.to_str().unwrap_or_default().to_owned();

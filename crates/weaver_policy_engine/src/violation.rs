@@ -2,8 +2,8 @@
 
 //! Definition of a policy violation.
 
-use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 /// Enum representing the different types of violations.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -19,14 +19,23 @@ pub enum Violation {
         group: String,
         /// The semconv attribute where the violation occurred.
         attr: String,
-    }
+    },
 }
 
 impl Display for Violation {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Violation::SemconvAttribute { id, category, group, attr } => {
-                write!(f, "id={}, category={}, group={}, attr={}", id, category, group, attr)
+            Violation::SemconvAttribute {
+                id,
+                category,
+                group,
+                attr,
+            } => {
+                write!(
+                    f,
+                    "id={}, category={}, group={}, attr={}",
+                    id, category, group, attr
+                )
             }
         }
     }
@@ -34,6 +43,7 @@ impl Display for Violation {
 
 impl Violation {
     /// Returns the violation id.
+    #[must_use]
     pub fn id(&self) -> &str {
         match self {
             Violation::SemconvAttribute { id, .. } => id,

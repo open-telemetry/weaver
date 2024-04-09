@@ -228,8 +228,13 @@ impl ResolvedSemconvRegistry {
         log: impl Logger + Clone + Sync,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let mut registry =
-            SchemaResolver::load_semconv_registry(registry_id, registry_path, cache, log.clone(), None)?;
+        let mut registry = SchemaResolver::load_semconv_registry(
+            registry_id,
+            registry_path,
+            cache,
+            log.clone(),
+            None,
+        )?;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
         let lookup = ResolvedSemconvRegistry {
             schema,

@@ -40,6 +40,7 @@ fn test_semconv_registry_resolution() {
         },
         &cache,
         log.clone(),
+        None,
     )
     .unwrap_or_else(|e| {
         panic!("Failed to load and parse the official semantic convention registry, error: {e}");

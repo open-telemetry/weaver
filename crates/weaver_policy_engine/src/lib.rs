@@ -4,10 +4,10 @@
 //! project. The project `regorus` is the policy engine used in this crate to
 //! evaluate policies.
 
-use std::path::Path;
+use crate::violation::Violation;
 use serde::Serialize;
 use serde_json::to_value;
-use crate::violation::Violation;
+use std::path::Path;
 
 pub mod violation;
 
@@ -89,7 +89,7 @@ impl Error {
 }
 
 /// The policy engine.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Engine {
     // The `regorus` policy engine.
     engine: regorus::Engine,
@@ -97,10 +97,9 @@ pub struct Engine {
 
 impl Engine {
     /// Creates a new policy engine.
+    #[must_use]
     pub fn new() -> Self {
-        Self {
-            engine: regorus::Engine::new(),
-        }
+        Default::default()
     }
 
     /// Adds a policy file to the policy engine.
@@ -112,10 +111,12 @@ impl Engine {
     pub fn add_policy<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<(), Error> {
         let policy_path_str = policy_path.as_ref().to_string_lossy().to_string();
 
-        self.engine.add_policy_from_file(policy_path).map_err(|e| Error::InvalidPolicyFile {
-            file: policy_path_str.clone(),
-            error: e.to_string(),
-        })
+        self.engine
+            .add_policy_from_file(policy_path)
+            .map_err(|e| Error::InvalidPolicyFile {
+                file: policy_path_str.clone(),
+                error: e.to_string(),
+            })
     }
 
     /// Adds a data document to the policy engine.
@@ -132,9 +133,10 @@ impl Engine {
         let json_data = to_value(data).map_err(|e| Error::InvalidData {
             error: e.to_string(),
         })?;
-        let value: regorus::Value = serde_json::from_value(json_data).map_err(|e| Error::InvalidInput {
-            error: e.to_string(),
-        })?;
+        let value: regorus::Value =
+            serde_json::from_value(json_data).map_err(|e| Error::InvalidInput {
+                error: e.to_string(),
+            })?;
         self.engine.add_data(value).map_err(|e| Error::InvalidData {
             error: e.to_string(),
         })
@@ -155,9 +157,10 @@ impl Engine {
             error: e.to_string(),
         })?;
 
-        let value: regorus::Value = serde_json::from_value(json_input).map_err(|e| Error::InvalidInput {
-            error: e.to_string(),
-        })?;
+        let value: regorus::Value =
+            serde_json::from_value(json_input).map_err(|e| Error::InvalidInput {
+                error: e.to_string(),
+            })?;
         self.engine.set_input(value);
         Ok(())
     }
@@ -165,23 +168,30 @@ impl Engine {
     /// Returns a list of violations based on the policies, the data, and the
     /// input.
     pub fn check(&mut self) -> Result<Vec<Violation>, Error> {
-        let result = self.engine.eval_query("data.otel.deny".to_owned(), false).map_err(|e| Error::ViolationEvaluationError {
-            error: e.to_string(),
-        })?;
+        let result = self
+            .engine
+            .eval_query("data.otel.deny".to_owned(), false)
+            .map_err(|e| Error::ViolationEvaluationError {
+                error: e.to_string(),
+            })?;
 
         let mut violations = Vec::new();
 
         for query_result in result.result {
             for expr in query_result.expressions {
                 // convert `regorus` value to `serde_json` value
-                let json_value = to_value(&expr.value).map_err(|e| Error::ViolationEvaluationError {
-                    error: e.to_string(),
-                })?;
+                let json_value =
+                    to_value(&expr.value).map_err(|e| Error::ViolationEvaluationError {
+                        error: e.to_string(),
+                    })?;
 
                 // convert json value into a vector of violations
-                let violation: Vec<Violation> = serde_json::from_value(json_value).map_err(|e| Error::ViolationEvaluationError {
-                    error: e.to_string(),
-                })?;
+                let violation: Vec<Violation> =
+                    serde_json::from_value(json_value).map_err(|e| {
+                        Error::ViolationEvaluationError {
+                            error: e.to_string(),
+                        }
+                    })?;
 
                 violations.extend(violation);
             }
@@ -192,10 +202,10 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-    use serde_yaml::Value;
-    use crate::Engine;
     use crate::violation::Violation;
+    use crate::Engine;
+    use serde_yaml::Value;
+    use std::collections::HashMap;
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -215,21 +225,24 @@ mod tests {
                 id: "attr_stability_deprecated".to_owned(),
                 category: "attrigute".to_owned(),
                 group: "registry.network1".to_owned(),
-                attr: "protocol.name".to_owned()
+                attr: "protocol.name".to_owned(),
             },
             Violation::SemconvAttribute {
                 id: "attr_removed".to_owned(),
                 category: "schema_evolution".to_owned(),
                 group: "registry.network1".to_owned(),
-                attr: "protocol.name.3".to_owned()
+                attr: "protocol.name.3".to_owned(),
             },
             Violation::SemconvAttribute {
                 id: "registry_with_ref_attr".to_owned(),
                 category: "attrigute_registry".to_owned(),
                 group: "registry.network1".to_owned(),
-                attr: "protocol.port".to_owned()
+                attr: "protocol.port".to_owned(),
             },
-        ].into_iter().map(|v| (v.id().to_owned(), v)).collect();
+        ]
+        .into_iter()
+        .map(|v| (v.id().to_owned(), v))
+        .collect();
 
         let violations = engine.check()?;
         assert_eq!(violations.len(), 3);
