@@ -320,7 +320,7 @@ fn resolve_attribute_references(
             unresolved_group.group.attributes.extend(resolved_attr);
         }
 
-        if errors.len() == 0 {
+        if errors.is_empty() {
             break;
         }
 
@@ -376,14 +376,18 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
                 } else {
                     errors.push(Error::UnresolvedExtendsRef {
                         group_id: unresolved_group.group.id.clone(),
-                        extends_ref: unresolved_group.group.extends.as_ref().unwrap().clone(),
+                        extends_ref: unresolved_group
+                            .group
+                            .extends
+                            .clone()
+                            .unwrap_or("".to_owned()),
                         provenance: unresolved_group.provenance.clone(),
                     });
                 }
             }
         }
 
-        if errors.len() == 0 {
+        if errors.is_empty() {
             break;
         }
         // If we still have unresolved `extends` but we did not resolve any
