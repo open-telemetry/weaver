@@ -72,62 +72,11 @@ pub fn resolve_semconv_registry(
 ) -> Result<Registry, Error> {
     let mut ureg = unresolved_registry_from_specs(registry_url, registry);
 
-    let all_extends_resolved = resolve_extends_references(&mut ureg);
-    if !all_extends_resolved {
-        // Some `extends` references could not be resolved. Either some of the
-        // `extends` references are pointing to non-existing groups or there is
-        // a circular dependency between groups.
-        let mut errors = vec![];
-        for group in ureg.groups.iter() {
-            // Collect unresolved `extends` references.
-            if let Some(extends) = group.group.extends.as_ref() {
-                errors.push(Error::UnresolvedExtendsRef {
-                    group_id: group.group.id.clone(),
-                    extends_ref: extends.clone(),
-                    provenance: group.provenance.clone(),
-                });
-            }
-        }
-        handle_errors(errors)?;
-    }
+    resolve_extends_references(&mut ureg)?;
 
-    let all_references_resolved = resolve_attribute_references(&mut ureg, attr_catalog);
-    if !all_references_resolved {
-        // Some attribute references are pointing to non-existing attributes.
-        let mut errors = vec![];
-        for group in ureg.groups.iter() {
-            // Collect unresolved `ref` attributes.
-            for attr in group.attributes.iter() {
-                if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
-                    errors.push(Error::UnresolvedAttributeRef {
-                        group_id: group.group.id.clone(),
-                        attribute_ref: r#ref.clone(),
-                        provenance: group.provenance.clone(),
-                    });
-                }
-            }
-        }
-        handle_errors(errors)?;
-    }
+    resolve_attribute_references(&mut ureg, attr_catalog)?;
 
-    let all_include_constraints_resolved = resolve_include_constraints(&mut ureg);
-    if !all_include_constraints_resolved {
-        // Some `include` constraints could not be resolved.
-        let mut errors = vec![];
-        for group in ureg.groups.iter() {
-            // Collect unresolved `include` constraints.
-            for constraint in group.group.constraints.iter() {
-                if let Some(include) = &constraint.include {
-                    errors.push(Error::UnresolvedIncludeRef {
-                        group_id: group.group.id.clone(),
-                        include_ref: include.clone(),
-                        provenance: group.provenance.clone(),
-                    });
-                }
-            }
-        }
-        handle_errors(errors)?;
-    }
+    resolve_include_constraints(&mut ureg)?;
 
     // Sort the attribute internal references in each group.
     // This is needed to ensure that the resolved registry is easy to compare
@@ -329,21 +278,14 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
 fn resolve_attribute_references(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &mut AttributeCatalog,
-) -> bool {
+) -> Result<(), Error> {
     loop {
-        let mut unresolved_attr_count = 0;
+        let mut errors = vec![];
         let mut resolved_attr_count = 0;
 
         // Iterate over all groups and resolve the attributes.
         for unresolved_group in ureg.groups.iter_mut() {
             let mut resolved_attr = vec![];
-
-            if unresolved_group.group.extends.is_some() {
-                // If the group has an `extends` clause, we need to resolve the
-                // `extends` references first.
-                unresolved_attr_count += unresolved_group.attributes.len();
-                continue;
-            }
 
             // Remove attributes that are resolved and keep unresolved attributes
             // in the group for the next iteration.
@@ -363,7 +305,13 @@ fn resolve_attribute_references(
                         resolved_attr_count += 1;
                         None
                     } else {
-                        unresolved_attr_count += 1;
+                        if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
+                            errors.push(Error::UnresolvedAttributeRef {
+                                group_id: unresolved_group.group.id.clone(),
+                                attribute_ref: r#ref.clone(),
+                                provenance: unresolved_group.provenance.clone(),
+                            });
+                        }
                         Some(attr)
                     }
                 })
@@ -372,18 +320,20 @@ fn resolve_attribute_references(
             unresolved_group.group.attributes.extend(resolved_attr);
         }
 
-        if unresolved_attr_count == 0 {
+        if errors.len() == 0 {
             break;
         }
+
         // If we still have unresolved attributes but we did not resolve any
         // attributes in the last iteration, we are stuck in an infinite loop.
         // It means that we have an issue with the semantic convention
         // specifications.
         if resolved_attr_count == 0 {
-            return false;
+            return Err(Error::CompoundError(errors));
         }
     }
-    true
+
+    Ok(())
 }
 
 /// Resolves the `extends` references in the given registry.
@@ -392,9 +342,9 @@ fn resolve_attribute_references(
 /// be resolved in an iteration.
 ///
 /// Returns true if all the `extends` references have been resolved.
-fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
+fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     loop {
-        let mut unresolved_extends_count = 0;
+        let mut errors = vec![];
         let mut resolved_extends_count = 0;
 
         // Create a map group_id -> attributes for groups
@@ -424,12 +374,16 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
                     );
                     resolved_extends_count += 1;
                 } else {
-                    unresolved_extends_count += 1;
+                    errors.push(Error::UnresolvedExtendsRef {
+                        group_id: unresolved_group.group.id.clone(),
+                        extends_ref: unresolved_group.group.extends.as_ref().unwrap().clone(),
+                        provenance: unresolved_group.provenance.clone(),
+                    });
                 }
             }
         }
 
-        if unresolved_extends_count == 0 {
+        if errors.len() == 0 {
             break;
         }
         // If we still have unresolved `extends` but we did not resolve any
@@ -437,10 +391,10 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
         // It means that we have an issue with the semantic convention
         // specifications.
         if resolved_extends_count == 0 {
-            return false;
+            return Err(Error::CompoundError(errors));
         }
     }
-    true
+    Ok(())
 }
 
 /// Resolves the `include` constraints in the given registry.
@@ -449,9 +403,9 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> bool {
 /// and iterative algorithm that is most likely good enough for now. If the
 /// semconv registry becomes too large, we may need to revisit the resolution
 /// process to make it more efficient by using a topological sort algorithm.
-fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
+fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     loop {
-        let mut unresolved_include_count = 0;
+        let mut errors = vec![];
         let mut resolved_include_count = 0;
 
         // Create a map group_id -> vector of attribute ref for groups
@@ -500,7 +454,11 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
 
                         resolved_include_count += 1;
                     } else {
-                        unresolved_include_count += 1;
+                        errors.push(Error::UnresolvedIncludeRef {
+                            group_id: unresolved_group.group.id.clone(),
+                            include_ref: include.clone(),
+                            provenance: unresolved_group.provenance.clone(),
+                        });
                     }
                 }
             }
@@ -515,7 +473,7 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
             }
         }
 
-        if unresolved_include_count == 0 {
+        if errors.is_empty() {
             break;
         }
 
@@ -524,10 +482,10 @@ fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> bool {
         // It means that we have an issue with the semantic convention
         // specifications.
         if resolved_include_count == 0 {
-            return false;
+            return Err(Error::CompoundError(errors));
         }
     }
-    true
+    Ok(())
 }
 
 fn resolve_inheritance_attrs(
@@ -702,9 +660,11 @@ fn resolve_inheritance_attr(
 mod tests {
     use std::collections::HashSet;
     use std::error::Error;
+    use std::io::Write;
 
     use glob::glob;
     use serde::Serialize;
+    use tempfile::NamedTempFile;
 
     use weaver_logger::TestLogger;
     use weaver_resolved_schema::attribute;
@@ -797,6 +757,94 @@ mod tests {
 
             // let yaml = serde_yaml::to_string(&observed_registry).unwrap();
             // println!("{}", yaml);
+        }
+    }
+
+    fn create_registry_from_string(registry_spec: &str) -> Result<Registry, crate::Error> {
+        let mut registry_file = NamedTempFile::new().unwrap();
+        let _ = registry_file.write_all(registry_spec.as_bytes());
+
+        let registry_id = "default";
+        let sc_specs =
+            SemConvRegistry::try_from_path(registry_id, registry_file.path().to_str().unwrap())
+                .unwrap();
+
+        let mut attr_catalog = AttributeCatalog::default();
+
+        resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+    }
+
+    #[test]
+    #[allow(clippy::print_stdout)]
+    fn test_registry_error_unresolved_extends() {
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: group.one
+      type: attribute_group
+      brief: \"Group one\"
+      extends: group.non.existant.one
+    - id: group.two
+      type: attribute_group
+      brief: \"Group two\"
+      extends: group.non.existant.two",
+        );
+
+        assert!(result.is_err());
+
+        if let crate::Error::CompoundError(errors) = result.unwrap_err() {
+            assert!(errors.len() == 2);
+        } else {
+            panic!("Expected a CompoundError");
+        }
+    }
+
+    #[test]
+    #[allow(clippy::print_stdout)]
+    fn test_registry_error_unresolved_refs() {
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: span.one
+      type: span
+      brief: 'Span one'
+      attributes:
+        - ref: non.existant.one
+          requirement_level: opt_in
+        - ref: non.existant.two
+          requirement_level: opt_in",
+        );
+
+        assert!(result.is_err());
+
+        if let crate::Error::CompoundError(errors) = result.unwrap_err() {
+            assert!(errors.len() == 2);
+        } else {
+            panic!("Expected a CompoundError");
+        }
+    }
+
+    #[test]
+    #[allow(clippy::print_stdout)]
+    fn test_registry_error_unresolved_includes() {
+        let result = create_registry_from_string(
+            "
+groups:
+    - id: span.one
+      type: span
+      brief: 'Span one'
+      constraints:
+        - include: 'non.existant.one'
+        - include: 'non.existant.two'
+        - include: 'non.existant.three'",
+        );
+
+        assert!(result.is_err());
+
+        if let crate::Error::CompoundError(errors) = result.unwrap_err() {
+            assert!(errors.len() == 3);
+        } else {
+            panic!("Expected a CompoundError");
         }
     }
 
