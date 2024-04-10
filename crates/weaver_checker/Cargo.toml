@@ -22,7 +22,30 @@ serde_yaml.workspace = true
 
 # Will be replaced by the actual regorus crate once this issue is resolved:
 # https://github.com/microsoft/regorus/issues/199
-regorus = { git = "https://github.com/lquerel/regorus.git", rev = "92d00bd" }
+[dependencies.regorus]
+git = "https://github.com/lquerel/regorus.git"
+rev = "baf979852c051d5828fca2efd803605be74a1171"
+default-features = false
+features = [
+    "arc",
+    "base64",
+    "base64url",
+    "coverage",
+    "crypto",
+    "deprecated",
+    "glob",
+    "graph",
+    "hex",
+    "http",
+    "jwt",
+    "jsonschema",
+    "regex",
+    "semver",
+    "time",
+    "uuid",
+    "urlquery",
+    "yaml"
+]
 
 [dev-dependencies]
 # Required for testing
