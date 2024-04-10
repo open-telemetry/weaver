@@ -783,11 +783,11 @@ groups:
     - id: group.one
       type: attribute_group
       brief: \"Group one\"
-      extends: group.non.existant.one
+      extends: group.non.existent.one
     - id: group.two
       type: attribute_group
       brief: \"Group two\"
-      extends: group.non.existant.two",
+      extends: group.non.existent.two",
         );
 
         assert!(result.is_err());
@@ -809,9 +809,9 @@ groups:
       type: span
       brief: 'Span one'
       attributes:
-        - ref: non.existant.one
+        - ref: non.existent.one
           requirement_level: opt_in
-        - ref: non.existant.two
+        - ref: non.existent.two
           requirement_level: opt_in",
         );
 
@@ -834,9 +834,9 @@ groups:
       type: span
       brief: 'Span one'
       constraints:
-        - include: 'non.existant.one'
-        - include: 'non.existant.two'
-        - include: 'non.existant.three'",
+        - include: 'non.existent.one'
+        - include: 'non.existent.two'
+        - include: 'non.existent.three'",
         );
 
         assert!(result.is_err());
