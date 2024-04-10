@@ -356,6 +356,7 @@ impl TemplateEngine {
             case_converter(self.target_config.field_name.clone()),
         );
         env.add_filter("flatten", flatten);
+        env.add_filter("split_id", split_id);
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
@@ -419,6 +420,17 @@ fn flatten(value: Value) -> Result<Value, minijinja::Error> {
         }
     }
     Ok(Value::from(result))
+}
+
+// Helper function to take an "id" and split it by '.' into namespaces.
+fn split_id(value: Value) -> Result<Value, minijinja::Error> {
+    match value.as_str() {
+        Some(id) => {
+            let values: Vec<Value> = id.split(".").map(|s| Value::from_safe_string(s.to_owned())).collect(); 
+            Ok(Value::from_iterator(values.into_iter()))
+        },
+        None => Err(minijinja::Error::new(minijinja::ErrorKind::InvalidOperation, format!("Expected string, found: {value}"))),
+    }
 }
 
 #[cfg(test)]
