@@ -22,7 +22,7 @@ serde_yaml.workspace = true
 
 # Will be replaced by the actual regorus crate once this issue is resolved:
 # https://github.com/microsoft/regorus/issues/199
-regorus = { git = "https://github.com/lquerel/regorus.git", branch = "main" }
+regorus = { git = "https://github.com/lquerel/regorus.git", rev = "92d00bd" }
 
 [dev-dependencies]
 # Required for testing
