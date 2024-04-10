@@ -15,8 +15,8 @@ use url::Url;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
+use weaver_checker::violation::Violation;
 use weaver_logger::Logger;
-use weaver_policy_engine::violation::Violation;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -239,7 +239,7 @@ impl SchemaResolver {
         schema_url_or_path: &str,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<TelemetrySchema, Error> {
         let mut schema = Self::load_schema(schema_url_or_path, log.clone())?;
         Self::resolve(&mut schema, schema_url_or_path, cache, log, policy_engine)?;
@@ -252,7 +252,7 @@ impl SchemaResolver {
         schema_path: P,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<TelemetrySchema, Error> {
         let mut schema = Self::load_schema_from_path(schema_path.clone(), log.clone())?;
         Self::resolve(
@@ -277,7 +277,7 @@ impl SchemaResolver {
         schema_path: &str,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<(), Error> {
         let registry_id = "default"; // ToDo add support for multiple registries
         let sem_conv_catalog = Self::semconv_registry_from_schema(
@@ -332,7 +332,7 @@ impl SchemaResolver {
         path: Option<String>,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
             registry_id,
@@ -353,7 +353,7 @@ impl SchemaResolver {
         registry_path: RegistryPath,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         Self::load_semconv_registry_from_imports(
             registry_id,
@@ -422,7 +422,7 @@ impl SchemaResolver {
         schema: &TelemetrySchema,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         Self::semconv_registry_from_imports(
             registry_id,
@@ -440,7 +440,7 @@ impl SchemaResolver {
         imports: &[RegistryPath],
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
         let registry = Self::create_semantic_convention_registry(
@@ -466,7 +466,7 @@ impl SchemaResolver {
         resolver_config: ResolverConfig,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
         let mut registry = Self::create_semantic_convention_registry(
@@ -594,7 +594,7 @@ impl SchemaResolver {
         sem_convs: &[RegistryPath],
         cache: &Cache,
         log: impl Logger + Sync,
-        policy_engine: Option<&weaver_policy_engine::Engine>,
+        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         // Load all the semantic convention catalogs.
         let mut sem_conv_catalog = SemConvRegistry::new(registry_id);

@@ -11,5 +11,5 @@ allowed_external_types = [
     "weaver_cache::Cache",
     "weaver_schema::*",
     "weaver_version::*",
-    "weaver_policy_engine::*"
+    "weaver_checker::*"
 ]

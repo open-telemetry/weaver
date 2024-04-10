@@ -182,8 +182,8 @@ description and the current status of each crate:
 | [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process + Lineage                        | Work-In-Progress       |
 | [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress       |
 | [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                  |
-| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests |
-| [weaver_policy_engine](crates/weaver_policy_engine/README.md)     | Policy engine to enforce policies on telemetry data          | Work-In-Progress       |
+| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha |
+| [weaver_checker](crates/weaver_checker/README.md)     | Policy engine to enforce policies on telemetry data          | Alpha                  |
 | xtask                                                             | Set of tasks to validate the project                                 | Done                   |
 
 Note 1: Alpha status means that the crate is in a usable state but may have
@@ -210,7 +210,7 @@ Below is a diagram detailing the primary components of the OpenTelemetry Weaver 
 Internal links:
 
 - [Template Engine](docs/template-engine.md)
-- [Policy Engine](crates/weaver_policy_engine/README.md)
+- [Policy Engine](crates/weaver_checker/README.md)
 - [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)
 - [Resolved Telemetry Schema](docs/resolved-telemetry-schema.md) (proposal)
 - [Internal crates interdependencies](docs/dependencies.md)
