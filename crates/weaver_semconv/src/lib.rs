@@ -360,10 +360,10 @@ impl SemConvRegistry {
     fn add_semconv_spec(&mut self, spec: SemConvSpec, origin: &str) -> Result<(), Error> {
         if let Err(e) = spec.validate() {
             return Err(Error::InvalidCatalog {
-                path_or_url: origin.to_string(),
+                path_or_url: origin.to_owned(),
                 line: None,
                 column: None,
-                error: e.to_owned(),
+                error: e.to_string(),
             });
         }
         self.specs.push(SemConvSpecWithProvenance {
