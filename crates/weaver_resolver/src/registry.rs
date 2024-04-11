@@ -764,7 +764,9 @@ mod tests {
 
     fn create_registry_from_string(registry_spec: &str) -> Result<Registry, crate::Error> {
         let mut sc_specs = SemConvRegistry::new("default");
-        sc_specs.load_from_str(registry_spec).expect("");
+        sc_specs
+            .load_from_str(registry_spec)
+            .expect("Failed to load semconv spec");
 
         let mut attr_catalog = AttributeCatalog::default();
 
