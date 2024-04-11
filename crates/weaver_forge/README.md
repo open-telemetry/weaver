@@ -7,6 +7,11 @@ OTel Weaver uses a template engine compatible with the Jinja2 syntax (see the
 A set of filters, functions, tests, and naming conventions have been added to
 the classic Jinja logic to make the task easier for template authors.
 
+The following diagram illustrates the documentation and code generation pipeline
+using the OTel Weaver tool:
+
+![Weaver Forge](images/artifact-generation-pipeline.svg)
+
 ## Template Directory Structure and Naming Conventions
 
 By default, the OTel Weaver tool expects to find a templates directory in the
