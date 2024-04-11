@@ -664,7 +664,6 @@ fn resolve_inheritance_attr(
 mod tests {
     use std::collections::HashSet;
     use std::error::Error;
-    use std::io::Write;
 
     use glob::glob;
     use serde::Serialize;
