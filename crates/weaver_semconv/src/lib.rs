@@ -363,12 +363,12 @@ impl SemConvRegistry {
                 path_or_url: origin.to_string(),
                 line: None,
                 column: None,
-                error: e.to_string(),
+                error: e.to_owned(),
             });
         }
         self.specs.push(SemConvSpecWithProvenance {
             spec,
-            provenance: origin.to_string(),
+            provenance: origin.to_owned(),
         });
         Ok(())
     }
@@ -852,7 +852,7 @@ impl SemConvSpec {
     pub fn load_from_str(spec: &str) -> Result<SemConvSpec, Error> {
         let catalog: SemConvSpec =
             serde_yaml::from_str(spec).map_err(|e| Error::InvalidCatalog {
-                path_or_url: "<str>".to_string(),
+                path_or_url: "<str>".to_owned(),
                 line: None,
                 column: None,
                 error: e.to_string(),
