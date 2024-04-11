@@ -423,14 +423,14 @@ fn flatten(value: Value) -> Result<Value, minijinja::Error> {
 }
 
 // Helper function to take an "id" and split it by '.' into namespaces.
-fn split_id(value: Value) -> Result<Value, minijinja::Error> {
+fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
     match value.as_str() {
         Some(id) => {
             let values: Vec<Value> = id
-                .split(".")
+                .split('.')
                 .map(|s| Value::from_safe_string(s.to_owned()))
                 .collect();
-            Ok(Value::from_iterator(values.into_iter()))
+            Ok(values)
         }
         None => Err(minijinja::Error::new(
             minijinja::ErrorKind::InvalidOperation,
