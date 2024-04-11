@@ -357,12 +357,10 @@ impl SemConvRegistry {
         &self.id
     }
 
-    /// Load and add a semantic convention file to the semantic convention registry.
-    pub fn load_from_file<P: AsRef<Path> + Clone>(&mut self, path: P) -> Result<(), Error> {
-        let spec = SemConvSpec::load_from_file(path.clone())?;
+    fn add_semconv_spec(&mut self, spec: SemConvSpec, origin: &str) -> Result<(), Error> {
         if let Err(e) = spec.validate() {
             return Err(Error::InvalidCatalog {
-                path_or_url: path.as_ref().display().to_string(),
+                path_or_url: origin.to_string(),
                 line: None,
                 column: None,
                 error: e.to_string(),
@@ -370,9 +368,22 @@ impl SemConvRegistry {
         }
         self.specs.push(SemConvSpecWithProvenance {
             spec,
-            provenance: path.as_ref().display().to_string(),
+            provenance: origin.to_string(),
         });
         Ok(())
+    }
+
+    /// Load and add a semantic convention file to the semantic convention registry.
+    pub fn load_from_file<P: AsRef<Path> + Clone>(&mut self, path: P) -> Result<(), Error> {
+        self.add_semconv_spec(
+            SemConvSpec::load_from_file(path.clone())?,
+            &path.as_ref().display().to_string(),
+        )
+    }
+
+    /// Load and add a semantic convention string to the semantic convention registry.
+    pub fn load_from_str(&mut self, spec: &str) -> Result<(), Error> {
+        self.add_semconv_spec(SemConvSpec::load_from_str(spec)?, "<str>")
     }
 
     /// Loads and returns the semantic convention spec from a file.
@@ -834,6 +845,19 @@ impl SemConvSpec {
                     error: e.to_string(),
                 }
             })?;
+        Ok(catalog)
+    }
+
+    /// Load a semantic convention semantic convention registry from a string.
+    pub fn load_from_str(spec: &str) -> Result<SemConvSpec, Error> {
+        let catalog: SemConvSpec =
+            serde_yaml::from_str(spec).map_err(|e| Error::InvalidCatalog {
+                path_or_url: "<str>".to_string(),
+                line: None,
+                column: None,
+                error: e.to_string(),
+            })?;
+
         Ok(catalog)
     }
 

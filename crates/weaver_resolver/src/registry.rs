@@ -668,7 +668,6 @@ mod tests {
 
     use glob::glob;
     use serde::Serialize;
-    use tempfile::NamedTempFile;
 
     use weaver_logger::TestLogger;
     use weaver_resolved_schema::attribute;
@@ -765,13 +764,8 @@ mod tests {
     }
 
     fn create_registry_from_string(registry_spec: &str) -> Result<Registry, crate::Error> {
-        let mut registry_file = NamedTempFile::new().unwrap();
-        let _ = registry_file.write_all(registry_spec.as_bytes());
-
-        let registry_id = "default";
-        let sc_specs =
-            SemConvRegistry::try_from_path(registry_id, registry_file.path().to_str().unwrap())
-                .unwrap();
+        let mut sc_specs = SemConvRegistry::new("default");
+        sc_specs.load_from_str(registry_spec).expect("");
 
         let mut attr_catalog = AttributeCatalog::default();
 
@@ -779,7 +773,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::print_stdout)]
     fn test_registry_error_unresolved_extends() {
         let result = create_registry_from_string(
             "
@@ -804,7 +797,6 @@ groups:
     }
 
     #[test]
-    #[allow(clippy::print_stdout)]
     fn test_registry_error_unresolved_refs() {
         let result = create_registry_from_string(
             "
@@ -829,7 +821,6 @@ groups:
     }
 
     #[test]
-    #[allow(clippy::print_stdout)]
     fn test_registry_error_unresolved_includes() {
         let result = create_registry_from_string(
             "
