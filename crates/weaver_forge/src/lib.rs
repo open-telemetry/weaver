@@ -430,7 +430,7 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
                 .split('.')
                 .map(|s| Value::from_safe_string(s.to_owned()))
                 .collect();
-            Ok(Value::from(values))
+            Ok(values)
         }
         None => Err(minijinja::Error::new(
             minijinja::ErrorKind::InvalidOperation,
