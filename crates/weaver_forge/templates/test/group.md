@@ -47,7 +47,7 @@ prefix: {{ ctx.prefix }}
 
 ## Lineage
 
-Source file: {{ ctx.lineage.source_file }}
+Source file: {{ ctx.lineage.source_file | replace("\\", "/") }}
 
 {% for item in ctx.lineage.attributes -%}
 attribute: {{ item.id }}

@@ -1,4 +1,4 @@
-## Group `registry.http` (attribute_group)
+## Group `registry_http` (attribute_group)
 
 ### Brief
 
@@ -14,7 +14,6 @@ prefix: http
 The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 
 
-
 - Requirement Level: Recommended
   
 - Type: int
@@ -26,7 +25,6 @@ The size of the request payload body in bytes. This is the number of bytes trans
 #### Attribute `http.request.header`
 
 HTTP request headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.
-
 
 
 Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.
@@ -98,7 +96,6 @@ Original HTTP method sent by the client in the request line.
 The ordinal number of request resending attempt (for any reason, including redirects).
 
 
-
 The resend count SHOULD be updated each time an HTTP request gets resent by the client, regardless of what was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues, or any other).
 
 - Requirement Level: Recommended
@@ -114,7 +111,6 @@ The resend count SHOULD be updated each time an HTTP request gets resent by the 
 The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length) header. For requests using transport encoding, this should be the compressed size.
 
 
-
 - Requirement Level: Recommended
   
 - Type: int
@@ -126,7 +122,6 @@ The size of the response payload body in bytes. This is the number of bytes tran
 #### Attribute `http.response.header`
 
 HTTP response headers, `<key>` being the normalized HTTP Header name (lowercase), the value being the header values.
-
 
 
 Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.
@@ -162,7 +157,6 @@ The attribute value MUST consist of either multiple header values as an array of
 #### Attribute `http.route`
 
 The matched route, that is, the path template in the format used by the respective server framework.
-
 
 
 MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.

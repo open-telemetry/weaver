@@ -1,4 +1,4 @@
-## Group `attributes.jvm.memory` (attribute_group)
+## Group `attributes_jvm_memory` (attribute_group)
 
 ### Brief
 
