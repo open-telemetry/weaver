@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::process::exit;
 use weaver_cache::Cache;
 
+use crate::error::ExitIfError;
 use crate::registry::RegistryPath;
 use weaver_logger::Logger;
 use weaver_resolver::SchemaResolver;
@@ -67,14 +68,18 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
     match command.command {
         ResolveSubCommand::Registry(ref command) => {
             let registry_id = "default";
+            let registry_path = weaver_semconv::path::RegistryPath::GitUrl {
+                git_url: command.registry.clone(),
+                path: command.path.clone(),
+            };
+            let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache)
+                .exit_if_error(|e| {
+                    e.log(log.clone());
+                });
             let mut registry = SchemaResolver::semconv_registry_from_imports(
                 registry_id,
-                &[weaver_semconv::path::RegistryPath::GitUrl {
-                    git_url: command.registry.clone(),
-                    path: command.path.clone(),
-                }],
+                semconv_specs,
                 ResolverConfig::with_keep_specs(),
-                &cache,
                 log.clone(),
             )
             .unwrap_or_else(|e| {
@@ -82,12 +87,13 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
                 exit(1);
             });
 
-            let resolved_schema =
-                SchemaResolver::resolve_semantic_convention_registry(&mut registry, log.clone())
-                    .unwrap_or_else(|e| {
-                        log.error(&e.to_string());
-                        exit(1);
-                    });
+            let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(
+                &mut registry,
+            )
+            .unwrap_or_else(|e| {
+                log.error(&e.to_string());
+                exit(1);
+            });
             match serde_yaml::to_string(&resolved_schema) {
                 Ok(yaml) => {
                     if let Some(output) = &command.output {

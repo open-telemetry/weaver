@@ -6,12 +6,12 @@
 //! The YAML language syntax used to define a semantic convention file
 //! can be found [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md).
 
-use glob::glob;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
+use glob::glob;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -349,6 +349,27 @@ impl SemConvRegistry {
             registry.load_from_file(path_buf.as_path())?;
         }
         Ok(registry)
+    }
+
+    /// Creates a semantic convention registry from the given list of
+    /// semantic convention specs.
+    ///
+    /// # Arguments
+    ///
+    /// * `registry_id` - The id of the semantic convention registry.
+    /// * `semconv_specs` - The list of semantic convention specs to load.
+    pub fn from_semconv_specs(
+        registry_id: &str,
+        semconv_specs: Vec<(String, SemConvSpec)>,
+    ) -> SemConvRegistry {
+        // Load all the semantic convention catalogs.
+        let mut registry = SemConvRegistry::new(registry_id);
+
+        for (provenance, spec) in semconv_specs {
+            registry.append_sem_conv_spec(SemConvSpecWithProvenance { provenance, spec });
+        }
+
+        registry
     }
 
     /// Returns the id of the semantic convention registry.

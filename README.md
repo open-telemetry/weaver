@@ -90,6 +90,10 @@ Options:
           Local path or Git URL of the semantic convention registry to check [default: https://github.com/open-telemetry/semantic-conventions.git]
   -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
           Optional path in the Git repository where the semantic convention registry is located [default: model]
+  -b, --before-resolution-policies <BEFORE_RESOLUTION_POLICIES>
+          Optional list of policy files to check against the files of the semantic convention registry before the resolution process
+  -h, --help
+          Print help
 ```
 
 ### Sub-Command `registry generate`
@@ -178,7 +182,8 @@ description and the current status of each crate:
 | [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process + Lineage                        | Work-In-Progress       |
 | [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress       |
 | [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha                  |
-| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha; Need more tests |
+| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha |
+| [weaver_checker](crates/weaver_checker/README.md)     | Policy engine to enforce policies on telemetry data          | Alpha                  |
 | xtask                                                             | Set of tasks to validate the project                                 | Done                   |
 
 Note 1: Alpha status means that the crate is in a usable state but may have
@@ -198,13 +203,14 @@ documentation generation, dashboard creation, and more.
 
 Below is a diagram detailing the primary components of the OpenTelemetry Weaver tool.
 
-![OpenTelemetry Weaver Platform](docs/images/otel-weaver-platform.png)
+![OpenTelemetry Weaver Platform](docs/images/otel-weaver-platform.svg)
 
 ## Links
 
 Internal links:
 
 - [Template Engine](docs/template-engine.md)
+- [Policy Engine](crates/weaver_checker/README.md)
 - [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)
 - [Resolved Telemetry Schema](docs/resolved-telemetry-schema.md) (proposal)
 - [Internal crates interdependencies](docs/dependencies.md)

@@ -1,0 +1,22 @@
+groups:
+  - id: registry.network1
+    prefix: network
+    type: attribute_group
+    brief: >
+      These attributes may be used for any network related operation.
+    attributes:
+      - id: protocol.name
+        stability: stable
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        note: The value SHOULD be normalized to lowercase.
+        examples: ['amqp', 'http', 'mqtt']
+        deprecated: true
+      - id: protocol.name.2
+        stability: stable
+        type: string
+        brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+        note: The value SHOULD be normalized to lowercase.
+        examples: ['amqp', 'http', 'mqtt']
+      - ref: protocol.port
+        deprecated: true

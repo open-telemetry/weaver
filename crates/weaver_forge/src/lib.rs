@@ -464,9 +464,8 @@ mod tests {
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path(registry_id, "data/*.yaml")
             .expect("Failed to load registry");
-        let schema =
-            SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
-                .expect("Failed to resolve registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
 
         let template_registry = TemplateRegistry::try_from_resolved_registry(
             schema.registry(registry_id).expect("registry not found"),

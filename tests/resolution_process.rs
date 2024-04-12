@@ -8,6 +8,7 @@ use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
+use weaver_semconv::SemConvRegistry;
 
 /// The URL of the official semantic convention registry.
 const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
@@ -32,18 +33,17 @@ fn test_semconv_registry_resolution() {
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
-    let semconv_specs = SchemaResolver::load_semconv_registry(
-        registry_id,
-        RegistryPath::GitUrl {
-            git_url: SEMCONV_REGISTRY_URL.to_owned(),
-            path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
-        },
-        &cache,
-        log.clone(),
-    )
-    .unwrap_or_else(|e| {
-        panic!("Failed to load and parse the official semantic convention registry, error: {e}");
-    });
+    let registry_path = RegistryPath::GitUrl {
+        git_url: SEMCONV_REGISTRY_URL.to_owned(),
+        path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+    };
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache)
+        .inspect_err(|e| {
+            log.error("Failed to load the semantic convention registry");
+            log.error(&e.to_string());
+        })
+        .unwrap();
+    let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     // Check if the logger has reported any warnings or errors.
     assert_eq!(log.warn_count(), 0);

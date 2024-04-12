@@ -18,15 +18,16 @@ weaver_schema = { path = "../weaver_schema" }
 weaver_version = { path = "../weaver_version" }
 weaver_cache = { path = "../weaver_cache" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
+weaver_checker = { path = "../weaver_checker" }
 
 regex.workspace = true
 thiserror.workspace = true
 rayon.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 walkdir.workspace = true
 
 url = "2.5.0"
-serde = { version = "1.0.197", features = ["derive"] }
 
 [dev-dependencies]
 glob = "0.3.1"

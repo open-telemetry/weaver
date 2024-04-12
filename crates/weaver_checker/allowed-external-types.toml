@@ -3,13 +3,6 @@
 # This is used with cargo-check-external-types to reduce the surface area of downstream crates from
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
-    "serde::de::Deserialize",
-
-    "weaver_resolved_schema::*",
-    "weaver_semconv::*",
-    "weaver_logger::*",
-    "weaver_cache::Cache",
-    "weaver_schema::*",
-    "weaver_version::*",
-    "weaver_checker::*"
+    "serde::ser::Serialize",
+    "serde::de::Deserialize"
 ]
