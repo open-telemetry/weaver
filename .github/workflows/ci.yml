@@ -43,12 +43,12 @@ jobs:
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
         run: cargo test --no-run --workspace
       - name: Default features
-        run: cargo test --workspace
+        run: cargo test --workspace -- --nocapture
 # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
 #      - name: All features
 #        run: cargo test --workspace --all-features
       - name: No-default features
-        run: cargo test --workspace --no-default-features
+        run: cargo test --workspace --no-default-features -- --nocapture
   msrv:
     name: Check MSRV
     runs-on: ubuntu-latest
