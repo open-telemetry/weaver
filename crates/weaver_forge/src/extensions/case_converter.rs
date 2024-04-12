@@ -8,6 +8,7 @@ pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String {
     match case_convention {
         CaseConvention::LowerCase => lower_case,
         CaseConvention::UpperCase => upper_case,
+        CaseConvention::TitleCase => title_case,
         CaseConvention::CamelCase => camel_case,
         CaseConvention::PascalCase => pascal_case,
         CaseConvention::SnakeCase => snake_case,
@@ -25,6 +26,11 @@ fn lower_case(input: &str) -> String {
 /// Converts input string to upper case
 fn upper_case(input: &str) -> String {
     CaseConvention::UpperCase.convert(input)
+}
+
+/// Converts input string to title case
+fn title_case(input: &str) -> String {
+    CaseConvention::TitleCase.convert(input)
 }
 
 /// Converts input string to camel case
