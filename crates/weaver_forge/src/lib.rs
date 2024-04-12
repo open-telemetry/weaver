@@ -23,7 +23,7 @@ use error::Error::{
 };
 use weaver_logger::Logger;
 
-use crate::config::{ApplicationMode, TargetConfig};
+use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::case_converter::case_converter;
@@ -355,6 +355,22 @@ impl TemplateEngine {
             "field_name",
             case_converter(self.target_config.field_name.clone()),
         );
+        env.add_filter("lowercase", case_converter(CaseConvention::LowerCase));
+        env.add_filter("UPPERCASE", case_converter(CaseConvention::UpperCase));
+        env.add_filter("TitleCase", case_converter(CaseConvention::TitleCase));
+        env.add_filter("PascalCase", case_converter(CaseConvention::PascalCase));
+        env.add_filter("camelCase", case_converter(CaseConvention::CamelCase));
+        env.add_filter("snake_case", case_converter(CaseConvention::SnakeCase));
+        env.add_filter(
+            "SCREAMING_SNAKE_CASE",
+            case_converter(CaseConvention::ScreamingSnakeCase),
+        );
+        env.add_filter("kebab-case", case_converter(CaseConvention::KebabCase));
+        env.add_filter(
+            "SCREAMING-KEBAB-CASE",
+            case_converter(CaseConvention::ScreamingKebabCase),
+        );
+
         env.add_filter("flatten", flatten);
         env.add_filter("split_id", split_id);
 
@@ -447,13 +463,120 @@ mod tests {
 
     use walkdir::WalkDir;
 
-    use crate::debug::print_dedup_errors;
     use weaver_diff::diff_output;
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
+    use crate::debug::print_dedup_errors;
     use crate::registry::TemplateRegistry;
+
+    #[test]
+    fn test_case_converter() {
+        struct TestCase {
+            input: &'static str,
+            expected: &'static str,
+            case: super::CaseConvention,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                input: "ThisIsATest",
+                expected: "this is a test",
+                case: super::CaseConvention::LowerCase,
+            },
+            TestCase {
+                input: "This is a TEST",
+                expected: "this is a test",
+                case: super::CaseConvention::LowerCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "THIS IS A TEST",
+                case: super::CaseConvention::UpperCase,
+            },
+            TestCase {
+                input: "This is a TEST",
+                expected: "THIS IS A TEST",
+                case: super::CaseConvention::UpperCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "This Is A Test",
+                case: super::CaseConvention::TitleCase,
+            },
+            TestCase {
+                input: "This is a TEST",
+                expected: "This Is A Test",
+                case: super::CaseConvention::TitleCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "this_is_a_test",
+                case: super::CaseConvention::SnakeCase,
+            },
+            TestCase {
+                input: "This is a test",
+                expected: "this_is_a_test",
+                case: super::CaseConvention::SnakeCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "ThisIsATest",
+                case: super::CaseConvention::PascalCase,
+            },
+            TestCase {
+                input: "This is a test",
+                expected: "ThisIsATest",
+                case: super::CaseConvention::PascalCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "thisIsATest",
+                case: super::CaseConvention::CamelCase,
+            },
+            TestCase {
+                input: "This is a test",
+                expected: "thisIsATest",
+                case: super::CaseConvention::CamelCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "this-is-a-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "This is a test",
+                expected: "this-is-a-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "THIS_IS_A_TEST",
+                case: super::CaseConvention::ScreamingSnakeCase,
+            },
+            TestCase {
+                input: "This is a test",
+                expected: "THIS_IS_A_TEST",
+                case: super::CaseConvention::ScreamingSnakeCase,
+            },
+            TestCase {
+                input: "ThisIsATest",
+                expected: "THIS-IS-A-TEST",
+                case: super::CaseConvention::ScreamingKebabCase,
+            },
+            TestCase {
+                input: "This is a test",
+                expected: "THIS-IS-A-TEST",
+                case: super::CaseConvention::ScreamingKebabCase,
+            },
+        ];
+
+        for test_case in test_cases {
+            let result = super::case_converter(test_case.case)(test_case.input);
+            assert_eq!(result, test_case.expected);
+        }
+    }
 
     #[test]
     fn test() {
