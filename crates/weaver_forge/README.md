@@ -197,15 +197,15 @@ The following filters are available:
 - `struct_name`: Converts a string to a struct name.
 - `field_name`: Converts a string to a field name.
 - `type_mapping`: Converts a semantic convention type to a language type.
-- `lowercase`: Converts a string to lowercase.
-- `UPPERCASE`: Converts a string to UPPERCASE.
-- `TitleCase`: Converts a string to TitleCase.
-- `PascalCase`: Converts a string to PascalCase.
-- `camelCase`: Converts a string to camelCase.
+- `lower_case`: Converts a string to lowercase.
+- `upper_case`: Converts a string to UPPERCASE.
+- `title_case`: Converts a string to TitleCase.
+- `pascal_case`: Converts a string to PascalCase.
+- `camel_case`: Converts a string to camelCase.
 - `snake_case`: Converts a string to snake_case.
-- `SCREAMING_SNAKE_CASE`: Converts a string to SCREAMING_SNAKE_CASE.
-- `kebab-case`: Converts a string to kebab-case.
-- `SCREAMING-KEBAB-CASE`: Converts a string to SCREAMING-KEBAB-CASE.
+- `screaming_snake_case`: Converts a string to SCREAMING_SNAKE_CASE.
+- `kebab_case`: Converts a string to kebab-case.
+- `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
 
 > Note 1: This project uses the [convert_case](https://crates.io/crates/convert_case)
 > crate to convert strings to different cases. 
