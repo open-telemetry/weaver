@@ -184,6 +184,11 @@ Supported case converters:
 - kebab-case
 - SCREAMING-KEBAB-CASE
 
+> Note: This project uses the [convert_case](https://crates.io/crates/convert_case) crate to
+> convert strings to different cases. The current use of kebab-case has limitations,
+> particularly with non-character elements. For example, "k8s" becomes "k-8-s," which
+> might not be desirable. A solution will be provided in the future. 
+
 ## Custom Filters
 
 All the filters available in the MiniJinja template engine are available. In
