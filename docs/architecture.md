@@ -35,19 +35,20 @@ crates.io.
 The following is a list of crates in the workspace, along with a brief
 description and the current status of each crate:
 
-| Crate                                                             | Description                                                          | Status           |
-|-------------------------------------------------------------------|----------------------------------------------------------------------|------------------|
-| [weaver_semconv](crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Alpha            |
-| [weaver_version](crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha            |
-| [weaver_logger](crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha            |
-| [weaver_forge](crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha            |
-| [weaver_resolved_schema](crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress |
-| [weaver_schema](crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                                          | Work-In-Progress |
-| [weaver_resolver](crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process + Lineage                        | Work-In-Progress |
-| [weaver_cache](crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress |
-| [weaver_policy_engine](crates/weaver_policy_engine/README.md)     | Policy engine to enforce policies on telemetry data                  | Work-In-Progress |
-|                                                                   |                                                                      |                  |
-| xtask                                                             | Set of tasks to validate the project                                 | Done             |
+| Crate                                                              | Description                                                          | Status           |
+|--------------------------------------------------------------------|----------------------------------------------------------------------|------------------|
+| [weaver_semconv](/crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Alpha            |
+| [weaver_version](/crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha            |
+| [weaver_logger](/crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha            |
+| [weaver_forge](/crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha            |
+| [weaver_diff](/crates/weaver_diff/README.md)                       | Diffing tool to compare two versions of a text (used in unit tests)  | Alpha            |
+| [weaver_resolved_schema](/crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress |
+| [weaver_schema](/crates/weaver_schema/README.md)                   | Telemetry Schema Data Model                                          | Work-In-Progress |
+| [weaver_resolver](/crates/weaver_resolver/README.md)               | Telemetry Schema Resolution Process + Lineage                        | Work-In-Progress |
+| [weaver_cache](/crates/weaver_cache/README.md)                     | Telemetry Schema and Semantic Convention Registry Cache              | Work-In-Progress |
+| [weaver_checker](/crates/weaver_checker/README.md)                 | Policy engine to enforce policies on telemetry data                  | Work-In-Progress |
+|                                                                    |                                                                      |                  |
+| xtask                                                              | Set of tasks to validate the project                                 | Done             |
 
 Note 1: Alpha status means that the crate is in a usable state but may have
 limited functionality and/or may not be fully tested.

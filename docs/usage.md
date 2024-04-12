@@ -34,6 +34,9 @@ Options:
           Print help
 ```
 
+> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
+> registry is a Git URL otherwise these options are ignored.
+
 ## registry generate
 
 ```
@@ -53,6 +56,9 @@ Options:
   -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
           Optional path in the Git repository where the semantic convention registry is located [default: model]
 ```
+
+> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
+> registry is a Git URL otherwise these options are ignored.
 
 ## registry resolve
 
@@ -91,6 +97,9 @@ Options:
           - json: JSON format
 ```
 
+> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
+> registry is a Git URL otherwise these options are ignored.
+
 ## registry update-markdown
 
 ```
@@ -114,6 +123,9 @@ Options:
           Print help
 ```
 
+> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
+> registry is a Git URL otherwise these options are ignored.
+
 ## registry stats
 
 ```
@@ -129,3 +141,6 @@ Options:
   -h, --help
           Print help
 ```
+
+> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
+> registry is a Git URL otherwise these options are ignored.
