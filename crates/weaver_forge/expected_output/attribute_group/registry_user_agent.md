@@ -1,4 +1,4 @@
-## Group `registry.user_agent` (attribute_group)
+## Group `registry_user_agent` (attribute_group)
 
 ### Brief
 
@@ -12,7 +12,6 @@ prefix: user_agent
 #### Attribute `user_agent.original`
 
 Value of the [HTTP User-Agent](https://www.rfc-editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
-
 
 
 - Requirement Level: Recommended

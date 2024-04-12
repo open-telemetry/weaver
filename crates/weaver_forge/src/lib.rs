@@ -356,6 +356,7 @@ impl TemplateEngine {
             case_converter(self.target_config.field_name.clone()),
         );
         env.add_filter("flatten", flatten);
+        env.add_filter("split_id", split_id);
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
@@ -419,6 +420,23 @@ fn flatten(value: Value) -> Result<Value, minijinja::Error> {
         }
     }
     Ok(Value::from(result))
+}
+
+// Helper function to take an "id" and split it by '.' into namespaces.
+fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
+    match value.as_str() {
+        Some(id) => {
+            let values: Vec<Value> = id
+                .split('.')
+                .map(|s| Value::from_safe_string(s.to_owned()))
+                .collect();
+            Ok(values)
+        }
+        None => Err(minijinja::Error::new(
+            minijinja::ErrorKind::InvalidOperation,
+            format!("Expected string, found: {value}"),
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -509,8 +527,10 @@ mod tests {
 
         // Compare files in both sets
         for file in expected_files.intersection(&observed_files) {
-            let file1_content = fs::read_to_string(expected_dir.as_ref().join(file))?;
-            let file2_content = fs::read_to_string(observed_dir.as_ref().join(file))?;
+            let file1_content =
+                fs::read_to_string(expected_dir.as_ref().join(file))?.replace("\r\n", "\n");
+            let file2_content =
+                fs::read_to_string(observed_dir.as_ref().join(file))?.replace("\r\n", "\n");
 
             if file1_content != file2_content {
                 are_identical = false;
@@ -527,18 +547,23 @@ mod tests {
                 break;
             }
         }
-
         // If any file is unique to one directory, they are not identical
-        if !expected_files
+        let not_in_observed = expected_files
             .difference(&observed_files)
-            .collect::<Vec<_>>()
-            .is_empty()
-            || !observed_files
-                .difference(&expected_files)
-                .collect::<Vec<_>>()
-                .is_empty()
-        {
+            .collect::<Vec<_>>();
+        if !not_in_observed.is_empty() {
             are_identical = false;
+            eprintln!("Observed output is missing files: {:?}", not_in_observed);
+        }
+        let not_in_expected = observed_files
+            .difference(&expected_files)
+            .collect::<Vec<_>>();
+        if !not_in_expected.is_empty() {
+            are_identical = false;
+            eprintln!(
+                "Observed output has unexpected files: {:?}",
+                not_in_expected
+            );
         }
 
         Ok(are_identical)
