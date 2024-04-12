@@ -186,8 +186,7 @@ impl TemplateEngine {
             .filter(|dir_entry| dir_entry.path().is_file())
             .collect();
 
-        let config = TargetConfig::try_new(&self.path)?;
-        let tmpl_matcher = config.template_matcher()?;
+        let tmpl_matcher = self.target_config.template_matcher()?;
 
         // Create a read-only context for the filter evaluations
         let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
