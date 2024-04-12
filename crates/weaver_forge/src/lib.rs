@@ -457,18 +457,21 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
+    use globset::Glob;
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;
 
     use walkdir::WalkDir;
 
+    use crate::config::{ApplicationMode, TemplateConfig};
     use weaver_diff::diff_output;
     use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
     use crate::debug::print_dedup_errors;
+    use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
 
     #[test]
@@ -596,8 +599,17 @@ mod tests {
     #[test]
     fn test() {
         let logger = TestLogger::default();
-        let engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
+        let mut engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
             .expect("Failed to create template engine");
+
+        // Add a template configuration for converter.md on top
+        // of the default template configuration. This is useful
+        // for test coverage purposes.
+        engine.target_config.templates.push(TemplateConfig {
+            pattern: Glob::new("converter.md").unwrap(),
+            filter: Filter::try_new(".").unwrap(),
+            application_mode: ApplicationMode::Single,
+        });
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path(registry_id, "data/*.yaml")
