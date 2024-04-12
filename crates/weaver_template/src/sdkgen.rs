@@ -255,7 +255,7 @@ impl ClientSdkGenerator {
                         .map_err(|e| InternalError(e.to_string()))?;
                     let tmpl_file = relative_path
                         .to_str()
-                        .map(|path| path.replace("\\", "/"))
+                        .map(|path| path.replace('\\', "/"))
                         .ok_or(InvalidTemplateFile(tmpl_file_path.clone()))?;
 
                     if tmpl_file.ends_with(".macro.tera") {
