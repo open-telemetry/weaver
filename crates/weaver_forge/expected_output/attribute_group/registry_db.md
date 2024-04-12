@@ -1,4 +1,4 @@
-## Group `registry.db` (attribute_group)
+## Group `registry_db` (attribute_group)
 
 ### Brief
 
@@ -14,7 +14,6 @@ prefix: db
 The data center of the coordinating node for a query.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: tech-specific-cassandra
@@ -26,7 +25,6 @@ The data center of the coordinating node for a query.
 #### Attribute `db.cassandra.coordinator.id`
 
 The ID of the coordinating node for a query.
-
 
 
 - Requirement Level: Recommended
@@ -42,7 +40,6 @@ The ID of the coordinating node for a query.
 The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 
 
-
 - Requirement Level: Recommended
   
 - Tag: tech-specific-cassandra
@@ -55,7 +52,6 @@ The consistency level of the query. Based on consistency values from [CQL](https
 Whether or not the query is idempotent.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: tech-specific-cassandra
@@ -66,7 +62,6 @@ Whether or not the query is idempotent.
 #### Attribute `db.cassandra.page_size`
 
 The fetch size used for paging, i.e. how many rows will be returned at once.
-
 
 
 - Requirement Level: Recommended
@@ -82,7 +77,6 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 #### Attribute `db.cassandra.speculative_execution_count`
 
 The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
-
 
 
 - Requirement Level: Recommended
@@ -114,7 +108,6 @@ This mirrors the db.sql.table attribute but references cassandra rather than sql
 #### Attribute `db.connection_string`
 
 The connection string used to connect to the database. It is recommended to remove embedded credentials.
-
 
 
 - Requirement Level: Recommended
@@ -240,7 +233,6 @@ Cosmos DB sub status code.
 Represents the identifier of an Elasticsearch cluster.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: tech-specific-elasticsearch
@@ -256,7 +248,6 @@ Represents the identifier of an Elasticsearch cluster.
 Represents the human-readable identifier of the node/instance to which a request was routed.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: tech-specific-elasticsearch
@@ -270,7 +261,6 @@ Represents the human-readable identifier of the node/instance to which a request
 #### Attribute `db.elasticsearch.path_parts`
 
 A dynamic value in the url path.
-
 
 
 Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in span attributes in the format `db.elasticsearch.path_parts.<key>`, where `<key>` is the url path part name. The implementation SHOULD reference the [elasticsearch schema](https://raw.githubusercontent.com/elastic/elasticsearch-specification/main/output/schema/schema.json) in order to map the path part values to their names.
@@ -291,7 +281,6 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
 The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: tech-specific-jdbc
@@ -306,7 +295,6 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
 #### Attribute `db.mongodb.collection`
 
 The MongoDB collection being accessed within the database stated in `db.name`.
-
 
 
 - Requirement Level: Recommended
@@ -325,7 +313,6 @@ The MongoDB collection being accessed within the database stated in `db.name`.
 The Microsoft SQL Server [instance name](https://docs.microsoft.com/sql/connect/jdbc/building-the-connection-url?view=sql-server-ver15) connecting to. This name is used to determine the port of a named instance.
 
 
-
 If setting a `db.mssql.instance_name`, `server.port` is no longer required (but still recommended if non-standard).
 
 - Requirement Level: Recommended
@@ -339,7 +326,6 @@ If setting a `db.mssql.instance_name`, `server.port` is no longer required (but 
 #### Attribute `db.name`
 
 This attribute is used to report the name of the database being accessed. For commands that switch the database, this should be set to the target database (even if the command fails).
-
 
 
 In some SQL databases, the database name to be used is called "schema name". In case there are multiple layers that could be considered for database name (e.g. Oracle instance name and schema name), the database name to be used is the more specific layer (e.g. Oracle schema name).
@@ -360,7 +346,6 @@ In some SQL databases, the database name to be used is called "schema name". In 
 The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations) such as `findAndModify`, or the SQL keyword.
 
 
-
 When setting this to an SQL keyword, it is not recommended to attempt any client-side parsing of `db.statement` just to get this property, but it should be set if the operation name is provided by the library being instrumented. If the SQL statement has an ambiguous operation, or performs more than one operation, this value may be omitted.
 
 - Requirement Level: Recommended
@@ -378,7 +363,6 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
 #### Attribute `db.redis.database_index`
 
 The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer. To be used instead of the generic `db.name` attribute.
-
 
 
 - Requirement Level: Recommended
@@ -416,7 +400,6 @@ It is not recommended to attempt any client-side parsing of `db.statement` just 
 The database statement being executed.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: db-generic
@@ -445,7 +428,6 @@ An identifier for the database management system (DBMS) product being used. See 
 Username for accessing the database.
 
 
-
 - Requirement Level: Recommended
   
 - Tag: db-generic
@@ -460,7 +442,6 @@ Username for accessing the database.
 #### Attribute `db.instance.id`
 
 An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
-
 
 
 - Requirement Level: Recommended

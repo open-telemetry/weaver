@@ -11,11 +11,12 @@ COPY data /build/data
 COPY src /build/src
 COPY templates /build/templates
 COPY tests build/tests
-RUN cargo build --release
+# Don't build release, so we get template debugging output.
+RUN cargo build
 
 # The runtime image
 FROM alpine:3.18.3
 LABEL maintainer="The OpenTelemetry Authors"
 WORKDIR /weaver
-COPY --from=weaver-build /build/target/release/weaver /weaver/weaver
+COPY --from=weaver-build /build/target/debug/weaver /weaver/weaver
 ENTRYPOINT ["/weaver/weaver"]

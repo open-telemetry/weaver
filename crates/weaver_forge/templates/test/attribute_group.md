@@ -1,7 +1,7 @@
 {%- set file_name = ctx.id | file_name -%}
 {{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
 
-## Group `{{ ctx.id }}` ({{ ctx.type }})
+## Group `{{ ctx.id | split_id | list | join("_") }}` ({{ ctx.type }})
 
 ### Brief
 
@@ -14,7 +14,7 @@ prefix: {{ ctx.prefix }}
 {% for attribute in ctx.attributes %}
 #### Attribute `{{ attribute.name }}`
 
-{{ attribute.brief }}
+{{ attribute.brief | trim }}
 
 {% if attribute.note %}
 {{ attribute.note | trim }}
