@@ -22,6 +22,8 @@ pub enum CaseConvention {
     LowerCase,
     #[serde(rename = "UPPERCASE")]
     UpperCase,
+    #[serde(rename = "TitleCase")]
+    TitleCase,
     #[serde(rename = "PascalCase")]
     PascalCase,
     #[serde(rename = "camelCase")]
@@ -297,6 +299,7 @@ impl CaseConvention {
         match self {
             CaseConvention::LowerCase => text.to_case(Case::Lower),
             CaseConvention::UpperCase => text.to_case(Case::Upper),
+            CaseConvention::TitleCase => text.to_case(Case::Title),
             CaseConvention::PascalCase => text.to_case(Case::Pascal),
             CaseConvention::CamelCase => text.to_case(Case::Camel),
             CaseConvention::SnakeCase => text.to_case(Case::Snake),
