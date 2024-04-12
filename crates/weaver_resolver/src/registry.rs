@@ -259,7 +259,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             instrument: group.spec.instrument,
             unit: group.spec.unit,
             name: group.spec.name,
-            lineage: Some(GroupLineage::new(group.provenance.clone())),
+            lineage: Some(GroupLineage::new(&group.provenance)),
         },
         attributes: attrs,
         provenance: group.provenance,

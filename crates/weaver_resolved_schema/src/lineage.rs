@@ -397,9 +397,9 @@ impl AttributeLineage {
 
 impl GroupLineage {
     /// Creates a new group lineage.
-    pub fn new(provenance: String) -> Self {
+    pub fn new(provenance: &str) -> Self {
         Self {
-            source_file: provenance,
+            source_file: provenance.replace('\\', "/"),
             attributes: Default::default(),
         }
     }

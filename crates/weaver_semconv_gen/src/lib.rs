@@ -188,7 +188,7 @@ pub fn update_markdown(
     dry_run: bool,
     attribute_registry_base_url: Option<&str>,
 ) -> Result<(), Error> {
-    let original_markdown = fs::read_to_string(file)?;
+    let original_markdown = fs::read_to_string(file)?.replace("\r\n", "\n");
     let updated_markdown =
         update_markdown_contents(&original_markdown, lookup, attribute_registry_base_url)?;
     if !dry_run {
