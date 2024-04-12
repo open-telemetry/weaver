@@ -4,8 +4,10 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::OnceLock;
 
-use convert_case::{Case, Casing};
+use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, UpperDigit};
+use convert_case::{Case, Casing, Converter, Pattern};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 
@@ -295,6 +297,8 @@ impl Default for CaseConvention {
 
 impl CaseConvention {
     pub fn convert(&self, text: &str) -> String {
+        static KEBAB_CASE: OnceLock<Converter> = OnceLock::new();
+
         let text = text.replace('.', "_");
         match self {
             CaseConvention::LowerCase => text.to_case(Case::Lower),
@@ -304,7 +308,22 @@ impl CaseConvention {
             CaseConvention::CamelCase => text.to_case(Case::Camel),
             CaseConvention::SnakeCase => text.to_case(Case::Snake),
             CaseConvention::ScreamingSnakeCase => text.to_case(Case::ScreamingSnake),
-            CaseConvention::KebabCase => text.to_case(Case::Kebab),
+            CaseConvention::KebabCase => {
+                // Convert to kebab case but do not consider digits
+                // as boundaries. So that `k8s` will stay `k8s` and
+                // not `k-8-s`.
+                let conv = KEBAB_CASE.get_or_init(|| {
+                    Converter::new()
+                        .add_boundary(Hyphen)
+                        .remove_boundary(DigitLower)
+                        .remove_boundary(DigitUpper)
+                        .remove_boundary(UpperDigit)
+                        .remove_boundary(LowerDigit)
+                        .set_pattern(Pattern::Lowercase)
+                        .set_delim("-")
+                });
+                conv.convert(&text)
+            }
             CaseConvention::ScreamingKebabCase => text.to_case(Case::Cobol),
         }
     }

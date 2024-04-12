@@ -551,6 +551,21 @@ mod tests {
                 case: super::CaseConvention::KebabCase,
             },
             TestCase {
+                input: "This is a k8s test",
+                expected: "this-is-a-k8s-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "This is a K8S test",
+                expected: "this-is-a-k8s-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "This is 2 K8S test",
+                expected: "this-is-2-k8s-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
                 input: "ThisIsATest",
                 expected: "THIS_IS_A_TEST",
                 case: super::CaseConvention::ScreamingSnakeCase,
