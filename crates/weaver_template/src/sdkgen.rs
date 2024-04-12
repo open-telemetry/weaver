@@ -255,6 +255,7 @@ impl ClientSdkGenerator {
                         .map_err(|e| InternalError(e.to_string()))?;
                     let tmpl_file = relative_path
                         .to_str()
+                        .map(|path| path.replace("\\", "/"))
                         .ok_or(InvalidTemplateFile(tmpl_file_path.clone()))?;
 
                     if tmpl_file.ends_with(".macro.tera") {
@@ -269,7 +270,7 @@ impl ClientSdkGenerator {
                             if let Some(resource_metrics) = schema_spec.resource_metrics.as_ref() {
                                 for metric in resource_metrics.metrics.iter() {
                                     templates.push(TemplateObjectPair::Metric {
-                                        template: tmpl_file.into(),
+                                        template: tmpl_file.clone(),
                                         metric,
                                     });
                                 }
@@ -279,7 +280,7 @@ impl ClientSdkGenerator {
                             if let Some(resource_metrics) = schema_spec.resource_metrics.as_ref() {
                                 for metric_group in resource_metrics.metric_groups.iter() {
                                     templates.push(TemplateObjectPair::MetricGroup {
-                                        template: tmpl_file.into(),
+                                        template: tmpl_file.clone(),
                                         metric_group,
                                     });
                                 }
@@ -289,7 +290,7 @@ impl ClientSdkGenerator {
                             if let Some(events) = schema_spec.resource_events.as_ref() {
                                 for event in events.events.iter() {
                                     templates.push(TemplateObjectPair::Event {
-                                        template: tmpl_file.into(),
+                                        template: tmpl_file.clone(),
                                         event,
                                     });
                                 }
@@ -299,7 +300,7 @@ impl ClientSdkGenerator {
                             if let Some(spans) = schema_spec.resource_spans.as_ref() {
                                 for span in spans.spans.iter() {
                                     templates.push(TemplateObjectPair::Span {
-                                        template: tmpl_file.into(),
+                                        template: tmpl_file.clone(),
                                         span,
                                     });
                                 }
@@ -311,7 +312,7 @@ impl ClientSdkGenerator {
                             _ = relative_path.set_extension("");
 
                             templates.push(TemplateObjectPair::Other {
-                                template: tmpl_file.into(),
+                                template: tmpl_file.clone(),
                                 relative_path,
                                 object: schema,
                             });
