@@ -355,19 +355,19 @@ impl TemplateEngine {
             "field_name",
             case_converter(self.target_config.field_name.clone()),
         );
-        env.add_filter("lowercase", case_converter(CaseConvention::LowerCase));
-        env.add_filter("UPPERCASE", case_converter(CaseConvention::UpperCase));
-        env.add_filter("TitleCase", case_converter(CaseConvention::TitleCase));
-        env.add_filter("PascalCase", case_converter(CaseConvention::PascalCase));
-        env.add_filter("camelCase", case_converter(CaseConvention::CamelCase));
+        env.add_filter("lower_case", case_converter(CaseConvention::LowerCase));
+        env.add_filter("upper_case", case_converter(CaseConvention::UpperCase));
+        env.add_filter("title_case", case_converter(CaseConvention::TitleCase));
+        env.add_filter("pascal_case", case_converter(CaseConvention::PascalCase));
+        env.add_filter("camel_case", case_converter(CaseConvention::CamelCase));
         env.add_filter("snake_case", case_converter(CaseConvention::SnakeCase));
         env.add_filter(
-            "SCREAMING_SNAKE_CASE",
+            "screaming_snake_case",
             case_converter(CaseConvention::ScreamingSnakeCase),
         );
-        env.add_filter("kebab-case", case_converter(CaseConvention::KebabCase));
+        env.add_filter("kebab_case", case_converter(CaseConvention::KebabCase));
         env.add_filter(
-            "SCREAMING-KEBAB-CASE",
+            "screaming_kebab_case",
             case_converter(CaseConvention::ScreamingKebabCase),
         );
 
