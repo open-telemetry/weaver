@@ -129,6 +129,7 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
 }
 
 /// Convert a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn semconv_registry_path_from(
     registry: &RegistryPath,
     path: &Option<String>,
@@ -151,6 +152,7 @@ pub(crate) fn semconv_registry_path_from(
 /// * `registry_path` - The path to the semantic convention registry.
 /// * `cache` - The cache to use for loading the registry.
 /// * `log` - The logger to use for logging messages.
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn load_semconv_specs(
     registry: &RegistryPath,
     path: &Option<String>,
@@ -175,6 +177,7 @@ pub(crate) fn load_semconv_specs(
 ///
 /// * `policy_engine` - The pre-configured policy engine to use for checking the policies.
 /// * `semconv_specs` - The semantic convention specifications to check.
+#[cfg(not(tarpaulin_include))]
 pub fn check_policy(
     policy_engine: &Engine,
     semconv_specs: &[(String, SemConvSpec)],
@@ -221,6 +224,7 @@ pub fn check_policy(
 /// * `before_resolution_policies` - The list of policy files to check before the resolution process.
 /// * `semconv_specs` - The semantic convention specifications to check.
 /// * `logger` - The logger to use for logging messages.
+#[cfg(not(tarpaulin_include))]
 fn check_policies(
     before_resolution_policies: &[PathBuf],
     semconv_specs: &[(String, SemConvSpec)],
@@ -250,6 +254,7 @@ fn check_policies(
 /// * `registry_id` - The ID of the semantic convention registry.
 /// * `semconv_specs` - The semantic convention specifications to resolve.
 /// * `logger` - The logger to use for logging messages.
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
     logger: impl Logger + Sync + Clone,

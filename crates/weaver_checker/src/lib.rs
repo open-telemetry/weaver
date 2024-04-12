@@ -144,34 +144,24 @@ impl Engine {
     /// Returns a list of violations based on the policies, the data, and the
     /// input.
     pub fn check(&mut self) -> Result<Vec<Violation>, Error> {
-        let result = self
+        let value = self
             .engine
-            .eval_query("data.otel.deny".to_owned(), false)
+            .eval_rule("data.otel.deny".to_owned())
             .map_err(|e| Error::ViolationEvaluationError {
                 error: e.to_string(),
             })?;
 
-        let mut violations = Vec::new();
+        // convert `regorus` value to `serde_json` value
+        let json_value = to_value(&value).map_err(|e| Error::ViolationEvaluationError {
+            error: e.to_string(),
+        })?;
 
-        for query_result in result.result {
-            for expr in query_result.expressions {
-                // convert `regorus` value to `serde_json` value
-                let json_value =
-                    to_value(&expr.value).map_err(|e| Error::ViolationEvaluationError {
-                        error: e.to_string(),
-                    })?;
+        // convert json value into a vector of violations
+        let violations: Vec<Violation> =
+            serde_json::from_value(json_value).map_err(|e| Error::ViolationEvaluationError {
+                error: e.to_string(),
+            })?;
 
-                // convert json value into a vector of violations
-                let violation: Vec<Violation> =
-                    serde_json::from_value(json_value).map_err(|e| {
-                        Error::ViolationEvaluationError {
-                            error: e.to_string(),
-                        }
-                    })?;
-
-                violations.extend(violation);
-            }
-        }
         Ok(violations)
     }
 }
