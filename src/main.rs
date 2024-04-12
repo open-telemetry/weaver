@@ -15,6 +15,7 @@ use crate::gen_client::command_gen_client;
 use crate::resolve::command_resolve;
 
 mod cli;
+pub(crate) mod error;
 #[cfg(feature = "experimental")]
 mod gen_client;
 #[cfg(feature = "experimental")]

@@ -4,11 +4,9 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::Relaxed;
 use std::time::Instant;
 
-use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 use regex::Regex;
 use url::Url;
@@ -22,7 +20,7 @@ use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::TelemetrySchema;
 use weaver_semconv::path::RegistryPath;
-use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec, SemConvSpecWithProvenance};
+use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec};
 use weaver_version::VersionChanges;
 
 use crate::attribute::AttributeCatalog;
@@ -239,10 +237,9 @@ impl SchemaResolver {
         schema_url_or_path: &str,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<TelemetrySchema, Error> {
         let mut schema = Self::load_schema(schema_url_or_path, log.clone())?;
-        Self::resolve(&mut schema, schema_url_or_path, cache, log, policy_engine)?;
+        Self::resolve(&mut schema, schema_url_or_path, cache, log)?;
 
         Ok(schema)
     }
@@ -252,7 +249,6 @@ impl SchemaResolver {
         schema_path: P,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<TelemetrySchema, Error> {
         let mut schema = Self::load_schema_from_path(schema_path.clone(), log.clone())?;
         Self::resolve(
@@ -265,7 +261,6 @@ impl SchemaResolver {
                 })?,
             cache,
             log,
-            policy_engine,
         )?;
 
         Ok(schema)
@@ -277,16 +272,10 @@ impl SchemaResolver {
         schema_path: &str,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<(), Error> {
         let registry_id = "default"; // ToDo add support for multiple registries
-        let sem_conv_catalog = Self::semconv_registry_from_schema(
-            registry_id,
-            schema,
-            cache,
-            log.clone(),
-            policy_engine,
-        )?;
+        let sem_conv_catalog =
+            Self::semconv_registry_from_schema(registry_id, schema, cache, log.clone())?;
         let start = Instant::now();
 
         // Merges the versions of the parent schema into the current schema.
@@ -332,35 +321,17 @@ impl SchemaResolver {
         path: Option<String>,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
+        let registry_path = RegistryPath::GitUrl {
+            git_url: registry_git_url,
+            path,
+        };
+        let semconv_specs = Self::load_semconv_specs(&registry_path, cache)?;
         Self::semconv_registry_from_imports(
             registry_id,
-            &[RegistryPath::GitUrl {
-                git_url: registry_git_url,
-                path,
-            }],
+            semconv_specs,
             ResolverConfig::default(),
-            cache,
             log.clone(),
-            policy_engine,
-        )
-    }
-
-    /// Loads a semantic convention registry from the given Git URL.
-    pub fn load_semconv_registry(
-        registry_id: &str,
-        registry_path: RegistryPath,
-        cache: &Cache,
-        log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
-    ) -> Result<SemConvRegistry, Error> {
-        Self::load_semconv_registry_from_imports(
-            registry_id,
-            &[registry_path],
-            cache,
-            log.clone(),
-            policy_engine,
         )
     }
 
@@ -422,60 +393,35 @@ impl SchemaResolver {
         schema: &TelemetrySchema,
         cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
+        let mut errors = vec![];
+        let mut semconv_specs = vec![];
+
+        for registry_path in schema.merged_semantic_conventions() {
+            match Self::load_semconv_specs(&registry_path, cache) {
+                Ok(specs) => semconv_specs.extend(specs),
+                Err(e) => errors.push(e),
+            }
+        }
+        handle_errors(errors)?;
+
         Self::semconv_registry_from_imports(
             registry_id,
-            &schema.merged_semantic_conventions(),
+            semconv_specs,
             ResolverConfig::default(),
-            cache,
             log.clone(),
-            policy_engine,
         )
-    }
-
-    /// Loads a semantic convention registry from the given semantic convention imports.
-    pub fn load_semconv_registry_from_imports(
-        registry_id: &str,
-        imports: &[RegistryPath],
-        cache: &Cache,
-        log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
-    ) -> Result<SemConvRegistry, Error> {
-        let start = Instant::now();
-        let registry = Self::create_semantic_convention_registry(
-            registry_id,
-            imports,
-            cache,
-            log.clone(),
-            policy_engine,
-        )?;
-        log.success(&format!(
-            "Loaded {} semantic convention files ({:.2}s)",
-            registry.asset_count(),
-            start.elapsed().as_secs_f32()
-        ));
-
-        Ok(registry)
     }
 
     /// Loads a semantic convention registry from the given semantic convention imports.
     pub fn semconv_registry_from_imports(
         registry_id: &str,
-        imports: &[RegistryPath],
+        semconv_specs: Vec<(String, SemConvSpec)>,
         resolver_config: ResolverConfig,
-        cache: &Cache,
         log: impl Logger + Clone + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
     ) -> Result<SemConvRegistry, Error> {
         let start = Instant::now();
-        let mut registry = Self::create_semantic_convention_registry(
-            registry_id,
-            imports,
-            cache,
-            log.clone(),
-            policy_engine,
-        )?;
+        let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let warnings = registry
             .resolve(resolver_config)
             .map_err(|e| Error::SemConvError {
@@ -500,10 +446,7 @@ impl SchemaResolver {
     /// corresponding resolved telemetry schema.
     pub fn resolve_semantic_convention_registry(
         registry: &mut SemConvRegistry,
-        log: impl Logger + Clone + Sync,
     ) -> Result<ResolvedTelemetrySchema, Error> {
-        let start = Instant::now();
-
         let mut attr_catalog = AttributeCatalog::default();
         let resolved_registry = resolve_semconv_registry(&mut attr_catalog, "", registry)?;
 
@@ -524,14 +467,6 @@ impl SchemaResolver {
             dependencies: vec![],
             versions: None, // ToDo LQ: Implement this!
         };
-
-        log.success(&format!(
-            "Resolved {} semantic convention files containing the definition of {} attributes and {} metrics ({:.2}s)",
-            registry.asset_count(),
-            registry.attribute_count(),
-            registry.metric_count(),
-            start.elapsed().as_secs_f32()
-        ));
 
         Ok(resolved_schema)
     }
@@ -588,141 +523,45 @@ impl SchemaResolver {
         Ok(parent_schema)
     }
 
-    /// Creates a semantic convention registry from the given telemetry schema.
-    fn create_semantic_convention_registry(
-        registry_id: &str,
-        sem_convs: &[RegistryPath],
-        cache: &Cache,
-        log: impl Logger + Sync,
-        policy_engine: Option<&weaver_checker::Engine>,
-    ) -> Result<SemConvRegistry, Error> {
-        // Load all the semantic convention catalogs.
-        let mut sem_conv_catalog = SemConvRegistry::new(registry_id);
-        let total_file_count = sem_convs.len();
-        let loaded_files_count = AtomicUsize::new(0);
-        let error_count = AtomicUsize::new(0);
-
-        let result: Vec<Result<(String, SemConvSpec), Error>> = sem_convs
-            .par_iter()
-            .flat_map(|sem_conv_import| {
-                let results = Self::import_sem_conv_specs(sem_conv_import, cache);
-                for result in results.iter() {
-                    if result.is_err() {
-                        _ = error_count.fetch_add(1, Relaxed);
-                    }
-                    _ = loaded_files_count.fetch_add(1, Relaxed);
-                    if error_count.load(Relaxed) == 0 {
-                        log.loading(&format!(
-                            "Loaded {}/{} semantic convention files (no error detected)",
-                            loaded_files_count.load(Relaxed),
-                            total_file_count
-                        ));
-                    } else {
-                        log.loading(&format!(
-                            "Loaded {}/{} semantic convention files ({} error(s) detected)",
-                            loaded_files_count.load(Relaxed),
-                            total_file_count,
-                            error_count.load(Relaxed)
-                        ));
-                    }
-                }
-                results
-            })
-            .collect();
-
-        let mut errors = vec![];
-
-        if let Some(policy_engine) = policy_engine {
-            // Check policies in parallel
-            errors.extend(
-                result
-                    .par_iter()
-                    .flat_map(|semconv| {
-                        let mut errors = Vec::new();
-                        if let Ok((path, semconv)) = semconv {
-                            // Create a local policy engine inheriting the policies
-                            // from the global policy engine
-                            let mut policy_engine = policy_engine.clone();
-
-                            match policy_engine.set_input(semconv) {
-                                Ok(_) => match policy_engine.check() {
-                                    Ok(violations) => {
-                                        for violation in violations {
-                                            errors.push(Error::PolicyViolation {
-                                                provenance: path.clone(),
-                                                violation,
-                                            });
-                                        }
-                                    }
-                                    Err(e) => errors.push(Error::SemConvError {
-                                        message: format!(
-                                            "Invalid policy evaluation for file '{path}': {e}"
-                                        ),
-                                    }),
-                                },
-                                Err(e) => errors.push(Error::SemConvError {
-                                    message: format!(
-                                        "Invalid policy engine input for file '{path}': {e}"
-                                    ),
-                                }),
-                            }
-                        }
-                        errors
-                    })
-                    .collect::<Vec<Error>>(),
-            );
-        }
-
-        result.into_iter().for_each(|result| match result {
-            Ok((provenance, spec)) => {
-                sem_conv_catalog
-                    .append_sem_conv_spec(SemConvSpecWithProvenance { provenance, spec });
-            }
-            Err(e) => {
-                log.error(&e.to_string());
-                errors.push(e);
-            }
-        });
-
-        handle_errors(errors)?;
-
-        Ok(sem_conv_catalog)
-    }
-
-    /// Imports the semantic convention specifications from the given registry path.
-    /// This function returns a vector of results because the import declaration can be a
-    /// URL or a git URL (containing potentially multiple semantic convention specifications).
-    fn import_sem_conv_specs(
+    /// Loads the semantic convention specifications from the given registry path.
+    /// Implementation note: semconv files are read and parsed in parallel and
+    /// all errors are collected and returned as a compound error.
+    ///
+    /// # Arguments
+    /// * `registry_path` - The registry path containing the semantic convention files.
+    /// * `cache` - The cache to store the semantic convention files.
+    pub fn load_semconv_specs(
         registry_path: &RegistryPath,
         cache: &Cache,
-    ) -> Vec<Result<(String, SemConvSpec), Error>> {
+    ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         match registry_path {
             RegistryPath::Local { local_path: path } => {
-                Self::import_semconv_from_local_path(path.into(), path)
+                Self::load_semconv_from_local_path(path.into(), path)
             }
             RegistryPath::GitUrl { git_url, path } => {
                 match cache.git_repo(git_url.clone(), path.clone()) {
                     Ok(local_git_repo) => {
-                        Self::import_semconv_from_local_path(local_git_repo, git_url)
+                        Self::load_semconv_from_local_path(local_git_repo, git_url)
                     }
-                    Err(e) => vec![Err(Error::SemConvError {
+                    Err(e) => Err(Error::SemConvError {
                         message: e.to_string(),
-                    })],
+                    }),
                 }
             }
         }
     }
 
-    /// Imports the semantic convention specifications from the given local path.
+    /// Loads the semantic convention specifications from the given local path.
+    /// Implementation note: semconv files are read and parsed in parallel and
+    /// all errors are collected and returned as a compound error.
     ///
     /// # Arguments
     /// * `local_path` - The local path containing the semantic convention files.
     /// * `registry_path_repr` - The representation of the registry path (URL or path).
-    /// * `policy_engine` - An optional policy engine to check the semantic convention files.
-    fn import_semconv_from_local_path(
+    fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
-    ) -> Vec<Result<(String, SemConvSpec), Error>> {
+    ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()
@@ -739,22 +578,25 @@ impl SchemaResolver {
                 && file_name != "schema-next.yaml"
         }
 
-        let mut result = vec![];
-
         // Loads the semantic convention specifications from the git repo.
-        // All yaml files are recursively loaded from the given path.
-        for entry in walkdir::WalkDir::new(local_path.clone())
+        // All yaml files are recursively loaded and parsed in parallel from
+        // the given path.
+        let result = walkdir::WalkDir::new(local_path.clone())
             .into_iter()
             .filter_entry(|e| !is_hidden(e))
-        {
-            match entry {
-                Ok(entry) => {
-                    if is_semantic_convention_file(&entry) {
+            .par_bridge()
+            .filter_map(|entry| {
+                match entry {
+                    Ok(entry) => {
+                        if !is_semantic_convention_file(&entry) {
+                            return None;
+                        }
+
                         let spec = SemConvRegistry::load_sem_conv_spec_from_file(entry.path())
                             .map_err(|e| Error::SemConvError {
                                 message: e.to_string(),
                             });
-                        result.push(match spec {
+                        match spec {
                             Ok((path, spec)) => {
                                 // Replace the local path with the git URL combined with the relative path
                                 // of the semantic convention file.
@@ -764,19 +606,33 @@ impl SchemaResolver {
                                     .unwrap_or_default();
                                 let path =
                                     format!("{}/{}", registry_path_repr, &path[prefix.len() + 1..]);
-                                Ok((path, spec))
+                                Some(Ok((path, spec)))
                             }
-                            Err(e) => Err(e),
-                        });
+                            Err(e) => Some(Err(e)),
+                        }
                     }
+                    Err(e) => Some(Err(Error::SemConvError {
+                        message: e.to_string(),
+                    })),
                 }
-                Err(e) => result.push(Err(Error::SemConvError {
-                    message: e.to_string(),
-                })),
-            }
-        }
+            })
+            .collect::<Vec<_>>();
 
-        result
+        let mut error = vec![];
+        let result = result
+            .into_iter()
+            .filter_map(|r| match r {
+                Ok(r) => Some(r),
+                Err(e) => {
+                    error.push(e);
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        handle_errors(error)?;
+
+        Ok(result)
     }
 }
 
@@ -799,7 +655,6 @@ mod test {
             "../../data/app-telemetry-schema.yaml",
             &cache,
             log,
-            None,
         );
         assert!(schema.is_ok(), "{:#?}", schema.err().unwrap());
     }

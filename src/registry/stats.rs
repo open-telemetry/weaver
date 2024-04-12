@@ -2,13 +2,12 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::{semconv_registry_path_from, RegistryArgs};
+use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_logger::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_resolver::SchemaResolver;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::SemConvRegistry;
 
@@ -22,8 +21,8 @@ pub struct RegistryStatsArgs {
 
 /// Compute stats on a semantic convention registry.
 #[cfg(not(tarpaulin_include))]
-pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
-    log.loading(&format!(
+pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
+    logger.loading(&format!(
         "Compute statistics on the registry `{}`",
         args.registry.registry
     ));
@@ -31,24 +30,20 @@ pub(crate) fn command(log: impl Logger + Sync + Clone, cache: &Cache, args: &Reg
     let registry_id = "default";
 
     // Load the semantic convention registry into a local cache.
-    let mut registry = SchemaResolver::load_semconv_registry(
-        registry_id,
-        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
+    let semconv_specs = load_semconv_specs(
+        &args.registry.registry,
+        &args.registry.registry_git_sub_dir,
         cache,
-        log.clone(),
-        None,
-    )
-    .unwrap_or_else(|e| {
-        panic!("Failed to load and parse the semantic convention registry, error: {e}");
-    });
+        logger.clone(),
+    );
+    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     display_semconv_registry_stats(&registry);
 
     // Resolve the semantic convention registry.
-    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log.clone())
-        .expect("Failed to resolve registry");
+    let resolved_schema = resolve_semconv_specs(&mut registry, logger);
 
-    display_schema_stats(&schema);
+    display_schema_stats(&resolved_schema);
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -126,11 +121,13 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
 
     let catalog_stats = &stats.catalog_stats;
     println!("Shared Catalog (after resolution and deduplication):");
-    println!(
-        "  - Number of deduplicated attributes: {} ({}%)",
-        catalog_stats.attribute_count,
-        catalog_stats.attribute_count * 100 / total_number_of_attributes
-    );
+    if total_number_of_attributes > 0 {
+        println!(
+            "  - Number of deduplicated attributes: {} ({}%)",
+            catalog_stats.attribute_count,
+            catalog_stats.attribute_count * 100 / total_number_of_attributes
+        );
+    }
     println!("    - Attribute types breakdown:");
     for (attribute_type, count) in catalog_stats.attribute_type_breakdown.iter() {
         println!("      - {}: {}", attribute_type, count);

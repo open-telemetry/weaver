@@ -706,7 +706,6 @@ mod tests {
     use glob::glob;
     use serde::Serialize;
 
-    use weaver_logger::TestLogger;
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::{Constraint, Registry};
     use weaver_semconv::group::GroupType;
@@ -857,7 +856,6 @@ mod tests {
 
     #[test]
     fn test_api_usage() -> Result<(), Box<dyn Error>> {
-        let logger = TestLogger::new();
         let registry_id = "local";
         let registry_dir = "data/registry-test-7-spans/registry/*.yaml";
 
@@ -867,10 +865,8 @@ mod tests {
         let mut semconv_registry = SemConvRegistry::try_from_path(registry_id, registry_dir)?;
 
         // Resolve the semantic convention registry.
-        let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(
-            &mut semconv_registry,
-            logger.clone(),
-        )?;
+        let resolved_schema =
+            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry)?;
 
         // Get the resolved registry by its ID.
         let resolved_registry = resolved_schema.registry(registry_id).unwrap();

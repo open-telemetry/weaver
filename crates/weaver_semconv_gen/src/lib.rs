@@ -5,9 +5,9 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use std::fs;
+
 use weaver_cache::Cache;
 use weaver_diff::diff_output;
-use weaver_logger::Logger;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -15,10 +15,10 @@ use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
 use weaver_semconv::SemConvRegistry;
 
+use crate::gen::{AttributeTableView, GenerateMarkdownContext, MetricView};
+
 mod gen;
 mod parser;
-
-use crate::gen::{AttributeTableView, GenerateMarkdownContext, MetricView};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug)]
@@ -91,6 +91,7 @@ pub enum MarkdownGenParameters {
     /// Omit the requirement level.
     OmitRequirementLevel,
 }
+
 /// Markdown-snippet generation arguments.
 pub struct GenerateMarkdownArgs {
     /// The id of the metric, event, span or attribute group to render.
@@ -98,6 +99,7 @@ pub struct GenerateMarkdownArgs {
     /// Arguments the user specified that we've parsed.
     args: Vec<MarkdownGenParameters>,
 }
+
 impl GenerateMarkdownArgs {
     // Returns true if the `full` flag was specified.
     fn is_full(&self) -> bool {
@@ -207,15 +209,13 @@ pub struct ResolvedSemconvRegistry {
     schema: ResolvedTelemetrySchema,
     registry_id: String,
 }
+
 impl ResolvedSemconvRegistry {
     /// Resolve the semantic convention registry and make it available for rendering markdown snippets.
-    pub fn try_from_path(
-        path_pattern: &str,
-        log: impl Logger + Clone + Sync,
-    ) -> Result<ResolvedSemconvRegistry, Error> {
+    pub fn try_from_path(path_pattern: &str) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
         let mut registry = SemConvRegistry::try_from_path(registry_id, path_pattern)?;
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
             schema,
             registry_id: registry_id.into(),
@@ -227,17 +227,11 @@ impl ResolvedSemconvRegistry {
     pub fn try_from_url(
         registry_path: RegistryPath,
         cache: &Cache,
-        log: impl Logger + Clone + Sync,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let mut registry = SchemaResolver::load_semconv_registry(
-            registry_id,
-            registry_path,
-            cache,
-            log.clone(),
-            None,
-        )?;
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, log)?;
+        let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, cache)?;
+        let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
             schema,
             registry_id: registry_id.into(),
@@ -262,10 +256,10 @@ impl ResolvedSemconvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::{update_markdown, Error, ResolvedSemconvRegistry};
     use std::fs;
     use std::path::PathBuf;
-    use weaver_logger::TestLogger;
+
+    use crate::{update_markdown, Error, ResolvedSemconvRegistry};
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -276,8 +270,7 @@ mod tests {
 
     #[test]
     fn test_http_semconv() -> Result<(), Error> {
-        let logger = TestLogger::default();
-        let lookup = ResolvedSemconvRegistry::try_from_path("data/**/*.yaml", logger.clone())?;
+        let lookup = ResolvedSemconvRegistry::try_from_path("data/**/*.yaml")?;
         let attribute_registry_url = "../attributes-registry";
         // Check our test files.
         force_print_error(update_markdown(
@@ -311,9 +304,8 @@ mod tests {
     }
 
     fn run_legacy_test(path: PathBuf) -> Result<(), Error> {
-        let logger = TestLogger::default();
         let semconv_path = format!("{}/*.yaml", path.display());
-        let lookup = ResolvedSemconvRegistry::try_from_path(&semconv_path, logger.clone())?;
+        let lookup = ResolvedSemconvRegistry::try_from_path(&semconv_path)?;
         let test_path = path.join("test.md").display().to_string();
         // Attempts to update the test - will fail if there is any difference in the generated markdown.
         update_markdown(&test_path, &lookup, true, None)

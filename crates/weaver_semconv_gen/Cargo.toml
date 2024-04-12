@@ -11,7 +11,6 @@ rust-version.workspace = true
 [dependencies]
 weaver_cache = { path = "../weaver_cache" }
 weaver_diff = { path = "../weaver_diff" }
-weaver_logger = { path = "../weaver_logger" }
 weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }

@@ -10,9 +10,9 @@ use serde::Serialize;
 use weaver_cache::Cache;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_logger::Logger;
-use weaver_resolver::SchemaResolver;
+use weaver_semconv::SemConvRegistry;
 
-use crate::registry::{semconv_registry_path_from, RegistryArgs};
+use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs};
 
 /// Supported output formats for the resolved schema
 #[derive(Debug, Clone, ValueEnum)]
@@ -66,21 +66,14 @@ pub(crate) fn command(
     let registry_id = "default";
 
     // Load the semantic convention registry into a local cache.
-    let mut registry = SchemaResolver::load_semconv_registry(
-        registry_id,
-        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
+    let semconv_specs = load_semconv_specs(
+        &args.registry.registry,
+        &args.registry.registry_git_sub_dir,
         cache,
         logger.clone(),
-        None,
-    )
-    .unwrap_or_else(|e| {
-        panic!("Failed to load and parse the semantic convention registry, error: {e}");
-    });
-
-    // Resolve the semantic convention registry.
-    let schema =
-        SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
-            .expect("Failed to resolve registry");
+    );
+    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let schema = resolve_semconv_specs(&mut registry, logger.clone());
 
     // Serialize the resolved schema and write it
     // to a file or print it to stdout.
