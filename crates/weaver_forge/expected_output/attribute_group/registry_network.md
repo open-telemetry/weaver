@@ -1,4 +1,4 @@
-## Group `registry.network` (attribute_group)
+## Group `registry_network` (attribute_group)
 
 ### Brief
 
@@ -174,7 +174,6 @@ Version of the protocol specified in `network.protocol.name`.
 #### Attribute `network.transport`
 
 [OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
-
 
 
 The value SHOULD be normalized to lowercase.

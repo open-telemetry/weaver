@@ -2,16 +2,18 @@
 
 //! Generate artifacts for a semantic convention registry.
 
-use clap::Args;
 use std::path::PathBuf;
 
-use crate::registry::{semconv_registry_path_from, RegistryPath};
+use clap::Args;
+
 use weaver_cache::Cache;
-use weaver_forge::debug::print_dedup_errors;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_logger::Logger;
-use weaver_resolver::SchemaResolver;
+use weaver_semconv::SemConvRegistry;
+
+use crate::error::ExitIfError;
+use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath};
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -41,6 +43,11 @@ pub struct RegistryGenerateArgs {
     /// registry is located
     #[arg(short = 'd', long, default_value = "model")]
     pub registry_git_sub_dir: Option<String>,
+
+    /// Optional list of policy files to check against the files of the semantic
+    /// convention registry before the resolution process.
+    #[arg(short = 'b', long)]
+    pub before_resolution_policies: Vec<PathBuf>,
 }
 
 /// Generate artifacts from a semantic convention registry.
@@ -58,26 +65,28 @@ pub(crate) fn command(
     let registry_id = "default";
 
     // Load the semantic convention registry into a local cache.
-    let mut registry = SchemaResolver::load_semconv_registry(
-        registry_id,
-        semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
+    let semconv_specs = load_semconv_specs(
+        &args.registry,
+        &args.registry_git_sub_dir,
         cache,
         logger.clone(),
-    )
-    .unwrap_or_else(|e| {
-        panic!("Failed to load and parse the semantic convention registry, error: {e}");
-    });
-
-    // Resolve the semantic convention registry.
-    let schema =
-        SchemaResolver::resolve_semantic_convention_registry(&mut registry, logger.clone())
-            .expect("Failed to resolve registry");
+    );
+    check_policies(
+        &args.before_resolution_policies,
+        &semconv_specs,
+        logger.clone(),
+    );
+    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let schema = resolve_semconv_specs(&mut registry, logger.clone());
 
     let engine = TemplateEngine::try_new(
         &format!("registry/{}", args.target),
         GeneratorConfig::default(),
     )
-    .expect("Failed to create template engine");
+    .exit_if_error(|e| {
+        logger.error("Failed to create the template engine");
+        logger.error(&e.to_string());
+    });
 
     let template_registry = TemplateRegistry::try_from_resolved_registry(
         schema
@@ -85,19 +94,16 @@ pub(crate) fn command(
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
     )
-    .unwrap_or_else(|e| {
-        panic!(
-            "Failed to create the context for the template evaluation: {:?}",
-            e
-        )
+    .exit_if_error(|e| {
+        logger.error("Failed to create the registry without catalog");
+        logger.error(&e.to_string());
     });
 
-    match engine.generate(logger.clone(), &template_registry, args.output.as_path()) {
-        Ok(_) => logger.success("Artifacts generated successfully"),
-        Err(e) => {
-            print_dedup_errors(logger.clone(), e);
-            #[allow(clippy::exit)] // Expected behavior
-            std::process::exit(1);
-        }
-    };
+    engine
+        .generate(logger.clone(), &template_registry, args.output.as_path())
+        .exit_if_error(|e| {
+            logger.error(&e.to_string());
+        });
+
+    logger.success("Artifacts generated successfully");
 }

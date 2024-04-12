@@ -10,7 +10,7 @@ on:
     paths:
       - .github/workflows/publish-docker.yml
       - 'src/**'
-      - 'creates/**'
+      - 'crates/**'
 
 jobs:
   tests:

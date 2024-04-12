@@ -1,4 +1,4 @@
-## Group `registry.url` (attribute_group)
+## Group `registry_url` (attribute_group)
 
 ### Brief
 

@@ -27,6 +27,7 @@ use tantivy::schema::{Field, Schema, STORED, TEXT};
 use tantivy::{Index, IndexWriter, ReloadPolicy};
 use tui_textarea::TextArea;
 
+use crate::error::ExitIfError;
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use theme::ThemeConfig;
 use weaver_cache::Cache;
@@ -36,6 +37,7 @@ use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
 use weaver_schema::attribute::Attribute;
 use weaver_schema::TelemetrySchema;
+use weaver_semconv::SemConvRegistry;
 
 use crate::search::schema::{attribute, metric, metric_group, resource, span};
 
@@ -218,24 +220,22 @@ fn search_registry_command2(
     registry_args: &SearchRegistry2,
 ) {
     let registry_id = "default";
-    let semconv_specs = SchemaResolver::load_semconv_registry(
-        registry_id,
-        semconv_registry_path_from(&registry_args.registry, &registry_args.path),
-        cache,
-        log.clone(),
-    )
-    .unwrap_or_else(|e| {
-        log.error(&format!("{}", e));
-        std::process::exit(1);
-    });
+    let registry_path = semconv_registry_path_from(&registry_args.registry, &registry_args.path);
+    let semconv_specs =
+        SchemaResolver::load_semconv_specs(&registry_path, cache).exit_if_error(|e| {
+            e.log(log.clone());
+        });
+    let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     let mut attr_catalog = AttributeCatalog::default();
+    let registry_path = registry_args.registry.to_string();
     let resolved_registry =
-        resolve_semconv_registry(&mut attr_catalog, &registry_args.registry, &semconv_specs)
-            .unwrap_or_else(|e| {
+        resolve_semconv_registry(&mut attr_catalog, &registry_path, &semconv_specs).unwrap_or_else(
+            |e| {
                 log.error(&format!("{}", e));
                 std::process::exit(1);
-            });
+            },
+        );
 
     dbg!(resolved_registry);
     //dbg!(attr_catalog);
