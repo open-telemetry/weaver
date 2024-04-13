@@ -39,7 +39,7 @@ anyhow = "1.0.81"
 
 # Features definition =========================================================
 [features]
-experimental = ["tantivy"]
+experimental = ["tantivy", "weaver_schema", "weaver_template"]
 
 # Crate definitions ===========================================================
 [[bin]]
@@ -51,11 +51,11 @@ name = "weaver"
 # local crates dependencies
 weaver_logger = { path = "crates/weaver_logger" }
 weaver_resolver = { path = "crates/weaver_resolver" }
-weaver_template = { path = "crates/weaver_template" }
+weaver_template = { path = "crates/weaver_template", optional = true }
 weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_resolved_schema = { path = "crates/weaver_resolved_schema" }
 weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
-weaver_schema = { path = "crates/weaver_schema" }
+weaver_schema = { path = "crates/weaver_schema", optional = true }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
