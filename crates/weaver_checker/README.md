@@ -12,7 +12,7 @@
   - [Key Concepts for Rule Development](#key-concepts-for-rule-development)
   - [Step-by-Step Guide to Creating a New Rule](#step-by-step-guide-to-creating-a-new-rule)
 - [Links](#links)
-    
+
 ## Overview
 The Weaver Policy Engine has been developed to enhance the management,
 evolution, and maintainability of semantic conventions and application
@@ -65,6 +65,8 @@ The policy verification process involves:
 - Displaying any detected policy violations, aiding in the resolution before
   publication.
 
+The following diagram illustrates the policy verification process:
+![Policy Verification Process](images/policy-verification-process.svg)
 
 ### Usage
 To verify policies, the command `weaver registry check` can be invoked with one
@@ -257,40 +259,40 @@ of the violation.
 ### Key Concepts for Rule Development
 
 - **Rule Name**: Rules detecting violations must be named `deny`. This is a
-convention chosen by the Weaver project to facilitate the use and management of
-these policy files. 
+  convention chosen by the Weaver project to facilitate the use and management of
+  these policy files.
 - **Violation Conditions**: The body of a `deny` rule contains one or more
-conditions that, when true, signal a violation. These conditions can range from
-simple checks, like the presence of a deprecated attribute, to complex validations
-involving multiple components of the semantic conventions or telemetry schemas.
+  conditions that, when true, signal a violation. These conditions can range from
+  simple checks, like the presence of a deprecated attribute, to complex validations
+  involving multiple components of the semantic conventions or telemetry schemas.
 - **Violation Message**: Upon detecting a violation, the rule should generate a
-message or an object that provides detailed information about the violation,
-including the type of violation, relevant identifiers (e.g., attribute or group
-ID), and a brief description of the issue.
+  message or an object that provides detailed information about the violation,
+  including the type of violation, relevant identifiers (e.g., attribute or group
+  ID), and a brief description of the issue.
 
 ### Step-by-Step Guide to Creating a New Rule
 
 1. **Identify the Violation**: Determine the specific condition or practice that
-should be flagged as a violation. This could be a new policy requirement, a best
-practice, or an identified gap in the current policy enforcement.
+   should be flagged as a violation. This could be a new policy requirement, a best
+   practice, or an identified gap in the current policy enforcement.
 
 2. **Define the Rule Conditions**: Craft a set of conditions that accurately
-capture the criteria for the violation. Utilize the Rego language to express
-these conditions, making use of variables, functions, and operators as necessary.
+   capture the criteria for the violation. Utilize the Rego language to express
+   these conditions, making use of variables, functions, and operators as necessary.
 
 3. **Construct the Violation Output**: For defining the structure of the violation
-object, you can either reuse one of the already defined categories (i.e.,
-attr_registry_violation, attr_violation, schema_evolution_violation), or define
-a new one if the category of this violation has not already been defined.
+   object, you can either reuse one of the already defined categories (i.e.,
+   attr_registry_violation, attr_violation, schema_evolution_violation), or define
+   a new one if the category of this violation has not already been defined.
 
 4. **Implement the Rule in Rego**: Write the `deny` rule in Rego, encapsulating
-the conditions and violation output you've defined. Ensure the rule is clearly
-commented and documented to facilitate understanding and maintenance.
+   the conditions and violation output you've defined. Ensure the rule is clearly
+   commented and documented to facilitate understanding and maintenance.
 
 5. **Test the Rule**: Before integrating the new rule into the Weaver Policy
-Engine, test it with various input scenarios to ensure it accurately detects
-violations without producing false positives or negatives. A unit test 
-framework will be provided to facilitate this process in a future PR.
+   Engine, test it with various input scenarios to ensure it accurately detects
+   violations without producing false positives or negatives. A unit test
+   framework will be provided to facilitate this process in a future PR.
 
 ## Links
 - [Rego Language Reference](https://www.openpolicyagent.org/docs/latest/policy-language/).
