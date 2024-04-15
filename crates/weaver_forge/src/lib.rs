@@ -488,8 +488,8 @@ mod tests {
                 case: super::CaseConvention::LowerCase,
             },
             TestCase {
-                input: "This is a TEST",
-                expected: "this is a test",
+                input: "This is a K8S TEST",
+                expected: "this is a k8s test",
                 case: super::CaseConvention::LowerCase,
             },
             TestCase {
@@ -508,8 +508,8 @@ mod tests {
                 case: super::CaseConvention::TitleCase,
             },
             TestCase {
-                input: "This is a TEST",
-                expected: "This Is A Test",
+                input: "This is a k8s TEST",
+                expected: "This Is A K8s Test",
                 case: super::CaseConvention::TitleCase,
             },
             TestCase {
