@@ -318,7 +318,7 @@ impl CaseConvention {
                         .set_delim(" ")
                 });
                 conv.convert(&text)
-            },
+            }
             CaseConvention::UpperCase => text.to_case(Case::Upper),
             CaseConvention::TitleCase => {
                 // Convert to title case but do not consider digits
@@ -334,7 +334,7 @@ impl CaseConvention {
                         .set_delim(" ")
                 });
                 conv.convert(&text)
-            },
+            }
             CaseConvention::PascalCase => text.to_case(Case::Pascal),
             CaseConvention::CamelCase => text.to_case(Case::Camel),
             CaseConvention::SnakeCase => text.to_case(Case::Snake),
