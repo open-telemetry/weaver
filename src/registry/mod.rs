@@ -12,7 +12,7 @@ use check::RegistryCheckArgs;
 use std::path::PathBuf;
 use weaver_cache::Cache;
 use weaver_checker::Engine;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::{handle_errors, Error, SchemaResolver};
 use weaver_semconv::{SemConvRegistry, SemConvSpec};

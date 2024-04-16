@@ -6,7 +6,7 @@ use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs,
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_semconv::SemConvRegistry;
 
 /// Parameters for the `registry check` sub-command

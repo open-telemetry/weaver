@@ -3,7 +3,7 @@
 //! Integration tests for the resolution process.
 
 use weaver_cache::Cache;
-use weaver_logger::{Logger, TestLogger};
+use weaver_common::{Logger, TestLogger};
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;

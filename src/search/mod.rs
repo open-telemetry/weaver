@@ -31,7 +31,7 @@ use crate::error::ExitIfError;
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use theme::ThemeConfig;
 use weaver_cache::Cache;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;

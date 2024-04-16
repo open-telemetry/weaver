@@ -9,7 +9,7 @@ use weaver_cache::Cache;
 
 use crate::error::ExitIfError;
 use crate::registry::RegistryPath;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::ResolverConfig;
 

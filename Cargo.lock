@@ -4336,8 +4336,8 @@ dependencies = [
  "walkdir",
  "weaver_cache",
  "weaver_checker",
+ "weaver_common",
  "weaver_forge",
- "weaver_logger",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_schema",
@@ -4368,6 +4368,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_common"
+version = "0.1.0"
+dependencies = [
+ "paris",
+]
+
+[[package]]
 name = "weaver_diff"
 version = "0.1.0"
 dependencies = [
@@ -4392,18 +4399,11 @@ dependencies = [
  "serde_yaml",
  "thiserror",
  "walkdir",
+ "weaver_common",
  "weaver_diff",
- "weaver_logger",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_semconv",
-]
-
-[[package]]
-name = "weaver_logger"
-version = "0.1.0"
-dependencies = [
- "paris",
 ]
 
 [[package]]
@@ -4432,7 +4432,7 @@ dependencies = [
  "walkdir",
  "weaver_cache",
  "weaver_checker",
- "weaver_logger",
+ "weaver_common",
  "weaver_resolved_schema",
  "weaver_schema",
  "weaver_semconv",
@@ -4493,7 +4493,7 @@ dependencies = [
  "thiserror",
  "thread_local",
  "weaver_cache",
- "weaver_logger",
+ "weaver_common",
  "weaver_resolver",
  "weaver_schema",
 ]

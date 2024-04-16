@@ -14,7 +14,7 @@ use walkdir::DirEntry;
 
 use weaver_cache::Cache;
 use weaver_checker::violation::Violation;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -639,7 +639,7 @@ impl SchemaResolver {
 #[cfg(test)]
 mod test {
     use weaver_cache::Cache;
-    use weaver_logger::{ConsoleLogger, Logger};
+    use weaver_common::{ConsoleLogger, Logger};
 
     use crate::SchemaResolver;
 

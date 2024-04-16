@@ -54,7 +54,7 @@
 <g id="node5" class="node">
 <title>4</title>
 <polygon fill="none" stroke="black" points="328.38,-108 232.12,-108 232.12,-72 328.38,-72 328.38,-108"/>
-<text text-anchor="middle" x="280.25" y="-84.95" font-family="Times,serif" font-size="14.00">weaver_logger</text>
+<text text-anchor="middle" x="280.25" y="-84.95" font-family="Times,serif" font-size="14.00">weaver_common</text>
 </g>
 <!-- 5 -->
 <g id="node6" class="node">

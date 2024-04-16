@@ -7,7 +7,7 @@ use crate::error::ExitIfError;
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use clap::Args;
 use weaver_cache::Cache;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_semconv_gen::{update_markdown, ResolvedSemconvRegistry};
 
 /// Parameters for the `registry update-markdown` sub-command

@@ -3,6 +3,7 @@
 //! A generic logger that can be used to log messages to the console.
 
 pub mod quiet;
+mod error;
 
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};

@@ -13,7 +13,7 @@ use rayon::iter::ParallelIterator;
 use tera::{Context, Tera};
 use weaver_cache::Cache;
 
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_resolver::SchemaResolver;
 use weaver_schema::event::Event;
 use weaver_schema::metric_group::MetricGroup;

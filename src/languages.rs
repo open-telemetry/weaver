@@ -5,7 +5,7 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use weaver_logger::Logger;
+use weaver_common::Logger;
 
 /// Parameters for the `languages` command
 #[derive(Parser)]
