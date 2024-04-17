@@ -5,8 +5,8 @@
 use clap::Parser;
 
 use registry::semconv_registry;
-use weaver_logger::quiet::QuietLogger;
-use weaver_logger::{ConsoleLogger, Logger};
+use weaver_common::quiet::QuietLogger;
+use weaver_common::{ConsoleLogger, Logger};
 
 use crate::cli::{Cli, Commands};
 #[cfg(feature = "experimental")]
@@ -15,7 +15,6 @@ use crate::gen_client::command_gen_client;
 use crate::resolve::command_resolve;
 
 mod cli;
-pub(crate) mod error;
 #[cfg(feature = "experimental")]
 mod gen_client;
 #[cfg(feature = "experimental")]

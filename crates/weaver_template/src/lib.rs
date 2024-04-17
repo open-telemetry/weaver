@@ -96,11 +96,11 @@ impl Default for GeneratorConfig {
 mod tests {
     use super::*;
     use crate::sdkgen::ClientSdkGenerator;
-    use weaver_logger::Logger;
+    use weaver_common::Logger;
 
     #[test]
     fn test_default_generator_config() {
-        let log = weaver_logger::ConsoleLogger::new(0);
+        let log = weaver_common::ConsoleLogger::new(0);
         let generator = ClientSdkGenerator::try_new("go", GeneratorConfig::default()).unwrap();
 
         generator

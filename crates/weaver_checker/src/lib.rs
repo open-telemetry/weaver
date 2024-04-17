@@ -5,9 +5,11 @@
 //! evaluate policies.
 
 use crate::violation::Violation;
+use crate::Error::CompoundError;
 use serde::Serialize;
 use serde_json::to_value;
 use std::path::Path;
+use weaver_common::error::WeaverError;
 
 pub mod violation;
 
@@ -49,6 +51,16 @@ pub enum Error {
     /// A container for multiple errors.
     #[error("{:?}", Error::format_errors(.0))]
     CompoundError(Vec<Error>),
+}
+
+impl WeaverError for Error {
+    /// Retrieves a list of error messages associated with this error.
+    fn errors(&self) -> Vec<String> {
+        match self {
+            CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
+            _ => vec![self.to_string()],
+        }
+    }
 }
 
 impl Error {

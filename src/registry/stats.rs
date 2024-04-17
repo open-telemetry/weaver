@@ -5,7 +5,7 @@
 use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs};
 use clap::Args;
 use weaver_cache::Cache;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;

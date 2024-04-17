@@ -7,12 +7,12 @@ use std::path::PathBuf;
 use clap::Args;
 
 use weaver_cache::Cache;
+use weaver_common::error::ExitIfError;
+use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
-use weaver_logger::Logger;
 use weaver_semconv::SemConvRegistry;
 
-use crate::error::ExitIfError;
 use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath};
 
 /// Parameters for the `registry generate` sub-command
@@ -83,10 +83,7 @@ pub(crate) fn command(
         &format!("registry/{}", args.target),
         GeneratorConfig::default(),
     )
-    .exit_if_error(|e| {
-        logger.error("Failed to create the template engine");
-        logger.error(&e.to_string());
-    });
+    .exit_if_error(logger.clone());
 
     let template_registry = TemplateRegistry::try_from_resolved_registry(
         schema
@@ -94,16 +91,11 @@ pub(crate) fn command(
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
     )
-    .exit_if_error(|e| {
-        logger.error("Failed to create the registry without catalog");
-        logger.error(&e.to_string());
-    });
+    .exit_if_error(logger.clone());
 
     engine
         .generate(logger.clone(), &template_registry, args.output.as_path())
-        .exit_if_error(|e| {
-            logger.error(&e.to_string());
-        });
+        .exit_if_error(logger.clone());
 
     logger.success("Artifacts generated successfully");
 }

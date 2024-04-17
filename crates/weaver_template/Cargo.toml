@@ -12,7 +12,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-weaver_logger = { path = "../weaver_logger" }
+weaver_common = { path = "../weaver_common" }
 weaver_resolver = { path = "../weaver_resolver" }
 weaver_schema = { path = "../weaver_schema" }
 weaver_cache = { path = "../weaver_cache" }

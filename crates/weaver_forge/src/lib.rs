@@ -21,7 +21,7 @@ use error::Error::{
     ContextSerializationFailed, InvalidTemplateDir, InvalidTemplateFile, TargetNotSupported,
     TemplateEvaluationFailed, WriteGeneratedCodeFailed,
 };
-use weaver_logger::Logger;
+use weaver_common::Logger;
 
 use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
 use crate::debug::error_summary;
@@ -464,8 +464,8 @@ mod tests {
     use walkdir::WalkDir;
 
     use crate::config::{ApplicationMode, TemplateConfig};
+    use weaver_common::TestLogger;
     use weaver_diff::diff_output;
-    use weaver_logger::TestLogger;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 

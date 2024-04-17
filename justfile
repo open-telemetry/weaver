@@ -27,7 +27,7 @@ pre-push-check:
     cargo deny check licenses
 
 pre-push: pre-push-check validate-workspace check-external-types
-    cargo depgraph --workspace-only | dot -Tsvg > docs/images/dependencies.svg
+    cargo depgraph --workspace-only --dedup-transitive-deps | dot -Tsvg > docs/images/dependencies.svg
 
 upgrade:
     cargo upgrade

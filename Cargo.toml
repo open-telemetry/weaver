@@ -28,7 +28,7 @@ rust-version = "1.76"
 [workspace.dependencies]
 serde = { version = "1.0.198", features = ["derive"] }
 serde_yaml = "0.9.32"
-serde_json = { version = "1.0.115"}
+serde_json = { version = "1.0.116"}
 thiserror = "1.0.58"
 ureq = "2.9.6"
 regex = "1.10.3"
@@ -39,7 +39,7 @@ anyhow = "1.0.81"
 
 # Features definition =========================================================
 [features]
-experimental = ["tantivy"]
+experimental = ["tantivy", "weaver_schema", "weaver_template"]
 
 # Crate definitions ===========================================================
 [[bin]]
@@ -49,13 +49,13 @@ name = "weaver"
 
 [dependencies]
 # local crates dependencies
-weaver_logger = { path = "crates/weaver_logger" }
+weaver_common = { path = "crates/weaver_common" }
 weaver_resolver = { path = "crates/weaver_resolver" }
-weaver_template = { path = "crates/weaver_template" }
+weaver_template = { path = "crates/weaver_template", optional = true }
 weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_resolved_schema = { path = "crates/weaver_resolved_schema" }
 weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
-weaver_schema = { path = "crates/weaver_schema" }
+weaver_schema = { path = "crates/weaver_schema", optional = true }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
@@ -64,7 +64,7 @@ clap = { version = "4.5.4", features = ["derive"] }
 crossterm = "0.27.0"
 ratatui = "0.26.1"
 tui-textarea = "0.4.0"
-tantivy = { version = "0.21.1", optional = true }
+tantivy = { version = "0.22.0", optional = true }
 
 # workspace dependencies
 serde.workspace = true

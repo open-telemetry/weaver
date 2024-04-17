@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-use weaver_logger::Logger;
+use weaver_common::Logger;
 use weaver_template::sdkgen::ClientSdkGenerator;
 use weaver_template::GeneratorConfig;
 

@@ -5,7 +5,7 @@
 use crate::error::Error;
 use crate::error::Error::{CompoundError, TemplateEvaluationFailed};
 use indexmap::IndexMap;
-use weaver_logger::Logger;
+use weaver_common::Logger;
 
 /// Return a nice summary of the error.
 pub(crate) fn error_summary(error: minijinja::Error) -> String {
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_print_dedup_errors() {
-        let logger = weaver_logger::TestLogger::new();
+        let logger = weaver_common::TestLogger::new();
         let error = CompoundError(vec![
             TargetNotSupported {
                 // <-- These 3 errors are deduplicated

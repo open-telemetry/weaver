@@ -7,4 +7,5 @@ allowed_external_types = [
     "weaver_semconv::path::RegistryPath",
     "weaver_resolver::Error",
     "weaver_cache::Cache",
+    "weaver_common::error::WeaverError"
 ]
