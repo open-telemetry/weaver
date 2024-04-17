@@ -282,20 +282,21 @@ mod tests {
     #[test]
     fn test_http_semconv() -> Result<(), Error> {
         let lookup = ResolvedSemconvRegistry::try_from_path("data/**/*.yaml")?;
-        let attribute_registry_url = "../attributes-registry";
+        let attribute_registry_url = "/docs/attributes-registry";
         // Check our test files.
-        force_print_error(update_markdown(
+        for test in [
             "data/http-span-full-attribute-table.md",
-            &lookup,
-            true,
-            Some(attribute_registry_url),
-        ));
-        force_print_error(update_markdown(
             "data/http-metric-semconv.md",
-            &lookup,
-            true,
-            Some(attribute_registry_url),
-        ));
+            "data/user-agent.md",
+        ] {
+            println!("--- Running test: {test} ---");
+            force_print_error(update_markdown(
+                test,
+                &lookup,
+                true,
+                Some(attribute_registry_url),
+            ));
+        }
         Ok(())
     }
 

@@ -142,7 +142,13 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_registry_link<T: Write>(&self, out: &mut T, prefix: &str) -> Result<(), Error> {
-        let reg_name = self.attribute.name.split('.').next().unwrap_or("");
+        let reg_name = self
+            .attribute
+            .name
+            .split('.')
+            .next()
+            .unwrap_or("")
+            .replace('_', "-");
         // TODO - We should try to link to the name itself, instead
         // of just the correct group.
         Ok(write!(out, "{prefix}/{reg_name}.md")?)
@@ -191,6 +197,9 @@ impl<'a> AttributeView<'a> {
                 write!(out, " | ")?;
                 if let Some(v) = m.brief.as_ref() {
                     write!(out, "{}", v.trim())?;
+                } else {
+                    // Use the value as the description if missing a brief.
+                    write!(out, "{}", m.value)?;
                 }
                 // Stability.
                 write!(out, " | ")?;
