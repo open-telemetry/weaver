@@ -7,9 +7,9 @@ use std::path::PathBuf;
 use clap::Args;
 
 use weaver_cache::Cache;
+use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
-use weaver_common::Logger;
 use weaver_semconv::SemConvRegistry;
 
 use crate::error::ExitIfError;

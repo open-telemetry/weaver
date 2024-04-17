@@ -463,8 +463,8 @@ mod tests {
 
     use walkdir::WalkDir;
 
-    use weaver_diff::diff_output;
     use weaver_common::TestLogger;
+    use weaver_diff::diff_output;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
