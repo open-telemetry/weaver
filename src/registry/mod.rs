@@ -7,11 +7,11 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::fmt::Display;
 use std::str::FromStr;
 
-use crate::error::ExitIfError;
 use check::RegistryCheckArgs;
 use std::path::PathBuf;
 use weaver_cache::Cache;
 use weaver_checker::Engine;
+use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::{handle_errors, Error, SchemaResolver};
@@ -161,9 +161,7 @@ pub(crate) fn load_semconv_specs(
 ) -> Vec<(String, SemConvSpec)> {
     let registry_path = semconv_registry_path_from(registry, path);
     let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_path, cache).exit_if_error(|e| {
-            e.log(log.clone());
-        });
+        SchemaResolver::load_semconv_specs(&registry_path, cache).exit_if_error(log.clone());
     log.success(&format!(
         "SemConv registry loaded ({} files)",
         semconv_specs.len()
@@ -233,16 +231,9 @@ fn check_policies(
     if !before_resolution_policies.is_empty() {
         let mut engine = Engine::new();
         for policy in before_resolution_policies {
-            engine.add_policy(policy).exit_if_error(|e| {
-                logger.error(&format!(
-                    "Failed to load policy file `{}`, error: {e}",
-                    policy.display()
-                ));
-            });
+            engine.add_policy(policy).exit_if_error(logger.clone());
         }
-        check_policy(&engine, semconv_specs).exit_if_error(|e| {
-            e.log(logger.clone());
-        });
+        check_policy(&engine, semconv_specs).exit_if_error(logger.clone());
         logger.success("Policies checked");
     }
 }
@@ -260,10 +251,7 @@ pub(crate) fn resolve_semconv_specs(
     logger: impl Logger + Sync + Clone,
 ) -> ResolvedTelemetrySchema {
     let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(registry)
-        .exit_if_error(|e| {
-            logger.error("Failed to resolve the semantic convention registry");
-            e.log(logger.clone());
-        });
+        .exit_if_error(logger.clone());
 
     logger.success("SemConv registry resolved");
     resolved_schema

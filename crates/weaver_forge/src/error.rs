@@ -4,6 +4,7 @@
 
 use crate::error::Error::CompoundError;
 use std::path::PathBuf;
+use weaver_common::error::WeaverError;
 use weaver_resolved_schema::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
@@ -123,6 +124,16 @@ pub enum Error {
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
+}
+
+impl WeaverError for Error {
+    /// Retrieves a list of error messages associated with this error.
+    fn errors(&self) -> Vec<String> {
+        match self {
+            CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
+            _ => vec![self.to_string()],
+        }
+    }
 }
 
 /// Handles a list of errors and returns a compound error if the list is not

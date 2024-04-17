@@ -3,10 +3,10 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::error::ExitIfError;
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use clap::Args;
 use weaver_cache::Cache;
+use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_semconv_gen::{update_markdown, ResolvedSemconvRegistry};
 
@@ -55,10 +55,7 @@ pub(crate) fn command(
         semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
     )
-    .exit_if_error(|e| {
-        log.error("Failed to resolve the semantic convention registry");
-        log.error(&e.to_string());
-    });
+    .exit_if_error(log.clone());
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"

@@ -7,6 +7,7 @@
 use std::fs;
 
 use weaver_cache::Cache;
+use weaver_common::error::WeaverError;
 use weaver_diff::diff_output;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
@@ -75,6 +76,16 @@ pub enum Error {
     /// Errors from using weaver_resolver.
     #[error(transparent)]
     ResolverError(#[from] weaver_resolver::Error),
+}
+
+impl WeaverError for Error {
+    /// Retrieves a list of error messages associated with this error.
+    fn errors(&self) -> Vec<String> {
+        // Note: If the CompoundError pattern is implemented for this crate
+        // the following must be updated to return the errors of the compound
+        // error.
+        vec![self.to_string()]
+    }
 }
 
 // TODO - this is based on https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/src/opentelemetry/semconv/templating/markdown/__init__.py#L503

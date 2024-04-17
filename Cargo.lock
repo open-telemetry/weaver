@@ -4364,6 +4364,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "thiserror",
+ "weaver_common",
 ]
 
 [[package]]
@@ -4472,6 +4473,7 @@ dependencies = [
  "nom",
  "thiserror",
  "weaver_cache",
+ "weaver_common",
  "weaver_diff",
  "weaver_resolved_schema",
  "weaver_resolver",

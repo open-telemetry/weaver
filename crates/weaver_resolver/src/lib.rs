@@ -14,6 +14,7 @@ use walkdir::DirEntry;
 
 use weaver_cache::Cache;
 use weaver_checker::violation::Violation;
+use weaver_common::error::WeaverError;
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
@@ -169,6 +170,16 @@ pub enum Error {
     /// A container for multiple errors.
     #[error("{:?}", Error::format_errors(.0))]
     CompoundError(Vec<Error>),
+}
+
+impl WeaverError for Error {
+    /// Returns a list of human-readable error messages.
+    fn errors(&self) -> Vec<String> {
+        match self {
+            Error::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
+            _ => vec![self.to_string()],
+        }
+    }
 }
 
 /// Handles a list of errors and returns a compound error if the list is not
