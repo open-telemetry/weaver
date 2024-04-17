@@ -4,5 +4,6 @@
 # the public API. Ideally this can have a few exceptions as possible.
 allowed_external_types = [
     "serde::ser::Serialize",
-    "serde::de::Deserialize"
+    "serde::de::Deserialize",
+    "weaver_common::error::WeaverError"
 ]
