@@ -186,8 +186,7 @@ impl TemplateEngine {
             .filter(|dir_entry| dir_entry.path().is_file())
             .collect();
 
-        let config = TargetConfig::try_new(&self.path)?;
-        let tmpl_matcher = config.template_matcher()?;
+        let tmpl_matcher = self.target_config.template_matcher()?;
 
         // Create a read-only context for the filter evaluations
         let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
@@ -355,19 +354,19 @@ impl TemplateEngine {
             "field_name",
             case_converter(self.target_config.field_name.clone()),
         );
-        env.add_filter("lowercase", case_converter(CaseConvention::LowerCase));
-        env.add_filter("UPPERCASE", case_converter(CaseConvention::UpperCase));
-        env.add_filter("TitleCase", case_converter(CaseConvention::TitleCase));
-        env.add_filter("PascalCase", case_converter(CaseConvention::PascalCase));
-        env.add_filter("camelCase", case_converter(CaseConvention::CamelCase));
+        env.add_filter("lower_case", case_converter(CaseConvention::LowerCase));
+        env.add_filter("upper_case", case_converter(CaseConvention::UpperCase));
+        env.add_filter("title_case", case_converter(CaseConvention::TitleCase));
+        env.add_filter("pascal_case", case_converter(CaseConvention::PascalCase));
+        env.add_filter("camel_case", case_converter(CaseConvention::CamelCase));
         env.add_filter("snake_case", case_converter(CaseConvention::SnakeCase));
         env.add_filter(
-            "SCREAMING_SNAKE_CASE",
+            "screaming_snake_case",
             case_converter(CaseConvention::ScreamingSnakeCase),
         );
-        env.add_filter("kebab-case", case_converter(CaseConvention::KebabCase));
+        env.add_filter("kebab_case", case_converter(CaseConvention::KebabCase));
         env.add_filter(
-            "SCREAMING-KEBAB-CASE",
+            "screaming_kebab_case",
             case_converter(CaseConvention::ScreamingKebabCase),
         );
 
@@ -457,18 +456,21 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
+    use globset::Glob;
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;
 
     use walkdir::WalkDir;
 
+    use crate::config::{ApplicationMode, TemplateConfig};
     use weaver_common::TestLogger;
     use weaver_diff::diff_output;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::SemConvRegistry;
 
     use crate::debug::print_dedup_errors;
+    use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
 
     #[test]
@@ -486,8 +488,8 @@ mod tests {
                 case: super::CaseConvention::LowerCase,
             },
             TestCase {
-                input: "This is a TEST",
-                expected: "this is a test",
+                input: "This is a K8S TEST",
+                expected: "this is a k8s test",
                 case: super::CaseConvention::LowerCase,
             },
             TestCase {
@@ -506,8 +508,8 @@ mod tests {
                 case: super::CaseConvention::TitleCase,
             },
             TestCase {
-                input: "This is a TEST",
-                expected: "This Is A Test",
+                input: "This is a k8s TEST",
+                expected: "This Is A K8s Test",
                 case: super::CaseConvention::TitleCase,
             },
             TestCase {
@@ -548,6 +550,21 @@ mod tests {
             TestCase {
                 input: "This is a test",
                 expected: "this-is-a-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "This is a k8s test",
+                expected: "this-is-a-k8s-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "This is a K8S test",
+                expected: "this-is-a-k8s-test",
+                case: super::CaseConvention::KebabCase,
+            },
+            TestCase {
+                input: "This is 2 K8S test",
+                expected: "this-is-2-k8s-test",
                 case: super::CaseConvention::KebabCase,
             },
             TestCase {
@@ -581,8 +598,17 @@ mod tests {
     #[test]
     fn test() {
         let logger = TestLogger::default();
-        let engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
+        let mut engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
             .expect("Failed to create template engine");
+
+        // Add a template configuration for converter.md on top
+        // of the default template configuration. This is useful
+        // for test coverage purposes.
+        engine.target_config.templates.push(TemplateConfig {
+            pattern: Glob::new("converter.md").unwrap(),
+            filter: Filter::try_new(".").unwrap(),
+            application_mode: ApplicationMode::Single,
+        });
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path(registry_id, "data/*.yaml")
