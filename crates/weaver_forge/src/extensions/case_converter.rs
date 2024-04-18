@@ -4,6 +4,8 @@
 
 use crate::config::CaseConvention;
 
+/// Converts input string to the specified case convention.
+#[must_use]
 pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String {
     match case_convention {
         CaseConvention::LowerCase => lower_case,

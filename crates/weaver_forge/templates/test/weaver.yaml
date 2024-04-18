@@ -13,3 +13,5 @@ type_mapping:
   "double[]": "[]double"
   "boolean[]": "[]bool"
   "string[]": "[]string"
+
+acronyms: ["iOS", "API", "URL"]

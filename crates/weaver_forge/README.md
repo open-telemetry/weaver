@@ -109,6 +109,10 @@ template_syntax:
   comment_start: "{#"
   comment_end: "#}"
 
+# Please uncomment the following section to specify a list of acronyms that
+# will be interpreted by the acronym filter. This is optional.
+# acronyms: ["iOS", "HTTP", "API", "SDK", "CLI", "URL", "JSON", "XML", "HTML"]
+
 # Please uncomment the following templates to override the default template
 # mapping. Each template mapping specifies a jaq filter (compatible with jq)
 # to apply to every file matching the pattern. The application_mode specifies
@@ -206,6 +210,12 @@ The following filters are available:
 - `screaming_snake_case`: Converts a string to SCREAMING_SNAKE_CASE.
 - `kebab_case`: Converts a string to kebab-case.
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
+- `acronym`: Replaces acronyms in the input string with the full name defined
+in the `acronyms` section of the `weaver.yaml` configuration file.
+- `split_ids`: Splits a string by '.' creating a list of nested ids.
+- `flatten`: Converts a List of Lists into a single list with all elements.
+e.g. [[a,b],[c]] => [a,b,c]
+
 
 > Note 1: This project uses the [convert_case](https://crates.io/crates/convert_case)
 > crate to convert strings to different cases. 
