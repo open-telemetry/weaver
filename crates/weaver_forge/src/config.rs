@@ -71,6 +71,11 @@ pub struct TargetConfig {
     /// Configuration for the templates.
     #[serde(default = "default_templates")]
     pub templates: Vec<TemplateConfig>,
+
+    /// List of acronyms to be considered as unmodifiable words in the case
+    /// conversion.
+    #[serde(default)]
+    pub acronyms: Vec<String>,
 }
 
 fn default_templates() -> Vec<TemplateConfig> {

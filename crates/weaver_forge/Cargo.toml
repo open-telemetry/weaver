@@ -26,6 +26,7 @@ jaq-std = "1.2.1"
 jaq-interpret = "1.2.1"
 jaq-parse = "1.0.2"
 indexmap = "2.2.6"
+regex = "1.10.4"
 
 thiserror.workspace = true
 serde.workspace = true
