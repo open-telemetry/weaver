@@ -4473,6 +4473,7 @@ dependencies = [
  "weaver_cache",
  "weaver_checker",
  "weaver_common",
+ "weaver_diff",
  "weaver_resolved_schema",
  "weaver_schema",
  "weaver_semconv",

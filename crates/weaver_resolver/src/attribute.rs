@@ -73,7 +73,6 @@ impl AttributeCatalog {
     pub fn resolve(
         &mut self,
         group_id: &str,
-        prefix: &str,
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
     ) -> Option<AttributeRef> {
@@ -144,18 +143,12 @@ impl AttributeCatalog {
                 stability,
                 deprecated,
             } => {
-                let root_attr_id = if prefix.is_empty() {
-                    id.clone()
-                } else {
-                    format!("{}.{}", prefix, id)
-                };
-
                 // Create a fully resolved attribute from an attribute spec (id),
                 // and check if it already exists in the catalog.
                 // If it does, return the reference to the existing attribute.
                 // If it does not, add it to the catalog and return a new reference.
                 let attr = attribute::Attribute {
-                    name: root_attr_id.clone(),
+                    name: id.clone(),
                     r#type: r#type.clone(),
                     brief: brief.clone().unwrap_or_default(),
                     examples: examples.clone(),
@@ -170,7 +163,7 @@ impl AttributeCatalog {
                 };
 
                 _ = self.root_attributes.insert(
-                    root_attr_id,
+                    id.to_owned(),
                     AttributeWithGroupId {
                         attribute: attr.clone(),
                         group_id: group_id.to_owned(),

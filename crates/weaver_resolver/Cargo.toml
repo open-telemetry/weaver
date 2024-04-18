@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 weaver_common = {  path = "../weaver_common" }
+weaver_diff = { path = "../weaver_diff" }
 weaver_semconv = { path = "../weaver_semconv" }
 weaver_schema = { path = "../weaver_schema" }
 weaver_version = { path = "../weaver_version" }
