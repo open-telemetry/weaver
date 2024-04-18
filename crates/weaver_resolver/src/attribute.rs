@@ -143,7 +143,6 @@ impl AttributeCatalog {
                 stability,
                 deprecated,
             } => {
-
                 // Create a fully resolved attribute from an attribute spec (id),
                 // and check if it already exists in the catalog.
                 // If it does, return the reference to the existing attribute.

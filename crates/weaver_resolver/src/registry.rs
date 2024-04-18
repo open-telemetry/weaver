@@ -70,7 +70,7 @@ pub fn resolve_semconv_registry(
     registry_url: &str,
     registry: &SemConvRegistry,
 ) -> Result<Registry, Error> {
-    let mut ureg = unresolved_registry_from_specs(registry_url, registry); 
+    let mut ureg = unresolved_registry_from_specs(registry_url, registry);
 
     resolve_prefix_on_attributes(&mut ureg)?;
 
@@ -270,7 +270,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
 
 /// This takes all attributes and ensures that their id is fully fleshed out with
 /// the group prefix before continuing resolution.
-/// 
+///
 /// This should be the *only* method that updates attribute ids.
 fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
     for unresolved_group in ureg.groups.iter_mut() {
@@ -278,7 +278,7 @@ fn resolve_prefix_on_attributes(ureg: &mut UnresolvedRegistry) -> Result<(), Err
             for attribute in unresolved_group.attributes.iter_mut() {
                 if let AttributeSpec::Id { id, .. } = &mut attribute.spec {
                     *id = format!("{}.{}", unresolved_group.group.prefix, id);
-                }    
+                }
             }
         }
     }
@@ -755,12 +755,11 @@ mod tests {
                 observed_attr_catalog, expected_attr_catalog,
                 "Observed and expected attribute catalogs don't match for `{}`.\nExpected catalog:\n{}\nObserved catalog:\n{}\nDiff from expected:\n{}",
                 test_dir, to_json(&expected_attr_catalog), to_json(&observed_attr_catalog), weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
-            );            
+            );
 
             // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
             //println!("{}", yaml);
             // println!("Observed attribute catalog:\n{}", to_json(&observed_attr_catalog));
-            
 
             // Check that the resolved registry matches the expected registry.
             let expected_registry: Registry = serde_json::from_reader(
