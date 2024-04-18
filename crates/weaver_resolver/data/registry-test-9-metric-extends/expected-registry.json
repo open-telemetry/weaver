@@ -1,0 +1,56 @@
+{
+    "registry_url": "https://127.0.0.1",
+    "groups": [
+      {
+        "id": "attributes.jvm.memory",
+        "type": "attribute_group",
+        "brief": "Describes JVM memory metric attributes.",
+        "prefix": "jvm.memory",
+        "attributes": [
+          0,
+          1
+        ],
+        "lineage": {
+          "source_file": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml"
+        }
+      },
+      {
+        "id": "metric.jvm.memory.used",
+        "type": "metric",
+        "brief": "Measure of memory used.",
+        "stability": "stable",
+        "attributes": [
+          0,
+          1
+        ],
+        "metric_name": "jvm.memory.used",
+        "instrument": "updowncounter",
+        "unit": "By",
+        "lineage": {
+          "source_file": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml",
+          "attributes": {
+            "jvm.memory.pool.name": {
+              "source_group": "attributes.jvm.memory",
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            },
+            "jvm.memory.type": {
+              "source_group": "attributes.jvm.memory",
+              "inherited_fields": [
+                "brief",
+                "examples",
+                "note",
+                "requirement_level",
+                "stability"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }

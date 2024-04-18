@@ -1,0 +1,40 @@
+groups:
+  - id: attributes.jvm.memory
+    type: attribute_group
+    brief: "Describes JVM memory metric attributes."
+    prefix: jvm.memory
+    attributes:
+      - id: type
+        stability: stable
+        type:
+          allow_custom_values: false
+          members:
+            - id: heap
+              value: 'heap'
+              brief: 'Heap memory.'
+              stability: stable
+            - id: non_heap
+              value: 'non_heap'
+              brief: 'Non-heap memory'
+              stability: stable
+        requirement_level: recommended
+        brief: The type of memory.
+        examples: ["heap", "non_heap"]
+      - id: pool.name
+        stability: stable
+        type: string
+        requirement_level: recommended
+        brief: Name of the memory pool.
+        examples: ["G1 Old Gen", "G1 Eden space", "G1 Survivor Space"]
+        note: >
+          Pool names are generally obtained via
+          [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
+
+  - id: metric.jvm.memory.used
+    type: metric
+    metric_name: jvm.memory.used
+    extends: attributes.jvm.memory
+    brief: "Measure of memory used."
+    instrument: updowncounter
+    unit: "By"
+    stability: stable
