@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn test_semconv_spec_from_str() {
+    fn test_semconv_spec_from_string() {
         // Valid spec
         let spec = r#"
         groups:
@@ -216,6 +216,19 @@ mod tests {
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).unwrap();
         assert_eq!(semconv_spec.groups.len(), 2);
+
+        // Invalid yaml
+        let spec = r#"
+        groups:
+          -
+          -
+        "#;
+        let semconv_spec = SemConvSpec::from_string(spec);
+        assert!(semconv_spec.is_err());
+        assert!(matches!(
+            semconv_spec.unwrap_err(),
+            InvalidSemConvSpec { .. }
+        ));
 
         // Invalid spec
         let spec = r#"
@@ -269,6 +282,22 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_url() {
+        // Existing URL. The URL is a raw file from the semantic conventions repository.
+        // This file is expected to be available.
+        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
+        let semconv_spec = SemConvSpec::from_url(semconv_url).unwrap();
+        assert!(!semconv_spec.groups.is_empty());
+
+        // Invalid semconv file
+        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/README.md";
+        let semconv_spec = SemConvSpec::from_url(semconv_url);
+        assert!(semconv_spec.is_err());
+        assert!(matches!(
+            semconv_spec.unwrap_err(),
+            InvalidSemConvSpec { .. }
+        ));
+
+        // Non-existing URL
         let semconv_url = "http://unknown.com/unknown-semconv.yaml";
         let semconv_spec = SemConvSpec::from_url(semconv_url);
         assert!(semconv_spec.is_err());
@@ -284,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn test_semconv_spec_with_provenance_from_str() {
+    fn test_semconv_spec_with_provenance_from_string() {
         let provenance = "<str>";
         let spec = r#"
         groups:
