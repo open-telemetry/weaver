@@ -456,3 +456,56 @@ impl Examples {
         Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_value_spec_display() {
+        assert_eq!(format!("{}", ValueSpec::Int(42)), "42");
+        assert_eq!(format!("{}", ValueSpec::Double(OrderedFloat(42.0))), "42");
+        assert_eq!(format!("{}", ValueSpec::String("42".to_string())), "42");
+    }
+
+    #[test]
+    fn test_requirement_level_spec_display() {
+        assert_eq!(
+            format!("{}", RequirementLevel::Basic(BasicRequirementLevelSpec::Required)),
+            "required"
+        );
+        assert_eq!(
+            format!("{}", RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)),
+            "recommended"
+        );
+        assert_eq!(
+            format!("{}", RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)),
+            "opt-in"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::ConditionallyRequired {
+                    text: "condition".to_string()
+                }
+            ),
+            "conditionally required (condition: condition)"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::Recommended {
+                    text: "recommendation".to_string()
+                }
+            ),
+            "recommended (recommendation)"
+        );
+    }
+
+    #[test]
+    fn test_basic_requirement_level_spec_display() {
+        assert_eq!(format!("{}", BasicRequirementLevelSpec::Required), "required");
+        assert_eq!(format!("{}", BasicRequirementLevelSpec::Recommended), "recommended");
+        assert_eq!(format!("{}", BasicRequirementLevelSpec::OptIn), "opt-in");
+    }
+}

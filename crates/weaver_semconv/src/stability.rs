@@ -27,3 +27,15 @@ impl Display for Stability {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_display() {
+        assert_eq!(Stability::Deprecated.to_string(), "deprecated");
+        assert_eq!(Stability::Experimental.to_string(), "experimental");
+        assert_eq!(Stability::Stable.to_string(), "stable");
+    }
+}
