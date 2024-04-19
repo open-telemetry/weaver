@@ -9,7 +9,7 @@ use weaver_schema::attribute::to_schema_attributes;
 use weaver_schema::metric_group::Metric;
 use weaver_schema::schema_spec::SchemaSpec;
 use weaver_schema::univariate_metric::UnivariateMetric;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 use weaver_version::VersionChanges;
 
 /// Resolves metrics and their attributes.

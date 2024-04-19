@@ -7,7 +7,7 @@ use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
 use weaver_common::Logger;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]

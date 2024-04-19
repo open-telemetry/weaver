@@ -37,7 +37,7 @@ use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
 use weaver_schema::attribute::Attribute;
 use weaver_schema::TelemetrySchema;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 
 use crate::search::schema::{attribute, metric, metric_group, resource, span};
 

@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
 pub enum RegistryPath {
-    /// A local path to the semantic convention registry.
+    /// A local path pattern to the semantic convention registry.
     Local {
-        /// The local path to the semantic convention directory.
-        local_path: String,
+        /// A local path pattern to the semantic convention files.
+        path_pattern: String,
     },
     /// A git URL to the semantic convention registry.
     GitUrl {

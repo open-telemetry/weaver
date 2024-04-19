@@ -5,7 +5,7 @@
 use crate::attribute::resolve_attributes;
 use crate::Error;
 use weaver_schema::schema_spec::SchemaSpec;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 use weaver_version::VersionChanges;
 
 /// Resolves resource spans in the given schema.

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use weaver_semconv::path::RegistryPath;
 
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 use weaver_version::Versions;
 
 use crate::event::Event;

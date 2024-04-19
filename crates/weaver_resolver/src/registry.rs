@@ -10,7 +10,8 @@ use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::{GroupSpecWithProvenance, SemConvRegistry};
+use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::GroupSpecWithProvenance;
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
@@ -689,7 +690,7 @@ mod tests {
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::{Constraint, Registry};
     use weaver_semconv::group::GroupType;
-    use weaver_semconv::SemConvRegistry;
+    use weaver_semconv::registry::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
     use crate::registry::{check_group_any_of_constraints, resolve_semconv_registry};
@@ -730,7 +731,7 @@ mod tests {
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
-            let sc_specs = SemConvRegistry::try_from_path(
+            let sc_specs = SemConvRegistry::try_from_path_pattern(
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
             )
@@ -919,12 +920,14 @@ groups:
     #[test]
     fn test_api_usage() -> Result<(), Box<dyn Error>> {
         let registry_id = "local";
-        let registry_dir = "data/registry-test-7-spans/registry/*.yaml";
 
         // Load a semantic convention registry from a local directory.
         // Note: A method is also available to load a registry from a git
         // repository.
-        let mut semconv_registry = SemConvRegistry::try_from_path(registry_id, registry_dir)?;
+        let mut semconv_registry = SemConvRegistry::try_from_path_pattern(
+            registry_id,
+            "data/registry-test-7-spans/registry/*.yaml",
+        )?;
 
         // Resolve the semantic convention registry.
         let resolved_schema =

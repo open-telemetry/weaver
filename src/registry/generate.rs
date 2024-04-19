@@ -11,7 +11,7 @@ use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath};
 

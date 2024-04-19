@@ -7,6 +7,7 @@ groups:
         type: string
         brief: Server port
         stability: stable
+        examples: [ 80, 8080, 443 ]
 
   - id: registry.xyz
     type: attribute_group
@@ -15,12 +16,15 @@ groups:
       - id: network.protocol.name
         type: string
         brief: Network protocol name (registry)
+        examples: [ 'http', 'spdy' ]
       - id: network.protocol.version
         type: string
         brief: Network protocol version (registry)
+        examples: [ '1.0', '2.0' ]
       - id: network.type
         type: string
         brief: Network type (registry)
+        examples: [ 'ipv4', 'ipv6' ]
 
   - id: intermediate.level
     type: attribute_group

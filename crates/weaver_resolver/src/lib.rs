@@ -21,7 +21,9 @@ use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_schema::TelemetrySchema;
 use weaver_semconv::path::RegistryPath;
-use weaver_semconv::{ResolverConfig, SemConvRegistry, SemConvSpec};
+use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::semconv::SemConvSpec;
+use weaver_semconv::ResolverConfig;
 use weaver_version::VersionChanges;
 
 use crate::attribute::AttributeCatalog;
@@ -67,7 +69,7 @@ pub enum Error {
     },
 
     /// A semantic convention error.
-    #[error("Semantic convention error: {message}")]
+    #[error("{message}")]
     SemConvError {
         /// The error that occurred.
         message: String,
@@ -546,7 +548,7 @@ impl SchemaResolver {
         cache: &Cache,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         match registry_path {
-            RegistryPath::Local { local_path: path } => {
+            RegistryPath::Local { path_pattern: path } => {
                 Self::load_semconv_from_local_path(path.into(), path)
             }
             RegistryPath::GitUrl { git_url, path } => {
@@ -603,9 +605,11 @@ impl SchemaResolver {
                             return None;
                         }
 
-                        let spec = SemConvRegistry::load_sem_conv_spec_from_file(entry.path())
-                            .map_err(|e| Error::SemConvError {
-                                message: e.to_string(),
+                        let spec =
+                            SemConvRegistry::semconv_spec_from_file(entry.path()).map_err(|e| {
+                                Error::SemConvError {
+                                    message: e.to_string(),
+                                }
                             });
                         match spec {
                             Ok((path, spec)) => {

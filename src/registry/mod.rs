@@ -15,7 +15,8 @@ use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::{handle_errors, Error, SchemaResolver};
-use weaver_semconv::{SemConvRegistry, SemConvSpec};
+use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::semconv::SemConvSpec;
 
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::resolve::RegistryResolveArgs;
@@ -136,7 +137,7 @@ pub(crate) fn semconv_registry_path_from(
 ) -> weaver_semconv::path::RegistryPath {
     match registry {
         RegistryPath::Local(path) => weaver_semconv::path::RegistryPath::Local {
-            local_path: path.clone(),
+            path_pattern: path.clone(),
         },
         RegistryPath::Url(url) => weaver_semconv::path::RegistryPath::GitUrl {
             git_url: url.clone(),

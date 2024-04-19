@@ -5,7 +5,6 @@
 allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
+    "weaver_common::error::WeaverError",
     "ordered_float::OrderedFloat",      # ToDo: Remove this dependency before version 1.0
-    "validator::traits::Validate",      # ToDo: Remove this dependency before version 1.0
-    "validator::traits::ValidateArgs",  # ToDo: Remove this dependency before version 1.0
 ]

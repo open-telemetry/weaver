@@ -4,19 +4,19 @@
 
 //! A group specification.
 
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use validator::{Validate, ValidationError};
+
+use serde::{Deserialize, Serialize};
 
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
+use crate::{handle_errors, Error};
 
 /// Group Spec contain the list of semantic conventions and it is the root node
 /// of each yaml file.
-#[derive(Serialize, Deserialize, Debug, Validate, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-#[validate(schema(function = "validate_group"))]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
@@ -84,119 +84,165 @@ pub struct GroupSpec {
     pub name: Option<String>,
 }
 
-/// Validation logic for the group.
-fn validate_group(group: &GroupSpec) -> Result<(), ValidationError> {
-    // If deprecated is present and stability differs from deprecated, this
-    // will result in an error.
-    if group.deprecated.is_some()
-        && group.stability.is_some()
-        && group.stability != Some(Stability::Deprecated)
-    {
-        return Err(ValidationError::new(
-            "This group contains a deprecated field but the stability is not set to deprecated.",
-        ));
-    }
+impl GroupSpec {
+    /// Validation logic for the group.
+    pub(crate) fn validate(&self, path_or_url: &str) -> Result<(), Error> {
+        let mut errors = vec![];
 
-    // Fields span_kind and events are only valid if type is span (the default).
-    if group.r#type != GroupType::Span {
-        if group.span_kind.is_some() {
-            return Err(ValidationError::new(
-                "This group contains a span_kind field but the type is not set to span.",
-            ));
-        }
-        if !group.events.is_empty() {
-            return Err(ValidationError::new(
-                "This group contains an events field but the type is not set to span.",
-            ));
-        }
-    }
-
-    // Field name is required if prefix is empty and if type is event.
-    if group.r#type == GroupType::Event && group.prefix.is_empty() && group.name.is_none() {
-        return Err(ValidationError::new(
-            "This group contains an event type but the prefix is empty and the name is not set.",
-        ));
-    }
-
-    // Fields metric_name, instrument and unit are required if type is metric.
-    if group.r#type == GroupType::Metric {
-        if group.metric_name.is_none() {
-            return Err(ValidationError::new(
-                "This group contains a metric type but the metric_name is not set.",
-            ));
-        }
-        if group.instrument.is_none() {
-            return Err(ValidationError::new(
-                "This group contains a metric type but the instrument is not set.",
-            ));
-        }
-        if group.unit.is_none() {
-            return Err(ValidationError::new(
-                "This group contains a metric type but the unit is not set.",
-            ));
-        }
-    }
-
-    // Validates the attributes.
-    for attribute in &group.attributes {
         // If deprecated is present and stability differs from deprecated, this
         // will result in an error.
-        match attribute {
-            AttributeSpec::Id {
-                brief,
-                stability,
-                deprecated,
-                ..
-            } => {
-                if brief.is_none() && deprecated.is_none() {
-                    return Err(ValidationError::new(
-                        "This attribute is not deprecated and does not contain a brief field.",
-                    ));
-                }
-                if deprecated.is_some()
-                    && stability.is_some()
-                    && *stability != Some(Stability::Deprecated)
-                {
-                    return Err(ValidationError::new("This attribute contains a deprecated field but the stability is not set to deprecated."));
-                }
-            }
-            AttributeSpec::Ref {
-                stability,
-                deprecated,
-                ..
-            } => {
-                if deprecated.is_some()
-                    && stability.is_some()
-                    && *stability != Some(Stability::Deprecated)
-                {
-                    return Err(ValidationError::new("This attribute contains a deprecated field but the stability is not set to deprecated."));
-                }
-            }
-        }
-
-        // Examples are required only for string and string array attributes.
-        if let AttributeSpec::Id {
-            r#type, examples, ..
-        } = attribute
+        if self.deprecated.is_some()
+            && self.stability.is_some()
+            && self.stability != Some(Stability::Deprecated)
         {
-            if examples.is_some() {
-                continue;
-            }
+            errors.push(Error::InvalidGroup {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
+            });
+        }
 
-            if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String) {
-                return Err(ValidationError::new(
-                    "This attribute is a string but it does not contain any examples.",
-                ));
+        // Fields span_kind and events are only valid if type is span (the default).
+        if self.r#type != GroupType::Span {
+            if self.span_kind.is_some() {
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains a span_kind field but the type is not set to span."
+                        .to_owned(),
+                });
             }
-            if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings) {
-                return Err(ValidationError::new(
-                    "This attribute is a string array but it does not contain any examples.",
-                ));
+            if !self.events.is_empty() {
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains an events field but the type is not set to span."
+                        .to_owned(),
+                });
             }
         }
-    }
 
-    Ok(())
+        // Field name is required if prefix is empty and if type is event.
+        if self.r#type == GroupType::Event && self.prefix.is_empty() && self.name.is_none() {
+            errors.push(Error::InvalidGroup {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group contains an event type but the prefix is empty and the name is not set.".to_owned(),
+            });
+        }
+
+        // Fields metric_name, instrument and unit are required if type is metric.
+        if self.r#type == GroupType::Metric {
+            if self.metric_name.is_none() {
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains a metric type but the metric_name is not set."
+                        .to_owned(),
+                });
+            }
+            if self.instrument.is_none() {
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains a metric type but the instrument is not set."
+                        .to_owned(),
+                });
+            }
+            if self.unit.is_none() {
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains a metric type but the unit is not set.".to_owned(),
+                });
+            }
+        }
+
+        // Validates the attributes.
+        for attribute in &self.attributes {
+            // If deprecated is present and stability differs from deprecated, this
+            // will result in an error.
+            match attribute {
+                AttributeSpec::Id {
+                    brief,
+                    stability,
+                    deprecated,
+                    ..
+                } => {
+                    if brief.is_none() && deprecated.is_none() {
+                        errors.push(Error::InvalidAttribute {
+                            path_or_url: path_or_url.to_owned(),
+                            group_id: self.id.clone(),
+                            attribute_id: attribute.id(),
+                            error: "This attribute is not deprecated and does not contain a brief field.".to_owned(),
+                        });
+                    }
+                    if deprecated.is_some()
+                        && stability.is_some()
+                        && *stability == Some(Stability::Stable)
+                    {
+                        errors.push(Error::InvalidAttribute {
+                            path_or_url: path_or_url.to_owned(),
+                            group_id: self.id.clone(),
+                            attribute_id: attribute.id(),
+                            error: "This attribute contains a deprecated field but the stability is set to stable.".to_owned(),
+                        });
+                    }
+                }
+                AttributeSpec::Ref {
+                    stability,
+                    deprecated,
+                    ..
+                } => {
+                    if deprecated.is_some()
+                        && stability.is_some()
+                        && *stability == Some(Stability::Stable)
+                    {
+                        errors.push(Error::InvalidAttribute {
+                            path_or_url: path_or_url.to_owned(),
+                            group_id: self.id.clone(),
+                            attribute_id: attribute.id(),
+                            error: "This attribute contains a deprecated field but the stability is set to stable.".to_owned(),
+                        });
+                    }
+                }
+            }
+
+            // Examples are required only for string and string array attributes.
+            if let AttributeSpec::Id {
+                r#type, examples, ..
+            } = attribute
+            {
+                if examples.is_some() {
+                    continue;
+                }
+
+                if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String) {
+                    errors.push(Error::InvalidAttribute {
+                        path_or_url: path_or_url.to_owned(),
+                        group_id: self.id.clone(),
+                        attribute_id: attribute.id(),
+                        error: "This attribute is a string but it does not contain any examples."
+                            .to_owned(),
+                    });
+                }
+                if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings) {
+                    errors.push(Error::InvalidAttribute {
+                        path_or_url: path_or_url.to_owned(),
+                        group_id: self.id.clone(),
+                        attribute_id: attribute.id(),
+                        error:
+                            "This attribute is a string array but it does not contain any examples."
+                                .to_owned(),
+                    });
+                }
+            }
+        }
+
+        handle_errors(errors)?;
+
+        Ok(())
+    }
 }
 
 /// The different types of groups (specification).
@@ -291,8 +337,9 @@ impl Display for InstrumentSpec {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::attribute::Examples;
+
+    use super::*;
 
     #[test]
     fn test_validate_group() {
@@ -325,6 +372,6 @@ mod tests {
             unit: None,
             name: None,
         };
-        assert!(validate_group(&group).is_ok());
+        assert!(group.validate("<test>").is_ok());
     }
 }

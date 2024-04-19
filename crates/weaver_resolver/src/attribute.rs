@@ -13,7 +13,7 @@ use weaver_schema::attribute::Attribute;
 use weaver_schema::tags::Tags;
 use weaver_semconv::attribute::{AttributeSpec, ValueSpec};
 use weaver_semconv::group::GroupType;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 use weaver_version::VersionAttributeChanges;
 
 use crate::Error;

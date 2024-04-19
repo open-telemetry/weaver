@@ -10,7 +10,7 @@ use serde::Serialize;
 use weaver_cache::Cache;
 use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs};
 
