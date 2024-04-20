@@ -325,7 +325,7 @@ mod tests {
 
         let mut catalog = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = catalog.load_from_file(yaml);
+            let result = catalog.add_semconv_spec_from_file(yaml);
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
 
@@ -373,7 +373,7 @@ mod tests {
 
         let mut catalog = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = catalog.load_from_file(yaml);
+            let result = catalog.add_semconv_spec_from_file(yaml);
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
 

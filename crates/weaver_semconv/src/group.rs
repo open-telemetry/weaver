@@ -429,7 +429,7 @@ mod tests {
 
         // Field name is required if prefix is empty and if type is event.
         group.r#type = GroupType::Event;
-        group.prefix = "".to_owned();
+        "".clone_into(&mut group.prefix);
         group.name = None;
         let result = group.validate("<test>");
         assert_eq!(Err(
@@ -521,7 +521,7 @@ mod tests {
 
         // Deprecated ref attribute can't have stability set to stable.
         group.attributes = vec![AttributeSpec::Ref {
-            r#ref: "test".to_string(),
+            r#ref: "test".to_owned(),
             brief: None,
             stability: Some(Stability::Stable),
             deprecated: Some("true".to_owned()),

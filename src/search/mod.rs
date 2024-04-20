@@ -559,7 +559,7 @@ fn summary_area<'a>(app: &'a SearchApp<'a>) -> Paragraph<'a> {
             Span::raw("Semantic convention catalog:"),
         ]),
         Line::from(vec![
-            Span::raw(format!("- {} files.", semconv_catalog.asset_count())),
+            Span::raw(format!("- {} files.", semconv_catalog.semconv_spec_count())),
         ]),
         Line::from(vec![
             Span::raw(format!("- {} attributes.", semconv_catalog.attribute_count())),

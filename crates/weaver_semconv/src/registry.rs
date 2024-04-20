@@ -21,9 +21,8 @@ pub struct SemConvRegistry {
     /// The id of the semantic convention registry.
     id: String,
 
-    /// The number of semantic convention assets added in the semantic convention registry.
-    /// A asset can be a semantic convention loaded from a file or an URL.
-    asset_count: usize,
+    /// The number of semantic convention spec added in the semantic convention registry.
+    semconv_spec_count: usize,
 
     /// A collection of semantic convention specifications loaded in the semantic convention registry.
     specs: Vec<SemConvSpecWithProvenance>,
@@ -159,18 +158,25 @@ impl SemConvRegistry {
     /// * `spec` - The semantic convention spec with provenance to add.
     fn add_semconv_spec(&mut self, spec: SemConvSpecWithProvenance) {
         self.specs.push(spec);
-        self.asset_count += 1;
+        self.semconv_spec_count += 1;
     }
 
     /// Load and add a semantic convention file to the semantic convention registry.
-    pub fn load_from_file<P: AsRef<Path> + Clone>(&mut self, path: P) -> Result<(), Error> {
+    pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
+        &mut self,
+        path: P,
+    ) -> Result<(), Error> {
         self.add_semconv_spec(SemConvSpecWithProvenance::from_file(path.clone())?);
         Ok(())
     }
 
     /// Load and add a semantic convention string to the semantic convention registry.
-    pub fn load_from_str(&mut self, spec: &str) -> Result<(), Error> {
-        self.add_semconv_spec(SemConvSpecWithProvenance::from_string("<str>", spec)?);
+    pub fn add_semconv_spec_from_string(
+        &mut self,
+        provenance: &str,
+        spec: &str,
+    ) -> Result<(), Error> {
+        self.add_semconv_spec(SemConvSpecWithProvenance::from_string(provenance, spec)?);
         Ok(())
     }
 
@@ -184,15 +190,16 @@ impl SemConvRegistry {
     }
 
     /// Downloads and returns the semantic convention spec from an URL.
-    pub fn load_sem_conv_spec_from_url(sem_conv_url: &str) -> Result<(String, SemConvSpec), Error> {
+    pub fn semconv_spec_from_url(sem_conv_url: &str) -> Result<(String, SemConvSpec), Error> {
         let spec = SemConvSpec::from_url(sem_conv_url)?;
         Ok((sem_conv_url.to_owned(), spec))
     }
 
-    /// Returns the number of semantic convention assets added in the semantic convention registry.
+    /// Returns the number of semantic convention specs added in the semantic
+    /// convention registry.
     #[must_use]
-    pub fn asset_count(&self) -> usize {
-        self.asset_count
+    pub fn semconv_spec_count(&self) -> usize {
+        self.semconv_spec_count
     }
 
     /// Resolves all the references present in the semantic convention registry.
@@ -586,5 +593,134 @@ impl SemConvRegistry {
             attribute_count: self.all_attributes.len(),
             metric_count: self.all_metrics.len(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
+    use crate::group::{GroupSpec, GroupType};
+    use crate::registry::SemConvRegistry;
+    use crate::Error;
+
+    #[test]
+    fn try_from_path_pattern() {
+        // Test with a valid path pattern
+        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        assert_eq!(registry.id(), "test");
+        assert_eq!(registry.semconv_spec_count(), 3);
+
+        // Test with an invalid path pattern
+        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c***.yml");
+        assert!(registry.is_err());
+        assert!(matches!(
+            registry.unwrap_err(),
+            Error::InvalidRegistryPathPattern { .. }
+        ));
+    }
+
+    #[test]
+    fn test_from_semconv_specs() {
+        let semconv_specs = vec![
+            (
+                "data/c1.yaml".to_owned(),
+                super::SemConvSpec {
+                    groups: vec![GroupSpec {
+                        id: "group1".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        attributes: vec![AttributeSpec::Id {
+                            id: "attr1".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(
+                                PrimitiveOrArrayTypeSpec::Boolean,
+                            ),
+                            brief: None,
+                            examples: None,
+                            tag: None,
+                            requirement_level: Default::default(),
+                            sampling_relevant: None,
+                            note: "note".to_owned(),
+                            stability: None,
+                            deprecated: None,
+                        }],
+                        constraints: vec![],
+                        span_kind: None,
+                        prefix: "".to_owned(),
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        brief: "brief".to_owned(),
+                        note: "note".to_owned(),
+                        extends: None,
+                        stability: None,
+                        deprecated: None,
+                        events: vec![],
+                        name: None,
+                    }],
+                },
+            ),
+            (
+                "data/c2.yaml".to_owned(),
+                super::SemConvSpec {
+                    groups: vec![GroupSpec {
+                        id: "group2".to_owned(),
+                        r#type: GroupType::AttributeGroup,
+                        attributes: vec![],
+                        constraints: vec![],
+                        span_kind: None,
+                        prefix: "".to_owned(),
+                        metric_name: None,
+                        instrument: None,
+                        unit: None,
+                        brief: "brief".to_owned(),
+                        note: "note".to_owned(),
+                        extends: None,
+                        stability: None,
+                        deprecated: None,
+                        events: vec![],
+                        name: None,
+                    }],
+                },
+            ),
+        ];
+        let registry = SemConvRegistry::from_semconv_specs("test", semconv_specs);
+        assert_eq!(registry.id(), "test");
+        assert_eq!(registry.semconv_spec_count(), 2);
+    }
+
+    #[test]
+    fn test_new_semconv_registry() {
+        let registry = SemConvRegistry::new("test");
+        assert_eq!(registry.id(), "test");
+        assert_eq!(registry.semconv_spec_count(), 0);
+    }
+
+    #[test]
+    fn test_semconv_from_path_pattern() {
+        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        assert_eq!(registry.id(), "test");
+        assert_eq!(registry.semconv_spec_count(), 3);
+
+        registry
+            .add_semconv_spec_from_file("data/database.yaml")
+            .unwrap();
+        assert_eq!(registry.semconv_spec_count(), 4);
+    }
+
+    #[test]
+    fn test_stats() {
+        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let stats = registry.stats();
+        assert_eq!(stats.file_count, 3);
+        assert_eq!(stats.group_count, 3);
+        stats
+            .group_breakdown
+            .iter()
+            .for_each(|(group_type, total)| match group_type {
+                GroupType::AttributeGroup => assert_eq!(*total, 1),
+                GroupType::MetricGroup => assert_eq!(*total, 0),
+                GroupType::Resource => assert_eq!(*total, 1),
+                GroupType::Span => assert_eq!(*total, 1),
+                _ => panic!("Unexpected group type {:?}", group_type),
+            });
     }
 }
