@@ -424,21 +424,30 @@ impl SemConvRegistry {
         self.all_attributes.get(attr_ref)
     }
 
-    /// Returns a map id -> attribute definition from an attribute group reference.
-    /// Or an error if the reference does not exist.
+    /// Returns a map of all the attributes defined in a group given its id and type.
+    ///
+    /// # Arguments
+    ///
+    /// * `group_id` - The id of the group.
+    /// * `group_type` - The type of the group.
+    ///
+    /// # Returns
+    ///
+    /// A map of all the attributes defined in the group.
+    /// If the group does not exist, an [`Error::AttributeNotFound`] is returned.
     pub fn attributes(
         &self,
-        r#ref: &str,
-        r#type: GroupType,
+        group_id: &str,
+        group_type: GroupType,
     ) -> Result<HashMap<&String, &AttributeSpec>, Error> {
         let mut attributes = HashMap::new();
-        let group_ids = match r#type {
-            GroupType::AttributeGroup => self.attr_grp_group_attributes.get(r#ref),
-            GroupType::Span => self.span_group_attributes.get(r#ref),
-            GroupType::Event => self.event_group_attributes.get(r#ref),
-            GroupType::Metric => self.metric_group_attributes.get(r#ref),
-            GroupType::MetricGroup => self.metric_group_group_attributes.get(r#ref),
-            GroupType::Resource => self.resource_group_attributes.get(r#ref),
+        let group_ids = match group_type {
+            GroupType::AttributeGroup => self.attr_grp_group_attributes.get(group_id),
+            GroupType::Span => self.span_group_attributes.get(group_id),
+            GroupType::Event => self.event_group_attributes.get(group_id),
+            GroupType::Metric => self.metric_group_attributes.get(group_id),
+            GroupType::MetricGroup => self.metric_group_group_attributes.get(group_id),
+            GroupType::Resource => self.resource_group_attributes.get(group_id),
             GroupType::Scope => panic!("Scope not implemented yet"),
         };
         if let Some(group_ids) = group_ids {
@@ -451,22 +460,29 @@ impl SemConvRegistry {
             }
         } else {
             return Err(Error::AttributeNotFound {
-                r#ref: r#ref.to_owned(),
+                r#ref: group_id.to_owned(),
             });
         }
         Ok(attributes)
     }
 
-    /// Returns an iterator over all the groups defined in the semantic convention registry.
-    pub fn groups(&self) -> impl Iterator<Item = &GroupSpec> {
+    /// Returns an iterator over all the unresolved groups defined in the semantic convention
+    /// registry.
+    ///
+    /// Note: This method doesn't return any group after the `resolve` method has been called.
+    pub fn unresolved_group_iter(&self) -> impl Iterator<Item = &GroupSpec> {
         self.specs
             .iter()
             .flat_map(|SemConvSpecWithProvenance { spec, .. }| &spec.groups)
     }
 
-    /// Returns an iterator over all the groups defined in the semantic convention registry.
-    /// Each group is associated with its provenance (path or URL).
-    pub fn groups_with_provenance(&self) -> impl Iterator<Item = GroupSpecWithProvenance> + '_ {
+    /// Returns an iterator over all the unresolved groups defined in the semantic convention
+    /// registry. Each group is associated with its provenance (path or URL).
+    ///
+    /// Note: This method doesn't return any group after the `resolve` method has been called.
+    pub fn unresolved_groups_with_provenance_iter(
+        &self,
+    ) -> impl Iterator<Item = GroupSpecWithProvenance> + '_ {
         self.specs
             .iter()
             .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
@@ -722,5 +738,86 @@ mod tests {
                 GroupType::Span => assert_eq!(*total, 1),
                 _ => panic!("Unexpected group type {:?}", group_type),
             });
+    }
+
+    #[test]
+    fn test_attributes() {
+        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let warnings = registry.resolve(Default::default()).unwrap();
+        assert_eq!(warnings.len(), 0);
+
+        // Test with valid group ids
+        let attributes = registry.attributes("client", GroupType::AttributeGroup);
+        assert!(attributes.is_ok());
+        let attributes = attributes.unwrap();
+        assert_eq!(attributes.len(), 4);
+        let attributes = registry.attributes("cloud", GroupType::Resource);
+        assert!(attributes.is_ok());
+        let attributes = attributes.unwrap();
+        assert_eq!(attributes.len(), 6);
+
+        let attributes = registry.attributes("cloudevents", GroupType::Span);
+        assert!(attributes.is_ok());
+        let attributes = attributes.unwrap();
+        assert_eq!(attributes.len(), 5);
+        let attributes = registry.attributes("cloud", GroupType::Resource);
+
+        assert!(attributes.is_ok());
+        let attributes = attributes.unwrap();
+        assert_eq!(attributes.len(), 6);
+
+        // Test with invalid group ids
+        let attributes = registry.attributes("invalid", GroupType::Metric);
+        assert!(attributes.is_err());
+        assert!(matches!(
+            attributes.unwrap_err(),
+            Error::AttributeNotFound { .. }
+        ));
+
+        let attributes = registry.attributes("invalid", GroupType::MetricGroup);
+        assert!(attributes.is_err());
+        assert!(matches!(
+            attributes.unwrap_err(),
+            Error::AttributeNotFound { .. }
+        ));
+
+        let attributes = registry.attributes("invalid", GroupType::Event);
+        assert!(attributes.is_err());
+        assert!(matches!(
+            attributes.unwrap_err(),
+            Error::AttributeNotFound { .. }
+        ));
+    }
+
+    #[test]
+    fn test_unresolved_group_iter() {
+        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+
+        let groups = registry.unresolved_group_iter().collect::<Vec<_>>();
+        assert_eq!(groups.len(), 3);
+
+        // After resolution there should be no unresolved groups
+        let warnings = registry.resolve(Default::default()).unwrap();
+        assert_eq!(warnings.len(), 0);
+        let groups = registry.unresolved_group_iter().collect::<Vec<_>>();
+        assert_eq!(groups.len(), 0);
+    }
+
+    #[test]
+    fn test_unresolved_groups_with_provenance_iter() {
+        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+
+        let groups = registry
+            .unresolved_groups_with_provenance_iter()
+            .collect::<Vec<_>>();
+        assert_eq!(groups.len(), 3);
+
+        // After resolution there should be no unresolved groups
+        let warnings = registry.resolve(Default::default()).unwrap();
+        assert_eq!(warnings.len(), 0);
+        let groups = registry
+            .unresolved_groups_with_provenance_iter()
+            .collect::<Vec<_>>();
+        assert_eq!(groups.len(), 0);
     }
 }
