@@ -13,8 +13,8 @@ use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
 use crate::{handle_errors, Error};
 
-/// Group Spec contain the list of semantic conventions and it is the root node
-/// of each yaml file.
+/// Group Spec contain the list of semantic conventions for attributes,
+/// metrics, events, spans, etc.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct GroupSpec {
@@ -337,13 +337,16 @@ impl Display for InstrumentSpec {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute::Examples;
+    use crate::attribute::{AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec};
+    use crate::group::{GroupSpec, GroupType, SpanKindSpec};
+    use crate::stability::Stability;
+    use crate::Error::{CompoundError, InvalidAttribute, InvalidGroup};
 
     use super::*;
 
     #[test]
     fn test_validate_group() {
-        let group = GroupSpec {
+        let mut group = GroupSpec {
             id: "test".to_owned(),
             r#type: GroupType::Span,
             brief: "test".to_owned(),
@@ -366,12 +369,237 @@ mod tests {
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
-            events: vec![],
+            events: vec!["event".to_owned()],
             metric_name: None,
             instrument: None,
             unit: None,
             name: None,
         };
         assert!(group.validate("<test>").is_ok());
+
+        // Group is marked as deprecated but the stability is not set to deprecated.
+        group.stability = Some(Stability::Stable);
+        group.deprecated = Some("deprecated".to_owned());
+        let result = group.validate("<test>");
+        assert_eq!(Err(InvalidGroup {
+            path_or_url: "<test>".to_owned(),
+            group_id: "test".to_owned(),
+            error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
+        }), result);
+
+        // Span kind is set but the type is not span.
+        group.r#type = GroupType::Metric;
+        let result = group.validate("<test>");
+        assert_eq!(Err(
+            CompoundError(
+                vec![
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a span_kind field but the type is not set to span.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains an events field but the type is not set to span.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a metric type but the metric_name is not set.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a metric type but the instrument is not set.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a metric type but the unit is not set.".to_owned(),
+                    },
+                ],
+            ),
+        ), result);
+
+        // Field name is required if prefix is empty and if type is event.
+        group.r#type = GroupType::Event;
+        group.prefix = "".to_owned();
+        group.name = None;
+        let result = group.validate("<test>");
+        assert_eq!(Err(
+            CompoundError(
+                vec![
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains a span_kind field but the type is not set to span.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains an events field but the type is not set to span.".to_owned(),
+                    },
+                    InvalidGroup {
+                        path_or_url: "<test>".to_owned(),
+                        group_id: "test".to_owned(),
+                        error: "This group contains an event type but the prefix is empty and the name is not set.".to_owned(),
+                    },
+                ],
+            ),
+        ), result);
+    }
+
+    #[test]
+    fn test_validate_attribute() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::Span,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "test".to_owned(),
+            extends: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            attributes: vec![AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: None,
+                stability: Some(Stability::Deprecated),
+                deprecated: Some("true".to_owned()),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+            }],
+            constraints: vec![],
+            span_kind: Some(SpanKindSpec::Client),
+            events: vec!["event".to_owned()],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+        };
+        assert!(group.validate("<test>").is_ok());
+
+        // Deprecated attribute can't have stability set to stable.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: None,
+            stability: Some(Stability::Stable),
+            deprecated: Some("true".to_owned()),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+        }];
+        let result = group.validate("<test>");
+        assert_eq!(
+            Err(InvalidAttribute {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error:
+                    "This attribute contains a deprecated field but the stability is set to stable."
+                        .to_owned(),
+            },),
+            result
+        );
+
+        // Deprecated ref attribute can't have stability set to stable.
+        group.attributes = vec![AttributeSpec::Ref {
+            r#ref: "test".to_string(),
+            brief: None,
+            stability: Some(Stability::Stable),
+            deprecated: Some("true".to_owned()),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: Some("".to_owned()),
+        }];
+        let result = group.validate("<test>");
+        assert_eq!(
+            Err(InvalidAttribute {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error:
+                    "This attribute contains a deprecated field but the stability is set to stable."
+                        .to_owned(),
+            },),
+            result
+        );
+
+        // Examples are mandatory for string attributes.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            examples: None,
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+        }];
+        let result = group.validate("<test>");
+        assert_eq!(
+            Err(InvalidAttribute {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error: "This attribute is a string but it does not contain any examples."
+                    .to_owned(),
+            },),
+            result
+        );
+
+        // Examples are mandatory for strings attributes.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
+            brief: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            examples: None,
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+        }];
+        let result = group.validate("<test>");
+        assert_eq!(
+            Err(InvalidAttribute {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error: "This attribute is a string array but it does not contain any examples."
+                    .to_owned(),
+            },),
+            result
+        );
+    }
+
+    #[test]
+    fn test_instrumentation_spec() {
+        assert_eq!(Counter.to_string(), "counter");
+        assert_eq!(Gauge.to_string(), "gauge");
+        assert_eq!(Histogram.to_string(), "histogram");
+        assert_eq!(UpDownCounter.to_string(), "updowncounter");
     }
 }

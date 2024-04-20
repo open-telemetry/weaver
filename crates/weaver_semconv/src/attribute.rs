@@ -471,15 +471,24 @@ mod tests {
     #[test]
     fn test_requirement_level_spec_display() {
         assert_eq!(
-            format!("{}", RequirementLevel::Basic(BasicRequirementLevelSpec::Required)),
+            format!(
+                "{}",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+            ),
             "required"
         );
         assert_eq!(
-            format!("{}", RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)),
+            format!(
+                "{}",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
+            ),
             "recommended"
         );
         assert_eq!(
-            format!("{}", RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)),
+            format!(
+                "{}",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
+            ),
             "opt-in"
         );
         assert_eq!(
@@ -504,8 +513,14 @@ mod tests {
 
     #[test]
     fn test_basic_requirement_level_spec_display() {
-        assert_eq!(format!("{}", BasicRequirementLevelSpec::Required), "required");
-        assert_eq!(format!("{}", BasicRequirementLevelSpec::Recommended), "recommended");
+        assert_eq!(
+            format!("{}", BasicRequirementLevelSpec::Required),
+            "required"
+        );
+        assert_eq!(
+            format!("{}", BasicRequirementLevelSpec::Recommended),
+            "recommended"
+        );
         assert_eq!(format!("{}", BasicRequirementLevelSpec::OptIn), "opt-in");
     }
 }
