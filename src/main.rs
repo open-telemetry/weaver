@@ -9,21 +9,9 @@ use weaver_common::quiet::QuietLogger;
 use weaver_common::{ConsoleLogger, Logger};
 
 use crate::cli::{Cli, Commands};
-#[cfg(feature = "experimental")]
-use crate::gen_client::command_gen_client;
-#[cfg(feature = "experimental")]
-use crate::resolve::command_resolve;
 
 mod cli;
-#[cfg(feature = "experimental")]
-mod gen_client;
-#[cfg(feature = "experimental")]
-mod languages;
 mod registry;
-#[cfg(feature = "experimental")]
-mod resolve;
-#[cfg(feature = "experimental")]
-mod search;
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
@@ -44,22 +32,6 @@ fn main() {
 #[cfg(not(tarpaulin_include))]
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) {
     match &cli.command {
-        #[cfg(feature = "experimental")]
-        Some(Commands::Resolve(params)) => {
-            command_resolve(log, params);
-        }
-        #[cfg(feature = "experimental")]
-        Some(Commands::GenClient(params)) => {
-            command_gen_client(log, params);
-        }
-        #[cfg(feature = "experimental")]
-        Some(Commands::Languages(params)) => {
-            languages::command_languages(log, params);
-        }
-        #[cfg(feature = "experimental")]
-        Some(Commands::Search(params)) => {
-            search::command_search(log, params);
-        }
         Some(Commands::Registry(params)) => {
             semconv_registry(log, params);
         }

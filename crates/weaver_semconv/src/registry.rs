@@ -3,14 +3,11 @@
 //! Semantic Convention Registry Definition.
 
 use crate::attribute::AttributeSpec;
-use crate::group::{GroupSpec, GroupType};
-use crate::metric::MetricSpec;
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 use crate::{
-    AttributeSpecWithProvenance, AttributeToResolve, Error, GroupIds, GroupSpecWithProvenance,
-    MetricSpecWithProvenance, MetricToResolve, ResolverConfig, ResolverWarning, Stats,
+    AttributeSpecWithProvenance, Error, GroupSpecWithProvenance, MetricSpecWithProvenance, Stats,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 
 /// A semantic convention registry is a collection of semantic convention
@@ -31,54 +28,12 @@ pub struct SemConvRegistry {
     /// semantic convention group.
     ///
     /// This collection contains all the attributes defined in the semantic convention registry.
-    all_attributes: HashMap<String, AttributeSpecWithProvenance>,
+    attributes: HashMap<String, AttributeSpecWithProvenance>,
 
     /// Metrics indexed by their respective id.
     ///
     /// This collection contains all the metrics defined in the semantic convention registry.
-    all_metrics: HashMap<String, MetricSpecWithProvenance>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `resource` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    resource_group_attributes: HashMap<String, GroupIds>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `attribute_group` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    attr_grp_group_attributes: HashMap<String, GroupIds>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `span` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    span_group_attributes: HashMap<String, GroupIds>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `event` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    event_group_attributes: HashMap<String, GroupIds>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `scope` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    scope_group_attributes: HashMap<String, GroupIds>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `metric` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    metric_group_attributes: HashMap<String, GroupIds>,
-
-    /// Collection of attribute ids index by group id and defined in a
-    /// `metric_group` semantic convention group.
-    /// Attribute ids are references to of attributes defined in the
-    /// all_attributes field.
-    metric_group_group_attributes: HashMap<String, GroupIds>,
+    metrics: HashMap<String, MetricSpecWithProvenance>,
 }
 
 impl SemConvRegistry {
@@ -202,203 +157,11 @@ impl SemConvRegistry {
         self.semconv_spec_count
     }
 
-    /// Resolves all the references present in the semantic convention registry.
-    ///
-    /// The `config` parameter allows to customize the resolver behavior
-    /// when a reference is not found. By default, the resolver will emit an
-    /// error when a reference is not found. This behavior can be changed by
-    /// setting the `error_when_<...>_ref_not_found` to `false`, in which case
-    /// the resolver will record the error in a warning list and continue.
-    /// The warning list is returned as a list of warnings in the result.
-    pub fn resolve(&mut self, config: ResolverConfig) -> Result<Vec<ResolverWarning>, Error> {
-        let mut warnings = Vec::new();
-        let mut attributes_to_resolve = Vec::new();
-        let mut metrics_to_resolve = HashMap::new();
-
-        // Add all the attributes with an id to the semantic convention registry.
-        for SemConvSpecWithProvenance { spec, provenance } in self.specs.clone() {
-            for group in spec.groups.iter() {
-                // Process attributes
-                match group.r#type {
-                    GroupType::AttributeGroup
-                    | GroupType::Span
-                    | GroupType::Resource
-                    | GroupType::Metric
-                    | GroupType::Event
-                    | GroupType::Scope
-                    | GroupType::MetricGroup => {
-                        let attributes_in_group = self.process_attributes(
-                            provenance.clone(),
-                            group.id.clone(),
-                            group.prefix.clone(),
-                            group.attributes.clone(),
-                            &mut attributes_to_resolve,
-                        )?;
-
-                        let group_attributes = match group.r#type {
-                            GroupType::AttributeGroup => Some(&mut self.attr_grp_group_attributes),
-                            GroupType::Span => Some(&mut self.span_group_attributes),
-                            GroupType::Resource => Some(&mut self.resource_group_attributes),
-                            GroupType::Metric => Some(&mut self.metric_group_attributes),
-                            GroupType::Event => Some(&mut self.event_group_attributes),
-                            GroupType::MetricGroup => Some(&mut self.metric_group_group_attributes),
-                            GroupType::Scope => Some(&mut self.scope_group_attributes),
-                        };
-
-                        if let Some(group_attributes) = group_attributes {
-                            let prev_group_ids = group_attributes.insert(
-                                group.id.clone(),
-                                GroupIds {
-                                    origin: provenance.clone(),
-                                    ids: attributes_in_group.clone(),
-                                },
-                            );
-                            Self::detect_duplicated_group(
-                                provenance.clone(),
-                                group.id.clone(),
-                                prev_group_ids,
-                            )?;
-                        }
-                    }
-                }
-
-                // Process metrics
-                match group.r#type {
-                    GroupType::Metric => {
-                        // JUSTIFICATION: The expect is safe here because the validation of the
-                        // metric group is done in the validation step performed at the creation
-                        // of each SemConvSpec.
-                        let metric_name = group.metric_name.clone().expect("At this point, the metric name should be defined.");
-                        let instrument = group.instrument.clone().expect("At this point, the instrument should be defined.");
-
-                        let prev_val = self.all_metrics.insert(
-                            metric_name.clone(),
-                            MetricSpecWithProvenance {
-                                metric: MetricSpec {
-                                    name: metric_name.clone(),
-                                    brief: group.brief.clone(),
-                                    note: group.note.clone(),
-                                    attributes: group.attributes.clone(),
-                                    instrument,
-                                    unit: group.unit.clone(),
-                                },
-                                provenance: provenance.clone(),
-                            },
-                        );
-                        if prev_val.is_some() {
-                            return Err(Error::DuplicateMetricName {
-                                path_or_url: provenance.clone(),
-                                name: metric_name.clone(),
-                            });
-                        }
-
-                        if let Some(r#ref) = group.extends.as_ref() {
-                            let prev_val = metrics_to_resolve.insert(
-                                metric_name.clone(),
-                                MetricToResolve {
-                                    path_or_url: provenance.clone(),
-                                    group_id: group.id.clone(),
-                                    r#ref: r#ref.clone(),
-                                },
-                            );
-                            if prev_val.is_some() {
-                                return Err(Error::DuplicateMetricName {
-                                    path_or_url: provenance.clone(),
-                                    name: r#ref.clone(),
-                                });
-                            }
-                        }
-                    }
-                    GroupType::MetricGroup => {
-                        panic!("Warning: group type `metric_group` not implemented yet");
-                    }
-                    _ => {
-                        // No metrics to process
-                    }
-                }
-            }
-        }
-
-        // Resolve all the attributes with a reference.
-        for attr_to_resolve in attributes_to_resolve {
-            let resolved_attr = self.all_attributes.get(&attr_to_resolve.r#ref);
-
-            if resolved_attr.is_none() {
-                let err = Error::InvalidAttribute {
-                    path_or_url: attr_to_resolve.path_or_url.clone(),
-                    group_id: attr_to_resolve.group_id.clone(),
-                    attribute_id: attr_to_resolve.r#ref.clone(),
-                    error: format!("Attribute reference '{}' not found", attr_to_resolve.r#ref),
-                };
-                if config.error_when_attribute_ref_not_found {
-                    return Err(err);
-                } else {
-                    warnings.push(ResolverWarning { error: err });
-                }
-            }
-        }
-
-        // Resolve all the metrics with an `extends` field.
-        for (metric_name, metric_to_resolve) in metrics_to_resolve {
-            let attribute_group = self.attr_grp_group_attributes.get(&metric_to_resolve.r#ref);
-            if let Some(attr_grp) = attribute_group {
-                if let Some(metric) = self.all_metrics.get_mut(&metric_name) {
-                    let mut inherited_attributes = vec![];
-                    for attr_id in attr_grp.ids.iter() {
-                        if let Some(attr) = self.all_attributes.get(attr_id) {
-                            // Note: we only keep the last attribute definition for attributes that
-                            // are defined multiple times in the group.
-                            inherited_attributes.push(attr.attribute.clone());
-                        }
-                    }
-                    metric
-                        .metric
-                        .attributes
-                        .extend(inherited_attributes.iter().cloned());
-                } else {
-                    return Err(Error::InvalidMetric {
-                        path_or_url: metric_to_resolve.path_or_url,
-                        group_id: metric_to_resolve.group_id,
-                        error: format!("The metric '{}' doesn't exist", metric_name),
-                    });
-                }
-            } else {
-                warnings.push(ResolverWarning {
-                    error: Error::InvalidMetric {
-                        path_or_url: metric_to_resolve.path_or_url,
-                        group_id: metric_to_resolve.group_id,
-                        error: format!("The reference `{}` specified in the `extends` field of the '{}' metric could not be resolved", metric_to_resolve.r#ref, metric_name),
-                    }
-                });
-            }
-        }
-
-        if !config.keep_specs {
-            self.specs.clear();
-        }
-
-        Ok(warnings)
-    }
-
-    /// Returns the number of unique attributes defined in the semantic convention registry.
-    #[must_use]
-    pub fn attribute_count(&self) -> usize {
-        self.all_attributes.len()
-    }
-
-    /// Returns the number of unique metrics defined in the semantic convention registry.
-    #[must_use]
-    pub fn metric_count(&self) -> usize {
-        self.all_metrics.len()
-    }
-
     /// Returns an attribute definition from its reference or `None` if the
     /// reference does not exist.
     #[must_use]
     pub fn attribute(&self, attr_ref: &str) -> Option<&AttributeSpec> {
-        self.all_attributes
-            .get(attr_ref)
-            .map(|attr| &attr.attribute)
+        self.attributes.get(attr_ref).map(|attr| &attr.attribute)
     }
 
     /// Returns an attribute definition and its provenance from its reference
@@ -408,59 +171,7 @@ impl SemConvRegistry {
         &self,
         attr_ref: &str,
     ) -> Option<&AttributeSpecWithProvenance> {
-        self.all_attributes.get(attr_ref)
-    }
-
-    /// Returns a map of all the attributes defined in a group given its id and type.
-    ///
-    /// # Arguments
-    ///
-    /// * `group_id` - The id of the group.
-    /// * `group_type` - The type of the group.
-    ///
-    /// # Returns
-    ///
-    /// A map of all the attributes defined in the group.
-    /// If the group does not exist, an [`Error::AttributeNotFound`] is returned.
-    pub fn attributes(
-        &self,
-        group_id: &str,
-        group_type: GroupType,
-    ) -> Result<HashMap<&String, &AttributeSpec>, Error> {
-        let mut attributes = HashMap::new();
-        let group_ids = match group_type {
-            GroupType::AttributeGroup => self.attr_grp_group_attributes.get(group_id),
-            GroupType::Span => self.span_group_attributes.get(group_id),
-            GroupType::Event => self.event_group_attributes.get(group_id),
-            GroupType::Metric => self.metric_group_attributes.get(group_id),
-            GroupType::MetricGroup => self.metric_group_group_attributes.get(group_id),
-            GroupType::Resource => self.resource_group_attributes.get(group_id),
-            GroupType::Scope => panic!("Scope not implemented yet"),
-        };
-        if let Some(group_ids) = group_ids {
-            for attr_id in group_ids.ids.iter() {
-                if let Some(attr) = self.all_attributes.get(attr_id) {
-                    // Note: we only keep the last attribute definition for attributes that
-                    // are defined multiple times in the group.
-                    _ = attributes.insert(attr_id, &attr.attribute);
-                }
-            }
-        } else {
-            return Err(Error::AttributeNotFound {
-                r#ref: group_id.to_owned(),
-            });
-        }
-        Ok(attributes)
-    }
-
-    /// Returns an iterator over all the unresolved groups defined in the semantic convention
-    /// registry.
-    ///
-    /// Note: This method doesn't return any group after the `resolve` method has been called.
-    pub fn unresolved_group_iter(&self) -> impl Iterator<Item = &GroupSpec> {
-        self.specs
-            .iter()
-            .flat_map(|SemConvSpecWithProvenance { spec, .. }| &spec.groups)
+        self.attributes.get(attr_ref)
     }
 
     /// Returns an iterator over all the unresolved groups defined in the semantic convention
@@ -480,108 +191,10 @@ impl SemConvRegistry {
             })
     }
 
-    /// Returns an iterator over all the attributes defined in the semantic convention registry.
-    ///
-    /// Note: This method doesn't return any attribute before the `resolve` method has been called.
-    pub fn attribute_iter(&self) -> impl Iterator<Item = &AttributeSpec> {
-        self.all_attributes.values().map(|attr| &attr.attribute)
-    }
-
-    /// Returns an iterator over all the metrics defined in the semantic convention registry.
-    ///
-    /// Note: This method doesn't return any metric before the `resolve` method has been called.
-    pub fn metric_iter(&self) -> impl Iterator<Item = &MetricSpec> {
-        self.all_metrics.values().map(|metric| &metric.metric)
-    }
-
-    /// Returns a metric definition from its name or `None` if the
-    /// name does not exist.
-    #[must_use]
-    pub fn metric(&self, metric_name: &str) -> Option<&MetricSpec> {
-        self.all_metrics
-            .get(metric_name)
-            .map(|metric| &metric.metric)
-    }
-
     /// Returns a metric definition and its provenance from its name
     #[must_use]
     pub fn metric_with_provenance(&self, metric_name: &str) -> Option<&MetricSpecWithProvenance> {
-        self.all_metrics.get(metric_name)
-    }
-
-    /// Returns an error if prev_group_ids is not `None`.
-    fn detect_duplicated_group(
-        path_or_url: String,
-        group_id: String,
-        prev_group_ids: Option<GroupIds>,
-    ) -> Result<(), Error> {
-        if let Some(group_ids) = prev_group_ids.as_ref() {
-            return Err(Error::DuplicateGroupId {
-                path_or_url,
-                id: group_id,
-                origin: group_ids.origin.clone(),
-            });
-        }
-        Ok(())
-    }
-
-    /// Processes a collection of attributes passed as a parameter (`attrs`),
-    /// adds attributes fully defined to the semantic convention registry, adds attributes with
-    /// a reference to the list of attributes to resolve and returns a
-    /// collection of attribute ids defined in the current group.
-    fn process_attributes(
-        &mut self,
-        path_or_url: String,
-        group_id: String,
-        prefix: String,
-        attrs: Vec<AttributeSpec>,
-        attributes_to_resolve: &mut Vec<AttributeToResolve>,
-    ) -> Result<HashSet<String>, Error> {
-        let mut attributes_in_group = HashSet::new();
-        for mut attr in attrs {
-            match &attr {
-                AttributeSpec::Id { id, .. } => {
-                    // The attribute has an id, so add it to the semantic convention registry
-                    // if it does not exist yet, otherwise return an error.
-                    // The fully qualified attribute id is the concatenation
-                    // of the prefix and the attribute id (separated by a dot).
-                    let fq_attr_id = if prefix.is_empty() {
-                        id.clone()
-                    } else {
-                        format!("{}.{}", prefix, id)
-                    };
-                    if let AttributeSpec::Id { id, .. } = &mut attr {
-                        id.clone_from(&fq_attr_id);
-                    }
-                    let prev_val = self.all_attributes.insert(
-                        fq_attr_id.clone(),
-                        AttributeSpecWithProvenance {
-                            attribute: attr,
-                            provenance: path_or_url.clone(),
-                        },
-                    );
-                    if let Some(prev_val) = prev_val {
-                        return Err(Error::DuplicateAttributeId {
-                            origin_path_or_url: prev_val.provenance.clone(),
-                            path_or_url: path_or_url.clone(),
-                            id: fq_attr_id.clone(),
-                        });
-                    }
-                    let _ = attributes_in_group.insert(fq_attr_id.clone());
-                }
-                AttributeSpec::Ref { r#ref, .. } => {
-                    // The attribute has a reference, so add it to the
-                    // list of attributes to resolve.
-                    attributes_to_resolve.push(AttributeToResolve {
-                        path_or_url: path_or_url.clone(),
-                        group_id: group_id.clone(),
-                        r#ref: r#ref.clone(),
-                    });
-                    let _ = attributes_in_group.insert(r#ref.clone());
-                }
-            }
-        }
-        Ok(attributes_in_group)
+        self.metrics.get(metric_name)
     }
 
     /// Returns a set of stats about the semantic convention registry.
@@ -597,8 +210,8 @@ impl SemConvRegistry {
                     *acc.entry(group_type).or_insert(0) += 1;
                     acc
                 }),
-            attribute_count: self.all_attributes.len(),
-            metric_count: self.all_metrics.len(),
+            attribute_count: self.attributes.len(),
+            metric_count: self.metrics.len(),
         }
     }
 }
@@ -624,6 +237,13 @@ mod tests {
             registry.unwrap_err(),
             Error::InvalidRegistryPathPattern { .. }
         ));
+    }
+
+    #[test]
+    fn test() {
+        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
+        let result = SemConvRegistry::semconv_spec_from_url(semconv_url);
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -732,244 +352,12 @@ mod tests {
     }
 
     #[test]
-    fn test_attributes() {
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
-        let warnings = registry.resolve(Default::default()).unwrap();
-        assert_eq!(warnings.len(), 0);
-
-        // Test with valid group ids
-        let attributes = registry.attributes("client", GroupType::AttributeGroup);
-        assert!(attributes.is_ok());
-        let attributes = attributes.unwrap();
-        assert_eq!(attributes.len(), 4);
-        let attributes = registry.attributes("cloud", GroupType::Resource);
-        assert!(attributes.is_ok());
-        let attributes = attributes.unwrap();
-        assert_eq!(attributes.len(), 6);
-
-        let attributes = registry.attributes("cloudevents", GroupType::Span);
-        assert!(attributes.is_ok());
-        let attributes = attributes.unwrap();
-        assert_eq!(attributes.len(), 5);
-        let attributes = registry.attributes("cloud", GroupType::Resource);
-
-        assert!(attributes.is_ok());
-        let attributes = attributes.unwrap();
-        assert_eq!(attributes.len(), 6);
-
-        // Test with invalid group ids
-        let attributes = registry.attributes("invalid", GroupType::Metric);
-        assert!(attributes.is_err());
-        assert!(matches!(
-            attributes.unwrap_err(),
-            Error::AttributeNotFound { .. }
-        ));
-
-        let attributes = registry.attributes("invalid", GroupType::MetricGroup);
-        assert!(attributes.is_err());
-        assert!(matches!(
-            attributes.unwrap_err(),
-            Error::AttributeNotFound { .. }
-        ));
-
-        let attributes = registry.attributes("invalid", GroupType::Event);
-        assert!(attributes.is_err());
-        assert!(matches!(
-            attributes.unwrap_err(),
-            Error::AttributeNotFound { .. }
-        ));
-    }
-
-    #[test]
-    fn test_unresolved_group_iter() {
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
-
-        let groups = registry.unresolved_group_iter().collect::<Vec<_>>();
-        assert_eq!(groups.len(), 3);
-
-        // After resolution there should be no unresolved groups
-        let warnings = registry.resolve(Default::default()).unwrap();
-        assert_eq!(warnings.len(), 0);
-        let groups = registry.unresolved_group_iter().collect::<Vec<_>>();
-        assert_eq!(groups.len(), 0);
-    }
-
-    #[test]
     fn test_unresolved_group_with_provenance_iter() {
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
 
         let groups = registry
             .unresolved_group_with_provenance_iter()
             .collect::<Vec<_>>();
         assert_eq!(groups.len(), 3);
-
-        // After resolution there should be no unresolved groups
-        let warnings = registry.resolve(Default::default()).unwrap();
-        assert_eq!(warnings.len(), 0);
-        let groups = registry
-            .unresolved_group_with_provenance_iter()
-            .collect::<Vec<_>>();
-        assert_eq!(groups.len(), 0);
-    }
-
-    #[test]
-    fn test_attribute_iter() {
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
-
-        // Before resolution there should be no attribute returned
-        // by the attribute_iter method.
-        let attributes = registry.attribute_iter().collect::<Vec<_>>();
-        assert_eq!(attributes.len(), 0);
-
-        let warnings = registry.resolve(Default::default()).unwrap();
-        assert_eq!(warnings.len(), 0);
-
-        // After resolution there should be 15 attributes returned
-        let attributes = registry.attribute_iter().collect::<Vec<_>>();
-        assert_eq!(attributes.len(), 15);
-    }
-
-    #[test]
-    fn test_metric_iter() {
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/d*.yaml").unwrap();
-
-        // Before resolution there should be no metric returned
-        // by the metric_iter method.
-        let metrics = registry.metric_iter().collect::<Vec<_>>();
-        assert_eq!(metrics.len(), 0);
-
-        _ = registry.resolve(Default::default()).unwrap();
-
-        // After resolution there should be 9 metrics returned
-        let metrics = registry.metric_iter().collect::<Vec<_>>();
-        assert_eq!(metrics.len(), 9);
-    }
-
-    #[test]
-    fn test_detect_duplicate_attribute_id() {
-        let mut registry = SemConvRegistry::new("test");
-
-        // Add 2 times the same semconv spec
-        let result = registry.add_semconv_spec_from_file("data/client.yaml");
-        assert!(result.is_ok());
-        let result = registry.add_semconv_spec_from_file("data/client.yaml");
-        assert!(result.is_ok());
-
-        // Resolve the registry
-        let result = registry.resolve(Default::default());
-        assert!(matches!(
-            result.unwrap_err(),
-            Error::DuplicateAttributeId { .. }
-        ));
-    }
-
-    #[test]
-    fn test_detect_duplicate_group_id() {
-        let mut registry = SemConvRegistry::new("test");
-
-        // Add two semconv spec with the same group id and prefix
-        let result = registry.add_semconv_spec_from_file("data/client.yaml");
-        assert!(result.is_ok());
-
-        let spec = r#"
-        groups:
-          - id: client
-            prefix: client
-            type: attribute_group
-            brief: "client"
-            attributes:
-              - id: "attr1"
-                brief: "description1"
-                type: "string"
-                examples: "example1"
-        "#;
-        let result = registry.add_semconv_spec_from_string("data/client_bis.yaml", spec);
-        assert!(result.is_ok());
-
-        // The resolution of the registry should fail with a duplicate group id error
-        let result = registry.resolve(Default::default());
-        assert!(matches!(
-            result.unwrap_err(),
-            Error::DuplicateGroupId { .. }
-        ));
-    }
-
-    #[test]
-    fn test_metrics() {
-        let mut registry = SemConvRegistry::new("test");
-
-        // Add a valid semconv spec with a metric
-        let spec = r#"
-        groups:
-          - id: metric_group
-            type: metric
-            brief: "metric"
-            attributes:
-              - id: "attr1"
-                brief: "description1"
-                type: "string"
-                examples: "example1"
-            metric_name: "metric1"
-            instrument: "counter"
-            unit: "unit1"
-        "#;
-        let result = registry.add_semconv_spec_from_string("data/metric.yaml", spec);
-        assert!(result.is_ok());
-
-        // Resolve the registry
-        let result = registry.resolve(Default::default());
-        assert!(result.is_ok());
-        let warnings = result.unwrap();
-        assert_eq!(warnings.len(), 0);
-
-        let mut registry = SemConvRegistry::new("test");
-
-        // Add an invalid semconv spec with a metric
-        // The metric has no name
-        let spec = r#"
-        groups:
-          - id: metric_group
-            type: metric
-            brief: "metric"
-            attributes:
-              - id: "attr1"
-                brief: "description1"
-                type: "string"
-                examples: "example1"
-            instrument: "counter"
-            unit: "unit1"
-        "#;
-        let result = registry.add_semconv_spec_from_string("data/metric.yaml", spec);
-        dbg!(&result);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            Error::InvalidMetric { .. }
-        ));
-
-        // Add an invalid semconv spec with a metric
-        // The metric has no instrument
-        let spec = r#"
-        groups:
-          - id: metric_group
-            type: metric
-            brief: "metric"
-            attributes:
-              - id: "attr1"
-                brief: "description1"
-                type: "string"
-                examples: "example1"
-            metric_name: "metric1"
-            unit: "unit1"
-        "#;
-        let result = registry.add_semconv_spec_from_string("data/metric.yaml", spec);
-        dbg!(&result);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            Error::InvalidMetric { .. }
-        ));
-
-        // ToDo collect multiple errors
     }
 }

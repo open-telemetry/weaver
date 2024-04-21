@@ -6,7 +6,7 @@
 //! The YAML language syntax used to define a semantic convention file
 //! can be found [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::attribute::AttributeSpec;
 use crate::group::{GroupSpec, GroupType};
@@ -228,67 +228,10 @@ pub struct Stats {
     pub metric_count: usize,
 }
 
-/// Represents a collection of ids (attribute or metric ids).
-#[derive(Debug, Default)]
-struct GroupIds {
-    /// The semantic convention origin (path or URL) where the group id is
-    /// defined. This is used to report errors.
-    origin: String,
-    /// The collection of ids (attribute or metric ids).
-    ids: HashSet<String>,
-}
-
-/// The configuration of the resolver.
-#[derive(Debug, Default)]
-pub struct ResolverConfig {
-    error_when_attribute_ref_not_found: bool,
-    keep_specs: bool,
-}
-
-impl ResolverConfig {
-    /// Returns a config instructing the resolver to keep
-    /// the semantic convention group specs after the resolution.
-    #[must_use]
-    pub fn with_keep_specs() -> Self {
-        Self {
-            keep_specs: true,
-            ..Default::default()
-        }
-    }
-}
-
-/// A wrapper for a resolver error that is considered as a warning
-/// by configuration.
-#[derive(Debug)]
-pub struct ResolverWarning {
-    /// The error that occurred.
-    pub error: Error,
-}
-
-/// Structure to keep track of the source of the attribute to resolve.
-struct AttributeToResolve {
-    /// The provenance of the attribute.
-    /// Path or URL of the semantic convention asset.
-    path_or_url: String,
-    /// The group id of the attribute.
-    group_id: String,
-    /// The attribute reference.
-    r#ref: String,
-}
-
-/// Structure to keep track of the source of the metric to resolve.
-struct MetricToResolve {
-    path_or_url: String,
-    group_id: String,
-    r#ref: String,
-}
-
 #[cfg(test)]
 mod tests {
     use crate::registry::SemConvRegistry;
     use std::vec;
-
-    use super::*;
 
     /// Load multiple semantic convention files in the semantic convention registry.
     /// No error should be emitted.
@@ -327,71 +270,6 @@ mod tests {
         for yaml in yaml_files {
             let result = catalog.add_semconv_spec_from_file(yaml);
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
-        }
-
-        // Now let's resolve attributes and check provenance and structure is what we expect.
-        let _ = catalog.resolve(ResolverConfig::with_keep_specs()).unwrap();
-        assert_eq!(
-            catalog
-                .attribute_with_provenance("server.address")
-                .unwrap()
-                .provenance,
-            "data/server.yaml"
-        );
-        let server_address = catalog.attribute("server.address").unwrap();
-        assert_eq!(server_address.brief(), "Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.");
-        assert!(!server_address.is_required());
-        assert_eq!(server_address.tag(), None);
-        if let AttributeSpec::Id { r#type, .. } = server_address {
-            assert_eq!(format!("{}", r#type), "string");
-        } else {
-            panic!("Expected real AttributeSpec, not reference");
-        }
-        // Assert that we read things correctly and keep provenance.
-        assert_eq!(
-            catalog
-                .metric_with_provenance("http.client.request.duration")
-                .unwrap()
-                .provenance,
-            "data/http-metrics.yaml"
-        );
-    }
-
-    /// Test the resolver with a semantic convention semantic convention registry that contains
-    /// multiple references to resolve.
-    /// No error or warning should be emitted.
-    #[test]
-    fn test_resolve_catalog() {
-        let yaml_files = vec![
-            "data/http-common.yaml",
-            "data/http-metrics.yaml",
-            "data/network.yaml",
-            "data/server.yaml",
-            "data/url.yaml",
-            "data/exporter.yaml",
-        ];
-
-        let mut catalog = SemConvRegistry::default();
-        for yaml in yaml_files {
-            let result = catalog.add_semconv_spec_from_file(yaml);
-            assert!(result.is_ok(), "{:#?}", result.err().unwrap());
-        }
-
-        let result = catalog.resolve(ResolverConfig {
-            error_when_attribute_ref_not_found: false,
-            ..Default::default()
-        });
-
-        match result {
-            Ok(warnings) => {
-                if !warnings.is_empty() {
-                    dbg!(&warnings);
-                }
-                assert!(warnings.is_empty());
-            }
-            Err(e) => {
-                panic!("{:#?}", e);
-            }
         }
     }
 }
