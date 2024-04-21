@@ -2,18 +2,14 @@
 
 //! Attribute resolution.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use serde::Deserialize;
 
 use weaver_resolved_schema::attribute;
 use weaver_resolved_schema::attribute::AttributeRef;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
-use weaver_schema::attribute::Attribute;
-use weaver_semconv::attribute::{AttributeSpec, ValueSpec};
-use weaver_semconv::registry::SemConvRegistry;
-
-use crate::Error;
+use weaver_semconv::attribute::AttributeSpec;
 
 /// A catalog of deduplicated resolved attributes with their corresponding reference.
 #[derive(Deserialize, Debug, Default, PartialEq)]
@@ -170,114 +166,4 @@ impl AttributeCatalog {
             }
         }
     }
-}
-
-/// Merges the given main attributes with the inherited attributes.
-/// Main attributes have precedence over inherited attributes.
-#[must_use]
-pub fn merge_attributes(main_attrs: &[Attribute], inherited_attrs: &[Attribute]) -> Vec<Attribute> {
-    let mut merged_attrs = main_attrs.to_vec();
-    let main_attr_ids = main_attrs
-        .iter()
-        .map(|attr| match attr {
-            Attribute::Ref { r#ref, .. } => r#ref.clone(),
-            Attribute::Id { id, .. } => id.clone(),
-            Attribute::AttributeGroupRef { .. } => {
-                panic!("Attribute groups are not supported yet")
-            }
-            Attribute::SpanRef { .. } => {
-                panic!("Span references are not supported yet")
-            }
-            Attribute::ResourceRef { .. } => {
-                panic!("Resource references are not supported yet")
-            }
-            Attribute::EventRef { .. } => {
-                panic!("Event references are not supported yet")
-            }
-        })
-        .collect::<HashSet<_>>();
-
-    for inherited_attr in inherited_attrs.iter() {
-        match inherited_attr {
-            Attribute::Ref { r#ref, .. } => {
-                if main_attr_ids.contains(r#ref) {
-                    continue;
-                }
-            }
-            Attribute::Id { id, .. } => {
-                if main_attr_ids.contains(id) {
-                    continue;
-                }
-            }
-            Attribute::AttributeGroupRef { .. } => {
-                panic!("Attribute groups are not supported yet")
-            }
-            Attribute::SpanRef { .. } => {
-                panic!("Span references are not supported yet")
-            }
-            Attribute::ResourceRef { .. } => {
-                panic!("Resource references are not supported yet")
-            }
-            Attribute::EventRef { .. } => {
-                panic!("Event references are not supported yet")
-            }
-        }
-        merged_attrs.push(inherited_attr.clone());
-    }
-    merged_attrs
-}
-
-/// Converts a semantic convention attribute to a resolved attribute.
-pub fn resolve_attribute(
-    registry: &SemConvRegistry,
-    attr: &AttributeSpec,
-) -> Result<attribute::Attribute, Error> {
-    match attr {
-        AttributeSpec::Ref { r#ref, .. } => {
-            let sem_conv_attr =
-                registry
-                    .attribute(r#ref)
-                    .ok_or(Error::FailToResolveAttributes {
-                        ids: vec![r#ref.clone()],
-                        error: "Attribute ref not found in the resolved registry".to_owned(),
-                    })?;
-            resolve_attribute(registry, sem_conv_attr)
-        }
-        AttributeSpec::Id {
-            id,
-            r#type,
-            brief,
-            examples,
-            tag,
-            requirement_level,
-            sampling_relevant,
-            note,
-            stability,
-            deprecated,
-        } => Ok(attribute::Attribute {
-            name: id.clone(),
-            r#type: r#type.clone(),
-            brief: brief.clone().unwrap_or_default(),
-            examples: examples.clone(),
-            tag: tag.clone(),
-            requirement_level: requirement_level.clone(),
-            sampling_relevant: *sampling_relevant,
-            note: note.clone(),
-            stability: stability.clone(),
-            deprecated: deprecated.clone(),
-            tags: None,
-            value: None,
-        }),
-    }
-}
-
-#[allow(dead_code)] // ToDo Remove this once we have values in the resolved schema
-fn semconv_to_resolved_value(
-    value: &Option<ValueSpec>,
-) -> Option<weaver_resolved_schema::value::Value> {
-    value.as_ref().map(|value| match value {
-        ValueSpec::String(s) => weaver_resolved_schema::value::Value::String { value: s.clone() },
-        ValueSpec::Int(i) => weaver_resolved_schema::value::Value::Int { value: *i },
-        ValueSpec::Double(d) => weaver_resolved_schema::value::Value::Double { value: *d },
-    })
 }

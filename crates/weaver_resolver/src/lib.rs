@@ -10,7 +10,6 @@ use rayon::iter::ParallelIterator;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
-use weaver_checker::violation::Violation;
 use weaver_common::error::WeaverError;
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
@@ -26,7 +25,6 @@ use crate::registry::resolve_semconv_registry;
 pub mod attribute;
 mod constraint;
 pub mod registry;
-mod tags;
 
 /// A resolver that can be used to resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
@@ -37,14 +35,6 @@ pub struct SchemaResolver {}
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
-    /// A telemetry schema error.
-    #[error("Telemetry schema error (error: {0:?})")]
-    TelemetrySchemaError(weaver_schema::Error),
-
-    /// A parent schema error.
-    #[error("Parent schema error (error: {0:?})")]
-    ParentSchemaError(weaver_schema::Error),
-
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
     InvalidUrl {
@@ -144,15 +134,6 @@ pub enum Error {
     InvalidSchemaPath {
         /// The schema path.
         path: PathBuf,
-    },
-
-    /// A policy violation error.
-    #[error("Policy violation: {violation}, provenance: {provenance}")]
-    PolicyViolation {
-        /// The provenance of the violation (URL or path).
-        provenance: String,
-        /// The violation.
-        violation: Violation,
     },
 
     /// A container for multiple errors.

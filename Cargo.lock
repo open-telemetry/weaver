@@ -3253,7 +3253,6 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
- "serde",
 ]
 
 [[package]]
@@ -3494,25 +3493,10 @@ dependencies = [
  "thiserror",
  "walkdir",
  "weaver_cache",
- "weaver_checker",
  "weaver_common",
  "weaver_diff",
  "weaver_resolved_schema",
- "weaver_schema",
  "weaver_semconv",
-]
-
-[[package]]
-name = "weaver_schema"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_yaml",
- "thiserror",
- "ureq",
- "url",
- "weaver_semconv",
- "weaver_version",
 ]
 
 [[package]]

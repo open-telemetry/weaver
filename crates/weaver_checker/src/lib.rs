@@ -48,6 +48,15 @@ pub enum Error {
         error: String,
     },
 
+    /// A policy violation error.
+    #[error("Policy violation: {violation}, provenance: {provenance}")]
+    PolicyViolation {
+        /// The provenance of the violation (URL or path).
+        provenance: String,
+        /// The violation.
+        violation: Violation,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", Error::format_errors(.0))]
     CompoundError(Vec<Error>),
@@ -73,6 +82,16 @@ impl Error {
             .map(|e| e.to_string())
             .collect::<Vec<String>>()
             .join("\n\n")
+    }
+}
+
+/// Handles a list of errors and returns a compound error if the list is not
+/// empty or () if the list is empty.
+pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(CompoundError(errors))
     }
 }
 
