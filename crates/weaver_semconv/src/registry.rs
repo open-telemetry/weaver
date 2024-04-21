@@ -2,7 +2,6 @@
 
 //! Semantic Convention Registry Definition.
 
-use crate::attribute::AttributeSpec;
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 use crate::{
     AttributeSpecWithProvenance, Error, GroupSpecWithProvenance, MetricSpecWithProvenance, Stats,
@@ -157,23 +156,6 @@ impl SemConvRegistry {
         self.semconv_spec_count
     }
 
-    /// Returns an attribute definition from its reference or `None` if the
-    /// reference does not exist.
-    #[must_use]
-    pub fn attribute(&self, attr_ref: &str) -> Option<&AttributeSpec> {
-        self.attributes.get(attr_ref).map(|attr| &attr.attribute)
-    }
-
-    /// Returns an attribute definition and its provenance from its reference
-    /// or `None` if the reference does not exist.
-    #[must_use]
-    pub fn attribute_with_provenance(
-        &self,
-        attr_ref: &str,
-    ) -> Option<&AttributeSpecWithProvenance> {
-        self.attributes.get(attr_ref)
-    }
-
     /// Returns an iterator over all the unresolved groups defined in the semantic convention
     /// registry. Each group is associated with its provenance (path or URL).
     ///
@@ -189,12 +171,6 @@ impl SemConvRegistry {
                     provenance: provenance.clone(),
                 })
             })
-    }
-
-    /// Returns a metric definition and its provenance from its name
-    #[must_use]
-    pub fn metric_with_provenance(&self, metric_name: &str) -> Option<&MetricSpecWithProvenance> {
-        self.metrics.get(metric_name)
     }
 
     /// Returns a set of stats about the semantic convention registry.

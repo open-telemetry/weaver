@@ -37,9 +37,9 @@ description and the current status of each crate:
 
 | Crate                                                              | Description                                                          | Status           |
 |--------------------------------------------------------------------|----------------------------------------------------------------------|------------------|
-| [weaver_semconv](/crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Alpha            |
+| [weaver_semconv](/crates/weaver_semconv/README.md)                 | Semantic Convention Registry Data Model                              | Beta             |
 | [weaver_version](/crates/weaver_version/README.md)                 | OpenTelemetry Schema Versioning Data Model                           | Alpha            |
-| [weaver_logger](/crates/weaver_logger/README.md)                   | Generic logger supported colorized output                            | Alpha            |
+| [weaver_common](/crates/weaver_common/README.md)             | Logging and error management                                         | Alpha            |
 | [weaver_forge](/crates/weaver_forge/README.md)                     | Template engine used to generate artifacts from any serde json value | Alpha            |
 | [weaver_diff](/crates/weaver_diff/README.md)                       | Diffing tool to compare two versions of a text (used in unit tests)  | Alpha            |
 | [weaver_resolved_schema](/crates/weaver_resolved_schema/README.md) | Resolved Schema Data Model                                           | Work-In-Progress |
