@@ -53,6 +53,8 @@ impl SemConvSpec {
                 error: e.to_string(),
             })?;
 
+        // Important note: the resolution process expects this step of validation to be done for
+        // each semantic convention spec.
         semconv_spec.validate(&provenance)?;
         Ok(semconv_spec)
     }
@@ -75,6 +77,8 @@ impl SemConvSpec {
                 error: e.to_string(),
             })?;
 
+        // Important note: the resolution process expects this step of validation to be done for
+        // each semantic convention spec.
         semconv_spec.validate("<str>")?;
         Ok(semconv_spec)
     }
@@ -107,6 +111,8 @@ impl SemConvSpec {
                 error: e.to_string(),
             })?;
 
+        // Important note: the resolution process expects this step of validation to be done for
+        // each semantic convention spec.
         semconv_spec.validate(semconv_url)?;
         Ok(semconv_spec)
     }

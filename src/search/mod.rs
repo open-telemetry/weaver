@@ -31,6 +31,7 @@ use crate::error::ExitIfError;
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use theme::ThemeConfig;
 use weaver_cache::Cache;
+use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
@@ -272,17 +273,12 @@ fn search_registry_command(
     registry_args: &SearchRegistry,
 ) {
     let registry_id = "default";
-    let semconv_registry = SchemaResolver::resolve_semconv_registry(
-        registry_id,
-        registry_args.registry.clone(),
-        registry_args.path.clone(),
+    let semconv_specs = SchemaResolver::load_semconv_specs(
+        &semconv_registry_path_from(&RegistryPath::Url(registry_args.registry.clone()), &registry_args.path),
         cache,
-        log.clone(),
-    )
-    .unwrap_or_else(|e| {
-        log.error(&format!("{}", e));
-        std::process::exit(1);
-    });
+    ).exit_if_error(log.clone());
+    let mut semconv_registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    _ = SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry).exit_if_error(log.clone());
 
     let schema = if let Some(schema) = &registry_args.schema {
         let mut schema =
@@ -344,13 +340,13 @@ fn search_schema_tui(log: impl Logger + Sync + Clone, schema: TelemetrySchema) {
         .expect("Failed to create index writer");
 
     attribute::index_semconv_attributes(
-        semconv_registry.attributes_iter(),
+        semconv_registry.attribute_iter(),
         "semconv",
         &fields,
         &mut index_writer,
     );
     metric::index_semconv_metrics(
-        semconv_registry.metrics_iter(),
+        semconv_registry.metric_iter(),
         "semconv",
         &fields,
         &mut index_writer,

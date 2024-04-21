@@ -221,7 +221,7 @@ fn unresolved_registry_from_specs(
     registry: &SemConvRegistry,
 ) -> UnresolvedRegistry {
     let groups = registry
-        .unresolved_groups_with_provenance_iter()
+        .unresolved_group_with_provenance_iter()
         .map(group_from_spec)
         .collect();
 

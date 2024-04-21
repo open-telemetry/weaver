@@ -134,7 +134,7 @@ impl GroupSpec {
         // Fields metric_name, instrument and unit are required if type is metric.
         if self.r#type == GroupType::Metric {
             if self.metric_name.is_none() {
-                errors.push(Error::InvalidGroup {
+                errors.push(Error::InvalidMetric {
                     path_or_url: path_or_url.to_owned(),
                     group_id: self.id.clone(),
                     error: "This group contains a metric type but the metric_name is not set."
@@ -142,7 +142,7 @@ impl GroupSpec {
                 });
             }
             if self.instrument.is_none() {
-                errors.push(Error::InvalidGroup {
+                errors.push(Error::InvalidMetric {
                     path_or_url: path_or_url.to_owned(),
                     group_id: self.id.clone(),
                     error: "This group contains a metric type but the instrument is not set."
@@ -150,7 +150,7 @@ impl GroupSpec {
                 });
             }
             if self.unit.is_none() {
-                errors.push(Error::InvalidGroup {
+                errors.push(Error::InvalidMetric {
                     path_or_url: path_or_url.to_owned(),
                     group_id: self.id.clone(),
                     error: "This group contains a metric type but the unit is not set.".to_owned(),
@@ -340,7 +340,7 @@ mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType, SpanKindSpec};
     use crate::stability::Stability;
-    use crate::Error::{CompoundError, InvalidAttribute, InvalidGroup};
+    use crate::Error::{CompoundError, InvalidAttribute, InvalidGroup, InvalidMetric};
 
     use super::*;
 
@@ -408,17 +408,17 @@ mod tests {
                         group_id: "test".to_owned(),
                         error: "This group contains an events field but the type is not set to span.".to_owned(),
                     },
-                    InvalidGroup {
+                    InvalidMetric {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
                         error: "This group contains a metric type but the metric_name is not set.".to_owned(),
                     },
-                    InvalidGroup {
+                    InvalidMetric {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
                         error: "This group contains a metric type but the instrument is not set.".to_owned(),
                     },
-                    InvalidGroup {
+                    InvalidMetric {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
                         error: "This group contains a metric type but the unit is not set.".to_owned(),

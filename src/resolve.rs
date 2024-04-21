@@ -11,6 +11,7 @@ use weaver_cache::Cache;
 use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_resolver::SchemaResolver;
+use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::ResolverConfig;
 
 use crate::error::ExitIfError;
@@ -76,11 +77,9 @@ pub fn command_resolve(log: impl Logger + Sync + Clone, command: &ResolveCommand
             };
             let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache)
                 .exit_if_error(log.clone());
-            let mut registry = SchemaResolver::semconv_registry_from_imports(
+            let mut registry = SemConvRegistry::from_semconv_specs(
                 registry_id,
                 semconv_specs,
-                ResolverConfig::with_keep_specs(),
-                log.clone(),
             )
             .exit_if_error(log.clone());
 

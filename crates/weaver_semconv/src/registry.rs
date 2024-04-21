@@ -265,24 +265,11 @@ impl SemConvRegistry {
                 // Process metrics
                 match group.r#type {
                     GroupType::Metric => {
-                        let metric_name = if let Some(metric_name) = group.metric_name.as_ref() {
-                            metric_name.clone()
-                        } else {
-                            return Err(Error::InvalidMetric {
-                                path_or_url: provenance.clone(),
-                                group_id: group.id.clone(),
-                                error: "Metric without name".to_owned(),
-                            });
-                        };
-                        let instrument = if let Some(instrument) = group.instrument.as_ref() {
-                            instrument.clone()
-                        } else {
-                            return Err(Error::InvalidMetric {
-                                path_or_url: provenance.clone(),
-                                group_id: group.id.clone(),
-                                error: "Metric without instrument definition".to_owned(),
-                            });
-                        };
+                        // JUSTIFICATION: The expect is safe here because the validation of the
+                        // metric group is done in the validation step performed at the creation
+                        // of each SemConvSpec.
+                        let metric_name = group.metric_name.clone().expect("At this point, the metric name should be defined.");
+                        let instrument = group.instrument.clone().expect("At this point, the instrument should be defined.");
 
                         let prev_val = self.all_metrics.insert(
                             metric_name.clone(),
@@ -480,7 +467,7 @@ impl SemConvRegistry {
     /// registry. Each group is associated with its provenance (path or URL).
     ///
     /// Note: This method doesn't return any group after the `resolve` method has been called.
-    pub fn unresolved_groups_with_provenance_iter(
+    pub fn unresolved_group_with_provenance_iter(
         &self,
     ) -> impl Iterator<Item = GroupSpecWithProvenance> + '_ {
         self.specs
@@ -494,12 +481,16 @@ impl SemConvRegistry {
     }
 
     /// Returns an iterator over all the attributes defined in the semantic convention registry.
-    pub fn attributes_iter(&self) -> impl Iterator<Item = &AttributeSpec> {
+    ///
+    /// Note: This method doesn't return any attribute before the `resolve` method has been called.
+    pub fn attribute_iter(&self) -> impl Iterator<Item = &AttributeSpec> {
         self.all_attributes.values().map(|attr| &attr.attribute)
     }
 
     /// Returns an iterator over all the metrics defined in the semantic convention registry.
-    pub fn metrics_iter(&self) -> impl Iterator<Item = &MetricSpec> {
+    ///
+    /// Note: This method doesn't return any metric before the `resolve` method has been called.
+    pub fn metric_iter(&self) -> impl Iterator<Item = &MetricSpec> {
         self.all_metrics.values().map(|metric| &metric.metric)
     }
 
@@ -804,11 +795,11 @@ mod tests {
     }
 
     #[test]
-    fn test_unresolved_groups_with_provenance_iter() {
+    fn test_unresolved_group_with_provenance_iter() {
         let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
 
         let groups = registry
-            .unresolved_groups_with_provenance_iter()
+            .unresolved_group_with_provenance_iter()
             .collect::<Vec<_>>();
         assert_eq!(groups.len(), 3);
 
@@ -816,8 +807,169 @@ mod tests {
         let warnings = registry.resolve(Default::default()).unwrap();
         assert_eq!(warnings.len(), 0);
         let groups = registry
-            .unresolved_groups_with_provenance_iter()
+            .unresolved_group_with_provenance_iter()
             .collect::<Vec<_>>();
         assert_eq!(groups.len(), 0);
+    }
+
+    #[test]
+    fn test_attribute_iter() {
+        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+
+        // Before resolution there should be no attribute returned
+        // by the attribute_iter method.
+        let attributes = registry.attribute_iter().collect::<Vec<_>>();
+        assert_eq!(attributes.len(), 0);
+
+        let warnings = registry.resolve(Default::default()).unwrap();
+        assert_eq!(warnings.len(), 0);
+
+        // After resolution there should be 15 attributes returned
+        let attributes = registry.attribute_iter().collect::<Vec<_>>();
+        assert_eq!(attributes.len(), 15);
+    }
+
+    #[test]
+    fn test_metric_iter() {
+        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/d*.yaml").unwrap();
+
+        // Before resolution there should be no metric returned
+        // by the metric_iter method.
+        let metrics = registry.metric_iter().collect::<Vec<_>>();
+        assert_eq!(metrics.len(), 0);
+
+        _ = registry.resolve(Default::default()).unwrap();
+
+        // After resolution there should be 9 metrics returned
+        let metrics = registry.metric_iter().collect::<Vec<_>>();
+        assert_eq!(metrics.len(), 9);
+    }
+
+    #[test]
+    fn test_detect_duplicate_attribute_id() {
+        let mut registry = SemConvRegistry::new("test");
+
+        // Add 2 times the same semconv spec
+        let result = registry.add_semconv_spec_from_file("data/client.yaml");
+        assert!(result.is_ok());
+        let result = registry.add_semconv_spec_from_file("data/client.yaml");
+        assert!(result.is_ok());
+
+        // Resolve the registry
+        let result = registry.resolve(Default::default());
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::DuplicateAttributeId { .. }
+        ));
+    }
+
+    #[test]
+    fn test_detect_duplicate_group_id() {
+        let mut registry = SemConvRegistry::new("test");
+
+        // Add two semconv spec with the same group id and prefix
+        let result = registry.add_semconv_spec_from_file("data/client.yaml");
+        assert!(result.is_ok());
+
+        let spec = r#"
+        groups:
+          - id: client
+            prefix: client
+            type: attribute_group
+            brief: "client"
+            attributes:
+              - id: "attr1"
+                brief: "description1"
+                type: "string"
+                examples: "example1"
+        "#;
+        let result = registry.add_semconv_spec_from_string("data/client_bis.yaml", spec);
+        assert!(result.is_ok());
+
+        // The resolution of the registry should fail with a duplicate group id error
+        let result = registry.resolve(Default::default());
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::DuplicateGroupId { .. }
+        ));
+    }
+
+    #[test]
+    fn test_metrics() {
+        let mut registry = SemConvRegistry::new("test");
+
+        // Add a valid semconv spec with a metric
+        let spec = r#"
+        groups:
+          - id: metric_group
+            type: metric
+            brief: "metric"
+            attributes:
+              - id: "attr1"
+                brief: "description1"
+                type: "string"
+                examples: "example1"
+            metric_name: "metric1"
+            instrument: "counter"
+            unit: "unit1"
+        "#;
+        let result = registry.add_semconv_spec_from_string("data/metric.yaml", spec);
+        assert!(result.is_ok());
+
+        // Resolve the registry
+        let result = registry.resolve(Default::default());
+        assert!(result.is_ok());
+        let warnings = result.unwrap();
+        assert_eq!(warnings.len(), 0);
+
+        let mut registry = SemConvRegistry::new("test");
+
+        // Add an invalid semconv spec with a metric
+        // The metric has no name
+        let spec = r#"
+        groups:
+          - id: metric_group
+            type: metric
+            brief: "metric"
+            attributes:
+              - id: "attr1"
+                brief: "description1"
+                type: "string"
+                examples: "example1"
+            instrument: "counter"
+            unit: "unit1"
+        "#;
+        let result = registry.add_semconv_spec_from_string("data/metric.yaml", spec);
+        dbg!(&result);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::InvalidMetric { .. }
+        ));
+
+        // Add an invalid semconv spec with a metric
+        // The metric has no instrument
+        let spec = r#"
+        groups:
+          - id: metric_group
+            type: metric
+            brief: "metric"
+            attributes:
+              - id: "attr1"
+                brief: "description1"
+                type: "string"
+                examples: "example1"
+            metric_name: "metric1"
+            unit: "unit1"
+        "#;
+        let result = registry.add_semconv_spec_from_string("data/metric.yaml", spec);
+        dbg!(&result);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::InvalidMetric { .. }
+        ));
+
+        // ToDo collect multiple errors
     }
 }
