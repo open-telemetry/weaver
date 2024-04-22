@@ -56,37 +56,6 @@ pub enum Error {
         error: String,
     },
 
-    /// The semantic convention asset contains a duplicate attribute id.
-    #[error("Duplicate attribute id `{id}` detected while loading {path_or_url:?}, already defined in {origin_path_or_url:?}")]
-    DuplicateAttributeId {
-        /// The path or URL where the attribute id was defined for the first time.
-        origin_path_or_url: String,
-        /// The path or URL of the semantic convention asset.
-        path_or_url: String,
-        /// The duplicated attribute id.
-        id: String,
-    },
-
-    /// The semantic convention asset contains a duplicate group id.
-    #[error("Duplicate group id `{id}` detected while loading {path_or_url:?} and already defined in {origin}")]
-    DuplicateGroupId {
-        /// The path or URL of the semantic convention asset.
-        path_or_url: String,
-        /// The duplicated group id.
-        id: String,
-        /// The asset where the group id was already defined.
-        origin: String,
-    },
-
-    /// The semantic convention asset contains a duplicate metric name.
-    #[error("Duplicate metric name `{name}` detected while loading {path_or_url:?}")]
-    DuplicateMetricName {
-        /// The path or URL of the semantic convention asset.
-        path_or_url: String,
-        /// The duplicated metric name.
-        name: String,
-    },
-
     /// The semantic convention spec contains an invalid group definition.
     #[error("Invalid group '{group_id}' detected while resolving '{path_or_url:?}'. {error}")]
     InvalidGroup {
@@ -109,13 +78,6 @@ pub enum Error {
         attribute_id: String,
         /// The reason of the error.
         error: String,
-    },
-
-    /// The attribute reference is not found.
-    #[error("Attribute reference `{r#ref}` not found.")]
-    AttributeNotFound {
-        /// The attribute reference.
-        r#ref: String,
     },
 
     /// The semantic convention asset contains an invalid metric definition.
@@ -231,13 +193,14 @@ pub struct Stats {
 #[cfg(test)]
 mod tests {
     use crate::registry::SemConvRegistry;
+    use crate::Error;
     use std::vec;
+    use weaver_common::error::WeaverError;
 
     /// Load multiple semantic convention files in the semantic convention registry.
     /// No error should be emitted.
-    /// Spot check one or two pieces of loaded data.
     #[test]
-    fn test_load_catalog() {
+    fn test_valid_semconv_registry() {
         let yaml_files = vec![
             "data/client.yaml",
             "data/cloud.yaml",
@@ -266,10 +229,26 @@ mod tests {
             "data/tls.yaml",
         ];
 
-        let mut catalog = SemConvRegistry::default();
+        let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = catalog.add_semconv_spec_from_file(yaml);
+            let result = registry.add_semconv_spec_from_file(yaml);
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
+        }
+    }
+
+    #[test]
+    fn test_invalid_semconv_registry() {
+        let yaml_files = vec!["data/invalid.yaml"];
+
+        let mut registry = SemConvRegistry::default();
+        for yaml in yaml_files {
+            let result = registry.add_semconv_spec_from_file(yaml);
+            assert!(result.is_err(), "{:#?}", result.ok().unwrap());
+            if let Err(err) = result {
+                assert_eq!(err.errors().len(), 1);
+                let output = Error::format_errors(&[err]);
+                assert!(!output.is_empty());
+            }
         }
     }
 }

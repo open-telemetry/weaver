@@ -200,7 +200,7 @@ mod tests {
     use crate::Error;
 
     #[test]
-    fn try_from_path_pattern() {
+    fn test_try_from_path_pattern() {
         // Test with a valid path pattern
         let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
         assert_eq!(registry.id(), "test");
@@ -216,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn test() {
+    fn test_semconv_spec_from_url() {
         let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
         let result = SemConvRegistry::semconv_spec_from_url(semconv_url);
         assert!(result.is_ok());
