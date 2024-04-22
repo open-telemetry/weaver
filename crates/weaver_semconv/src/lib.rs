@@ -2,11 +2,6 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::collections::HashMap;
-
-use crate::attribute::AttributeSpec;
-use crate::group::{GroupSpec, GroupType};
-use crate::metric::MetricSpec;
 use weaver_common::error::WeaverError;
 
 pub mod attribute;
@@ -32,7 +27,9 @@ pub enum Error {
     },
 
     /// The semantic convention registry is not found.
-    #[error("The semantic convention registry is not found (path_or_url: {path_or_url:?}). {error}")]
+    #[error(
+        "The semantic convention registry is not found (path_or_url: {path_or_url:?}). {error}"
+    )]
     RegistryNotFound {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,

@@ -2,14 +2,14 @@
 
 //! Semantic Convention Registry.
 
-use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
-use crate::Error;
-use std::collections::HashMap;
-use std::path::Path;
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::GroupSpecWithProvenance;
 use crate::metric::MetricSpecWithProvenance;
+use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 use crate::stats::Stats;
+use crate::Error;
+use std::collections::HashMap;
+use std::path::Path;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.

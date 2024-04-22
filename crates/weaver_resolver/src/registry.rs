@@ -10,8 +10,8 @@ use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::group::GroupSpecWithProvenance;
+use weaver_semconv::registry::SemConvRegistry;
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
