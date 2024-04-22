@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! This crate extends the MiniJinja template engine to add helper functions
-//! and filters for working with semantic convention registries and telemetry
-//! schemas.
+#![doc = include_str!("../README.md")]
 
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
@@ -470,7 +468,7 @@ mod tests {
     use weaver_common::TestLogger;
     use weaver_diff::diff_output;
     use weaver_resolver::SchemaResolver;
-    use weaver_semconv::SemConvRegistry;
+    use weaver_semconv::registry::SemConvRegistry;
 
     use crate::debug::print_dedup_errors;
     use crate::filter::Filter;
@@ -614,7 +612,7 @@ mod tests {
         });
 
         let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path(registry_id, "data/*.yaml")
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");

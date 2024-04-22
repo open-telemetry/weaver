@@ -3,6 +3,9 @@
     "name": "server.port",
     "type": "string",
     "brief": "Server port",
+    "examples": [
+      "8080"
+    ],
     "requirement_level": "recommended"
   }
 ]

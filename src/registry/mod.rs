@@ -10,12 +10,14 @@ use std::str::FromStr;
 use check::RegistryCheckArgs;
 use std::path::PathBuf;
 use weaver_cache::Cache;
-use weaver_checker::Engine;
+use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
+use weaver_checker::{handle_errors, Engine, Error};
 use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_resolver::{handle_errors, Error, SchemaResolver};
-use weaver_semconv::{SemConvRegistry, SemConvSpec};
+use weaver_resolver::SchemaResolver;
+use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::semconv::SemConvSpec;
 
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::resolve::RegistryResolveArgs;
@@ -136,7 +138,7 @@ pub(crate) fn semconv_registry_path_from(
 ) -> weaver_semconv::path::RegistryPath {
     match registry {
         RegistryPath::Local(path) => weaver_semconv::path::RegistryPath::Local {
-            local_path: path.clone(),
+            path_pattern: path.clone(),
         },
         RegistryPath::Url(url) => weaver_semconv::path::RegistryPath::GitUrl {
             git_url: url.clone(),
@@ -193,18 +195,20 @@ pub fn check_policy(
                 Ok(_) => match policy_engine.check() {
                     Ok(violations) => {
                         for violation in violations {
-                            errors.push(Error::PolicyViolation {
+                            errors.push(PolicyViolation {
                                 provenance: path.clone(),
                                 violation,
                             });
                         }
                     }
-                    Err(e) => errors.push(Error::SemConvError {
-                        message: format!("Invalid policy evaluation for file '{path}': {e}"),
+                    Err(e) => errors.push(InvalidPolicyFile {
+                        file: path.to_string(),
+                        error: e.to_string(),
                     }),
                 },
-                Err(e) => errors.push(Error::SemConvError {
-                    message: format!("Invalid policy engine input for file '{path}': {e}"),
+                Err(e) => errors.push(InvalidPolicyFile {
+                    file: path.to_string(),
+                    error: e.to_string(),
                 }),
             }
             errors

@@ -14,7 +14,7 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
-use weaver_semconv::SemConvRegistry;
+use weaver_semconv::registry::SemConvRegistry;
 
 use crate::gen::{AttributeTableView, GenerateMarkdownContext, MetricView};
 
@@ -225,7 +225,7 @@ impl ResolvedSemconvRegistry {
     /// Resolve the semantic convention registry and make it available for rendering markdown snippets.
     pub fn try_from_path(path_pattern: &str) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let mut registry = SemConvRegistry::try_from_path(registry_id, path_pattern)?;
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, path_pattern)?;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
             schema,

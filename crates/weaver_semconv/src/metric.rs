@@ -50,3 +50,12 @@ impl MetricSpec {
         self.unit.as_deref()
     }
 }
+
+/// A metric definition with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct MetricSpecWithProvenance {
+    /// The metric definition.
+    pub metric: MetricSpec,
+    /// The provenance of the metric (path or URL).
+    pub provenance: String,
+}

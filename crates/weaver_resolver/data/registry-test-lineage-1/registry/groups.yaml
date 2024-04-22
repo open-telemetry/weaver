@@ -14,3 +14,4 @@ groups:
       - id: server.port
         type: string
         brief: Server port
+        examples: ['8080']

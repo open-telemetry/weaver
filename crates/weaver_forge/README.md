@@ -214,7 +214,7 @@ The following filters are available:
 in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_ids`: Splits a string by '.' creating a list of nested ids.
 - `flatten`: Converts a List of Lists into a single list with all elements.
-e.g. [[a,b],[c]] => [a,b,c]
+e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 
 
 > Note 1: This project uses the [convert_case](https://crates.io/crates/convert_case)

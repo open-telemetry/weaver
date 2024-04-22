@@ -12,11 +12,12 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+weaver_common = { path = "../weaver_common" }
+
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
 ureq.workspace = true
 ordered-float.workspace = true
 
-validator = { version = "0.17.0", features = ["derive"] }
 glob = "0.3.1"

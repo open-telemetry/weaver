@@ -40,6 +40,7 @@
             "source_group": "base.level",
             "inherited_fields": [
               "brief",
+              "examples",
               "note",
               "stability"
             ],
@@ -78,6 +79,7 @@
             "source_group": "registry.xyz",
             "inherited_fields": [
               "brief",
+              "examples",
               "note"
             ],
             "locally_overridden_fields": [
@@ -88,6 +90,7 @@
             "source_group": "registry.xyz",
             "inherited_fields": [
               "brief",
+              "examples",
               "note",
               "requirement_level"
             ]

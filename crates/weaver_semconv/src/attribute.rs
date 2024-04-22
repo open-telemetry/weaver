@@ -456,3 +456,293 @@ impl Examples {
         Examples::Doubles(values.into_iter().map(OrderedFloat).collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_value_spec_display() {
+        assert_eq!(format!("{}", ValueSpec::Int(42)), "42");
+        assert_eq!(format!("{}", ValueSpec::Double(OrderedFloat(42.0))), "42");
+        assert_eq!(format!("{}", ValueSpec::String("42".to_owned())), "42");
+    }
+
+    #[test]
+    fn test_requirement_level_spec_display() {
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+            ),
+            "required"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
+            ),
+            "recommended"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
+            ),
+            "opt-in"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::ConditionallyRequired {
+                    text: "condition".to_owned()
+                }
+            ),
+            "conditionally required (condition: condition)"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::Recommended {
+                    text: "recommendation".to_owned()
+                }
+            ),
+            "recommended (recommendation)"
+        );
+    }
+
+    #[test]
+    fn test_basic_requirement_level_spec_display() {
+        assert_eq!(
+            format!("{}", BasicRequirementLevelSpec::Required),
+            "required"
+        );
+        assert_eq!(
+            format!("{}", BasicRequirementLevelSpec::Recommended),
+            "recommended"
+        );
+        assert_eq!(format!("{}", BasicRequirementLevelSpec::OptIn), "opt-in");
+    }
+
+    #[test]
+    fn test_attribute_type_display() {
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean)
+            ),
+            "boolean"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
+            ),
+            "int"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double)
+            ),
+            "double"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+            ),
+            "string"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
+            ),
+            "string[]"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)
+            ),
+            "int[]"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)
+            ),
+            "double[]"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)
+            ),
+            "boolean[]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Boolean)),
+            "template[boolean]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Int)),
+            "template[int]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Double)),
+            "template[double]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::String)),
+            "template[string]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Strings)),
+            "template[string[]]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Ints)),
+            "template[int[]]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Doubles)),
+            "template[double[]]"
+        );
+        assert_eq!(
+            format!("{}", AttributeType::Template(TemplateTypeSpec::Booleans)),
+            "template[boolean[]]"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AttributeType::Enum {
+                    allow_custom_values: true,
+                    members: vec![EnumEntriesSpec {
+                        id: "id".to_owned(),
+                        value: ValueSpec::Int(42),
+                        brief: Some("brief".to_owned()),
+                        note: Some("note".to_owned()),
+                        stability: None,
+                    }]
+                }
+            ),
+            "enum {id}"
+        );
+    }
+
+    #[test]
+    fn test_primitive_or_array_type_spec_display() {
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Boolean), "boolean");
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Int), "int");
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Double), "double");
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::String), "string");
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Strings), "string[]");
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Ints), "int[]");
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Doubles), "double[]");
+        assert_eq!(
+            format!("{}", PrimitiveOrArrayTypeSpec::Booleans),
+            "boolean[]"
+        );
+    }
+
+    #[test]
+    fn test_template_type_spec_display() {
+        assert_eq!(
+            format!("{}", TemplateTypeSpec::Boolean),
+            "template[boolean]"
+        );
+        assert_eq!(format!("{}", TemplateTypeSpec::Int), "template[int]");
+        assert_eq!(format!("{}", TemplateTypeSpec::Double), "template[double]");
+        assert_eq!(format!("{}", TemplateTypeSpec::String), "template[string]");
+        assert_eq!(
+            format!("{}", TemplateTypeSpec::Strings),
+            "template[string[]]"
+        );
+        assert_eq!(format!("{}", TemplateTypeSpec::Ints), "template[int[]]");
+        assert_eq!(
+            format!("{}", TemplateTypeSpec::Doubles),
+            "template[double[]]"
+        );
+        assert_eq!(
+            format!("{}", TemplateTypeSpec::Booleans),
+            "template[boolean[]]"
+        );
+    }
+
+    #[test]
+    fn test_enum_entries_spec_display() {
+        let entries = EnumEntriesSpec {
+            id: "id".to_owned(),
+            value: ValueSpec::Int(42),
+            brief: Some("brief".to_owned()),
+            note: Some("note".to_owned()),
+            stability: None,
+        };
+        assert_eq!(format!("{}", entries), "id=id, type=42");
+    }
+
+    #[test]
+    fn test_examples_from_f64() {
+        assert_eq!(
+            Examples::from_f64(42.0),
+            Examples::Double(OrderedFloat(42.0))
+        );
+    }
+
+    #[test]
+    fn test_examples_from_f64s() {
+        assert_eq!(
+            Examples::from_f64s(vec![42.0, 43.0]),
+            Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)])
+        );
+    }
+
+    #[test]
+    fn test_attribute() {
+        let attr = AttributeSpec::Id {
+            id: "id".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            brief: Some("brief".to_owned()),
+            examples: Some(Examples::Int(42)),
+            tag: Some("tag".to_owned()),
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: Some(true),
+            note: "note".to_owned(),
+            stability: Some(Stability::Stable),
+            deprecated: Some("deprecated".to_owned()),
+        };
+        assert_eq!(attr.id(), "id");
+        assert_eq!(attr.brief(), "brief");
+        assert_eq!(attr.note(), "note");
+        assert_eq!(attr.tag(), Some("tag".to_owned()));
+        assert!(attr.is_required());
+
+        let attr = AttributeSpec::Ref {
+            r#ref: "ref".to_owned(),
+            brief: Some("brief".to_owned()),
+            examples: Some(Examples::Int(42)),
+            tag: Some("tag".to_owned()),
+            requirement_level: Some(RequirementLevel::Basic(BasicRequirementLevelSpec::Required)),
+            sampling_relevant: Some(true),
+            note: Some("note".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: Some("deprecated".to_owned()),
+        };
+        assert_eq!(attr.id(), "ref");
+        assert_eq!(attr.brief(), "brief");
+        assert_eq!(attr.note(), "note");
+        assert_eq!(attr.tag(), Some("tag".to_owned()));
+        assert!(attr.is_required());
+    }
+}
+
+/// An attribute definition with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct AttributeSpecWithProvenance {
+    /// The attribute definition.
+    pub attribute: AttributeSpec,
+    /// The provenance of the attribute (path or URL).
+    pub provenance: String,
+}

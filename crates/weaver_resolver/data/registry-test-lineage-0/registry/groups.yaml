@@ -6,6 +6,7 @@ groups:
       - id: server.port
         type: string
         brief: Server port
+        examples: [ '80', '443' ]
 
   - id: registry.network
     type: attribute_group
@@ -14,12 +15,15 @@ groups:
       - id: network.protocol.name
         type: string
         brief: Network protocol name
+        examples: [ 'http', 'spdy' ]
       - id: network.protocol.version
         type: string
         brief: Network protocol version
+        examples: [ '1.0', '2.0' ]
       - id: network.type
         type: string
         brief: Network type
+        examples: [ 'ipv4', 'ipv6' ]
 
   - id: top.level.group
     type: attribute_group

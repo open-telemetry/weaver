@@ -15,6 +15,7 @@
             "source_group": "intermediate.level",
             "inherited_fields": [
               "brief",
+              "examples",
               "note",
               "requirement_level"
             ]
@@ -36,6 +37,7 @@
             "source_group": "base.level",
             "inherited_fields": [
               "brief",
+              "examples",
               "note",
               "requirement_level"
             ]

@@ -22,6 +22,19 @@ pub trait WeaverError {
 /// A trait for types that can cleanly exit the application if an error
 /// is encountered.
 pub trait ExitIfError<T, E> {
+    /// Processes the `Result` and panics if it is an `Err`.
+    /// If `Ok`, the contained value is returned.
+    ///
+    /// # Arguments
+    /// * `self` - The `Result` to process.
+    /// * `logger` - An object implementing the `Logger` trait used to log any
+    /// errors.
+    ///
+    /// # Returns
+    /// The contained value if the result is `Ok`.
+    /// Panics if the result is `Err`.
+    fn panic_if_error(self, logger: impl Logger) -> T;
+
     /// Processes the `Result` and exits the application if it is an `Err`.
     /// If `Ok`, the contained value is returned.
     ///
@@ -55,6 +68,27 @@ pub trait ExitIfError<T, E> {
 /// Provides default implementations of the `ExitIfError` trait for any
 /// `Result<T, E>` where `E` implements `WeaverError`.
 impl<T, E: WeaverError> ExitIfError<T, E> for Result<T, E> {
+    /// Processes the `Result` and panics if it is an `Err`.
+    /// If `Ok`, the contained value is returned.
+    ///
+    /// # Arguments
+    /// * `self` - The `Result` to process.
+    /// * `logger` - An object implementing the `Logger` trait used to log any
+    /// errors.
+    ///
+    /// # Returns
+    /// The contained value if the result is `Ok`.
+    /// Panics if the result is `Err`.
+    fn panic_if_error(self, logger: impl Logger) -> T {
+        match self {
+            Ok(value) => value,
+            Err(e) => {
+                e.errors().iter().for_each(|msg| logger.error(msg));
+                panic!("One or several errors occurred (see above)");
+            }
+        }
+    }
+
     /// Processes the `Result` and exits the application if it is an `Err`.
     /// If `Ok`, the contained value is returned.
     ///

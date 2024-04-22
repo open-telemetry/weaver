@@ -1,0 +1,4 @@
+groups:
+  - id: client
+    prefix: client
+    type: attribute_group

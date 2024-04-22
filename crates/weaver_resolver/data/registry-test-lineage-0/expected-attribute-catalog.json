@@ -3,31 +3,11 @@
     "name": "server.port",
     "type": "string",
     "brief": "Server port",
+    "examples": [
+      "80",
+      "443"
+    ],
     "requirement_level": "recommended"
-  },
-  {
-    "name": "network.protocol.name",
-    "type": "string",
-    "brief": "Network protocol name",
-    "requirement_level": "recommended"
-  },
-  {
-    "name": "network.protocol.version",
-    "type": "string",
-    "brief": "Network protocol version",
-    "requirement_level": "recommended"
-  },
-  {
-    "name": "network.type",
-    "type": "string",
-    "brief": "Network type",
-    "requirement_level": "recommended"
-  },
-  {
-    "name": "server.port",
-    "type": "string",
-    "brief": "Server port",
-    "requirement_level": "opt_in"
   },
   {
     "name": "network.protocol.name",
@@ -43,6 +23,40 @@
     "name": "network.protocol.version",
     "type": "string",
     "brief": "Network protocol version",
+    "examples": [
+      "1.0",
+      "2.0"
+    ],
+    "requirement_level": "recommended"
+  },
+  {
+    "name": "network.type",
+    "type": "string",
+    "brief": "Network type",
+    "examples": [
+      "ipv4",
+      "ipv6"
+    ],
+    "requirement_level": "recommended"
+  },
+  {
+    "name": "server.port",
+    "type": "string",
+    "brief": "Server port",
+    "examples": [
+      "80",
+      "443"
+    ],
+    "requirement_level": "opt_in"
+  },
+  {
+    "name": "network.protocol.version",
+    "type": "string",
+    "brief": "Network protocol version",
+    "examples": [
+      "1.0",
+      "2.0"
+    ],
     "requirement_level": "opt_in"
   }
 ]
