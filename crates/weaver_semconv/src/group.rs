@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
-use crate::{handle_errors, Error};
+use crate::{Error, handle_errors};
 
 /// Group Spec contain the list of semantic conventions for attributes,
 /// metrics, events, spans, etc.
@@ -602,4 +602,13 @@ mod tests {
         assert_eq!(Histogram.to_string(), "histogram");
         assert_eq!(UpDownCounter.to_string(), "updowncounter");
     }
+}
+
+/// A group spec with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct GroupSpecWithProvenance {
+    /// The group spec.
+    pub spec: GroupSpec,
+    /// The provenance of the group spec (path or URL).
+    pub provenance: String,
 }

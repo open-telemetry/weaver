@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! This crate integrates a general purpose policy engine with the Weaver
-//! project. The project `regorus` is the policy engine used in this crate to
-//! evaluate policies.
+#![doc = include_str!("../README.md")]
 
 use crate::violation::Violation;
 use crate::Error::CompoundError;

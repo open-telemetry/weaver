@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! This crate implements the process of reference resolution for telemetry schemas.
+#![doc = include_str!("../README.md")]
 
 use std::collections::HashMap;
 use std::path::PathBuf;

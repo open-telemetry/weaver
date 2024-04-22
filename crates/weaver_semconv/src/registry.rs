@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Semantic Convention Registry Definition.
+//! Semantic Convention Registry.
 
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
-use crate::{
-    AttributeSpecWithProvenance, Error, GroupSpecWithProvenance, MetricSpecWithProvenance, Stats,
-};
+use crate::Error;
 use std::collections::HashMap;
 use std::path::Path;
+use crate::attribute::AttributeSpecWithProvenance;
+use crate::group::GroupSpecWithProvenance;
+use crate::metric::MetricSpecWithProvenance;
+use crate::stats::Stats;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -89,7 +91,7 @@ impl SemConvRegistry {
         registry_id: &str,
         semconv_specs: Vec<(String, SemConvSpec)>,
     ) -> SemConvRegistry {
-        // Load all the semantic convention catalogs.
+        // Load all the semantic convention registry.
         let mut registry = SemConvRegistry::new(registry_id);
 
         for (provenance, spec) in semconv_specs {

@@ -737,3 +737,12 @@ mod tests {
         assert!(attr.is_required());
     }
 }
+
+/// An attribute definition with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct AttributeSpecWithProvenance {
+    /// The attribute definition.
+    pub attribute: AttributeSpec,
+    /// The provenance of the attribute (path or URL).
+    pub provenance: String,
+}

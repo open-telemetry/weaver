@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! This crate extends the MiniJinja template engine to add helper functions
-//! and filters for working with semantic convention registries and telemetry
-//! schemas.
+#![doc = include_str!("../README.md")]
 
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;

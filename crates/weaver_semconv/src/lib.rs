@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! This crate defines the concept of a 'semantic convention catalog', which is
-//! fueled by one or more semantic convention YAML files.
-//!
-//! The YAML language syntax used to define a semantic convention file
-//! can be found [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md).
+#![doc = include_str!("../README.md")]
 
 use std::collections::HashMap;
 
@@ -20,13 +16,14 @@ pub mod path;
 pub mod registry;
 pub mod semconv;
 pub mod stability;
+pub mod stats;
 
 /// An error that can occur while loading a semantic convention registry.
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Error {
     /// The semantic convention registry path pattern is invalid.
-    #[error("Invalid semantic convention registry path pattern '{path_pattern:?}'.\n{error}")]
+    #[error("The semantic convention registry path pattern is invalid (path_pattern: {path_pattern:?}). {error}")]
     InvalidRegistryPathPattern {
         /// The path pattern pointing to the semantic convention registry.
         path_pattern: String,
@@ -34,8 +31,8 @@ pub enum Error {
         error: String,
     },
 
-    /// The semantic convention asset was not found.
-    #[error("Semantic convention registry '{path_or_url:?}' not found\n{error}")]
+    /// The semantic convention registry is not found.
+    #[error("The semantic convention registry is not found (path_or_url: {path_or_url:?}). {error}")]
     RegistryNotFound {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,
@@ -44,7 +41,7 @@ pub enum Error {
     },
 
     /// The semantic convention spec is invalid.
-    #[error("Invalid semantic convention spec `{path_or_url:?}`\n{error}")]
+    #[error("The semantic convention spec is invalid (path_or_url: {path_or_url:?}). {error}")]
     InvalidSemConvSpec {
         /// The path or URL of the semantic convention spec.
         path_or_url: String,
@@ -81,7 +78,7 @@ pub enum Error {
     },
 
     /// The semantic convention asset contains an invalid metric definition.
-    #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`.\n{error}")]
+    #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,
@@ -146,48 +143,6 @@ impl Error {
             .collect::<Vec<String>>()
             .join("\n\n")
     }
-}
-
-/// A group spec with its provenance (path or URL).
-#[derive(Debug, Clone)]
-pub struct GroupSpecWithProvenance {
-    /// The group spec.
-    pub spec: GroupSpec,
-    /// The provenance of the group spec (path or URL).
-    pub provenance: String,
-}
-
-/// An attribute definition with its provenance (path or URL).
-#[derive(Debug, Clone)]
-pub struct AttributeSpecWithProvenance {
-    /// The attribute definition.
-    pub attribute: AttributeSpec,
-    /// The provenance of the attribute (path or URL).
-    pub provenance: String,
-}
-
-/// A metric definition with its provenance (path or URL).
-#[derive(Debug, Clone)]
-pub struct MetricSpecWithProvenance {
-    /// The metric definition.
-    pub metric: MetricSpec,
-    /// The provenance of the metric (path or URL).
-    pub provenance: String,
-}
-
-/// Statistics about the semantic convention registry.
-#[must_use]
-pub struct Stats {
-    /// Number of semconv files.
-    pub file_count: usize,
-    /// Number of semconv groups.
-    pub group_count: usize,
-    /// Breakdown of group statistics by type.
-    pub group_breakdown: HashMap<GroupType, usize>,
-    /// Number of attributes.
-    pub attribute_count: usize,
-    /// Number of metrics.
-    pub metric_count: usize,
 }
 
 #[cfg(test)]
