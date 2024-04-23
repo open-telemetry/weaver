@@ -5,7 +5,7 @@
 <!-- semconv db(tag=connection-level) -->
 | Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |
 |---|---|---|---|---|---|
-| db.type | string | Database type. For any SQL database, "sql". For others, the lower-case database category. | `sql`; `cassandra`; `hbase`; `mongodb`; `redis`; `couchbase`; `couchdb` | `Required` | ![Experimental](https://img.shields.io/badge/-experimental-blue) |
+| db.type | string | Database type. For any SQL database, "sql". For others, the lower-case database category. | `sql`; `cassandra`; `hbase` | `Required` | ![Experimental](https://img.shields.io/badge/-experimental-blue) |
 | db.connection_string | string | The connection string used to connect to the database. [1] | `Server=(localdb)\v11.0;Integrated Security=true;` | `Recommended` | ![Experimental](https://img.shields.io/badge/-experimental-blue) |
 | db.user | string | Username for accessing the database. | `readonly_user`; `reporting_user` | `Recommended` | ![Experimental](https://img.shields.io/badge/-experimental-blue) |
 | net.peer.ip | string | Remote address of the peer (dotted decimal for IPv4 or [RFC5952](https://tools.ietf.org/html/rfc5952) for IPv6) | `127.0.0.1` | `Recommended` | ![Experimental](https://img.shields.io/badge/-experimental-blue) |

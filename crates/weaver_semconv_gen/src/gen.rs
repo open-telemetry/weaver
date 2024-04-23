@@ -97,7 +97,7 @@ fn write_enum_examples_string<Out: Write>(
     members: &[EnumEntriesSpec],
 ) -> Result<(), Error> {
     let mut first = true;
-    for entry in members {
+    for entry in members.iter().take(3) {
         if !first {
             write!(out, "; ")?;
         }
