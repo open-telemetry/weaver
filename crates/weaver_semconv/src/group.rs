@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
-use crate::{handle_errors, Error};
+use crate::Error;
+use weaver_common::error::handle_errors;
 
 /// Group Spec contain the list of semantic conventions for attributes,
 /// metrics, events, spans, etc.

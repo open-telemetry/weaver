@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Deserialize;
 
+use weaver_common::error::handle_errors;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
@@ -15,7 +16,7 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::{handle_errors, Error, UnsatisfiedAnyOfConstraint};
+use crate::{Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]

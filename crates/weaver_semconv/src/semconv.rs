@@ -3,11 +3,12 @@
 //! Semantic convention specification.
 
 use crate::group::GroupSpec;
-use crate::{handle_errors, Error};
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use weaver_common::error::handle_errors;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).

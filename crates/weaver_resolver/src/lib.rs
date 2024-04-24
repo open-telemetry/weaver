@@ -10,7 +10,7 @@ use rayon::iter::ParallelIterator;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
-use weaver_common::error::WeaverError;
+use weaver_common::error::{format_errors, handle_errors, WeaverError};
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
@@ -137,11 +137,11 @@ pub enum Error {
     },
 
     /// A container for multiple errors.
-    #[error("{:?}", Error::format_errors(.0))]
+    #[error("{:?}", format_errors(.0))]
     CompoundError(Vec<Error>),
 }
 
-impl WeaverError for Error {
+impl WeaverError<Error> for Error {
     /// Returns a list of human-readable error messages.
     fn errors(&self) -> Vec<String> {
         match self {
@@ -149,15 +149,16 @@ impl WeaverError for Error {
             _ => vec![self.to_string()],
         }
     }
-}
-
-/// Handles a list of errors and returns a compound error if the list is not
-/// empty or () if the list is empty.
-pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::CompoundError(errors))
+    fn compound(errors: Vec<Error>) -> Error {
+        Self::CompoundError(
+            errors
+                .into_iter()
+                .flat_map(|e| match e {
+                    Self::CompoundError(errors) => errors,
+                    e => vec![e],
+                })
+                .collect(),
+        )
     }
 }
 
@@ -171,31 +172,6 @@ pub struct UnsatisfiedAnyOfConstraint {
 }
 
 impl Error {
-    /// Creates a compound error from a list of errors.
-    /// Note: All compound errors are flattened.
-    pub fn compound_error(errors: Vec<Error>) -> Error {
-        Error::CompoundError(
-            errors
-                .into_iter()
-                .flat_map(|e| match e {
-                    Error::CompoundError(errors) => errors,
-                    e => vec![e],
-                })
-                .collect(),
-        )
-    }
-
-    /// Formats the given errors into a single string.
-    /// This used to render compound errors.
-    #[must_use]
-    pub fn format_errors(errors: &[Error]) -> String {
-        errors
-            .iter()
-            .map(|e| e.to_string())
-            .collect::<Vec<String>>()
-            .join("\n\n")
-    }
-
     /// Logs one or multiple errors (if current error is a 1CompoundError`)
     /// using the given logger.
     pub fn log(&self, logger: impl Logger + Clone + Sync) {

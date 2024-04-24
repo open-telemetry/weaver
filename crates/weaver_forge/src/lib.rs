@@ -19,6 +19,7 @@ use error::Error::{
     ContextSerializationFailed, InvalidTemplateDir, InvalidTemplateFile, TargetNotSupported,
     TemplateEvaluationFailed, WriteGeneratedCodeFailed,
 };
+use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
 use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
@@ -278,7 +279,7 @@ impl TemplateEngine {
             })
             .collect::<Vec<Error>>();
 
-        error::handle_errors(errs)
+        handle_errors(errs)
     }
 
     fn evaluate_template(
