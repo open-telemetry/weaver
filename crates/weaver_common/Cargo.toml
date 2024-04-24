@@ -13,4 +13,10 @@ workspace = true
 
 [dependencies]
 paris = { version = "1.5.15", features = ["macros"] }
+tinytemplate = "1.1"
+miette = { version = "7.2.0", features = ["fancy"] }
+thiserror.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
 
