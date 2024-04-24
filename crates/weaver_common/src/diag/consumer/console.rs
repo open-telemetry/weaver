@@ -2,6 +2,9 @@
 
 //! A consumer that writes diagnostic messages to the console as plain text.
 
+#![allow(clippy::print_stdout)]
+#![allow(clippy::print_stderr)]
+
 use crate::diag::consumer::DiagMessageConsumer;
 use crate::diag::SystemMessage;
 use std::sync::mpsc;
@@ -13,6 +16,7 @@ pub struct ConsoleDiagMessageConsumer {
 
 impl ConsoleDiagMessageConsumer {
     /// Creates a new console consumer.
+    #[must_use]
     pub fn new(stdout_lock: bool) -> Self {
         Self { stdout_lock }
     }

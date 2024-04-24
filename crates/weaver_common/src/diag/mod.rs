@@ -50,6 +50,7 @@ impl DiagService {
     }
 
     /// Returns a channel for reporting diagnostic reports.
+    #[must_use]
     pub fn channel(&self) -> DiagChannel {
         DiagChannel::new(self.sender.clone())
     }
@@ -86,7 +87,7 @@ mod tests {
             url(docsrs),
             help("try doing it better next time?")
         )]
-        MyError {
+        Error {
             // The Source that we're gonna be printing snippets out of.
             // This can be a String if you don't have or care about file names.
             #[source_code]
@@ -103,7 +104,7 @@ mod tests {
             url(docsrs),
             help("try doing it better next time?")
         )]
-        MyAdvice {
+        Advice {
             // The Source that we're gonna be printing snippets out of.
             // This can be a String if you don't have or care about file names.
             #[source_code]
@@ -120,7 +121,7 @@ mod tests {
             url(docsrs),
             help("try doing it better next time?")
         )]
-        MyWarning {
+        Warning {
             // The Source that we're gonna be printing snippets out of.
             // This can be a String if you don't have or care about file names.
             #[source_code]
@@ -136,7 +137,7 @@ mod tests {
             url(docsrs),
             help("try doing it better next time?")
         )]
-        MyMessage {
+        Message {
             // The Source that we're gonna be printing snippets out of.
             // This can be a String if you don't have or care about file names.
             #[source_code]
@@ -173,21 +174,21 @@ mod tests {
 
     /// This function represent a single threaded application that reports a diagnostic message.
     fn single_thread_app(diag_channel: &DiagChannel) {
-        let src = "source\n  text\n    here".to_string();
+        let src = "source\n  text\n    here".to_owned();
 
-        diag_channel.report(DiagMessages::MyError {
+        diag_channel.report(DiagMessages::Error {
             src: NamedSource::new("bad_file.rs", src.clone()),
             bad_bit: (9, 4).into(),
         });
-        diag_channel.report(DiagMessages::MyAdvice {
+        diag_channel.report(DiagMessages::Advice {
             src: NamedSource::new("bad_file.rs", src.clone()),
             bad_bit: (9, 4).into(),
         });
-        diag_channel.report(DiagMessages::MyWarning {
+        diag_channel.report(DiagMessages::Warning {
             src: NamedSource::new("bad_file.rs", src.clone()),
             bad_bit: (9, 4).into(),
         });
-        diag_channel.report(DiagMessages::MyMessage {
+        diag_channel.report(DiagMessages::Message {
             src: NamedSource::new("bad_file.rs", src),
             bad_bit: (9, 4).into(),
         });
@@ -200,21 +201,21 @@ mod tests {
         let diag_channel = diag_channel.clone();
 
         _ = thread::spawn(move || {
-            let src = "source\n  text\n    here".to_string();
+            let src = "source\n  text\n    here".to_owned();
 
-            diag_channel.report(DiagMessages::MyError {
+            diag_channel.report(DiagMessages::Error {
                 src: NamedSource::new("bad_file.rs", src.clone()),
                 bad_bit: (9, 4).into(),
             });
-            diag_channel.report(DiagMessages::MyAdvice {
+            diag_channel.report(DiagMessages::Advice {
                 src: NamedSource::new("bad_file.rs", src.clone()),
                 bad_bit: (9, 4).into(),
             });
-            diag_channel.report(DiagMessages::MyWarning {
+            diag_channel.report(DiagMessages::Warning {
                 src: NamedSource::new("bad_file.rs", src.clone()),
                 bad_bit: (9, 4).into(),
             });
-            diag_channel.report(DiagMessages::MyMessage {
+            diag_channel.report(DiagMessages::Message {
                 src: NamedSource::new("bad_file.rs", src),
                 bad_bit: (9, 4).into(),
             });

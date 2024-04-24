@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//!
+//! An example that demonstrates how to use the diagnostic service.
 
-use crate::DiagnosticMessages::{MyAdvice, MyError, MyMessage, MyWarning};
+use crate::DiagnosticMessages::{AnAdvice, Message, MyError, TheWarning};
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 use weaver_common::diag::channel::DiagChannel;
@@ -35,7 +35,7 @@ enum DiagnosticMessages {
         url(docsrs),
         help("try doing it better next time?")
     )]
-    MyAdvice {
+    AnAdvice {
         // The Source that we're gonna be printing snippets out of.
         // This can be a String if you don't have or care about file names.
         #[source_code]
@@ -52,7 +52,7 @@ enum DiagnosticMessages {
         url(docsrs),
         help("try doing it better next time?")
     )]
-    MyWarning {
+    TheWarning {
         // The Source that we're gonna be printing snippets out of.
         // This can be a String if you don't have or care about file names.
         #[source_code]
@@ -68,7 +68,7 @@ enum DiagnosticMessages {
         url(docsrs),
         help("try doing it better next time?")
     )]
-    MyMessage {
+    Message {
         // The Source that we're gonna be printing snippets out of.
         // This can be a String if you don't have or care about file names.
         #[source_code]
@@ -90,21 +90,21 @@ fn main() {
 }
 
 fn app_code(diag_channel: &DiagChannel) {
-    let src = "source\n  text\n    here".to_string();
+    let src = "source\n  text\n    here".to_owned();
 
     diag_channel.report(MyError {
         src: NamedSource::new("bad_file.rs", src.clone()),
         bad_bit: (9, 4).into(),
     });
-    diag_channel.report(MyAdvice {
+    diag_channel.report(AnAdvice {
         src: NamedSource::new("bad_file.rs", src.clone()),
         bad_bit: (9, 4).into(),
     });
-    diag_channel.report(MyWarning {
+    diag_channel.report(TheWarning {
         src: NamedSource::new("bad_file.rs", src.clone()),
         bad_bit: (9, 4).into(),
     });
-    diag_channel.report(MyMessage {
+    diag_channel.report(Message {
         src: NamedSource::new("bad_file.rs", src),
         bad_bit: (9, 4).into(),
     });
