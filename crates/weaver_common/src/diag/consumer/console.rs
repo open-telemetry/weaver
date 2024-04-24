@@ -11,14 +11,19 @@ use std::sync::mpsc;
 
 /// A consumer that writes diagnostic messages to the console as plain text.
 pub struct ConsoleDiagMessageConsumer {
-    stdout_lock: bool,
+    enable_output_locking: bool,
 }
 
 impl ConsoleDiagMessageConsumer {
     /// Creates a new console consumer.
+    ///
+    /// If `enable_output_locking` is true, the output (stdout and stderr) will be locked to speed
+    /// up the output to the console.
     #[must_use]
-    pub fn new(stdout_lock: bool) -> Self {
-        Self { stdout_lock }
+    pub fn new(enable_output_locking: bool) -> Self {
+        Self {
+            enable_output_locking,
+        }
     }
 }
 
@@ -28,9 +33,10 @@ impl DiagMessageConsumer for ConsoleDiagMessageConsumer {
     /// them, and handle the `SystemMessage::Stop` message.
     fn run(&self, receiver: mpsc::Receiver<SystemMessage>) {
         let stdout = std::io::stdout();
-        let lock = if self.stdout_lock {
+        let stderr = std::io::stderr();
+        let lock = if self.enable_output_locking {
             // Used to speed up the output to the console.
-            Some(stdout.lock())
+            Some((stdout.lock(), stderr.lock()))
         } else {
             None
         };
