@@ -13,4 +13,8 @@ workspace = true
 
 [dependencies]
 paris = { version = "1.5.15", features = ["macros"] }
+miette = { version = "7.2.0", features = ["fancy"] }
+
+[dev-dependencies]
+thiserror.workspace = true
 
