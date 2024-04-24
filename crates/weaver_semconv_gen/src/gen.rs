@@ -198,8 +198,8 @@ impl<'a> AttributeView<'a> {
                 if let Some(v) = m.brief.as_ref() {
                     write!(out, "{}", v.trim())?;
                 } else {
-                    // Use the value as the description if missing a brief.
-                    write!(out, "{}", m.value)?;
+                    // Use the id as the description if missing a brief.
+                    write!(out, "{}", m.id)?;
                 }
                 // Stability.
                 write!(out, " | ")?;
