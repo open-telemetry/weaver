@@ -114,7 +114,6 @@ impl WeaverError<Error> for Error {
 #[cfg(test)]
 mod tests {
     use crate::registry::SemConvRegistry;
-    use crate::Error;
     use std::vec;
     use weaver_common::error::WeaverError;
 
