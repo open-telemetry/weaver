@@ -2,7 +2,7 @@
 
 #![doc = include_str!("../README.md")]
 
-use weaver_common::error::WeaverError;
+use weaver_common::error::{format_errors, WeaverError};
 
 pub mod attribute;
 pub mod group;
@@ -86,7 +86,7 @@ pub enum Error {
     },
 
     /// A container for multiple errors.
-    #[error("{:?}", Error::format_errors(.0))]
+    #[error("{:?}", format_errors(.0))]
     CompoundError(Vec<Error>),
 }
 
@@ -99,35 +99,15 @@ impl WeaverError<Error> for Error {
         }
     }
     fn compound(errors: Vec<Error>) -> Error {
-        Error::CompoundError(errors)
-    }
-}
-
-impl Error {
-    /// Creates a compound error from a list of errors.
-    /// Note: All compound errors are flattened.
-    #[must_use]
-    pub fn compound_error(errors: Vec<Error>) -> Error {
-        Error::CompoundError(
+        Self::CompoundError(
             errors
                 .into_iter()
                 .flat_map(|e| match e {
-                    Error::CompoundError(errors) => errors,
+                    Self::CompoundError(errors) => errors,
                     e => vec![e],
                 })
                 .collect(),
         )
-    }
-
-    /// Formats the given errors into a single string.
-    /// This used to render compound errors.
-    #[must_use]
-    pub fn format_errors(errors: &[Error]) -> String {
-        errors
-            .iter()
-            .map(|e| e.to_string())
-            .collect::<Vec<String>>()
-            .join("\n\n")
     }
 }
 
@@ -187,7 +167,7 @@ mod tests {
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
                 assert_eq!(err.errors().len(), 1);
-                let output = Error::format_errors(&[err]);
+                let output = format!("{}", err);
                 assert!(!output.is_empty());
             }
         }
