@@ -2,9 +2,9 @@
 
 #![doc = include_str!("../README.md")]
 
+pub mod diag;
 pub mod error;
 pub mod quiet;
-pub mod diag;
 
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};

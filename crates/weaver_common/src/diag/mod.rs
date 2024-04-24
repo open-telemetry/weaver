@@ -1,59 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Defines the diagnostic messages and the corresponding infrastructure used by Weaver.
+//! Diagnostic infrastructure used to report diagnostic messages to the user.
+//! The diagnostic messages are based on the [`miette`] crate.
+//! This infrastructure is designed to be extensible and flexible.
 
-use std::error::Error;
 use std::sync::mpsc::{sync_channel, SyncSender};
 use std::thread;
-use miette::Diagnostic;
 
-use serde::Serialize;
-use serde_json::Value;
-use tinytemplate::TinyTemplate;
+use miette::Report;
 
 use crate::diag::channel::DiagChannel;
 
 pub mod channel;
 pub mod consumer;
 
-/// A generic diagnostic message.
-#[derive(Debug, Serialize)]
-pub struct DiagMessage {
-    /// The level of the diagnostic message.
-    level: DiagLevel,
-    /// The diagnostic message. Placeholder values can be used.
-    message: String,
-    /// The context of the diagnostic message.
-    context: Value,
-    /// Help information for the diagnostic message.
-    help: Option<String>,
-    /// Additional notes for the diagnostic message.
-    note: Option<String>,
-    /// The location of the diagnostic message.
-    location: Option<Location>,
-}
-
-/// The diagnostic level.
-#[derive(Debug, Serialize)]
-pub enum DiagLevel {
-    /// A warning message.
-    Warning,
-    /// An error message.
-    Error,
-}
-
-/// The location of a diagnostic message.
-#[derive(Debug, Serialize)]
-pub struct Location {
-    source: Option<String>,
-    line: Option<usize>,
-    column: Option<usize>,
-}
-
 /// A system message that can be sent to the diagnostic service.
 pub enum SystemMessage {
-    /// A diagnostic message.
-    Diagnostic(DiagMessage),
+    /// A diagnostic report.
+    Diagnostic(Report),
     /// A stop message used to stop the diagnostic service.
     Stop,
 }
@@ -63,45 +27,6 @@ pub enum SystemMessage {
 pub struct DiagService {
     sender: SyncSender<SystemMessage>,
     join_handle: thread::JoinHandle<()>,
-}
-
-impl DiagMessage {
-    /// Creates a new diagnostic message with the warning level.
-    pub fn warn(message: &str) -> Self {
-        Self {
-            level: DiagLevel::Warning,
-            message: message.to_string(),
-            context: Value::Null,
-            help: None,
-            note: None,
-            location: None,
-        }
-    }
-
-    /// Creates a new diagnostic message with the warning level and a context.
-    pub fn warn_with_ctx<C: Serialize>(message: &str, ctx: C) -> Self {
-        Self {
-            level: DiagLevel::Warning,
-            message: message.to_string(),
-            // Todo: Fix this
-            context: serde_json::to_value(ctx).expect("Failed to serialize context"),
-            help: None,
-            note: None,
-            location: None,
-        }
-    }
-
-    /// Creates a new diagnostic message with the error level.
-    pub fn error(message: &str) -> Self {
-        Self {
-            level: DiagLevel::Error,
-            message: message.to_string(),
-            context: Value::Null,
-            help: None,
-            note: None,
-            location: None,
-        }
-    }
 }
 
 impl DiagService {
@@ -115,11 +40,7 @@ impl DiagService {
     pub fn new(consumer: impl consumer::DiagMessageConsumer + 'static, bound: usize) -> Self {
         let (sender, receiver) = sync_channel(bound);
         let join_handle = thread::spawn(move || {
-            consumer.run(receiver, |msg| {
-                let mut tt = TinyTemplate::new();
-                tt.add_template("formatter", &msg.message).expect("Failed to add template");
-                tt.render("formatter", &msg.context).expect("Failed to render message")
-            });
+            consumer.run(receiver);
         });
 
         Self {
@@ -128,7 +49,7 @@ impl DiagService {
         }
     }
 
-    /// Returns a channel for reporting diagnostic messages.
+    /// Returns a channel for reporting diagnostic reports.
     pub fn channel(&self) -> DiagChannel {
         DiagChannel::new(self.sender.clone())
     }
@@ -138,16 +59,93 @@ impl DiagService {
     /// If this method is not called, the program will hang.
     /// This method should be called only once.
     pub fn stop(self) {
-        self.sender.send(SystemMessage::Stop).expect("Failed to send stop message.");
-        self.join_handle.join().expect("Failed to join the diagnostic service thread");
+        self.sender
+            .send(SystemMessage::Stop)
+            .expect("The DiagService has already been stopped.");
+        self.join_handle
+            .join()
+            .expect("The DiagService thread has panicked.");
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use miette::{Diagnostic, NamedSource, SourceSpan};
+    use thiserror::Error;
+
     use crate::diag::consumer::console::ConsoleDiagMessageConsumer;
 
     use super::*;
+
+    #[derive(Error, Diagnostic, Debug)]
+    enum DiagMessages {
+        #[error("A fantastic diagnostic error!")]
+        #[diagnostic(
+            code(oops::my::bad),
+            severity(Error),
+            url(docsrs),
+            help("try doing it better next time?")
+        )]
+        MyError {
+            // The Source that we're gonna be printing snippets out of.
+            // This can be a String if you don't have or care about file names.
+            #[source_code]
+            src: NamedSource<String>,
+            // Snippets and highlights can be included in the diagnostic!
+            #[label("This bit here")]
+            bad_bit: SourceSpan,
+        },
+
+        #[error("A fantastic diagnostic advice!")]
+        #[diagnostic(
+            code(oops::my::bad),
+            severity(Advice),
+            url(docsrs),
+            help("try doing it better next time?")
+        )]
+        MyAdvice {
+            // The Source that we're gonna be printing snippets out of.
+            // This can be a String if you don't have or care about file names.
+            #[source_code]
+            src: NamedSource<String>,
+            // Snippets and highlights can be included in the diagnostic!
+            #[label("This bit here")]
+            bad_bit: SourceSpan,
+        },
+
+        #[error("A fantastic diagnostic warning!")]
+        #[diagnostic(
+            code(oops::my::bad),
+            severity(Warning),
+            url(docsrs),
+            help("try doing it better next time?")
+        )]
+        MyWarning {
+            // The Source that we're gonna be printing snippets out of.
+            // This can be a String if you don't have or care about file names.
+            #[source_code]
+            src: NamedSource<String>,
+            // Snippets and highlights can be included in the diagnostic!
+            #[label("This bit here")]
+            bad_bit: SourceSpan,
+        },
+
+        #[error("A fantastic diagnostic message!")]
+        #[diagnostic(
+            code(oops::my::bad),
+            url(docsrs),
+            help("try doing it better next time?")
+        )]
+        MyMessage {
+            // The Source that we're gonna be printing snippets out of.
+            // This can be a String if you don't have or care about file names.
+            #[source_code]
+            src: NamedSource<String>,
+            // Snippets and highlights can be included in the diagnostic!
+            #[label("This bit here")]
+            bad_bit: SourceSpan,
+        },
+    }
 
     #[test]
     fn test_console_diag_service() {
@@ -155,21 +153,72 @@ mod tests {
         let service = DiagService::new(consumer, 10);
         let channel = service.channel();
 
-        app_code(&channel);
+        single_thread_app(&channel);
+        multi_thread_app(&channel);
 
         service.stop();
     }
 
-    fn app_code(diag_channel: &DiagChannel) {
-        let msg = DiagMessage {
-            level: DiagLevel::Warning,
-            message: "This is a warning message".to_string(),
-            context: Value::Null,
-            help: None,
-            note: None,
-            location: None,
-        };
-        diag_channel.report(DiagMessage::warn("This is a warning message"));
-        diag_channel.report(DiagMessage::error("This is an error message"));
+    #[test]
+    fn test_console_diag_service_without_stdout_lock() {
+        let consumer = ConsoleDiagMessageConsumer::new(false);
+        let service = DiagService::new(consumer, 10);
+        let channel = service.channel();
+
+        single_thread_app(&channel);
+        multi_thread_app(&channel);
+
+        service.stop();
+    }
+
+    /// This function represent a single threaded application that reports a diagnostic message.
+    fn single_thread_app(diag_channel: &DiagChannel) {
+        let src = "source\n  text\n    here".to_string();
+
+        diag_channel.report(DiagMessages::MyError {
+            src: NamedSource::new("bad_file.rs", src.clone()),
+            bad_bit: (9, 4).into(),
+        });
+        diag_channel.report(DiagMessages::MyAdvice {
+            src: NamedSource::new("bad_file.rs", src.clone()),
+            bad_bit: (9, 4).into(),
+        });
+        diag_channel.report(DiagMessages::MyWarning {
+            src: NamedSource::new("bad_file.rs", src.clone()),
+            bad_bit: (9, 4).into(),
+        });
+        diag_channel.report(DiagMessages::MyMessage {
+            src: NamedSource::new("bad_file.rs", src),
+            bad_bit: (9, 4).into(),
+        });
+    }
+
+    /// This function represent a multithreaded application that reports a diagnostic message.
+    /// Note that the Rust compiler will force you to clone the `DiagChannel` to pass it to the
+    /// thread.
+    fn multi_thread_app(diag_channel: &DiagChannel) {
+        let diag_channel = diag_channel.clone();
+
+        _ = thread::spawn(move || {
+            let src = "source\n  text\n    here".to_string();
+
+            diag_channel.report(DiagMessages::MyError {
+                src: NamedSource::new("bad_file.rs", src.clone()),
+                bad_bit: (9, 4).into(),
+            });
+            diag_channel.report(DiagMessages::MyAdvice {
+                src: NamedSource::new("bad_file.rs", src.clone()),
+                bad_bit: (9, 4).into(),
+            });
+            diag_channel.report(DiagMessages::MyWarning {
+                src: NamedSource::new("bad_file.rs", src.clone()),
+                bad_bit: (9, 4).into(),
+            });
+            diag_channel.report(DiagMessages::MyMessage {
+                src: NamedSource::new("bad_file.rs", src),
+                bad_bit: (9, 4).into(),
+            });
+        })
+        .join();
     }
 }

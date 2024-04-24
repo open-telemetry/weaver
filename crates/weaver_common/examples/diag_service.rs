@@ -2,25 +2,84 @@
 
 //!
 
-// use miette::{Diagnostic, NamedSource, SourceSpan};
-use serde::Serialize;
+use crate::DiagnosticMessages::{MyAdvice, MyError, MyMessage, MyWarning};
+use miette::{Diagnostic, NamedSource, SourceSpan};
+use thiserror::Error;
 use weaver_common::diag::channel::DiagChannel;
 use weaver_common::diag::consumer::console::ConsoleDiagMessageConsumer;
-use weaver_common::diag::{DiagMessage, DiagService};
+use weaver_common::diag::DiagService;
 
-// #[derive(Debug, Diagnostic)]
-// #[diagnostic(
-// help("try doing it better next time?")
-// )]
-// struct MyBad {
-//     test: String,
-// }
+#[derive(Error, Diagnostic, Debug)]
+enum DiagnosticMessages {
+    #[error("A fantastic diagnostic error!")]
+    #[diagnostic(
+        code(oops::my::bad),
+        severity(Error),
+        url(docsrs),
+        help("try doing it better next time?")
+    )]
+    MyError {
+        // The Source that we're gonna be printing snippets out of.
+        // This can be a String if you don't have or care about file names.
+        #[source_code]
+        src: NamedSource<String>,
+        // Snippets and highlights can be included in the diagnostic!
+        #[label("This bit here")]
+        bad_bit: SourceSpan,
+    },
+
+    #[error("A fantastic diagnostic advice!")]
+    #[diagnostic(
+        code(oops::my::bad),
+        severity(Advice),
+        url(docsrs),
+        help("try doing it better next time?")
+    )]
+    MyAdvice {
+        // The Source that we're gonna be printing snippets out of.
+        // This can be a String if you don't have or care about file names.
+        #[source_code]
+        src: NamedSource<String>,
+        // Snippets and highlights can be included in the diagnostic!
+        #[label("This bit here")]
+        bad_bit: SourceSpan,
+    },
+
+    #[error("A fantastic diagnostic warning!")]
+    #[diagnostic(
+        code(oops::my::bad),
+        severity(Warning),
+        url(docsrs),
+        help("try doing it better next time?")
+    )]
+    MyWarning {
+        // The Source that we're gonna be printing snippets out of.
+        // This can be a String if you don't have or care about file names.
+        #[source_code]
+        src: NamedSource<String>,
+        // Snippets and highlights can be included in the diagnostic!
+        #[label("This bit here")]
+        bad_bit: SourceSpan,
+    },
+
+    #[error("A fantastic diagnostic message!")]
+    #[diagnostic(
+        code(oops::my::bad),
+        url(docsrs),
+        help("try doing it better next time?")
+    )]
+    MyMessage {
+        // The Source that we're gonna be printing snippets out of.
+        // This can be a String if you don't have or care about file names.
+        #[source_code]
+        src: NamedSource<String>,
+        // Snippets and highlights can be included in the diagnostic!
+        #[label("This bit here")]
+        bad_bit: SourceSpan,
+    },
+}
 
 fn main() {
-    // let my_bad = MyBad { test: "test".to_string() };
-    // println!("{:?}", my_bad.code());
-    // println!("{:?}", my_bad.help());
-
     let consumer = ConsoleDiagMessageConsumer::new(true);
     let service = DiagService::new(consumer, 10);
     let channel = service.channel();
@@ -31,11 +90,22 @@ fn main() {
 }
 
 fn app_code(diag_channel: &DiagChannel) {
-    #[derive(Serialize)]
-    struct Test {
-        field: String,
-    }
+    let src = "source\n  text\n    here".to_string();
 
-    diag_channel.report(DiagMessage::warn_with_ctx("This is a warning message (field: {field})", Test { field: "value".to_string() }));
-    diag_channel.report(DiagMessage::error("This is an error message"));
+    diag_channel.report(MyError {
+        src: NamedSource::new("bad_file.rs", src.clone()),
+        bad_bit: (9, 4).into(),
+    });
+    diag_channel.report(MyAdvice {
+        src: NamedSource::new("bad_file.rs", src.clone()),
+        bad_bit: (9, 4).into(),
+    });
+    diag_channel.report(MyWarning {
+        src: NamedSource::new("bad_file.rs", src.clone()),
+        bad_bit: (9, 4).into(),
+    });
+    diag_channel.report(MyMessage {
+        src: NamedSource::new("bad_file.rs", src),
+        bad_bit: (9, 4).into(),
+    });
 }
