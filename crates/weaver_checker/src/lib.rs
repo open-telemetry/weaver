@@ -186,7 +186,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use crate::violation::Violation;
-    use crate::{Engine, Error};
+    use crate::Engine;
     use serde_yaml::Value;
     use std::collections::HashMap;
     use weaver_common::error::format_errors;
