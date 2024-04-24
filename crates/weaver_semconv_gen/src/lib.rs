@@ -7,7 +7,7 @@
 use std::fs;
 
 use weaver_cache::Cache;
-use weaver_common::error::WeaverError;
+use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::registry::{Group, Registry};
@@ -76,15 +76,30 @@ pub enum Error {
     /// Errors from using weaver_resolver.
     #[error(transparent)]
     ResolverError(#[from] weaver_resolver::Error),
+
+    /// A container for multiple errors.
+    #[error("{:?}", format_errors(.0))]
+    CompoundError(Vec<Error>),
 }
 
-impl WeaverError for Error {
+impl WeaverError<Error> for Error {
     /// Retrieves a list of error messages associated with this error.
     fn errors(&self) -> Vec<String> {
-        // Note: If the CompoundError pattern is implemented for this crate
-        // the following must be updated to return the errors of the compound
-        // error.
-        vec![self.to_string()]
+        match self {
+            Self::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
+            _ => vec![self.to_string()],
+        }
+    }
+    fn compound(errors: Vec<Error>) -> Error {
+        Self::CompoundError(
+            errors
+                .into_iter()
+                .flat_map(|e| match e {
+                    Self::CompoundError(errors) => errors,
+                    e => vec![e],
+                })
+                .collect(),
+        )
     }
 }
 

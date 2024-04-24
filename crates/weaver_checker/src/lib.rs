@@ -7,7 +7,7 @@ use crate::Error::CompoundError;
 use serde::Serialize;
 use serde_json::to_value;
 use std::path::Path;
-use weaver_common::error::WeaverError;
+use weaver_common::error::{format_errors, WeaverError};
 
 pub mod violation;
 
@@ -56,11 +56,11 @@ pub enum Error {
     },
 
     /// A container for multiple errors.
-    #[error("{:?}", Error::format_errors(.0))]
+    #[error("{:?}", format_errors(.0))]
     CompoundError(Vec<Error>),
 }
 
-impl WeaverError for Error {
+impl WeaverError<Error> for Error {
     /// Retrieves a list of error messages associated with this error.
     fn errors(&self) -> Vec<String> {
         match self {
@@ -68,28 +68,16 @@ impl WeaverError for Error {
             _ => vec![self.to_string()],
         }
     }
-}
-
-impl Error {
-    /// Formats the given errors into a single string.
-    /// This used to render compound errors.
-    #[must_use]
-    pub fn format_errors(errors: &[Error]) -> String {
-        errors
-            .iter()
-            .map(|e| e.to_string())
-            .collect::<Vec<String>>()
-            .join("\n\n")
-    }
-}
-
-/// Handles a list of errors and returns a compound error if the list is not
-/// empty or () if the list is empty.
-pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(CompoundError(errors))
+    fn compound(errors: Vec<Error>) -> Error {
+        Self::CompoundError(
+            errors
+                .into_iter()
+                .flat_map(|e| match e {
+                    Self::CompoundError(errors) => errors,
+                    e => vec![e],
+                })
+                .collect(),
+        )
     }
 }
 
@@ -201,6 +189,7 @@ mod tests {
     use crate::{Engine, Error};
     use serde_yaml::Value;
     use std::collections::HashMap;
+    use weaver_common::error::format_errors;
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -279,7 +268,7 @@ mod tests {
         let result = engine.check();
         assert!(result.is_err());
 
-        let observed_errors = Error::format_errors(&[result.unwrap_err()]);
+        let observed_errors = format_errors(&[result.unwrap_err()]);
         assert_eq!(
             observed_errors,
             "Violation evaluation error: missing field `type`"

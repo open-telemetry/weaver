@@ -126,7 +126,7 @@ pub enum Error {
     CompoundError(Vec<Error>),
 }
 
-impl WeaverError for Error {
+impl WeaverError<Error> for Error {
     /// Retrieves a list of error messages associated with this error.
     fn errors(&self) -> Vec<String> {
         match self {
@@ -134,15 +134,8 @@ impl WeaverError for Error {
             _ => vec![self.to_string()],
         }
     }
-}
-
-/// Handles a list of errors and returns a compound error if the list is not
-/// empty or () if the list is empty.
-pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(Error::compound_error(errors))
+    fn compound(errors: Vec<Error>) -> Error {
+        Self::compound_error(errors)
     }
 }
 
