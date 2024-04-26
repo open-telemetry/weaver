@@ -1,0 +1,18 @@
+{%- set file_name = ctx.prefix | snake_case -%}
+{{- template.set_file_name(file_name ~ ".rs") -}}
+
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+{%- for attribute in ctx.attributes %}
+
+{{ attribute.brief | comment_with_prefix("/// ") }}
+{%- if attribute.note %}
+///
+/// Notes:
+{{ attribute.note | comment_with_prefix("///   ") }}
+{%- endif %}
+pub const {{ attribute.name | screaming_snake_case }}: &str = "{{ attribute.name }}";
+{%- endfor %}

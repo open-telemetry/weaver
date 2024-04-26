@@ -27,6 +27,7 @@ use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::acronym::acronym;
 use crate::extensions::case_converter::case_converter;
+use crate::extensions::code;
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -374,6 +375,11 @@ impl TemplateEngine {
         env.add_filter("split_id", split_id);
 
         env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
+
+        env.add_filter("comment_with_prefix", code::comment_with_prefix);
+
+        env.add_test("stable", extensions::tests::is_stable);
+        env.add_test("deprecated", extensions::tests::is_deprecated);
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);

@@ -1,0 +1,4 @@
+templates:
+  - pattern: semantic_attributes.rs.j2
+    filter: '.groups | map(select(.id | startswith("registry."))) | map(select(.type == "attribute_group" and .prefix != null and .prefix != "") | { id, type, brief, prefix, attributes: (.attributes | map(select(.stability == "stable")))}) | sort_by(.prefix // empty) | map(select(.attributes | length > 0))'
+    application_mode: each
