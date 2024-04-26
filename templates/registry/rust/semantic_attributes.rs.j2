@@ -6,6 +6,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+{{ ctx.brief | comment_with_prefix("//! ") }}
+{%- if ctx.note %}
+//!
+//! Notes:
+{{ ctx.note | comment_with_prefix("///   ") }}
+{%- endif %}
+
 {%- for attribute in ctx.attributes %}
 
 {{ attribute.brief | comment_with_prefix("/// ") }}
