@@ -379,6 +379,7 @@ impl TemplateEngine {
         env.add_filter("comment_with_prefix", code::comment_with_prefix);
 
         env.add_test("stable", extensions::tests::is_stable);
+        env.add_test("experimental", extensions::tests::is_experimental);
         env.add_test("deprecated", extensions::tests::is_deprecated);
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
