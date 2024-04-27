@@ -6,7 +6,8 @@ use minijinja::Value;
 
 /// Checks if the input value is an object with a field named "stability" that has the value "stable".
 /// Otherwise, it returns false.
-pub fn is_stable(input: Value) -> bool {
+#[must_use]
+pub(crate) fn is_stable(input: Value) -> bool {
     let result = input.get_attr("stability");
 
     if let Ok(stability) = result {
@@ -19,7 +20,8 @@ pub fn is_stable(input: Value) -> bool {
 
 /// Checks if the input value is an object with a field named "stability" that has the value
 /// "experimental". Otherwise, it returns false.
-pub fn is_experimental(input: Value) -> bool {
+#[must_use]
+pub(crate) fn is_experimental(input: Value) -> bool {
     let result = input.get_attr("stability");
 
     if let Ok(stability) = result {
@@ -32,12 +34,13 @@ pub fn is_experimental(input: Value) -> bool {
 
 /// Checks if the input value is an object with a field named "stability" that has the value "deprecated".
 /// Otherwise, it returns false.
-pub fn is_deprecated(input: Value) -> bool {
+#[must_use]
+pub(crate) fn is_deprecated(input: Value) -> bool {
     let result = input.get_attr("deprecated");
 
     if let Ok(deprecated) = result {
         if let Some(deprecated) = deprecated.as_str() {
-            return deprecated.len() > 0;
+            return !deprecated.is_empty();
         }
     }
     false
