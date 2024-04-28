@@ -2,6 +2,8 @@
 
 //! Set of filters used to facilitate the generation of code.
 
+use std::collections::HashMap;
+
 /// Converts the input string into a comment with a prefix.
 #[must_use]
 pub(crate) fn comment_with_prefix(input: &str, prefix: &str) -> String {
@@ -13,6 +15,44 @@ pub(crate) fn comment_with_prefix(input: &str, prefix: &str) -> String {
         comment.push_str(&format!("{}{}", prefix, line));
     }
     comment
+}
+
+/// Create a filter that uses the type mapping defined in `weaver.yaml` to replace
+/// the input string (i.e. OTel type) with the target type.
+///
+/// # Example
+///
+/// ```rust
+/// use weaver_forge::extensions::code;
+///
+/// let type_mapping = vec![
+///     ("string".to_owned(), "String".to_owned()),
+///     ("int".to_owned(), "i64".to_owned()),
+///     ("double".to_owned(), "f64".to_owned()),
+///     ("boolean".to_owned(), "bool".to_owned()),
+/// ];
+///
+/// let filter = code::type_mapping(type_mapping.into_iter().collect());;
+///
+/// assert_eq!(filter("int"), "i64");
+/// assert_eq!(filter("double"), "f64");
+/// assert_eq!(filter("string"), "String");
+/// assert_eq!(filter("boolean"), "bool");
+/// assert_eq!(filter("something else"), "something else");
+/// ```
+///
+/// # Returns
+///
+/// A function that takes an input string and returns a new string with the
+/// data type replaced.
+pub fn type_mapping(type_mapping: HashMap<String, String>) -> impl Fn(&str) -> String {
+    move |input: &str| -> String {
+        if let Some(target_type) = type_mapping.get(input) {
+            target_type.clone()
+        } else {
+            input.to_owned()
+        }
+    }
 }
 
 #[cfg(test)]

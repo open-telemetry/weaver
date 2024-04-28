@@ -178,16 +178,6 @@ template_syntax:
 #    application_mode: single
 ```
 
-Supported case converters:
-- lowercase
-- UPPERCASE
-- PascalCase
-- camelCase
-- snake_case
-- SCREAMING_SNAKE_CASE
-- kebab-case
-- SCREAMING-KEBAB-CASE
-
 ## Custom Filters
 
 All the filters available in the MiniJinja template engine are available. In
@@ -215,7 +205,8 @@ in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_ids`: Splits a string by '.' creating a list of nested ids.
 - `flatten`: Converts a List of Lists into a single list with all elements.
 e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
-
+- `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).
+- `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
 
 > Note 1: This project uses the [convert_case](https://crates.io/crates/convert_case)
 > crate to convert strings to different cases. 
@@ -236,4 +227,6 @@ All the tests available in the MiniJinja template engine are available. In
 addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
-Not yet implemented.
+- `stable`: Returns true if the object is stable (i.e. stability=stable).
+- `experimental`: Returns true if the object is experimental (i.e. stability=experimental).
+- `deprecated`: Returns true if the object is deprecated (i.e. deprecated is defined).
