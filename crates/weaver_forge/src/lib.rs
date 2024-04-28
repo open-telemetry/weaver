@@ -383,9 +383,9 @@ impl TemplateEngine {
         // ToDo required, not_required, stable, experimental, deprecated
 
         // Register custom tests
-        env.add_test("stable", extensions::test_stability::is_stable);
-        env.add_test("experimental", extensions::test_stability::is_experimental);
-        env.add_test("deprecated", extensions::test_stability::is_deprecated);
+        env.add_test("stable", extensions::test::is_stable);
+        env.add_test("experimental", extensions::test::is_experimental);
+        env.add_test("deprecated", extensions::test::is_deprecated);
         // ToDo required, not_required
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);

@@ -4,4 +4,4 @@
 pub mod acronym;
 pub mod case_converter;
 pub mod code;
-pub mod test_stability;
+pub mod test;
