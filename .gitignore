@@ -31,3 +31,7 @@ just.zsh
 
 # Coverage results
 lcov.info
+
+# Ignore the output of the `weaver resolve` command
+output.json
+resolved-schema.yaml

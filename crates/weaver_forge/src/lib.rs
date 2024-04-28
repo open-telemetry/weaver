@@ -336,7 +336,10 @@ impl TemplateEngine {
 
         // Register code-oriented filters
         env.add_filter("comment_with_prefix", code::comment_with_prefix);
-        env.add_filter("type_mapping", code::type_mapping(self.target_config.type_mapping.clone()));
+        env.add_filter(
+            "type_mapping",
+            code::type_mapping(self.target_config.type_mapping.clone()),
+        );
         env.add_filter(
             "file_name",
             case_converter(self.target_config.file_name.clone()),

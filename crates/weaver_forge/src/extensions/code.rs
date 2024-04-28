@@ -58,6 +58,7 @@ pub fn type_mapping(type_mapping: HashMap<String, String>) -> impl Fn(&str) -> S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::extensions::code;
 
     #[test]
     fn test_comment() {
@@ -78,5 +79,23 @@ This also covers UDP network interactions where one side initiates the interacti
 /// This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS."#;
 
         assert_eq!(comment_with_prefix(brief, "/// "), expected_brief);
+    }
+
+    #[test]
+    fn test_mapping() {
+        let type_mapping = vec![
+            ("string".to_owned(), "String".to_owned()),
+            ("int".to_owned(), "i64".to_owned()),
+            ("double".to_owned(), "f64".to_owned()),
+            ("boolean".to_owned(), "bool".to_owned()),
+        ];
+
+        let filter = code::type_mapping(type_mapping.into_iter().collect());
+
+        assert_eq!(filter("int"), "i64");
+        assert_eq!(filter("double"), "f64");
+        assert_eq!(filter("string"), "String");
+        assert_eq!(filter("boolean"), "bool");
+        assert_eq!(filter("something else"), "something else");
     }
 }
