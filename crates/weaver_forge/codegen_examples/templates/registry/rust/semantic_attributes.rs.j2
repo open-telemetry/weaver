@@ -14,6 +14,9 @@
 {%- endif %}
 //! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/lib.rs.j2
 
+use opentelemetry::StringValue;
+use crate::AttributeKey;
+
 {% for attribute in ctx.attributes %}
 
 {%- if attribute.brief %}
@@ -30,11 +33,14 @@
 {%- if attribute is deprecated %}
 #[deprecated(note="{{ attribute.deprecated }}")]
 {%- endif %}
-pub const {{ attribute.name | screaming_snake_case }}: &str = "{{ attribute.name }}";
-{% if attribute.type.allow_custom_values %}
+{% if attribute.type.allow_custom_values is defined %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.name | pascal_case }}> = AttributeKey::new("{{ attribute.name }}");
+{% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.type | type_mapping }}Value> = AttributeKey::new("{{ attribute.name }}");
+{% else %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.type | type_mapping }}> = AttributeKey::new("{{ attribute.name }}");{% endif %}
+{% if attribute.type.allow_custom_values is defined %}
 {%- if attribute.brief %}
 {{ attribute.brief | comment_with_prefix("/// ") }}
 {%- endif %}
+#[non_exhaustive]
 pub enum {{ attribute.name | pascal_case }} {
 {% for variant in attribute.type.members %}
     {%- if variant.brief %}{{ variant.brief | comment_with_prefix("    /// ") }}{% endif %}

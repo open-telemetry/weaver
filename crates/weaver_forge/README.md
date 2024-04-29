@@ -47,7 +47,7 @@ templates/
 ```
 
 The command `weaver generate registry markdown` will generate the markdown
-files.
+files based on the templates located in the `templates/registry/markdown`.
 
 When the name of a file (excluding the extension) matches a recognized pattern
 (e.g., attribute_group, groups, ...), OTel Weaver extracts the objects from the
@@ -65,6 +65,10 @@ produced from the template:
 {%- set file_name = group.id | file_name -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 ```
+
+This mechanism allows the template to dynamically generate the name of the file
+to be produced and to organize the generated files in a directory structure of
+its choice.
 
 ## Configuration File - `weaver.yaml`
 

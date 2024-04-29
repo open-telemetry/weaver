@@ -55,6 +55,13 @@ impl Default for GeneratorConfig {
     }
 }
 
+impl GeneratorConfig {
+    /// Create a new generator configuration with the given root directory.
+    pub fn new(root_dir: PathBuf) -> Self {
+        Self { root_dir }
+    }
+}
+
 /// A template object accessible from the template.
 #[derive(Debug, Clone)]
 struct TemplateObject {

@@ -29,7 +29,7 @@ pub struct RegistryGenerateArgs {
     /// Path to the directory where the templates are located.
     /// Default is the `templates` directory.
     #[arg(short = 't', long, default_value = "templates")]
-    pub templates: String,
+    pub templates: PathBuf,
 
     /// Local path or Git URL of the semantic convention registry.
     #[arg(
@@ -78,10 +78,11 @@ pub(crate) fn command(
     );
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone());
+    let config = GeneratorConfig::new(args.templates.clone());
 
     let engine = TemplateEngine::try_new(
         &format!("registry/{}", args.target),
-        GeneratorConfig::default(),
+        config,
     )
     .exit_if_error(logger.clone());
 
