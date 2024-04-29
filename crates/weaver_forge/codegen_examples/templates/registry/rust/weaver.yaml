@@ -9,6 +9,13 @@ type_mapping:
 
 templates:
   - pattern: lib.rs.j2
+    # The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
+    # - groups with an id starting with the prefix `registry.`
+    # - groups of the type `attribute_group`.
+    # - groups with a well-defined prefix.
+    # - groups with a non-empty list of attributes that are neither deprecated nor experimental.
+    # - groups are deduplicated by prefix.
+    # - groups are sorted by prefix.
     filter: >
       .groups
       | map(select(.id | startswith("registry.")))
@@ -21,7 +28,7 @@ templates:
           attributes: (.attributes                                                      
             | map(select(.stability == "experimental" and .deprecated | not)))})
       | map(select(.attributes | length > 0))                                           
-      | map(                                                                            # Transform the group into a more concise object
+      | map(
           {
             id,
             type,
@@ -29,10 +36,17 @@ templates:
             prefix
           }
         )
-      | unique_by(.prefix)                                                              # Remove duplicate prefixes
-      | sort_by(.prefix)                                                                # Sort by prefix
+      | unique_by(.prefix)
+      | sort_by(.prefix)
     application_mode: single
   - pattern: semantic_attributes.rs.j2
+    # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
+    # criteria:
+    # - groups with an id starting with the prefix `registry.`
+    # - groups of the type `attribute_group`.
+    # - groups with a well-defined prefix.
+    # - groups with a non-empty list of attributes that are neither deprecated nor experimental.
+    # - groups are sorted by prefix.
     filter: >
       .groups 
       | map(select(.id | startswith("registry."))) 
