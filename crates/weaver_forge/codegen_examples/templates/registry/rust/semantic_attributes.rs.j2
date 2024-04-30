@@ -1,4 +1,4 @@
-{%- set file_name = ctx.prefix | snake_case -%}
+{%- set file_name = ctx.id | attribute_registry_namespace | snake_case -%}
 {{- template.set_file_name(file_name ~ ".rs") -}}
 
 /*
@@ -13,9 +13,6 @@
 {{ ctx.note | comment_with_prefix("///   ") }}
 {%- endif %}
 //! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/lib.rs.j2
-
-use opentelemetry::StringValue;
-use crate::AttributeKey;
 
 {% for attribute in ctx.attributes %}
 
@@ -33,9 +30,9 @@ use crate::AttributeKey;
 {%- if attribute is deprecated %}
 #[deprecated(note="{{ attribute.deprecated }}")]
 {%- endif %}
-{% if attribute.type.allow_custom_values is defined %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.name | pascal_case }}> = AttributeKey::new("{{ attribute.name }}");
-{% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.type | type_mapping }}Value> = AttributeKey::new("{{ attribute.name }}");
-{% else %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.type | type_mapping }}> = AttributeKey::new("{{ attribute.name }}");{% endif %}
+{% if attribute.type.allow_custom_values is defined %}pub const {{ attribute.name | screaming_snake_case }}: crate::AttributeKey<{{ attribute.name | pascal_case }}> = crate::AttributeKey::new("{{ attribute.name }}");
+{% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: crate::AttributeKey<opentelemetry::{{ attribute.type | type_mapping }}Value> = crate::AttributeKey::new("{{ attribute.name }}");
+{% else %}pub const {{ attribute.name | screaming_snake_case }}: crate::AttributeKey<{{ attribute.type | type_mapping }}> = crate::AttributeKey::new("{{ attribute.name }}");{% endif %}
 
 {% if attribute.type.allow_custom_values is defined %}
 {%- if attribute.brief %}
@@ -61,9 +58,10 @@ impl {{ attribute.name | pascal_case }} {
             #[cfg(feature = "semconv_experimental")] {% endif %}
             {{ attribute.name | pascal_case }}::{{ variant.id | pascal_case }} => "{{ variant.value }}",
         {%- endfor %}
-            /// Without this default case, the match expression would not
-            /// contain any variants if all variants are annotated with the
-            /// 'semconv_experimental' feature and the feature is not enabled.
+            // Without this default case, the match expression would not
+            // contain any variants if all variants are annotated with the
+            // 'semconv_experimental' feature and the feature is not enabled.
+            #[allow(unreachable_patterns)]
             _ => unreachable!(),
         }
     }

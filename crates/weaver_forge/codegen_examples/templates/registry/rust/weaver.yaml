@@ -28,8 +28,8 @@ templates:
           type, 
           brief, 
           prefix})
-      | unique_by(.prefix)
-      | sort_by(.prefix)
+      | unique_by(.id | split(".") | .[1])
+      | sort_by(.id | split(".") | .[1])
     application_mode: single
   - pattern: semantic_attributes.rs.j2
     # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
@@ -49,8 +49,14 @@ templates:
           brief, 
           prefix, 
           attributes}) 
-      | sort_by(.prefix // empty) 
+      | sort_by(.id | split(".") | .[1])
     application_mode: each
+
+# .groups
+#  | map(select(.type == "attribute_group"))
+#  | map(select(.id | startswith("registry")))
+#  | group_by(.id | split(".") | .[1])
+#  | map({id: .[0].id | split(".") | .[1], groups: .})
 
 # Other examples of filters
 

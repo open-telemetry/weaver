@@ -391,13 +391,24 @@ impl TemplateEngine {
 
         env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
 
-        // ToDo required, not_required, stable, experimental, deprecated
-
-        // Register custom tests
-        env.add_test("stable", extensions::test::is_stable);
-        env.add_test("experimental", extensions::test::is_experimental);
-        env.add_test("deprecated", extensions::test::is_deprecated);
-        // ToDo required, not_required
+        // Register custom OpenTelemetry filters and tests
+        env.add_filter(
+            "attribute_registry_namespace",
+            extensions::otel::attribute_registry_namespace,
+        );
+        env.add_filter(
+            "attribute_registry_title",
+            extensions::otel::attribute_registry_title,
+        );
+        env.add_filter(
+            "attribute_registry_file",
+            extensions::otel::attribute_registry_file,
+        );
+        // ToDo Implement more filters: required, not_required, stable, experimental, deprecated
+        env.add_test("stable", extensions::otel::is_stable);
+        env.add_test("experimental", extensions::otel::is_experimental);
+        env.add_test("deprecated", extensions::otel::is_deprecated);
+        // ToDo Implement more tests: required, not_required
 
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);

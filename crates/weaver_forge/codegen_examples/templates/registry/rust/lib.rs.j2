@@ -12,7 +12,7 @@ use opentelemetry::{Key, KeyValue, StringValue};
 
 {% for group in ctx %}
 {{ group.brief | comment_with_prefix("/// ") }}
-pub mod {{ group.prefix | snake_case }};
+pub mod {{ group.id | attribute_registry_namespace | snake_case }};
 {%- endfor %}
 
 /// A typed attribute key.
