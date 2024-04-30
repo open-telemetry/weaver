@@ -15,6 +15,8 @@ pub mod client;
 pub mod exception;
 /// This document defines semantic convention attributes in the HTTP namespace.
 pub mod http;
+/// These attributes may be used for any network related operation.
+pub mod net;
 
 /// A typed attribute key.
 pub struct AttributeKey<T> {
