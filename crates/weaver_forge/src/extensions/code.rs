@@ -83,7 +83,10 @@ This also covers UDP network interactions where one side initiates the interacti
         assert_eq!(filter(&Value::from("double")), Value::from("f64"));
         assert_eq!(filter(&Value::from("string")), Value::from("String"));
         assert_eq!(filter(&Value::from("boolean")), Value::from("bool"));
-        assert_eq!(filter(&Value::from("something else")), Value::from("something else"));
+        assert_eq!(
+            filter(&Value::from("something else")),
+            Value::from("something else")
+        );
         assert_eq!(filter(&Value::from(12)), Value::from(12));
     }
 }

@@ -80,11 +80,8 @@ pub(crate) fn command(
     let schema = resolve_semconv_specs(&mut registry, logger.clone());
     let config = GeneratorConfig::new(args.templates.clone());
 
-    let engine = TemplateEngine::try_new(
-        &format!("registry/{}", args.target),
-        config,
-    )
-    .exit_if_error(logger.clone());
+    let engine = TemplateEngine::try_new(&format!("registry/{}", args.target), config)
+        .exit_if_error(logger.clone());
 
     let template_registry = TemplateRegistry::try_from_resolved_registry(
         schema
