@@ -36,6 +36,7 @@ use crate::AttributeKey;
 {% if attribute.type.allow_custom_values is defined %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.name | pascal_case }}> = AttributeKey::new("{{ attribute.name }}");
 {% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.type | type_mapping }}Value> = AttributeKey::new("{{ attribute.name }}");
 {% else %}pub const {{ attribute.name | screaming_snake_case }}: AttributeKey<{{ attribute.type | type_mapping }}> = AttributeKey::new("{{ attribute.name }}");{% endif %}
+
 {% if attribute.type.allow_custom_values is defined %}
 {%- if attribute.brief %}
 {{ attribute.brief | comment_with_prefix("/// ") }}
@@ -49,6 +50,30 @@ pub enum {{ attribute.name | pascal_case }} {
     #[cfg(feature = "semconv_experimental")] {% endif %}
     {{ variant.id | pascal_case }},
 {% endfor %}
+}
+
+impl {{ attribute.name | pascal_case }} {
+    /// Returns the string representation of the [`{{ attribute.name | pascal_case }}`].
+    pub fn as_str(&self) -> &'static str {
+        match self {
+        {%- for variant in attribute.type.members %}
+            {%- if variant is experimental %}
+            #[cfg(feature = "semconv_experimental")] {% endif %}
+            {{ attribute.name | pascal_case }}::{{ variant.id | pascal_case }} => "{{ variant.value }}",
+        {%- endfor %}
+            /// Without this default case, the match expression would not
+            /// contain any variants if all variants are annotated with the
+            /// 'semconv_experimental' feature and the feature is not enabled.
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl core::fmt::Display for {{ attribute.name | pascal_case }} {
+    /// Formats the value using the given formatter.
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 {% endif %}
 {% endfor %}

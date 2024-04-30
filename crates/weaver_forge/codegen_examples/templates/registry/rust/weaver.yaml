@@ -8,6 +8,9 @@ type_mapping:
   template[string[]]: Vec<String>   # Not yet properly handled in codegen
 
 templates:
+  - pattern: README.md
+    filter: .
+    application_mode: single
   - pattern: lib.rs.j2
     # The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
     # - groups with an id starting with the prefix `registry.`
