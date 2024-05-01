@@ -195,9 +195,7 @@ impl<'a> AttributeView<'a> {
                 write!(out, "| ")?;
                 write_enum_value_string(out, &m.value)?;
                 write!(out, " | ")?;
-                if let Some(note) = m.deprecated.as_ref() {
-                    write!(out, "{}", note.trim())?;
-                } else if let Some(v) = m.brief.as_ref() {
+                if let Some(v) = m.brief.as_ref() {
                     write!(out, "{}", v.trim())?;
                 } else {
                     // Use the id as the description if missing a brief.
@@ -205,8 +203,9 @@ impl<'a> AttributeView<'a> {
                 }
                 // Stability.
                 write!(out, " | ")?;
-                if m.deprecated.is_some() {
+                if let Some(note) = m.deprecated.as_ref() {
                     write_stability_badge(out, &Some(Stability::Deprecated))?;
+                    write!(out, "<br>{}", note.trim())?;
                 } else {
                     write_stability_badge(out, &m.stability)?;
                 }
@@ -314,7 +313,13 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write_stability_badge(out, &self.attribute.stability)
+        if let Some(note) = self.attribute.deprecated.as_ref() {
+            write_stability_badge(out, &Some(Stability::Deprecated))?;
+            write!(out, "<br>{}", note.trim())?;
+        } else {
+            write_stability_badge(out, &self.attribute.stability)?;
+        }
+        Ok(())
     }
 }
 
@@ -529,7 +534,13 @@ impl<'a> MetricView<'a> {
         Ok(())
     }
     fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write_stability_badge(out, &self.group.stability)
+        if let Some(note) = self.group.deprecated.as_ref() {
+            write_stability_badge(out, &Some(Stability::Deprecated))?;
+            write!(out, "<br>{}", note.trim())?;
+        } else {
+            write_stability_badge(out, &self.group.stability)?;
+        }
+        Ok(())
     }
     pub fn generate_markdown<Out: Write>(
         &self,

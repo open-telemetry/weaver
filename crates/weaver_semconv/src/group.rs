@@ -90,19 +90,6 @@ impl GroupSpec {
     pub(crate) fn validate(&self, path_or_url: &str) -> Result<(), Error> {
         let mut errors = vec![];
 
-        // If deprecated is present and stability differs from deprecated, this
-        // will result in an error.
-        if self.deprecated.is_some()
-            && self.stability.is_some()
-            && self.stability != Some(Stability::Deprecated)
-        {
-            errors.push(Error::InvalidGroup {
-                path_or_url: path_or_url.to_owned(),
-                group_id: self.id.clone(),
-                error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
-            });
-        }
-
         // Fields span_kind and events are only valid if type is span (the default).
         if self.r#type != GroupType::Span {
             if self.span_kind.is_some() {
@@ -166,7 +153,6 @@ impl GroupSpec {
             match attribute {
                 AttributeSpec::Id {
                     brief,
-                    stability,
                     deprecated,
                     ..
                 } => {
@@ -178,35 +164,8 @@ impl GroupSpec {
                             error: "This attribute is not deprecated and does not contain a brief field.".to_owned(),
                         });
                     }
-                    if deprecated.is_some()
-                        && stability.is_some()
-                        && *stability == Some(Stability::Stable)
-                    {
-                        errors.push(Error::InvalidAttribute {
-                            path_or_url: path_or_url.to_owned(),
-                            group_id: self.id.clone(),
-                            attribute_id: attribute.id(),
-                            error: "This attribute contains a deprecated field but the stability is set to stable.".to_owned(),
-                        });
-                    }
                 }
-                AttributeSpec::Ref {
-                    stability,
-                    deprecated,
-                    ..
-                } => {
-                    if deprecated.is_some()
-                        && stability.is_some()
-                        && *stability == Some(Stability::Stable)
-                    {
-                        errors.push(Error::InvalidAttribute {
-                            path_or_url: path_or_url.to_owned(),
-                            group_id: self.id.clone(),
-                            attribute_id: attribute.id(),
-                            error: "This attribute contains a deprecated field but the stability is set to stable.".to_owned(),
-                        });
-                    }
-                }
+                AttributeSpec::Ref { .. } => {}
             }
 
             // Examples are required only for string and string array attributes.
@@ -378,27 +337,12 @@ mod tests {
         };
         assert!(group.validate("<test>").is_ok());
 
-        // Group is marked as deprecated but the stability is not set to deprecated.
-        group.stability = Some(Stability::Stable);
-        group.deprecated = Some("deprecated".to_owned());
-        let result = group.validate("<test>");
-        assert_eq!(Err(InvalidGroup {
-            path_or_url: "<test>".to_owned(),
-            group_id: "test".to_owned(),
-            error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
-        }), result);
-
         // Span kind is set but the type is not span.
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>");
         assert_eq!(Err(
             CompoundError(
                 vec![
-                    InvalidGroup {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
-                    },
                     InvalidGroup {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
@@ -436,11 +380,6 @@ mod tests {
         assert_eq!(Err(
             CompoundError(
                 vec![
-                    InvalidGroup {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains a deprecated field but the stability is not set to deprecated.".to_owned(),
-                    },
                     InvalidGroup {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
@@ -493,57 +432,6 @@ mod tests {
             name: None,
         };
         assert!(group.validate("<test>").is_ok());
-
-        // Deprecated attribute can't have stability set to stable.
-        group.attributes = vec![AttributeSpec::Id {
-            id: "test".to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-            brief: None,
-            stability: Some(Stability::Stable),
-            deprecated: Some("true".to_owned()),
-            examples: Some(Examples::String("test".to_owned())),
-            tag: None,
-            requirement_level: Default::default(),
-            sampling_relevant: None,
-            note: "".to_owned(),
-        }];
-        let result = group.validate("<test>");
-        assert_eq!(
-            Err(InvalidAttribute {
-                path_or_url: "<test>".to_owned(),
-                group_id: "test".to_owned(),
-                attribute_id: "test".to_owned(),
-                error:
-                    "This attribute contains a deprecated field but the stability is set to stable."
-                        .to_owned(),
-            },),
-            result
-        );
-
-        // Deprecated ref attribute can't have stability set to stable.
-        group.attributes = vec![AttributeSpec::Ref {
-            r#ref: "test".to_owned(),
-            brief: None,
-            stability: Some(Stability::Stable),
-            deprecated: Some("true".to_owned()),
-            examples: Some(Examples::String("test".to_owned())),
-            tag: None,
-            requirement_level: Default::default(),
-            sampling_relevant: None,
-            note: Some("".to_owned()),
-        }];
-        let result = group.validate("<test>");
-        assert_eq!(
-            Err(InvalidAttribute {
-                path_or_url: "<test>".to_owned(),
-                group_id: "test".to_owned(),
-                attribute_id: "test".to_owned(),
-                error:
-                    "This attribute contains a deprecated field but the stability is set to stable."
-                        .to_owned(),
-            },),
-            result
-        );
 
         // Examples are mandatory for string attributes.
         group.attributes = vec![AttributeSpec::Id {
