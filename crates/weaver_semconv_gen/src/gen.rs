@@ -195,7 +195,9 @@ impl<'a> AttributeView<'a> {
                 write!(out, "| ")?;
                 write_enum_value_string(out, &m.value)?;
                 write!(out, " | ")?;
-                if let Some(v) = m.brief.as_ref() {
+                if let Some(note) = m.deprecated.as_ref() {
+                    write!(out, "{}", note.trim())?;
+                } else if let Some(v) = m.brief.as_ref() {
                     write!(out, "{}", v.trim())?;
                 } else {
                     // Use the id as the description if missing a brief.
@@ -203,7 +205,11 @@ impl<'a> AttributeView<'a> {
                 }
                 // Stability.
                 write!(out, " | ")?;
-                write_stability_badge(out, &m.stability)?;
+                if m.deprecated.is_some() {
+                    write_stability_badge(out, &Some(Stability::Deprecated))?;
+                } else {
+                    write_stability_badge(out, &m.stability)?;
+                }
                 writeln!(out, " |")?;
             }
         }
