@@ -1,0 +1,91 @@
+groups:
+  - id: test
+    type: span
+    brief: 'test'
+    prefix: test
+    stability: deprecated
+    attributes:
+      - id: exp_attr
+        type: boolean
+        requirement_level: required
+        stability: experimental
+        brief: ""
+      - id: stable_attr
+        type: boolean
+        requirement_level: required
+        stability: stable
+        brief: ""
+      - id: deprecated_stable_attr
+        type: boolean
+        requirement_level: required
+        stability: stable
+        deprecated: "Removed."
+        brief: ""
+      - id: deprecated_experimental_attr
+        type: boolean
+        requirement_level: required
+        stability: experimental
+        deprecated: "Removed."
+        brief: ""
+      - id: stable_enum_attr
+        brief: ""
+        stability: stable
+        type:
+          members:
+            - id: one
+              value: "one"
+              brief: 'member one'
+              stability: stable
+            - id: two
+              value: "two"
+              stability: experimental
+              brief: 'member two'
+            - id: three
+              value: "three"
+              stability: experimental
+              deprecated: "Removed."
+              brief: 'member three'
+            - id: four
+              value: "four"
+              stability: stable
+              deprecated: "Removed."
+              brief: 'member four'
+  - id: ref_test
+    brief: 'ref_test'
+    attributes:
+      - ref: test.exp_attr
+      - ref: test.stable_attr
+      - ref: test.deprecated_stable_attr
+      - ref: test.deprecated_experimental_attr
+      - ref: test.stable_enum_attr
+  - id: extends_test
+    brief: 'extends_test'
+    extends: test
+  - id: stable_metric
+    type: metric
+    brief: 'stable_metric'
+    stability: stable
+    metric_name: stable_metric
+    instrument: histogram
+    unit: "s"
+    attributes:
+      - ref: test.stable_attr
+  - id: experimental_metric
+    type: metric
+    brief: 'experimental_metric'
+    stability: experimental
+    metric_name: experimental_metric
+    instrument: counter
+    unit: "{e}"
+    attributes:
+      - ref: test.exp_attr
+  - id: deprecated_metric
+    type: metric
+    brief: 'deprecated_metric'
+    stability: stable
+    deprecated: "Removed."
+    metric_name: deprecated_metric
+    instrument: updowncounter
+    unit: "{d}"
+    attributes:
+      - ref: test.deprecated_experimental_attr

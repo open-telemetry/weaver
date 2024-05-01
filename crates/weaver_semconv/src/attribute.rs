@@ -321,6 +321,8 @@ pub struct EnumEntriesSpec {
     pub note: Option<String>,
     /// Stability of this enum value.
     pub stability: Option<Stability>,
+    /// Deprecation note.
+    pub deprecated: Option<String>,
 }
 
 /// Implements a human readable display for EnumEntries.
@@ -625,6 +627,7 @@ mod tests {
                         brief: Some("brief".to_owned()),
                         note: Some("note".to_owned()),
                         stability: None,
+                        deprecated: None,
                     }]
                 }
             ),
@@ -679,6 +682,7 @@ mod tests {
             brief: Some("brief".to_owned()),
             note: Some("note".to_owned()),
             stability: None,
+            deprecated: None,
         };
         assert_eq!(format!("{}", entries), "id=id, type=42");
     }

@@ -186,12 +186,6 @@ mod tests {
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
 
-        // Invalid group semantic (marked as deprecated but stability is not deprecated)
-        let path = PathBuf::from("data/invalid-stability.yaml");
-        let semconv_spec = SemConvSpec::from_file(path);
-        assert!(semconv_spec.is_err());
-        assert!(matches!(semconv_spec.unwrap_err(), InvalidAttribute { .. }));
-
         // Invalid file structure
         let path = PathBuf::from("data/invalid-semconv.yaml");
         let semconv_spec = SemConvSpec::from_file(path);

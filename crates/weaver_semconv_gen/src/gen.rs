@@ -203,7 +203,12 @@ impl<'a> AttributeView<'a> {
                 }
                 // Stability.
                 write!(out, " | ")?;
-                write_stability_badge(out, &m.stability)?;
+                if let Some(note) = m.deprecated.as_ref() {
+                    write_stability_badge(out, &Some(Stability::Deprecated))?;
+                    write!(out, "<br>{}", note.trim())?;
+                } else {
+                    write_stability_badge(out, &m.stability)?;
+                }
                 writeln!(out, " |")?;
             }
         }
@@ -308,7 +313,13 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write_stability_badge(out, &self.attribute.stability)
+        if let Some(note) = self.attribute.deprecated.as_ref() {
+            write_stability_badge(out, &Some(Stability::Deprecated))?;
+            write!(out, "<br>{}", note.trim())?;
+        } else {
+            write_stability_badge(out, &self.attribute.stability)?;
+        }
+        Ok(())
     }
 }
 
@@ -523,7 +534,13 @@ impl<'a> MetricView<'a> {
         Ok(())
     }
     fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write_stability_badge(out, &self.group.stability)
+        if let Some(note) = self.group.deprecated.as_ref() {
+            write_stability_badge(out, &Some(Stability::Deprecated))?;
+            write!(out, "<br>{}", note.trim())?;
+        } else {
+            write_stability_badge(out, &self.group.stability)?;
+        }
+        Ok(())
     }
     pub fn generate_markdown<Out: Write>(
         &self,
