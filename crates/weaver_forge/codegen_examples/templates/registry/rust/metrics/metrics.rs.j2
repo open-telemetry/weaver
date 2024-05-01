@@ -1,0 +1,21 @@
+{%- set file_name = ctx.prefix | snake_case -%}
+{{- template.set_file_name("metrics/" ~ file_name ~ ".rs") -}}
+
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+//! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/metrics/metrics.rs.j2
+
+{% for metric in ctx.groups %}
+{% if metric.instrument == "histogram" %}
+{%- include "metrics/histogram.j2" %}
+{% elif metric.instrument == "counter" %}
+{%- include "metrics/counter.j2" %}
+{% elif metric.instrument == "gauge" %}
+{%- include "metrics/gauge.j2" %}
+{% elif metric.instrument == "updowncounter" %}
+{%- include "metrics/updowncounter.j2" %}
+{% endif %}
+{% endfor %}

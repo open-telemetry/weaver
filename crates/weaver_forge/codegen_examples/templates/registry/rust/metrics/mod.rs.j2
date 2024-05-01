@@ -1,0 +1,14 @@
+{{- template.set_file_name("metrics/mod.rs") -}}
+
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+//! OpenTelemetry Semantic Convention Metrics
+//! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/metrics/mod.rs.j2
+
+{% for group in ctx %}
+/// Metrics for the `{{ group.id | metric_namespace }}` namespace.
+pub mod {{ group.id | metric_namespace | snake_case }};
+{%- endfor %}

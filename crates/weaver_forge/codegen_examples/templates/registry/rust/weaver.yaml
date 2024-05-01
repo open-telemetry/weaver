@@ -11,18 +11,21 @@ templates:
   - pattern: README.md
     filter: .
     application_mode: single
-  - pattern: lib.rs.j2
+  - pattern: lib.rs
+    filter: .
+    application_mode: single
+
+    # Templates for the `attribute_group` group type
+  - pattern: attributes/mod.rs.j2
     # The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
     # - groups with an id starting with the prefix `registry.`
     # - groups of the type `attribute_group`.
-    # - groups with a well-defined prefix.
-    # - groups with a non-empty list of attributes that are neither deprecated nor experimental.
-    # - groups are deduplicated by prefix.
-    # - groups are sorted by prefix.
+    # - groups are deduplicated by namespace.
+    # - groups are sorted by namespace.
     filter: >
       .groups
       | map(select(.id | startswith("registry.")))
-      | map(select(.type == "attribute_group" and .prefix != null and .prefix != "")    
+      | map(select(.type == "attribute_group")    
         | { 
           id, 
           type, 
@@ -31,18 +34,16 @@ templates:
       | unique_by(.id | split(".") | .[1])
       | sort_by(.id | split(".") | .[1])
     application_mode: single
-  - pattern: semantic_attributes.rs.j2
+  - pattern: attributes/attributes.rs.j2
     # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
     # criteria:
     # - groups with an id starting with the prefix `registry.`
     # - groups of the type `attribute_group`.
-    # - groups with a well-defined prefix.
-    # - groups with a non-empty list of attributes that are neither deprecated nor experimental.
-    # - groups are sorted by prefix.
+    # - groups are sorted by namespace.
     filter: >
       .groups 
       | map(select(.id | startswith("registry."))) 
-      | map(select(.type == "attribute_group" and .prefix != null and .prefix != "") 
+      | map(select(.type == "attribute_group") 
         | { 
           id, 
           type, 
@@ -51,6 +52,42 @@ templates:
           attributes}) 
       | sort_by(.id | split(".") | .[1])
     application_mode: each
+
+    # Templates for the `metric` group type
+  - pattern: metrics/mod.rs.j2
+    # The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
+    # - groups with an id starting with the prefix `metric.`
+    # - groups of the type `metric`.
+    # - groups are deduplicated by namespace.
+    # - groups are sorted by prefix.
+    filter: >
+      .groups
+      | map(select(.id | startswith("metric."))) 
+      | map(select(.type == "metric")    
+        | { 
+          id, 
+          type, 
+          brief, 
+          prefix})
+      | unique_by(.id | split(".") | .[1])
+      | sort_by(.id | split(".") | .[1])
+    application_mode: single
+  - pattern: metrics/metrics.rs.j2
+    # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
+    # criteria:
+    # - groups with an id starting with the prefix `metric.`
+    # - groups of the type `metric`.
+    # - groups are sorted by namespace.
+    filter: >
+      .groups 
+      | map(select(.id | startswith("metric."))) 
+      | group_by(.id | split(".") | .[1]) 
+      | map({ 
+        prefix: .[0].id | split(".") | .[1],
+        groups: .   
+      })
+    application_mode: each
+
 
 # .groups
 #  | map(select(.type == "attribute_group"))

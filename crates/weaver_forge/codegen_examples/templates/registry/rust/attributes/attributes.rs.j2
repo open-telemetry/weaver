@@ -1,5 +1,5 @@
 {%- set file_name = ctx.id | attribute_registry_namespace | snake_case -%}
-{{- template.set_file_name(file_name ~ ".rs") -}}
+{{- template.set_file_name("attributes/" ~ file_name ~ ".rs") -}}
 
 /*
  * Copyright The OpenTelemetry Authors
@@ -12,7 +12,7 @@
 //! Notes:
 {{ ctx.note | comment_with_prefix("///   ") }}
 {%- endif %}
-//! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/lib.rs.j2
+//! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/attributes/attributes.rs.j2
 
 {% for attribute in ctx.attributes %}
 
@@ -30,9 +30,9 @@
 {%- if attribute is deprecated %}
 #[deprecated(note="{{ attribute.deprecated }}")]
 {%- endif %}
-{% if attribute.type.allow_custom_values is defined %}pub const {{ attribute.name | screaming_snake_case }}: crate::AttributeKey<{{ attribute.name | pascal_case }}> = crate::AttributeKey::new("{{ attribute.name }}");
-{% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: crate::AttributeKey<opentelemetry::{{ attribute.type | type_mapping }}Value> = crate::AttributeKey::new("{{ attribute.name }}");
-{% else %}pub const {{ attribute.name | screaming_snake_case }}: crate::AttributeKey<{{ attribute.type | type_mapping }}> = crate::AttributeKey::new("{{ attribute.name }}");{% endif %}
+{% if attribute.type.allow_custom_values is defined %}pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<{{ attribute.name | pascal_case }}> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
+{% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<opentelemetry::{{ attribute.type | type_mapping }}Value> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
+{% else %}pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<{{ attribute.type | type_mapping }}> = crate::attributes::AttributeKey::new("{{ attribute.name }}");{% endif %}
 
 {% if attribute.type.allow_custom_values is defined %}
 {%- if attribute.brief %}

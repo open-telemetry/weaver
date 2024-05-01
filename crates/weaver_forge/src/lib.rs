@@ -404,6 +404,7 @@ impl TemplateEngine {
             "attribute_registry_file",
             extensions::otel::attribute_registry_file,
         );
+        env.add_filter("metric_namespace", extensions::otel::metric_namespace);
         // ToDo Implement more filters: required, not_required, stable, experimental, deprecated
         env.add_test("stable", extensions::otel::is_stable);
         env.add_test("experimental", extensions::otel::is_experimental);

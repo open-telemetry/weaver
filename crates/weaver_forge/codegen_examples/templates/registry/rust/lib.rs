@@ -1,3 +1,5 @@
+{{- template.set_file_name("lib.rs") -}}
+
 /*
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
@@ -8,3 +10,4 @@
 
 pub mod attributes;
 pub mod metrics;
+

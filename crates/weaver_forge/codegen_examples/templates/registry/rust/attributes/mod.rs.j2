@@ -1,4 +1,4 @@
-{{- template.set_file_name("lib.rs") -}}
+{{- template.set_file_name("attributes/mod.rs") -}}
 
 /*
  * Copyright The OpenTelemetry Authors
@@ -6,12 +6,12 @@
  */
 
 //! OpenTelemetry Semantic Convention Attributes
-//! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/lib.rs.j2
+//! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/attributes/mod.rs.j2
 
 use opentelemetry::{Key, KeyValue, StringValue};
 
 {% for group in ctx %}
-{{ group.brief | comment_with_prefix("/// ") }}
+/// Attributes for the `{{ group.id | attribute_registry_namespace }}` namespace.
 pub mod {{ group.id | attribute_registry_namespace | snake_case }};
 {%- endfor %}
 
