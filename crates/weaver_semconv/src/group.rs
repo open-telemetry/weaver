@@ -152,9 +152,7 @@ impl GroupSpec {
             // will result in an error.
             match attribute {
                 AttributeSpec::Id {
-                    brief,
-                    deprecated,
-                    ..
+                    brief, deprecated, ..
                 } => {
                     if brief.is_none() && deprecated.is_none() {
                         errors.push(Error::InvalidAttribute {
@@ -340,37 +338,40 @@ mod tests {
         // Span kind is set but the type is not span.
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>");
-        assert_eq!(Err(
-            CompoundError(
-                vec![
-                    InvalidGroup {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains a span_kind field but the type is not set to span.".to_owned(),
-                    },
-                    InvalidGroup {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains an events field but the type is not set to span.".to_owned(),
-                    },
-                    InvalidMetric {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains a metric type but the metric_name is not set.".to_owned(),
-                    },
-                    InvalidMetric {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains a metric type but the instrument is not set.".to_owned(),
-                    },
-                    InvalidMetric {
-                        path_or_url: "<test>".to_owned(),
-                        group_id: "test".to_owned(),
-                        error: "This group contains a metric type but the unit is not set.".to_owned(),
-                    },
-                ],
-            ),
-        ), result);
+        assert_eq!(
+            Err(CompoundError(vec![
+                InvalidGroup {
+                    path_or_url: "<test>".to_owned(),
+                    group_id: "test".to_owned(),
+                    error: "This group contains a span_kind field but the type is not set to span."
+                        .to_owned(),
+                },
+                InvalidGroup {
+                    path_or_url: "<test>".to_owned(),
+                    group_id: "test".to_owned(),
+                    error: "This group contains an events field but the type is not set to span."
+                        .to_owned(),
+                },
+                InvalidMetric {
+                    path_or_url: "<test>".to_owned(),
+                    group_id: "test".to_owned(),
+                    error: "This group contains a metric type but the metric_name is not set."
+                        .to_owned(),
+                },
+                InvalidMetric {
+                    path_or_url: "<test>".to_owned(),
+                    group_id: "test".to_owned(),
+                    error: "This group contains a metric type but the instrument is not set."
+                        .to_owned(),
+                },
+                InvalidMetric {
+                    path_or_url: "<test>".to_owned(),
+                    group_id: "test".to_owned(),
+                    error: "This group contains a metric type but the unit is not set.".to_owned(),
+                },
+            ],),),
+            result
+        );
 
         // Field name is required if prefix is empty and if type is event.
         group.r#type = GroupType::Event;
