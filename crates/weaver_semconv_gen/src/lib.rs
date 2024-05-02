@@ -4,7 +4,7 @@
 //! The entire crate is a rush job to catch feature parity w/ existing python tooling by
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
-use std::{fs, path};
+use std::fs;
 
 use serde::Serialize;
 use weaver_cache::Cache;
@@ -330,6 +330,8 @@ impl SnippetGenerator {
         })
     }
 
+    // Used in tests
+    #[allow(dead_code)]
     fn try_from_path(
         path_pattern: &str,
         template_engine: Option<TemplateEngine>,

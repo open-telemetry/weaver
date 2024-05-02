@@ -25,7 +25,6 @@ pub trait WeaverError<T> {
 
 /// Handles a list of errors and returns a compound error if the list is not
 /// empty or () if the list is empty.
-#[must_use]
 pub fn handle_errors<T: WeaverError<T>>(mut errors: Vec<T>) -> Result<(), T> {
     if errors.is_empty() {
         Ok(())
