@@ -6,10 +6,14 @@
 
 use std::fs;
 
+use serde::Serialize;
 use weaver_cache::Cache;
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
+use weaver_forge::registry::TemplateGroup;
+use weaver_forge::TemplateEngine;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
+use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -76,6 +80,14 @@ pub enum Error {
     /// Errors from using weaver_resolver.
     #[error(transparent)]
     ResolverError(#[from] weaver_resolver::Error),
+
+    /// Errors from using weaver_cache.
+    #[error(transparent)]
+    CacheError(#[from] weaver_cache::Error),
+
+    /// Errors from using weaver_forge.
+    #[error(transparent)]
+    ForgeError(#[from] weaver_forge::error::Error),
 
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
@@ -153,30 +165,41 @@ impl GenerateMarkdownArgs {
             _ => None,
         })
     }
+
+    /// Returns all tag filters in a list.
+    fn tag_filters(&self) -> Vec<&str> {
+        self.args
+            .iter()
+            .find_map(|arg| match arg {
+                MarkdownGenParameters::Tag(value) => Some(value.as_str()),
+                _ => None,
+            })
+            .into_iter()
+            .collect()
+    }
 }
 
-/// Constructs a markdown snippet (without header/closer)
-fn generate_markdown_snippet(
-    lookup: &ResolvedSemconvRegistry,
-    args: GenerateMarkdownArgs,
-    attribute_registry_base_url: Option<&str>,
-) -> Result<String, Error> {
-    let mut ctx = GenerateMarkdownContext::default();
-    let mut result = String::new();
-    if args.is_metric_table() {
-        let view = MetricView::try_new(args.id.as_str(), lookup)?;
-        view.generate_markdown(&mut result, &mut ctx)?;
-    } else {
-        let other = AttributeTableView::try_new(args.id.as_str(), lookup)?;
-        other.generate_markdown(&mut result, &args, &mut ctx, attribute_registry_base_url)?;
-    }
-    Ok(result)
+/// This struct is passed into markdown snippets for generation.
+#[derive(Serialize)]
+struct MarkdownSnippetContext {
+    group: TemplateGroup,
+    snippet_type: SnippetType,
+    tag_filter: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attribute_registry_base_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SnippetType {
+    AttributeTable,
+    MetricTable,
 }
 
 // TODO - This entire function could be optimised and reworked.
 fn update_markdown_contents(
     contents: &str,
-    lookup: &ResolvedSemconvRegistry,
+    generator: &SnippetGenerator,
     attribute_registry_base_url: Option<&str>,
 ) -> Result<String, Error> {
     let mut result = String::new();
@@ -199,7 +222,8 @@ fn update_markdown_contents(
             if parser::is_markdown_snippet_directive(line) {
                 handling_snippet = true;
                 let arg = parser::parse_markdown_snippet_directive(line)?;
-                let snippet = generate_markdown_snippet(lookup, arg, attribute_registry_base_url)?;
+                let snippet =
+                    generator.generate_markdown_snippet(arg, attribute_registry_base_url)?;
                 result.push_str(&snippet);
             }
         }
@@ -210,13 +234,13 @@ fn update_markdown_contents(
 /// Updates a single markdown file using the resolved schema.
 pub fn update_markdown(
     file: &str,
-    lookup: &ResolvedSemconvRegistry,
+    generator: &SnippetGenerator,
     dry_run: bool,
     attribute_registry_base_url: Option<&str>,
 ) -> Result<(), Error> {
     let original_markdown = fs::read_to_string(file)?.replace("\r\n", "\n");
     let updated_markdown =
-        update_markdown_contents(&original_markdown, lookup, attribute_registry_base_url)?;
+        update_markdown_contents(&original_markdown, generator, attribute_registry_base_url)?;
     if !dry_run {
         fs::write(file, updated_markdown)?;
         Ok(())
@@ -230,27 +254,111 @@ pub fn update_markdown(
     }
 }
 
+/// State we need to generate markdown snippets from configuration.
+pub struct SnippetGenerator {
+    lookup: ResolvedSemconvRegistry,
+    template_engine: Option<TemplateEngine>,
+}
+
+impl SnippetGenerator {
+    // TODO - move registry base url into state of the struct...
+    fn generate_markdown_snippet(
+        &self,
+        args: GenerateMarkdownArgs,
+        attribute_registry_base_url: Option<&str>,
+    ) -> Result<String, Error> {
+        if let Some(template) = &self.template_engine {
+            // TODO - define context.
+            let snippet_type = if args.is_metric_table() {
+                SnippetType::MetricTable
+            } else {
+                SnippetType::AttributeTable
+            };
+            let group = self
+                .lookup
+                .find_group(&args.id)
+                .ok_or(Error::GroupNotFound {
+                    id: args.id.clone(),
+                })
+                .and_then(|g| Ok(TemplateGroup::try_from_resolved(g, self.lookup.catalog())?))?;
+            // Context is the JSON sent to the jinja template engine.
+            let context = MarkdownSnippetContext {
+                group: group.clone(),
+                snippet_type,
+                tag_filter: args
+                    .tag_filters()
+                    .into_iter()
+                    .map(|s| s.to_owned())
+                    .collect(),
+                attribute_registry_base_url: attribute_registry_base_url.map(|s| s.to_owned()),
+            };
+            // We automatically default to specific file for the snippet types.
+            let snippet_template_file = "snippet.md.j2";
+            let mut result =
+                template.generate_snippet(&context, snippet_template_file.to_owned())?;
+            result.push('\n');
+            Ok(result)
+        } else {
+            self.generate_legacy_markdown_snippet(args, attribute_registry_base_url)
+        }
+    }
+
+    fn generate_legacy_markdown_snippet(
+        &self,
+        args: GenerateMarkdownArgs,
+        attribute_registry_base_url: Option<&str>,
+    ) -> Result<String, Error> {
+        let mut ctx = GenerateMarkdownContext::default();
+        let mut result = String::new();
+        if args.is_metric_table() {
+            let view = MetricView::try_new(args.id.as_str(), &self.lookup)?;
+            view.generate_markdown(&mut result, &mut ctx)?;
+        } else {
+            let other = AttributeTableView::try_new(args.id.as_str(), &self.lookup)?;
+            other.generate_markdown(&mut result, &args, &mut ctx, attribute_registry_base_url)?;
+        }
+        Ok(result)
+    }
+
+    /// Resolve semconv registry (possibly from git), and make it available for rendering.
+    pub fn try_from_url(
+        registry_path: RegistryPath,
+        cache: &Cache,
+        template_engine: Option<TemplateEngine>,
+    ) -> Result<SnippetGenerator, Error> {
+        let registry = ResolvedSemconvRegistry::try_from_url(registry_path, cache)?;
+        Ok(SnippetGenerator {
+            lookup: registry,
+            template_engine,
+        })
+    }
+
+    // Used in tests
+    #[allow(dead_code)]
+    fn try_from_path(
+        path_pattern: &str,
+        template_engine: Option<TemplateEngine>,
+    ) -> Result<SnippetGenerator, Error> {
+        let cache = Cache::try_new()?;
+        Self::try_from_url(
+            RegistryPath::Local {
+                path_pattern: path_pattern.to_owned(),
+            },
+            &cache,
+            template_engine,
+        )
+    }
+}
+
 /// The resolved Semantic Convention repository that is used to drive snipper generation.
-pub struct ResolvedSemconvRegistry {
+struct ResolvedSemconvRegistry {
     schema: ResolvedTelemetrySchema,
     registry_id: String,
 }
 
 impl ResolvedSemconvRegistry {
-    /// Resolve the semantic convention registry and make it available for rendering markdown snippets.
-    pub fn try_from_path(path_pattern: &str) -> Result<ResolvedSemconvRegistry, Error> {
-        let registry_id = "semantic_conventions";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, path_pattern)?;
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
-        let lookup = ResolvedSemconvRegistry {
-            schema,
-            registry_id: registry_id.into(),
-        };
-        Ok(lookup)
-    }
-
     /// Resolve semconv registry (possibly from git), and make it available for rendering.
-    pub fn try_from_url(
+    fn try_from_url(
         registry_path: RegistryPath,
         cache: &Cache,
     ) -> Result<ResolvedSemconvRegistry, Error> {
@@ -269,6 +377,10 @@ impl ResolvedSemconvRegistry {
         self.schema.registry(self.registry_id.as_str())
     }
 
+    fn catalog(&self) -> &Catalog {
+        &self.schema.catalog
+    }
+
     fn find_group(&self, id: &str) -> Option<&Group> {
         self.my_registry()
             .and_then(|r| r.groups.iter().find(|g| g.id == id))
@@ -285,7 +397,9 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use crate::{update_markdown, Error, ResolvedSemconvRegistry};
+    use weaver_forge::{GeneratorConfig, TemplateEngine};
+
+    use crate::{update_markdown, Error, SnippetGenerator};
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -295,8 +409,25 @@ mod tests {
     }
 
     #[test]
+    fn test_template_engine() -> Result<(), Error> {
+        let template = TemplateEngine::try_new("markdown", GeneratorConfig::default())?;
+        let generator = SnippetGenerator::try_from_path("data", Some(template))?;
+        let attribute_registry_url = "/docs/attributes-registry";
+        // Now we should check a snippet.
+        let test = "data/templates.md";
+        println!("--- Running template engine test: {test} ---");
+        force_print_error(update_markdown(
+            test,
+            &generator,
+            true,
+            Some(attribute_registry_url),
+        ));
+        Ok(())
+    }
+
+    #[test]
     fn test_http_semconv() -> Result<(), Error> {
-        let lookup = ResolvedSemconvRegistry::try_from_path("data/**/*.yaml")?;
+        let lookup = SnippetGenerator::try_from_path("data", None)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Check our test files.
         for test in [
@@ -331,8 +462,8 @@ mod tests {
     }
 
     fn run_legacy_test(path: PathBuf) -> Result<(), Error> {
-        let semconv_path = format!("{}/*.yaml", path.display());
-        let lookup = ResolvedSemconvRegistry::try_from_path(&semconv_path)?;
+        let semconv_path = format!("{}", path.display());
+        let lookup = SnippetGenerator::try_from_path(&semconv_path, None)?;
         let test_path = path.join("test.md").display().to_string();
         // Attempts to update the test - will fail if there is any difference in the generated markdown.
         update_markdown(&test_path, &lookup, true, None)

@@ -27,7 +27,7 @@ pub(crate) fn comment_with_prefix(input: &str, prefix: &str) -> String {
 /// A function that takes an input value and returns a new string value with the
 /// data type replaced. If the input value is not found in the type mapping or is
 /// not a string, the input value is returned as is.
-pub fn type_mapping(type_mapping: HashMap<String, String>) -> impl Fn(&Value) -> Value {
+pub(crate) fn type_mapping(type_mapping: HashMap<String, String>) -> impl Fn(&Value) -> Value {
     move |input: &Value| -> Value {
         if let Some(input_as_str) = input.as_str() {
             if let Some(target_type) = type_mapping.get(input_as_str) {

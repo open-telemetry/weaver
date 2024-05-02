@@ -35,8 +35,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      - name: Install protoc
-        uses: arduino/setup-protoc@v2
       - uses: Swatinem/rust-cache@v2
       - name: Build
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
@@ -58,8 +56,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.70"  # MSRV
-      - name: Install protoc
-        uses: arduino/setup-protoc@v2
       - uses: Swatinem/rust-cache@v2
       - name: Default features
         run: cargo check --workspace --all-targets
@@ -90,8 +86,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Install protoc
-        uses: arduino/setup-protoc@v2
       - uses: Swatinem/rust-cache@v2
       - name: Check documentation
         env:
