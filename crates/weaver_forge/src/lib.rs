@@ -27,6 +27,7 @@ use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::acronym::acronym;
 use crate::extensions::case_converter::case_converter;
+use crate::extensions::code;
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -51,6 +52,14 @@ impl Default for GeneratorConfig {
         Self {
             root_dir: PathBuf::from("templates"),
         }
+    }
+}
+
+impl GeneratorConfig {
+    /// Create a new generator configuration with the given root directory.
+    #[must_use]
+    pub fn new(root_dir: PathBuf) -> Self {
+        Self { root_dir }
     }
 }
 
@@ -360,7 +369,12 @@ impl TemplateEngine {
                 error: e.to_string(),
             })?;
 
-        // Register case conversion filters based on the target configuration
+        // Register code-oriented filters
+        env.add_filter("comment_with_prefix", code::comment_with_prefix);
+        env.add_filter(
+            "type_mapping",
+            code::type_mapping(self.target_config.type_mapping.clone()),
+        );
         env.add_filter(
             "file_name",
             case_converter(self.target_config.file_name.clone()),
@@ -381,6 +395,8 @@ impl TemplateEngine {
             "field_name",
             case_converter(self.target_config.field_name.clone()),
         );
+
+        // Register case conversion filters
         env.add_filter("lower_case", case_converter(CaseConvention::LowerCase));
         env.add_filter("upper_case", case_converter(CaseConvention::UpperCase));
         env.add_filter("title_case", case_converter(CaseConvention::TitleCase));
@@ -402,16 +418,34 @@ impl TemplateEngine {
 
         env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
 
+        // Register custom OpenTelemetry filters and tests
+        env.add_filter("attribute_namespace", extensions::otel::attribute_namespace);
+        env.add_filter(
+            "attribute_registry_namespace",
+            extensions::otel::attribute_registry_namespace,
+        );
+        env.add_filter(
+            "attribute_registry_title",
+            extensions::otel::attribute_registry_title,
+        );
+        env.add_filter(
+            "attribute_registry_file",
+            extensions::otel::attribute_registry_file,
+        );
+        env.add_filter("metric_namespace", extensions::otel::metric_namespace);
+        // ToDo Implement more filters: required, not_required, stable, experimental, deprecated
+        env.add_test("stable", extensions::otel::is_stable);
+        env.add_test("experimental", extensions::otel::is_experimental);
+        env.add_test("deprecated", extensions::otel::is_deprecated);
+        // ToDo Implement more tests: required, not_required
+
         // env.add_filter("unique_attributes", extensions::unique_attributes);
         // env.add_filter("instrument", extensions::instrument);
-        // env.add_filter("required", extensions::required);
-        // env.add_filter("not_required", extensions::not_required);
         // env.add_filter("value", extensions::value);
         // env.add_filter("with_value", extensions::with_value);
         // env.add_filter("without_value", extensions::without_value);
         // env.add_filter("with_enum", extensions::with_enum);
         // env.add_filter("without_enum", extensions::without_enum);
-        // env.add_filter("comment", extensions::comment);
         // env.add_filter(
         //     "type_mapping",
         //     extensions::TypeMapping {
@@ -419,9 +453,6 @@ impl TemplateEngine {
         //     },
         // );
 
-        // Register custom testers
-        // tera.register_tester("required", testers::is_required);
-        // tera.register_tester("not_required", testers::is_not_required);
         Ok(env)
     }
 
