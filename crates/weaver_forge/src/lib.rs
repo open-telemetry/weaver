@@ -163,7 +163,6 @@ impl TemplateEngine {
     /// * `log` - The logger to use for logging
     /// * `context` - The context to use when generating snippets.
     /// * `snippet_id` - The template to use when rendering the snippet.
-    /// * `snippet_args` - Additional context to give when generating the snippets.
     pub fn generate_snippet<T: Serialize>(
         &self,
         context: &T,
