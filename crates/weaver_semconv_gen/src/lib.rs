@@ -10,8 +10,8 @@ use serde::Serialize;
 use weaver_cache::Cache;
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
-use weaver_forge::TemplateEngine;
 use weaver_forge::registry::TemplateGroup;
+use weaver_forge::TemplateEngine;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::{Group, Registry};
@@ -279,10 +279,8 @@ impl SnippetGenerator {
                 .find_group(&args.id)
                 .ok_or(Error::GroupNotFound {
                     id: args.id.clone(),
-                }).and_then(|g| {
-                    TemplateGroup::try_from_resolved(g, self.lookup.catalog())
-                    .map_err(|e| Error::ForgeError(e))
-                })?;
+                })
+                .and_then(|g| Ok(TemplateGroup::try_from_resolved(g, self.lookup.catalog())?))?;
             // Context is the JSON sent to the jinja template engine.
             let context = MarkdownSnippetContext {
                 group: group.clone(),

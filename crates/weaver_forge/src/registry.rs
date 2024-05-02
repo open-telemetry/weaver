@@ -104,10 +104,7 @@ pub struct TemplateGroup {
 
 impl TemplateGroup {
     /// Constructs a Template-friendly groups structure from resolved registry structures.
-    pub fn try_from_resolved(
-        group: &Group,
-        catalog: &Catalog,
-    ) -> Result<Self, Error> {
+    pub fn try_from_resolved(group: &Group, catalog: &Catalog) -> Result<Self, Error> {
         let mut errors = Vec::new();
         let id = group.id.clone();
         let group_type = group.r#type.clone();
