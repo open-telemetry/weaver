@@ -42,6 +42,7 @@ pub const NETWORK_CONNECTION_SUBTYPE: crate::attributes::AttributeKey<NetworkCon
 
 
 /// This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum NetworkConnectionSubtype {
     /// GPRS
@@ -180,6 +181,7 @@ pub const NETWORK_CONNECTION_TYPE: crate::attributes::AttributeKey<NetworkConnec
 
 
 /// The internet connection type.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum NetworkConnectionType {
 
@@ -284,6 +286,7 @@ pub const NETWORK_TRANSPORT: crate::attributes::AttributeKey<NetworkTransport> =
 
 
 /// [OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum NetworkTransport {
     /// TCP
@@ -331,6 +334,7 @@ pub const NETWORK_TYPE: crate::attributes::AttributeKey<NetworkType> = crate::at
 
 
 /// [OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum NetworkType {
     /// IPv4
@@ -370,6 +374,7 @@ pub const NETWORK_IO_DIRECTION: crate::attributes::AttributeKey<NetworkIoDirecti
 
 
 /// The network IO operation direction.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum NetworkIoDirection {
 

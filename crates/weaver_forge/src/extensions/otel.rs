@@ -68,6 +68,21 @@ pub(crate) fn metric_namespace(input: &str) -> Result<String, minijinja::Error> 
     Ok(parts[1].to_owned())
 }
 
+/// Converts {namespace}.{attribute_id} to {namespace}.
+///
+/// A [`minijinja::Error`] is returned if the input does not have
+/// at least two parts. Otherwise, it returns the namespace (first part of the input).
+pub(crate) fn attribute_namespace(input: &str) -> Result<String, minijinja::Error> {
+    let parts: Vec<&str> = input.split('.').collect();
+    if parts.len() < 2 {
+        return Err(minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("This attribute name `{}` is invalid", input),
+        ));
+    }
+    Ok(parts[0].to_owned())
+}
+
 /// Checks if the input value is an object with a field named "stability" that has the value "stable".
 /// Otherwise, it returns false.
 #[must_use]

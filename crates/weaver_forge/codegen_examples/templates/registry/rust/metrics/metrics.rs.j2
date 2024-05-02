@@ -8,14 +8,8 @@
 
 //! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/metrics/metrics.rs.j2
 
+use crate::metrics::{HistogramProvider, UpDownCounterProvider};
+
 {% for metric in ctx.groups %}
-{% if metric.instrument == "histogram" %}
-{%- include "metrics/histogram.j2" %}
-{% elif metric.instrument == "counter" %}
-{%- include "metrics/counter.j2" %}
-{% elif metric.instrument == "gauge" %}
-{%- include "metrics/gauge.j2" %}
-{% elif metric.instrument == "updowncounter" %}
-{%- include "metrics/updowncounter.j2" %}
-{% endif %}
+{%- include "metrics/" ~ metric.instrument ~ ".j2" %}
 {% endfor %}

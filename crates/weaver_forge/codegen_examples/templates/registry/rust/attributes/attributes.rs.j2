@@ -34,10 +34,11 @@
 {% elif attribute.type == "string" %}pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<opentelemetry::{{ attribute.type | type_mapping }}Value> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
 {% else %}pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<{{ attribute.type | type_mapping }}> = crate::attributes::AttributeKey::new("{{ attribute.name }}");{% endif %}
 
-{% if attribute.type.allow_custom_values is defined %}
+{% if attribute.type.members is defined %}
 {%- if attribute.brief %}
 {{ attribute.brief | comment_with_prefix("/// ") }}
 {%- endif %}
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum {{ attribute.name | pascal_case }} {
 {% for variant in attribute.type.members %}

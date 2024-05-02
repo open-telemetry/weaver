@@ -392,6 +392,7 @@ impl TemplateEngine {
         env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
 
         // Register custom OpenTelemetry filters and tests
+        env.add_filter("attribute_namespace", extensions::otel::attribute_namespace);
         env.add_filter(
             "attribute_registry_namespace",
             extensions::otel::attribute_registry_namespace,

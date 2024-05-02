@@ -45,6 +45,7 @@ pub const HTTP_REQUEST_METHOD: crate::attributes::AttributeKey<HttpRequestMethod
 
 
 /// HTTP request method.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum HttpRequestMethod {
     /// CONNECT method.
@@ -165,6 +166,7 @@ pub const HTTP_CONNECTION_STATE: crate::attributes::AttributeKey<HttpConnectionS
 
 
 /// State of the HTTP connection in the HTTP connection pool.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum HttpConnectionState {
     /// active state.

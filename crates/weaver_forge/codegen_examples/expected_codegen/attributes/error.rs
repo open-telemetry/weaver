@@ -34,6 +34,7 @@ pub const ERROR_TYPE: crate::attributes::AttributeKey<ErrorType> = crate::attrib
 
 
 /// Describes a class of error the operation ended with.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum ErrorType {
     /// A fallback error value to be used when the instrumentation doesn't define a custom value.
