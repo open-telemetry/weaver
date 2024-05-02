@@ -139,13 +139,12 @@ impl WeaverError<Error> for Error {
     }
 }
 
-impl From<minijinja::Error> for Error {
-    fn from(value: minijinja::Error) -> Self {
-        Error::WriteGeneratedCodeFailed {
-            template: PathBuf::from_str(value.template_source().unwrap_or(""))
-                .expect("Template source should be path"),
-            error: format!("{}", value),
-        }
+#[must_use]
+pub(crate) fn jinja_err_convert(e: minijinja::Error) -> Error {
+    Error::WriteGeneratedCodeFailed {
+        template: PathBuf::from_str(e.template_source().unwrap_or(""))
+            .expect("Template source should be path"),
+        error: format!("{}", e),
     }
 }
 

@@ -177,8 +177,8 @@ impl TemplateEngine {
         })?;
 
         let engine = self.template_engine()?;
-        let template = engine.get_template(&snippet_id)?;
-        let result = template.render(context)?;
+        let template = engine.get_template(&snippet_id).map_err(error::jinja_err_convert)?;
+        let result = template.render(context).map_err(error::jinja_err_convert)?;
         Ok(result)
     }
 
