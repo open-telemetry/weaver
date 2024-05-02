@@ -103,7 +103,7 @@ impl Cache {
             .get(&repo_url)
         {
             if let Some(subdir) = path {
-                return Ok(git_repo_dir.path.join(subdir))
+                return Ok(git_repo_dir.path.join(subdir));
             } else {
                 return Ok(git_repo_dir.path.clone());
             }

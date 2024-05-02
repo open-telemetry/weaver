@@ -8,6 +8,7 @@ use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
+use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command
@@ -37,6 +38,18 @@ pub struct RegistryUpdateMarkdownArgs {
     /// If provided, all attributes will be linked here.
     #[arg(long)]
     pub attribute_registry_base_url: Option<String>,
+
+    /// Path to the directory where the templates are located.
+    /// Default is the `templates` directory.
+    /// Note: `registry update-markdown` will look for a specific jinja template:
+    ///   {templates}/{target}/snippet.md.j2.
+    #[arg(short = 't', long, default_value = "templates")]
+    pub templates: String,
+
+    /// If provided, the target to generate snippets with.
+    /// Note: `registry update-markdown` will look for a specific jinja template:
+    ///   {templates}/{target}/snippet.md.j2.
+    pub target: Option<String>,
 }
 
 /// Update markdown files.
@@ -50,10 +63,16 @@ pub(crate) fn command(
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
         path.is_file() && extension == "md"
     }
+    // Construct a generator if we were given a `--target` argument.
+    let generator = args.target.as_ref().map(|target| {
+        TemplateEngine::try_new(&format!("registry/{}", target), GeneratorConfig::default())
+            .exit_if_error(log.clone())
+    });
 
     let generator = SnippetGenerator::try_from_url(
         semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
+        generator,
     )
     .exit_if_error(log.clone());
     log.success("Registry resolved successfully");

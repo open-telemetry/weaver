@@ -166,10 +166,14 @@ impl GenerateMarkdownArgs {
 
     /// Returns all tag filters in a list.
     fn tag_filters(&self) -> Vec<&str> {
-        self.args.iter().find_map(|arg| match arg {
-            MarkdownGenParameters::Tag(value) => Some(value.as_str()),
-            _ => None,
-        }).into_iter().collect()
+        self.args
+            .iter()
+            .find_map(|arg| match arg {
+                MarkdownGenParameters::Tag(value) => Some(value.as_str()),
+                _ => None,
+            })
+            .into_iter()
+            .collect()
     }
 }
 
@@ -179,6 +183,8 @@ struct MarkdownSnippetContext {
     group: Group,
     snippet_type: SnippetType,
     tag_filter: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attribute_registry_base_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -266,19 +272,27 @@ impl SnippetGenerator {
             } else {
                 SnippetType::AttributeTable
             };
-            let group = self.lookup.find_group(&args.id).ok_or(Error::GroupNotFound { id: args.id.clone() })?;
+            let group = self
+                .lookup
+                .find_group(&args.id)
+                .ok_or(Error::GroupNotFound {
+                    id: args.id.clone(),
+                })?;
             // Context is the JSON sent to the jinja template engine.
             let context = MarkdownSnippetContext {
                 group: group.clone(),
                 snippet_type,
-                tag_filter: args.tag_filters().into_iter().map(|s|s.to_owned()).collect(),
+                tag_filter: args
+                    .tag_filters()
+                    .into_iter()
+                    .map(|s| s.to_owned())
+                    .collect(),
+                attribute_registry_base_url: attribute_registry_base_url.map(|s| s.to_owned()),
             };
-            // We automatically default to specific files for the snippet types.
-            let snippet_template_file = match &context.snippet_type {
-                SnippetType::AttributeTable => "attributes_snippet.md.j2",
-                SnippetType::MetricTable => "metric_table_snippet.md.j2",
-            };
-            let mut result = template.generate_snippet(&context, snippet_template_file.to_owned())?;
+            // We automatically default to specific file for the snippet types.
+            let snippet_template_file = "snippet.md.j2";
+            let mut result =
+                template.generate_snippet(&context, snippet_template_file.to_owned())?;
             result.push('\n');
             Ok(result)
         } else {
@@ -286,8 +300,11 @@ impl SnippetGenerator {
         }
     }
 
-    fn generate_legacy_markdown_snippet(&self, args: GenerateMarkdownArgs,
-        attribute_registry_base_url: Option<&str>) -> Result<String, Error> {
+    fn generate_legacy_markdown_snippet(
+        &self,
+        args: GenerateMarkdownArgs,
+        attribute_registry_base_url: Option<&str>,
+    ) -> Result<String, Error> {
         let mut ctx = GenerateMarkdownContext::default();
         let mut result = String::new();
         if args.is_metric_table() {
@@ -307,13 +324,16 @@ impl SnippetGenerator {
         template_engine: Option<TemplateEngine>,
     ) -> Result<SnippetGenerator, Error> {
         let registry = ResolvedSemconvRegistry::try_from_url(registry_path, cache)?;
-        Ok(SnippetGenerator { 
+        Ok(SnippetGenerator {
             lookup: registry,
-            template_engine
+            template_engine,
         })
     }
 
-    fn try_from_path(path_pattern: &str, template_engine: Option<TemplateEngine>) -> Result<SnippetGenerator, Error> {
+    fn try_from_path(
+        path_pattern: &str,
+        template_engine: Option<TemplateEngine>,
+    ) -> Result<SnippetGenerator, Error> {
         let cache = Cache::try_new()?;
         Self::try_from_url(
             RegistryPath::Local {
