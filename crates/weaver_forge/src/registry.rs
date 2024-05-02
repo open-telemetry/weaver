@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
-use weaver_resolved_schema::registry::{Constraint, Registry};
+use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
@@ -100,6 +100,62 @@ pub struct TemplateGroup {
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lineage: Option<GroupLineage>,
+}
+
+impl TemplateGroup {
+    /// Constructs a Template-friendly groups structure from resolved registry structures.
+    pub fn try_from_resolved(
+        group: &Group,
+        catalog: &Catalog,
+    ) -> Result<Self, Error> {
+        let mut errors = Vec::new();
+        let id = group.id.clone();
+        let group_type = group.r#type.clone();
+        let brief = group.brief.clone();
+        let note = group.note.clone();
+        let prefix = group.prefix.clone();
+        let extends = group.extends.clone();
+        let stability = group.stability.clone();
+        let deprecated = group.deprecated.clone();
+        let constraints = group.constraints.clone();
+        let attributes = group
+            .attributes
+            .iter()
+            .filter_map(|attr_ref| {
+                let attr = catalog.attribute(attr_ref).cloned();
+                if attr.is_none() {
+                    errors.push(Error::AttributeNotFound {
+                        group_id: id.clone(),
+                        attr_ref: *attr_ref,
+                    });
+                }
+                attr
+            })
+            .collect();
+        let lineage = group.lineage.clone();
+        if !errors.is_empty() {
+            return Err(Error::CompoundError(errors));
+        }
+        Ok(TemplateGroup {
+            id,
+            r#type: group_type,
+            brief,
+            note,
+            prefix,
+            extends,
+            stability,
+            deprecated,
+            constraints,
+            attributes,
+            span_kind: group.span_kind.clone(),
+            events: group.events.clone(),
+            metric_name: group.metric_name.clone(),
+            instrument: group.instrument.clone(),
+            unit: group.unit.clone(),
+            name: group.name.clone(),
+            lineage,
+        })
+    }
 }
 
 impl TemplateRegistry {

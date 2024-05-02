@@ -49,6 +49,7 @@ pub struct RegistryUpdateMarkdownArgs {
     /// If provided, the target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
+    #[arg(long)]
     pub target: Option<String>,
 }
 

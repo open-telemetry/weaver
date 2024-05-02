@@ -11,7 +11,9 @@ use weaver_cache::Cache;
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
 use weaver_forge::TemplateEngine;
+use weaver_forge::registry::TemplateGroup;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
+use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -180,7 +182,7 @@ impl GenerateMarkdownArgs {
 /// This struct is passed into markdown snippets for generation.
 #[derive(Serialize)]
 struct MarkdownSnippetContext {
-    group: Group,
+    group: TemplateGroup,
     snippet_type: SnippetType,
     tag_filter: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -277,6 +279,9 @@ impl SnippetGenerator {
                 .find_group(&args.id)
                 .ok_or(Error::GroupNotFound {
                     id: args.id.clone(),
+                }).and_then(|g| {
+                    TemplateGroup::try_from_resolved(g, self.lookup.catalog())
+                    .map_err(|e| Error::ForgeError(e))
                 })?;
             // Context is the JSON sent to the jinja template engine.
             let context = MarkdownSnippetContext {
@@ -372,6 +377,10 @@ impl ResolvedSemconvRegistry {
 
     fn my_registry(&self) -> Option<&Registry> {
         self.schema.registry(self.registry_id.as_str())
+    }
+
+    fn catalog(&self) -> &Catalog {
+        &self.schema.catalog
     }
 
     fn find_group(&self, id: &str) -> Option<&Group> {
