@@ -156,6 +156,33 @@ impl TemplateEngine {
         })
     }
 
+    /// Generate a template snippet from serializable context and a snippet identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `log` - The logger to use for logging
+    /// * `context` - The context to use when generating snippets.
+    /// * `snippet_id` - The template to use when rendering the snippet.
+    pub fn generate_snippet<T: Serialize>(
+        &self,
+        context: &T,
+        snippet_id: String,
+    ) -> Result<String, Error> {
+        // TODO - find the snippet by id.
+
+        // Create a read-only context for the filter evaluations
+        let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
+            error: e.to_string(),
+        })?;
+
+        let engine = self.template_engine()?;
+        let template = engine
+            .get_template(&snippet_id)
+            .map_err(error::jinja_err_convert)?;
+        let result = template.render(context).map_err(error::jinja_err_convert)?;
+        Ok(result)
+    }
+
     /// Generate artifacts from a serializable context and a template directory,
     /// in parallel.
     ///

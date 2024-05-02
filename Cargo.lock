@@ -3622,10 +3622,12 @@ version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
  "nom",
+ "serde",
  "thiserror",
  "weaver_cache",
  "weaver_common",
  "weaver_diff",
+ "weaver_forge",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_semconv",

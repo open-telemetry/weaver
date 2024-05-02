@@ -295,9 +295,7 @@ impl Display for InstrumentSpec {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute::{AttributeSpec, AttributeType, Examples, PrimitiveOrArrayTypeSpec};
-    use crate::group::{GroupSpec, GroupType, SpanKindSpec};
-    use crate::stability::Stability;
+    use crate::attribute::Examples;
     use crate::Error::{CompoundError, InvalidAttribute, InvalidGroup, InvalidMetric};
 
     use super::*;
