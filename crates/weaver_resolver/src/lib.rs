@@ -255,6 +255,7 @@ impl SchemaResolver {
         local_path: PathBuf,
         registry_path_repr: &str,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
+        println!("Loading semconv from {} or {}", local_path.display(), registry_path_repr);
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()

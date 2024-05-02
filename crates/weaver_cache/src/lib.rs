@@ -102,7 +102,11 @@ impl Cache {
             .expect("git_repo_dirs lock failed")
             .get(&repo_url)
         {
-            return Ok(git_repo_dir.path.clone());
+            if let Some(subdir) = path {
+                return Ok(git_repo_dir.path.join(subdir))
+            } else {
+                return Ok(git_repo_dir.path.clone());
+            }
         }
 
         // Otherwise creates a tempdir for the repo and keeps track of it
@@ -175,11 +179,11 @@ impl Cache {
                 repo_url.clone(),
                 GitRepo {
                     temp_dir: git_repo_dir,
-                    path: git_repo_path,
+                    path: git_repo_path.clone(),
                 },
             );
 
-        Ok(git_repo_pathbuf)
+        Ok(git_repo_path)
     }
 }
 

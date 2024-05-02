@@ -3,7 +3,7 @@
 //! Error types and utilities.
 
 use crate::error::Error::CompoundError;
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 use weaver_common::error::WeaverError;
 use weaver_resolved_schema::attribute::AttributeRef;
 
@@ -136,6 +136,16 @@ impl WeaverError<Error> for Error {
     }
     fn compound(errors: Vec<Error>) -> Error {
         Self::compound_error(errors)
+    }
+}
+
+impl From<minijinja::Error> for Error {
+    fn from(value: minijinja::Error) -> Self {
+        Error::WriteGeneratedCodeFailed {
+            template: PathBuf::from_str(value.template_source().unwrap_or(""))
+                .expect("Template source should be path"),
+            error: format!("{}", value),
+        }
     }
 }
 

@@ -8,7 +8,7 @@ use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
-use weaver_semconv_gen::{update_markdown, ResolvedSemconvRegistry};
+use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command
 #[derive(Debug, Args)]
@@ -51,7 +51,7 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
 
-    let registry = ResolvedSemconvRegistry::try_from_url(
+    let generator = SnippetGenerator::try_from_url(
         semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
     )
@@ -73,7 +73,7 @@ pub(crate) fn command(
         log.info(&format!("{}: ${}", operation, entry.path().display()));
         if let Err(error) = update_markdown(
             &entry.path().display().to_string(),
-            &registry,
+            &generator,
             args.dry_run,
             args.attribute_registry_base_url.as_deref(),
         ) {
