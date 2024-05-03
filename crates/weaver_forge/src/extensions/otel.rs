@@ -137,7 +137,7 @@ pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
         let result: Vec<Value> = values
             .iter()
             .sorted_by(|lhs, rhs| {
-                // Sorted doesn't allow us to keep erorrs, so we sneak them into
+                // Sorted doesn't allow us to keep errors, so we sneak them into
                 // a mutable vector.
                 match compare_requirement_level(lhs, rhs) {
                     Ok(result) => result,
