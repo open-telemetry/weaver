@@ -132,23 +132,33 @@ fn compare_requirement_level(
 
 /// Sorts a sequence of attributes by their requirement_level, then name.
 pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
-    input
-        .as_seq()
-        .map(|values| {
-            let result: Vec<Value> = values
-                .iter()
-                .sorted_by(|lhs, rhs| {
-                    // TODO - Actually output error message here or find another way to do this sorting...
-                    compare_requirement_level(lhs, rhs).unwrap_or(std::cmp::Ordering::Less)
-                })
-                .to_owned()
-                .collect();
-            Value::from(result)
-        })
-        .ok_or(minijinja::Error::custom(format!(
+    let mut errors: Vec<minijinja::Error> = vec![];
+    let opt_result = input.as_seq().map(|values| {
+        let result: Vec<Value> = values
+            .iter()
+            .sorted_by(|lhs, rhs| {
+                // Sorted doesn't allow us to keep erorrs, so we sneak them into
+                // a mutable vector.
+                match compare_requirement_level(lhs, rhs) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        errors.push(error);
+                        std::cmp::Ordering::Less
+                    }
+                }
+            })
+            .to_owned()
+            .collect();
+        Value::from(result)
+    });
+    // If we had an internal error, return the first.
+    match errors.pop() {
+        Some(err) => Err(err),
+        None => opt_result.ok_or(minijinja::Error::custom(format!(
             "Expected sequence of attributes, found: {}",
             input
-        )))
+        ))),
+    }
 }
 
 /// Checks if the input value is an object with a field named "stability" that has the value "stable".
