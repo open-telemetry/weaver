@@ -6,25 +6,6 @@
 //! This document defines the shared attributes used to report a single exception associated with a span or log.
 //! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/attributes/attributes.rs.j2
 
-
-/// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
-pub const EXCEPTION_TYPE: crate::attributes::AttributeKey<opentelemetry::StringValue> = crate::attributes::AttributeKey::new("exception.type");
-
-
-
-
-/// The exception message.
-pub const EXCEPTION_MESSAGE: crate::attributes::AttributeKey<opentelemetry::StringValue> = crate::attributes::AttributeKey::new("exception.message");
-
-
-
-
-/// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
-pub const EXCEPTION_STACKTRACE: crate::attributes::AttributeKey<opentelemetry::StringValue> = crate::attributes::AttributeKey::new("exception.stacktrace");
-
-
-
-
 /// SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
 ///
 /// Notes:
@@ -46,4 +27,21 @@ pub const EXCEPTION_STACKTRACE: crate::attributes::AttributeKey<opentelemetry::S
 ///   clear whether the exception will escape.
 pub const EXCEPTION_ESCAPED: crate::attributes::AttributeKey<bool> = crate::attributes::AttributeKey::new("exception.escaped");
 
+/// The exception message.
+///
+/// Examples:
+/// - Division by zero
+/// - Can't convert 'int' object to str implicitly
+pub const EXCEPTION_MESSAGE: crate::attributes::AttributeKey<opentelemetry::StringValue> = crate::attributes::AttributeKey::new("exception.message");
 
+/// A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+///
+/// Example: Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)
+pub const EXCEPTION_STACKTRACE: crate::attributes::AttributeKey<opentelemetry::StringValue> = crate::attributes::AttributeKey::new("exception.stacktrace");
+
+/// The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+///
+/// Examples:
+/// - java.net.ConnectException
+/// - OSError
+pub const EXCEPTION_TYPE: crate::attributes::AttributeKey<opentelemetry::StringValue> = crate::attributes::AttributeKey::new("exception.type");

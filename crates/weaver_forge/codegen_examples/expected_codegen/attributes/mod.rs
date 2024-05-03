@@ -21,6 +21,8 @@ pub mod http;
 pub mod network;
 /// Attributes for the `server` namespace.
 pub mod server;
+/// Attributes for the `system` namespace.
+pub mod system;
 /// Attributes for the `url` namespace.
 pub mod url;
 
