@@ -1,0 +1,69 @@
+groups:
+  # system.cpu.* attribute group
+  - id: registry.system.cpu
+    prefix: system.cpu
+    type: attribute_group
+    brief: "Describes System CPU attributes"
+    attributes:
+      - id: state
+        type:
+          allow_custom_values: true
+          members:
+            - id: user
+              value: 'user'
+              stability: experimental
+            - id: system
+              value: 'system'
+              stability: experimental
+            - id: nice
+              value: 'nice'
+              stability: experimental
+            - id: idle
+              value: 'idle'
+              stability: experimental
+            - id: iowait
+              value: 'iowait'
+              stability: experimental
+            - id: interrupt
+              value: 'interrupt'
+              stability: experimental
+            - id: steal
+              value: 'steal'
+              stability: experimental
+        brief: "The state of the CPU"
+        stability: experimental
+        examples: ["idle", "interrupt"]
+      - id: logical_number
+        type: int
+        stability: experimental
+        brief: "The logical CPU number [0..n-1]"
+        examples: [1]
+  # sytem.memory.* attribute group
+  - id: registry.system.memory
+    prefix: system.memory
+    type: attribute_group
+    brief: "Describes System Memory attributes"
+    attributes:
+      - id: state
+        type:
+          allow_custom_values: true
+          members:
+            - id: used
+              value: 'used'
+              stability: experimental
+            - id: free
+              value: 'free'
+              stability: experimental
+            - id: shared
+              value: 'shared'
+              stability: experimental
+              deprecated: 'Removed, report shared memory usage with `metric.system.memory.shared` metric'
+            - id: buffers
+              value: 'buffers'
+              stability: experimental
+            - id: cached
+              value: 'cached'
+              stability: experimental
+        stability: experimental
+        brief: "The memory state"
+        examples: ["free", "cached"]

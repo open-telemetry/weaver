@@ -1,3 +1,4 @@
+{%- import 'attribute_macros.j2' as attribute_macros %}
 {%- if metric.brief %}
 {{ metric.brief | comment_with_prefix("/// ") }}
 {%- endif %}
@@ -7,4 +8,60 @@
 pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::metrics::Meter) -> opentelemetry::metrics::UpDownCounter<T>
     where opentelemetry::metrics::Meter: UpDownCounterProvider<T> {
     meter.create_up_down_counter("{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}")
+}
+
+/// Metric: {{ metric.metric_name }}
+/// Brief: {{ metric.brief }}
+/// Unit: {{ metric.unit }}
+#[derive(Debug)]
+pub struct {{ metric.metric_name | pascal_case }}<T>(opentelemetry::metrics::UpDownCounter<T>);
+
+{%- set required_attributes = metric.attributes | required %}
+{%- set optional_attributes = metric.attributes | optional %}
+
+{% if required_attributes %}
+/// Attributes for the `{{ metric.metric_name }}` metric.
+#[derive(Debug, Clone)]
+pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
+    {%- for attribute in required_attributes | attribute_sort %}
+    {{ attribute_macros.comments(attribute, "    ///") }}
+    {%- if attribute.type.members is defined %}
+    pub {{ attribute.name | snake_case }}: crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }},
+    {%- else %}
+    pub {{ attribute.name | snake_case }}: {{ attribute.type | type_mapping }},
+    {%- endif %}
+    {%- endfor %}
+}
+{% endif %}
+
+{% if optional_attributes %}
+#[derive(Debug, Clone, Default)]
+pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
+    {%- for attribute in optional_attributes | attribute_sort %}
+    {{ attribute_macros.comments(attribute, "    ///") }}
+    {%- if attribute.type.members is defined %}
+    pub {{ attribute.name | snake_case }}: Option<crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }}>,
+    {%- else %}
+    pub {{ attribute.name | snake_case }}: Option<{{ attribute.type | type_mapping }}>,
+    {%- endif %}
+    {%- endfor %}
+}
+{% endif %}
+
+impl <T> {{ metric.metric_name | pascal_case }}<T> {
+    pub fn new(meter: &opentelemetry::metrics::Meter) -> Self
+        where opentelemetry::metrics::Meter: UpDownCounterProvider<T>{
+        Self(meter.create_up_down_counter("{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}"))
+    }
+
+    /// Adds an additional value to the up-down-counter.
+    pub fn add(
+        &self,
+        value: T,
+        {% if required_attributes %}required_attributes: &{{ metric.metric_name | pascal_case }}ReqAttributes,{% endif %}
+        {% if optional_attributes %}optional_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
+    ) {
+        {{ attribute_macros.attributes_to_key_values(required_attributes, optional_attributes) }}
+        self.0.add(value, &attributes)
+    }
 }

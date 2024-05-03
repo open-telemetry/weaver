@@ -8,7 +8,7 @@
 
 //! DO NOT EDIT, this is an Auto-generated file from templates/registry/rust/metrics/metrics.rs.j2
 
-use crate::metrics::{HistogramProvider, UpDownCounterProvider};
+use crate::metrics::{CounterProvider, GaugeProvider, HistogramProvider, UpDownCounterProvider};
 
 {%- for metric in ctx.groups %}
 {% include "metrics/" ~ metric.instrument ~ ".j2" %}

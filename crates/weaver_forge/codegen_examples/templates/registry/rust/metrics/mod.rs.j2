@@ -68,3 +68,70 @@ impl UpDownCounterProvider<f64> for opentelemetry::metrics::Meter {
             .init()
     }
 }
+
+/// A trait implemented by counter providers (e.g. `Meter`).
+pub trait CounterProvider<T> {
+    /// Creates a new counter with the given name, description, and unit.
+    fn create_counter(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Counter<T>;
+}
+
+/// This implementation specifies that a Meter is able to create u64 counters.
+impl CounterProvider<u64> for opentelemetry::metrics::Meter {
+    /// Creates a new u64 counter with the given name, description, and unit.
+    fn create_counter(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Counter<u64> {
+        self.u64_counter(name)
+            .with_description(description)
+            .with_unit(opentelemetry::metrics::Unit::new(unit))
+            .init()
+    }
+}
+
+/// This implementation specifies that a Meter is able to create f64 counters.
+impl CounterProvider<f64> for opentelemetry::metrics::Meter {
+    /// Creates a new f64 counter with the given name, description, and unit.
+    fn create_counter(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Counter<f64> {
+        self.f64_counter(name)
+            .with_description(description)
+            .with_unit(opentelemetry::metrics::Unit::new(unit))
+            .init()
+    }
+}
+
+/// A trait implemented by gauge providers (e.g. `Meter`).
+pub trait GaugeProvider<T> {
+    /// Creates a new gauge with the given name, description, and unit.
+    fn create_gauge(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Gauge<T>;
+}
+
+/// This implementation specifies that a Meter is able to create u64 gauges.
+impl GaugeProvider<u64> for opentelemetry::metrics::Meter {
+    /// Creates a new u64 gauge with the given name, description, and unit.
+    fn create_gauge(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Gauge<u64> {
+        self.u64_gauge(name)
+            .with_description(description)
+            .with_unit(opentelemetry::metrics::Unit::new(unit))
+            .init()
+    }
+}
+
+/// This implementation specifies that a Meter is able to create i64 gauges.
+impl GaugeProvider<i64> for opentelemetry::metrics::Meter {
+    /// Creates a new i64 gauge with the given name, description, and unit.
+    fn create_gauge(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Gauge<i64> {
+        self.i64_gauge(name)
+            .with_description(description)
+            .with_unit(opentelemetry::metrics::Unit::new(unit))
+            .init()
+    }
+}
+
+/// This implementation specifies that a Meter is able to create f64 gauges.
+impl GaugeProvider<f64> for opentelemetry::metrics::Meter {
+    /// Creates a new f64 gauge with the given name, description, and unit.
+    fn create_gauge(&self, name: &'static str, description: &'static str, unit: &'static str) -> opentelemetry::metrics::Gauge<f64> {
+        self.f64_gauge(name)
+            .with_description(description)
+            .with_unit(opentelemetry::metrics::Unit::new(unit))
+            .init()
+    }
+}
