@@ -139,8 +139,7 @@ pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
                 .iter()
                 .sorted_by(|lhs, rhs| {
                     // TODO - Actually output error message here or find another way to do this sorting...
-                    compare_requirement_level(lhs, rhs)
-                        .expect("Need a better way to fail on compare")
+                    compare_requirement_level(lhs, rhs).unwrap_or(std::cmp::Ordering::Less)
                 })
                 .to_owned()
                 .collect();
