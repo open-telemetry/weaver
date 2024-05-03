@@ -3,7 +3,9 @@
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
 use crate::config::CaseConvention;
+use itertools::Itertools;
 use minijinja::{ErrorKind, Value};
+use serde::de::Error;
 
 /// Converts registry.{namespace}.{other}.{components} to {namespace}.
 ///
@@ -83,6 +85,82 @@ pub(crate) fn attribute_namespace(input: &str) -> Result<String, minijinja::Erro
     Ok(parts[0].to_owned())
 }
 
+/// Compares two attributes by their requirement_level, then name.
+fn compare_requirement_level(
+    lhs: &Value,
+    rhs: &Value,
+) -> Result<std::cmp::Ordering, minijinja::Error> {
+    fn sort_ordinal_for_requirement(attribute: &Value) -> Result<i32, minijinja::Error> {
+        let level = attribute.get_attr("requirement_level")?;
+        if level
+            .get_attr("conditionally_required")
+            .is_ok_and(|v| !v.is_undefined())
+        {
+            Ok(2)
+        } else if level
+            .get_attr("recommended")
+            .is_ok_and(|v| !v.is_undefined())
+        {
+            Ok(3)
+        } else {
+            match level.as_str() {
+                Some("required") => Ok(1),
+                Some("recommended") => Ok(3),
+                Some("opt_in") => Ok(4),
+                _ => Err(minijinja::Error::custom(format!(
+                    "Expected requirement level, found {}",
+                    level
+                ))),
+            }
+        }
+    }
+    match sort_ordinal_for_requirement(lhs)?.cmp(&sort_ordinal_for_requirement(rhs)?) {
+        std::cmp::Ordering::Equal => {
+            let lhs_name = lhs.get_attr("name")?;
+            let rhs_name = rhs.get_attr("name")?;
+            if lhs_name.lt(&rhs_name) {
+                Ok(std::cmp::Ordering::Less)
+            } else if lhs_name.eq(&rhs_name) {
+                Ok(std::cmp::Ordering::Equal)
+            } else {
+                Ok(std::cmp::Ordering::Greater)
+            }
+        }
+        other => Ok(other),
+    }
+}
+
+/// Sorts a sequence of attributes by their requirement_level, then name.
+pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
+    let mut errors: Vec<minijinja::Error> = vec![];
+    let opt_result = input.as_seq().map(|values| {
+        let result: Vec<Value> = values
+            .iter()
+            .sorted_by(|lhs, rhs| {
+                // Sorted doesn't allow us to keep errors, so we sneak them into
+                // a mutable vector.
+                match compare_requirement_level(lhs, rhs) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        errors.push(error);
+                        std::cmp::Ordering::Less
+                    }
+                }
+            })
+            .to_owned()
+            .collect();
+        Value::from(result)
+    });
+    // If we had an internal error, return the first.
+    match errors.pop() {
+        Some(err) => Err(err),
+        None => opt_result.ok_or(minijinja::Error::custom(format!(
+            "Expected sequence of attributes, found: {}",
+            input
+        ))),
+    }
+}
+
 /// Checks if the input value is an object with a field named "stability" that has the value "stable".
 /// Otherwise, it returns false.
 #[must_use]
@@ -129,10 +207,15 @@ pub(crate) fn is_deprecated(input: Value) -> bool {
 mod tests {
     use crate::extensions::otel::{
         attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
-        is_deprecated, is_experimental, is_stable, metric_namespace,
+        attribute_sort, is_deprecated, is_experimental, is_stable, metric_namespace,
     };
     use minijinja::value::StructObject;
     use minijinja::Value;
+    use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::attribute::AttributeType;
+    use weaver_semconv::attribute::BasicRequirementLevelSpec;
+    use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
+    use weaver_semconv::attribute::RequirementLevel;
 
     struct DynAttr {
         id: String,
@@ -337,5 +420,191 @@ mod tests {
             deprecated: None,
         });
         assert!(!is_deprecated(attr));
+    }
+
+    #[test]
+    fn test_attribute_sort() {
+        // Attributes in no particular order.
+        let attributes: Vec<Attribute> = vec![
+            Attribute {
+                name: "rec.a".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "rec.b".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "crec.a".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::ConditionallyRequired { text: "hi".into() },
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "crec.b".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::ConditionallyRequired { text: "hi".into() },
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "rec.c".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Recommended { text: "hi".into() },
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "rec.d".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Recommended { text: "hi".into() },
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "opt.a".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "opt.b".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "req.a".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "req.b".into(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".into(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".into(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+        ];
+        let json =
+            serde_json::to_value(attributes).expect("Failed to serialize attributes to json.");
+        let value = Value::from_serialize(json);
+        let result = attribute_sort(value).expect("Failed to sort attributes");
+        let result_seq = result.as_seq().expect("Result was not a sequence!");
+        // Assert that requirement level takes precedence over anything else.
+        assert_eq!(
+            result_seq.item_count(),
+            10,
+            "Expected 10 items, found {}",
+            result
+        );
+        let names: Vec<String> = result_seq
+            .iter()
+            .map(|item| item.get_attr("name").unwrap().as_str().unwrap().to_owned())
+            .collect();
+        let expected_names: Vec<String> = vec![
+            // Required First
+            "req.a".to_owned(),
+            "req.b".to_owned(),
+            // Conditionally Required Second
+            "crec.a".to_owned(),
+            "crec.b".to_owned(),
+            // Conditionally Recommended + Recommended Third
+            "rec.a".to_owned(),
+            "rec.b".to_owned(),
+            "rec.c".to_owned(),
+            "rec.d".to_owned(),
+            // OptIn last
+            "opt.a".to_owned(),
+            "opt.b".to_owned(),
+        ];
+
+        for (idx, (result, expected)) in names.iter().zip(expected_names.iter()).enumerate() {
+            assert_eq!(
+                result, expected,
+                "Expected item @ {idx} to have name {expected}, found {names:?}"
+            );
+        }
     }
 }
