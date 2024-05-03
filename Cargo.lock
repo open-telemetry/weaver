@@ -3571,6 +3571,7 @@ dependencies = [
  "convert_case",
  "globset",
  "indexmap",
+ "itertools 0.12.1",
  "jaq-core",
  "jaq-interpret",
  "jaq-parse",

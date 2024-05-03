@@ -215,7 +215,12 @@ in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_ids`: Splits a string by '.' creating a list of nested ids.
 - `flatten`: Converts a List of Lists into a single list with all elements.
 e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
-
+- `attribute_sort`: Sorts a list of `Attribute`s by requirement level, then name.
+- `metric_namespace`: Converts registry.{namespace}.{other}.{components} to {namespace}.
+- `attribute_registry_file`: Converts registry.{namespace}.{other}.{components} to attributes-registry/{namespace}.md (kebab-case namespace).
+- `attribute_registry_title`: Converts registry.{namespace}.{other}.{components} to {Namespace} (title case the namespace).
+- `attribute_registry_namespace`: Converts metric.{namespace}.{other}.{components} to {namespace}.
+- `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 
 > Note 1: This project uses the [convert_case](https://crates.io/crates/convert_case)
 > crate to convert strings to different cases. 
@@ -236,4 +241,8 @@ All the tests available in the MiniJinja template engine are available. In
 addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
-Not yet implemented.
+- `stable`: Tests if an `Attribute` is stable.
+- `experimental`: Tests if an `Attribute` is experimental.
+- `deprecated`: Tests if an `Attribute` is deprecated.
+
+> Note: Other tests might be introduced in the future.
