@@ -189,9 +189,16 @@ The following filters are available:
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_ids`: Splits a string by '.' creating a list of nested ids.
-- `flatten`: Converts a List of Lists into a single list with all elements (e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]).
 - `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
+- `flatten`: Converts a List of Lists into a single list with all elements.
+e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
+- `attribute_sort`: Sorts a list of `Attribute`s by requirement level, then name.
+- `metric_namespace`: Converts registry.{namespace}.{other}.{components} to {namespace}.
+- `attribute_registry_file`: Converts registry.{namespace}.{other}.{components} to attributes-registry/{namespace}.md (kebab-case namespace).
+- `attribute_registry_title`: Converts registry.{namespace}.{other}.{components} to {Namespace} (title case the namespace).
+- `attribute_registry_namespace`: Converts metric.{namespace}.{other}.{components} to {namespace}.
+- `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
@@ -211,8 +218,8 @@ this online [documentation](https://docs.rs/minijinja/latest/minijinja/tests/ind
 In addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
-- `stable`: Returns true if the object is stable (i.e. stability=stable).
-- `experimental`: Returns true if the object is experimental (i.e. stability=experimental).
-- `deprecated`: Returns true if the object is deprecated (i.e. deprecated is defined).
+- `stable`: Tests if an `Attribute` is stable.
+- `experimental`: Tests if an `Attribute` is experimental.
+- `deprecated`: Tests if an `Attribute` is deprecated.
 
 > Please open an issue if you have any suggestions for new tests. They are easy to implement.

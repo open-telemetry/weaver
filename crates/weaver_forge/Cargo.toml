@@ -28,6 +28,7 @@ jaq-parse = "1.0.2"
 indexmap = "2.2.6"
 regex = "1.10.4"
 
+itertools.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true

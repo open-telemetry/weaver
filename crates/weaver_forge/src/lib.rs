@@ -432,6 +432,7 @@ impl TemplateEngine {
             "attribute_registry_file",
             extensions::otel::attribute_registry_file,
         );
+        env.add_filter("attribute_sort", extensions::otel::attribute_sort);
         env.add_filter("metric_namespace", extensions::otel::metric_namespace);
         env.add_filter("required", extensions::otel::required);
         env.add_filter("optional", extensions::otel::optional);
