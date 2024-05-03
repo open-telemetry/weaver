@@ -50,6 +50,14 @@ templates:
           brief, 
           prefix, 
           attributes}) 
+      | group_by(.id | split(".") | .[1]) 
+      | map({
+          id: (map(select(.id | endswith(".deprecated") | not)) | first).id,
+          type: (map(select(.id | endswith(".deprecated") | not)) | first).type,
+          brief: (map(select(.id | endswith(".deprecated") | not)) | first).brief,
+          prefix: (map(select(.id | endswith(".deprecated") | not)) | first).prefix,
+          attributes: map(.attributes) | add
+        })
       | sort_by(.id | split(".") | .[1])
     application_mode: each
 

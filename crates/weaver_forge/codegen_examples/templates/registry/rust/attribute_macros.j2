@@ -1,0 +1,22 @@
+{%- macro comments(attribute, prefix) -%}
+{%- if attribute.brief %}
+{{ attribute.brief | comment_with_prefix(prefix ~ " ") }}
+{%- endif %}
+{%- if attribute.note %}
+{{ prefix }}
+{{ prefix }} Notes:
+{{ attribute.note | comment_with_prefix(prefix ~ "   ") }}
+{%- endif %}
+{%- if attribute.examples %}
+{%- if attribute.examples is sequence %}
+{{ prefix }}
+{{ prefix }} Examples:
+{%- for example in attribute.examples %}
+{{ example | comment_with_prefix(prefix ~ " - ") }}
+{%- endfor %}
+{%- else %}
+{{ prefix }}
+{{ prefix }} Example: {{ attribute.examples | trim }}
+{%- endif %}
+{%- endif %}
+{%- endmacro %}

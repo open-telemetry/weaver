@@ -1,3 +1,4 @@
+{%- import 'attribute_macros.j2' as attribute_macros %}
 {%- if metric.brief %}
 {{ metric.brief | comment_with_prefix("/// ") }}
 {%- endif %}
@@ -15,20 +16,20 @@ pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::me
 #[derive(Debug)]
 pub struct {{ metric.metric_name | pascal_case }}<T>(opentelemetry::metrics::Histogram<T>);
 
-{% set required_attributes = metric.attributes | required %}
-{% set optional_attributes = metric.attributes | optional %}
+{%- set required_attributes = metric.attributes | required %}
+{%- set optional_attributes = metric.attributes | optional %}
 
 {% if required_attributes %}
 /// Attributes for the `{{ metric.metric_name }}` metric.
 #[derive(Debug, Clone)]
 pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
-    {% for attribute in required_attributes %}
-    {{- attribute.brief | comment_with_prefix("/// ") }}
+    {%- for attribute in required_attributes %}
+    {{ attribute_macros.comments(attribute, "    ///") }}
     {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }},
-    {% else %}
+    {%- else %}
     pub {{ attribute.name | snake_case }}: {{ attribute.type | type_mapping }},
-    {% endif %}
+    {%- endif %}
     {%- endfor %}
 }
 {% endif %}
@@ -36,13 +37,13 @@ pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
 {% if optional_attributes %}
 #[derive(Debug, Clone, Default)]
 pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
-    {% for attribute in optional_attributes %}
-    {{- attribute.brief | comment_with_prefix("/// ") }}
+    {%- for attribute in optional_attributes %}
+    {{ attribute_macros.comments(attribute, "    ///") }}
     {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: Option<crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }}>,
-    {% else %}
+    {%- else %}
     pub {{ attribute.name | snake_case }}: Option<{{ attribute.type | type_mapping }}>,
-    {% endif %}
+    {%- endif %}
     {%- endfor %}
 }
 {% endif %}
@@ -60,6 +61,35 @@ impl <T> {{ metric.metric_name | pascal_case }}<T> {
         {% if required_attributes %}required_attributes: &{{ metric.metric_name | pascal_case }}ReqAttributes,{% endif %}
         {% if optional_attributes %}optional_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
     ) {
-        // self.0.record(value, attributes.into())
+        let mut attributes = vec![
+            {%- for attribute in required_attributes %}
+            {%- if attribute.type.members is defined %}
+            crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(&required_attributes.{{ attribute.name | snake_case }}),
+            {%- elif attribute.type == "string" %}
+            crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}.to_string().into()),
+            {%- else %}
+            crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}),
+            {%- endif %}
+            {%- endfor %}
+        ];
+
+        if let Some(value) = &optional_attributes {
+            {%- for attribute in optional_attributes %}
+            {%- if attribute.type.members is defined %}
+            if let Some({{ attribute.name | snake_case }}) = &value.{{ attribute.name | snake_case }} {
+                attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}));
+            }
+            {%- elif attribute.type == "string" %}
+            if let Some({{ attribute.name | snake_case }}) = &value.{{ attribute.name | snake_case }} {
+                attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}.to_string().into()));
+            }
+            {%- else %}
+            if let Some({{ attribute.name | snake_case }}) = value.{{ attribute.name | snake_case }} {
+                attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}));
+            }
+            {%- endif %}
+            {%- endfor %}
+        }
+        self.0.record(value, &attributes)
     }
 }
