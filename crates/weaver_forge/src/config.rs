@@ -267,19 +267,6 @@ fn default_comment_end() -> String {
     "#}".to_owned()
 }
 
-impl From<TemplateSyntax> for minijinja::Syntax {
-    fn from(syntax: TemplateSyntax) -> Self {
-        minijinja::Syntax {
-            block_start: syntax.block_start.into(),
-            block_end: syntax.block_end.into(),
-            variable_start: syntax.variable_start.into(),
-            variable_end: syntax.variable_end.into(),
-            comment_start: syntax.comment_start.into(),
-            comment_end: syntax.comment_end.into(),
-        }
-    }
-}
-
 impl Default for TemplateSyntax {
     fn default() -> Self {
         TemplateSyntax {
