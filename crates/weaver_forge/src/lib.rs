@@ -434,7 +434,9 @@ impl TemplateEngine {
         );
         env.add_filter("attribute_sort", extensions::otel::attribute_sort);
         env.add_filter("metric_namespace", extensions::otel::metric_namespace);
-        // ToDo Implement more filters: required, not_required, stable, experimental, deprecated
+        env.add_filter("required", extensions::otel::required);
+        env.add_filter("optional", extensions::otel::optional);
+        // ToDo Implement more filters: stable, experimental, deprecated
         env.add_test("stable", extensions::otel::is_stable);
         env.add_test("experimental", extensions::otel::is_experimental);
         env.add_test("deprecated", extensions::otel::is_deprecated);

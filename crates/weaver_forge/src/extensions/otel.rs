@@ -7,6 +7,34 @@ use itertools::Itertools;
 use minijinja::{ErrorKind, Value};
 use serde::de::Error;
 
+/// Filters the input value to only include the required "object".
+/// A required object is one that has a field named "requirement_level" with the value "required".
+pub(crate) fn required(input: Value) -> Result<Vec<Value>, minijinja::Error> {
+    let mut rv = vec![];
+
+    for value in input.try_iter()? {
+        let required = value.get_attr("requirement_level")?;
+        if required.as_str() == Some("required") {
+            rv.push(value);
+        }
+    }
+    Ok(rv)
+}
+
+/// Filters the input value to only include the non-required "object".
+/// A optional object is one that has a field named "requirement_level" which is not "required".
+pub(crate) fn optional(input: Value) -> Result<Vec<Value>, minijinja::Error> {
+    let mut rv = vec![];
+
+    for value in input.try_iter()? {
+        let required = value.get_attr("requirement_level")?;
+        if required.as_str() != Some("required") {
+            rv.push(value);
+        }
+    }
+    Ok(rv)
+}
+
 /// Converts registry.{namespace}.{other}.{components} to {namespace}.
 ///
 /// A [`minijinja::Error`] is returned if the input does not start with "registry" or does not have
@@ -606,5 +634,59 @@ mod tests {
                 "Expected item @ {idx} to have name {expected}, found {names:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_required_and_optional_filters() {
+        let attrs = vec![
+            Attribute {
+                name: "attr1".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "attr2".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "attr3".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+        ];
+
+        let result = super::required(Value::from_serialize(&attrs)).unwrap();
+        assert_eq!(result.len(), 2);
+
+        let result = super::optional(Value::from_serialize(&attrs)).unwrap();
+        assert_eq!(result.len(), 1);
     }
 }

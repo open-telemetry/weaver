@@ -1,5 +1,14 @@
 # Weaver Forge - Template Engine
 
+- [Introduction](#introduction)
+- [Template Directory Structure and Naming Conventions](#template-directory-structure-and-naming-conventions)
+- [Configuration File - `weaver.yaml`](#configuration-file---weaveryaml)
+- [Jinja Filters](#jinja-filters)
+- [Jinja Functions](#jinja-functions)
+- [Jinja Tests](#jinja-tests)
+
+## Introduction
+
 OTel Weaver is capable of generating documentation or code from a semantic
 convention registry or a telemetry schema (phase 2). To do this,
 OTel Weaver uses a template engine compatible with the Jinja2 syntax (see the
@@ -20,39 +29,25 @@ current directory.
 ```plaintext
 templates/
   registry/
-    markdown/              <-- All the files in this directory are optional 
-      attribute_group.md   <-- will be evaluated for each attribute group
-      attribute_groups.md  <-- will be evaluated once with all attribute groups
-      event.md             <-- will be evaluated for each event
-      events.md            <-- will be evaluated once with all events
-      group.md             <-- will be evaluated for each group
-      groups.md            <-- will be evaluated once with all groups
-      metric.md            <-- will be evaluated for each metric
-      metrics.md           <-- will be evaluated once with all metrics
-      metric_group.md      <-- will be evaluated for each metric group
-      metric_groups.md     <-- will be evaluated once with all metric groups
-      registry.md          <-- will be evaluated once with the entire registry
-      resource.md          <-- will be evaluated for each resource
-      resources.md         <-- will be evaluated once with all resources
-      scope.md             <-- will be evaluated for each scope
-      scopes.md            <-- will be evaluated once with all scopes
-      span.md              <-- will be evaluated for each span
-      spans.md             <-- will be evaluated once with all spans
-      weaver.yaml          <-- weaver configuration file (optional)
-      any_other_name.md    <-- will be evaluated once with the entire registry
-      any_sub_dir/         <-- By default outputs to the same directory structure
-        any_file.md        <-- will be evaluated once with the entire registry
-    html/
-      ...  
-  schema/
-    sdk-go/
+    go/                     <-- Templates to generate the semantic conventions in Go
       ...
-    sdk-rust/
+    html/                   <-- Templates to generate the semantic conventions in HTML
+      ...
+    markdown/               <-- Templates to generate the semantic conventions in markdown
+      ... 
+    rust/                   <-- Templates to generate the semantic conventions in Rust
+      ...  
+    go/                     <-- Templates to generate the semantic conventions in Go
+      ...
+  schema/
+    sdk-go/                 <-- Templates to generate a Go Client SDK derived from the telemetry schema
+      ...
+    sdk-rust/               <-- Templates to generate a Rust Client SDK derived from the telemetry schema
       ...
 ```
 
 The command `weaver generate registry markdown` will generate the markdown
-files.
+files based on the templates located in the `templates/registry/markdown`.
 
 When the name of a file (excluding the extension) matches a recognized pattern
 (e.g., attribute_group, groups, ...), OTel Weaver extracts the objects from the
@@ -71,43 +66,39 @@ produced from the template:
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 ```
 
-## Configuration File
+This mechanism allows the template to dynamically generate the name of the file
+to be produced and to organize the generated files in a directory structure of
+its choice.
+
+## Configuration File - `weaver.yaml`
 
 The configuration file `weaver.yaml` is optional. It allows configuring the
 following options:
 
 ```yaml
-# Configuration of the naming convention filters. This is optional.
-# Example: {{ group.id | file_name }} will be evaluated as group_id
-file_name: snake_case
-function_name: PascalCase
-arg_name: camelCase
-struct_name: PascalCase
-field_name: PascalCase
-
 # Configuration of the type mapping. This is useful to generate code in a
 # specific language. This is optional.
 # Example: {{ attribute.type | type_mapping }} will be evaluated as int64
 # if the semconv attribute type is int.
-type_mapping:
-  int: int64
-  double: double
-  boolean: bool
-  string: string
-  "int[]": "[]int64"
-  "double[]": "[]double"
-  "boolean[]": "[]bool"
-  "string[]": "[]string"
-  # other mappings...
+#type_mapping:
+#  int: int64
+#  double: double
+#  boolean: bool
+#  string: string
+#  "int[]": "[]int64"
+#  "double[]": "[]double"
+#  "boolean[]": "[]bool"
+#  "string[]": "[]string"
+#  ...
 
 # Configuration of the template engine (optional)
-template_syntax:
-  block_start: "{%"
-  block_end: "%}"
-  variable_start: "{{"
-  variable_end: "}}"
-  comment_start: "{#"
-  comment_end: "#}"
+#template_syntax:
+#  block_start: "{%"
+#  block_end: "%}"
+#  variable_start: "{{"
+#  variable_end: "}}"
+#  comment_start: "{#"
+#  comment_end: "#}"
 
 # Please uncomment the following section to specify a list of acronyms that
 # will be interpreted by the acronym filter. This is optional.
@@ -178,29 +169,15 @@ template_syntax:
 #    application_mode: single
 ```
 
-Supported case converters:
-- lowercase
-- UPPERCASE
-- PascalCase
-- camelCase
-- snake_case
-- SCREAMING_SNAKE_CASE
-- kebab-case
-- SCREAMING-KEBAB-CASE
+## Jinja Filters
 
-## Custom Filters
+All the filters available in the MiniJinja template engine are available (see
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)). 
 
-All the filters available in the MiniJinja template engine are available. In
-addition, OTel Weaver provides a set of custom filters to facilitate the
-generation of assets.
+In addition, OTel Weaver provides a set of custom filters to facilitate the
+generation of documentation and code.
 
 The following filters are available:
-- `file_name`: Converts a string to a file name.
-- `function_name`: Converts a string to a function name.
-- `arg_name`: Converts a string to an argument name.
-- `struct_name`: Converts a string to a struct name.
-- `field_name`: Converts a string to a field name.
-- `type_mapping`: Converts a semantic convention type to a language type.
 - `lower_case`: Converts a string to lowercase.
 - `upper_case`: Converts a string to UPPERCASE.
 - `title_case`: Converts a string to TitleCase.
@@ -210,9 +187,10 @@ The following filters are available:
 - `screaming_snake_case`: Converts a string to SCREAMING_SNAKE_CASE.
 - `kebab_case`: Converts a string to kebab-case.
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
-- `acronym`: Replaces acronyms in the input string with the full name defined
-in the `acronyms` section of the `weaver.yaml` configuration file.
+- `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_ids`: Splits a string by '.' creating a list of nested ids.
+- `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).
+- `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
 - `flatten`: Converts a List of Lists into a single list with all elements.
 e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_sort`: Sorts a list of `Attribute`s by requirement level, then name.
@@ -222,27 +200,26 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_registry_namespace`: Converts metric.{namespace}.{other}.{components} to {namespace}.
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 
-> Note 1: This project uses the [convert_case](https://crates.io/crates/convert_case)
-> crate to convert strings to different cases. 
+> Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
-> Note 2: Other filters might be introduced in the future.
+## Jinja Functions
 
-## Custom Functions
+All the functions available in the MiniJinja template engine are available (see 
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
-All the functions available in the MiniJinja template engine are available. In
-addition, OTel Weaver provides a set of custom functions to facilitate the
-generation of assets.
+Right now, OTel Weaver does not provide any custom functions but feel free to
+open an issue if you have any suggestions. They are easy to implement.
 
-Not yet implemented.
+## Jinja Tests
 
-## Custom Tests
+All the tests available in the MiniJinja template engine are available (see
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/tests/index.html)).
 
-All the tests available in the MiniJinja template engine are available. In
-addition, OTel Weaver provides a set of custom tests to facilitate the
+In addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
 - `stable`: Tests if an `Attribute` is stable.
 - `experimental`: Tests if an `Attribute` is experimental.
 - `deprecated`: Tests if an `Attribute` is deprecated.
 
-> Note: Other tests might be introduced in the future.
+> Please open an issue if you have any suggestions for new tests. They are easy to implement.
