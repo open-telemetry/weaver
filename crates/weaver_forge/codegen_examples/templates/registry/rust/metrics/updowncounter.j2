@@ -6,8 +6,8 @@
 #[cfg(feature = "semconv_experimental")]
 {%- endif %}
 pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::metrics::Meter) -> opentelemetry::metrics::UpDownCounter<T>
-    where opentelemetry::metrics::Meter: UpDownCounterProvider<T> {
-    meter.create_up_down_counter("{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}")
+    where opentelemetry::metrics::Meter: crate::metrics::UpDownCounterProvider<T> {
+    crate::metrics::UpDownCounterProvider::create_up_down_counter(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}")
 }
 
 /// Metric: {{ metric.metric_name }}
@@ -50,8 +50,8 @@ pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
 
 impl <T> {{ metric.metric_name | pascal_case }}<T> {
     pub fn new(meter: &opentelemetry::metrics::Meter) -> Self
-        where opentelemetry::metrics::Meter: UpDownCounterProvider<T>{
-        Self(meter.create_up_down_counter("{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}"))
+        where opentelemetry::metrics::Meter: crate::metrics::UpDownCounterProvider<T>{
+        Self(crate::metrics::UpDownCounterProvider::create_up_down_counter(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}"))
     }
 
     /// Adds an additional value to the up-down-counter.

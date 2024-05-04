@@ -15,7 +15,7 @@ groups:
   - id: metric.system.cpu.utilization
     type: metric
     metric_name: system.cpu.utilization
-    stability: experimental
+    stability: stable
     brief: "Difference in system.cpu.time since the last measurement, divided by the elapsed time and number of logical CPUs"
     instrument: gauge
     unit: "1"
@@ -27,7 +27,7 @@ groups:
   - id: metric.system.memory.usage
     type: metric
     metric_name: system.memory.usage
-    stability: experimental
+    stability: stable
     brief: "Reports memory in use by state."
     note: |
       The sum over all `system.memory.state` values SHOULD equal the total memory

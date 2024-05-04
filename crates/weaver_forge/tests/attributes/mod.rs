@@ -1,5 +1,3 @@
-{{- template.set_file_name("attributes/mod.rs") -}}
-
 /*
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
@@ -10,10 +8,23 @@
 
 use opentelemetry::{Key, KeyValue, StringValue};
 
-{% for group in ctx %}
-/// Attributes for the `{{ group.id | attribute_registry_namespace }}` namespace.
-pub mod {{ group.id | attribute_registry_namespace | snake_case }};
-{%- endfor %}
+
+/// Attributes for the `client` namespace.
+pub mod client;
+/// Attributes for the `error` namespace.
+pub mod error;
+/// Attributes for the `exception` namespace.
+pub mod exception;
+/// Attributes for the `http` namespace.
+pub mod http;
+/// Attributes for the `network` namespace.
+pub mod network;
+/// Attributes for the `server` namespace.
+pub mod server;
+/// Attributes for the `system` namespace.
+pub mod system;
+/// Attributes for the `url` namespace.
+pub mod url;
 
 /// A typed attribute key.
 pub struct AttributeKey<T> {
