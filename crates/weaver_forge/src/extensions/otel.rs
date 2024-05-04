@@ -468,14 +468,14 @@ mod tests {
                 tags: None,
                 value: None,
             },
-            Attribute {              
+            Attribute {
                 name: "rec.b".into(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: "".into(),
                 examples: None,
                 tag: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
-                sampling_relevant: None, 
+                sampling_relevant: None,
                 note: "".into(),
                 stability: None,
                 deprecated: None,
@@ -569,7 +569,7 @@ mod tests {
             Attribute {
                 name: "req.a".into(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                brief: "".into(),  
+                brief: "".into(),
                 examples: None,
                 tag: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
@@ -634,48 +634,48 @@ mod tests {
                 "Expected item @ {idx} to have name {expected}, found {names:?}"
             );
         }
-    }      
-              
+    }
+
     #[test]
     fn test_required_and_optional_filters() {
         let attrs = vec![
             Attribute {
-                name: "attr1".to_string(),
+                name: "attr1".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                brief: "".to_string(),
+                brief: "".to_owned(),
                 examples: None,
                 tag: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 sampling_relevant: None,
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: None,
                 deprecated: None,
                 tags: None,
                 value: None,
             },
             Attribute {
-                name: "attr2".to_string(),
+                name: "attr2".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
-                brief: "".to_string(),
+                brief: "".to_owned(),
                 examples: None,
                 tag: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
                 sampling_relevant: None,
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: None,
                 deprecated: None,
                 tags: None,
                 value: None,
             },
             Attribute {
-                name: "attr3".to_string(),
+                name: "attr3".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                brief: "".to_string(),
+                brief: "".to_owned(),
                 examples: None,
                 tag: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
                 sampling_relevant: None,
-                note: "".to_string(),
+                note: "".to_owned(),
                 stability: None,
                 deprecated: None,
                 tags: None,

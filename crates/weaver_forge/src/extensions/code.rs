@@ -67,9 +67,10 @@ This also covers UDP network interactions where one side initiates the interacti
 /// protocol / API doesn't expose a clear notion of client and server).
 /// This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS."#;
 
-        assert_eq!(comment_with_prefix(&Value::from(brief), "/// "), expected_brief);
-
-
+        assert_eq!(
+            comment_with_prefix(&Value::from(brief), "/// "),
+            expected_brief
+        );
     }
 
     #[test]
