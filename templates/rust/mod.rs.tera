@@ -1,7 +1,0 @@
-// SPDX-License-Identifier: Apache-2.0
-
-//! Generated OTel Client API.
-
-pub mod meter;
-pub mod eventer;
-pub mod tracer;
