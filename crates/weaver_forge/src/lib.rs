@@ -454,7 +454,7 @@ impl TemplateEngine {
         env.add_filter("attribute_sort", extensions::otel::attribute_sort);
         env.add_filter("metric_namespace", extensions::otel::metric_namespace);
         env.add_filter("required", extensions::otel::required);
-        env.add_filter("optional", extensions::otel::optional);
+        env.add_filter("not_required", extensions::otel::not_required);
         // ToDo Implement more filters: stable, experimental, deprecated
         env.add_test("stable", extensions::otel::is_stable);
         env.add_test("experimental", extensions::otel::is_experimental);

@@ -10,6 +10,7 @@ use crate::config::CaseConvention;
 
 /// Filters the input value to only include the required "object".
 /// A required object is one that has a field named "requirement_level" with the value "required".
+/// An object that is "conditionally_required" is not returned by this filter.
 pub(crate) fn required(input: Value) -> Result<Vec<Value>, minijinja::Error> {
     let mut rv = vec![];
 
@@ -24,7 +25,7 @@ pub(crate) fn required(input: Value) -> Result<Vec<Value>, minijinja::Error> {
 
 /// Filters the input value to only include the non-required "object".
 /// A optional object is one that has a field named "requirement_level" which is not "required".
-pub(crate) fn optional(input: Value) -> Result<Vec<Value>, minijinja::Error> {
+pub(crate) fn not_required(input: Value) -> Result<Vec<Value>, minijinja::Error> {
     let mut rv = vec![];
 
     for value in input.try_iter()? {
@@ -641,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn test_required_and_optional_filters() {
+    fn test_required_and_not_required_filters() {
         let attrs = vec![
             Attribute {
                 name: "attr1".to_owned(),
@@ -690,7 +691,7 @@ mod tests {
         let result = super::required(Value::from_serialize(&attrs)).unwrap();
         assert_eq!(result.len(), 2);
 
-        let result = super::optional(Value::from_serialize(&attrs)).unwrap();
+        let result = super::not_required(Value::from_serialize(&attrs)).unwrap();
         assert_eq!(result.len(), 1);
     }
 }

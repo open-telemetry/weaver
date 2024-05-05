@@ -199,6 +199,8 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_registry_title`: Converts registry.{namespace}.{other}.{components} to {Namespace} (title case the namespace).
 - `attribute_registry_namespace`: Converts metric.{namespace}.{other}.{components} to {namespace}.
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
+- `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
+- `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
