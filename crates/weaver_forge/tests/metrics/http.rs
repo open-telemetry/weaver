@@ -169,14 +169,14 @@ impl <T> HttpServerRequestDuration<T> {
         &self,
         value: T,
         required_attributes: &HttpServerRequestDurationReqAttributes,
-        optional_attributes: Option<&HttpServerRequestDurationOptAttributes>,
+        not_required_attributes: Option<&HttpServerRequestDurationOptAttributes>,
     ) {
         let mut attributes = vec![
             crate::attributes::http::HTTP_REQUEST_METHOD.value(&required_attributes.http_request_method),
             crate::attributes::url::URL_SCHEME.value(required_attributes.url_scheme.to_string().into()),
         ];
 
-        if let Some(value) = &optional_attributes {
+        if let Some(value) = &not_required_attributes {
             if let Some(error_type) = &value.error_type {
                 attributes.push(crate::attributes::error::ERROR_TYPE.value(error_type));
             }
@@ -347,7 +347,7 @@ impl <T> HttpClientRequestDuration<T> {
         &self,
         value: T,
         required_attributes: &HttpClientRequestDurationReqAttributes,
-        optional_attributes: Option<&HttpClientRequestDurationOptAttributes>,
+        not_required_attributes: Option<&HttpClientRequestDurationOptAttributes>,
     ) {
         let mut attributes = vec![
             crate::attributes::http::HTTP_REQUEST_METHOD.value(&required_attributes.http_request_method),
@@ -355,7 +355,7 @@ impl <T> HttpClientRequestDuration<T> {
             crate::attributes::server::SERVER_PORT.value(required_attributes.server_port),
         ];
 
-        if let Some(value) = &optional_attributes {
+        if let Some(value) = &not_required_attributes {
             if let Some(error_type) = &value.error_type {
                 attributes.push(crate::attributes::error::ERROR_TYPE.value(error_type));
             }
@@ -466,14 +466,14 @@ impl <T> HttpClientActiveRequests<T> {
         &self,
         value: T,
         required_attributes: &HttpClientActiveRequestsReqAttributes,
-        optional_attributes: Option<&HttpClientActiveRequestsOptAttributes>,
+        not_required_attributes: Option<&HttpClientActiveRequestsOptAttributes>,
     ) {
         let mut attributes = vec![
             crate::attributes::server::SERVER_ADDRESS.value(required_attributes.server_address.to_string().into()),
             crate::attributes::server::SERVER_PORT.value(required_attributes.server_port),
         ];
 
-        if let Some(value) = &optional_attributes {
+        if let Some(value) = &not_required_attributes {
             if let Some(http_request_method) = &value.http_request_method {
                 attributes.push(crate::attributes::http::HTTP_REQUEST_METHOD.value(http_request_method));
             }

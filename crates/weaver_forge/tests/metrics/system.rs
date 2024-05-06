@@ -50,12 +50,12 @@ impl <T> SystemCpuTime<T> {
         &self,
         value: T,
         
-        optional_attributes: Option<&SystemCpuTimeOptAttributes>,
+        not_required_attributes: Option<&SystemCpuTimeOptAttributes>,
     ) {
         let mut attributes = vec![
         ];
 
-        if let Some(value) = &optional_attributes {
+        if let Some(value) = &not_required_attributes {
             if let Some(system_cpu_logical_number) = value.system_cpu_logical_number {
                 attributes.push(crate::attributes::system::SYSTEM_CPU_LOGICAL_NUMBER.value(system_cpu_logical_number));
             }
@@ -111,12 +111,12 @@ impl <T> SystemCpuUtilization<T> {
         &self,
         value: T,
         
-        optional_attributes: Option<&SystemCpuUtilizationOptAttributes>,
+        not_required_attributes: Option<&SystemCpuUtilizationOptAttributes>,
     ) {
         let mut attributes = vec![
         ];
 
-        if let Some(value) = &optional_attributes {
+        if let Some(value) = &not_required_attributes {
             if let Some(system_cpu_logical_number) = value.system_cpu_logical_number {
                 attributes.push(crate::attributes::system::SYSTEM_CPU_LOGICAL_NUMBER.value(system_cpu_logical_number));
             }
@@ -166,12 +166,12 @@ impl <T> SystemMemoryUsage<T> {
         &self,
         value: T,
         
-        optional_attributes: Option<&SystemMemoryUsageOptAttributes>,
+        not_required_attributes: Option<&SystemMemoryUsageOptAttributes>,
     ) {
         let mut attributes = vec![
         ];
 
-        if let Some(value) = &optional_attributes {
+        if let Some(value) = &not_required_attributes {
             if let Some(system_memory_state) = &value.system_memory_state {
                 attributes.push(crate::attributes::system::SYSTEM_MEMORY_STATE.value(system_memory_state));
             }
