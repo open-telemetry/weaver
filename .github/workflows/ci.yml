@@ -136,7 +136,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "nightly"
+          toolchain: "stable"
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Install SARIF tools
@@ -175,7 +175,7 @@ jobs:
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Gather coverage
-        run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver --exclude-files 'crates/weaver_forge/codegen_examples/expected_codegen/*'
+        run: cargo tarpaulin --workspace --output-dir coverage --out lcov -e xtask -e weaver
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
         with:

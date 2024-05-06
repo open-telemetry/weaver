@@ -14,4 +14,3 @@ coverage:
 ignore:
   - "crates/xtask"  # Part of the build system
   - "src"           # CLI (not tested yet)
-  - "crates/weaver_forge/codegen_examples/expected_codegen" # Generated code
