@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // semantic conventions)
     let http_request_duration = HttpServerRequestDuration::<u64>::new(&meter);
 
-    // Records a new data point and provide the required and some optional attributes
+    // Records a new data point and provide the required and some not required attributes
     http_request_duration.record(100, &HttpServerRequestDurationReqAttributes {
         http_request_method: HttpRequestMethod::Connect,
         url_scheme: "http".to_owned(),
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // semantic conventions)
     let http_client_active_requests = HttpClientActiveRequests::<f64>::new(&meter);
 
-    // Adds a new data point and provide the required attributes. Optional attributes are not
+    // Adds a new data point and provide the required attributes. Not required attributes are not
     // provided in this example.
     http_client_active_requests.add(10.0, &HttpClientActiveRequestsReqAttributes {
         server_address: "10.0.0.1".to_owned(),
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // conventions)
     let system_cpu_time = SystemCpuTime::<f64>::new(&meter);
 
-    // Adds a new data point and provide some optional attributes.
+    // Adds a new data point and provide some not required attributes.
     // Note: In the method signature, there is no required attribute.
     system_cpu_time.add(10.0, Some(&SystemCpuTimeOptAttributes {
         system_cpu_logical_number: Some(0),
@@ -89,9 +89,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // conventions)
     let system_cpu_utilization = SystemCpuUtilization::<i64>::new(&meter);
 
-    // Adds a new data point with no optional attributes.
+    // Adds a new data point with no not required attributes.
     system_cpu_utilization.record(-5, None);
-    // Adds a new data point with some optional attributes.
+    // Adds a new data point with some not required attributes.
     system_cpu_utilization.record(10, Some(&SystemCpuUtilizationOptAttributes {
         system_cpu_logical_number: Some(0),
         system_cpu_state: Some(SystemCpuState::Idle)

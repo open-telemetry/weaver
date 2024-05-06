@@ -17,7 +17,7 @@ pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::me
 pub struct {{ metric.metric_name | pascal_case }}<T>(opentelemetry::metrics::Histogram<T>);
 
 {%- set required_attributes = metric.attributes | required %}
-{%- set optional_attributes = metric.attributes | optional %}
+{%- set not_required_attributes = metric.attributes | not_required %}
 
 {% if required_attributes %}
 /// Attributes for the `{{ metric.metric_name }}` metric.
@@ -34,10 +34,10 @@ pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
 }
 {% endif %}
 
-{% if optional_attributes %}
+{% if not_required_attributes %}
 #[derive(Debug, Clone, Default)]
 pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
-    {%- for attribute in optional_attributes | attribute_sort %}
+    {%- for attribute in not_required_attributes | attribute_sort %}
     {{ attribute_macros.comments(attribute, "    ///") }}
     {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: Option<crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }}>,
@@ -59,9 +59,9 @@ impl <T> {{ metric.metric_name | pascal_case }}<T> {
         &self,
         value: T,
         {% if required_attributes %}required_attributes: &{{ metric.metric_name | pascal_case }}ReqAttributes,{% endif %}
-        {% if optional_attributes %}optional_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
+        {% if not_required_attributes %}not_required_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
     ) {
-        {{ attribute_macros.attributes_to_key_values(required_attributes, optional_attributes) }}
+        {{ attribute_macros.attributes_to_key_values(required_attributes, not_required_attributes) }}
         self.0.record(value, &attributes)
     }
 }

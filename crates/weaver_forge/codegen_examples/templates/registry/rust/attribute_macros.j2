@@ -21,7 +21,7 @@
 {%- endif %}
 {%- endmacro %}
 
-{%- macro attributes_to_key_values(required_attributes, optional_attributes) -%}
+{%- macro attributes_to_key_values(required_attributes, not_required_attributes) -%}
         let mut attributes = vec![
             {%- for attribute in required_attributes | attribute_sort %}
             {%- if attribute is experimental %}
@@ -37,8 +37,8 @@
             {%- endfor %}
         ];
 
-        if let Some(value) = &optional_attributes {
-            {%- for attribute in optional_attributes | attribute_sort %}
+        if let Some(value) = &not_required_attributes {
+            {%- for attribute in not_required_attributes | attribute_sort %}
             {%- if attribute is experimental %}
             #[cfg(feature = "semconv_experimental")]
             {%- endif %}
