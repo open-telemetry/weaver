@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use minijinja::Value;
 
-/// Converts the input into a string comment with a prefix.
+/// Converts the input string into a string comment with a prefix.
 #[must_use]
 pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
     let mut comment = String::new();

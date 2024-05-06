@@ -2,11 +2,13 @@
 
 #![doc = include_str!("../README.md")]
 
+use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
 use minijinja::{path_loader, Environment, State, Value};
 use rayon::iter::IntoParallelIterator;
@@ -87,7 +89,7 @@ impl Display for TemplateObject {
 
 impl Object for TemplateObject {
     fn call_method(
-        &self,
+        self: &Arc<Self>,
         _state: &State<'_, '_>,
         name: &str,
         args: &[Value],
@@ -362,12 +364,29 @@ impl TemplateEngine {
     /// Create a new template engine based on the target configuration.
     fn template_engine(&self) -> Result<Environment<'_>, Error> {
         let mut env = Environment::new();
-        env.set_loader(path_loader(&self.path));
-        env.set_syntax(self.target_config.template_syntax.clone().into())
+        let template_syntax = self.target_config.template_syntax.clone();
+
+        let syntax = SyntaxConfig::builder()
+            .block_delimiters(
+                Cow::Owned(template_syntax.block_start),
+                Cow::Owned(template_syntax.block_end),
+            )
+            .variable_delimiters(
+                Cow::Owned(template_syntax.variable_start),
+                Cow::Owned(template_syntax.variable_end),
+            )
+            .comment_delimiters(
+                Cow::Owned(template_syntax.comment_start),
+                Cow::Owned(template_syntax.comment_end),
+            )
+            .build()
             .map_err(|e| InvalidConfigFile {
                 config_file: self.path.join(WEAVER_YAML),
                 error: e.to_string(),
             })?;
+
+        env.set_loader(path_loader(&self.path));
+        env.set_syntax(syntax);
 
         // Register code-oriented filters
         env.add_filter("comment_with_prefix", code::comment_with_prefix);
@@ -435,7 +454,7 @@ impl TemplateEngine {
         env.add_filter("attribute_sort", extensions::otel::attribute_sort);
         env.add_filter("metric_namespace", extensions::otel::metric_namespace);
         env.add_filter("required", extensions::otel::required);
-        env.add_filter("optional", extensions::otel::optional);
+        env.add_filter("not_required", extensions::otel::not_required);
         // ToDo Implement more filters: stable, experimental, deprecated
         env.add_test("stable", extensions::otel::is_stable);
         env.add_test("experimental", extensions::otel::is_experimental);
