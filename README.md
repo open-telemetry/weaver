@@ -2,9 +2,11 @@
 
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/open-telemetry/weaver/graph/badge.svg?token=tmWKFoMT2G)](https://codecov.io/gh/open-telemetry/weaver)
+[![build](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ----
-[Getting started](#getting-started) | [Main commands](#main-commands) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
+(CONTRIBUTING.md) | [Links](#links) |
+[Getting started](#getting-started) | [Main commands](#main-commands) | [Generate Doc & Code](crates/weaver_forge/README.md) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
 
 ## What is OpenTelemetry Weaver?
 

@@ -6,11 +6,12 @@ use std::collections::HashMap;
 
 use minijinja::Value;
 
-/// Converts the input string into a comment with a prefix.
+/// Converts the input string into a string comment with a prefix.
 #[must_use]
-pub(crate) fn comment_with_prefix(input: &str, prefix: &str) -> String {
+pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
     let mut comment = String::new();
-    for line in input.lines() {
+
+    for line in input.to_string().lines() {
         if !comment.is_empty() {
             comment.push('\n');
         }
@@ -49,7 +50,8 @@ mod tests {
 
     #[test]
     fn test_comment() {
-        assert_eq!(comment_with_prefix("test", "// "), "// test");
+        assert_eq!(comment_with_prefix(&Value::from("test"), "// "), "// test");
+        assert_eq!(comment_with_prefix(&Value::from(12), "// "), "// 12");
 
         let brief = r#"These attributes may be used to describe the client in a connection-based network interaction
 where there is one side that initiates the connection (the client is the side that initiates the connection).
@@ -65,7 +67,10 @@ This also covers UDP network interactions where one side initiates the interacti
 /// protocol / API doesn't expose a clear notion of client and server).
 /// This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS."#;
 
-        assert_eq!(comment_with_prefix(brief, "/// "), expected_brief);
+        assert_eq!(
+            comment_with_prefix(&Value::from(brief), "/// "),
+            expected_brief
+        );
     }
 
     #[test]

@@ -9,4 +9,5 @@ allowed_external_types = [
     "weaver_common::*",
     "weaver_resolved_schema::*",
     "weaver_semconv::*",
+    "minijinja::value::Value",
 ]

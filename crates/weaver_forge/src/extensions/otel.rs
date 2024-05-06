@@ -2,10 +2,40 @@
 
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
-use crate::config::CaseConvention;
 use itertools::Itertools;
 use minijinja::{ErrorKind, Value};
 use serde::de::Error;
+
+use crate::config::CaseConvention;
+
+/// Filters the input value to only include the required "object".
+/// A required object is one that has a field named "requirement_level" with the value "required".
+/// An object that is "conditionally_required" is not returned by this filter.
+pub(crate) fn required(input: Value) -> Result<Vec<Value>, minijinja::Error> {
+    let mut rv = vec![];
+
+    for value in input.try_iter()? {
+        let required = value.get_attr("requirement_level")?;
+        if required.as_str() == Some("required") {
+            rv.push(value);
+        }
+    }
+    Ok(rv)
+}
+
+/// Filters the input value to only include the non-required "object".
+/// A optional object is one that has a field named "requirement_level" which is not "required".
+pub(crate) fn not_required(input: Value) -> Result<Vec<Value>, minijinja::Error> {
+    let mut rv = vec![];
+
+    for value in input.try_iter()? {
+        let required = value.get_attr("requirement_level")?;
+        if required.as_str() != Some("required") {
+            rv.push(value);
+        }
+    }
+    Ok(rv)
+}
 
 /// Converts registry.{namespace}.{other}.{components} to {namespace}.
 ///
@@ -133,9 +163,10 @@ fn compare_requirement_level(
 /// Sorts a sequence of attributes by their requirement_level, then name.
 pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
     let mut errors: Vec<minijinja::Error> = vec![];
-    let opt_result = input.as_seq().map(|values| {
-        let result: Vec<Value> = values
-            .iter()
+
+    let opt_result = Value::from(
+        input
+            .try_iter()?
             .sorted_by(|lhs, rhs| {
                 // Sorted doesn't allow us to keep errors, so we sneak them into
                 // a mutable vector.
@@ -148,16 +179,13 @@ pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
                 }
             })
             .to_owned()
-            .collect();
-        Value::from(result)
-    });
+            .collect::<Vec<_>>(),
+    );
+
     // If we had an internal error, return the first.
     match errors.pop() {
         Some(err) => Err(err),
-        None => opt_result.ok_or(minijinja::Error::custom(format!(
-            "Expected sequence of attributes, found: {}",
-            input
-        ))),
+        None => Ok(opt_result),
     }
 }
 
@@ -205,18 +233,24 @@ pub(crate) fn is_deprecated(input: Value) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::extensions::otel::{
-        attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
-        attribute_sort, is_deprecated, is_experimental, is_stable, metric_namespace,
-    };
-    use minijinja::value::StructObject;
+    use std::fmt::Debug;
+    use std::sync::Arc;
+
+    use minijinja::value::Object;
     use minijinja::Value;
+
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
 
+    use crate::extensions::otel::{
+        attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
+        attribute_sort, is_deprecated, is_experimental, is_stable, metric_namespace,
+    };
+
+    #[derive(Debug)]
     struct DynAttr {
         id: String,
         r#type: String,
@@ -224,28 +258,29 @@ mod tests {
         deprecated: Option<String>,
     }
 
-    impl StructObject for DynAttr {
-        fn get_field(&self, field: &str) -> Option<Value> {
-            match field {
-                "id" => Some(Value::from(self.id.as_str())),
-                "type" => Some(Value::from(self.r#type.as_str())),
-                "stability" => Some(Value::from(self.stability.as_str())),
-                "deprecated" => self.deprecated.as_ref().map(|s| Value::from(s.as_str())),
+    impl Object for DynAttr {
+        fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+            match key.as_str() {
+                Some("id") => Some(Value::from(self.id.as_str())),
+                Some("type") => Some(Value::from(self.r#type.as_str())),
+                Some("stability") => Some(Value::from(self.stability.as_str())),
+                Some("deprecated") => self.deprecated.as_ref().map(|s| Value::from(s.as_str())),
                 _ => None,
             }
         }
     }
 
+    #[derive(Debug)]
     struct DynSomethingElse {
         id: String,
         r#type: String,
     }
 
-    impl StructObject for DynSomethingElse {
-        fn get_field(&self, field: &str) -> Option<Value> {
-            match field {
-                "id" => Some(Value::from(self.id.as_str())),
-                "type" => Some(Value::from(self.r#type.as_str())),
+    impl Object for DynSomethingElse {
+        fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+            match key.as_str() {
+                Some("id") => Some(Value::from(self.id.as_str())),
+                Some("type") => Some(Value::from(self.r#type.as_str())),
                 _ => None,
             }
         }
@@ -333,7 +368,7 @@ mod tests {
     #[test]
     fn test_is_stable() {
         // An attribute with stability "stable"
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "stable".to_owned(),
@@ -342,7 +377,7 @@ mod tests {
         assert!(is_stable(attr));
 
         // An attribute with stability "deprecated"
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "deprecated".to_owned(),
@@ -351,7 +386,7 @@ mod tests {
         assert!(!is_stable(attr));
 
         // An object without a stability field
-        let object = Value::from_struct_object(DynSomethingElse {
+        let object = Value::from_object(DynSomethingElse {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
@@ -361,7 +396,7 @@ mod tests {
     #[test]
     fn test_is_experimental() {
         // An attribute with stability "experimental"
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "experimental".to_owned(),
@@ -370,7 +405,7 @@ mod tests {
         assert!(is_experimental(attr));
 
         // An attribute with stability "stable"
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "stable".to_owned(),
@@ -379,7 +414,7 @@ mod tests {
         assert!(!is_experimental(attr));
 
         // An object without a stability field
-        let object = Value::from_struct_object(DynSomethingElse {
+        let object = Value::from_object(DynSomethingElse {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
@@ -389,7 +424,7 @@ mod tests {
     #[test]
     fn test_is_deprecated() {
         // An attribute with stability "experimental" and a deprecated field with a value
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "experimental".to_owned(),
@@ -398,7 +433,7 @@ mod tests {
         assert!(is_deprecated(attr));
 
         // An attribute with stability "stable" and a deprecated field with a value
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "stable".to_owned(),
@@ -407,13 +442,13 @@ mod tests {
         assert!(is_deprecated(attr));
 
         // An object without a deprecated field
-        let object = Value::from_struct_object(DynSomethingElse {
+        let object = Value::from_object(DynSomethingElse {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
         assert!(!is_deprecated(object));
 
-        let attr = Value::from_struct_object(DynAttr {
+        let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
             stability: "stable".to_owned(),
@@ -571,14 +606,12 @@ mod tests {
             serde_json::to_value(attributes).expect("Failed to serialize attributes to json.");
         let value = Value::from_serialize(json);
         let result = attribute_sort(value).expect("Failed to sort attributes");
-        let result_seq = result.as_seq().expect("Result was not a sequence!");
+        let result_seq = result
+            .try_iter()
+            .expect("Result was not a sequence!")
+            .collect::<Vec<_>>();
         // Assert that requirement level takes precedence over anything else.
-        assert_eq!(
-            result_seq.item_count(),
-            10,
-            "Expected 10 items, found {}",
-            result
-        );
+        assert_eq!(result_seq.len(), 10, "Expected 10 items, found {}", result);
         let names: Vec<String> = result_seq
             .iter()
             .map(|item| item.get_attr("name").unwrap().as_str().unwrap().to_owned())
@@ -606,5 +639,59 @@ mod tests {
                 "Expected item @ {idx} to have name {expected}, found {names:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_required_and_not_required_filters() {
+        let attrs = vec![
+            Attribute {
+                name: "attr1".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "attr2".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+            Attribute {
+                name: "attr3".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: "".to_owned(),
+                examples: None,
+                tag: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                stability: None,
+                deprecated: None,
+                tags: None,
+                value: None,
+            },
+        ];
+
+        let result = super::required(Value::from_serialize(&attrs)).unwrap();
+        assert_eq!(result.len(), 2);
+
+        let result = super::not_required(Value::from_serialize(&attrs)).unwrap();
+        assert_eq!(result.len(), 1);
     }
 }
