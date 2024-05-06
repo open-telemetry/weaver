@@ -18,7 +18,7 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "1.0.21", features = ["loader", "custom_syntax", "debug", "json", "macros"] }
+minijinja = { version = "2.0.1", features = ["loader", "custom_syntax", "debug", "json", "macros"] }
 convert_case = "0.6.0"
 globset = { version = "0.4.14", features = ["serde1"] }
 jaq-core = "1.2.1"

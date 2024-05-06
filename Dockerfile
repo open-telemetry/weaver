@@ -9,7 +9,6 @@ COPY Cargo.lock /build/Cargo.lock
 COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src
-COPY templates /build/templates
 COPY tests build/tests
 # Don't build release, so we get template debugging output.
 RUN cargo build
