@@ -343,9 +343,13 @@ impl TemplateEngine {
         log.loading(&format!("Generating file {}", template_file));
         let template = engine
             .get_template(template_file)
-            .map_err(|e| InvalidTemplateFile {
-                template: template_path.to_path_buf(),
-                error: e.to_string(),
+            .map_err(|e| {
+                let templates = engine.templates().map(|(name, _)| name.to_owned()).collect::<Vec<_>>();
+                let error = format!("{}. Available templates: {:?}", e.to_string(), templates);
+                InvalidTemplateFile {
+                    template: template_path.to_path_buf(),
+                    error,
+                }
             })?;
 
         let output = template
@@ -468,12 +472,6 @@ impl TemplateEngine {
         // env.add_filter("without_value", extensions::without_value);
         // env.add_filter("with_enum", extensions::with_enum);
         // env.add_filter("without_enum", extensions::without_enum);
-        // env.add_filter(
-        //     "type_mapping",
-        //     extensions::TypeMapping {
-        //         type_mapping: target_config.type_mapping,
-        //     },
-        // );
 
         Ok(env)
     }
