@@ -2,6 +2,8 @@
 
 //! Test code generation
 
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
 use opentelemetry::global;
 use opentelemetry::metrics::Histogram;
 use crate::attributes::client;
@@ -17,46 +19,7 @@ use crate::metrics::system::SystemCpuTimeOptAttributes;
 use crate::attributes::system::SystemCpuState;
 use crate::metrics::system::SystemCpuUtilization;
 use crate::metrics::system::SystemCpuUtilizationOptAttributes;
-
-pub mod attributes {
-    include!(concat!(env!("OUT_DIR"), "/attributes/mod.rs"));
-    pub mod client {
-        include!(concat!(env!("OUT_DIR"), "/attributes/client.rs"));
-    }
-    pub mod error {
-        include!(concat!(env!("OUT_DIR"), "/attributes/error.rs"));
-    }
-    pub mod exception {
-        include!(concat!(env!("OUT_DIR"), "/attributes/exception.rs"));
-    }
-    pub mod http {
-        include!(concat!(env!("OUT_DIR"), "/attributes/http.rs"));
-    }
-    pub mod network {
-        include!(concat!(env!("OUT_DIR"), "/attributes/network.rs"));
-    }
-    pub mod server {
-        include!(concat!(env!("OUT_DIR"), "/attributes/server.rs"));
-    }
-    pub mod system {
-        include!(concat!(env!("OUT_DIR"), "/attributes/system.rs"));
-    }
-    pub mod url {
-        include!(concat!(env!("OUT_DIR"), "/attributes/url.rs"));
-    }
-}
-
-pub mod metrics {
-    include!(concat!(env!("OUT_DIR"), "/metrics/mod.rs"));
-    pub mod http {
-        include!(concat!(env!("OUT_DIR"), "/metrics/http.rs"));
-    }
-    pub mod system {
-        include!(concat!(env!("OUT_DIR"), "/metrics/system.rs"));
-    }
-}
-
-    use crate::attributes::http::HttpRequestMethod;
+use crate::attributes::http::HttpRequestMethod;
 
 #[test]
 fn test_codegen() {
