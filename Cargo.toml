@@ -35,7 +35,7 @@ regex = "1.10.3"
 rayon = "1.10.0"
 ordered-float = { version = "4.2.0", features = ["serde"] }
 walkdir = "2.5.0"
-anyhow = "1.0.81"
+anyhow = "1.0.83"
 itertools = "0.12.1"
 
 # Features definition =========================================================
