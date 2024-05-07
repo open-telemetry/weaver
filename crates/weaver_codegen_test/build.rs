@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::exit;
 use weaver_cache::Cache;
 use weaver_common::in_memory::LogMessage;
@@ -100,12 +100,10 @@ fn create_single_generated_rs_file(root: &Path) {
                     .to_str()
                     .expect("Failed to convert to string");
                 let parent_modules = relative_path.parent().map_or(vec![], |parent| {
-                    let parent = parent.display().to_string();
-                    if parent.is_empty() {
-                        vec![]
-                    } else {
-                        parent.split('/').map(|s| s.to_owned()).collect::<Vec<_>>()
-                    }
+                    parent.components().filter_map(|component| match component {
+                        Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
+                        _ => None,
+                    }).collect()
                 });
 
                 // Skip generated.rs
