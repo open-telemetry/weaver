@@ -5,6 +5,7 @@
 {%- if metric is experimental %}
 #[cfg(feature = "semconv_experimental")]
 {%- endif %}
+#[must_use]
 pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::metrics::Meter) -> opentelemetry::metrics::Histogram<T>
     where opentelemetry::metrics::Meter: crate::metrics::HistogramProvider<T> {
     crate::metrics::HistogramProvider::create_histogram(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}")
@@ -51,6 +52,7 @@ pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
 
 impl <T> {{ metric.metric_name | pascal_case }}<T> {
     /// Creates a new instance of the `{{ metric.metric_name }}` metric.
+    #[must_use]
     pub fn new(meter: &opentelemetry::metrics::Meter) -> Self
         where opentelemetry::metrics::Meter: crate::metrics::HistogramProvider<T>{
         Self(crate::metrics::HistogramProvider::create_histogram(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}"))
@@ -64,6 +66,6 @@ impl <T> {{ metric.metric_name | pascal_case }}<T> {
         {% if not_required_attributes %}not_required_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
     ) {
         {{ attribute_macros.attributes_to_key_values(required_attributes, not_required_attributes) }}
-        self.0.record(value, &attributes)
+        self.0.record(value, &attributes);
     }
 }

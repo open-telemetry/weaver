@@ -30,7 +30,7 @@
             {%- if attribute.type.members is defined %}
             crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(&required_attributes.{{ attribute.name | snake_case }}),
             {%- elif attribute.type == "string" %}
-            crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}.to_string().into()),
+            crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}.to_owned().into()),
             {%- else %}
             crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}),
             {%- endif %}
@@ -48,7 +48,7 @@
             }
             {%- elif attribute.type == "string" %}
             if let Some({{ attribute.name | snake_case }}) = &value.{{ attribute.name | snake_case }} {
-                attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}.to_string().into()));
+                attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}.to_owned().into()));
             }
             {%- else %}
             if let Some({{ attribute.name | snake_case }}) = value.{{ attribute.name | snake_case }} {

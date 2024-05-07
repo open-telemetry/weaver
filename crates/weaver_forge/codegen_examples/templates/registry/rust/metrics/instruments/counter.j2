@@ -5,6 +5,7 @@
 {%- if metric is experimental %}
 #[cfg(feature = "semconv_experimental")]
 {%- endif %}
+#[must_use]
 pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::metrics::Meter) -> opentelemetry::metrics::Counter<T>
     where opentelemetry::metrics::Meter: crate::metrics::CounterProvider<T> {
     crate::metrics::CounterProvider::create_counter(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}")
@@ -20,7 +21,7 @@ pub struct {{ metric.metric_name | pascal_case }}<T>(opentelemetry::metrics::Cou
 {%- set not_required_attributes = metric.attributes | not_required %}
 
 {% if required_attributes %}
-/// Attributes for the `{{ metric.metric_name }}` metric.
+/// Required attributes for the `{{ metric.metric_name }}` metric.
 #[derive(Debug, Clone)]
 pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
     {%- for attribute in required_attributes | attribute_sort %}
@@ -35,6 +36,7 @@ pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
 {% endif %}
 
 {% if not_required_attributes %}
+/// Not required attributes for the `{{ metric.metric_name }}` metric.
 #[derive(Debug, Clone, Default)]
 pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
     {%- for attribute in not_required_attributes | attribute_sort %}
@@ -49,6 +51,8 @@ pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
 {% endif %}
 
 impl <T> {{ metric.metric_name | pascal_case }}<T> {
+    /// Creates a new `{{ metric.metric_name }}` metric.
+    #[must_use]
     pub fn new(meter: &opentelemetry::metrics::Meter) -> Self
         where opentelemetry::metrics::Meter: crate::metrics::CounterProvider<T>{
         Self(crate::metrics::CounterProvider::create_counter(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}"))
@@ -62,6 +66,6 @@ impl <T> {{ metric.metric_name | pascal_case }}<T> {
         {% if not_required_attributes %}not_required_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
     ) {
         {{ attribute_macros.attributes_to_key_values(required_attributes, not_required_attributes) }}
-        self.0.add(value, &attributes)
+        self.0.add(value, &attributes);
     }
 }

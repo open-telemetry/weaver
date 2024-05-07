@@ -2,9 +2,9 @@
 
 //! Utility functions to help with debugging.
 
-use std::error::Error;
 use crate::error::Error::{CompoundError, TemplateEvaluationFailed};
 use indexmap::IndexMap;
+use std::error::Error;
 use weaver_common::Logger;
 
 /// Return a nice summary of the error including the chain of causes.

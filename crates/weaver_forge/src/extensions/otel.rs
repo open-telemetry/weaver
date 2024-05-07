@@ -2,10 +2,10 @@
 
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
+use crate::config::CaseConvention;
 use itertools::Itertools;
 use minijinja::{ErrorKind, Value};
 use serde::de::Error;
-use crate::config::CaseConvention;
 
 /// Filters the input value to only include the required "object".
 /// A required object is one that has a field named "requirement_level" with the value "required".

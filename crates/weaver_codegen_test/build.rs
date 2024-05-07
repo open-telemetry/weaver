@@ -1,120 +1,146 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Generate code for the Semantic Conventions Rust API based on
-//! the templates in `templates/registry/rust` and the mini
-//! semantic conventions registry in `semconv_registry`.
+//! This `build.rs` generates code for the local semantic convention registry located in the
+//! `semconv_registry` directory. The templates used for code generation are located in the
+//! `templates/registry/rust` directory. The generated code is produced in the `OUT_DIR` directory
+//! specified by Cargo. This generation step occurs before the standard build of the crate. The
+//! generated code, along with the standard crate code, will be compiled together.
 
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use weaver_cache::Cache;
-use weaver_common::{in_memory, Logger};
 use weaver_common::in_memory::LogMessage;
-use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_common::{in_memory, Logger};
 use weaver_forge::registry::TemplateRegistry;
+use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
+const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
+const TEMPLATES_PATH: &str = "./templates/";
+const REGISTRY_ID: &str = "test";
+const TARGET: &str = "rust";
+
 fn main() {
+    // Tell Cargo when to rerun this build script
     println!("cargo:rerun-if-changed=templates/registry/rust");
     println!("cargo:rerun-if-changed=semconv_registry");
     println!("cargo:rerun-if-changed=build.rs");
 
-    let target_dir = std::env::var("OUT_DIR").unwrap();
+    // Get the output directory from Cargo
+    let target_dir = std::env::var("OUT_DIR").expect("Failed to get OUT_DIR from Cargo");
 
+    // Create an in-memory logger as stdout and stderr are not "classically" available in build.rs.
     let logger = in_memory::Logger::new(0);
-    let cache = Cache::try_new().unwrap_or_else(|e| {
-        process_error(&logger, e)
-    });
+
+    // Load and resolve the semantic convention registry
+    let cache = Cache::try_new().unwrap_or_else(|e| process_error(&logger, e));
     let registry_path = RegistryPath::Local {
-        path_pattern: "./semconv_registry/".into(),
+        path_pattern: SEMCONV_REGISTRY_PATH.into(),
     };
-
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache).unwrap_or_else(|e| {
-        process_error(&logger, e)
-    });
-
-    let registry_id = "test";
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache)
+        .unwrap_or_else(|e| process_error(&logger, e));
+    let mut registry = SemConvRegistry::from_semconv_specs(REGISTRY_ID, semconv_specs);
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
-        .unwrap_or_else(|e| {
-            process_error(&logger, e)
-        });
-    let config = GeneratorConfig::new("./templates/".into());
+        .unwrap_or_else(|e| process_error(&logger, e));
 
-    let engine = TemplateEngine::try_new("registry/rust", config)
-        .unwrap_or_else(|e| {
-            process_error(&logger, e)
-        });
-
+    let config = GeneratorConfig::new(TEMPLATES_PATH.into());
+    let engine = TemplateEngine::try_new(&format!("registry/{}", TARGET), config)
+        .unwrap_or_else(|e| process_error(&logger, e));
     let template_registry = TemplateRegistry::try_from_resolved_registry(
         schema
-            .registry(registry_id)
+            .registry(REGISTRY_ID)
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
     )
-        .unwrap_or_else(|e| {
-            process_error(&logger, e)
-        });
-
-    let output: PathBuf = target_dir.into();
+    .unwrap_or_else(|e| process_error(&logger, e));
+    let target_dir: PathBuf = target_dir.into();
     engine
-        .generate(logger.clone(), &template_registry, output.as_path())
-        .unwrap_or_else(|e| {
-            process_error(&logger, e)
-        });
+        .generate(logger.clone(), &template_registry, target_dir.as_path())
+        .unwrap_or_else(|e| process_error(&logger, e));
 
     print_logs(&logger);
 
-    alter_generated_files(output.as_path());
+    // For the purpose of the integration test located in `tests/codegen.rs`, we need to:
+    // - Combine all generated files to form a single file containing all the generated code
+    // organized in nested modules.
+    // - Replace `//!` with `//`
+    // - Remove `pub mod` lines
+    create_single_generated_rs_file(target_dir.as_path());
 }
 
-fn alter_generated_files(root: &Path) {
-    let walker = walkdir::WalkDir::new(root);
+/// Create a single generated.rs file containing all the generated code organized in nested modules.
+fn create_single_generated_rs_file(root: &Path) {
     let mut root_module = Module {
-        name: "".to_string(),
-        content: "".to_string(),
+        name: "".to_owned(),
+        content: "".to_owned(),
         sub_modules: HashMap::new(),
     };
 
-    for entry in walker {
-        let entry = entry.unwrap();
+    // Traverse the directory and add the content of each file to the root module
+    for entry in walkdir::WalkDir::new(root) {
+        let entry = entry.expect("Failed to read entry");
         let path = entry.path();
+
         // Only process files with the .rs extension that contain the generated comment
         if path.is_file() && path.extension().map_or(false, |ext| ext == "rs") {
-            let file_content = std::fs::read_to_string(path).unwrap();
+            let file_content = std::fs::read_to_string(path).expect("Failed to read file");
+
+            // Only process files that have been generated
+            // This test expects the comment `DO NOT EDIT, THIS FILE HAS BEEN GENERATED BY WEAVER`
+            // to be present in each generated file.
             if file_content.contains("DO NOT EDIT, THIS FILE HAS BEEN GENERATED BY WEAVER") {
                 let relative_path = path.strip_prefix(root).expect("Failed to strip prefix");
-                let file_name = path.file_stem().unwrap().to_str().unwrap();
+                let file_name = path
+                    .file_stem()
+                    .expect("Failed to extract the file name")
+                    .to_str()
+                    .expect("Failed to convert to string");
                 let parent_modules = relative_path.parent().map_or(vec![], |parent| {
                     let parent = parent.display().to_string();
-                    if parent == "" {
-                        return vec![];
+                    if parent.is_empty() {
+                        vec![]
                     } else {
-                        parent.split('/').map(|s| s.to_string()).collect::<Vec<_>>()
+                        parent.split('/').map(|s| s.to_owned()).collect::<Vec<_>>()
                     }
                 });
 
                 // Skip generated.rs
-                if file_name == "generated"  {
+                if file_name == "generated" {
                     continue;
                 }
 
                 // Replace //! with //
+                // Nested modules doesn't support //! comments
                 let new_file_content = file_content.replace("//!", "//");
-                // Remove line starting with pub mod
-                let new_file = new_file_content.lines().filter(|line| !line.starts_with("pub mod")).collect::<Vec<_>>().join("\n");
 
-                add_modules(&mut root_module, parent_modules.clone(), file_name.to_string(), new_file);
+                // Remove lines starting with `pub mod` because we are going to nest the modules
+                // manually in the generated.rs file
+                let new_file = new_file_content
+                    .lines()
+                    .filter(|line| !line.starts_with("pub mod"))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                add_modules(
+                    &mut root_module,
+                    parent_modules.clone(),
+                    file_name.to_owned(),
+                    new_file,
+                );
             }
         }
     }
 
-    let mut output = std::fs::File::create(root.join("generated.rs")).unwrap();
-    output.write_all(root_module.generate().as_bytes()).unwrap();
-    // println!("cargo:warning=Generated file: {}", root.join("generated.rs").display());
+    // Generate `generated.rs` from the hierarchy of modules
+    let mut output =
+        std::fs::File::create(root.join("generated.rs")).expect("Failed to create file");
+    output
+        .write_all(root_module.generate().as_bytes())
+        .expect("Failed to write to file");
 }
 
 struct Module {
@@ -124,6 +150,7 @@ struct Module {
 }
 
 impl Module {
+    /// Generate the content of the module and its sub-modules
     pub fn generate(&self) -> String {
         let mut content = String::new();
 
@@ -138,28 +165,41 @@ impl Module {
     }
 }
 
-fn add_modules(root_module: &mut Module, parent_modules: Vec<String>, file_name: String, file_content: String) {
+/// Add the given module to the hierarchy of modules represented by the root module.
+fn add_modules(
+    root_module: &mut Module,
+    parent_modules: Vec<String>,
+    module_name: String,
+    module_content: String,
+) {
     let mut current_module = root_module;
     for module_name in parent_modules.iter() {
-        let module = current_module.sub_modules.entry(module_name.clone()).or_insert(Module {
-            name: module_name.clone(),
-            content: "".to_owned(),
-            sub_modules: HashMap::new(),
-        });
+        let module = current_module
+            .sub_modules
+            .entry(module_name.clone())
+            .or_insert(Module {
+                name: module_name.clone(),
+                content: "".to_owned(),
+                sub_modules: HashMap::new(),
+            });
         current_module = module;
     }
 
-    if file_name == "mod" || file_name == "lib" {
-        current_module.content = file_content;
+    if module_name == "mod" || module_name == "lib" {
+        current_module.content = module_content;
     } else {
-        _ = current_module.sub_modules.insert(file_name.clone(), Module {
-            name: file_name.clone(),
-            content: file_content,
-            sub_modules: HashMap::new(),
-        });
+        _ = current_module.sub_modules.insert(
+            module_name.clone(),
+            Module {
+                name: module_name.clone(),
+                content: module_content,
+                sub_modules: HashMap::new(),
+            },
+        );
     }
 }
 
+/// Print logs to stdout by following the Cargo's build script output format.
 fn print_logs(logger: &in_memory::Logger) {
     for log_message in logger.messages() {
         match &log_message {
@@ -170,6 +210,7 @@ fn print_logs(logger: &in_memory::Logger) {
     }
 }
 
+/// Process the error message and exit the build script with a non-zero exit code.
 fn process_error(logger: &in_memory::Logger, error: impl std::fmt::Display) -> ! {
     logger.error(&error.to_string());
     print_logs(logger);

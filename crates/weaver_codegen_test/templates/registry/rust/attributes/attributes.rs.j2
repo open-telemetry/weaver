@@ -49,6 +49,7 @@ pub enum {{ attribute.name | pascal_case }} {
 
 impl {{ attribute.name | pascal_case }} {
     /// Returns the string representation of the [`{{ attribute.name | pascal_case }}`].
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
         {%- for variant in attribute.type.members %}
@@ -75,6 +76,7 @@ impl core::fmt::Display for {{ attribute.name | pascal_case }} {
 
 impl crate::attributes::AttributeKey<{{ attribute.name | pascal_case }}> {
     /// Returns a [`KeyValue`] pair for the given value.
+    #[must_use]
     pub fn value(&self, v: &{{ attribute.name | pascal_case }}) -> opentelemetry::KeyValue {
         opentelemetry::KeyValue::new(self.key.clone(), v.to_string())
     }
