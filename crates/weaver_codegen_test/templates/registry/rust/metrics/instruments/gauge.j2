@@ -1,0 +1,69 @@
+{%- import 'attribute_macros.j2' as attribute_macros %}
+{%- if metric.brief %}
+{{ metric.brief | comment_with_prefix("/// ") }}
+{%- endif %}
+{%- if metric is experimental %}
+#[cfg(feature = "semconv_experimental")]
+{%- endif %}
+pub fn create_{{ metric.metric_name | snake_case }}<T>(meter: &opentelemetry::metrics::Meter) -> opentelemetry::metrics::Gauge<T>
+    where opentelemetry::metrics::Meter: crate::metrics::GaugeProvider<T> {
+    crate::metrics::GaugeProvider::create_gauge(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}")
+}
+
+/// Metric: {{ metric.metric_name }}
+/// Brief: {{ metric.brief }}
+/// Unit: {{ metric.unit }}
+#[derive(Debug)]
+pub struct {{ metric.metric_name | pascal_case }}<T>(opentelemetry::metrics::Gauge<T>);
+
+{%- set required_attributes = metric.attributes | required %}
+{%- set not_required_attributes = metric.attributes | not_required %}
+
+{% if required_attributes %}
+/// Required attributes for the `{{ metric.metric_name }}` metric.
+#[derive(Debug, Clone)]
+pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
+    {%- for attribute in required_attributes | attribute_sort %}
+    {{ attribute_macros.comments(attribute, "    ///") }}
+    {%- if attribute.type.members is defined %}
+    pub {{ attribute.name | snake_case }}: crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }},
+    {%- else %}
+    pub {{ attribute.name | snake_case }}: {{ attribute.type | type_mapping }},
+    {%- endif %}
+    {%- endfor %}
+}
+{% endif %}
+
+{% if not_required_attributes %}
+/// Not required attributes for the `{{ metric.metric_name }}` metric.
+#[derive(Debug, Clone, Default)]
+pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
+    {%- for attribute in not_required_attributes | attribute_sort %}
+    {{ attribute_macros.comments(attribute, "    ///") }}
+    {%- if attribute.type.members is defined %}
+    pub {{ attribute.name | snake_case }}: Option<crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }}>,
+    {%- else %}
+    pub {{ attribute.name | snake_case }}: Option<{{ attribute.type | type_mapping }}>,
+    {%- endif %}
+    {%- endfor %}
+}
+{% endif %}
+
+impl <T> {{ metric.metric_name | pascal_case }}<T> {
+    /// Creates a new `{{ metric.metric_name }}` metric.
+    pub fn new(meter: &opentelemetry::metrics::Meter) -> Self
+        where opentelemetry::metrics::Meter: crate::metrics::GaugeProvider<T>{
+        Self(crate::metrics::GaugeProvider::create_gauge(meter, "{{ metric.metric_name }}", "{{ metric.brief }}", "{{ metric.unit }}"))
+    }
+
+    /// Records an additional value to the gauge.
+    pub fn record(
+        &self,
+        value: T,
+        {% if required_attributes %}required_attributes: &{{ metric.metric_name | pascal_case }}ReqAttributes,{% endif %}
+        {% if not_required_attributes %}not_required_attributes: Option<&{{ metric.metric_name | pascal_case }}OptAttributes>,{% endif %}
+    ) {
+        {{ attribute_macros.attributes_to_key_values(required_attributes, not_required_attributes) }}
+        self.0.record(value, &attributes)
+    }
+}

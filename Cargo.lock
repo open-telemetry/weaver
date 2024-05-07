@@ -3635,6 +3635,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_codegen_test"
+version = "0.1.0"
+dependencies = [
+ "opentelemetry",
+ "opentelemetry-stdout",
+ "opentelemetry_sdk",
+ "walkdir",
+ "weaver_cache",
+ "weaver_common",
+ "weaver_forge",
+ "weaver_resolver",
+ "weaver_semconv",
+]
+
+[[package]]
 name = "weaver_common"
 version = "0.1.0"
 dependencies = [
