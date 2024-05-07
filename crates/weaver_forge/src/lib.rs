@@ -4,13 +4,13 @@
 
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
-use std::fs;
+use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
-use minijinja::{path_loader, Environment, State, Value};
+use minijinja::{Environment, State, Value, ErrorKind};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -100,7 +100,7 @@ impl Object for TemplateObject {
             Ok(Value::from(""))
         } else {
             Err(minijinja::Error::new(
-                minijinja::ErrorKind::UnknownMethod,
+                ErrorKind::UnknownMethod,
                 format!("template has no method named {name}"),
             ))
         }
@@ -254,7 +254,13 @@ impl TemplateEngine {
                     }
                 };
 
+                // @todo - remove
+                println!("cargo:warning=Scanning file {:?}", relative_path);
+
                 for template in tmpl_matcher.matches(relative_path) {
+                    // @todo - remove
+                    println!("cargo:warning=Processing file {:?}", relative_path);
+
                     let filtered_result = match template.filter.apply(context.clone()) {
                         Ok(result) => result,
                         Err(e) => return Some(e),
@@ -341,13 +347,16 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
 
         log.loading(&format!("Generating file {}", template_file));
+        // @todo - remove
+        println!("cargo:warning=Loading file {:?}", template_file);
+
         let template = engine
             .get_template(template_file)
             .map_err(|e| {
                 let templates = engine.templates().map(|(name, _)| name.to_owned()).collect::<Vec<_>>();
-                let error = format!("{}. Available templates: {:?}", e.to_string(), templates);
+                let error = format!("{}. Available templates: {:?}", e, templates);
                 InvalidTemplateFile {
-                    template: template_path.to_path_buf(),
+                    template: template_file.into(),
                     error,
                 }
             })?;
@@ -389,7 +398,7 @@ impl TemplateEngine {
                 error: e.to_string(),
             })?;
 
-        env.set_loader(path_loader(&self.path));
+        env.set_loader(my_path_loader(&self.path));
         env.set_syntax(syntax);
 
         // Register code-oriented filters
@@ -505,6 +514,40 @@ impl TemplateEngine {
     }
 }
 
+// @todo - remove
+fn my_path_loader<'x, P: AsRef<Path> + 'x>(
+    dir: P,
+) -> impl for<'a> Fn(&'a str) -> Result<Option<String>, minijinja::Error> + Send + Sync + 'static {
+    let dir = dir.as_ref().to_path_buf();
+    move |name| {
+        let path = match safe_join(&dir, name) {
+            Some(path) => path,
+            None => return Ok(None),
+        };
+        println!("cargo:warning=Loader loading template {:?}", path);
+        match fs::read_to_string(path) {
+            Ok(result) => Ok(Some(result)),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(
+                minijinja::Error::new(ErrorKind::InvalidOperation, "could not read template").with_source(err),
+            ),
+        }
+    }
+}
+
+fn safe_join(base: &Path, template: &str) -> Option<PathBuf> {
+    let mut rv = base.to_path_buf();
+    for segment in template.split('/') {
+        if segment.starts_with('.') || segment.contains('\\') {
+            println!("cargo:warning=Safe join return None");
+            return None;
+        }
+        rv.push(segment);
+    }
+    println!("cargo:warning=Safe join returns {:?}", rv);
+    Some(rv)
+}
+
 // Helper filter to work around lack of `list.append()` support in minijinja.
 // Will take a list of lists and return a new list containing only elements of sublists.
 fn flatten(value: Value) -> Result<Value, minijinja::Error> {
@@ -528,7 +571,7 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
             Ok(values)
         }
         None => Err(minijinja::Error::new(
-            minijinja::ErrorKind::InvalidOperation,
+            ErrorKind::InvalidOperation,
             format!("Expected string, found: {value}"),
         )),
     }
