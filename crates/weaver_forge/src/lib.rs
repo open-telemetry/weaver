@@ -2,15 +2,15 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::{fs, io};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
-use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
+use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -95,7 +95,7 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name, ): (&str, ) = from_args(args)?;
+            let (file_name,): (&str,) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
@@ -254,13 +254,7 @@ impl TemplateEngine {
                     }
                 };
 
-                // @todo - remove
-                println!("cargo:warning=Scanning file {:?}", relative_path);
-
                 for template in tmpl_matcher.matches(relative_path) {
-                    // @todo - remove
-                    println!("cargo:warning=Processing file {:?}", relative_path);
-
                     let filtered_result = match template.filter.apply(context.clone()) {
                         Ok(result) => result,
                         Err(e) => return Some(e),
@@ -274,8 +268,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path,
                                 output_dir,
                             ) {
@@ -309,8 +303,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path,
                                 output_dir,
                             ) {
@@ -347,19 +341,18 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
 
         log.loading(&format!("Generating file {}", template_file));
-        // @todo - remove
-        println!("cargo:warning=Loading file {:?}", template_file);
 
-        let template = engine
-            .get_template(template_file)
-            .map_err(|e| {
-                let templates = engine.templates().map(|(name, _)| name.to_owned()).collect::<Vec<_>>();
-                let error = format!("{}. Available templates: {:?}", e, templates);
-                InvalidTemplateFile {
-                    template: template_file.into(),
-                    error,
-                }
-            })?;
+        let template = engine.get_template(template_file).map_err(|e| {
+            let templates = engine
+                .templates()
+                .map(|(name, _)| name.to_owned())
+                .collect::<Vec<_>>();
+            let error = format!("{}. Available templates: {:?}", e, templates);
+            InvalidTemplateFile {
+                template: template_file.into(),
+                error,
+            }
+        })?;
 
         let output = template
             .render(ctx.clone())
@@ -521,13 +514,14 @@ fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
     let dir = dir.as_ref().to_path_buf();
     move |name| {
         let path = safe_join(&dir, name)?;
-        println!("cargo:warning=Loader loading template base: {:?}, path:{:?}", dir, path);
         match fs::read_to_string(path) {
             Ok(result) => Ok(Some(result)),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(err) => Err(
-                minijinja::Error::new(ErrorKind::InvalidOperation, "could not read template").with_source(err),
-            ),
+            Err(err) => Err(minijinja::Error::new(
+                ErrorKind::InvalidOperation,
+                "could not read template",
+            )
+            .with_source(err)),
         }
     }
 }
@@ -539,14 +533,18 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
     path.push(template);
 
     // Canonicalize the paths to resolve any `..` or `.` components
-    let canonical_root = root.canonicalize()
-        .map_err(|e| minijinja::Error::new(
+    let canonical_root = root.canonicalize().map_err(|e| {
+        minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("Failed to canonicalize root path: {}", e)))?;
-    let canonical_combined = path.canonicalize()
-        .map_err(|e| minijinja::Error::new(
+            format!("Failed to canonicalize root path: {}", e),
+        )
+    })?;
+    let canonical_combined = path.canonicalize().map_err(|e| {
+        minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("Failed to canonicalize combined path: {}", e)))?;
+            format!("Failed to canonicalize combined path: {}", e),
+        )
+    })?;
 
     // Verify that the canonical combined path starts with the canonical root path
     if canonical_combined.starts_with(&canonical_root) {
@@ -557,7 +555,8 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
             format!(
                 "The combined path is not a subdirectory of the root path: {:?} -> {:?}",
                 canonical_root, canonical_combined
-            )))
+            ),
+        ))
     }
 }
 
@@ -756,12 +755,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         engine
             .generate(

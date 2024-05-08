@@ -100,10 +100,13 @@ fn create_single_generated_rs_file(root: &Path) {
                     .to_str()
                     .expect("Failed to convert to string");
                 let parent_modules = relative_path.parent().map_or(vec![], |parent| {
-                    parent.components().filter_map(|component| match component {
-                        Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
-                        _ => None,
-                    }).collect()
+                    parent
+                        .components()
+                        .filter_map(|component| match component {
+                            Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
+                            _ => None,
+                        })
+                        .collect()
                 });
 
                 // Skip generated.rs
