@@ -2,15 +2,15 @@
 
 #![doc = include_str!("../README.md")]
 
+use std::{fs, io};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
-use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
-use minijinja::{Environment, State, Value, ErrorKind};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -95,7 +95,7 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name,): (&str,) = from_args(args)?;
+            let (file_name, ): (&str, ) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
@@ -274,8 +274,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                .try_into()
-                                .ok()?,
+                                    .try_into()
+                                    .ok()?,
                                 relative_path,
                                 output_dir,
                             ) {
@@ -309,8 +309,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                .try_into()
-                                .ok()?,
+                                    .try_into()
+                                    .ok()?,
                                 relative_path,
                                 output_dir,
                             ) {
@@ -398,7 +398,7 @@ impl TemplateEngine {
                 error: e.to_string(),
             })?;
 
-        env.set_loader(my_path_loader(&self.path));
+        env.set_loader(cross_platform_loader(&self.path));
         env.set_syntax(syntax);
 
         // Register code-oriented filters
@@ -514,17 +514,14 @@ impl TemplateEngine {
     }
 }
 
-// @todo - remove
-fn my_path_loader<'x, P: AsRef<Path> + 'x>(
+// The template loader provided by MiniJinja is not cross-platform.
+fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
     dir: P,
 ) -> impl for<'a> Fn(&'a str) -> Result<Option<String>, minijinja::Error> + Send + Sync + 'static {
     let dir = dir.as_ref().to_path_buf();
     move |name| {
-        let path = match safe_join(&dir, name) {
-            Some(path) => path,
-            None => return Ok(None),
-        };
-        println!("cargo:warning=Loader loading template {:?}", path);
+        let path = safe_join(&dir, name)?;
+        println!("cargo:warning=Loader loading template base: {:?}, path:{:?}", dir, path);
         match fs::read_to_string(path) {
             Ok(result) => Ok(Some(result)),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -535,17 +532,33 @@ fn my_path_loader<'x, P: AsRef<Path> + 'x>(
     }
 }
 
-fn safe_join(base: &Path, template: &str) -> Option<PathBuf> {
-    let mut rv = base.to_path_buf();
-    for segment in template.split('/') {
-        if segment.starts_with('.') || segment.contains('\\') {
-            println!("cargo:warning=Safe join return None");
-            return None;
-        }
-        rv.push(segment);
+// Combine a root path and a template name, ensuring that the combined path is
+// a subdirectory of the base path.
+fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
+    let mut path = root.to_path_buf();
+    path.push(template);
+
+    // Canonicalize the paths to resolve any `..` or `.` components
+    let canonical_root = root.canonicalize()
+        .map_err(|e| minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("Failed to canonicalize root path: {}", e)))?;
+    let canonical_combined = path.canonicalize()
+        .map_err(|e| minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("Failed to canonicalize combined path: {}", e)))?;
+
+    // Verify that the canonical combined path starts with the canonical root path
+    if canonical_combined.starts_with(&canonical_root) {
+        Ok(canonical_combined)
+    } else {
+        Err(minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!(
+                "The combined path is not a subdirectory of the root path: {:?} -> {:?}",
+                canonical_root, canonical_combined
+            )))
     }
-    println!("cargo:warning=Safe join returns {:?}", rv);
-    Some(rv)
 }
 
 // Helper filter to work around lack of `list.append()` support in minijinja.
@@ -579,19 +592,19 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
-    use globset::Glob;
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;
 
+    use globset::Glob;
     use walkdir::WalkDir;
 
-    use crate::config::{ApplicationMode, TemplateConfig};
     use weaver_common::TestLogger;
     use weaver_diff::diff_output;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
+    use crate::config::{ApplicationMode, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
@@ -743,12 +756,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
 
         engine
             .generate(
