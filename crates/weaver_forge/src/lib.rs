@@ -4,13 +4,13 @@
 
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
-use minijinja::{path_loader, Environment, State, Value};
+use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -100,7 +100,7 @@ impl Object for TemplateObject {
             Ok(Value::from(""))
         } else {
             Err(minijinja::Error::new(
-                minijinja::ErrorKind::UnknownMethod,
+                ErrorKind::UnknownMethod,
                 format!("template has no method named {name}"),
             ))
         }
@@ -341,12 +341,18 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
 
         log.loading(&format!("Generating file {}", template_file));
-        let template = engine
-            .get_template(template_file)
-            .map_err(|e| InvalidTemplateFile {
-                template: template_path.to_path_buf(),
-                error: e.to_string(),
-            })?;
+
+        let template = engine.get_template(template_file).map_err(|e| {
+            let templates = engine
+                .templates()
+                .map(|(name, _)| name.to_owned())
+                .collect::<Vec<_>>();
+            let error = format!("{}. Available templates: {:?}", e, templates);
+            InvalidTemplateFile {
+                template: template_file.into(),
+                error,
+            }
+        })?;
 
         let output = template
             .render(ctx.clone())
@@ -385,7 +391,7 @@ impl TemplateEngine {
                 error: e.to_string(),
             })?;
 
-        env.set_loader(path_loader(&self.path));
+        env.set_loader(cross_platform_loader(&self.path));
         env.set_syntax(syntax);
 
         // Register code-oriented filters
@@ -468,12 +474,6 @@ impl TemplateEngine {
         // env.add_filter("without_value", extensions::without_value);
         // env.add_filter("with_enum", extensions::with_enum);
         // env.add_filter("without_enum", extensions::without_enum);
-        // env.add_filter(
-        //     "type_mapping",
-        //     extensions::TypeMapping {
-        //         type_mapping: target_config.type_mapping,
-        //     },
-        // );
 
         Ok(env)
     }
@@ -507,6 +507,59 @@ impl TemplateEngine {
     }
 }
 
+// The template loader provided by MiniJinja is not cross-platform.
+fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
+    dir: P,
+) -> impl for<'a> Fn(&'a str) -> Result<Option<String>, minijinja::Error> + Send + Sync + 'static {
+    let dir = dir.as_ref().to_path_buf();
+    move |name| {
+        let path = safe_join(&dir, name)?;
+        match fs::read_to_string(path) {
+            Ok(result) => Ok(Some(result)),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(minijinja::Error::new(
+                ErrorKind::InvalidOperation,
+                "could not read template",
+            )
+            .with_source(err)),
+        }
+    }
+}
+
+// Combine a root path and a template name, ensuring that the combined path is
+// a subdirectory of the base path.
+fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
+    let mut path = root.to_path_buf();
+    path.push(template);
+
+    // Canonicalize the paths to resolve any `..` or `.` components
+    let canonical_root = root.canonicalize().map_err(|e| {
+        minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("Failed to canonicalize root path: {}", e),
+        )
+    })?;
+    let canonical_combined = path.canonicalize().map_err(|e| {
+        minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("Failed to canonicalize combined path: {}", e),
+        )
+    })?;
+
+    // Verify that the canonical combined path starts with the canonical root path
+    if canonical_combined.starts_with(&canonical_root) {
+        Ok(canonical_combined)
+    } else {
+        Err(minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!(
+                "The combined path is not a subdirectory of the root path: {:?} -> {:?}",
+                canonical_root, canonical_combined
+            ),
+        ))
+    }
+}
+
 // Helper filter to work around lack of `list.append()` support in minijinja.
 // Will take a list of lists and return a new list containing only elements of sublists.
 fn flatten(value: Value) -> Result<Value, minijinja::Error> {
@@ -530,7 +583,7 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
             Ok(values)
         }
         None => Err(minijinja::Error::new(
-            minijinja::ErrorKind::InvalidOperation,
+            ErrorKind::InvalidOperation,
             format!("Expected string, found: {value}"),
         )),
     }
@@ -538,19 +591,19 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
-    use globset::Glob;
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;
 
+    use globset::Glob;
     use walkdir::WalkDir;
 
-    use crate::config::{ApplicationMode, TemplateConfig};
     use weaver_common::TestLogger;
     use weaver_diff::diff_output;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
+    use crate::config::{ApplicationMode, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::filter::Filter;
     use crate::registry::TemplateRegistry;

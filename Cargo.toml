@@ -10,6 +10,7 @@ categories = ["command-line-utilities"]
 license = "Apache-2.0"
 readme = "README.md"
 publish = false
+resolver = "2"
 
 # Workspace definition ========================================================
 [workspace]

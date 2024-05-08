@@ -4,6 +4,7 @@
 
 pub mod diag;
 pub mod error;
+pub mod in_memory;
 pub mod quiet;
 
 use std::sync::atomic::AtomicUsize;

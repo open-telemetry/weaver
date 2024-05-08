@@ -35,8 +35,8 @@
 <!-- 3 -->
 <g id="node4" class="node">
 <title>3</title>
-<polygon fill="none" stroke="black" points="239.5,-180 158.25,-180 158.25,-144 239.5,-144 239.5,-180"/>
-<text text-anchor="middle" x="198.88" y="-156.95" font-family="Times,serif" font-size="14.00">weaver_diff</text>
+<polygon fill="none" stroke="black" points="287,-468 154.75,-468 154.75,-432 287,-432 287,-468"/>
+<text text-anchor="middle" x="220.88" y="-444.95" font-family="Times,serif" font-size="14.00">weaver_codegen_test</text>
 </g>
 <!-- 4 -->
 <g id="node5" class="node">
@@ -44,105 +44,111 @@
 <polygon fill="none" stroke="black" points="228,-324 137.75,-324 137.75,-288 228,-288 228,-324"/>
 <text text-anchor="middle" x="182.88" y="-300.95" font-family="Times,serif" font-size="14.00">weaver_forge</text>
 </g>
-<!-- 8 -->
-<g id="node9" class="node">
-<title>8</title>
+<!-- 9 -->
+<g id="node10" class="node">
+<title>9</title>
 <polygon fill="none" stroke="black" points="243.5,-252 138.25,-252 138.25,-216 243.5,-216 243.5,-252"/>
 <text text-anchor="middle" x="190.88" y="-228.95" font-family="Times,serif" font-size="14.00">weaver_resolver</text>
 </g>
-<!-- 4&#45;&gt;8 -->
+<!-- 4&#45;&gt;9 -->
 <g id="edge2" class="edge">
-<title>4&#45;&gt;8</title>
+<title>4&#45;&gt;9</title>
 <path fill="none" stroke="black" d="M184.85,-287.7C185.69,-280.41 186.68,-271.73 187.61,-263.54"/>
 <polygon fill="black" stroke="black" points="191.09,-263.94 188.75,-253.61 184.14,-263.15 191.09,-263.94"/>
 </g>
 <!-- 5 -->
 <g id="node6" class="node">
 <title>5</title>
-<polygon fill="none" stroke="black" points="412.62,-180 257.12,-180 257.12,-144 412.62,-144 412.62,-180"/>
-<text text-anchor="middle" x="334.88" y="-156.95" font-family="Times,serif" font-size="14.00">weaver_resolved_schema</text>
+<polygon fill="none" stroke="black" points="239.5,-180 158.25,-180 158.25,-144 239.5,-144 239.5,-180"/>
+<text text-anchor="middle" x="198.88" y="-156.95" font-family="Times,serif" font-size="14.00">weaver_diff</text>
 </g>
 <!-- 6 -->
 <g id="node7" class="node">
 <title>6</title>
-<polygon fill="none" stroke="black" points="218.12,-108 107.62,-108 107.62,-72 218.12,-72 218.12,-108"/>
-<text text-anchor="middle" x="162.88" y="-84.95" font-family="Times,serif" font-size="14.00">weaver_semconv</text>
-</g>
-<!-- 5&#45;&gt;6 -->
-<g id="edge3" class="edge">
-<title>5&#45;&gt;6</title>
-<path fill="none" stroke="black" d="M291.92,-143.52C268.95,-134.17 240.46,-122.57 216.1,-112.66"/>
-<polygon fill="black" stroke="black" points="217.57,-109.48 206.99,-108.95 214.93,-115.96 217.57,-109.48"/>
+<polygon fill="none" stroke="black" points="412.62,-180 257.12,-180 257.12,-144 412.62,-144 412.62,-180"/>
+<text text-anchor="middle" x="334.88" y="-156.95" font-family="Times,serif" font-size="14.00">weaver_resolved_schema</text>
 </g>
 <!-- 7 -->
 <g id="node8" class="node">
 <title>7</title>
+<polygon fill="none" stroke="black" points="218.12,-108 107.62,-108 107.62,-72 218.12,-72 218.12,-108"/>
+<text text-anchor="middle" x="162.88" y="-84.95" font-family="Times,serif" font-size="14.00">weaver_semconv</text>
+</g>
+<!-- 6&#45;&gt;7 -->
+<g id="edge3" class="edge">
+<title>6&#45;&gt;7</title>
+<path fill="none" stroke="black" d="M291.92,-143.52C268.95,-134.17 240.46,-122.57 216.1,-112.66"/>
+<polygon fill="black" stroke="black" points="217.57,-109.48 206.99,-108.95 214.93,-115.96 217.57,-109.48"/>
+</g>
+<!-- 8 -->
+<g id="node9" class="node">
+<title>8</title>
 <polygon fill="none" stroke="black" points="385.62,-108 284.12,-108 284.12,-72 385.62,-72 385.62,-108"/>
 <text text-anchor="middle" x="334.88" y="-84.95" font-family="Times,serif" font-size="14.00">weaver_version</text>
 </g>
-<!-- 5&#45;&gt;7 -->
+<!-- 6&#45;&gt;8 -->
 <g id="edge4" class="edge">
-<title>5&#45;&gt;7</title>
+<title>6&#45;&gt;8</title>
 <path fill="none" stroke="black" d="M334.88,-143.7C334.88,-136.41 334.88,-127.73 334.88,-119.54"/>
 <polygon fill="black" stroke="black" points="338.38,-119.62 334.88,-109.62 331.38,-119.62 338.38,-119.62"/>
 </g>
-<!-- 6&#45;&gt;2 -->
+<!-- 7&#45;&gt;2 -->
 <g id="edge5" class="edge">
-<title>6&#45;&gt;2</title>
+<title>7&#45;&gt;2</title>
 <path fill="none" stroke="black" d="M151.01,-71.7C145.6,-63.81 139.08,-54.3 133.08,-45.55"/>
 <polygon fill="black" stroke="black" points="136,-43.62 127.46,-37.35 130.23,-47.58 136,-43.62"/>
 </g>
-<!-- 8&#45;&gt;0 -->
+<!-- 9&#45;&gt;0 -->
 <g id="edge6" class="edge">
-<title>8&#45;&gt;0</title>
+<title>9&#45;&gt;0</title>
 <path fill="none" stroke="black" d="M166.9,-215.7C154.89,-207.03 140.16,-196.4 127.08,-186.96"/>
 <polygon fill="black" stroke="black" points="129.3,-184.25 119.14,-181.23 125.2,-189.92 129.3,-184.25"/>
 </g>
-<!-- 8&#45;&gt;3 -->
+<!-- 9&#45;&gt;5 -->
 <g id="edge7" class="edge">
-<title>8&#45;&gt;3</title>
+<title>9&#45;&gt;5</title>
 <path fill="none" stroke="black" d="M192.85,-215.7C193.69,-208.41 194.68,-199.73 195.61,-191.54"/>
 <polygon fill="black" stroke="black" points="199.09,-191.94 196.75,-181.61 192.14,-191.15 199.09,-191.94"/>
 </g>
-<!-- 8&#45;&gt;5 -->
+<!-- 9&#45;&gt;6 -->
 <g id="edge8" class="edge">
-<title>8&#45;&gt;5</title>
+<title>9&#45;&gt;6</title>
 <path fill="none" stroke="black" d="M226.84,-215.52C245.71,-206.34 269.03,-195.01 289.17,-185.22"/>
 <polygon fill="black" stroke="black" points="290.54,-188.44 298.01,-180.92 287.48,-182.15 290.54,-188.44"/>
-</g>
-<!-- 9 -->
-<g id="node10" class="node">
-<title>9</title>
-<polygon fill="none" stroke="black" points="238.25,-396 101.5,-396 101.5,-360 238.25,-360 238.25,-396"/>
-<text text-anchor="middle" x="169.88" y="-372.95" font-family="Times,serif" font-size="14.00">weaver_semconv_gen</text>
-</g>
-<!-- 9&#45;&gt;4 -->
-<g id="edge9" class="edge">
-<title>9&#45;&gt;4</title>
-<path fill="none" stroke="black" d="M173.09,-359.7C174.46,-352.32 176.09,-343.52 177.63,-335.25"/>
-<polygon fill="black" stroke="black" points="181.04,-336.06 179.42,-325.59 174.15,-334.79 181.04,-336.06"/>
 </g>
 <!-- 10 -->
 <g id="node11" class="node">
 <title>10</title>
-<polygon fill="none" stroke="black" points="208.88,-468 154.88,-468 154.88,-432 208.88,-432 208.88,-468"/>
-<text text-anchor="middle" x="181.88" y="-444.95" font-family="Times,serif" font-size="14.00">xtask</text>
+<polygon fill="none" stroke="black" points="238.25,-396 101.5,-396 101.5,-360 238.25,-360 238.25,-396"/>
+<text text-anchor="middle" x="169.88" y="-372.95" font-family="Times,serif" font-size="14.00">weaver_semconv_gen</text>
+</g>
+<!-- 10&#45;&gt;4 -->
+<g id="edge9" class="edge">
+<title>10&#45;&gt;4</title>
+<path fill="none" stroke="black" d="M173.09,-359.7C174.46,-352.32 176.09,-343.52 177.63,-335.25"/>
+<polygon fill="black" stroke="black" points="181.04,-336.06 179.42,-325.59 174.15,-334.79 181.04,-336.06"/>
 </g>
 <!-- 11 -->
 <g id="node12" class="node">
 <title>11</title>
+<polygon fill="none" stroke="black" points="358.88,-468 304.88,-468 304.88,-432 358.88,-432 358.88,-468"/>
+<text text-anchor="middle" x="331.88" y="-444.95" font-family="Times,serif" font-size="14.00">xtask</text>
+</g>
+<!-- 12 -->
+<g id="node13" class="node">
+<title>12</title>
 <polygon fill="none" stroke="black" points="136.38,-468 81.38,-468 81.38,-432 136.38,-432 136.38,-468"/>
 <text text-anchor="middle" x="108.88" y="-444.95" font-family="Times,serif" font-size="14.00">weaver</text>
 </g>
-<!-- 11&#45;&gt;1 -->
+<!-- 12&#45;&gt;1 -->
 <g id="edge10" class="edge">
-<title>11&#45;&gt;1</title>
+<title>12&#45;&gt;1</title>
 <path fill="none" stroke="black" d="M101.89,-431.59C92.18,-407.4 74.5,-363.36 62.98,-334.65"/>
 <polygon fill="black" stroke="black" points="66.28,-333.49 59.31,-325.52 59.78,-336.1 66.28,-333.49"/>
 </g>
-<!-- 11&#45;&gt;9 -->
+<!-- 12&#45;&gt;10 -->
 <g id="edge11" class="edge">
-<title>11&#45;&gt;9</title>
+<title>12&#45;&gt;10</title>
 <path fill="none" stroke="black" d="M123.95,-431.7C131.05,-423.56 139.65,-413.69 147.48,-404.7"/>
 <polygon fill="black" stroke="black" points="150.04,-407.08 153.98,-397.25 144.77,-402.49 150.04,-407.08"/>
 </g>

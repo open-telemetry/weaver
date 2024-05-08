@@ -2,14 +2,34 @@
 
 //! Utility functions to help with debugging.
 
-use crate::error::Error;
 use crate::error::Error::{CompoundError, TemplateEvaluationFailed};
 use indexmap::IndexMap;
+use std::error::Error;
 use weaver_common::Logger;
 
-/// Return a nice summary of the error.
+/// Return a nice summary of the error including the chain of causes.
+/// Only the last error in the chain is displayed with a full stack trace.
 pub(crate) fn error_summary(error: minijinja::Error) -> String {
-    format!("{:#}", error)
+    let mut errors = Vec::new();
+    let mut curr_error: &dyn Error = &error;
+
+    errors.push(curr_error);
+
+    while let Some(e) = curr_error.source() {
+        errors.push(e);
+        curr_error = e;
+    }
+
+    let mut error_msg = String::new();
+    for (i, e) in errors.iter().enumerate() {
+        if i == errors.len() - 1 {
+            // Display the last error with all the referenced variables
+            error_msg.push_str(&format!("{:#}\n", e));
+        } else {
+            error_msg.push_str(&format!("{}\nCaused by:\n", e));
+        }
+    }
+    error_msg
 }
 
 /// Print deduplicated errors.
@@ -26,7 +46,7 @@ pub(crate) fn error_summary(error: minijinja::Error) -> String {
 ///
 /// * `logger` - The logger to use for logging.
 /// * `error` - The error to print.
-pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: Error) {
+pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: crate::error::Error) {
     struct DedupError {
         pub error: String,
         pub occurrences: usize,
