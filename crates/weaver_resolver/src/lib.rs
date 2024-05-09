@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{MAIN_SEPARATOR, PathBuf};
 
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
@@ -227,14 +227,24 @@ impl SchemaResolver {
         registry_path: &RegistryPath,
         cache: &Cache,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
+        let (local_path, registry_path_repr) = Self::path_to_registry(registry_path, cache)?;
+        Self::load_semconv_from_local_path(local_path, &registry_path_repr)
+    }
+
+    /// Returns a tuple absolute ['PathBuf'], logical registry path to the registry based on the
+    /// given ['RegistryPath'] and the cache.
+    pub fn path_to_registry(
+        registry_path: &RegistryPath,
+        cache: &Cache,
+    ) -> Result<(PathBuf, String), Error> {
         match registry_path {
             RegistryPath::Local { path_pattern: path } => {
-                Self::load_semconv_from_local_path(path.into(), path)
+                Ok((path.into(), path.clone()))
             }
             RegistryPath::GitUrl { git_url, path } => {
                 match cache.git_repo(git_url.clone(), path.clone()) {
                     Ok(local_git_repo) => {
-                        Self::load_semconv_from_local_path(local_git_repo, git_url)
+                        Ok((local_git_repo, git_url.clone()))
                     }
                     Err(e) => Err(Error::SemConvError {
                         message: e.to_string(),
@@ -299,8 +309,13 @@ impl SchemaResolver {
                                     .to_str()
                                     .map(|s| s.to_owned())
                                     .unwrap_or_default();
-                                let path =
-                                    format!("{}/{}", registry_path_repr, &path[prefix.len() + 1..]);
+                                let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                    let relative_path = &path[prefix.len() + 0..];
+                                    format!("{}{}", registry_path_repr, relative_path)
+                                } else {
+                                    let relative_path = &path[prefix.len() + 1..];
+                                    format!("{}/{}", registry_path_repr, relative_path)
+                                };
                                 Some(Ok((path, spec)))
                             }
                             Err(e) => Some(Err(e)),

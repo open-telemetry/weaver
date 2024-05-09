@@ -2,17 +2,18 @@
 
 //! Commands to manage a semantic convention registry.
 
-use clap::{Args, Subcommand};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::str::FromStr;
 
+use clap::{Args, Subcommand};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
 use check::RegistryCheckArgs;
-use std::path::PathBuf;
 use weaver_cache::Cache;
+use weaver_checker::{Engine, Error, PolicyPackage};
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
-use weaver_checker::{Engine, Error};
-use weaver_common::error::{handle_errors, ExitIfError};
+use weaver_common::error::{ExitIfError, handle_errors};
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -97,9 +98,9 @@ impl Display for RegistryPath {
 pub struct RegistryArgs {
     /// Local path or Git URL of the semantic convention registry.
     #[arg(
-        short = 'r',
-        long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+    short = 'r',
+    long,
+    default_value = "https://github.com/open-telemetry/semantic-conventions.git"
     )]
     pub registry: RegistryPath,
 
@@ -156,12 +157,10 @@ pub(crate) fn semconv_registry_path_from(
 /// * `log` - The logger to use for logging messages.
 #[cfg(not(tarpaulin_include))]
 pub(crate) fn load_semconv_specs(
-    registry: &RegistryPath,
-    path: &Option<String>,
+    registry_path: &weaver_semconv::path::RegistryPath,
     cache: &Cache,
     log: impl Logger + Sync + Clone,
 ) -> Vec<(String, SemConvSpec)> {
-    let registry_path = semconv_registry_path_from(registry, path);
     let semconv_specs =
         SchemaResolver::load_semconv_specs(&registry_path, cache).exit_if_error(log.clone());
     log.success(&format!(
@@ -192,7 +191,7 @@ pub fn check_policy(
             let mut errors = vec![];
 
             match policy_engine.set_input(semconv) {
-                Ok(_) => match policy_engine.check() {
+                Ok(_) => match policy_engine.check(PolicyPackage::BeforeResolution) {
                     Ok(violations) => {
                         for violation in violations {
                             errors.push(PolicyViolation {
@@ -223,22 +222,35 @@ pub fn check_policy(
 ///
 /// # Arguments
 ///
-/// * `before_resolution_policies` - The list of policy files to check before the resolution process.
+/// * `policies` - The list of policy files to check.
 /// * `semconv_specs` - The semantic convention specifications to check.
 /// * `logger` - The logger to use for logging messages.
 #[cfg(not(tarpaulin_include))]
 fn check_policies(
-    before_resolution_policies: &[PathBuf],
+    registry_path: &weaver_semconv::path::RegistryPath,
+    cache: &Cache,
+    policies: &[PathBuf],
     semconv_specs: &[(String, SemConvSpec)],
     logger: impl Logger + Sync + Clone,
 ) {
-    if !before_resolution_policies.is_empty() {
-        let mut engine = Engine::new();
-        for policy in before_resolution_policies {
-            engine.add_policy(policy).exit_if_error(logger.clone());
-        }
+    let mut engine = Engine::new();
+
+    // Add policies from the registry
+    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)
+        .exit_if_error(logger.clone());
+    let added_policies_count = engine.add_policies(registry_path.as_path(), "*.rego")
+        .exit_if_error(logger.clone());
+
+    // Add policies from the command line
+    for policy in policies {
+        engine.add_policy(policy).exit_if_error(logger.clone());
+    }
+
+    if added_policies_count + policies.len() > 0 {
         check_policy(&engine, semconv_specs).exit_if_error(logger.clone());
         logger.success("Policies checked");
+    } else {
+        logger.success("No policy found");
     }
 }
 

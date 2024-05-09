@@ -13,7 +13,7 @@ use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath};
+use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath, semconv_registry_path_from};
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -63,15 +63,20 @@ pub(crate) fn command(
     ));
 
     let registry_id = "default";
+    let registry_path = semconv_registry_path_from(
+        &args.registry,
+        &args.registry_git_sub_dir,
+    );
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(
-        &args.registry,
-        &args.registry_git_sub_dir,
+        &registry_path,
         cache,
         logger.clone(),
     );
     check_policies(
+        &registry_path,
+        cache,
         &args.before_resolution_policies,
         &semconv_specs,
         logger.clone(),

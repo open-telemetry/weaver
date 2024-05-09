@@ -1,0 +1,1 @@
+This is another invalid rego file! (use for test purposes only)

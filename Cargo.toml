@@ -38,6 +38,7 @@ ordered-float = { version = "4.2.0", features = ["serde"] }
 walkdir = "2.5.0"
 anyhow = "1.0.83"
 itertools = "0.12.1"
+globset = { version = "0.4.14", features = ["serde1"] }
 
 # Features definition =========================================================
 [features]
