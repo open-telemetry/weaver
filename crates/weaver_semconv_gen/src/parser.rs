@@ -72,7 +72,10 @@ fn parse_markdown_gen_parameters(input: &str) -> IResult<&str, Vec<MarkdownGenPa
 
 /// nom parser for semconv ids.
 fn parse_id(input: &str) -> IResult<&str, &str> {
-    recognize(many0_count(alt((alpha1, tag("."), tag("_"), tag("-")))))(input)
+    recognize(pair(
+        alpha1, // First character must be alpha, then anything is accepted.
+        many0_count(alt((alphanumeric1, tag("."), tag("_"), tag("-")))),
+    ))(input)
 }
 
 /// nom parser for <!-- semconv {id}({args}) -->
@@ -133,6 +136,9 @@ mod tests {
     fn recognizes_header() {
         assert!(is_markdown_snippet_directive(
             "<!-- semconv registry.user_agent -->"
+        ));
+        assert!(is_markdown_snippet_directive(
+            "<!-- semconv registry.user_agent.p99 -->"
         ));
         assert!(is_markdown_snippet_directive(
             "<!-- semconv my.id(full) -->"
