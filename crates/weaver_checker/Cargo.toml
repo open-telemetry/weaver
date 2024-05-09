@@ -21,7 +21,7 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 
-regorus = { version = "0.1.4", default-features = false, features = [
+regorus = { version = "0.1.5", default-features = false, features = [
     "arc",
     "base64",
     "base64url",
