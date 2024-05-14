@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 weaver_common = { path = "../weaver_common" }
+weaver_forge = { path = "../weaver_forge" }
 
 thiserror.workspace = true
 serde.workspace = true
@@ -22,6 +23,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 walkdir.workspace = true
 globset.workspace = true
+miette.workspace = true
 
 regorus = { version = "0.1.4", default-features = false, features = [
     "arc",

@@ -36,7 +36,7 @@ impl GenerateMarkdownContext {
     /// Renders stored notes into markdown format.
     fn write_rendered_notes<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         for (counter, note) in self.notes.iter().enumerate() {
-            write!(out, "\n**[{}]:** {}\n", counter + 1, note.trim())?;
+            write!(out, "\n**[{}]:** {}\n", counter + 1, note.trim()).map_err(|e| Error::StdIoError(e.to_string())).map_err(|e| Error::StdIoError(e.to_string()))?;
         }
         Ok(())
     }
@@ -62,9 +62,9 @@ fn write_example_list<Out: Write, Element: std::fmt::Display>(
     let mut first = true;
     for e in list {
         if !first {
-            write!(out, "; ")?;
+            write!(out, "; ").map_err(|e| Error::StdIoError(e.to_string()))?;
         }
-        write!(out, "`{e}`")?;
+        write!(out, "`{e}`").map_err(|e| Error::StdIoError(e.to_string()))?;
         first = false;
     }
     Ok(())
@@ -72,10 +72,10 @@ fn write_example_list<Out: Write, Element: std::fmt::Display>(
 
 fn write_examples_string<Out: Write>(out: &mut Out, examples: &Examples) -> Result<(), Error> {
     match examples {
-        Examples::Bool(value) => Ok(write!(out, "`{value}`")?),
-        Examples::Int(value) => Ok(write!(out, "`{value}`")?),
-        Examples::Double(value) => Ok(write!(out, "`{value}`")?),
-        Examples::String(value) => Ok(write!(out, "`{value}`")?),
+        Examples::Bool(value) => Ok(write!(out, "`{value}`").map_err(|e| Error::StdIoError(e.to_string()))?),
+        Examples::Int(value) => Ok(write!(out, "`{value}`").map_err(|e| Error::StdIoError(e.to_string()))?),
+        Examples::Double(value) => Ok(write!(out, "`{value}`").map_err(|e| Error::StdIoError(e.to_string()))?),
+        Examples::String(value) => Ok(write!(out, "`{value}`").map_err(|e| Error::StdIoError(e.to_string()))?),
         Examples::Ints(values) => write_example_list(out, values),
         Examples::Doubles(values) => write_example_list(out, values),
         Examples::Bools(values) => write_example_list(out, values),
@@ -85,9 +85,9 @@ fn write_examples_string<Out: Write>(out: &mut Out, examples: &Examples) -> Resu
 
 fn write_enum_value_string<Out: Write>(out: &mut Out, value: &ValueSpec) -> Result<(), Error> {
     match value {
-        ValueSpec::Double(v) => write!(out, "`{v}`")?,
-        ValueSpec::Int(v) => write!(out, "`{v}`")?,
-        ValueSpec::String(v) => write!(out, "`{v}`")?,
+        ValueSpec::Double(v) => write!(out, "`{v}`").map_err(|e| Error::StdIoError(e.to_string()))?,
+        ValueSpec::Int(v) => write!(out, "`{v}`").map_err(|e| Error::StdIoError(e.to_string()))?,
+        ValueSpec::String(v) => write!(out, "`{v}`").map_err(|e| Error::StdIoError(e.to_string()))?,
     }
     Ok(())
 }
@@ -99,7 +99,7 @@ fn write_enum_examples_string<Out: Write>(
     let mut first = true;
     for entry in members.iter().take(3) {
         if !first {
-            write!(out, "; ")?;
+            write!(out, "; ").map_err(|e| Error::StdIoError(e.to_string()))?;
         }
         write_enum_value_string(out, &entry.value)?;
         first = false;
@@ -115,15 +115,15 @@ fn write_stability_badge<Out: Write>(
         Some(Stability::Stable) => write!(
             out,
             "![Stable](https://img.shields.io/badge/-stable-lightgreen)"
-        )?,
+        ).map_err(|e| Error::StdIoError(e.to_string()))?,
         Some(Stability::Deprecated) => write!(
             out,
             "![Deprecated](https://img.shields.io/badge/-deprecated-red)"
-        )?,
+        ).map_err(|e| Error::StdIoError(e.to_string()))?,
         Some(Stability::Experimental) | None => write!(
             out,
             "![Experimental](https://img.shields.io/badge/-experimental-blue)"
-        )?,
+        ).map_err(|e| Error::StdIoError(e.to_string()))?,
     }
     Ok(())
 }
@@ -136,8 +136,8 @@ struct AttributeView<'a> {
 impl<'a> AttributeView<'a> {
     fn write_name<T: Write>(&self, out: &mut T) -> Result<(), Error> {
         match &self.attribute.r#type {
-            AttributeType::Template(_) => Ok(write!(out, "{}.<key>", self.attribute.name)?),
-            _ => Ok(write!(out, "{}", self.attribute.name)?),
+            AttributeType::Template(_) => Ok(write!(out, "{}.<key>", self.attribute.name).map_err(|e| Error::StdIoError(e.to_string()))?),
+            _ => Ok(write!(out, "{}", self.attribute.name).map_err(|e| Error::StdIoError(e.to_string()))?),
         }
     }
 
@@ -151,7 +151,7 @@ impl<'a> AttributeView<'a> {
             .replace('_', "-");
         // TODO - We should try to link to the name itself, instead
         // of just the correct group.
-        Ok(write!(out, "{prefix}/{reg_name}.md")?)
+        Ok(write!(out, "{prefix}/{reg_name}.md").map_err(|e| Error::StdIoError(e.to_string()))?)
     }
 
     fn write_name_with_optional_link<Out: Write>(
@@ -161,11 +161,11 @@ impl<'a> AttributeView<'a> {
     ) -> Result<(), Error> {
         match attribute_registry_base_url {
             Some(prefix) => {
-                write!(out, "[`")?;
+                write!(out, "[`").map_err(|e| Error::StdIoError(e.to_string()))?;
                 self.write_name(out)?;
-                write!(out, "`](")?;
+                write!(out, "`](").map_err(|e| Error::StdIoError(e.to_string()))?;
                 self.write_registry_link(out, prefix)?;
-                write!(out, ")")?;
+                write!(out, ")").map_err(|e| Error::StdIoError(e.to_string()))?;
             }
             None => self.write_name(out)?,
         }
@@ -189,27 +189,27 @@ impl<'a> AttributeView<'a> {
         write!(
             out,
             "\n| Value  | Description | Stability |\n|---|---|---|\n"
-        )?;
+        ).map_err(|e| Error::StdIoError(e.to_string()))?;
         if let AttributeType::Enum { members, .. } = &self.attribute.r#type {
             for m in members {
-                write!(out, "| ")?;
+                write!(out, "| ").map_err(|e| Error::StdIoError(e.to_string()))?;
                 write_enum_value_string(out, &m.value)?;
-                write!(out, " | ")?;
+                write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
                 if let Some(v) = m.brief.as_ref() {
-                    write!(out, "{}", v.trim())?;
+                    write!(out, "{}", v.trim()).map_err(|e| Error::StdIoError(e.to_string()))?;
                 } else {
                     // Use the id as the description if missing a brief.
-                    write!(out, "{}", m.id)?;
+                    write!(out, "{}", m.id).map_err(|e| Error::StdIoError(e.to_string()))?;
                 }
                 // Stability.
-                write!(out, " | ")?;
+                write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
                 if let Some(note) = m.deprecated.as_ref() {
                     write_stability_badge(out, &Some(Stability::Deprecated))?;
-                    write!(out, "<br>{}", note.trim())?;
+                    write!(out, "<br>{}", note.trim()).map_err(|e| Error::StdIoError(e.to_string()))?;
                 } else {
                     write_stability_badge(out, &m.stability)?;
                 }
-                writeln!(out, " |")?;
+                writeln!(out, " |").map_err(|e| Error::StdIoError(e.to_string()))?;
             }
         }
         // TODO - error message on not enum?...
@@ -239,7 +239,7 @@ impl<'a> AttributeView<'a> {
     }
 
     fn write_type_string<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
-        write!(out, "{}", self.type_string())?;
+        write!(out, "{}", self.type_string()).map_err(|e| Error::StdIoError(e.to_string()))?;
         Ok(())
     }
 
@@ -249,7 +249,7 @@ impl<'a> AttributeView<'a> {
         ctx: &mut GenerateMarkdownContext,
     ) -> Result<(), Error> {
         if self.attribute.note.is_empty() {
-            write!(out, "{}", self.attribute.brief.trim())?;
+            write!(out, "{}", self.attribute.brief.trim()).map_err(|e| Error::StdIoError(e.to_string()))?;
             Ok(())
         } else {
             write!(
@@ -257,7 +257,7 @@ impl<'a> AttributeView<'a> {
                 "{} {}",
                 self.attribute.brief.trim(),
                 ctx.add_note(self.attribute.note.clone())
-            )?;
+            ).map_err(|e| Error::StdIoError(e.to_string()))?;
             Ok(())
         }
     }
@@ -269,13 +269,13 @@ impl<'a> AttributeView<'a> {
     ) -> Result<(), Error> {
         match &self.attribute.requirement_level {
             RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => {
-                Ok(write!(out, "`Required`")?)
+                Ok(write!(out, "`Required`").map_err(|e| Error::StdIoError(e.to_string()))?)
             }
             RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => {
-                Ok(write!(out, "`Recommended`")?)
+                Ok(write!(out, "`Recommended`").map_err(|e| Error::StdIoError(e.to_string()))?)
             }
             RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => {
-                Ok(write!(out, "`Opt-In`")?)
+                Ok(write!(out, "`Opt-In`").map_err(|e| Error::StdIoError(e.to_string()))?)
             }
             RequirementLevel::ConditionallyRequired { text } => {
                 if text.len() > BREAK_COUNT {
@@ -283,16 +283,16 @@ impl<'a> AttributeView<'a> {
                         out,
                         "`Conditionally Required` {}",
                         ctx.add_note(text.clone())
-                    )?)
+                    ).map_err(|e| Error::StdIoError(e.to_string()))?)
                 } else {
-                    Ok(write!(out, "`Conditionally Required` {text}")?)
+                    Ok(write!(out, "`Conditionally Required` {text}").map_err(|e| Error::StdIoError(e.to_string()))?)
                 }
             }
             RequirementLevel::Recommended { text } => {
                 if text.len() > BREAK_COUNT {
-                    Ok(write!(out, "`Recommended` {}", ctx.add_note(text.clone()))?)
+                    Ok(write!(out, "`Recommended` {}", ctx.add_note(text.clone())).map_err(|e| Error::StdIoError(e.to_string()))?)
                 } else {
-                    Ok(write!(out, "`Recommended` {text}")?)
+                    Ok(write!(out, "`Recommended` {text}").map_err(|e| Error::StdIoError(e.to_string()))?)
                 }
             }
         }
@@ -315,7 +315,7 @@ impl<'a> AttributeView<'a> {
     fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         if let Some(note) = self.attribute.deprecated.as_ref() {
             write_stability_badge(out, &Some(Stability::Deprecated))?;
-            write!(out, "<br>{}", note.trim())?;
+            write!(out, "<br>{}", note.trim()).map_err(|e| Error::StdIoError(e.to_string()))?;
         } else {
             write_stability_badge(out, &self.attribute.stability)?;
         }
@@ -406,38 +406,38 @@ impl<'a> AttributeTableView<'a> {
         }
 
         if self.group.r#type == GroupType::Event {
-            write!(out, "The event name MUST be `{}`\n\n", self.event_name())?;
+            write!(out, "The event name MUST be `{}`\n\n", self.event_name()).map_err(|e| Error::StdIoError(e.to_string()))?;
         }
 
         if args.is_omit_requirement() {
             writeln!(
                 out,
                 "| Attribute  | Type | Description  | Examples  | Stability |"
-            )?;
-            writeln!(out, "|---|---|---|---|---|")?;
+            ).map_err(|e| Error::StdIoError(e.to_string()))?;
+            writeln!(out, "|---|---|---|---|---|").map_err(|e| Error::StdIoError(e.to_string())).map_err(|e| Error::StdIoError(e.to_string()))?;
         } else {
-            writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |")?;
-            writeln!(out, "|---|---|---|---|---|---|")?;
+            writeln!(out, "| Attribute  | Type | Description  | Examples  | [Requirement Level](https://opentelemetry.io/docs/specs/semconv/general/attribute-requirement-level/) | Stability |").map_err(|e| Error::StdIoError(e.to_string()))?;
+            writeln!(out, "|---|---|---|---|---|---|").map_err(|e| Error::StdIoError(e.to_string()))?;
         }
 
         for attr in &attributes {
-            write!(out, "| ")?;
+            write!(out, "| ").map_err(|e| Error::StdIoError(e.to_string()))?;
             attr.write_name_with_optional_link(out, attribute_registry_base_url)?;
-            write!(out, " | ")?;
+            write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
             attr.write_type_string(out)?;
-            write!(out, " | ")?;
+            write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
             attr.write_description(out, ctx)?;
-            write!(out, " | ")?;
+            write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
             attr.write_examples(out)?;
             if args.is_omit_requirement() {
-                write!(out, " | ")?;
+                write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
             } else {
-                write!(out, " | ")?;
+                write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
                 attr.write_requirement(out, ctx)?;
-                write!(out, " | ")?;
+                write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
             }
             attr.write_stability(out)?;
-            writeln!(out, " |")?;
+            writeln!(out, " |").map_err(|e| Error::StdIoError(e.to_string()))?;
         }
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
@@ -453,23 +453,23 @@ impl<'a> AttributeTableView<'a> {
             write!(
                 out,
                 "\nThe following attributes can be important for making sampling decisions "
-            )?;
+            ).map_err(|e| Error::StdIoError(e.to_string()))?;
             write!(
                 out,
                 "and SHOULD be provided **at span creation time** (if provided at all):\n\n"
-            )?;
+            ).map_err(|e| Error::StdIoError(e.to_string()))?;
             for a in sampling_relevant {
-                write!(out, "* ")?;
+                write!(out, "* ").map_err(|e| Error::StdIoError(e.to_string()))?;
                 a.write_name_with_optional_link(out, attribute_registry_base_url)?;
-                writeln!(out)?;
+                writeln!(out).map_err(|e| Error::StdIoError(e.to_string()))?;
             }
         }
 
         // Add enum footers
         for e in attributes.iter().filter(|a| a.is_enum()) {
-            write!(out, "\n`")?;
+            write!(out, "\n`").map_err(|e| Error::StdIoError(e.to_string()))?;
             e.write_name(out)?;
-            writeln!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used; otherwise, a custom value MAY be used.")?;
+            writeln!(out, "` has the following list of well-known values. If one of them applies, then the respective value MUST be used; otherwise, a custom value MAY be used.").map_err(|e| Error::StdIoError(e.to_string()))?;
             e.write_enum_spec_table(out)?;
         }
         Ok(())
@@ -510,8 +510,8 @@ impl<'a> MetricView<'a> {
     }
     fn write_unit<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         match self.group.unit.as_ref() {
-            Some(value) => write!(out, "{value}")?,
-            None => write!(out, "1")?,
+            Some(value) => write!(out, "{value}").map_err(|e| Error::StdIoError(e.to_string()))?,
+            None => write!(out, "1").map_err(|e| Error::StdIoError(e.to_string()))?,
         }
         Ok(())
     }
@@ -522,21 +522,21 @@ impl<'a> MetricView<'a> {
     ) -> Result<(), Error> {
         // TODO - add note if needed.
         if self.group.note.is_empty() {
-            write!(out, "{}", &self.group.brief)?;
+            write!(out, "{}", &self.group.brief).map_err(|e| Error::StdIoError(e.to_string()))?;
         } else {
             write!(
                 out,
                 "{} {}",
                 &self.group.brief,
                 ctx.add_note(self.group.note.clone())
-            )?;
+            ).map_err(|e| Error::StdIoError(e.to_string()))?;
         }
         Ok(())
     }
     fn write_stability<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         if let Some(note) = self.group.deprecated.as_ref() {
             write_stability_badge(out, &Some(Stability::Deprecated))?;
-            write!(out, "<br>{}", note.trim())?;
+            write!(out, "<br>{}", note.trim()).map_err(|e| Error::StdIoError(e.to_string()))?;
         } else {
             write_stability_badge(out, &self.group.stability)?;
         }
@@ -550,23 +550,23 @@ impl<'a> MetricView<'a> {
         writeln!(
             out,
             "| Name     | Instrument Type | Unit (UCUM) | Description    | Stability |"
-        )?;
+        ).map_err(|e| Error::StdIoError(e.to_string()))?;
         writeln!(
             out,
             "| -------- | --------------- | ----------- | -------------- | --------- |"
-        )?;
+        ).map_err(|e| Error::StdIoError(e.to_string()))?;
         write!(
             out,
             "| `{}` | {} | `",
             self.metric_name(),
             self.instrument()
-        )?;
+        ).map_err(|e| Error::StdIoError(e.to_string()))?;
         self.write_unit(out)?;
-        write!(out, "` | ")?;
+        write!(out, "` | ").map_err(|e| Error::StdIoError(e.to_string()))?;
         self.write_description(out, ctx)?;
-        write!(out, " | ")?;
+        write!(out, " | ").map_err(|e| Error::StdIoError(e.to_string()))?;
         self.write_stability(out)?;
-        writeln!(out, " |")?;
+        writeln!(out, " |").map_err(|e| Error::StdIoError(e.to_string()))?;
         // Add "note" footers
         ctx.write_rendered_notes(out)?;
         Ok(())

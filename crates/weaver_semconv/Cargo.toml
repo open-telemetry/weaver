@@ -19,5 +19,6 @@ serde_yaml.workspace = true
 thiserror.workspace = true
 ureq.workspace = true
 ordered-float.workspace = true
+miette.workspace = true
 
 glob = "0.3.1"

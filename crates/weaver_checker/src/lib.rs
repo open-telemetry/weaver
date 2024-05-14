@@ -6,6 +6,7 @@ use std::fmt::{Display, Formatter};
 use std::path::Path;
 
 use globset::Glob;
+use miette::Diagnostic;
 use serde::Serialize;
 use serde_json::to_value;
 use walkdir::DirEntry;
@@ -18,12 +19,14 @@ use crate::violation::Violation;
 pub mod violation;
 
 /// An error that can occur while evaluating policies.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Serialize, Diagnostic, Clone)]
 #[must_use]
 #[non_exhaustive]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Error {
     /// An invalid policy.
     #[error("Invalid policy file '{file}', error: {error})")]
+    #[diagnostic()]
     InvalidPolicyFile {
         /// The file that caused the error.
         file: String,
@@ -33,6 +36,7 @@ pub enum Error {
 
     /// An invalid policy glob pattern.
     #[error("Invalid policy glob pattern '{pattern}', error: {error})")]
+    #[diagnostic()]
     InvalidPolicyGlobPattern {
         /// The glob pattern that caused the error.
         pattern: String,
@@ -42,6 +46,7 @@ pub enum Error {
 
     /// An invalid data.
     #[error("Invalid data, error: {error})")]
+    #[diagnostic()]
     InvalidData {
         /// The error that occurred.
         error: String,
@@ -49,6 +54,7 @@ pub enum Error {
 
     /// An invalid input.
     #[error("Invalid input, error: {error})")]
+    #[diagnostic()]
     InvalidInput {
         /// The error that occurred.
         error: String,
@@ -56,6 +62,7 @@ pub enum Error {
 
     /// Violation evaluation error.
     #[error("Violation evaluation error: {error}")]
+    #[diagnostic()]
     ViolationEvaluationError {
         /// The error that occurred.
         error: String,
@@ -63,6 +70,7 @@ pub enum Error {
 
     /// A policy violation error.
     #[error("Policy violation: {violation}, provenance: {provenance}")]
+    #[diagnostic()]
     PolicyViolation {
         /// The provenance of the violation (URL or path).
         provenance: String,
@@ -72,6 +80,7 @@ pub enum Error {
 
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
+    #[diagnostic()]
     CompoundError(Vec<Error>),
 }
 

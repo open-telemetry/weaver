@@ -146,6 +146,11 @@ mod tests {
             #[label("This bit here")]
             bad_bit: SourceSpan,
         },
+        #[error("Compound errors")]
+        CompoundError {
+            #[related]
+            errors: Vec<DiagMessages>,
+        }
     }
 
     #[test]

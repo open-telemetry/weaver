@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Args;
 
 use weaver_cache::Cache;
-use weaver_common::error::ExitIfError;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
@@ -56,7 +56,7 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryGenerateArgs,
-) {
+) -> Result<(), DiagnosticMessages> {
     logger.loading(&format!(
         "Generating artifacts for the registry `{}`",
         args.registry
@@ -73,32 +73,31 @@ pub(crate) fn command(
         &registry_path,
         cache,
         logger.clone(),
-    );
+    )?;
+
     check_policies(
         &registry_path,
         cache,
         &args.before_resolution_policies,
         &semconv_specs,
         logger.clone(),
-    );
+    )?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone());
     let config = GeneratorConfig::new(args.templates.clone());
 
-    let engine = TemplateEngine::try_new(&format!("registry/{}", args.target), config)
-        .exit_if_error(logger.clone());
+    let engine = TemplateEngine::try_new(&format!("registry/{}", args.target), config)?;
 
     let template_registry = TemplateRegistry::try_from_resolved_registry(
         schema
             .registry(registry_id)
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
-    )
-    .exit_if_error(logger.clone());
+    )?;
 
     engine
-        .generate(logger.clone(), &template_registry, args.output.as_path())
-        .exit_if_error(logger.clone());
+        .generate(logger.clone(), &template_registry, args.output.as_path())?;
 
     logger.success("Artifacts generated successfully");
+    Ok(())
 }

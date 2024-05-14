@@ -35,6 +35,7 @@ serde_json.workspace = true
 rayon.workspace = true
 walkdir.workspace = true
 globset.workspace = true
+miette.workspace = true
 
 [dev-dependencies]
 opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "otel_unstable"] }

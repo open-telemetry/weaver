@@ -4,11 +4,13 @@
 
 use crate::error::Error::CompoundError;
 use std::{path::PathBuf, str::FromStr};
+use miette::Diagnostic;
+use serde::Serialize;
 use weaver_common::error::WeaverError;
 use weaver_resolved_schema::attribute::AttributeRef;
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
 #[non_exhaustive]
 pub enum Error {
     /// Invalid config file.

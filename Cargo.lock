@@ -2067,6 +2067,7 @@ dependencies = [
  "cfg-if",
  "miette-derive",
  "owo-colors",
+ "serde",
  "supports-color",
  "supports-hyperlinks",
  "supports-unicode",
@@ -3596,6 +3597,7 @@ name = "weaver"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "miette",
  "rayon",
  "serde",
  "serde_json",
@@ -3617,6 +3619,7 @@ version = "0.1.0"
 dependencies = [
  "dirs",
  "gix",
+ "serde",
  "tempdir",
  "thiserror",
 ]
@@ -3626,6 +3629,7 @@ name = "weaver_checker"
 version = "0.1.0"
 dependencies = [
  "globset",
+ "miette",
  "regorus",
  "serde",
  "serde_json",
@@ -3633,6 +3637,7 @@ dependencies = [
  "thiserror",
  "walkdir",
  "weaver_common",
+ "weaver_forge",
 ]
 
 [[package]]
@@ -3654,6 +3659,8 @@ version = "0.1.0"
 dependencies = [
  "miette",
  "paris",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -3676,6 +3683,7 @@ dependencies = [
  "jaq-interpret",
  "jaq-parse",
  "jaq-std",
+ "miette",
  "minijinja",
  "opentelemetry",
  "opentelemetry-stdout",
@@ -3711,6 +3719,7 @@ name = "weaver_resolver"
 version = "0.1.0"
 dependencies = [
  "glob",
+ "miette",
  "rayon",
  "serde",
  "serde_json",
@@ -3728,6 +3737,7 @@ name = "weaver_semconv"
 version = "0.1.0"
 dependencies = [
  "glob",
+ "miette",
  "ordered-float",
  "serde",
  "serde_yaml",
@@ -3741,6 +3751,7 @@ name = "weaver_semconv_gen"
 version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
+ "miette",
  "nom",
  "serde",
  "thiserror",

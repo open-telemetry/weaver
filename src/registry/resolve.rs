@@ -8,6 +8,7 @@ use clap::{Args, ValueEnum};
 use serde::Serialize;
 
 use weaver_cache::Cache;
+use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_semconv::registry::SemConvRegistry;
@@ -74,7 +75,7 @@ pub(crate) fn command(
         &registry_path,
         cache,
         logger.clone(),
-    );
+    ).exit_if_error(logger.clone());
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone());
 

@@ -4,9 +4,11 @@
 
 use std::collections::HashMap;
 use std::path::{MAIN_SEPARATOR, PathBuf};
+use miette::Diagnostic;
 
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
+use serde::Serialize;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
@@ -31,7 +33,7 @@ pub mod registry;
 pub struct SchemaResolver {}
 
 /// An error that can occur while resolving a telemetry schema.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
@@ -46,6 +48,7 @@ pub enum Error {
 
     /// A semantic convention error.
     #[error("{message}")]
+    #[diagnostic()]
     SemConvError {
         /// The error that occurred.
         message: String,

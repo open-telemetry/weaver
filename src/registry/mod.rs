@@ -4,6 +4,7 @@
 
 use std::fmt::Display;
 use std::path::PathBuf;
+use std::process::exit;
 use std::str::FromStr;
 
 use clap::{Args, Subcommand};
@@ -13,8 +14,10 @@ use check::RegistryCheckArgs;
 use weaver_cache::Cache;
 use weaver_checker::{Engine, Error, PolicyPackage};
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::{ExitIfError, handle_errors};
 use weaver_common::Logger;
+use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
@@ -112,22 +115,59 @@ pub struct RegistryArgs {
 
 /// Manage a semantic convention registry.
 #[cfg(not(tarpaulin_include))]
-pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) {
+pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> i32 {
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());
         #[allow(clippy::exit)] // Expected behavior
-        std::process::exit(1);
+        exit(1);
     });
 
     match &command.command {
-        RegistrySubCommand::Check(args) => check::command(log, &cache, args),
-        RegistrySubCommand::Generate(args) => generate::command(log, &cache, args),
-        RegistrySubCommand::Stats(args) => stats::command(log, &cache, args),
-        RegistrySubCommand::Resolve(args) => resolve::command(log, &cache, args),
+        RegistrySubCommand::Check(args) => {
+            write_diagnostics(
+                check::command(log.clone(), &cache, args),
+                args.templates.clone(), args.output.clone(), args.target.clone(), log.clone())
+        },
+        RegistrySubCommand::Generate(args) => {
+            write_diagnostics(
+                generate::command(log.clone(), &cache, args),
+                args.templates.clone(), args.output.clone(), args.target.clone(), log.clone())
+        }
+        RegistrySubCommand::Stats(args) => {
+            stats::command(log, &cache, args);
+            0
+        },
+        RegistrySubCommand::Resolve(args) => {
+            resolve::command(log, &cache, args);
+            0
+        },
         RegistrySubCommand::Search(_) => {
             unimplemented!()
         }
-        RegistrySubCommand::UpdateMarkdown(args) => update_markdown::command(log, &cache, args),
+        RegistrySubCommand::UpdateMarkdown(args) => {
+            update_markdown::command(log, &cache, args);
+            0
+        },
+    }
+}
+
+fn write_diagnostics(
+    result: Result<(),DiagnosticMessages>,
+    template_root: PathBuf,
+    output: PathBuf,
+    target: String,logger: impl Logger + Sync + Clone) -> i32 {
+    if let Err(e) = result {
+        let config = GeneratorConfig::new(template_root);
+        let engine = TemplateEngine::try_new(&format!("errors/{}", target), config)
+            .exit_if_error(logger.clone());
+
+        engine
+            .generate(logger.clone(), &e, output.as_path())
+            .exit_if_error(logger.clone());
+
+        1
+    } else {
+        0
     }
 }
 
@@ -160,14 +200,14 @@ pub(crate) fn load_semconv_specs(
     registry_path: &weaver_semconv::path::RegistryPath,
     cache: &Cache,
     log: impl Logger + Sync + Clone,
-) -> Vec<(String, SemConvSpec)> {
+) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
     let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_path, cache).exit_if_error(log.clone());
+        SchemaResolver::load_semconv_specs(&registry_path, cache)?;
     log.success(&format!(
         "SemConv registry loaded ({} files)",
         semconv_specs.len()
     ));
-    semconv_specs
+    Ok(semconv_specs)
 }
 
 /// Check the policies of a semantic convention registry.
@@ -232,26 +272,31 @@ fn check_policies(
     policies: &[PathBuf],
     semconv_specs: &[(String, SemConvSpec)],
     logger: impl Logger + Sync + Clone,
-) {
+) -> Result<(), DiagnosticMessages> {
     let mut engine = Engine::new();
 
     // Add policies from the registry
-    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)
-        .exit_if_error(logger.clone());
-    let added_policies_count = engine.add_policies(registry_path.as_path(), "*.rego")
-        .exit_if_error(logger.clone());
+    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)?;
+    let added_policies_count = engine.add_policies(registry_path.as_path(), "*.rego")?;
 
     // Add policies from the command line
     for policy in policies {
-        engine.add_policy(policy).exit_if_error(logger.clone());
+        engine.add_policy(policy)?;
     }
 
     if added_policies_count + policies.len() > 0 {
-        check_policy(&engine, semconv_specs).exit_if_error(logger.clone());
+        check_policy(&engine, semconv_specs).map_err(|e| {
+            if let Error::CompoundError(errors) = e {
+                DiagnosticMessages::from_errors(errors)
+            } else {
+                DiagnosticMessages::from_error(e)
+            }
+        })?;
         logger.success("Policies checked");
     } else {
         logger.success("No policy found");
     }
+    Ok(())
 }
 
 /// Resolve the semantic convention specifications and return the resolved schema.

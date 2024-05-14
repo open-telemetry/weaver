@@ -5,6 +5,7 @@
 use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs, semconv_registry_path_from};
 use clap::Args;
 use weaver_cache::Cache;
+use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -38,7 +39,7 @@ pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &
         &registry_path,
         cache,
         logger.clone(),
-    );
+    ).exit_if_error(logger.clone());
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     display_semconv_registry_stats(&registry);

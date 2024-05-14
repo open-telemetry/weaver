@@ -13,7 +13,9 @@ workspace = true
 
 [dependencies]
 paris = { version = "1.5.15", features = ["macros"] }
-miette = { version = "7.2.0", features = ["fancy"] }
+serde.workspace = true
+serde_json.workspace = true
+miette.workspace = true
 
 [dev-dependencies]
 thiserror.workspace = true

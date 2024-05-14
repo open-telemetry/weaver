@@ -6,9 +6,24 @@
 
 use crate::Logger;
 use std::process::exit;
+use miette::Diagnostic;
+use serde::Serialize;
+
+/// A trait marker for Weaver diagnostic.
+pub trait WeaverDiagnostic {}
+
+/// A blanket implementation of the `WeaverDiagnostic` trait for any type that
+/// implements the `Diagnostic` and `Serialize` traits.
+///
+/// This allows any type that implements `Diagnostic` and `Serialize` to be
+/// converted into [crate::diagnostic::DiagnosticMessages].
+impl<T> WeaverDiagnostic for T
+    where
+        T: Serialize + Diagnostic + Send + Sync + ?Sized,
+{  }
 
 /// A trait for custom error handling in the `weaver` crates.
-pub trait WeaverError<T> {
+pub trait WeaverError<T> : Serialize + Diagnostic + Send + Sync {
     /// Retrieves a list of error messages associated with this error.
     /// For compound errors, this method should return a list of all
     /// error messages. For simple errors, this method should return

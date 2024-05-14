@@ -5,6 +5,7 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use std::fs;
+use miette::Diagnostic;
 
 use serde::Serialize;
 use weaver_cache::Cache;
@@ -26,7 +27,7 @@ mod gen;
 mod parser;
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// Thrown when we are unable to find a semconv by id.
@@ -66,12 +67,15 @@ pub enum Error {
         header: String,
     },
     /// Errors from using std io library.
-    #[error(transparent)]
-    StdIoError(#[from] std::io::Error),
+    #[error("{0}")]
+    StdIoError(String),
 
     /// Errors from using std fmt library.
-    #[error(transparent)]
-    StdFmtError(#[from] std::fmt::Error),
+    #[error("{error}")]
+    StdFmtError {
+        /// The error message.
+        error: String,
+    },
 
     /// Errors from using weaver_semconv.
     #[error(transparent)]
@@ -238,11 +242,11 @@ pub fn update_markdown(
     dry_run: bool,
     attribute_registry_base_url: Option<&str>,
 ) -> Result<(), Error> {
-    let original_markdown = fs::read_to_string(file)?.replace("\r\n", "\n");
+    let original_markdown = fs::read_to_string(file).map_err(|e| Error::StdIoError(e.to_string()))?.replace("\r\n", "\n");
     let updated_markdown =
         update_markdown_contents(&original_markdown, generator, attribute_registry_base_url)?;
     if !dry_run {
-        fs::write(file, updated_markdown)?;
+        fs::write(file, updated_markdown).map_err(|e| Error::StdIoError(e.to_string()))?;
         Ok(())
     } else if original_markdown != updated_markdown {
         Err(Error::MarkdownIsNotEqual {

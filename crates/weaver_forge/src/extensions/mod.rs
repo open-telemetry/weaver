@@ -5,3 +5,4 @@ pub mod acronym;
 pub mod case_converter;
 pub mod code;
 pub mod otel;
+pub mod ansi_code;

@@ -6,12 +6,27 @@ use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs,
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_semconv::registry::SemConvRegistry;
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
 pub struct RegistryCheckArgs {
+    /// Target to generate the artifacts for.
+    #[arg(default_value = "console")]
+    pub target: String,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// Default is the `output` directory.
+    #[arg(default_value = "output")]
+    pub output: PathBuf,
+
+    /// Path to the directory where the templates are located.
+    /// Default is the `templates` directory.
+    #[arg(short = 't', long, default_value = "templates")]
+    pub templates: PathBuf,
+
     /// Local path or Git URL of the semantic convention registry to check.
     #[arg(
         short = 'r',
@@ -33,7 +48,7 @@ pub struct RegistryCheckArgs {
 
 /// Check a semantic convention registry.
 #[cfg(not(tarpaulin_include))]
-pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryCheckArgs) {
+pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryCheckArgs) -> Result<(), DiagnosticMessages> {
     logger.loading(&format!("Checking registry `{}`", args.registry));
 
     let registry_id = "default";
@@ -48,7 +63,7 @@ pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &
         &registry_path,
         cache,
         logger.clone(),
-    );
+    )?;
 
     check_policies(
         &registry_path,
@@ -56,8 +71,10 @@ pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &
         &args.policies,
         &semconv_specs,
         logger.clone(),
-    );
+    )?;
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    _ = resolve_semconv_specs(&mut registry, logger);
+    _ = resolve_semconv_specs(&mut registry, logger.clone());
+
+    Ok(())
 }
