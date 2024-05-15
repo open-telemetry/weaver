@@ -28,6 +28,7 @@ use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::acronym::acronym;
+use crate::extensions::ansi_code::add_ansi_filters;
 use crate::extensions::case_converter::case_converter;
 use crate::extensions::code;
 use crate::registry::{TemplateGroup, TemplateRegistry};
@@ -507,49 +508,7 @@ impl TemplateEngine {
         env.add_filter("required", extensions::otel::required);
         env.add_filter("not_required", extensions::otel::not_required);
 
-        env.add_filter("black", extensions::ansi_code::black);
-        env.add_filter("red", extensions::ansi_code::red);
-        env.add_filter("green", extensions::ansi_code::green);
-        env.add_filter("yellow", extensions::ansi_code::yellow);
-        env.add_filter("blue", extensions::ansi_code::blue);
-        env.add_filter("magenta", extensions::ansi_code::magenta);
-        env.add_filter("cyan", extensions::ansi_code::cyan);
-        env.add_filter("white", extensions::ansi_code::white);
-
-        env.add_filter("bright_black", extensions::ansi_code::bright_black);
-        env.add_filter("bright_red", extensions::ansi_code::bright_red);
-        env.add_filter("bright_green", extensions::ansi_code::bright_green);
-        env.add_filter("bright_yellow", extensions::ansi_code::bright_yellow);
-        env.add_filter("bright_blue", extensions::ansi_code::bright_blue);
-        env.add_filter("bright_magenta", extensions::ansi_code::bright_magenta);
-        env.add_filter("bright_cyan", extensions::ansi_code::bright_cyan);
-        env.add_filter("bright_white", extensions::ansi_code::bright_white);
-
-        env.add_filter("bg_black", extensions::ansi_code::bg_black);
-        env.add_filter("bg_red", extensions::ansi_code::bg_red);
-        env.add_filter("bg_green", extensions::ansi_code::bg_green);
-        env.add_filter("bg_yellow", extensions::ansi_code::bg_yellow);
-        env.add_filter("bg_blue", extensions::ansi_code::bg_blue);
-        env.add_filter("bg_magenta", extensions::ansi_code::bg_magenta);
-        env.add_filter("bg_cyan", extensions::ansi_code::bg_cyan);
-        env.add_filter("bg_white", extensions::ansi_code::bg_white);
-
-        env.add_filter("bg_bright_black", extensions::ansi_code::bg_bright_black);
-        env.add_filter("bg_bright_red", extensions::ansi_code::bg_bright_red);
-        env.add_filter("bg_bright_green", extensions::ansi_code::bg_bright_green);
-        env.add_filter("bg_bright_yellow", extensions::ansi_code::bg_bright_yellow);
-        env.add_filter("bg_bright_blue", extensions::ansi_code::bg_bright_blue);
-        env.add_filter(
-            "bg_bright_magenta",
-            extensions::ansi_code::bg_bright_magenta,
-        );
-        env.add_filter("bg_bright_cyan", extensions::ansi_code::bg_bright_cyan);
-        env.add_filter("bg_bright_white", extensions::ansi_code::bg_bright_white);
-
-        env.add_filter("bold", extensions::ansi_code::bold);
-        env.add_filter("italic", extensions::ansi_code::italic);
-        env.add_filter("underline", extensions::ansi_code::underline);
-        env.add_filter("strikethrough", extensions::ansi_code::strikethrough);
+        add_ansi_filters(&mut env);
 
         // ToDo Implement more filters: stable, experimental, deprecated
         env.add_test("stable", extensions::otel::is_stable);
