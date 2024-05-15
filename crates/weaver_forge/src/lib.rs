@@ -2,15 +2,15 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::{fs, io};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
-use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
+use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -107,11 +107,11 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name, ): (&str, ) = from_args(args)?;
+            let (file_name,): (&str,) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else if name == "set_output_type" {
-            let (output_type, ): (&str, ) = from_args(args)?;
+            let (output_type,): (&str,) = from_args(args)?;
             let output_type = match output_type {
                 "stdout" => OutputType::Stdout,
                 "stderr" => OutputType::Stderr,
@@ -295,8 +295,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path,
                                 output_dir,
                             ) {
@@ -330,8 +330,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path,
                                 output_dir,
                             ) {
@@ -347,6 +347,8 @@ impl TemplateEngine {
         handle_errors(errs)
     }
 
+    #[allow(clippy::print_stdout)] // This is a CLI tool, so it's fine to print to stdout
+    #[allow(clippy::print_stderr)] // This is a CLI tool, so it's fine to print to stderr
     fn evaluate_template(
         &self,
         log: impl Logger + Clone + Sync,
@@ -389,7 +391,12 @@ impl TemplateEngine {
                 error_id: e.to_string(),
                 error: error_summary(e),
             })?;
-        match template_object.output_type.lock().expect("Lock poisoned").clone() {
+        match template_object
+            .output_type
+            .lock()
+            .expect("Lock poisoned")
+            .clone()
+        {
             OutputType::Stdout => {
                 println!("{}", output);
             }
@@ -532,7 +539,10 @@ impl TemplateEngine {
         env.add_filter("bg_bright_green", extensions::ansi_code::bg_bright_green);
         env.add_filter("bg_bright_yellow", extensions::ansi_code::bg_bright_yellow);
         env.add_filter("bg_bright_blue", extensions::ansi_code::bg_bright_blue);
-        env.add_filter("bg_bright_magenta", extensions::ansi_code::bg_bright_magenta);
+        env.add_filter(
+            "bg_bright_magenta",
+            extensions::ansi_code::bg_bright_magenta,
+        );
         env.add_filter("bg_bright_cyan", extensions::ansi_code::bg_bright_cyan);
         env.add_filter("bg_bright_white", extensions::ansi_code::bg_bright_white);
 
@@ -601,7 +611,7 @@ fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
                 ErrorKind::InvalidOperation,
                 "could not read template",
             )
-                .with_source(err)),
+            .with_source(err)),
         }
     }
 }
@@ -835,12 +845,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         engine
             .generate(

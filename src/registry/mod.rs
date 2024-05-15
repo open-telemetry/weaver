@@ -12,10 +12,10 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use check::RegistryCheckArgs;
 use weaver_cache::Cache;
-use weaver_checker::{Engine, Error, PolicyPackage};
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
+use weaver_checker::{Engine, Error, PolicyPackage};
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::error::{ExitIfError, handle_errors};
+use weaver_common::error::{handle_errors, ExitIfError};
 use weaver_common::Logger;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -101,9 +101,9 @@ impl Display for RegistryPath {
 pub struct RegistryArgs {
     /// Local path or Git URL of the semantic convention registry.
     #[arg(
-    short = 'r',
-    long,
-    default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+        short = 'r',
+        long,
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
     )]
     pub registry: RegistryPath,
 
@@ -123,39 +123,45 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
     });
 
     match &command.command {
-        RegistrySubCommand::Check(args) => {
-            write_diagnostics(
-                check::command(log.clone(), &cache, args),
-                args.templates.clone(), args.output.clone(), args.target.clone(), log.clone())
-        },
-        RegistrySubCommand::Generate(args) => {
-            write_diagnostics(
-                generate::command(log.clone(), &cache, args),
-                args.templates.clone(), args.output.clone(), args.target.clone(), log.clone())
-        }
+        RegistrySubCommand::Check(args) => write_diagnostics(
+            check::command(log.clone(), &cache, args),
+            args.templates.clone(),
+            args.output.clone(),
+            args.target.clone(),
+            log.clone(),
+        ),
+        RegistrySubCommand::Generate(args) => write_diagnostics(
+            generate::command(log.clone(), &cache, args),
+            args.templates.clone(),
+            args.output.clone(),
+            args.target.clone(),
+            log.clone(),
+        ),
         RegistrySubCommand::Stats(args) => {
             stats::command(log, &cache, args);
             0
-        },
+        }
         RegistrySubCommand::Resolve(args) => {
             resolve::command(log, &cache, args);
             0
-        },
+        }
         RegistrySubCommand::Search(_) => {
             unimplemented!()
         }
         RegistrySubCommand::UpdateMarkdown(args) => {
             update_markdown::command(log, &cache, args);
             0
-        },
+        }
     }
 }
 
 fn write_diagnostics(
-    result: Result<(),DiagnosticMessages>,
+    result: Result<(), DiagnosticMessages>,
     template_root: PathBuf,
     output: PathBuf,
-    target: String,logger: impl Logger + Sync + Clone) -> i32 {
+    target: String,
+    logger: impl Logger + Sync + Clone,
+) -> i32 {
     if let Err(e) = result {
         let config = GeneratorConfig::new(template_root);
         let engine = TemplateEngine::try_new(&format!("errors/{}", target), config)
@@ -201,8 +207,7 @@ pub(crate) fn load_semconv_specs(
     cache: &Cache,
     log: impl Logger + Sync + Clone,
 ) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_path, cache)?;
+    let semconv_specs = SchemaResolver::load_semconv_specs(registry_path, cache)?;
     log.success(&format!(
         "SemConv registry loaded ({} files)",
         semconv_specs.len()

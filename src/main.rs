@@ -28,15 +28,15 @@ fn main() {
 
     let elapsed = start.elapsed();
     println!("Total execution time: {:?}s", elapsed.as_secs_f64());
+
+    #[allow(clippy::exit)] // Exit the process with a specific error code.
     std::process::exit(error_code);
 }
 
 #[cfg(not(tarpaulin_include))]
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> i32 {
     match &cli.command {
-        Some(Commands::Registry(params)) => {
-            semconv_registry(log, params)
-        }
-        None => { 0 }
+        Some(Commands::Registry(params)) => semconv_registry(log, params),
+        None => 0,
     }
 }

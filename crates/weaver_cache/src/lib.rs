@@ -17,8 +17,8 @@ use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
 use gix::{create, open, progress};
-use tempdir::TempDir;
 use serde::Serialize;
+use tempdir::TempDir;
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug, Serialize)]

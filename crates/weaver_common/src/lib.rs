@@ -2,11 +2,10 @@
 
 #![doc = include_str!("../README.md")]
 
-pub mod diag;
+pub mod diagnostic;
 pub mod error;
 pub mod in_memory;
 pub mod quiet;
-pub mod diagnostic;
 
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};

@@ -13,7 +13,10 @@ use weaver_forge::registry::TemplateRegistry;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath, semconv_registry_path_from};
+use crate::registry::{
+    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    RegistryPath,
+};
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -63,17 +66,10 @@ pub(crate) fn command(
     ));
 
     let registry_id = "default";
-    let registry_path = semconv_registry_path_from(
-        &args.registry,
-        &args.registry_git_sub_dir,
-    );
+    let registry_path = semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir);
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(
-        &registry_path,
-        cache,
-        logger.clone(),
-    )?;
+    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
 
     check_policies(
         &registry_path,
@@ -95,8 +91,7 @@ pub(crate) fn command(
         schema.catalog(),
     )?;
 
-    engine
-        .generate(logger.clone(), &template_registry, args.output.as_path())?;
+    engine.generate(logger.clone(), &template_registry, args.output.as_path())?;
 
     logger.success("Artifacts generated successfully");
     Ok(())

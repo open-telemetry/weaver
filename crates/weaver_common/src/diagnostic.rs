@@ -2,10 +2,10 @@
 
 //! A generic diagnostic message
 
-use std::error::Error;
+use crate::error::WeaverDiagnostic;
 use miette::{Diagnostic, LabeledSpan, Report, Severity};
 use serde::Serialize;
-use crate::error::WeaverDiagnostic;
+use std::error::Error;
 
 /// An extension to the [`miette::Diagnostic`] struct that adds an ansi message
 /// representation of the diagnostic message.
@@ -82,7 +82,9 @@ impl DiagnosticMessage {
 
 impl DiagnosticMessages {
     /// Creates a new list of diagnostic messages for a list of errors
-    pub fn from_errors<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(errors: Vec<M>) -> Self {
+    pub fn from_errors<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(
+        errors: Vec<M>,
+    ) -> Self {
         Self(errors.into_iter().map(DiagnosticMessage::new).collect())
     }
 
@@ -92,7 +94,9 @@ impl DiagnosticMessages {
     }
 }
 
-impl <T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<T> for DiagnosticMessages {
+impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<T>
+    for DiagnosticMessages
+{
     /// Convert errors marked with the DiagnosticMessage trait into a DiagnosticMessages.
     fn from(error: T) -> Self {
         Self(vec![DiagnosticMessage::new(error)])

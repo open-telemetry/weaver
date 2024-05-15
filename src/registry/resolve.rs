@@ -13,7 +13,9 @@ use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs, semconv_registry_path_from};
+use crate::registry::{
+    load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryArgs,
+};
 
 /// Supported output formats for the resolved schema
 #[derive(Debug, Clone, ValueEnum)]
@@ -65,17 +67,12 @@ pub(crate) fn command(
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let registry_id = "default";
-    let registry_path = semconv_registry_path_from(
-        &args.registry.registry,
-        &args.registry.registry_git_sub_dir
-    );
+    let registry_path =
+        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir);
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(
-        &registry_path,
-        cache,
-        logger.clone(),
-    ).exit_if_error(logger.clone());
+    let semconv_specs =
+        load_semconv_specs(&registry_path, cache, logger.clone()).exit_if_error(logger.clone());
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone());
 

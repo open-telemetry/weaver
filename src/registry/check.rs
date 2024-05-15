@@ -2,7 +2,10 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, RegistryPath, semconv_registry_path_from};
+use crate::registry::{
+    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    RegistryPath,
+};
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
@@ -48,22 +51,19 @@ pub struct RegistryCheckArgs {
 
 /// Check a semantic convention registry.
 #[cfg(not(tarpaulin_include))]
-pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryCheckArgs) -> Result<(), DiagnosticMessages> {
+pub(crate) fn command(
+    logger: impl Logger + Sync + Clone,
+    cache: &Cache,
+    args: &RegistryCheckArgs,
+) -> Result<(), DiagnosticMessages> {
     logger.loading(&format!("Checking registry `{}`", args.registry));
 
     let registry_id = "default";
-    let registry_path = semconv_registry_path_from(
-        &args.registry,
-        &args.registry_git_sub_dir,
-    );
+    let registry_path = semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir);
 
     // Load the semantic convention registry into a local cache.
     // No parsing errors should be observed.
-    let semconv_specs = load_semconv_specs(
-        &registry_path,
-        cache,
-        logger.clone(),
-    )?;
+    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
 
     check_policies(
         &registry_path,

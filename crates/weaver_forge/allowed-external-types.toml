@@ -10,4 +10,5 @@ allowed_external_types = [
     "weaver_resolved_schema::*",
     "weaver_semconv::*",
     "minijinja::value::Value",
+    "miette::protocol::Diagnostic",
 ]

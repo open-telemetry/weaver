@@ -3,9 +3,9 @@
 //! Error types and utilities.
 
 use crate::error::Error::CompoundError;
-use std::{path::PathBuf, str::FromStr};
 use miette::Diagnostic;
 use serde::Serialize;
+use std::{path::PathBuf, str::FromStr};
 use weaver_common::error::WeaverError;
 use weaver_resolved_schema::attribute::AttributeRef;
 

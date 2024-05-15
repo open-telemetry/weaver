@@ -4,8 +4,8 @@
 //! The entire crate is a rush job to catch feature parity w/ existing python tooling by
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
-use std::fs;
 use miette::Diagnostic;
+use std::fs;
 
 use serde::Serialize;
 use weaver_cache::Cache;
@@ -242,7 +242,9 @@ pub fn update_markdown(
     dry_run: bool,
     attribute_registry_base_url: Option<&str>,
 ) -> Result<(), Error> {
-    let original_markdown = fs::read_to_string(file).map_err(|e| Error::StdIoError(e.to_string()))?.replace("\r\n", "\n");
+    let original_markdown = fs::read_to_string(file)
+        .map_err(|e| Error::StdIoError(e.to_string()))?
+        .replace("\r\n", "\n");
     let updated_markdown =
         update_markdown_contents(&original_markdown, generator, attribute_registry_base_url)?;
     if !dry_run {

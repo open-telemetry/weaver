@@ -13,8 +13,8 @@ use walkdir::DirEntry;
 
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
-use crate::Error::CompoundError;
 use crate::violation::Violation;
+use crate::Error::CompoundError;
 
 pub mod violation;
 
@@ -166,15 +166,11 @@ impl Engine {
     /// # Returns
     ///
     /// The number of policies added.
-    pub fn add_policies<P: AsRef<Path>>(&mut self, policy_dir: P, policy_glob_pattern: &str) -> Result<usize, Error> {
-        let mut errors = Vec::new();
-        let mut added_policy_count = 0;
-
-        let policy_glob = Glob::new(policy_glob_pattern).map_err(|e| Error::InvalidPolicyGlobPattern {
-            pattern: policy_glob_pattern.to_owned(),
-            error: e.to_string(),
-        })?.compile_matcher();
-
+    pub fn add_policies<P: AsRef<Path>>(
+        &mut self,
+        policy_dir: P,
+        policy_glob_pattern: &str,
+    ) -> Result<usize, Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()
@@ -182,23 +178,32 @@ impl Engine {
                 .map(|s| s.starts_with('.'))
                 .unwrap_or(false)
         }
+
+        let mut errors = Vec::new();
+        let mut added_policy_count = 0;
+
+        let policy_glob = Glob::new(policy_glob_pattern)
+            .map_err(|e| Error::InvalidPolicyGlobPattern {
+                pattern: policy_glob_pattern.to_owned(),
+                error: e.to_string(),
+            })?
+            .compile_matcher();
+
         let is_policy_file = |entry: &DirEntry| -> bool {
             let path = entry.path().to_string_lossy();
             policy_glob.is_match(path.as_ref())
         };
 
         // Visit recursively all the files in the policy directory
-        for entry in walkdir::WalkDir::new(policy_dir) {
-            if let Ok(entry) = entry {
-                if is_hidden(&entry) {
-                    continue;
-                }
-                if is_policy_file(&entry) {
-                    if let Err(err) = self.add_policy(entry.path()) {
-                        errors.push(err);
-                    } else {
-                        added_policy_count += 1;
-                    }
+        for entry in walkdir::WalkDir::new(policy_dir).into_iter().flatten() {
+            if is_hidden(&entry) {
+                continue;
+            }
+            if is_policy_file(&entry) {
+                if let Err(err) = self.add_policy(entry.path()) {
+                    errors.push(err);
+                } else {
+                    added_policy_count += 1;
                 }
             }
         }
@@ -264,7 +269,7 @@ impl Engine {
     pub fn check(&mut self, package: PolicyPackage) -> Result<Vec<Violation>, Error> {
         let value = self
             .engine
-            .eval_rule(format!("data.{}.deny", package.to_string()))
+            .eval_rule(format!("data.{}.deny", package))
             .map_err(|e| Error::ViolationEvaluationError {
                 error: e.to_string(),
             })?;
@@ -292,8 +297,8 @@ mod tests {
 
     use weaver_common::error::format_errors;
 
-    use crate::{Engine, Error, PolicyPackage};
     use crate::violation::Violation;
+    use crate::{Engine, Error, PolicyPackage};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -328,9 +333,9 @@ mod tests {
                 attr: "protocol.port".to_owned(),
             },
         ]
-            .into_iter()
-            .map(|v| (v.id().to_owned(), v))
-            .collect();
+        .into_iter()
+        .map(|v| (v.id().to_owned(), v))
+        .collect();
 
         let violations = engine.check(PolicyPackage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
@@ -381,8 +386,7 @@ mod tests {
     #[test]
     fn test_add_policies() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine = Engine::new();
-        let result = engine
-            .add_policies("data/registries", "*.rego");
+        let result = engine.add_policies("data/registries", "*.rego");
 
         assert!(result.is_ok());
 
@@ -414,9 +418,9 @@ mod tests {
                 attr: "protocol.port".to_owned(),
             },
         ]
-            .into_iter()
-            .map(|v| (v.id().to_owned(), v))
-            .collect();
+        .into_iter()
+        .map(|v| (v.id().to_owned(), v))
+        .collect();
 
         let violations = engine.check(PolicyPackage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
@@ -431,8 +435,7 @@ mod tests {
     #[test]
     fn test_add_policies_with_invalid_policies() {
         let mut engine = Engine::new();
-        let result = engine
-            .add_policies("data/policies", "*.rego");
+        let result = engine.add_policies("data/policies", "*.rego");
 
         // We have 2 invalid Rego files in data/policies
         assert!(result.is_err());

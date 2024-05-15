@@ -15,7 +15,6 @@ workspace = true
 
 [dependencies]
 weaver_common = { path = "../weaver_common" }
-weaver_forge = { path = "../weaver_forge" }
 
 thiserror.workspace = true
 serde.workspace = true
