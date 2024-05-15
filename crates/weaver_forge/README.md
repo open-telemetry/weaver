@@ -217,42 +217,42 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
 - `markdown_to_html`: Converts a markdown string to an HTML string.
 - `text_map`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file and a named text_map.
-- `black`: Format a text using the black ansi code.
-- `red`: Format a text using the red ansi code.
-- `green`: Format a text using the green ansi code.
-- `yellow`: Format a text using the yellow ansi code.
-- `blue`: Format a text using the blue ansi code.
-- `magenta`: Format a text using the magenta ansi code.
-- `cyan`: Format a text using the cyan ansi code.
-- `white`: Format a text using the white ansi code.
-- `bright_black`: Format a text using the bright black ansi code.
-- `bright_red`: Format a text using the bright red ansi code.
-- `bright_green`: Format a text using the bright green ansi code.
-- `bright_yellow`: Format a text using the bright yellow ansi code.
-- `bright_blue`: Format a text using the bright blue ansi code.
-- `bright_magenta`: Format a text using the bright magenta ansi code.
-- `bright_cyan`: Format a text using the bright cyan ansi code.
-- `bright_white`: Format a text using the bright white ansi code.
-- `bg_black`: Format a text using the black background ansi code.
-- `bg_red`: Format a text using the red background ansi code.
-- `bg_green`: Format a text using the green background ansi code.
-- `bg_yellow`: Format a text using the yellow background ansi code.
-- `bg_blue`: Format a text using the blue background ansi code.
-- `bg_magenta`: Format a text using the magenta background ansi code.
-- `bg_cyan`: Format a text using the cyan background ansi code.
-- `bg_white`: Format a text using the white background ansi code.
-- `bg_bright_black`: Format a text using the bright black background ansi code.
-- `bg_bright_red`: Format a text using the bright red background ansi code.
-- `bg_bright_green`: Format a text using the bright green background ansi code.
-- `bg_bright_yellow`: Format a text using the bright yellow background ansi code.
-- `bg_bright_blue`: Format a text using the bright blue background ansi code.
-- `bg_bright_magenta`: Format a text using the bright magenta background ansi code.
-- `bg_bright_cyan`: Format a text using the bright cyan background ansi code.
-- `bg_bright_white`: Format a text using the bright white background ansi code.
-- `bold`: Format a text using the bold ansi code.
-- `italic`: Format a text using the italic ansi code.
-- `underline`: Format a text using the underline ansi code.
-- `strikethrough`: Format a text using the strikethrough ansi code.
+- `ansi_black`: Format a text using the black ansi code.
+- `ansi_red`: Format a text using the red ansi code.
+- `ansi_green`: Format a text using the green ansi code.
+- `ansi_yellow`: Format a text using the yellow ansi code.
+- `ansi_blue`: Format a text using the blue ansi code.
+- `ansi_magenta`: Format a text using the magenta ansi code.
+- `ansi_cyan`: Format a text using the cyan ansi code.
+- `ansi_white`: Format a text using the white ansi code.
+- `ansi_bright_black`: Format a text using the bright black ansi code.
+- `ansi_bright_red`: Format a text using the bright red ansi code.
+- `ansi_bright_green`: Format a text using the bright green ansi code.
+- `ansi_bright_yellow`: Format a text using the bright yellow ansi code.
+- `ansi_bright_blue`: Format a text using the bright blue ansi code.
+- `ansi_bright_magenta`: Format a text using the bright magenta ansi code.
+- `ansi_bright_cyan`: Format a text using the bright cyan ansi code.
+- `ansi_bright_white`: Format a text using the bright white ansi code.
+- `ansi_bg_black`: Format a text using the black background ansi code.
+- `ansi_bg_red`: Format a text using the red background ansi code.
+- `ansi_bg_green`: Format a text using the green background ansi code.
+- `ansi_bg_yellow`: Format a text using the yellow background ansi code.
+- `ansi_bg_blue`: Format a text using the blue background ansi code.
+- `ansi_bg_magenta`: Format a text using the magenta background ansi code.
+- `ansi_bg_cyan`: Format a text using the cyan background ansi code.
+- `ansi_bg_white`: Format a text using the white background ansi code.
+- `ansi_bg_bright_black`: Format a text using the bright black background ansi code.
+- `ansi_bg_bright_red`: Format a text using the bright red background ansi code.
+- `ansi_bg_bright_green`: Format a text using the bright green background ansi code.
+- `ansi_bg_bright_yellow`: Format a text using the bright yellow background ansi code.
+- `ansi_bg_bright_blue`: Format a text using the bright blue background ansi code.
+- `ansi_bg_bright_magenta`: Format a text using the bright magenta background ansi code.
+- `ansi_bg_bright_cyan`: Format a text using the bright cyan background ansi code.
+- `ansi_bg_bright_white`: Format a text using the bright white background ansi code.
+- `ansi_bold`: Format a text using the bold ansi code.
+- `ansi_italic`: Format a text using the italic ansi code.
+- `ansi_underline`: Format a text using the underline ansi code.
+- `ansi_strikethrough`: Format a text using the strikethrough ansi code.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
