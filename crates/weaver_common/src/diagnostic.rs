@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_diagnostic_message() {
         let error = TestError {
-            message: "This is a test error".to_string(),
+            message: "This is a test error".to_owned(),
         };
         let diagnostic_message = DiagnosticMessage::new(error);
         assert_eq!(
@@ -130,7 +130,7 @@ mod tests {
         );
         assert_eq!(
             diagnostic_message.diagnostic.code,
-            Some("test::error".to_string())
+            Some("test::error".to_owned())
         );
         assert_eq!(
             diagnostic_message.diagnostic.severity,
@@ -138,18 +138,18 @@ mod tests {
         );
         assert_eq!(
             diagnostic_message.diagnostic.help,
-            Some("This is a test error".to_string())
+            Some("This is a test error".to_owned())
         );
         assert_eq!(
             diagnostic_message.diagnostic.url,
-            Some("https://example.com".to_string())
+            Some("https://example.com".to_owned())
         );
     }
 
     #[test]
     fn test_diagnostic_messages() {
         let error = TestError {
-            message: "This is a test error".to_string(),
+            message: "This is a test error".to_owned(),
         };
         let diagnostic_messages = DiagnosticMessages::from_error(error.clone());
         assert_eq!(diagnostic_messages.0.len(), 1);
@@ -159,7 +159,7 @@ mod tests {
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.code,
-            Some("test::error".to_string())
+            Some("test::error".to_owned())
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.severity,
@@ -167,11 +167,11 @@ mod tests {
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.help,
-            Some("This is a test error".to_string())
+            Some("This is a test error".to_owned())
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.url,
-            Some("https://example.com".to_string())
+            Some("https://example.com".to_owned())
         );
 
         let diagnostic_messages = DiagnosticMessages::from_errors(vec![error]);
@@ -182,7 +182,7 @@ mod tests {
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.code,
-            Some("test::error".to_string())
+            Some("test::error".to_owned())
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.severity,
@@ -190,11 +190,11 @@ mod tests {
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.help,
-            Some("This is a test error".to_string())
+            Some("This is a test error".to_owned())
         );
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.url,
-            Some("https://example.com".to_string())
+            Some("https://example.com".to_owned())
         );
     }
 }

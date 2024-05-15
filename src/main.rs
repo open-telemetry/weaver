@@ -18,7 +18,7 @@ fn main() {
     let cli = Cli::parse();
 
     let start = std::time::Instant::now();
-    let error_code = if cli.quiet {
+    let exit_code = if cli.quiet {
         let log = QuietLogger::new();
         run_command(&cli, log)
     } else {
@@ -29,10 +29,12 @@ fn main() {
     let elapsed = start.elapsed();
     println!("Total execution time: {:?}s", elapsed.as_secs_f64());
 
-    #[allow(clippy::exit)] // Exit the process with a specific error code.
-    std::process::exit(error_code);
+    // Exit the process with a specific exit code.
+    #[allow(clippy::exit)]
+    std::process::exit(exit_code);
 }
 
+/// Run the command specified by the CLI arguments and return the exit code.
 #[cfg(not(tarpaulin_include))]
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> i32 {
     match &cli.command {

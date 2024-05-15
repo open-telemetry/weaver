@@ -6,6 +6,7 @@
 use crate::registry::{semconv_registry_path_from, RegistryPath};
 use clap::Args;
 use weaver_cache::Cache;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::ExitIfError;
 use weaver_common::Logger;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
@@ -58,17 +59,17 @@ pub(crate) fn command(
     log: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryUpdateMarkdownArgs,
-) {
+) -> Result<(), DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
         let path = entry.path();
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
         path.is_file() && extension == "md"
     }
     // Construct a generator if we were given a `--target` argument.
-    let generator = args.target.as_ref().map(|target| {
-        TemplateEngine::try_new(&format!("registry/{}", target), GeneratorConfig::default())
-            .exit_if_error(log.clone())
-    });
+    let generator = match args.target.as_ref() {
+        None => None,
+        Some(target) => Some(TemplateEngine::try_new(&format!("registry/{}", target), GeneratorConfig::default())?),
+    };
 
     let generator = SnippetGenerator::try_from_url(
         semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
@@ -104,4 +105,6 @@ pub(crate) fn command(
     if has_error {
         panic!("weaver registry update-markdown failed.");
     }
+
+    Ok(())
 }

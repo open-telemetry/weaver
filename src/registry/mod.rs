@@ -4,7 +4,6 @@
 
 use std::fmt::Display;
 use std::path::PathBuf;
-use std::process::exit;
 use std::str::FromStr;
 
 use clap::{Args, Subcommand};
@@ -12,10 +11,10 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use check::RegistryCheckArgs;
 use weaver_cache::Cache;
-use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyPackage};
+use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::error::{handle_errors, ExitIfError};
+use weaver_common::error::{ExitIfError, handle_errors};
 use weaver_common::Logger;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -113,28 +112,39 @@ pub struct RegistryArgs {
     pub registry_git_sub_dir: Option<String>,
 }
 
-/// Manage a semantic convention registry.
+/// Set of parameters used to specify the diagnostic format.
+#[derive(Args, Debug)]
+pub struct DiagnosticArgs {
+    /// Format used to render the diagnostic messages. Predefined formats are: ansi (default), json,
+    /// gh_workflow_command.
+    #[arg(
+        short = 'f',
+        long,
+        default_value = "ansi"
+    )]
+    pub diagnostic_format: String,
+}
+
+/// Manage a semantic convention registry and return the exit code.
 #[cfg(not(tarpaulin_include))]
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> i32 {
-    let cache = Cache::try_new().unwrap_or_else(|e| {
-        log.error(&e.to_string());
-        #[allow(clippy::exit)] // Expected behavior
-        exit(1);
-    });
+    let cache = match Cache::try_new() {
+        Ok(cache) => cache,
+        Err(e) => {
+            log.error(&format!("Failed to create cache: {}", e));
+            return 1;
+        }
+    };
 
     match &command.command {
         RegistrySubCommand::Check(args) => write_diagnostics(
             check::command(log.clone(), &cache, args),
-            args.templates.clone(),
-            args.output.clone(),
-            args.target.clone(),
+            args.diagnostic.clone(),
             log.clone(),
         ),
         RegistrySubCommand::Generate(args) => write_diagnostics(
             generate::command(log.clone(), &cache, args),
-            args.templates.clone(),
-            args.output.clone(),
-            args.target.clone(),
+            args.diagnostic.clone(),
             log.clone(),
         ),
         RegistrySubCommand::Stats(args) => {
@@ -145,21 +155,18 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
             resolve::command(log, &cache, args);
             0
         }
-        RegistrySubCommand::Search(_) => {
-            unimplemented!()
-        }
-        RegistrySubCommand::UpdateMarkdown(args) => {
-            update_markdown::command(log, &cache, args);
-            0
-        }
+        RegistrySubCommand::Search(_) => unimplemented!(),
+        RegistrySubCommand::UpdateMarkdown(args) => write_diagnostics(
+            update_markdown::command(log.clone(), &cache, args),
+            args.diagnostic.clone(),
+            log.clone(),
+        ),
     }
 }
 
 fn write_diagnostics(
     result: Result<(), DiagnosticMessages>,
-    template_root: PathBuf,
-    output: PathBuf,
-    target: String,
+    diagnostic: DiagnosticArgs,
     logger: impl Logger + Sync + Clone,
 ) -> i32 {
     if let Err(e) = result {

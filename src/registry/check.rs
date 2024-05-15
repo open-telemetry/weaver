@@ -2,10 +2,7 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::{
-    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    RegistryPath,
-};
+use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryPath, RegistryArgs, DiagnosticArgs};
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
@@ -16,20 +13,6 @@ use weaver_semconv::registry::SemConvRegistry;
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
 pub struct RegistryCheckArgs {
-    /// Target to generate the artifacts for.
-    #[arg(default_value = "console")]
-    pub target: String,
-
-    /// Path to the directory where the generated artifacts will be saved.
-    /// Default is the `output` directory.
-    #[arg(default_value = "output")]
-    pub output: PathBuf,
-
-    /// Path to the directory where the templates are located.
-    /// Default is the `templates` directory.
-    #[arg(short = 't', long, default_value = "templates")]
-    pub templates: PathBuf,
-
     /// Local path or Git URL of the semantic convention registry to check.
     #[arg(
         short = 'r',
@@ -47,6 +30,10 @@ pub struct RegistryCheckArgs {
     /// convention registry.
     #[arg(short = 'p', long)]
     pub policies: Vec<PathBuf>,
+
+    /// Parameters to specify the diagnostic format.
+    #[command(flatten)]
+    pub diagnostic: DiagnosticArgs,
 }
 
 /// Check a semantic convention registry.
