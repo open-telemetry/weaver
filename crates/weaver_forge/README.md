@@ -76,6 +76,20 @@ The configuration file `weaver.yaml` is optional. It allows configuring the
 following options:
 
 ```yaml
+# Uncomment this section to specify the configuration of the `text_map` filter.
+#text_maps:
+#  java_types:
+#    int: int
+#    double: double
+#    boolean: boolean
+#    string: String
+#  java_keys:
+#    int: intKey
+#    double: doubleKey
+#    boolean: booleanKey
+#    string: stringKey
+    
+# Deprecated, please use text_maps instead
 # Configuration of the type mapping. This is useful to generate code in a
 # specific language. This is optional.
 # Example: {{ attribute.type | type_mapping }} will be evaluated as int64
@@ -201,6 +215,8 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 - `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
 - `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
+- `markdown_to_html`: Converts a markdown string to an HTML string.
+- `text_map`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file and a named text_map.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
