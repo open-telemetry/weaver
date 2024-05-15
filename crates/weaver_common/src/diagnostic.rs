@@ -102,3 +102,46 @@ impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<
         Self(vec![DiagnosticMessage::new(error)])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use miette::Diagnostic;
+
+    #[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
+    #[error("This is a test error")]
+    #[diagnostic(code(test::error))]
+    #[diagnostic(url = "https://example.com")]
+    #[diagnostic(help = "This is a test error")]
+    #[diagnostic(severity = "error")]
+    struct TestError {
+        message: String,
+    }
+
+    #[test]
+    fn test_diagnostic_message() {
+        let error = TestError {
+            message: "This is a test error".to_string(),
+        };
+        let diagnostic_message = DiagnosticMessage::new(error);
+        assert_eq!(diagnostic_message.diagnostic.message, "This is a test error");
+        assert_eq!(diagnostic_message.diagnostic.code, Some("test::error".to_string()));
+        assert_eq!(diagnostic_message.diagnostic.severity, Some(Severity::Error));
+        assert_eq!(diagnostic_message.diagnostic.help, Some("This is a test error".to_string()));
+        assert_eq!(diagnostic_message.diagnostic.url, Some("https://example.com".to_string()));
+    }
+
+    #[test]
+    fn test_diagnostic_messages() {
+        let error = TestError {
+            message: "This is a test error".to_string(),
+        };
+        let diagnostic_messages = DiagnosticMessages::from_error(error);
+        assert_eq!(diagnostic_messages.0.len(), 1);
+        assert_eq!(diagnostic_messages.0[0].diagnostic.message, "This is a test error");
+        assert_eq!(diagnostic_messages.0[0].diagnostic.code, Some("test::error".to_string()));
+        assert_eq!(diagnostic_messages.0[0].diagnostic.severity, Some(Severity::Error));
+        assert_eq!(diagnostic_messages.0[0].diagnostic.help, Some("This is a test error".to_string()));
+        assert_eq!(diagnostic_messages.0[0].diagnostic.url, Some("https://example.com".to_string()));
+    }
+}
