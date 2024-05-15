@@ -76,6 +76,20 @@ The configuration file `weaver.yaml` is optional. It allows configuring the
 following options:
 
 ```yaml
+# Uncomment this section to specify the configuration of the `text_map` filter.
+#text_maps:
+#  java_types:
+#    int: int
+#    double: double
+#    boolean: boolean
+#    string: String
+#  java_keys:
+#    int: intKey
+#    double: doubleKey
+#    boolean: booleanKey
+#    string: stringKey
+    
+# Deprecated, please use text_maps instead
 # Configuration of the type mapping. This is useful to generate code in a
 # specific language. This is optional.
 # Example: {{ attribute.type | type_mapping }} will be evaluated as int64
@@ -201,6 +215,44 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 - `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
 - `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
+- `markdown_to_html`: Converts a markdown string to an HTML string.
+- `text_map`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file and a named text_map.
+- `ansi_black`: Format a text using the black ansi code.
+- `ansi_red`: Format a text using the red ansi code.
+- `ansi_green`: Format a text using the green ansi code.
+- `ansi_yellow`: Format a text using the yellow ansi code.
+- `ansi_blue`: Format a text using the blue ansi code.
+- `ansi_magenta`: Format a text using the magenta ansi code.
+- `ansi_cyan`: Format a text using the cyan ansi code.
+- `ansi_white`: Format a text using the white ansi code.
+- `ansi_bright_black`: Format a text using the bright black ansi code.
+- `ansi_bright_red`: Format a text using the bright red ansi code.
+- `ansi_bright_green`: Format a text using the bright green ansi code.
+- `ansi_bright_yellow`: Format a text using the bright yellow ansi code.
+- `ansi_bright_blue`: Format a text using the bright blue ansi code.
+- `ansi_bright_magenta`: Format a text using the bright magenta ansi code.
+- `ansi_bright_cyan`: Format a text using the bright cyan ansi code.
+- `ansi_bright_white`: Format a text using the bright white ansi code.
+- `ansi_bg_black`: Format a text using the black background ansi code.
+- `ansi_bg_red`: Format a text using the red background ansi code.
+- `ansi_bg_green`: Format a text using the green background ansi code.
+- `ansi_bg_yellow`: Format a text using the yellow background ansi code.
+- `ansi_bg_blue`: Format a text using the blue background ansi code.
+- `ansi_bg_magenta`: Format a text using the magenta background ansi code.
+- `ansi_bg_cyan`: Format a text using the cyan background ansi code.
+- `ansi_bg_white`: Format a text using the white background ansi code.
+- `ansi_bg_bright_black`: Format a text using the bright black background ansi code.
+- `ansi_bg_bright_red`: Format a text using the bright red background ansi code.
+- `ansi_bg_bright_green`: Format a text using the bright green background ansi code.
+- `ansi_bg_bright_yellow`: Format a text using the bright yellow background ansi code.
+- `ansi_bg_bright_blue`: Format a text using the bright blue background ansi code.
+- `ansi_bg_bright_magenta`: Format a text using the bright magenta background ansi code.
+- `ansi_bg_bright_cyan`: Format a text using the bright cyan background ansi code.
+- `ansi_bg_bright_white`: Format a text using the bright white background ansi code.
+- `ansi_bold`: Format a text using the bold ansi code.
+- `ansi_italic`: Format a text using the italic ansi code.
+- `ansi_underline`: Format a text using the underline ansi code.
+- `ansi_strikethrough`: Format a text using the strikethrough ansi code.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 

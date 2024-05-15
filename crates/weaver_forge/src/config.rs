@@ -59,11 +59,11 @@ pub struct TargetConfig {
     #[serde(default)]
     pub field_name: CaseConvention,
     /// Type mapping for target specific types (OTel types -> Target language types).
-    #[allow(dead_code)] // will be used later in the project
     #[serde(default)]
-    #[allow(dead_code)]
-    // ToDo create a Jinja macro to generate the mapping semconv -> target language
     pub type_mapping: HashMap<String, String>,
+    /// Configuration of the `text_map` filter.
+    #[serde(default)]
+    pub text_maps: HashMap<String, HashMap<String, String>>,
     /// Configuration for the template syntax.
     #[serde(default)]
     pub template_syntax: TemplateSyntax,

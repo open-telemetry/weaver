@@ -29,7 +29,7 @@ use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::acronym::acronym;
 use crate::extensions::case_converter::case_converter;
-use crate::extensions::code;
+use crate::extensions::{ansi, code};
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -394,12 +394,10 @@ impl TemplateEngine {
         env.set_loader(cross_platform_loader(&self.path));
         env.set_syntax(syntax);
 
-        // Register code-oriented filters
-        env.add_filter("comment_with_prefix", code::comment_with_prefix);
-        env.add_filter(
-            "type_mapping",
-            code::type_mapping(self.target_config.type_mapping.clone()),
-        );
+        code::add_filters(&mut env, &self.target_config);
+        ansi::add_filters(&mut env);
+
+        // ToDo These filters are now deprecated and should be removed soon.
         env.add_filter(
             "file_name",
             case_converter(self.target_config.file_name.clone()),
@@ -466,14 +464,6 @@ impl TemplateEngine {
         env.add_test("experimental", extensions::otel::is_experimental);
         env.add_test("deprecated", extensions::otel::is_deprecated);
         // ToDo Implement more tests: required, not_required
-
-        // env.add_filter("unique_attributes", extensions::unique_attributes);
-        // env.add_filter("instrument", extensions::instrument);
-        // env.add_filter("value", extensions::value);
-        // env.add_filter("with_value", extensions::with_value);
-        // env.add_filter("without_value", extensions::without_value);
-        // env.add_filter("with_enum", extensions::with_enum);
-        // env.add_filter("without_enum", extensions::without_enum);
 
         Ok(env)
     }

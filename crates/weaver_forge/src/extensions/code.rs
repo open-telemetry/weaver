@@ -4,7 +4,16 @@
 
 use std::collections::HashMap;
 
-use minijinja::Value;
+use crate::config::TargetConfig;
+use minijinja::{Environment, Value};
+
+/// Add code-oriented filters to the environment.
+pub(crate) fn add_filters(env: &mut Environment<'_>, config: &TargetConfig) {
+    env.add_filter("type_mapping", type_mapping(config.type_mapping.clone()));
+    env.add_filter("map_text", map_text(config.text_maps.clone()));
+    env.add_filter("comment_with_prefix", comment_with_prefix);
+    env.add_filter("markdown_to_html", markdown_to_html);
+}
 
 /// Converts the input string into a string comment with a prefix.
 #[must_use]
@@ -33,6 +42,33 @@ pub(crate) fn type_mapping(type_mapping: HashMap<String, String>) -> impl Fn(&Va
         if let Some(input_as_str) = input.as_str() {
             if let Some(target_type) = type_mapping.get(input_as_str) {
                 Value::from(target_type.as_str())
+            } else {
+                input.to_owned()
+            }
+        } else {
+            input.to_owned()
+        }
+    }
+}
+
+/// Converts the input markdown string into an HTML string.
+pub(crate) fn markdown_to_html(input: &Value) -> String {
+    let markdown = input.to_string();
+    markdown::to_html(&markdown)
+}
+
+/// Create a filter that uses the `text_maps` section defined in `weaver.yaml` to replace
+/// the input value with the target value.
+pub(crate) fn map_text(
+    text_maps: HashMap<String, HashMap<String, String>>,
+) -> impl Fn(&Value, &str) -> Value {
+    move |input: &Value, mapping_name: &str| -> Value {
+        if let Some(input_as_str) = input.as_str() {
+            if let Some(target_text) = text_maps
+                .get(mapping_name)
+                .and_then(|mapping| mapping.get(input_as_str))
+            {
+                Value::from(target_text.as_str())
             } else {
                 input.to_owned()
             }
@@ -93,5 +129,90 @@ This also covers UDP network interactions where one side initiates the interacti
             Value::from("something else")
         );
         assert_eq!(filter(&Value::from(12)), Value::from(12));
+    }
+
+    #[test]
+    fn test_markdown_to_html() {
+        let markdown = r#"# Title"#;
+        let expected_html = "<h1>Title</h1>";
+        assert_eq!(markdown_to_html(&Value::from(markdown)), expected_html);
+
+        let markdown = r#"## Subtitle"#;
+        let expected_html = "<h2>Subtitle</h2>";
+        assert_eq!(markdown_to_html(&Value::from(markdown)), expected_html);
+
+        let markdown = "A paragraph with\n\na new line.";
+        let expected_html = "<p>A paragraph with</p>\n<p>a new line.</p>";
+        assert_eq!(markdown_to_html(&Value::from(markdown)), expected_html);
+
+        let markdown = r#"A [link](https://example.com)"#;
+        let expected_html = "<p>A <a href=\"https://example.com\">link</a></p>";
+        assert_eq!(markdown_to_html(&Value::from(markdown)), expected_html);
+    }
+
+    #[test]
+    fn test_map_text() {
+        let rust_mapping = vec![
+            ("string".to_owned(), "String".to_owned()),
+            ("int".to_owned(), "i64".to_owned()),
+            ("double".to_owned(), "f64".to_owned()),
+            ("boolean".to_owned(), "bool".to_owned()),
+        ];
+        let java_mapping = vec![
+            ("string".to_owned(), "String".to_owned()),
+            ("int".to_owned(), "int".to_owned()),
+            ("double".to_owned(), "double".to_owned()),
+            ("boolean".to_owned(), "boolean".to_owned()),
+        ];
+        let text_maps = vec![
+            (
+                "rust".to_owned(),
+                rust_mapping
+                    .into_iter()
+                    .collect::<HashMap<String, String>>(),
+            ),
+            (
+                "java".to_owned(),
+                java_mapping
+                    .into_iter()
+                    .collect::<HashMap<String, String>>(),
+            ),
+        ];
+
+        let filter = map_text(text_maps.into_iter().collect());
+
+        // Test with the `rust` mapping
+        assert_eq!(filter(&Value::from("int"), "rust"), Value::from("i64"));
+        assert_eq!(filter(&Value::from("double"), "rust"), Value::from("f64"));
+        assert_eq!(
+            filter(&Value::from("string"), "rust"),
+            Value::from("String")
+        );
+        assert_eq!(filter(&Value::from("boolean"), "rust"), Value::from("bool"));
+        assert_eq!(
+            filter(&Value::from("something else"), "rust"),
+            Value::from("something else")
+        );
+        assert_eq!(filter(&Value::from(12), "rust"), Value::from(12));
+
+        // Test with the `java` mapping
+        assert_eq!(filter(&Value::from("int"), "java"), Value::from("int"));
+        assert_eq!(
+            filter(&Value::from("double"), "java"),
+            Value::from("double")
+        );
+        assert_eq!(
+            filter(&Value::from("string"), "java"),
+            Value::from("String")
+        );
+        assert_eq!(
+            filter(&Value::from("boolean"), "java"),
+            Value::from("boolean")
+        );
+        assert_eq!(
+            filter(&Value::from("something else"), "java"),
+            Value::from("something else")
+        );
+        assert_eq!(filter(&Value::from(12), "java"), Value::from(12));
     }
 }
