@@ -310,15 +310,18 @@ mod tests {
         );
 
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bright_black }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bright_black }}", &ctx)
+                .unwrap(),
             "\x1b[90mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bright_red }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bright_red }}", &ctx)
+                .unwrap(),
             "\x1b[91mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bright_green }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bright_green }}", &ctx)
+                .unwrap(),
             "\x1b[92mtest\x1b[0m"
         );
         assert_eq!(
@@ -327,7 +330,8 @@ mod tests {
             "\x1b[93mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bright_blue }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bright_blue }}", &ctx)
+                .unwrap(),
             "\x1b[94mtest\x1b[0m"
         );
         assert_eq!(
@@ -336,16 +340,19 @@ mod tests {
             "\x1b[95mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bright_cyan }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bright_cyan }}", &ctx)
+                .unwrap(),
             "\x1b[96mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bright_white }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bright_white }}", &ctx)
+                .unwrap(),
             "\x1b[97mtest\x1b[0m"
         );
 
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bg_black }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bg_black }}", &ctx)
+                .unwrap(),
             "\x1b[40mtest\x1b[0m"
         );
         assert_eq!(
@@ -353,11 +360,13 @@ mod tests {
             "\x1b[41mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bg_green }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bg_green }}", &ctx)
+                .unwrap(),
             "\x1b[42mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bg_yellow }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bg_yellow }}", &ctx)
+                .unwrap(),
             "\x1b[43mtest\x1b[0m"
         );
         assert_eq!(
@@ -365,7 +374,8 @@ mod tests {
             "\x1b[44mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bg_magenta }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bg_magenta }}", &ctx)
+                .unwrap(),
             "\x1b[45mtest\x1b[0m"
         );
         assert_eq!(
@@ -373,7 +383,8 @@ mod tests {
             "\x1b[46mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_bg_white }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_bg_white }}", &ctx)
+                .unwrap(),
             "\x1b[47mtest\x1b[0m"
         );
 
@@ -427,7 +438,8 @@ mod tests {
             "\x1b[3mtest\x1b[0m"
         );
         assert_eq!(
-            env.render_str("{{ 'test' | ansi_underline }}", &ctx).unwrap(),
+            env.render_str("{{ 'test' | ansi_underline }}", &ctx)
+                .unwrap(),
             "\x1b[4mtest\x1b[0m"
         );
         assert_eq!(
