@@ -26,6 +26,7 @@ jaq-interpret = "1.2.1"
 jaq-parse = "1.0.2"
 indexmap = "2.2.6"
 regex = "1.10.4"
+markdown = "=1.0.0-alpha.17"
 
 itertools.workspace = true
 thiserror.workspace = true
