@@ -48,9 +48,9 @@ pub struct RegistryGenerateArgs {
     pub registry_git_sub_dir: Option<String>,
 
     /// Optional list of policy files to check against the files of the semantic
-    /// convention registry before the resolution process.
-    #[arg(short = 'b', long)]
-    pub before_resolution_policies: Vec<PathBuf>,
+    /// convention registry.
+    #[arg(short = 'p', long)]
+    pub policies: Vec<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -78,7 +78,7 @@ pub(crate) fn command(
     check_policies(
         &registry_path,
         cache,
-        &args.before_resolution_policies,
+        &args.policies,
         &semconv_specs,
         logger.clone(),
     )?;
