@@ -23,7 +23,6 @@ pub struct MietteDiagnosticExt {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
     /// [`Diagnostic`] severity. Intended to be used by
-    /// [`ReportHandler`](crate::ReportHandler)s to change the way different
     /// [`Diagnostic`]s are displayed. Defaults to [`Severity::Error`]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub severity: Option<Severity>,

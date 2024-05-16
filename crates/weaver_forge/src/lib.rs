@@ -28,7 +28,6 @@ use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::acronym::acronym;
-use crate::extensions::ansi_code::add_ansi_filters;
 use crate::extensions::case_converter::case_converter;
 use crate::extensions::{ansi, code};
 use crate::registry::{TemplateGroup, TemplateRegistry};
@@ -505,8 +504,6 @@ impl TemplateEngine {
         env.add_filter("metric_namespace", extensions::otel::metric_namespace);
         env.add_filter("required", extensions::otel::required);
         env.add_filter("not_required", extensions::otel::not_required);
-
-        add_ansi_filters(&mut env);
 
         // ToDo Implement more filters: stable, experimental, deprecated
         env.add_test("stable", extensions::otel::is_stable);
