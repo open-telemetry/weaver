@@ -3,6 +3,6 @@
 //! Custom filters used by the template engine.
 pub mod acronym;
 pub mod ansi;
-pub mod case_converter;
+pub mod case;
 pub mod code;
 pub mod otel;

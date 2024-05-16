@@ -2,10 +2,33 @@
 
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
-use crate::config::CaseConvention;
 use itertools::Itertools;
 use minijinja::{ErrorKind, Value};
 use serde::de::Error;
+
+use crate::config::CaseConvention;
+
+const TEMPLATE_PREFIX: &str = "template[";
+const TEMPLATE_SUFFIX: &str = "]";
+
+/// Add OpenTelemetry specific tests and filters to the environment.
+pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
+    env.add_filter("attribute_namespace", attribute_namespace);
+    env.add_filter("attribute_registry_namespace", attribute_registry_namespace);
+    env.add_filter("attribute_registry_title", attribute_registry_title);
+    env.add_filter("attribute_registry_file", attribute_registry_file);
+    env.add_filter("attribute_sort", attribute_sort);
+    env.add_filter("metric_namespace", metric_namespace);
+    env.add_filter("required", required);
+    env.add_filter("not_required", not_required);
+    env.add_filter("instantiated_type", instantiated_type);
+
+    env.add_test("stable", is_stable);
+    env.add_test("experimental", is_experimental);
+    env.add_test("deprecated", is_deprecated);
+    env.add_test("simple_type", is_simple_type);
+    env.add_test("template_type", is_template_type);
+}
 
 /// Filters the input value to only include the required "object".
 /// A required object is one that has a field named "requirement_level" with the value "required".
@@ -230,13 +253,63 @@ pub(crate) fn is_deprecated(input: Value) -> bool {
     false
 }
 
+/// Convert the following python code to Rust:
+pub(crate) fn instantiated_type(attr_type: Value) -> String {
+    if is_template_type(&attr_type) {
+        let attr_type = attr_type
+            .as_str()
+            .expect("should never happen, already tested in is_template_type");
+        let end = attr_type.len() - TEMPLATE_SUFFIX.len();
+        return attr_type[TEMPLATE_PREFIX.len()..end].to_owned();
+    }
+    if is_simple_type(&attr_type) {
+        return attr_type
+            .as_str()
+            .expect("should never happen, already tested in is_template_type")
+            .to_owned();
+    }
+    "enum".to_owned()
+}
+
+/// Returns true if the input type is a simple type.
+pub(crate) fn is_simple_type(attr_type: &Value) -> bool {
+    if let Some(attr_type) = attr_type.as_str() {
+        matches!(
+            attr_type,
+            "string"
+                | "string[]"
+                | "int"
+                | "int[]"
+                | "double"
+                | "double[]"
+                | "boolean"
+                | "boolean[]"
+        )
+    } else {
+        false
+    }
+}
+
+/// Returns true if the input type is a template type.
+pub(crate) fn is_template_type(attr_type: &Value) -> bool {
+    if let Some(attr_type) = attr_type.as_str() {
+        if attr_type.starts_with(TEMPLATE_PREFIX) && attr_type.ends_with(TEMPLATE_SUFFIX) {
+            let end = attr_type.len() - TEMPLATE_SUFFIX.len();
+            return is_simple_type(&Value::from(
+                attr_type[TEMPLATE_PREFIX.len()..end].to_owned(),
+            ));
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
     use std::sync::Arc;
 
     use minijinja::value::Object;
-    use minijinja::Value;
+    use minijinja::{Environment, Value};
 
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::AttributeType;
@@ -245,8 +318,9 @@ mod tests {
     use weaver_semconv::attribute::RequirementLevel;
 
     use crate::extensions::otel::{
-        attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
-        attribute_sort, is_deprecated, is_experimental, is_stable, metric_namespace,
+        add_tests_and_filters, attribute_registry_file, attribute_registry_namespace,
+        attribute_registry_title, attribute_sort, is_deprecated, is_experimental, is_stable,
+        metric_namespace,
     };
 
     #[derive(Debug)]
@@ -692,5 +766,143 @@ mod tests {
 
         let result = super::not_required(Value::from_serialize(&attrs)).unwrap();
         assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_instantiated_type() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str("{{ 'int' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "int"
+        );
+        assert_eq!(
+            env.render_str("{{ 'int[]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "int[]"
+        );
+        assert_eq!(
+            env.render_str("{{ 'template[double]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "double"
+        );
+        assert_eq!(
+            env.render_str("{{ 'template[double[]]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "double[]"
+        );
+        assert_eq!(
+            env.render_str("{{ 'boolean' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "boolean"
+        );
+        assert_eq!(
+            env.render_str("{{ 'boolean[]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "boolean[]"
+        );
+        assert_eq!(
+            env.render_str("{{ 'template[boolean]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "boolean"
+        );
+        assert_eq!(
+            env.render_str("{{ 'string' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "string"
+        );
+        assert_eq!(
+            env.render_str("{{ 'string[]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "string[]"
+        );
+        assert_eq!(
+            env.render_str("{{ 'template[string]' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "string"
+        );
+        assert_eq!(
+            env.render_str("{{ 'something else' | instantiated_type }}", &ctx)
+                .unwrap(),
+            "enum"
+        );
+        assert_eq!(
+            env.render_str(
+                "{{ {allow_custom_values: true, members: []} | instantiated_type }}",
+                &ctx
+            )
+            .unwrap(),
+            "enum"
+        );
+    }
+
+    #[test]
+    fn test_is_simple_type() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str(
+                "{% if 'int' is simple_type %}true{% else %}false{% endif %}",
+                &ctx
+            )
+            .unwrap(),
+            "true"
+        );
+        assert_eq!(
+            env.render_str(
+                "{% if 'int[]' is simple_type %}true{% else %}false{% endif %}",
+                &ctx
+            )
+            .unwrap(),
+            "true"
+        );
+        assert_eq!(
+            env.render_str(
+                "{% if 'template[double]' is simple_type %}true{% else %}false{% endif %}",
+                &ctx
+            )
+            .unwrap(),
+            "false"
+        );
+    }
+
+    #[test]
+    fn test_is_template_type() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str(
+                "{% if 'int' is template_type %}true{% else %}false{% endif %}",
+                &ctx
+            )
+            .unwrap(),
+            "false"
+        );
+        assert_eq!(
+            env.render_str(
+                "{% if 'int[]' is template_type %}true{% else %}false{% endif %}",
+                &ctx
+            )
+            .unwrap(),
+            "false"
+        );
+        assert_eq!(
+            env.render_str(
+                "{% if 'template[double]' is template_type %}true{% else %}false{% endif %}",
+                &ctx
+            )
+            .unwrap(),
+            "true"
+        );
     }
 }
