@@ -3,11 +3,12 @@
 //! Compute stats on a semantic convention registry.
 
 use crate::registry::{
-    load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryArgs,
+    load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, DiagnosticArgs,
+    RegistryArgs,
 };
 use clap::Args;
 use weaver_cache::Cache;
-use weaver_common::error::ExitIfError;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -20,11 +21,19 @@ pub struct RegistryStatsArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
     registry: RegistryArgs,
+
+    /// Parameters to specify the diagnostic format.
+    #[command(flatten)]
+    pub diagnostic: DiagnosticArgs,
 }
 
 /// Compute stats on a semantic convention registry.
 #[cfg(not(tarpaulin_include))]
-pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &RegistryStatsArgs) {
+pub(crate) fn command(
+    logger: impl Logger + Sync + Clone,
+    cache: &Cache,
+    args: &RegistryStatsArgs,
+) -> Result<(), DiagnosticMessages> {
     logger.loading(&format!(
         "Compute statistics on the registry `{}`",
         args.registry.registry
@@ -35,16 +44,16 @@ pub(crate) fn command(logger: impl Logger + Sync + Clone, cache: &Cache, args: &
         semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir);
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs =
-        load_semconv_specs(&registry_path, cache, logger.clone()).exit_if_error(logger.clone());
+    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     display_semconv_registry_stats(&registry);
 
     // Resolve the semantic convention registry.
-    let resolved_schema = resolve_semconv_specs(&mut registry, logger);
+    let resolved_schema = resolve_semconv_specs(&mut registry, logger)?;
 
     display_schema_stats(&resolved_schema);
+    Ok(())
 }
 
 #[cfg(not(tarpaulin_include))]

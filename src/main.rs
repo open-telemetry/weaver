@@ -29,7 +29,7 @@ fn main() {
     let elapsed = start.elapsed();
     println!("Total execution time: {:?}s", elapsed.as_secs_f64());
 
-    // Exit the process with a specific exit code.
+    // Exit the process with the exit code provided by the `run_command` function.
     #[allow(clippy::exit)]
     std::process::exit(exit_code);
 }

@@ -15,7 +15,7 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    RegistryPath,
+    DiagnosticArgs, RegistryPath,
 };
 
 /// Parameters for the `registry generate` sub-command
@@ -51,6 +51,10 @@ pub struct RegistryGenerateArgs {
     /// convention registry before the resolution process.
     #[arg(short = 'b', long)]
     pub before_resolution_policies: Vec<PathBuf>,
+
+    /// Parameters to specify the diagnostic format.
+    #[command(flatten)]
+    pub diagnostic: DiagnosticArgs,
 }
 
 /// Generate artifacts from a semantic convention registry.
@@ -79,7 +83,7 @@ pub(crate) fn command(
         logger.clone(),
     )?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    let schema = resolve_semconv_specs(&mut registry, logger.clone());
+    let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
     let config = GeneratorConfig::new(args.templates.clone());
 
     let engine = TemplateEngine::try_new(&format!("registry/{}", args.target), config)?;

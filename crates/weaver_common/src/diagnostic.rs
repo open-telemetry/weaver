@@ -92,6 +92,15 @@ impl DiagnosticMessages {
     pub fn from_error<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(error: M) -> Self {
         Self(vec![DiagnosticMessage::new(error)])
     }
+
+    /// Returns true if any of the diagnostic messages have an error severity
+    /// level.
+    #[must_use]
+    pub fn has_error(&self) -> bool {
+        self.0
+            .iter()
+            .any(|message| message.diagnostic.severity == Some(Severity::Error))
+    }
 }
 
 impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<T>
@@ -106,7 +115,7 @@ impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use miette::{Diagnostic, diagnostic};
+    use miette::{diagnostic, Diagnostic};
 
     #[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
     #[error("This is a test error")]

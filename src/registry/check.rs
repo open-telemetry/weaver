@@ -2,7 +2,10 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::{check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryPath, RegistryArgs, DiagnosticArgs};
+use crate::registry::{
+    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    DiagnosticArgs, RegistryPath,
+};
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
@@ -61,7 +64,7 @@ pub(crate) fn command(
     )?;
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    _ = resolve_semconv_specs(&mut registry, logger.clone());
+    _ = resolve_semconv_specs(&mut registry, logger.clone())?;
 
     Ok(())
 }
