@@ -61,17 +61,19 @@ pub(crate) fn markdown_to_html(input: &Value) -> String {
 /// the input value with the target value.
 pub(crate) fn map_text(
     text_maps: HashMap<String, HashMap<String, String>>,
-) -> impl Fn(&Value, &str) -> Value {
-    move |input: &Value, mapping_name: &str| -> Value {
+) -> impl Fn(&Value, &str, Option<&str>) -> Value {
+    move |input: &Value, mapping_name: &str, default_value: Option<&str>| -> Value {
         if let Some(input_as_str) = input.as_str() {
             if let Some(target_text) = text_maps
                 .get(mapping_name)
                 .and_then(|mapping| mapping.get(input_as_str))
             {
-                Value::from(target_text.as_str())
-            } else {
-                input.to_owned()
+                return Value::from(target_text.as_str());
             }
+        }
+
+        if let Some(default) = default_value {
+            Value::from(default)
         } else {
             input.to_owned()
         }
@@ -152,6 +154,9 @@ This also covers UDP network interactions where one side initiates the interacti
 
     #[test]
     fn test_map_text() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
         let rust_mapping = vec![
             ("string".to_owned(), "String".to_owned()),
             ("int".to_owned(), "i64".to_owned()),
@@ -164,7 +169,7 @@ This also covers UDP network interactions where one side initiates the interacti
             ("double".to_owned(), "double".to_owned()),
             ("boolean".to_owned(), "boolean".to_owned()),
         ];
-        let text_maps = vec![
+        let text_maps: HashMap<String, HashMap<String, String>> = vec![
             (
                 "rust".to_owned(),
                 rust_mapping
@@ -177,42 +182,89 @@ This also covers UDP network interactions where one side initiates the interacti
                     .into_iter()
                     .collect::<HashMap<String, String>>(),
             ),
-        ];
+        ]
+        .into_iter()
+        .collect();
 
-        let filter = map_text(text_maps.into_iter().collect());
+        env.add_filter("map_text", map_text(text_maps));
 
         // Test with the `rust` mapping
-        assert_eq!(filter(&Value::from("int"), "rust"), Value::from("i64"));
-        assert_eq!(filter(&Value::from("double"), "rust"), Value::from("f64"));
         assert_eq!(
-            filter(&Value::from("string"), "rust"),
-            Value::from("String")
+            env.render_str("{{ 'int' | map_text('rust') }}", &ctx)
+                .unwrap(),
+            "i64"
         );
-        assert_eq!(filter(&Value::from("boolean"), "rust"), Value::from("bool"));
         assert_eq!(
-            filter(&Value::from("something else"), "rust"),
-            Value::from("something else")
+            env.render_str("{{ 'double' | map_text('rust') }}", &ctx)
+                .unwrap(),
+            "f64"
         );
-        assert_eq!(filter(&Value::from(12), "rust"), Value::from(12));
+        assert_eq!(
+            env.render_str("{{ 'string' | map_text('rust') }}", &ctx)
+                .unwrap(),
+            "String"
+        );
+        assert_eq!(
+            env.render_str("{{ 'boolean' | map_text('rust') }}", &ctx)
+                .unwrap(),
+            "bool"
+        );
+        assert_eq!(
+            env.render_str("{{ 'something else' | map_text('rust') }}", &ctx)
+                .unwrap(),
+            "something else"
+        );
+        assert_eq!(
+            env.render_str("{{ 12 | map_text('rust') }}", &ctx).unwrap(),
+            "12"
+        );
 
         // Test with the `java` mapping
-        assert_eq!(filter(&Value::from("int"), "java"), Value::from("int"));
         assert_eq!(
-            filter(&Value::from("double"), "java"),
-            Value::from("double")
+            env.render_str("{{ 'int' | map_text('java') }}", &ctx)
+                .unwrap(),
+            "int"
         );
         assert_eq!(
-            filter(&Value::from("string"), "java"),
-            Value::from("String")
+            env.render_str("{{ 'double' | map_text('java') }}", &ctx)
+                .unwrap(),
+            "double"
         );
         assert_eq!(
-            filter(&Value::from("boolean"), "java"),
-            Value::from("boolean")
+            env.render_str("{{ 'string' | map_text('java') }}", &ctx)
+                .unwrap(),
+            "String"
         );
         assert_eq!(
-            filter(&Value::from("something else"), "java"),
-            Value::from("something else")
+            env.render_str("{{ 'boolean' | map_text('java') }}", &ctx)
+                .unwrap(),
+            "boolean"
         );
-        assert_eq!(filter(&Value::from(12), "java"), Value::from(12));
+        assert_eq!(
+            env.render_str("{{ 'something else' | map_text('java') }}", &ctx)
+                .unwrap(),
+            "something else"
+        );
+        assert_eq!(
+            env.render_str("{{ 12 | map_text('java') }}", &ctx).unwrap(),
+            "12"
+        );
+
+        // Test default value
+        assert_eq!(
+            env.render_str("{{ 'int' | map_text('java', 'enum') }}", &ctx)
+                .unwrap(),
+            "int"
+        );
+        assert_eq!(
+            env.render_str("{{ 'int' | map_text('unknown', 'enum') }}", &ctx)
+                .unwrap(),
+            "enum"
+        );
+        assert_eq!(
+            env.render_str("{{ 'something else' | map_text('java', 'enum') }}", &ctx)
+                .unwrap(),
+            "enum"
+        );
     }
 }
