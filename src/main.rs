@@ -26,8 +26,10 @@ fn main() {
         run_command(&cli, log)
     };
 
-    let elapsed = start.elapsed();
-    println!("Total execution time: {:?}s", elapsed.as_secs_f64());
+    if !cli.quiet {
+        let elapsed = start.elapsed();
+        println!("Total execution time: {:?}s", elapsed.as_secs_f64());
+    }
 
     // Exit the process with the exit code provided by the `run_command` function.
     #[allow(clippy::exit)]

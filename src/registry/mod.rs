@@ -16,7 +16,7 @@ use weaver_checker::{Engine, Error, PolicyPackage};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
-use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_forge::{GeneratorConfig, OutputDirective, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
@@ -174,7 +174,7 @@ fn process_diagnostics(
         let config = GeneratorConfig::new(diagnostic_args.diagnostic_template);
         match TemplateEngine::try_new(&diagnostic_args.diagnostic_format, config) {
             Ok(engine) => {
-                match engine.generate(logger.clone(), &diag_msgs, PathBuf::new().as_path()) {
+                match engine.generate(logger.clone(), &diag_msgs, PathBuf::new().as_path(), &OutputDirective::Stdout) {
                     Ok(_) => {}
                     Err(e) => {
                         logger.error(&format!(

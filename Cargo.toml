@@ -72,6 +72,9 @@ walkdir.workspace = true
 
 rayon = "1.10.0"
 
+[dev-dependencies]
+assert_cmd = "2.0.14"
+
 [profile.release]
 lto = true
 strip = true

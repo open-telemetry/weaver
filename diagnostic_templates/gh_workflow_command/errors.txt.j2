@@ -1,4 +1,3 @@
-{{- template.set_output_type("stdout") }}
 {%- set policy_violations = ctx | selectattr("error.type", "equalto", "policy_violation") | list %}
 {%- set other_diagnostics = ctx | rejectattr("error.type", "equalto", "policy_violation") | list %}
 

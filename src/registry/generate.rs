@@ -10,7 +10,7 @@ use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
-use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_forge::{GeneratorConfig, OutputDirective, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{
@@ -95,7 +95,7 @@ pub(crate) fn command(
         schema.catalog(),
     )?;
 
-    engine.generate(logger.clone(), &template_registry, args.output.as_path())?;
+    engine.generate(logger.clone(), &template_registry, args.output.as_path(), &OutputDirective::File)?;
 
     logger.success("Artifacts generated successfully");
     Ok(())

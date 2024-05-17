@@ -26,7 +26,11 @@ pub mod violation;
 pub enum Error {
     /// An invalid policy.
     #[error("Invalid policy file '{file}', error: {error})")]
-    #[diagnostic()]
+    #[diagnostic(
+        severity = "error",
+        url("https://www.openpolicyagent.org/docs/latest/policy-language/"),
+        help("Check the policy file for syntax errors."),
+    )]
     InvalidPolicyFile {
         /// The file that caused the error.
         file: String,
@@ -36,7 +40,11 @@ pub enum Error {
 
     /// An invalid policy glob pattern.
     #[error("Invalid policy glob pattern '{pattern}', error: {error})")]
-    #[diagnostic()]
+    #[diagnostic(
+        severity = "error",
+        url("https://docs.rs/globset/latest/globset/"),
+        help("Check the glob pattern for syntax errors."),
+    )]
     InvalidPolicyGlobPattern {
         /// The glob pattern that caused the error.
         pattern: String,
@@ -62,7 +70,9 @@ pub enum Error {
 
     /// Violation evaluation error.
     #[error("Violation evaluation error: {error}")]
-    #[diagnostic()]
+    #[diagnostic(
+        severity = "error",
+    )]
     ViolationEvaluationError {
         /// The error that occurred.
         error: String,
@@ -70,7 +80,9 @@ pub enum Error {
 
     /// A policy violation error.
     #[error("Policy violation: {violation}, provenance: {provenance}")]
-    #[diagnostic()]
+    #[diagnostic(
+        severity = "error",
+    )]
     PolicyViolation {
         /// The provenance of the violation (URL or path).
         provenance: String,

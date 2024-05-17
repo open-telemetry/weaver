@@ -2,15 +2,15 @@
 
 #![doc = include_str!("../README.md")]
 
+use std::{fs, io};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::{fs, io};
 
+use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
-use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -27,9 +27,9 @@ use weaver_common::Logger;
 use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
+use crate::extensions::{ansi, code};
 use crate::extensions::acronym::acronym;
 use crate::extensions::case_converter::case_converter;
-use crate::extensions::{ansi, code};
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -65,9 +65,9 @@ impl GeneratorConfig {
     }
 }
 
-/// The type of output where the generated content will be written.
+/// Enumeration defining where the output of program execution should be directed.
 #[derive(Debug, Clone)]
-pub enum OutputType {
+pub enum OutputDirective {
     /// Write the generated content to the standard output.
     Stdout,
     /// Write the generated content to the standard error.
@@ -80,7 +80,6 @@ pub enum OutputType {
 #[derive(Debug, Clone)]
 struct TemplateObject {
     file_name: Arc<Mutex<String>>,
-    output_type: Arc<Mutex<OutputType>>,
 }
 
 impl TemplateObject {
@@ -107,23 +106,8 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name,): (&str,) = from_args(args)?;
+            let (file_name, ): (&str, ) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
-            Ok(Value::from(""))
-        } else if name == "set_output_type" {
-            let (output_type,): (&str,) = from_args(args)?;
-            let output_type = match output_type {
-                "stdout" => OutputType::Stdout,
-                "stderr" => OutputType::Stderr,
-                "file" => OutputType::File,
-                _ => {
-                    return Err(minijinja::Error::new(
-                        ErrorKind::UnknownMethod,
-                        format!("unknown output type: {output_type}"),
-                    ));
-                }
-            };
-            output_type.clone_into(&mut self.output_type.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
             Err(minijinja::Error::new(
@@ -239,6 +223,7 @@ impl TemplateEngine {
         log: impl Logger + Clone + Sync,
         context: &T,
         output_dir: &Path,
+        output_directive: &OutputDirective,
     ) -> Result<(), Error> {
         // List all files in the target directory and its subdirectories
         let files: Vec<DirEntry> = WalkDir::new(self.path.clone())
@@ -295,9 +280,10 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                .try_into()
-                                .ok()?,
+                                    .try_into()
+                                    .ok()?,
                                 relative_path,
+                                output_directive,
                                 output_dir,
                             ) {
                                 return Some(e);
@@ -315,6 +301,7 @@ impl TemplateEngine {
                                             log.clone(),
                                             NewContext { ctx: result }.try_into().ok()?,
                                             relative_path,
+                                            output_directive,
                                             output_dir,
                                         ) {
                                             return Some(e);
@@ -330,9 +317,10 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                .try_into()
-                                .ok()?,
+                                    .try_into()
+                                    .ok()?,
                                 relative_path,
+                                output_directive,
                                 output_dir,
                             ) {
                                 return Some(e);
@@ -354,13 +342,11 @@ impl TemplateEngine {
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
         template_path: &Path,
+        output_directive: &OutputDirective,
         output_dir: &Path,
     ) -> Result<(), Error> {
         let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(
-                template_path.to_str().unwrap_or_default().to_owned(),
-            )),
-            output_type: Arc::new(Mutex::new(OutputType::File)),
+            file_name: Arc::new(Mutex::new("".to_owned())),
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
@@ -391,19 +377,14 @@ impl TemplateEngine {
                 error_id: e.to_string(),
                 error: error_summary(e),
             })?;
-        match template_object
-            .output_type
-            .lock()
-            .expect("Lock poisoned")
-            .clone()
-        {
-            OutputType::Stdout => {
+        match output_directive {
+            OutputDirective::Stdout => {
                 println!("{}", output);
             }
-            OutputType::Stderr => {
+            OutputDirective::Stderr => {
                 eprintln!("{}", output);
             }
-            OutputType::File => {
+            OutputDirective::File => {
                 let generated_file =
                     Self::save_generated_code(output_dir, template_object.file_name(), output)?;
                 log.success(&format!("Generated file {:?}", generated_file));
@@ -557,7 +538,7 @@ fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
                 ErrorKind::InvalidOperation,
                 "could not read template",
             )
-            .with_source(err)),
+                .with_source(err)),
         }
     }
 }
@@ -629,7 +610,7 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
 mod tests {
     use std::collections::HashSet;
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use globset::Glob;
     use walkdir::WalkDir;
@@ -642,6 +623,7 @@ mod tests {
     use crate::config::{ApplicationMode, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::filter::Filter;
+    use crate::OutputDirective;
     use crate::registry::TemplateRegistry;
 
     #[test]
@@ -791,18 +773,19 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
 
         engine
             .generate(
                 logger.clone(),
                 &template_registry,
                 Path::new("observed_output"),
+                &OutputDirective::File(PathBuf::from("observed_output")),
             )
             .inspect_err(|e| {
                 print_dedup_errors(logger.clone(), e.clone());

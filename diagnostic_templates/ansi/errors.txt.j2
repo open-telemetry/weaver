@@ -1,5 +1,3 @@
-{{- template.set_output_type("stdout") }}
-
 {{ "Diagnostic report" | ansi_bold | ansi_red }}:
 {% for item in ctx %}
 {%- if item.error.type == "policy_violation" %}
