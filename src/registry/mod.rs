@@ -12,7 +12,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use check::RegistryCheckArgs;
 use weaver_cache::Cache;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
-use weaver_checker::{Engine, Error, PolicyPackage};
+use weaver_checker::{Engine, Error, PolicyStage};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
@@ -287,7 +287,7 @@ pub fn check_policy(
             let mut errors = vec![];
 
             match policy_engine.set_input(semconv) {
-                Ok(_) => match policy_engine.check(PolicyPackage::BeforeResolution) {
+                Ok(_) => match policy_engine.check(PolicyStage::BeforeResolution) {
                     Ok(violations) => {
                         for violation in violations {
                             errors.push(PolicyViolation {

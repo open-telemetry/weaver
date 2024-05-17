@@ -335,8 +335,8 @@ impl TemplateEngine {
         handle_errors(errs)
     }
 
-    #[allow(clippy::print_stdout)] // This is a CLI tool, so it's fine to print to stdout
-    #[allow(clippy::print_stderr)] // This is a CLI tool, so it's fine to print to stderr
+    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
+    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
     fn evaluate_template(
         &self,
         log: impl Logger + Clone + Sync,
@@ -345,6 +345,7 @@ impl TemplateEngine {
         output_directive: &OutputDirective,
         output_dir: &Path,
     ) -> Result<(), Error> {
+        // By default, the file name is the template file name without the extension ".j2"
         let file_name = template_path
             .file_name()
             .unwrap_or_default()

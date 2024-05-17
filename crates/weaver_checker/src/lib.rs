@@ -113,22 +113,22 @@ impl WeaverError<Error> for Error {
     }
 }
 
-/// A list of supported policy packages.
-pub enum PolicyPackage {
+/// A list of supported policy stages.
+pub enum PolicyStage {
     /// Policies that are evaluated before resolution.
     BeforeResolution,
     /// Policies that are evaluated after resolution.
     AfterResolution,
 }
 
-impl Display for PolicyPackage {
-    /// Returns the name of the policy package.
+impl Display for PolicyStage {
+    /// Returns the name of the policy stage.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PolicyPackage::BeforeResolution => {
+            PolicyStage::BeforeResolution => {
                 write!(f, "before_resolution")
             }
-            PolicyPackage::AfterResolution => {
+            PolicyStage::AfterResolution => {
                 write!(f, "after_resolution")
             }
         }
@@ -273,11 +273,11 @@ impl Engine {
     }
 
     /// Returns a list of violations based on the policies, the data, the
-    /// input, and the given package.
-    pub fn check(&mut self, package: PolicyPackage) -> Result<Vec<Violation>, Error> {
+    /// input, and the given policy stage.
+    pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<Violation>, Error> {
         let value = self
             .engine
-            .eval_rule(format!("data.{}.deny", package))
+            .eval_rule(format!("data.{}.deny", stage))
             .map_err(|e| Error::ViolationEvaluationError {
                 error: e.to_string(),
             })?;
@@ -306,7 +306,7 @@ mod tests {
     use weaver_common::error::format_errors;
 
     use crate::violation::Violation;
-    use crate::{Engine, Error, PolicyPackage};
+    use crate::{Engine, Error, PolicyStage};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -345,7 +345,7 @@ mod tests {
         .map(|v| (v.id().to_owned(), v))
         .collect();
 
-        let violations = engine.check(PolicyPackage::BeforeResolution)?;
+        let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
 
         for violation in violations {
@@ -381,7 +381,7 @@ mod tests {
         let new_semconv: Value = serde_yaml::from_str(&new_semconv).unwrap();
         engine.set_input(&new_semconv).unwrap();
 
-        let result = engine.check(PolicyPackage::BeforeResolution);
+        let result = engine.check(PolicyStage::BeforeResolution);
         assert!(result.is_err());
 
         let observed_errors = format_errors(&[result.unwrap_err()]);
@@ -430,7 +430,7 @@ mod tests {
         .map(|v| (v.id().to_owned(), v))
         .collect();
 
-        let violations = engine.check(PolicyPackage::BeforeResolution)?;
+        let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
 
         for violation in violations {
