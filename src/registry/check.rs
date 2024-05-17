@@ -31,7 +31,7 @@ pub struct RegistryCheckArgs {
 
     /// Optional list of policy files to check against the files of the semantic
     /// convention registry.
-    #[arg(short = 'p', long)]
+    #[arg(short = 'p', long = "policy")]
     pub policies: Vec<PathBuf>,
 
     /// Parameters to specify the diagnostic format.

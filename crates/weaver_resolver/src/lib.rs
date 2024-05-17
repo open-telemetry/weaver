@@ -39,10 +39,7 @@ pub struct SchemaResolver {}
 pub enum Error {
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
-    #[diagnostic(
-        severity = "error",
-        help("Check the URL and try again.")
-    )]
+    #[diagnostic(severity = "error", help("Check the URL and try again."))]
     InvalidUrl {
         /// The invalid URL.
         url: String,

@@ -29,7 +29,7 @@ pub enum Error {
     #[diagnostic(
         severity = "error",
         url("https://www.openpolicyagent.org/docs/latest/policy-language/"),
-        help("Check the policy file for syntax errors."),
+        help("Check the policy file for syntax errors.")
     )]
     InvalidPolicyFile {
         /// The file that caused the error.
@@ -43,7 +43,7 @@ pub enum Error {
     #[diagnostic(
         severity = "error",
         url("https://docs.rs/globset/latest/globset/"),
-        help("Check the glob pattern for syntax errors."),
+        help("Check the glob pattern for syntax errors.")
     )]
     InvalidPolicyGlobPattern {
         /// The glob pattern that caused the error.
@@ -70,9 +70,7 @@ pub enum Error {
 
     /// Violation evaluation error.
     #[error("Violation evaluation error: {error}")]
-    #[diagnostic(
-        severity = "error",
-    )]
+    #[diagnostic(severity = "error")]
     ViolationEvaluationError {
         /// The error that occurred.
         error: String,
@@ -80,9 +78,7 @@ pub enum Error {
 
     /// A policy violation error.
     #[error("Policy violation: {violation}, provenance: {provenance}")]
-    #[diagnostic(
-        severity = "error",
-    )]
+    #[diagnostic(severity = "error")]
     PolicyViolation {
         /// The provenance of the violation (URL or path).
         provenance: String,

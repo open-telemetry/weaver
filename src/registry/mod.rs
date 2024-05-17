@@ -45,12 +45,38 @@ pub struct RegistryCommand {
 
 /// Sub-commands to manage a `registry`.
 #[derive(Debug, Subcommand)]
+#[clap(verbatim_doc_comment)]
 pub enum RegistrySubCommand {
-    /// Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints).
+    /// Validates a semantic convention registry.
+    ///
+    /// The validation process for a semantic convention registry involves several steps:
+    /// - Loading the semantic convention specifications from a local directory or a git repository.
+    /// - Parsing the loaded semantic convention specifications.
+    /// - Resolving references, extends clauses, and constraints within the specifications.
+    /// - Checking compliance with specified Rego policies, if provided.
+    ///
+    /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
+    ///
+    /// The process exits with a code of 0 if the registry validation is successful.
+    #[clap(verbatim_doc_comment)]
     Check(RegistryCheckArgs),
-    /// Generates artifacts from a registry.
+    /// Generates artifacts from a semantic convention registry.
+    ///
+    /// Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+    ///
+    /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
+    ///
+    /// The process exits with a code of 0 if the generation is successful.
+    #[clap(verbatim_doc_comment)]
     Generate(RegistryGenerateArgs),
-    /// Resolves a registry.
+    /// Resolves a semantic convention registry.
+    ///
+    /// Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+    ///
+    /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
+    ///
+    /// The process exits with a code of 0 if the resolution is successful.
+    #[clap(verbatim_doc_comment)]
     Resolve(RegistryResolveArgs),
     /// Searches a registry (not yet implemented).
     Search(RegistrySearchArgs),
@@ -174,7 +200,12 @@ fn process_diagnostics(
         let config = GeneratorConfig::new(diagnostic_args.diagnostic_template);
         match TemplateEngine::try_new(&diagnostic_args.diagnostic_format, config) {
             Ok(engine) => {
-                match engine.generate(logger.clone(), &diag_msgs, PathBuf::new().as_path(), &OutputDirective::Stdout) {
+                match engine.generate(
+                    logger.clone(),
+                    &diag_msgs,
+                    PathBuf::new().as_path(),
+                    &OutputDirective::Stdout,
+                ) {
                     Ok(_) => {}
                     Err(e) => {
                         logger.error(&format!(

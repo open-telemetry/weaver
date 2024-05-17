@@ -13,7 +13,10 @@ use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, DiagnosticArgs, RegistryArgs, check_policies};
+use crate::registry::{
+    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    DiagnosticArgs, RegistryArgs,
+};
 
 /// Supported output formats for the resolved schema
 #[derive(Debug, Clone, ValueEnum)]
@@ -55,7 +58,7 @@ pub struct RegistryResolveArgs {
 
     /// Optional list of policy files to check against the files of the semantic
     /// convention registry.
-    #[arg(short = 'p', long)]
+    #[arg(short = 'p', long = "policy")]
     pub policies: Vec<PathBuf>,
 
     /// Parameters to specify the diagnostic format.

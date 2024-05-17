@@ -19,51 +19,113 @@ Options:
 ## registry check
 
 ```
-Validates a registry (i.e., parsing, resolution of references, extends clauses, and constraints)
+Validates a semantic convention registry.
+
+The validation process for a semantic convention registry involves several steps:
+- Loading the semantic convention specifications from a local directory or a git repository.
+- Parsing the loaded semantic convention specifications.
+- Resolving references, extends clauses, and constraints within the specifications.
+- Checking compliance with specified Rego policies, if provided.
+
+Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
+
+The process exits with a code of 0 if the registry validation is successful.
 
 Usage: weaver registry check [OPTIONS]
 
 Options:
   -r, --registry <REGISTRY>
-          Local path or Git URL of the semantic convention registry to check [default: https://github.com/open-telemetry/semantic-conventions.git]
-  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
-          Optional path in the Git repository where the semantic convention registry is located [default: model]
-  -b, --before-resolution-policies <BEFORE_RESOLUTION_POLICIES>
-          Optional list of policy files to check against the files of the semantic convention registry before the resolution process
-  -h, --help
-          Print help
-```
+          Local path or Git URL of the semantic convention registry to check
 
-> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
-> registry is a Git URL otherwise these options are ignored.
+          [default: https://github.com/open-telemetry/semantic-conventions.git]
+
+  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
+          Optional path in the Git repository where the semantic convention registry is located
+
+          [default: model]
+
+  -p, --policy <POLICIES>
+          Optional list of policy files to check against the files of the semantic convention registry
+
+      --diagnostic-format <DIAGNOSTIC_FORMAT>
+          Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+          [default: ansi]
+
+      --diagnostic-template <DIAGNOSTIC_TEMPLATE>
+          Path to the directory where the diagnostic templates are located
+
+          [default: diagnostic_templates]
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
 
 ## registry generate
 
 ```
-Generates artifacts from a registry
+Generates artifacts from a semantic convention registry.
+
+Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+
+Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
+
+The process exits with a code of 0 if the generation is successful.
 
 Usage: weaver registry generate [OPTIONS] <TARGET> [OUTPUT]
 
 Arguments:
-  <TARGET>  Target to generate the artifacts for
-  [OUTPUT]  Path to the directory where the generated artifacts will be saved. Default is the `output` directory [default: output]
+  <TARGET>
+          Target to generate the artifacts for
+
+  [OUTPUT]
+          Path to the directory where the generated artifacts will be saved. Default is the `output` directory
+
+          [default: output]
 
 Options:
   -t, --templates <TEMPLATES>
-          Path to the directory where the templates are located. Default is the `templates` directory [default: templates]
-  -r, --registry <REGISTRY>
-          Local path or Git URL of the semantic convention registry [default: https://github.com/open-telemetry/semantic-conventions.git]
-  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
-          Optional path in the Git repository where the semantic convention registry is located [default: model]
-```
+          Path to the directory where the templates are located. Default is the `templates` directory
 
-> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
-> registry is a Git URL otherwise these options are ignored.
+          [default: templates]
+
+  -r, --registry <REGISTRY>
+          Local path or Git URL of the semantic convention registry
+
+          [default: https://github.com/open-telemetry/semantic-conventions.git]
+
+  -d, --registry-git-sub-dir <REGISTRY_GIT_SUB_DIR>
+          Optional path in the Git repository where the semantic convention registry is located
+
+          [default: model]
+
+  -p, --policy <POLICIES>
+          Optional list of policy files to check against the files of the semantic convention registry
+
+      --diagnostic-format <DIAGNOSTIC_FORMAT>
+          Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+          [default: ansi]
+
+      --diagnostic-template <DIAGNOSTIC_TEMPLATE>
+          Path to the directory where the diagnostic templates are located
+
+          [default: diagnostic_templates]
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
 
 ## registry resolve
 
 ```
-Resolves a registry
+Resolves a semantic convention registry.
+
+Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+
+Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
+
+The process exits with a code of 0 if the resolution is successful.
 
 Usage: weaver registry resolve [OPTIONS]
 
@@ -95,10 +157,23 @@ Options:
           Possible values:
           - yaml: YAML format
           - json: JSON format
-```
 
-> Note: The `-d` and `--registry-git-sub-dir` options are only used when the
-> registry is a Git URL otherwise these options are ignored.
+  -p, --policy <POLICIES>
+          Optional list of policy files to check against the files of the semantic convention registry
+
+      --diagnostic-format <DIAGNOSTIC_FORMAT>
+          Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+          [default: ansi]
+
+      --diagnostic-template <DIAGNOSTIC_TEMPLATE>
+          Path to the directory where the diagnostic templates are located
+
+          [default: diagnostic_templates]
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
 
 ## registry update-markdown
 

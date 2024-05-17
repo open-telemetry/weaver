@@ -1,23 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Test the registry check command.
+//! Test the registry generate command.
 
 use assert_cmd::Command;
 
 #[test]
-fn test_registry_check() {
-    // Test OTel official semantic convention registry.
-    // This test requires internet access to fetch the registry.
-    // This registry should always be valid!
+fn test_registry_generate() {
     let mut cmd = Command::cargo_bin("weaver").unwrap();
     let output = cmd
         .arg("registry")
-        .arg("check")
+        .arg("generate")
         .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");
 
-    assert!(output.status.success());
+    // The target and the output directory are not provided, so the command should fail.
+    assert!(!output.status.success());
 
     // Test a local semantic convention registry.
     // There are policy violations in this registry.
@@ -26,11 +24,15 @@ fn test_registry_check() {
     let output = cmd
         .arg("--quiet")
         .arg("registry")
-        .arg("check")
+        .arg("generate")
         .arg("-r")
         .arg("crates/weaver_codegen_test/semconv_registry/")
+        .arg("-t")
+        .arg("crates/weaver_codegen_test/templates/")
         .arg("--diagnostic-format")
         .arg("json")
+        .arg("rust")
+        .arg("output/")
         .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");

@@ -2,15 +2,15 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::{fs, io};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display, Formatter};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
-use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
+use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -27,9 +27,9 @@ use weaver_common::Logger;
 use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
-use crate::extensions::{ansi, code};
 use crate::extensions::acronym::acronym;
 use crate::extensions::case_converter::case_converter;
+use crate::extensions::{ansi, code};
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -106,7 +106,7 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name, ): (&str, ) = from_args(args)?;
+            let (file_name,): (&str,) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
@@ -280,8 +280,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path,
                                 output_directive,
                                 output_dir,
@@ -317,8 +317,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path,
                                 output_directive,
                                 output_dir,
@@ -345,8 +345,14 @@ impl TemplateEngine {
         output_directive: &OutputDirective,
         output_dir: &Path,
     ) -> Result<(), Error> {
+        let file_name = template_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .trim_end_matches(".j2")
+            .to_owned();
         let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new("".to_owned())),
+            file_name: Arc::new(Mutex::new(file_name)),
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
@@ -356,7 +362,7 @@ impl TemplateEngine {
 
         engine.add_global("template", Value::from_object(template_object.clone()));
 
-        log.loading(&format!("Generating file {}", template_file));
+        log.loading(&format!("Rendering template {}", template_file));
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -538,7 +544,7 @@ fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
                 ErrorKind::InvalidOperation,
                 "could not read template",
             )
-                .with_source(err)),
+            .with_source(err)),
         }
     }
 }
@@ -610,7 +616,7 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
 mod tests {
     use std::collections::HashSet;
     use std::fs;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use globset::Glob;
     use walkdir::WalkDir;
@@ -623,8 +629,8 @@ mod tests {
     use crate::config::{ApplicationMode, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::filter::Filter;
-    use crate::OutputDirective;
     use crate::registry::TemplateRegistry;
+    use crate::OutputDirective;
 
     #[test]
     fn test_case_converter() {
@@ -773,19 +779,19 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         engine
             .generate(
                 logger.clone(),
                 &template_registry,
                 Path::new("observed_output"),
-                &OutputDirective::File(PathBuf::from("observed_output")),
+                &OutputDirective::File,
             )
             .inspect_err(|e| {
                 print_dedup_errors(logger.clone(), e.clone());
