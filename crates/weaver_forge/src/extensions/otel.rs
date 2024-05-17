@@ -3,6 +3,7 @@
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
 use itertools::Itertools;
+use minijinja::value::ValueKind;
 use minijinja::{ErrorKind, Value};
 use serde::de::Error;
 
@@ -22,12 +23,15 @@ pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("required", required);
     env.add_filter("not_required", not_required);
     env.add_filter("instantiated_type", instantiated_type);
+    env.add_filter("enum_type", enum_type);
 
     env.add_test("stable", is_stable);
     env.add_test("experimental", is_experimental);
     env.add_test("deprecated", is_deprecated);
+    env.add_test("enum", is_enum);
     env.add_test("simple_type", is_simple_type);
     env.add_test("template_type", is_template_type);
+    env.add_test("enum_type", is_enum_type);
 }
 
 /// Filters the input value to only include the required "object".
@@ -214,7 +218,7 @@ pub(crate) fn attribute_sort(input: Value) -> Result<Value, minijinja::Error> {
 /// Checks if the input value is an object with a field named "stability" that has the value "stable".
 /// Otherwise, it returns false.
 #[must_use]
-pub(crate) fn is_stable(input: Value) -> bool {
+pub(crate) fn is_stable(input: &Value) -> bool {
     let result = input.get_attr("stability");
 
     if let Ok(stability) = result {
@@ -228,7 +232,7 @@ pub(crate) fn is_stable(input: Value) -> bool {
 /// Checks if the input value is an object with a field named "stability" that has the value
 /// "experimental". Otherwise, it returns false.
 #[must_use]
-pub(crate) fn is_experimental(input: Value) -> bool {
+pub(crate) fn is_experimental(input: &Value) -> bool {
     let result = input.get_attr("stability");
 
     if let Ok(stability) = result {
@@ -242,7 +246,7 @@ pub(crate) fn is_experimental(input: Value) -> bool {
 /// Checks if the input value is an object with a field named "stability" that has the value "deprecated".
 /// Otherwise, it returns false.
 #[must_use]
-pub(crate) fn is_deprecated(input: Value) -> bool {
+pub(crate) fn is_deprecated(input: &Value) -> bool {
     let result = input.get_attr("deprecated");
 
     if let Ok(deprecated) = result {
@@ -253,22 +257,73 @@ pub(crate) fn is_deprecated(input: Value) -> bool {
     false
 }
 
-/// Convert the following python code to Rust:
-pub(crate) fn instantiated_type(attr_type: Value) -> String {
-    if is_template_type(&attr_type) {
+/// Returns the instantiated type of the input type.
+pub(crate) fn instantiated_type(attr_type: &Value) -> Result<String, minijinja::Error> {
+    if is_simple_type(attr_type) {
+        return Ok(attr_type
+            .as_str()
+            .expect("should never happen, already tested in is_template_type")
+            .to_owned());
+    }
+    if is_template_type(attr_type) {
         let attr_type = attr_type
             .as_str()
             .expect("should never happen, already tested in is_template_type");
         let end = attr_type.len() - TEMPLATE_SUFFIX.len();
-        return attr_type[TEMPLATE_PREFIX.len()..end].to_owned();
+        return Ok(attr_type[TEMPLATE_PREFIX.len()..end].to_owned());
     }
-    if is_simple_type(&attr_type) {
-        return attr_type
-            .as_str()
-            .expect("should never happen, already tested in is_template_type")
-            .to_owned();
+    if is_enum_type(attr_type) {
+        return enum_type(attr_type);
     }
-    "enum".to_owned()
+    Err(minijinja::Error::custom(format!(
+        "Expected simple type, template type, or enum type, found {}",
+        attr_type
+    )))
+}
+
+/// Returns the inferred enum type of the input type or an error if the input type is not an enum.
+pub(crate) fn enum_type(attr_type: &Value) -> Result<String, minijinja::Error> {
+    if let Ok(members) = attr_type.get_attr("members") {
+        // Infer the enum type from the members.
+        let mut inferred_type: Option<String> = None;
+        for member in members.try_iter()? {
+            let value = member.get_attr("value")?;
+            let member_type = match value.kind() {
+                ValueKind::Number => {
+                    if value.as_i64().is_some() {
+                        "int"
+                    } else {
+                        "double"
+                    }
+                }
+                ValueKind::String => "string",
+                _ => {
+                    return Err(minijinja::Error::custom(format!(
+                        "Enum values are expected to be int, double, or string, found {}",
+                        value
+                    )));
+                }
+            };
+            inferred_type = match inferred_type {
+                Some(current_inferred_type) => {
+                    if current_inferred_type != member_type {
+                        // If the inferred type is different from the member type, then the enum
+                        // type is "promoted" to a string.
+                        Some("string".to_owned())
+                    } else {
+                        Some(current_inferred_type)
+                    }
+                }
+                None => Some(member_type.to_owned()),
+            };
+        }
+
+        return inferred_type.ok_or_else(|| minijinja::Error::custom("Empty enum type"));
+    }
+    Err(minijinja::Error::custom(format!(
+        "Expected enum type, found {}",
+        attr_type
+    )))
 }
 
 /// Returns true if the input type is a simple type.
@@ -303,6 +358,26 @@ pub(crate) fn is_template_type(attr_type: &Value) -> bool {
     false
 }
 
+/// Returns true if the input type is an enum type.
+pub(crate) fn is_enum_type(attr_type: &Value) -> bool {
+    // Check the presence of the "members" field.
+    if let Ok(v) = attr_type.get_attr("members") {
+        // Returns true if the "members" field is defined.
+        return !v.is_undefined();
+    }
+    false
+}
+
+/// Returns true if the input attribute has an enum type.
+pub(crate) fn is_enum(attr: &Value) -> bool {
+    // Check presence of the "type" field.
+    let attr_type = attr.get_attr("type");
+    if let Ok(attr_type) = attr_type {
+        return is_enum_type(&attr_type);
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
@@ -310,12 +385,13 @@ mod tests {
 
     use minijinja::value::Object;
     use minijinja::{Environment, Value};
+    use serde::Serialize;
 
     use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::attribute::AttributeType;
     use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
+    use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
 
     use crate::extensions::otel::{
         add_tests_and_filters, attribute_registry_file, attribute_registry_namespace,
@@ -447,7 +523,7 @@ mod tests {
             stability: "stable".to_owned(),
             deprecated: None,
         });
-        assert!(is_stable(attr));
+        assert!(is_stable(&attr));
 
         // An attribute with stability "deprecated"
         let attr = Value::from_object(DynAttr {
@@ -456,14 +532,14 @@ mod tests {
             stability: "deprecated".to_owned(),
             deprecated: None,
         });
-        assert!(!is_stable(attr));
+        assert!(!is_stable(&attr));
 
         // An object without a stability field
         let object = Value::from_object(DynSomethingElse {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
-        assert!(!is_stable(object));
+        assert!(!is_stable(&object));
     }
 
     #[test]
@@ -475,7 +551,7 @@ mod tests {
             stability: "experimental".to_owned(),
             deprecated: None,
         });
-        assert!(is_experimental(attr));
+        assert!(is_experimental(&attr));
 
         // An attribute with stability "stable"
         let attr = Value::from_object(DynAttr {
@@ -484,14 +560,14 @@ mod tests {
             stability: "stable".to_owned(),
             deprecated: None,
         });
-        assert!(!is_experimental(attr));
+        assert!(!is_experimental(&attr));
 
         // An object without a stability field
         let object = Value::from_object(DynSomethingElse {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
-        assert!(!is_experimental(object));
+        assert!(!is_experimental(&object));
     }
 
     #[test]
@@ -503,7 +579,7 @@ mod tests {
             stability: "experimental".to_owned(),
             deprecated: Some("This is deprecated".to_owned()),
         });
-        assert!(is_deprecated(attr));
+        assert!(is_deprecated(&attr));
 
         // An attribute with stability "stable" and a deprecated field with a value
         let attr = Value::from_object(DynAttr {
@@ -512,14 +588,14 @@ mod tests {
             stability: "stable".to_owned(),
             deprecated: Some("This is deprecated".to_owned()),
         });
-        assert!(is_deprecated(attr));
+        assert!(is_deprecated(&attr));
 
         // An object without a deprecated field
         let object = Value::from_object(DynSomethingElse {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
-        assert!(!is_deprecated(object));
+        assert!(!is_deprecated(&object));
 
         let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
@@ -527,7 +603,7 @@ mod tests {
             stability: "stable".to_owned(),
             deprecated: None,
         });
-        assert!(!is_deprecated(attr));
+        assert!(!is_deprecated(&attr));
     }
 
     #[test]
@@ -770,74 +846,191 @@ mod tests {
 
     #[test]
     fn test_instantiated_type() {
+        #[derive(Serialize)]
+        struct Ctx {
+            attr_type: AttributeType,
+        }
+
+        fn eval(
+            env: &Environment<'_>,
+            expr: &str,
+            attr_type: AttributeType,
+        ) -> Result<String, minijinja::Error> {
+            env.render_str(expr, Ctx { attr_type })
+        }
+
         let mut env = Environment::new();
-        let ctx = serde_json::Value::Null;
 
         add_tests_and_filters(&mut env);
 
         assert_eq!(
-            env.render_str("{{ 'int' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
+            )
+            .unwrap(),
             "int"
         );
         assert_eq!(
-            env.render_str("{{ 'int[]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)
+            )
+            .unwrap(),
             "int[]"
         );
         assert_eq!(
-            env.render_str("{{ 'template[double]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::Template(TemplateTypeSpec::Int)
+            )
+            .unwrap(),
+            "int"
+        );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double)
+            )
+            .unwrap(),
             "double"
         );
         assert_eq!(
-            env.render_str("{{ 'template[double[]]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)
+            )
+            .unwrap(),
             "double[]"
         );
         assert_eq!(
-            env.render_str("{{ 'boolean' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::Template(TemplateTypeSpec::Double)
+            )
+            .unwrap(),
+            "double"
+        );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean)
+            )
+            .unwrap(),
             "boolean"
         );
         assert_eq!(
-            env.render_str("{{ 'boolean[]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)
+            )
+            .unwrap(),
             "boolean[]"
         );
         assert_eq!(
-            env.render_str("{{ 'template[boolean]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::Template(TemplateTypeSpec::Boolean)
+            )
+            .unwrap(),
             "boolean"
         );
         assert_eq!(
-            env.render_str("{{ 'string' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+            )
+            .unwrap(),
             "string"
         );
         assert_eq!(
-            env.render_str("{{ 'string[]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
+            )
+            .unwrap(),
             "string[]"
         );
         assert_eq!(
-            env.render_str("{{ 'template[string]' | instantiated_type }}", &ctx)
-                .unwrap(),
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                AttributeType::Template(TemplateTypeSpec::String)
+            )
+            .unwrap(),
             "string"
         );
         assert_eq!(
-            env.render_str("{{ 'something else' | instantiated_type }}", &ctx)
-                .unwrap(),
-            "enum"
-        );
-        assert_eq!(
-            env.render_str(
-                "{{ {allow_custom_values: true, members: []} | instantiated_type }}",
-                &ctx
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                enum_type(vec![1.into(), 2.into()])
             )
             .unwrap(),
-            "enum"
+            "int"
         );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                enum_type(vec![1.1.into(), 2.1.into()])
+            )
+            .unwrap(),
+            "double"
+        );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                enum_type(vec!["value1".into(), "value2".into()])
+            )
+            .unwrap(),
+            "string"
+        );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                enum_type(vec![1.into(), 2.1.into()])
+            )
+            .unwrap(),
+            "string"
+        );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                enum_type(vec![1.into(), "two".into()])
+            )
+            .unwrap(),
+            "string"
+        );
+        assert_eq!(
+            eval(
+                &env,
+                "{{ attr_type | instantiated_type }}",
+                enum_type(vec![1.0.into(), "two".into()])
+            )
+            .unwrap(),
+            "string"
+        );
+        assert!(eval(
+            &env,
+            "{{ 'something else' | instantiated_type }}",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+        )
+        .is_err());
     }
 
     #[test]
@@ -850,7 +1043,7 @@ mod tests {
         assert_eq!(
             env.render_str(
                 "{% if 'int' is simple_type %}true{% else %}false{% endif %}",
-                &ctx
+                &ctx,
             )
             .unwrap(),
             "true"
@@ -858,7 +1051,7 @@ mod tests {
         assert_eq!(
             env.render_str(
                 "{% if 'int[]' is simple_type %}true{% else %}false{% endif %}",
-                &ctx
+                &ctx,
             )
             .unwrap(),
             "true"
@@ -866,7 +1059,7 @@ mod tests {
         assert_eq!(
             env.render_str(
                 "{% if 'template[double]' is simple_type %}true{% else %}false{% endif %}",
-                &ctx
+                &ctx,
             )
             .unwrap(),
             "false"
@@ -883,7 +1076,7 @@ mod tests {
         assert_eq!(
             env.render_str(
                 "{% if 'int' is template_type %}true{% else %}false{% endif %}",
-                &ctx
+                &ctx,
             )
             .unwrap(),
             "false"
@@ -891,7 +1084,7 @@ mod tests {
         assert_eq!(
             env.render_str(
                 "{% if 'int[]' is template_type %}true{% else %}false{% endif %}",
-                &ctx
+                &ctx,
             )
             .unwrap(),
             "false"
@@ -899,10 +1092,92 @@ mod tests {
         assert_eq!(
             env.render_str(
                 "{% if 'template[double]' is template_type %}true{% else %}false{% endif %}",
-                &ctx
+                &ctx,
             )
             .unwrap(),
             "true"
         );
+    }
+
+    #[test]
+    fn test_is_enum() {
+        #[derive(Serialize)]
+        struct Ctx {
+            attr: Attribute,
+        }
+
+        let mut env = Environment::new();
+        let attr = Attribute {
+            name: "attr1".to_owned(),
+            r#type: enum_type(vec!["value1".into(), "value2".into()]),
+            brief: "A brief description".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: None,
+            note: "A note".to_owned(),
+            stability: None,
+            deprecated: None,
+            tags: None,
+            value: None,
+        };
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str(
+                "{% if attr is enum %}true{% else %}false{% endif %}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "true"
+        );
+
+        let attr = Attribute {
+            name: "attr1".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "A brief description".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: None,
+            note: "A note".to_owned(),
+            stability: None,
+            deprecated: None,
+            tags: None,
+            value: None,
+        };
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str(
+                "{% if attr is enum %}true{% else %}false{% endif %}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "false"
+        );
+    }
+
+    /// Utility function to create an enum type from a list of member values.
+    fn enum_type(member_values: Vec<ValueSpec>) -> AttributeType {
+        let members = member_values
+            .into_iter()
+            .enumerate()
+            .map(|(i, value)| EnumEntriesSpec {
+                id: format!("variant{}", i),
+                value,
+                brief: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+            })
+            .collect();
+
+        AttributeType::Enum {
+            allow_custom_values: true,
+            members,
+        }
     }
 }

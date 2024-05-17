@@ -216,7 +216,8 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 - `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
 - `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
-- `instantiated_type`: Filters a type to return the instantiated type (as defined in the existing build tool). 
+- `instantiated_type`: Filters a type to return the instantiated type. 
+- `enum_type`: Filters a type to return the enum type or an error if the type is not an enum.
 - `markdown_to_html`: Converts a markdown string to an HTML string.
 - `map_text`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file
 and a named text_map. The first parameter is the name of the text_map (required). The second parameter is the default
@@ -279,7 +280,9 @@ generation of assets.
 - `stable`: Tests if an `Attribute` is stable.
 - `experimental`: Tests if an `Attribute` is experimental.
 - `deprecated`: Tests if an `Attribute` is deprecated.
+- `enum`: Tests if an attribute has an enum type.
 - `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean | boolean[]).
 - `template_type`: Tests if a type is a template type (i.e.: template[]).
+- `enum_type`: Tests if a type is an enum type.
 
 > Please open an issue if you have any suggestions for new tests. They are easy to implement.
