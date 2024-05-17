@@ -24,12 +24,12 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, CaseConvention, TargetConfig};
+use crate::config::{ApplicationMode, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::acronym::acronym;
-use crate::extensions::case_converter::case_converter;
-use crate::extensions::{ansi, code};
+use crate::extensions::case::case_converter;
+use crate::extensions::{ansi, case, code, otel};
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -429,6 +429,8 @@ impl TemplateEngine {
 
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
+        case::add_filters(&mut env);
+        otel::add_tests_and_filters(&mut env);
 
         // ToDo These filters are now deprecated and should be removed soon.
         env.add_filter(
@@ -452,52 +454,10 @@ impl TemplateEngine {
             case_converter(self.target_config.field_name.clone()),
         );
 
-        // Register case conversion filters
-        env.add_filter("lower_case", case_converter(CaseConvention::LowerCase));
-        env.add_filter("upper_case", case_converter(CaseConvention::UpperCase));
-        env.add_filter("title_case", case_converter(CaseConvention::TitleCase));
-        env.add_filter("pascal_case", case_converter(CaseConvention::PascalCase));
-        env.add_filter("camel_case", case_converter(CaseConvention::CamelCase));
-        env.add_filter("snake_case", case_converter(CaseConvention::SnakeCase));
-        env.add_filter(
-            "screaming_snake_case",
-            case_converter(CaseConvention::ScreamingSnakeCase),
-        );
-        env.add_filter("kebab_case", case_converter(CaseConvention::KebabCase));
-        env.add_filter(
-            "screaming_kebab_case",
-            case_converter(CaseConvention::ScreamingKebabCase),
-        );
-
         env.add_filter("flatten", flatten);
         env.add_filter("split_id", split_id);
 
         env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
-
-        // Register custom OpenTelemetry filters and tests
-        env.add_filter("attribute_namespace", extensions::otel::attribute_namespace);
-        env.add_filter(
-            "attribute_registry_namespace",
-            extensions::otel::attribute_registry_namespace,
-        );
-        env.add_filter(
-            "attribute_registry_title",
-            extensions::otel::attribute_registry_title,
-        );
-        env.add_filter(
-            "attribute_registry_file",
-            extensions::otel::attribute_registry_file,
-        );
-        env.add_filter("attribute_sort", extensions::otel::attribute_sort);
-        env.add_filter("metric_namespace", extensions::otel::metric_namespace);
-        env.add_filter("required", extensions::otel::required);
-        env.add_filter("not_required", extensions::otel::not_required);
-
-        // ToDo Implement more filters: stable, experimental, deprecated
-        env.add_test("stable", extensions::otel::is_stable);
-        env.add_test("experimental", extensions::otel::is_experimental);
-        env.add_test("deprecated", extensions::otel::is_deprecated);
-        // ToDo Implement more tests: required, not_required
 
         Ok(env)
     }
@@ -627,7 +587,7 @@ mod tests {
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
-    use crate::config::{ApplicationMode, TemplateConfig};
+    use crate::config::{ApplicationMode, CaseConvention, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
@@ -638,114 +598,114 @@ mod tests {
         struct TestCase {
             input: &'static str,
             expected: &'static str,
-            case: super::CaseConvention,
+            case: CaseConvention,
         }
 
         let test_cases = vec![
             TestCase {
                 input: "ThisIsATest",
                 expected: "this is a test",
-                case: super::CaseConvention::LowerCase,
+                case: CaseConvention::LowerCase,
             },
             TestCase {
                 input: "This is a K8S TEST",
                 expected: "this is a k8s test",
-                case: super::CaseConvention::LowerCase,
+                case: CaseConvention::LowerCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "THIS IS A TEST",
-                case: super::CaseConvention::UpperCase,
+                case: CaseConvention::UpperCase,
             },
             TestCase {
                 input: "This is a TEST",
                 expected: "THIS IS A TEST",
-                case: super::CaseConvention::UpperCase,
+                case: CaseConvention::UpperCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "This Is A Test",
-                case: super::CaseConvention::TitleCase,
+                case: CaseConvention::TitleCase,
             },
             TestCase {
                 input: "This is a k8s TEST",
                 expected: "This Is A K8s Test",
-                case: super::CaseConvention::TitleCase,
+                case: CaseConvention::TitleCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "this_is_a_test",
-                case: super::CaseConvention::SnakeCase,
+                case: CaseConvention::SnakeCase,
             },
             TestCase {
                 input: "This is a test",
                 expected: "this_is_a_test",
-                case: super::CaseConvention::SnakeCase,
+                case: CaseConvention::SnakeCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "ThisIsATest",
-                case: super::CaseConvention::PascalCase,
+                case: CaseConvention::PascalCase,
             },
             TestCase {
                 input: "This is a test",
                 expected: "ThisIsATest",
-                case: super::CaseConvention::PascalCase,
+                case: CaseConvention::PascalCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "thisIsATest",
-                case: super::CaseConvention::CamelCase,
+                case: CaseConvention::CamelCase,
             },
             TestCase {
                 input: "This is a test",
                 expected: "thisIsATest",
-                case: super::CaseConvention::CamelCase,
+                case: CaseConvention::CamelCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "this-is-a-test",
-                case: super::CaseConvention::KebabCase,
+                case: CaseConvention::KebabCase,
             },
             TestCase {
                 input: "This is a test",
                 expected: "this-is-a-test",
-                case: super::CaseConvention::KebabCase,
+                case: CaseConvention::KebabCase,
             },
             TestCase {
                 input: "This is a k8s test",
                 expected: "this-is-a-k8s-test",
-                case: super::CaseConvention::KebabCase,
+                case: CaseConvention::KebabCase,
             },
             TestCase {
                 input: "This is a K8S test",
                 expected: "this-is-a-k8s-test",
-                case: super::CaseConvention::KebabCase,
+                case: CaseConvention::KebabCase,
             },
             TestCase {
                 input: "This is 2 K8S test",
                 expected: "this-is-2-k8s-test",
-                case: super::CaseConvention::KebabCase,
+                case: CaseConvention::KebabCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "THIS_IS_A_TEST",
-                case: super::CaseConvention::ScreamingSnakeCase,
+                case: CaseConvention::ScreamingSnakeCase,
             },
             TestCase {
                 input: "This is a test",
                 expected: "THIS_IS_A_TEST",
-                case: super::CaseConvention::ScreamingSnakeCase,
+                case: CaseConvention::ScreamingSnakeCase,
             },
             TestCase {
                 input: "ThisIsATest",
                 expected: "THIS-IS-A-TEST",
-                case: super::CaseConvention::ScreamingKebabCase,
+                case: CaseConvention::ScreamingKebabCase,
             },
             TestCase {
                 input: "This is a test",
                 expected: "THIS-IS-A-TEST",
-                case: super::CaseConvention::ScreamingKebabCase,
+                case: CaseConvention::ScreamingKebabCase,
             },
         ];
 

@@ -357,6 +357,38 @@ impl Display for ValueSpec {
     }
 }
 
+/// Allows to convert a i64 into a ValueSpec.
+impl From<i64> for ValueSpec {
+    /// Converts a i64 into a ValueSpec.
+    fn from(value: i64) -> Self {
+        ValueSpec::Int(value)
+    }
+}
+
+/// Allows to convert a f64 into a ValueSpec.
+impl From<f64> for ValueSpec {
+    /// Converts a f64 into a ValueSpec.
+    fn from(value: f64) -> Self {
+        ValueSpec::Double(OrderedFloat(value))
+    }
+}
+
+/// Allows to convert a String into a ValueSpec.
+impl From<String> for ValueSpec {
+    /// Converts a String into a ValueSpec.
+    fn from(value: String) -> Self {
+        ValueSpec::String(value)
+    }
+}
+
+/// Allows to convert a &str into a ValueSpec.
+impl From<&str> for ValueSpec {
+    /// Converts a &str into a ValueSpec.
+    fn from(value: &str) -> Self {
+        ValueSpec::String(value.to_owned())
+    }
+}
+
 /// The different types of examples.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
