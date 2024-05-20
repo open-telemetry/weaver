@@ -20,7 +20,6 @@ weaver_semconv = { path = "../weaver_semconv" }
 
 minijinja = { version = "2.0.1", features = ["loader", "custom_syntax", "debug", "json", "macros"] }
 convert_case = "0.6.0"
-globset = { version = "0.4.14", features = ["serde1"] }
 jaq-core = "1.2.1"
 jaq-std = "1.2.1"
 jaq-interpret = "1.2.1"
@@ -36,6 +35,8 @@ serde_yaml.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
 walkdir.workspace = true
+globset.workspace = true
+miette.workspace = true
 
 [dev-dependencies]
 opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "otel_unstable"] }

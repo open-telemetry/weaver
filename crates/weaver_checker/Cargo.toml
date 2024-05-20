@@ -20,6 +20,9 @@ thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
+walkdir.workspace = true
+globset.workspace = true
+miette.workspace = true
 
 regorus = { version = "0.1.5", default-features = false, features = [
     "arc",

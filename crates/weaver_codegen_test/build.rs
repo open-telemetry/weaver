@@ -14,7 +14,7 @@ use weaver_cache::Cache;
 use weaver_common::in_memory::LogMessage;
 use weaver_common::{in_memory, Logger};
 use weaver_forge::registry::TemplateRegistry;
-use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_forge::{GeneratorConfig, OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
@@ -59,7 +59,12 @@ fn main() {
     .unwrap_or_else(|e| process_error(&logger, e));
     let target_dir: PathBuf = target_dir.into();
     engine
-        .generate(logger.clone(), &template_registry, target_dir.as_path())
+        .generate(
+            logger.clone(),
+            &template_registry,
+            target_dir.as_path(),
+            &OutputDirective::File,
+        )
         .unwrap_or_else(|e| process_error(&logger, e));
 
     print_logs(&logger);

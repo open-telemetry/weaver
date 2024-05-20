@@ -3,10 +3,10 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::{semconv_registry_path_from, RegistryPath};
+use crate::registry::{semconv_registry_path_from, DiagnosticArgs, RegistryPath};
 use clap::Args;
 use weaver_cache::Cache;
-use weaver_common::error::ExitIfError;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::{GeneratorConfig, TemplateEngine};
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
@@ -51,6 +51,10 @@ pub struct RegistryUpdateMarkdownArgs {
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(long)]
     pub target: Option<String>,
+
+    /// Parameters to specify the diagnostic format.
+    #[command(flatten)]
+    pub diagnostic: DiagnosticArgs,
 }
 
 /// Update markdown files.
@@ -58,24 +62,26 @@ pub(crate) fn command(
     log: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryUpdateMarkdownArgs,
-) {
+) -> Result<(), DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
         let path = entry.path();
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
         path.is_file() && extension == "md"
     }
     // Construct a generator if we were given a `--target` argument.
-    let generator = args.target.as_ref().map(|target| {
-        TemplateEngine::try_new(&format!("registry/{}", target), GeneratorConfig::default())
-            .exit_if_error(log.clone())
-    });
+    let generator = match args.target.as_ref() {
+        None => None,
+        Some(target) => Some(TemplateEngine::try_new(
+            &format!("registry/{}", target),
+            GeneratorConfig::default(),
+        )?),
+    };
 
     let generator = SnippetGenerator::try_from_url(
         semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
         cache,
         generator,
-    )
-    .exit_if_error(log.clone());
+    )?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -104,4 +110,6 @@ pub(crate) fn command(
     if has_error {
         panic!("weaver registry update-markdown failed.");
     }
+
+    Ok(())
 }

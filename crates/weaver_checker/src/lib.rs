@@ -2,22 +2,35 @@
 
 #![doc = include_str!("../README.md")]
 
-use crate::violation::Violation;
-use crate::Error::CompoundError;
+use std::fmt::{Display, Formatter};
+use std::path::Path;
+
+use globset::Glob;
+use miette::Diagnostic;
 use serde::Serialize;
 use serde_json::to_value;
-use std::path::Path;
-use weaver_common::error::{format_errors, WeaverError};
+use walkdir::DirEntry;
+
+use weaver_common::error::{format_errors, handle_errors, WeaverError};
+
+use crate::violation::Violation;
+use crate::Error::CompoundError;
 
 pub mod violation;
 
 /// An error that can occur while evaluating policies.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Serialize, Diagnostic, Clone)]
 #[must_use]
 #[non_exhaustive]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Error {
     /// An invalid policy.
     #[error("Invalid policy file '{file}', error: {error})")]
+    #[diagnostic(
+        severity = "error",
+        url("https://www.openpolicyagent.org/docs/latest/policy-language/"),
+        help("Check the policy file for syntax errors.")
+    )]
     InvalidPolicyFile {
         /// The file that caused the error.
         file: String,
@@ -25,8 +38,23 @@ pub enum Error {
         error: String,
     },
 
+    /// An invalid policy glob pattern.
+    #[error("Invalid policy glob pattern '{pattern}', error: {error})")]
+    #[diagnostic(
+        severity = "error",
+        url("https://docs.rs/globset/latest/globset/"),
+        help("Check the glob pattern for syntax errors.")
+    )]
+    InvalidPolicyGlobPattern {
+        /// The glob pattern that caused the error.
+        pattern: String,
+        /// The error that occurred.
+        error: String,
+    },
+
     /// An invalid data.
     #[error("Invalid data, error: {error})")]
+    #[diagnostic()]
     InvalidData {
         /// The error that occurred.
         error: String,
@@ -34,6 +62,7 @@ pub enum Error {
 
     /// An invalid input.
     #[error("Invalid input, error: {error})")]
+    #[diagnostic()]
     InvalidInput {
         /// The error that occurred.
         error: String,
@@ -41,6 +70,7 @@ pub enum Error {
 
     /// Violation evaluation error.
     #[error("Violation evaluation error: {error}")]
+    #[diagnostic(severity = "error")]
     ViolationEvaluationError {
         /// The error that occurred.
         error: String,
@@ -48,6 +78,7 @@ pub enum Error {
 
     /// A policy violation error.
     #[error("Policy violation: {violation}, provenance: {provenance}")]
+    #[diagnostic(severity = "error")]
     PolicyViolation {
         /// The provenance of the violation (URL or path).
         provenance: String,
@@ -57,6 +88,7 @@ pub enum Error {
 
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
+    #[diagnostic()]
     CompoundError(Vec<Error>),
 }
 
@@ -78,6 +110,28 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+/// A list of supported policy stages.
+pub enum PolicyStage {
+    /// Policies that are evaluated before resolution.
+    BeforeResolution,
+    /// Policies that are evaluated after resolution.
+    AfterResolution,
+}
+
+impl Display for PolicyStage {
+    /// Returns the name of the policy stage.
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PolicyStage::BeforeResolution => {
+                write!(f, "before_resolution")
+            }
+            PolicyStage::AfterResolution => {
+                write!(f, "after_resolution")
+            }
+        }
     }
 }
 
@@ -112,6 +166,61 @@ impl Engine {
             })
     }
 
+    /// Adds all the policy files present in the given directory that match the
+    /// given glob pattern (Unix-style glob syntax).
+    ///
+    /// Example of pattern: `*.rego`
+    ///
+    /// # Returns
+    ///
+    /// The number of policies added.
+    pub fn add_policies<P: AsRef<Path>>(
+        &mut self,
+        policy_dir: P,
+        policy_glob_pattern: &str,
+    ) -> Result<usize, Error> {
+        fn is_hidden(entry: &DirEntry) -> bool {
+            entry
+                .file_name()
+                .to_str()
+                .map(|s| s.starts_with('.'))
+                .unwrap_or(false)
+        }
+
+        let mut errors = Vec::new();
+        let mut added_policy_count = 0;
+
+        let policy_glob = Glob::new(policy_glob_pattern)
+            .map_err(|e| Error::InvalidPolicyGlobPattern {
+                pattern: policy_glob_pattern.to_owned(),
+                error: e.to_string(),
+            })?
+            .compile_matcher();
+
+        let is_policy_file = |entry: &DirEntry| -> bool {
+            let path = entry.path().to_string_lossy();
+            policy_glob.is_match(path.as_ref())
+        };
+
+        // Visit recursively all the files in the policy directory
+        for entry in walkdir::WalkDir::new(policy_dir).into_iter().flatten() {
+            if is_hidden(&entry) {
+                continue;
+            }
+            if is_policy_file(&entry) {
+                if let Err(err) = self.add_policy(entry.path()) {
+                    errors.push(err);
+                } else {
+                    added_policy_count += 1;
+                }
+            }
+        }
+
+        handle_errors(errors)?;
+
+        Ok(added_policy_count)
+    }
+
     /// Adds a data document to the policy engine.
     ///
     /// Data versus Input: In essence, data is about what the policy engine
@@ -133,6 +242,11 @@ impl Engine {
         self.engine.add_data(value).map_err(|e| Error::InvalidData {
             error: e.to_string(),
         })
+    }
+
+    /// Clears the data from the policy engine.
+    pub fn clear_data(&mut self) {
+        self.engine.clear_data();
     }
 
     /// Sets an input document for the policy engine.
@@ -158,12 +272,12 @@ impl Engine {
         Ok(())
     }
 
-    /// Returns a list of violations based on the policies, the data, and the
-    /// input.
-    pub fn check(&mut self) -> Result<Vec<Violation>, Error> {
+    /// Returns a list of violations based on the policies, the data, the
+    /// input, and the given policy stage.
+    pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<Violation>, Error> {
         let value = self
             .engine
-            .eval_rule("data.otel.deny".to_owned())
+            .eval_rule(format!("data.{}.deny", stage))
             .map_err(|e| Error::ViolationEvaluationError {
                 error: e.to_string(),
             })?;
@@ -185,11 +299,14 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use crate::violation::Violation;
-    use crate::Engine;
-    use serde_yaml::Value;
     use std::collections::HashMap;
+
+    use serde_yaml::Value;
+
     use weaver_common::error::format_errors;
+
+    use crate::violation::Violation;
+    use crate::{Engine, Error, PolicyStage};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -228,12 +345,11 @@ mod tests {
         .map(|v| (v.id().to_owned(), v))
         .collect();
 
-        let violations = engine.check()?;
+        let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
 
         for violation in violations {
             assert_eq!(expected_violations.get(violation.id()), Some(&violation));
-            println!("{}", violation);
         }
 
         Ok(())
@@ -265,7 +381,7 @@ mod tests {
         let new_semconv: Value = serde_yaml::from_str(&new_semconv).unwrap();
         engine.set_input(&new_semconv).unwrap();
 
-        let result = engine.check();
+        let result = engine.check(PolicyStage::BeforeResolution);
         assert!(result.is_err());
 
         let observed_errors = format_errors(&[result.unwrap_err()]);
@@ -273,5 +389,68 @@ mod tests {
             observed_errors,
             "Violation evaluation error: missing field `type`"
         );
+    }
+
+    #[test]
+    fn test_add_policies() -> Result<(), Box<dyn std::error::Error>> {
+        let mut engine = Engine::new();
+        let result = engine.add_policies("data/registries", "*.rego");
+
+        assert!(result.is_ok());
+
+        let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
+        let old_semconv: Value = serde_yaml::from_str(&old_semconv)?;
+        engine.add_data(&old_semconv)?;
+
+        let new_semconv = std::fs::read_to_string("data/registries/registry.network.new.yaml")?;
+        let new_semconv: Value = serde_yaml::from_str(&new_semconv)?;
+        engine.set_input(&new_semconv)?;
+
+        let expected_violations: HashMap<String, Violation> = vec![
+            Violation::SemconvAttribute {
+                id: "attr_stability_deprecated".to_owned(),
+                category: "attrigute".to_owned(),
+                group: "registry.network1".to_owned(),
+                attr: "protocol.name".to_owned(),
+            },
+            Violation::SemconvAttribute {
+                id: "attr_removed".to_owned(),
+                category: "schema_evolution".to_owned(),
+                group: "registry.network1".to_owned(),
+                attr: "protocol.name.3".to_owned(),
+            },
+            Violation::SemconvAttribute {
+                id: "registry_with_ref_attr".to_owned(),
+                category: "attrigute_registry".to_owned(),
+                group: "registry.network1".to_owned(),
+                attr: "protocol.port".to_owned(),
+            },
+        ]
+        .into_iter()
+        .map(|v| (v.id().to_owned(), v))
+        .collect();
+
+        let violations = engine.check(PolicyStage::BeforeResolution)?;
+        assert_eq!(violations.len(), 3);
+
+        for violation in violations {
+            assert_eq!(expected_violations.get(violation.id()), Some(&violation));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_policies_with_invalid_policies() {
+        let mut engine = Engine::new();
+        let result = engine.add_policies("data/policies", "*.rego");
+
+        // We have 2 invalid Rego files in data/policies
+        assert!(result.is_err());
+        if let Error::CompoundError(errors) = result.err().unwrap() {
+            assert_eq!(errors.len(), 2);
+        } else {
+            panic!("Expected a CompoundError");
+        }
     }
 }

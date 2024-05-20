@@ -2,6 +2,8 @@
 
 #![doc = include_str!("../README.md")]
 
+use miette::Diagnostic;
+use serde::Serialize;
 use weaver_common::error::{format_errors, WeaverError};
 
 pub mod attribute;
@@ -14,7 +16,7 @@ pub mod stability;
 pub mod stats;
 
 /// An error that can occur while loading a semantic convention registry.
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// The semantic convention registry path pattern is invalid.

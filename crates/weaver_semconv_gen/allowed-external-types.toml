@@ -10,5 +10,7 @@ allowed_external_types = [
     "weaver_cache::Error",
     "weaver_common::error::WeaverError",
     "weaver_forge::error::Error",
-    "weaver_forge::TemplateEngine"
+    "weaver_forge::TemplateEngine",
+    "miette::protocol::Diagnostic",
+    "serde::ser::Serialize",
 ]

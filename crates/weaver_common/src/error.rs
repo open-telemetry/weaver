@@ -5,10 +5,21 @@
 //! a consistent way.
 
 use crate::Logger;
-use std::process::exit;
+use miette::Diagnostic;
+use serde::Serialize;
+
+/// A trait marker for Weaver diagnostic.
+pub trait WeaverDiagnostic {}
+
+/// A blanket implementation of the `WeaverDiagnostic` trait for any type that
+/// implements the `Diagnostic` and `Serialize` traits.
+///
+/// This allows any type that implements `Diagnostic` and `Serialize` to be
+/// converted into [crate::diagnostic::DiagnosticMessages].
+impl<T> WeaverDiagnostic for T where T: Serialize + Diagnostic + Send + Sync + ?Sized {}
 
 /// A trait for custom error handling in the `weaver` crates.
-pub trait WeaverError<T> {
+pub trait WeaverError<T>: Serialize + Diagnostic + Send + Sync {
     /// Retrieves a list of error messages associated with this error.
     /// For compound errors, this method should return a list of all
     /// error messages. For simple errors, this method should return
@@ -63,35 +74,6 @@ pub trait ExitIfError<T, E> {
     /// The contained value if the result is `Ok`.
     /// Panics if the result is `Err`.
     fn panic_if_error(self, logger: impl Logger) -> T;
-
-    /// Processes the `Result` and exits the application if it is an `Err`.
-    /// If `Ok`, the contained value is returned.
-    ///
-    /// # Arguments
-    /// * `self` - The `Result` to process.
-    /// * `logger` - An object implementing the `Logger` trait used to log any
-    /// errors.
-    ///
-    /// # Returns
-    /// The contained value if the result is `Ok`.
-    /// Exits the process if the result is `Err`.
-    fn exit_if_error(self, logger: impl Logger) -> T;
-
-    /// Processes the `Result` and exits the application with a specified exit
-    /// code if it is an `Err`.
-    /// If `Ok`, the contained value is returned.
-    ///
-    /// # Arguments
-    /// * `self` - The `Result` to process.
-    /// * `code` - The exit code to use if the result is an `Err`.
-    /// * `logger` - An object implementing the `Logger` trait used to log any
-    /// errors.
-    ///
-    /// # Returns
-    /// The contained value if the result is `Ok`.
-    /// Exits the process with the specified `code` if the result is `Err`.
-    #[allow(dead_code)]
-    fn exit_with_code_if_error(self, code: i32, logger: impl Logger) -> T;
 }
 
 /// Provides default implementations of the `ExitIfError` trait for any
@@ -114,52 +96,6 @@ impl<T, E: WeaverError<E>> ExitIfError<T, E> for Result<T, E> {
             Err(e) => {
                 e.errors().iter().for_each(|msg| logger.error(msg));
                 panic!("One or several errors occurred (see above)");
-            }
-        }
-    }
-
-    /// Processes the `Result` and exits the application if it is an `Err`.
-    /// If `Ok`, the contained value is returned.
-    ///
-    /// # Arguments
-    /// * `self` - The `Result` to process.
-    /// * `logger` - An object implementing the `Logger` trait used to log any
-    /// errors.
-    ///
-    /// # Returns
-    /// The contained value if the result is `Ok`.
-    /// Exits the process if the result is `Err`.
-    fn exit_if_error(self, logger: impl Logger) -> T {
-        match self {
-            Ok(value) => value,
-            Err(e) => {
-                e.errors().iter().for_each(|msg| logger.error(msg));
-                #[allow(clippy::exit)] // Expected behavior
-                exit(1)
-            }
-        }
-    }
-
-    /// Processes the `Result` and exits the application with a specified exit
-    /// code if it is an `Err`.
-    /// If `Ok`, the contained value is returned.
-    ///
-    /// # Arguments
-    /// * `self` - The `Result` to process.
-    /// * `code` - The exit code to use if the result is an `Err`.
-    /// * `logger` - An object implementing the `Logger` trait used to log any
-    /// errors.
-    ///
-    /// # Returns
-    /// The contained value if the result is `Ok`.
-    /// Exits the process with the specified `code` if the result is `Err`.
-    fn exit_with_code_if_error(self, code: i32, logger: impl Logger) -> T {
-        match self {
-            Ok(value) => value,
-            Err(e) => {
-                e.errors().iter().for_each(|msg| logger.error(msg));
-                #[allow(clippy::exit)] // Expected behavior
-                exit(code)
             }
         }
     }

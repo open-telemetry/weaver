@@ -1,4 +1,4 @@
-package otel
+package before_resolution
 
 # Conventions for OTel:
 # - `data` holds the current released semconv, which is known to be valid.

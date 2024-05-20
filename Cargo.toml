@@ -38,6 +38,8 @@ ordered-float = { version = "4.2.0", features = ["serde"] }
 walkdir = "2.5.0"
 anyhow = "1.0.83"
 itertools = "0.12.1"
+globset = { version = "0.4.14", features = ["serde1"] }
+miette = { version = "7.2.0", features = ["fancy", "serde"] }
 
 # Features definition =========================================================
 [features]
@@ -67,7 +69,11 @@ serde.workspace = true
 serde_yaml.workspace = true
 serde_json.workspace = true
 walkdir.workspace = true
+
 rayon = "1.10.0"
+
+[dev-dependencies]
+assert_cmd = "2.0.14"
 
 [profile.release]
 lto = true

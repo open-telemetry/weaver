@@ -27,9 +27,7 @@ use weaver_common::Logger;
 use crate::config::{ApplicationMode, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
-use crate::extensions::acronym::acronym;
-use crate::extensions::case::case_converter;
-use crate::extensions::{ansi, case, code, otel};
+use crate::extensions::{ansi, case, code, otel, util};
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -63,6 +61,17 @@ impl GeneratorConfig {
     pub fn new(root_dir: PathBuf) -> Self {
         Self { root_dir }
     }
+}
+
+/// Enumeration defining where the output of program execution should be directed.
+#[derive(Debug, Clone)]
+pub enum OutputDirective {
+    /// Write the generated content to the standard output.
+    Stdout,
+    /// Write the generated content to the standard error.
+    Stderr,
+    /// Write the generated content to a file.
+    File,
 }
 
 /// A template object accessible from the template.
@@ -212,6 +221,7 @@ impl TemplateEngine {
         log: impl Logger + Clone + Sync,
         context: &T,
         output_dir: &Path,
+        output_directive: &OutputDirective,
     ) -> Result<(), Error> {
         // List all files in the target directory and its subdirectories
         let files: Vec<DirEntry> = WalkDir::new(self.path.clone())
@@ -271,6 +281,7 @@ impl TemplateEngine {
                                 .try_into()
                                 .ok()?,
                                 relative_path,
+                                output_directive,
                                 output_dir,
                             ) {
                                 return Some(e);
@@ -288,6 +299,7 @@ impl TemplateEngine {
                                             log.clone(),
                                             NewContext { ctx: result }.try_into().ok()?,
                                             relative_path,
+                                            output_directive,
                                             output_dir,
                                         ) {
                                             return Some(e);
@@ -306,6 +318,7 @@ impl TemplateEngine {
                                 .try_into()
                                 .ok()?,
                                 relative_path,
+                                output_directive,
                                 output_dir,
                             ) {
                                 return Some(e);
@@ -320,17 +333,25 @@ impl TemplateEngine {
         handle_errors(errs)
     }
 
+    #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
+    #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
     fn evaluate_template(
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
         template_path: &Path,
+        output_directive: &OutputDirective,
         output_dir: &Path,
     ) -> Result<(), Error> {
+        // By default, the file name is the template file name without the extension ".j2"
+        let file_name = template_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .trim_end_matches(".j2")
+            .to_owned();
         let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(
-                template_path.to_str().unwrap_or_default().to_owned(),
-            )),
+            file_name: Arc::new(Mutex::new(file_name)),
         };
         let mut engine = self.template_engine()?;
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
@@ -340,7 +361,7 @@ impl TemplateEngine {
 
         engine.add_global("template", Value::from_object(template_object.clone()));
 
-        log.loading(&format!("Generating file {}", template_file));
+        log.loading(&format!("Rendering template {}", template_file));
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -361,9 +382,19 @@ impl TemplateEngine {
                 error_id: e.to_string(),
                 error: error_summary(e),
             })?;
-        let generated_file =
-            Self::save_generated_code(output_dir, template_object.file_name(), output)?;
-        log.success(&format!("Generated file {:?}", generated_file));
+        match output_directive {
+            OutputDirective::Stdout => {
+                println!("{}", output);
+            }
+            OutputDirective::Stderr => {
+                eprintln!("{}", output);
+            }
+            OutputDirective::File => {
+                let generated_file =
+                    Self::save_generated_code(output_dir, template_object.file_name(), output)?;
+                log.success(&format!("Generated file {:?}", generated_file));
+            }
+        }
         Ok(())
     }
 
@@ -396,35 +427,9 @@ impl TemplateEngine {
 
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
-        case::add_filters(&mut env);
+        case::add_filters(&mut env, &self.target_config);
         otel::add_tests_and_filters(&mut env);
-
-        // ToDo These filters are now deprecated and should be removed soon.
-        env.add_filter(
-            "file_name",
-            case_converter(self.target_config.file_name.clone()),
-        );
-        env.add_filter(
-            "function_name",
-            case_converter(self.target_config.function_name.clone()),
-        );
-        env.add_filter(
-            "arg_name",
-            case_converter(self.target_config.arg_name.clone()),
-        );
-        env.add_filter(
-            "struct_name",
-            case_converter(self.target_config.struct_name.clone()),
-        );
-        env.add_filter(
-            "field_name",
-            case_converter(self.target_config.field_name.clone()),
-        );
-
-        env.add_filter("flatten", flatten);
-        env.add_filter("split_id", split_id);
-
-        env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
+        util::add_filters(&mut env, &self.target_config);
 
         Ok(env)
     }
@@ -511,35 +516,6 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
     }
 }
 
-// Helper filter to work around lack of `list.append()` support in minijinja.
-// Will take a list of lists and return a new list containing only elements of sublists.
-fn flatten(value: Value) -> Result<Value, minijinja::Error> {
-    let mut result = Vec::new();
-    for sublist in value.try_iter()? {
-        for item in sublist.try_iter()? {
-            result.push(item);
-        }
-    }
-    Ok(Value::from(result))
-}
-
-// Helper function to take an "id" and split it by '.' into namespaces.
-fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
-    match value.as_str() {
-        Some(id) => {
-            let values: Vec<Value> = id
-                .split('.')
-                .map(|s| Value::from_safe_string(s.to_owned()))
-                .collect();
-            Ok(values)
-        }
-        None => Err(minijinja::Error::new(
-            ErrorKind::InvalidOperation,
-            format!("Expected string, found: {value}"),
-        )),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -556,8 +532,10 @@ mod tests {
 
     use crate::config::{ApplicationMode, CaseConvention, TemplateConfig};
     use crate::debug::print_dedup_errors;
+    use crate::extensions::case::case_converter;
     use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
+    use crate::OutputDirective;
 
     #[test]
     fn test_case_converter() {
@@ -676,7 +654,7 @@ mod tests {
         ];
 
         for test_case in test_cases {
-            let result = super::case_converter(test_case.case)(test_case.input);
+            let result = case_converter(test_case.case)(test_case.input);
             assert_eq!(result, test_case.expected);
         }
     }
@@ -718,6 +696,7 @@ mod tests {
                 logger.clone(),
                 &template_registry,
                 Path::new("observed_output"),
+                &OutputDirective::File,
             )
             .inspect_err(|e| {
                 print_dedup_errors(logger.clone(), e.clone());

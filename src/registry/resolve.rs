@@ -8,11 +8,15 @@ use clap::{Args, ValueEnum};
 use serde::Serialize;
 
 use weaver_cache::Cache;
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::registry::TemplateRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{load_semconv_specs, resolve_semconv_specs, RegistryArgs};
+use crate::registry::{
+    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    DiagnosticArgs, RegistryArgs,
+};
 
 /// Supported output formats for the resolved schema
 #[derive(Debug, Clone, ValueEnum)]
@@ -51,6 +55,15 @@ pub struct RegistryResolveArgs {
     /// Example: `--format json`
     #[arg(short, long, default_value = "yaml")]
     format: Format,
+
+    /// Optional list of policy files to check against the files of the semantic
+    /// convention registry.
+    #[arg(short = 'p', long = "policy")]
+    pub policies: Vec<PathBuf>,
+
+    /// Parameters to specify the diagnostic format.
+    #[command(flatten)]
+    pub diagnostic: DiagnosticArgs,
 }
 
 /// Resolve a semantic convention registry and write the resolved schema to a
@@ -60,20 +73,26 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryResolveArgs,
-) {
+) -> Result<(), DiagnosticMessages> {
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let registry_id = "default";
+    let registry_path =
+        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir);
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(
-        &args.registry.registry,
-        &args.registry.registry_git_sub_dir,
+    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
+
+    check_policies(
+        &registry_path,
         cache,
+        &args.policies,
+        &semconv_specs,
         logger.clone(),
-    );
+    )?;
+
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    let schema = resolve_semconv_specs(&mut registry, logger.clone());
+    let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 
     // Serialize the resolved schema and write it
     // to a file or print it to stdout.
@@ -112,6 +131,8 @@ pub(crate) fn command(
         // Capture all the errors
         panic!("{}", e);
     });
+
+    Ok(())
 }
 
 #[cfg(not(tarpaulin_include))]

@@ -2,11 +2,13 @@
 
 #![doc = include_str!("../README.md")]
 
+use miette::Diagnostic;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{PathBuf, MAIN_SEPARATOR};
 
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
+use serde::Serialize;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
@@ -31,12 +33,13 @@ pub mod registry;
 pub struct SchemaResolver {}
 
 /// An error that can occur while resolving a telemetry schema.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
+    #[diagnostic(severity = "error", help("Check the URL and try again."))]
     InvalidUrl {
         /// The invalid URL.
         url: String,
@@ -46,6 +49,7 @@ pub enum Error {
 
     /// A semantic convention error.
     #[error("{message}")]
+    #[diagnostic()]
     SemConvError {
         /// The error that occurred.
         message: String,
@@ -227,15 +231,21 @@ impl SchemaResolver {
         registry_path: &RegistryPath,
         cache: &Cache,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
+        let (local_path, registry_path_repr) = Self::path_to_registry(registry_path, cache)?;
+        Self::load_semconv_from_local_path(local_path, &registry_path_repr)
+    }
+
+    /// Returns a tuple absolute ['PathBuf'], logical registry path to the registry based on the
+    /// given ['RegistryPath'] and the cache.
+    pub fn path_to_registry(
+        registry_path: &RegistryPath,
+        cache: &Cache,
+    ) -> Result<(PathBuf, String), Error> {
         match registry_path {
-            RegistryPath::Local { path_pattern: path } => {
-                Self::load_semconv_from_local_path(path.into(), path)
-            }
+            RegistryPath::Local { path_pattern: path } => Ok((path.into(), path.clone())),
             RegistryPath::GitUrl { git_url, path } => {
                 match cache.git_repo(git_url.clone(), path.clone()) {
-                    Ok(local_git_repo) => {
-                        Self::load_semconv_from_local_path(local_git_repo, git_url)
-                    }
+                    Ok(local_git_repo) => Ok((local_git_repo, git_url.clone())),
                     Err(e) => Err(Error::SemConvError {
                         message: e.to_string(),
                     }),
@@ -274,44 +284,48 @@ impl SchemaResolver {
         // Loads the semantic convention specifications from the git repo.
         // All yaml files are recursively loaded and parsed in parallel from
         // the given path.
-        let result = walkdir::WalkDir::new(local_path.clone())
-            .into_iter()
-            .filter_entry(|e| !is_hidden(e))
-            .par_bridge()
-            .filter_map(|entry| {
-                match entry {
-                    Ok(entry) => {
-                        if !is_semantic_convention_file(&entry) {
-                            return None;
-                        }
-
-                        let spec =
-                            SemConvRegistry::semconv_spec_from_file(entry.path()).map_err(|e| {
-                                Error::SemConvError {
-                                    message: e.to_string(),
-                                }
-                            });
-                        match spec {
-                            Ok((path, spec)) => {
-                                // Replace the local path with the git URL combined with the relative path
-                                // of the semantic convention file.
-                                let prefix = local_path
-                                    .to_str()
-                                    .map(|s| s.to_owned())
-                                    .unwrap_or_default();
-                                let path =
-                                    format!("{}/{}", registry_path_repr, &path[prefix.len() + 1..]);
-                                Some(Ok((path, spec)))
+        let result =
+            walkdir::WalkDir::new(local_path.clone())
+                .into_iter()
+                .filter_entry(|e| !is_hidden(e))
+                .par_bridge()
+                .filter_map(|entry| {
+                    match entry {
+                        Ok(entry) => {
+                            if !is_semantic_convention_file(&entry) {
+                                return None;
                             }
-                            Err(e) => Some(Err(e)),
+
+                            let spec = SemConvRegistry::semconv_spec_from_file(entry.path())
+                                .map_err(|e| Error::SemConvError {
+                                    message: e.to_string(),
+                                });
+                            match spec {
+                                Ok((path, spec)) => {
+                                    // Replace the local path with the git URL combined with the relative path
+                                    // of the semantic convention file.
+                                    let prefix = local_path
+                                        .to_str()
+                                        .map(|s| s.to_owned())
+                                        .unwrap_or_default();
+                                    let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                        let relative_path = &path[prefix.len()..];
+                                        format!("{}{}", registry_path_repr, relative_path)
+                                    } else {
+                                        let relative_path = &path[prefix.len() + 1..];
+                                        format!("{}/{}", registry_path_repr, relative_path)
+                                    };
+                                    Some(Ok((path, spec)))
+                                }
+                                Err(e) => Some(Err(e)),
+                            }
                         }
+                        Err(e) => Some(Err(Error::SemConvError {
+                            message: e.to_string(),
+                        })),
                     }
-                    Err(e) => Some(Err(Error::SemConvError {
-                        message: e.to_string(),
-                    })),
-                }
-            })
-            .collect::<Vec<_>>();
+                })
+                .collect::<Vec<_>>();
 
         let mut error = vec![];
         let result = result

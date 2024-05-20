@@ -2,9 +2,10 @@
 
 //! Markdown writing utilities.
 
-use crate::{Error, GenerateMarkdownArgs, ResolvedSemconvRegistry};
-use itertools::Itertools;
 use std::fmt::Write;
+
+use itertools::Itertools;
+
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::registry::Group;
 use weaver_semconv::attribute::{
@@ -13,6 +14,8 @@ use weaver_semconv::attribute::{
 };
 use weaver_semconv::group::{GroupType, InstrumentSpec};
 use weaver_semconv::stability::Stability;
+
+use crate::{Error, GenerateMarkdownArgs, ResolvedSemconvRegistry};
 
 // The size a string is allowed to be before it is pushed into notes.
 const BREAK_COUNT: usize = 50;
@@ -85,9 +88,13 @@ fn write_examples_string<Out: Write>(out: &mut Out, examples: &Examples) -> Resu
 
 fn write_enum_value_string<Out: Write>(out: &mut Out, value: &ValueSpec) -> Result<(), Error> {
     match value {
-        ValueSpec::Double(v) => write!(out, "`{v}`")?,
+        ValueSpec::Double(v) => {
+            write!(out, "`{v}`")?;
+        }
         ValueSpec::Int(v) => write!(out, "`{v}`")?,
-        ValueSpec::String(v) => write!(out, "`{v}`")?,
+        ValueSpec::String(v) => {
+            write!(out, "`{v}`")?;
+        }
     }
     Ok(())
 }
@@ -151,7 +158,7 @@ impl<'a> AttributeView<'a> {
             .replace('_', "-");
         // TODO - We should try to link to the name itself, instead
         // of just the correct group.
-        Ok(write!(out, "{prefix}/{reg_name}.md")?)
+        write!(out, "{prefix}/{reg_name}.md").map_err(|e| Error::StdIoError(e.to_string()))
     }
 
     fn write_name_with_optional_link<Out: Write>(
@@ -480,6 +487,7 @@ pub struct MetricView<'a> {
     group: &'a Group,
     // metric: &'a Metric,
 }
+
 impl<'a> MetricView<'a> {
     pub fn try_new(id: &str, lookup: &'a ResolvedSemconvRegistry) -> Result<MetricView<'a>, Error> {
         let metric = lookup

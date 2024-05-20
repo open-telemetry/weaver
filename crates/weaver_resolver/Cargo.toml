@@ -23,6 +23,7 @@ rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 walkdir.workspace = true
+miette.workspace = true
 
 [dev-dependencies]
 glob = "0.3.1"

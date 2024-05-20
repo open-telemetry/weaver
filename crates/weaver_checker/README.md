@@ -68,6 +68,51 @@ The policy verification process involves:
 The following diagram illustrates the policy verification process:
 ![Policy Verification Process](images/policy-verification-process.svg)
 
+## Policy Stages
+Policies can be applied at two different stages of the resolution process.
+1) To apply policies before the resolution process, simply group the policies
+into a package named `before_resolution`. 
+2) To apply them after the resolution process, the `after_resolution` package
+should be used
+
+The example below presents a set of violation detection rules that will apply
+before the validation process.
+
+```rego
+package before_resolution
+
+deny[attr_registry_violation("registry_with_ref_attr", group.id, attr.ref)] {
+    group := input.groups[_]
+    startswith(group.id, "registry.")
+    attr := group.attributes[_]
+    attr.ref != null
+}
+
+# An attribute whose stability is not `deprecated` but has the deprecated field
+# set to true is invalid.
+deny[attr_violation("attr_stability_deprecated", group.id, attr.id)] {
+    group := input.groups[_]
+    attr := group.attributes[_]
+    attr.stability != "deprecaded"
+    attr.deprecated
+}
+
+# An attribute cannot be removed from a group that has already been released.
+deny[schema_evolution_violation("attr_removed", old_group.id, old_attr.id)] {
+    old_group := data.groups[_]
+    old_attr := old_group.attributes[_]
+    not attr_exists_in_new_group(old_group.id, old_attr.id)
+}
+```
+
+> [!NOTE]
+> Note 1: The after_resolution stage is not yet fully supported by Weaver. 
+
+> [!NOTE]
+> Note 2: An upcoming version of Weaver will also allow applying rules on two
+> distinct versions of the registries (before or after resolution). This will
+> enable the definition of schema evolution rules.
+
 ### Usage
 To verify policies, the command `weaver registry check` can be invoked with one
 or more Rego files as parameters. This allows for the specific context-based

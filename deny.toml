@@ -50,14 +50,9 @@ allow = [
     "CC0-1.0",
     "ISC",
     "OpenSSL",
-    "zlib-acknowledgement",
     "Zlib",
 ]
-exceptions = [
-    { allow = [
-        "Unlicense",
-    ], name = "measure_time" },
-]
+
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
