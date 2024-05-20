@@ -10,11 +10,11 @@ While JQ is extremely powerful, it can be finicky to use.  For example, fighting
 
 Using an explorer tool like [DevToolsDaily JQ playground](https://www.devtoolsdaily.com/jq_playground/) can dramatically improve your debugging journey in crafting the `jq` expressions you use in rendering templates.
 
-To do so we recommend following [Creating a JSON ouput for your registry](#creating-a-json-output-for-your-registry) and then copy-paste your registry JSON as input into the JQ playground.
+To do so we recommend following [Creating a JSON output for your registry](#creating-a-json-output-for-your-registry) and then copy-paste your registry JSON as input into the JQ playground.
 
 ## Templates - Tips and Tricks
 
-When designing JINJA templates, you can make use the the `debug` function to output the context of the tempalte at any point in time.  Simply add `{{ debug(ctx.some_variable) }}` do your template and you'll get a
+When designing JINJA templates, you can make use the the `debug` function to output the context of the template at any point in time.  Simply add `{{ debug(ctx.some_variable) }}` do your template and you'll get a
 JSON rendered view of whatever is passed into `debug` at that portion of the template.
 
 ## Policies - Tips and tricks
@@ -32,7 +32,7 @@ the Rego playground.
 Many times it's useful to have raw JSON output of your registry for debugging or tooling. To generate this
 output, simply do the following:
 
-1. Creating a new template registery `templates/registry/json`
+1. Creating a new template registry `templates/registry/json`
 2. Create a `weaver.yaml` file that pulls the entire registry:
 
     ```yaml
