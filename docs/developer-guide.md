@@ -32,19 +32,6 @@ the Rego playground.
 Many times it's useful to have raw JSON output of your registry for debugging or tooling. To generate this
 output, simply do the following:
 
-1. Creating a new template registry `templates/registry/json`
-2. Create a `weaver.yaml` file that pulls the entire registry:
-
-    ```yaml
-    templates:
-    - pattern: registry.json.j2
-        application_mode: single
-        filter: '.'
-    ```
-
-3. Create a `registry.json.j2` template file to render your full registry as JSON.
-
-    ```
-    {{- template.set_file_name("registry.json") -}}
-    {{ ctx | tojson }}
-    ```
+```bash
+weaver registry resolve -r <registry> -o resolved-registry.json
+```
