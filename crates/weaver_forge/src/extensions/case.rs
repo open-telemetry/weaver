@@ -2,11 +2,11 @@
 
 //! Case converter filters used by the template engine.
 
-use crate::config::CaseConvention;
+use crate::config::{CaseConvention, TargetConfig};
 use minijinja::Environment;
 
 /// Add case converter filters to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>) {
+pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &TargetConfig) {
     env.add_filter("lower_case", case_converter(CaseConvention::LowerCase));
     env.add_filter("upper_case", case_converter(CaseConvention::UpperCase));
     env.add_filter("title_case", case_converter(CaseConvention::TitleCase));
@@ -23,6 +23,22 @@ pub(crate) fn add_filters(env: &mut Environment<'_>) {
         case_converter(CaseConvention::ScreamingKebabCase),
     );
     env.add_filter("capitalize_first", capitalize_first);
+
+    // ToDo Do we keep these filters?
+    env.add_filter("file_name", case_converter(target_config.file_name.clone()));
+    env.add_filter(
+        "function_name",
+        case_converter(target_config.function_name.clone()),
+    );
+    env.add_filter("arg_name", case_converter(target_config.arg_name.clone()));
+    env.add_filter(
+        "struct_name",
+        case_converter(target_config.struct_name.clone()),
+    );
+    env.add_filter(
+        "field_name",
+        case_converter(target_config.field_name.clone()),
+    );
 }
 
 /// Converts input string to the specified case convention.
@@ -104,15 +120,17 @@ fn capitalize_first(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::TargetConfig;
     use crate::extensions::case::add_filters;
     use minijinja::Environment;
 
     #[test]
     fn test_case_converter() {
+        let target_config = TargetConfig::default();
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 
-        add_filters(&mut env);
+        add_filters(&mut env, &target_config);
 
         assert_eq!(
             env.render_str("{{ 'Hello World' | lower_case }}", &ctx)

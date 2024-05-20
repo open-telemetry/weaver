@@ -27,9 +27,7 @@ use weaver_common::Logger;
 use crate::config::{ApplicationMode, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
-use crate::extensions::acronym::acronym;
-use crate::extensions::case::case_converter;
-use crate::extensions::{ansi, case, code, otel};
+use crate::extensions::{ansi, case, code, otel, util};
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
@@ -429,35 +427,9 @@ impl TemplateEngine {
 
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
-        case::add_filters(&mut env);
+        case::add_filters(&mut env, &self.target_config);
         otel::add_tests_and_filters(&mut env);
-
-        // ToDo These filters are now deprecated and should be removed soon.
-        env.add_filter(
-            "file_name",
-            case_converter(self.target_config.file_name.clone()),
-        );
-        env.add_filter(
-            "function_name",
-            case_converter(self.target_config.function_name.clone()),
-        );
-        env.add_filter(
-            "arg_name",
-            case_converter(self.target_config.arg_name.clone()),
-        );
-        env.add_filter(
-            "struct_name",
-            case_converter(self.target_config.struct_name.clone()),
-        );
-        env.add_filter(
-            "field_name",
-            case_converter(self.target_config.field_name.clone()),
-        );
-
-        env.add_filter("flatten", flatten);
-        env.add_filter("split_id", split_id);
-
-        env.add_filter("acronym", acronym(self.target_config.acronyms.clone()));
+        util::add_filters(&mut env, &self.target_config);
 
         Ok(env)
     }
@@ -544,35 +516,6 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
     }
 }
 
-// Helper filter to work around lack of `list.append()` support in minijinja.
-// Will take a list of lists and return a new list containing only elements of sublists.
-fn flatten(value: Value) -> Result<Value, minijinja::Error> {
-    let mut result = Vec::new();
-    for sublist in value.try_iter()? {
-        for item in sublist.try_iter()? {
-            result.push(item);
-        }
-    }
-    Ok(Value::from(result))
-}
-
-// Helper function to take an "id" and split it by '.' into namespaces.
-fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
-    match value.as_str() {
-        Some(id) => {
-            let values: Vec<Value> = id
-                .split('.')
-                .map(|s| Value::from_safe_string(s.to_owned()))
-                .collect();
-            Ok(values)
-        }
-        None => Err(minijinja::Error::new(
-            ErrorKind::InvalidOperation,
-            format!("Expected string, found: {value}"),
-        )),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -589,6 +532,7 @@ mod tests {
 
     use crate::config::{ApplicationMode, CaseConvention, TemplateConfig};
     use crate::debug::print_dedup_errors;
+    use crate::extensions::case::case_converter;
     use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
     use crate::OutputDirective;
@@ -710,7 +654,7 @@ mod tests {
         ];
 
         for test_case in test_cases {
-            let result = super::case_converter(test_case.case)(test_case.input);
+            let result = case_converter(test_case.case)(test_case.input);
             assert_eq!(result, test_case.expected);
         }
     }
