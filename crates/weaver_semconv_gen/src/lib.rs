@@ -5,7 +5,7 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use miette::Diagnostic;
-use std::fs;
+use std::{fmt, fs};
 
 use serde::Serialize;
 use weaver_cache::Cache;
@@ -116,6 +116,12 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<fmt::Error> for Error {
+    fn from(e: fmt::Error) -> Self {
+        Error::StdIoError(e.to_string())
     }
 }
 
