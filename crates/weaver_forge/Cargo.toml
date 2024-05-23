@@ -21,7 +21,7 @@ weaver_semconv = { path = "../weaver_semconv" }
 minijinja = { version = "2.0.1", features = ["loader", "custom_syntax", "debug", "json", "macros"] }
 convert_case = "0.6.0"
 jaq-core = "1.2.1"
-jaq-std = "1.2.1"
+jaq-std = "1.4.0"
 jaq-interpret = "1.2.1"
 jaq-parse = "1.0.2"
 indexmap = "2.2.6"
