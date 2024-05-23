@@ -10,7 +10,6 @@ COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src
 COPY tests build/tests
-COPY diagnostic_templates /build/diagnostic_templates
 # Don't build release, so we get template debugging output.
 RUN cargo build
 

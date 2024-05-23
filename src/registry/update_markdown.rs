@@ -3,12 +3,14 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::{semconv_registry_path_from, DiagnosticArgs, RegistryPath};
+use crate::registry::{semconv_registry_path_from, RegistryPath};
+use crate::DiagnosticArgs;
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use weaver_forge::{GeneratorConfig, TemplateEngine};
+use weaver_forge::file_loader::FileSystemFileLoader;
+use weaver_forge::TemplateEngine;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command
@@ -71,10 +73,10 @@ pub(crate) fn command(
     // Construct a generator if we were given a `--target` argument.
     let generator = match args.target.as_ref() {
         None => None,
-        Some(target) => Some(TemplateEngine::try_new(
-            &format!("registry/{}", target),
-            GeneratorConfig::default(),
-        )?),
+        Some(target) => {
+            let loader = FileSystemFileLoader::try_new("templates/registry".into(), target)?;
+            Some(TemplateEngine::try_new(loader)?)
+        }
     };
 
     let generator = SnippetGenerator::try_from_url(

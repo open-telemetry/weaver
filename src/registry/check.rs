@@ -4,8 +4,9 @@
 
 use crate::registry::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    DiagnosticArgs, RegistryPath,
+    RegistryPath,
 };
+use crate::DiagnosticArgs;
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;

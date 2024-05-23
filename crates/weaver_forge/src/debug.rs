@@ -117,19 +117,23 @@ mod tests {
                 // <-- These 3 errors are deduplicated
                 root_path: "target".to_owned(),
                 target: "target".to_owned(),
+                error: "error".to_owned(),
             },
             TargetNotSupported {
                 root_path: "target".to_owned(),
                 target: "target".to_owned(),
+                error: "error".to_owned(),
             },
             TargetNotSupported {
                 root_path: "target".to_owned(),
                 target: "target".to_owned(),
+                error: "error".to_owned(),
             },
             TargetNotSupported {
                 // <-- This error is not deduplicated
                 root_path: "target".to_owned(),
                 target: "other_target".to_owned(),
+                error: "error".to_owned(),
             },
         ]);
         print_dedup_errors(logger.clone(), error);

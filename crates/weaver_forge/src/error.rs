@@ -23,14 +23,14 @@ pub enum Error {
     },
 
     /// Target not found.
-    #[error(
-    "Target `{target}` not found in `{root_path}`. Use the command `targets` to list supported targets."
-    )]
+    #[error("Target `{target}` not found in `{root_path}`. Error: {error}")]
     TargetNotSupported {
         /// Root path.
         root_path: String,
         /// Target name.
         target: String,
+        /// Error message.
+        error: String,
     },
 
     /// Invalid template directory.
@@ -56,6 +56,15 @@ pub enum Error {
     InvalidTemplateFile {
         /// Template path.
         template: PathBuf,
+        /// Error message.
+        error: String,
+    },
+
+    /// Error loading a file content from the file loader.
+    #[error("Error loading the file '{file}': {error}")]
+    FileLoaderError {
+        /// File path.
+        file: PathBuf,
         /// Error message.
         error: String,
     },

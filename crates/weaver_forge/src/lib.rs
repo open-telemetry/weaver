@@ -3,10 +3,11 @@
 #![doc = include_str!("../README.md")]
 
 use std::borrow::Cow;
+use std::ffi::OsString;
 use std::fmt::{Debug, Display, Formatter};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::{fs, io};
 
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
@@ -14,12 +15,11 @@ use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
-use walkdir::{DirEntry, WalkDir};
 
 use error::Error;
 use error::Error::{
-    ContextSerializationFailed, InvalidTemplateDir, InvalidTemplateFile, TargetNotSupported,
-    TemplateEvaluationFailed, WriteGeneratedCodeFailed,
+    ContextSerializationFailed, InvalidTemplateFile, TemplateEvaluationFailed,
+    WriteGeneratedCodeFailed,
 };
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
@@ -28,40 +28,19 @@ use crate::config::{ApplicationMode, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
+use crate::file_loader::FileLoader;
 use crate::registry::{TemplateGroup, TemplateRegistry};
 
 mod config;
 pub mod debug;
 pub mod error;
 pub mod extensions;
+pub mod file_loader;
 mod filter;
 pub mod registry;
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
-
-/// General configuration for the generator.
-pub struct GeneratorConfig {
-    /// Root directory for the templates.
-    root_dir: PathBuf,
-}
-
-impl Default for GeneratorConfig {
-    /// Create a new generator configuration with default values.
-    fn default() -> Self {
-        Self {
-            root_dir: PathBuf::from("templates"),
-        }
-    }
-}
-
-impl GeneratorConfig {
-    /// Create a new generator configuration with the given root directory.
-    #[must_use]
-    pub fn new(root_dir: PathBuf) -> Self {
-        Self { root_dir }
-    }
-}
 
 /// Enumeration defining where the output of program execution should be directed.
 #[derive(Debug, Clone)]
@@ -119,8 +98,12 @@ impl Object for TemplateObject {
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
 pub struct TemplateEngine {
-    /// Template path
-    path: PathBuf,
+    /// File loader used by the engine.
+    file_loader: Box<dyn FileLoader + 'static>,
+
+    /// The file loader function with a 'static lifetime (required by MiniJinja).
+    loader_function:
+        Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static>,
 
     /// Target configuration
     target_config: TargetConfig,
@@ -158,21 +141,13 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
-    pub fn try_new(target: &str, config: GeneratorConfig) -> Result<Self, Error> {
-        // Check if the target is supported.
-        // A target is supported if a template directory exists for it.
-        let target_path = config.root_dir.join(target);
-
-        if !target_path.exists() {
-            return Err(TargetNotSupported {
-                root_path: config.root_dir.to_string_lossy().to_string(),
-                target: target.to_owned(),
-            });
-        }
-
+    pub fn try_new(loader: impl FileLoader + 'static) -> Result<Self, Error> {
+        let target_config = TargetConfig::try_new(&loader)?;
+        let loader_function = loader.file_loader();
         Ok(Self {
-            path: target_path.clone(),
-            target_config: TargetConfig::try_new(&target_path)?,
+            file_loader: Box::new(loader),
+            loader_function,
+            target_config,
         })
     }
 
@@ -223,17 +198,7 @@ impl TemplateEngine {
         output_dir: &Path,
         output_directive: &OutputDirective,
     ) -> Result<(), Error> {
-        // List all files in the target directory and its subdirectories
-        let files: Vec<DirEntry> = WalkDir::new(self.path.clone())
-            .into_iter()
-            .filter_map(|e| {
-                // Skip directories that the owner of the running process does not
-                // have permission to access
-                e.ok()
-            })
-            .filter(|dir_entry| dir_entry.path().is_file())
-            .collect();
-
+        let files = self.file_loader.all_files();
         let tmpl_matcher = self.target_config.template_matcher()?;
 
         // Create a read-only context for the filter evaluations
@@ -253,18 +218,8 @@ impl TemplateEngine {
         // independently and in parallel with the same template.
         let errs = files
             .into_par_iter()
-            .filter_map(|file| {
-                let relative_path = match file.path().strip_prefix(&self.path) {
-                    Ok(relative_path) => relative_path,
-                    Err(e) => {
-                        return Some(InvalidTemplateDir {
-                            template_dir: self.path.clone(),
-                            error: e.to_string(),
-                        });
-                    }
-                };
-
-                for template in tmpl_matcher.matches(relative_path) {
+            .filter_map(|relative_path| {
+                for template in tmpl_matcher.matches(relative_path.clone()) {
                     let filtered_result = match template.filter.apply(context.clone()) {
                         Ok(result) => result,
                         Err(e) => return Some(e),
@@ -280,7 +235,7 @@ impl TemplateEngine {
                                 }
                                 .try_into()
                                 .ok()?,
-                                relative_path,
+                                relative_path.as_path(),
                                 output_directive,
                                 output_dir,
                             ) {
@@ -298,7 +253,7 @@ impl TemplateEngine {
                                         if let Err(e) = self.evaluate_template(
                                             log.clone(),
                                             NewContext { ctx: result }.try_into().ok()?,
-                                            relative_path,
+                                            relative_path.as_path(),
                                             output_directive,
                                             output_dir,
                                         ) {
@@ -317,7 +272,7 @@ impl TemplateEngine {
                                 }
                                 .try_into()
                                 .ok()?,
-                                relative_path,
+                                relative_path.as_path(),
                                 output_directive,
                                 output_dir,
                             ) {
@@ -418,11 +373,16 @@ impl TemplateEngine {
             )
             .build()
             .map_err(|e| InvalidConfigFile {
-                config_file: self.path.join(WEAVER_YAML),
+                config_file: PathBuf::from(OsString::from(&self.file_loader.root()))
+                    .join(WEAVER_YAML),
                 error: e.to_string(),
             })?;
 
-        env.set_loader(cross_platform_loader(&self.path));
+        let loader_function = Arc::clone(&self.loader_function);
+        env.set_loader(move |name| {
+            (*loader_function)(name)
+                .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, e.to_string()))
+        });
         env.set_syntax(syntax);
 
         code::add_filters(&mut env, &self.target_config);
@@ -463,59 +423,6 @@ impl TemplateEngine {
     }
 }
 
-// The template loader provided by MiniJinja is not cross-platform.
-fn cross_platform_loader<'x, P: AsRef<Path> + 'x>(
-    dir: P,
-) -> impl for<'a> Fn(&'a str) -> Result<Option<String>, minijinja::Error> + Send + Sync + 'static {
-    let dir = dir.as_ref().to_path_buf();
-    move |name| {
-        let path = safe_join(&dir, name)?;
-        match fs::read_to_string(path) {
-            Ok(result) => Ok(Some(result)),
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(err) => Err(minijinja::Error::new(
-                ErrorKind::InvalidOperation,
-                "could not read template",
-            )
-            .with_source(err)),
-        }
-    }
-}
-
-// Combine a root path and a template name, ensuring that the combined path is
-// a subdirectory of the base path.
-fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
-    let mut path = root.to_path_buf();
-    path.push(template);
-
-    // Canonicalize the paths to resolve any `..` or `.` components
-    let canonical_root = root.canonicalize().map_err(|e| {
-        minijinja::Error::new(
-            ErrorKind::InvalidOperation,
-            format!("Failed to canonicalize root path: {}", e),
-        )
-    })?;
-    let canonical_combined = path.canonicalize().map_err(|e| {
-        minijinja::Error::new(
-            ErrorKind::InvalidOperation,
-            format!("Failed to canonicalize combined path: {}", e),
-        )
-    })?;
-
-    // Verify that the canonical combined path starts with the canonical root path
-    if canonical_combined.starts_with(&canonical_root) {
-        Ok(canonical_combined)
-    } else {
-        Err(minijinja::Error::new(
-            ErrorKind::InvalidOperation,
-            format!(
-                "The combined path is not a subdirectory of the root path: {:?} -> {:?}",
-                canonical_root, canonical_combined
-            ),
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -533,6 +440,7 @@ mod tests {
     use crate::config::{ApplicationMode, CaseConvention, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
+    use crate::file_loader::FileSystemFileLoader;
     use crate::filter::Filter;
     use crate::registry::TemplateRegistry;
     use crate::OutputDirective;
@@ -662,8 +570,10 @@ mod tests {
     #[test]
     fn test() {
         let logger = TestLogger::default();
-        let mut engine = super::TemplateEngine::try_new("test", super::GeneratorConfig::default())
-            .expect("Failed to create template engine");
+        let loader = FileSystemFileLoader::try_new("templates".into(), "test")
+            .expect("Failed to create file system loader");
+        let mut engine =
+            super::TemplateEngine::try_new(loader).expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful

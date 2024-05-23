@@ -3,9 +3,9 @@
 //! Compute stats on a semantic convention registry.
 
 use crate::registry::{
-    load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, DiagnosticArgs,
-    RegistryArgs,
+    load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryArgs,
 };
+use crate::DiagnosticArgs;
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;

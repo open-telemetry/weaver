@@ -24,4 +24,5 @@ gix = { version = "0.62.0", default-features = false, features = [
 
 thiserror.workspace = true
 serde.workspace = true
+miette.workspace = true
 

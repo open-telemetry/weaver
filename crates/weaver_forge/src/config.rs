@@ -13,6 +13,7 @@ use serde::Deserialize;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
+use crate::file_loader::FileLoader;
 use crate::filter::Filter;
 use crate::WEAVER_YAML;
 
@@ -353,16 +354,14 @@ impl CaseConvention {
 }
 
 impl TargetConfig {
-    pub fn try_new(lang_path: &Path) -> Result<TargetConfig, Error> {
-        let config_file = lang_path.join(WEAVER_YAML);
-        if config_file.exists() {
-            let reader =
-                std::fs::File::open(config_file.clone()).map_err(|e| InvalidConfigFile {
-                    config_file: config_file.clone(),
-                    error: e.to_string(),
-                })?;
-            serde_yaml::from_reader(reader).map_err(|e| InvalidConfigFile {
-                config_file: config_file.clone(),
+    pub fn try_new(loader: &dyn FileLoader) -> Result<TargetConfig, Error> {
+        let weaver_file = loader.file_loader()(WEAVER_YAML).map_err(|e| InvalidConfigFile {
+            config_file: WEAVER_YAML.into(),
+            error: e.to_string(),
+        })?;
+        if let Some(weaver_file) = weaver_file {
+            serde_yaml::from_str(&weaver_file).map_err(|e| InvalidConfigFile {
+                config_file: WEAVER_YAML.into(),
                 error: e.to_string(),
             })
         } else {

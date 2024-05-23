@@ -16,7 +16,6 @@ use weaver_checker::{Engine, Error, PolicyStage};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
-use weaver_forge::{GeneratorConfig, OutputDirective, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
@@ -27,6 +26,7 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
+use crate::CmdResult;
 
 mod check;
 mod generate;
@@ -138,94 +138,37 @@ pub struct RegistryArgs {
     pub registry_git_sub_dir: Option<String>,
 }
 
-/// Set of parameters used to specify the diagnostic format.
-#[derive(Args, Debug, Clone)]
-pub struct DiagnosticArgs {
-    /// Format used to render the diagnostic messages. Predefined formats are: ansi, json,
-    /// gh_workflow_command.
-    #[arg(long, default_value = "ansi")]
-    pub diagnostic_format: String,
-
-    /// Path to the directory where the diagnostic templates are located.
-    #[arg(long, default_value = "diagnostic_templates")]
-    pub diagnostic_template: PathBuf,
-}
-
 /// Manage a semantic convention registry and return the exit code.
 #[cfg(not(tarpaulin_include))]
-pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> i32 {
+pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
     let cache = match Cache::try_new() {
         Ok(cache) => cache,
-        Err(e) => {
-            log.error(&format!("Failed to create cache: {}", e));
-            return 1;
-        }
+        Err(e) => return CmdResult::new(Err(e.into()), None),
     };
 
-    let (cmd_result, diag_args) = match &command.command {
-        RegistrySubCommand::Check(args) => (
+    match &command.command {
+        RegistrySubCommand::Check(args) => CmdResult::new(
             check::command(log.clone(), &cache, args),
-            args.diagnostic.clone(),
+            Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::Generate(args) => (
+        RegistrySubCommand::Generate(args) => CmdResult::new(
             generate::command(log.clone(), &cache, args),
-            args.diagnostic.clone(),
+            Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::Stats(args) => (
+        RegistrySubCommand::Stats(args) => CmdResult::new(
             stats::command(log.clone(), &cache, args),
-            args.diagnostic.clone(),
+            Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::Resolve(args) => (
+        RegistrySubCommand::Resolve(args) => CmdResult::new(
             resolve::command(log.clone(), &cache, args),
-            args.diagnostic.clone(),
+            Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Search(_) => unimplemented!(),
-        RegistrySubCommand::UpdateMarkdown(args) => (
+        RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
             update_markdown::command(log.clone(), &cache, args),
-            args.diagnostic.clone(),
+            Some(args.diagnostic.clone()),
         ),
-    };
-
-    process_diagnostics(cmd_result, diag_args, log.clone())
-}
-
-/// Render the diagnostic messages based on the diagnostic configuration and return the exit code
-/// based on the diagnostic messages.
-fn process_diagnostics(
-    cmd_result: Result<(), DiagnosticMessages>,
-    diagnostic_args: DiagnosticArgs,
-    logger: impl Logger + Sync + Clone,
-) -> i32 {
-    if let Err(diag_msgs) = cmd_result {
-        let config = GeneratorConfig::new(diagnostic_args.diagnostic_template);
-        match TemplateEngine::try_new(&diagnostic_args.diagnostic_format, config) {
-            Ok(engine) => {
-                match engine.generate(
-                    logger.clone(),
-                    &diag_msgs,
-                    PathBuf::new().as_path(),
-                    &OutputDirective::Stdout,
-                ) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        logger.error(&format!(
-                            "Failed to render the diagnostic messages. Error: {}",
-                            e
-                        ));
-                        return 1;
-                    }
-                }
-            }
-            Err(e) => {
-                logger.error(&format!("Failed to create the template engine to render the diagnostic messages. Error: {}", e));
-                return 1;
-            }
-        }
-        return if diag_msgs.has_error() { 1 } else { 0 };
     }
-
-    // Return 0 if there are no diagnostic messages
-    0
 }
 
 /// Convert a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.

@@ -100,6 +100,12 @@ impl DiagnosticMessages {
             .iter()
             .any(|message| message.diagnostic.severity == Some(Severity::Error))
     }
+
+    /// Returns true if there are no diagnostic messages
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<T>

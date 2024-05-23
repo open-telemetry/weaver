@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use serde::Serialize;
 
+use crate::DiagnosticArgs;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
@@ -15,7 +16,7 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    DiagnosticArgs, RegistryArgs,
+    RegistryArgs,
 };
 
 /// Supported output formats for the resolved schema
