@@ -4,8 +4,10 @@
 
 use assert_cmd::Command;
 
+/// This test checks the CLI interface for the registry generate command.
+/// This test doesn't count for the coverage report as it runs a separate process.
 #[test]
-fn test_registry_generate() {
+fn test_cli_interface() {
     let mut cmd = Command::cargo_bin("weaver").unwrap();
     let output = cmd
         .arg("registry")

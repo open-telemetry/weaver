@@ -80,7 +80,7 @@ pub enum RegistrySubCommand {
     Resolve(RegistryResolveArgs),
     /// Searches a registry (not yet implemented).
     Search(RegistrySearchArgs),
-    /// Calculate and display a set of general statistics on a registry (not yet implemented).
+    /// Calculate a set of general statistics on a semantic convention registry.
     Stats(RegistryStatsArgs),
     /// Update markdown files that contain markers indicating the templates used to update the specified sections.
     UpdateMarkdown(RegistryUpdateMarkdownArgs),
@@ -139,7 +139,6 @@ pub struct RegistryArgs {
 }
 
 /// Manage a semantic convention registry and return the exit code.
-#[cfg(not(tarpaulin_include))]
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
     let cache = match Cache::try_new() {
         Ok(cache) => cache,
@@ -172,7 +171,6 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
 }
 
 /// Convert a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn semconv_registry_path_from(
     registry: &RegistryPath,
     path: &Option<String>,
@@ -195,7 +193,6 @@ pub(crate) fn semconv_registry_path_from(
 /// * `registry_path` - The path to the semantic convention registry.
 /// * `cache` - The cache to use for loading the registry.
 /// * `log` - The logger to use for logging messages.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn load_semconv_specs(
     registry_path: &weaver_semconv::path::RegistryPath,
     cache: &Cache,
@@ -215,7 +212,6 @@ pub(crate) fn load_semconv_specs(
 ///
 /// * `policy_engine` - The pre-configured policy engine to use for checking the policies.
 /// * `semconv_specs` - The semantic convention specifications to check.
-#[cfg(not(tarpaulin_include))]
 pub fn check_policy(
     policy_engine: &Engine,
     semconv_specs: &[(String, SemConvSpec)],
@@ -264,7 +260,6 @@ pub fn check_policy(
 /// * `policies` - The list of policy files to check.
 /// * `semconv_specs` - The semantic convention specifications to check.
 /// * `logger` - The logger to use for logging messages.
-#[cfg(not(tarpaulin_include))]
 fn check_policies(
     registry_path: &weaver_semconv::path::RegistryPath,
     cache: &Cache,
@@ -305,7 +300,6 @@ fn check_policies(
 /// * `registry_id` - The ID of the semantic convention registry.
 /// * `semconv_specs` - The semantic convention specifications to resolve.
 /// * `logger` - The logger to use for logging messages.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
     logger: impl Logger + Sync + Clone,

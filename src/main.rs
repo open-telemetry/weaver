@@ -43,6 +43,7 @@ impl Default for DiagnosticArgs {
 }
 
 /// Result of a command execution.
+#[derive(Debug)]
 pub(crate) struct CmdResult {
     pub(crate) command_result: Result<(), DiagnosticMessages>,
     pub(crate) diagnostic_args: Option<DiagnosticArgs>,

@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/open-telemetry/weaver/graph/badge.svg?token=tmWKFoMT2G)](https://codecov.io/gh/open-telemetry/weaver)
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Slack](https://img.shields.io/badge/Slack-OpenTelemetry_Weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
 ----
 
 [Getting started](#getting-started) | [Main commands](#main-commands) | [Generate Doc & Code](crates/weaver_forge/README.md) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
@@ -130,6 +131,7 @@ Telemetry Schemas.
 ## Documentation
 
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
+- [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
 - [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate
   documentation and code based on semantic conventions.
 - [Weaver Checker](crates/weaver_policy_engine/README.md): An integrated policy

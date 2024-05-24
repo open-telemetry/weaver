@@ -62,6 +62,10 @@ pub struct RegistryResolveArgs {
     #[arg(short = 'p', long = "policy")]
     pub policies: Vec<PathBuf>,
 
+    /// Skip the policy checks.
+    #[arg(long, default_value = "false")]
+    pub skip_policies: bool,
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -84,13 +88,15 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
 
-    check_policies(
-        &registry_path,
-        cache,
-        &args.policies,
-        &semconv_specs,
-        logger.clone(),
-    )?;
+    if !args.skip_policies {
+        check_policies(
+            &registry_path,
+            cache,
+            &args.policies,
+            &semconv_specs,
+            logger.clone(),
+        )?;
+    }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
@@ -143,5 +149,72 @@ fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, Str
             .map_err(|e| format!("Failed to serialize in Yaml the resolved registry: {:?}", e)),
         Format::Json => serde_json::to_string_pretty(object)
             .map_err(|e| format!("Failed to serialize in Json the resolved registry: {:?}", e)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use weaver_common::TestLogger;
+
+    use crate::cli::{Cli, Commands};
+    use crate::registry::resolve::{Format, RegistryResolveArgs};
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::run_command;
+
+    #[test]
+    fn test_registry_resolve() {
+        let logger = TestLogger::new();
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::Resolve(RegistryResolveArgs {
+                    registry: RegistryArgs {
+                        registry: RegistryPath::Local(
+                            "crates/weaver_codegen_test/semconv_registry/".to_owned(),
+                        ),
+                        registry_git_sub_dir: None,
+                    },
+                    catalog: false,
+                    lineage: true,
+                    output: None,
+                    format: Format::Yaml,
+                    policies: vec![],
+                    skip_policies: true,
+                    diagnostic: Default::default(),
+                }),
+            })),
+        };
+
+        let exit_code = run_command(&cli, logger.clone());
+        // The command should succeed.
+        assert_eq!(exit_code, 0);
+
+        // Now, let's run the command again with the policy checks enabled.
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::Resolve(RegistryResolveArgs {
+                    registry: RegistryArgs {
+                        registry: RegistryPath::Local(
+                            "crates/weaver_codegen_test/semconv_registry/".to_owned(),
+                        ),
+                        registry_git_sub_dir: None,
+                    },
+                    catalog: false,
+                    lineage: true,
+                    output: None,
+                    format: Format::Json,
+                    policies: vec![],
+                    skip_policies: false,
+                    diagnostic: Default::default(),
+                }),
+            })),
+        };
+
+        let exit_code = run_command(&cli, logger);
+        // The command should exit with an error code.
+        assert_eq!(exit_code, 1);
     }
 }

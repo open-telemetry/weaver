@@ -182,9 +182,10 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
         )
     })?;
     let canonical_combined = path.canonicalize().map_err(|e| {
+        let curr_dir = std::env::current_dir().expect("Failed to get current directory");
         minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("Failed to canonicalize combined path: {}", e),
+            format!("Failed to canonicalize the path '{}' (error: {}). The current working directory is '{}'", path.display(), e, curr_dir.display()),
         )
     })?;
 

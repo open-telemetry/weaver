@@ -3,7 +3,7 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::{semconv_registry_path_from, RegistryPath};
+use crate::registry::{semconv_registry_path_from, RegistryArgs};
 use crate::DiagnosticArgs;
 use clap::Args;
 use weaver_cache::Cache;
@@ -19,18 +19,9 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Path to the directory where the markdown files are located.
     pub markdown_dir: String,
 
-    /// Local path or Git URL of the semantic convention registry to check.
-    #[arg(
-        short = 'r',
-        long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
-    )]
-    pub registry: RegistryPath,
-
-    /// Optional path in the Git repository where the semantic convention
-    /// registry is located
-    #[arg(short = 'd', long, default_value = "model")]
-    pub registry_git_sub_dir: Option<String>,
+    /// Parameters to specify the semantic convention registry
+    #[command(flatten)]
+    registry: RegistryArgs,
 
     /// Whether or not to run updates in dry-run mode.
     #[arg(long, default_value = "false")]
@@ -74,13 +65,16 @@ pub(crate) fn command(
     let generator = match args.target.as_ref() {
         None => None,
         Some(target) => {
-            let loader = FileSystemFileLoader::try_new("templates/registry".into(), target)?;
+            let loader = FileSystemFileLoader::try_new(
+                format!("{}/registry", args.templates).into(),
+                target,
+            )?;
             Some(TemplateEngine::try_new(loader)?)
         }
     };
 
     let generator = SnippetGenerator::try_from_url(
-        semconv_registry_path_from(&args.registry, &args.registry_git_sub_dir),
+        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
         cache,
         generator,
     )?;
@@ -114,4 +108,42 @@ pub(crate) fn command(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    // use weaver_common::TestLogger;
+    //
+    // use crate::cli::{Cli, Commands};
+    // use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    // use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
+    // use crate::run_command;
+
+    #[test]
+    fn test_registry_update_markdown() {
+        // ToDo
+        // let logger = TestLogger::new();
+        // let cli = Cli {
+        //     debug: 0,
+        //     quiet: false,
+        //     command: Some(Commands::Registry(RegistryCommand {
+        //         command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+        //             markdown_dir: "crates/weaver_semconv_gen/legacy_tests/stability".to_owned(),
+        //             registry: RegistryArgs {
+        //                 registry: RegistryPath::Local("crates/weaver_semconv_gen/legacy_tests/stability".to_owned()),
+        //                 registry_git_sub_dir: None,
+        //             },
+        //             dry_run: true,
+        //             attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
+        //             templates: "crates/weaver_semconv_gen/templates".to_owned(),
+        //             diagnostic: Default::default(),
+        //             target: Some("markdown".to_string()),
+        //         })
+        //     })),
+        // };
+        //
+        // let exit_code = run_command(&cli, logger.clone());
+        // // The command should succeed.
+        // assert_eq!(exit_code, 0);
+    }
 }
