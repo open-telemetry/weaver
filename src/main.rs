@@ -109,6 +109,7 @@ fn process_diagnostics(cmd_result: CmdResult, logger: impl Logger + Sync + Clone
     if let Err(diagnostic_messages) = cmd_result.command_result {
         let loader = EmbeddedFileLoader::try_new(
             &DEFAULT_DIAGNOSTIC_TEMPLATES,
+            diagnostic_args.diagnostic_template,
             &diagnostic_args.diagnostic_format,
         )
         .expect("Failed to create the embedded file loader for the diagnostic templates");

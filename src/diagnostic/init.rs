@@ -14,7 +14,7 @@ use weaver_common::Logger;
 /// Parameters for the `diagnostic init` sub-command
 #[derive(Debug, Args)]
 pub struct DiagnosticInitArgs {
-    /// Optional target to initialize the diagnostic templates for.
+    /// Optional target to initialize the diagnostic templates for. If empty, all default templates will be extracted.
     #[arg(default_value = "")]
     pub target: String,
 

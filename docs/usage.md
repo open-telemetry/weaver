@@ -219,3 +219,24 @@ Options:
 
 > Note: The `-d` and `--registry-git-sub-dir` options are only used when the
 > registry is a Git URL otherwise these options are ignored.
+
+## diagnostic init
+
+```
+Initializes a `diagnostic_templates` directory to define or override diagnostic output formats
+
+Usage: weaver diagnostic init [OPTIONS] [TARGET]
+
+Arguments:
+  [TARGET]  Optional target to initialize the diagnostic templates for. If empty, all default templates will be extracted [default: ]
+
+Options:
+  -t, --diagnostic-templates-dir <DIAGNOSTIC_TEMPLATES_DIR>
+          Optional path where the diagnostic templates directory should be created [default: diagnostic_templates]
+      --diagnostic-format <DIAGNOSTIC_FORMAT>
+          Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command [default: ansi]
+      --diagnostic-template <DIAGNOSTIC_TEMPLATE>
+          Path to the directory where the diagnostic templates are located [default: diagnostic_templates]
+  -h, --help
+          Print help
+```

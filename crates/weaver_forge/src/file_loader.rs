@@ -6,10 +6,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io};
 
-use crate::error::Error;
-use crate::error::Error::TargetNotSupported;
 use minijinja::ErrorKind;
 use walkdir::WalkDir;
+
+use crate::error::Error;
+use crate::error::Error::TargetNotSupported;
 
 /// An abstraction for loading files from a file system, embedded directory, etc.
 pub trait FileLoader: Send + Sync {
@@ -26,24 +27,42 @@ pub trait FileLoader: Send + Sync {
     ) -> Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static>;
 }
 
-/// A loader that loads files from the embedded directory in the binary of Weaver.
+/// A loader that loads files from the embedded directory in the binary of Weaver or
+/// from the file system if the `local_dir/target` directory exists.
+///
+/// This is useful for loading templates and other files that are embedded in the binary but
+/// can be overridden by the user.
 pub struct EmbeddedFileLoader {
     target: String,
-    dir: &'static include_dir::Dir<'static>,
+    embedded_dir: &'static include_dir::Dir<'static>,
+    fs_loader: Option<FileSystemFileLoader>,
 }
 
 impl EmbeddedFileLoader {
-    /// Create a new embedded file loader
-    pub fn try_new(dir: &'static include_dir::Dir<'static>, target: &str) -> Result<Self, Error> {
-        let target_dir = dir.get_dir(target);
-        if let Some(dir) = target_dir {
+    /// Create a new embedded file loader.
+    ///
+    /// If the `local_dir/target` directory exists, the loader will use the file system loader.
+    /// Otherwise, it will use the embedded directory.
+    pub fn try_new(
+        embedded_dir: &'static include_dir::Dir<'static>,
+        local_dir: PathBuf,
+        target: &str,
+    ) -> Result<Self, Error> {
+        let target_embedded_dir = embedded_dir.get_dir(target);
+        let target_local_dir = local_dir.join(target);
+        if let Some(dir) = target_embedded_dir {
             Ok(Self {
                 target: target.to_owned(),
-                dir,
+                embedded_dir: dir,
+                fs_loader: if target_local_dir.exists() {
+                    Some(FileSystemFileLoader::try_new(local_dir, target)?)
+                } else {
+                    None
+                },
             })
         } else {
             Err(TargetNotSupported {
-                root_path: dir.path().to_string_lossy().to_string(),
+                root_path: embedded_dir.path().to_string_lossy().to_string(),
                 target: target.to_owned(),
                 error: "Target not found".to_owned(),
             })
@@ -55,7 +74,10 @@ impl FileLoader for EmbeddedFileLoader {
     /// Returns a textual representation of the root path of the loader.
     /// This representation is mostly used for debugging and logging purposes.
     fn root(&self) -> &Path {
-        self.dir.path()
+        if let Some(fs_loader) = &self.fs_loader {
+            return fs_loader.root();
+        }
+        self.embedded_dir.path()
     }
 
     /// Returns a list of all files in the loader's root directory.
@@ -72,8 +94,12 @@ impl FileLoader for EmbeddedFileLoader {
             }
         }
 
+        if let Some(fs_loader) = &self.fs_loader {
+            return fs_loader.all_files();
+        }
+
         let mut files = vec![];
-        collect_files(self.dir, &mut files);
+        collect_files(self.embedded_dir, &mut files);
         files
     }
 
@@ -81,7 +107,11 @@ impl FileLoader for EmbeddedFileLoader {
     fn file_loader(
         &self,
     ) -> Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static> {
-        let dir = self.dir;
+        if let Some(fs_loader) = &self.fs_loader {
+            return fs_loader.file_loader();
+        }
+
+        let dir = self.embedded_dir;
         let target = self.target.clone();
         Arc::new(move |name| {
             let name = format!("{}/{}", target, name);
@@ -205,8 +235,9 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
 
 #[cfg(test)]
 mod tests {
-    use include_dir::{include_dir, Dir};
     use std::collections::HashSet;
+
+    use include_dir::{include_dir, Dir};
 
     use super::*;
 
@@ -214,11 +245,28 @@ mod tests {
 
     #[test]
     fn test_template_loader() {
-        let embedded_loader = EmbeddedFileLoader::try_new(&EMBEDDED_TEMPLATES, "test").unwrap();
+        let embedded_loader = EmbeddedFileLoader::try_new(
+            &EMBEDDED_TEMPLATES,
+            PathBuf::from("./does-not-exist"),
+            "test",
+        )
+        .unwrap();
         let embedded_content = embedded_loader.file_loader()("group.md");
         assert!(embedded_content.is_ok());
         let embedded_content = embedded_content.unwrap().unwrap();
         assert!(embedded_content.contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
+
+        let overloaded_embedded_loader = EmbeddedFileLoader::try_new(
+            &EMBEDDED_TEMPLATES,
+            PathBuf::from("./overloaded-templates"),
+            "test",
+        )
+        .unwrap();
+        let overloaded_embedded_content = overloaded_embedded_loader.file_loader()("group.md");
+        assert!(overloaded_embedded_content.is_ok());
+        let overloaded_embedded_content = overloaded_embedded_content.unwrap().unwrap();
+        assert!(overloaded_embedded_content
+            .contains("# Overloaded Group `{{ ctx.id }}` ({{ ctx.type }})"));
 
         let fs_loader =
             FileSystemFileLoader::try_new(PathBuf::from("./templates"), "test").unwrap();
