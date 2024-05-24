@@ -116,3 +116,36 @@ pub fn diff_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Re
 
     Ok(are_identical)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_diff_output() {
+        let original = "Hello, world!";
+        let updated = "Hello, there!";
+        let diff = diff_output(original, updated);
+        assert_eq!(
+            diff,
+            "\u{1b}[31m- Hello, world!\n\u{1b}[32m+ Hello, there!\n\u{1b}[0m"
+        );
+    }
+
+    #[test]
+    fn test_diff_dir() {
+        let expected_dir = "./src";
+        let observed_dir = "./src";
+
+        let are_identical =
+            diff_dir(&expected_dir, &observed_dir).expect("Failed to diff directories");
+        assert!(are_identical);
+
+        let expected_dir = "./src";
+        let observed_dir = "./";
+
+        let are_identical =
+            diff_dir(&expected_dir, &observed_dir).expect("Failed to diff directories");
+        assert!(!are_identical);
+    }
+}

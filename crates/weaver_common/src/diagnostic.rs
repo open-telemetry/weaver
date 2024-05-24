@@ -167,6 +167,8 @@ mod tests {
         };
         let diagnostic_messages = DiagnosticMessages::from_error(error.clone());
         assert_eq!(diagnostic_messages.0.len(), 1);
+        assert!(diagnostic_messages.has_error());
+        assert!(!diagnostic_messages.is_empty());
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.message,
             "This is a test error"

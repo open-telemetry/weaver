@@ -325,4 +325,23 @@ mod tests {
         assert!(fs_content.is_ok());
         assert!(fs_content.unwrap().is_none());
     }
+
+    #[test]
+    fn test_embedded_loader_error() {
+        let embedded_loader = EmbeddedFileLoader::try_new(
+            &EMBEDDED_TEMPLATES,
+            PathBuf::from("./does-not-exist"),
+            "doesn't-exist",
+        );
+
+        assert!(embedded_loader.is_err());
+    }
+
+    #[test]
+    fn test_file_system_loader_error() {
+        let fs_loader =
+            FileSystemFileLoader::try_new(PathBuf::from("./templates"), "doesn't-exist");
+
+        assert!(fs_loader.is_err());
+    }
 }
