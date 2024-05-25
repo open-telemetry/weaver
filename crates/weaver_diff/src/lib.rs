@@ -142,7 +142,7 @@ mod tests {
         assert!(are_identical);
 
         let expected_dir = "./src";
-        let observed_dir = "./";
+        let observed_dir = "../weaver_cache/src";
 
         let are_identical =
             diff_dir(&expected_dir, &observed_dir).expect("Failed to diff directories");

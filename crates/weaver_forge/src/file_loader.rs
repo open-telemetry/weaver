@@ -324,6 +324,16 @@ mod tests {
         let fs_content = fs_loader.file_loader()("missing_file.md");
         assert!(fs_content.is_ok());
         assert!(fs_content.unwrap().is_none());
+
+        // Test case where the file is outside the root directory
+        // This should return no content although the file exists
+        // This is because the file is not a subdirectory of the root directory
+        // and is considered unsafe to load. This is a security measure to prevent
+        // loading files outside the root directory.
+        // It's None instead of an error because the contract of the loader is to return None
+        // if the file does not exist (cf MiniJinja doc).
+        let fs_content = fs_loader.file_loader()("../../Cargo.toml").unwrap();
+        assert!(fs_content.is_none());
     }
 
     #[test]
