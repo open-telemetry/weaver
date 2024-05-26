@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
 use std::fmt::{Display, Formatter};

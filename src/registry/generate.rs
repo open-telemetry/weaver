@@ -179,7 +179,13 @@ mod tests {
             "attributes/error.rs",
         ]
         .into_iter()
-        .map(|s| s.to_owned())
+        .map(|s| {
+            // Split the string by `/` and join the parts with the OS specific separator.
+            s.split('/')
+                .collect::<PathBuf>()
+                .to_string_lossy()
+                .to_string()
+        })
         .collect::<std::collections::HashSet<_>>();
 
         assert_eq!(rust_files, expected_rust_files);
