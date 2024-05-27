@@ -410,6 +410,14 @@ pub enum Examples {
     Bools(Vec<bool>),
     /// A array of strings example.
     Strings(Vec<String>),
+    /// List of arrays of integers example.
+    ListOfInts(Vec<Vec<i64>>),
+    /// List of arrays of doubles example.
+    ListOfDoubles(Vec<Vec<OrderedFloat<f64>>>),
+    /// List of arrays of bools example.
+    ListOfBools(Vec<Vec<bool>>),
+    /// List of arrays of strings example.
+    ListOfStrings(Vec<Vec<String>>),
 }
 
 /// The different requirement level specifications.

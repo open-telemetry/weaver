@@ -58,10 +58,15 @@ fn enum_type_string(members: &[EnumEntriesSpec]) -> &'static str {
     }
 }
 
-fn write_example_list<Out: Write, Element: std::fmt::Display>(
+fn write_example_list<Out: Write, Element: std::fmt::Display + std::fmt::Debug>(
     out: &mut Out,
     list: &[Element],
+    is_array: bool,
 ) -> Result<(), Error> {
+    if is_array {
+        write!(out, "`{:?}`", list)?;
+        return Ok(());
+    }
     let mut first = true;
     for e in list {
         if !first {
@@ -73,16 +78,40 @@ fn write_example_list<Out: Write, Element: std::fmt::Display>(
     Ok(())
 }
 
-fn write_examples_string<Out: Write>(out: &mut Out, examples: &Examples) -> Result<(), Error> {
+fn write_example_list_of_lists<Out: Write, Element: std::fmt::Display + std::fmt::Debug>(
+    out: &mut Out,
+    list: &[Vec<Element>],
+    is_array: bool,
+) -> Result<(), Error> {
+    let mut first = true;
+    for e in list {
+        if !first {
+            write!(out, "; ")?;
+        }
+        write_example_list(out, e, is_array)?;
+        first = false;
+    }
+    Ok(())
+}
+
+fn write_examples_string<Out: Write>(
+    out: &mut Out,
+    examples: &Examples,
+    is_array: bool,
+) -> Result<(), Error> {
     match examples {
         Examples::Bool(value) => Ok(write!(out, "`{value}`")?),
         Examples::Int(value) => Ok(write!(out, "`{value}`")?),
         Examples::Double(value) => Ok(write!(out, "`{value}`")?),
         Examples::String(value) => Ok(write!(out, "`{value}`")?),
-        Examples::Ints(values) => write_example_list(out, values),
-        Examples::Doubles(values) => write_example_list(out, values),
-        Examples::Bools(values) => write_example_list(out, values),
-        Examples::Strings(values) => write_example_list(out, values),
+        Examples::Ints(values) => write_example_list(out, values, is_array),
+        Examples::Doubles(values) => write_example_list(out, values, is_array),
+        Examples::Bools(values) => write_example_list(out, values, is_array),
+        Examples::Strings(values) => write_example_list(out, values, is_array),
+        Examples::ListOfInts(values) => write_example_list_of_lists(out, values, is_array),
+        Examples::ListOfDoubles(values) => write_example_list_of_lists(out, values, is_array),
+        Examples::ListOfBools(values) => write_example_list_of_lists(out, values, is_array),
+        Examples::ListOfStrings(values) => write_example_list_of_lists(out, values, is_array),
     }
 }
 
@@ -181,6 +210,16 @@ impl<'a> AttributeView<'a> {
 
     fn is_enum(&self) -> bool {
         matches!(&self.attribute.r#type, AttributeType::Enum { .. })
+    }
+
+    fn is_array(&self) -> bool {
+        matches!(
+            &self.attribute.r#type,
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)
+                | AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)
+                | AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)
+                | AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
+        )
     }
 
     fn is_sampling_relevant(&self) -> bool {
@@ -307,7 +346,7 @@ impl<'a> AttributeView<'a> {
 
     fn write_examples<Out: Write>(&self, out: &mut Out) -> Result<(), Error> {
         match &self.attribute.examples {
-            Some(examples) => write_examples_string(out, examples),
+            Some(examples) => write_examples_string(out, examples, self.is_array()),
             None =>
             // Enums can pull examples from the enum if not otherwise specified.
             {
