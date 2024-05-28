@@ -11,6 +11,7 @@ use miette::Diagnostic;
 use serde::Serialize;
 use serde_json::to_value;
 use walkdir::DirEntry;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
@@ -91,10 +92,10 @@ pub enum Error {
 
 impl WeaverError<Error> for Error {
     /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<String> {
+    fn errors(&self) -> Vec<DiagnosticMessage> {
         match self {
             CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
-            _ => vec![self.to_string()],
+            _ => vec![DiagnosticMessage::new(self.clone())],
         }
     }
     fn compound(errors: Vec<Error>) -> Error {
@@ -109,6 +110,15 @@ impl WeaverError<Error> for Error {
         )
     }
 }
+
+// impl From<Error> for DiagnosticMessages {
+//     fn from(error: Error) -> Self {
+//         DiagnosticMessages::new(match error {
+//             CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
+//             _ => vec![DiagnosticMessage::new(error)],
+//         })
+//     }
+// }
 
 /// A list of supported policy stages.
 pub enum PolicyStage {

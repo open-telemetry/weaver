@@ -42,9 +42,9 @@ pub struct MietteDiagnosticExt {
 #[derive(Debug, serde::Serialize)]
 pub struct DiagnosticMessage {
     /// The error
-    error: serde_json::Value,
+    pub(crate) error: serde_json::Value,
     /// The diagnostic message
-    diagnostic: MietteDiagnosticExt,
+    pub(crate) diagnostic: MietteDiagnosticExt,
 }
 
 /// A list of diagnostic messages
@@ -80,6 +80,11 @@ impl DiagnosticMessage {
 }
 
 impl DiagnosticMessages {
+    /// Creates a new list of diagnostic messages
+    pub fn new(diag_msgs: Vec<DiagnosticMessage>) -> Self {
+        Self(diag_msgs)
+    }
+
     /// Creates a new list of diagnostic messages for a list of errors
     pub fn from_errors<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(
         errors: Vec<M>,

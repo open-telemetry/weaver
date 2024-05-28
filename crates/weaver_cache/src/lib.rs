@@ -22,7 +22,7 @@ use serde::Serialize;
 use tempdir::TempDir;
 
 /// An error that can occur while creating or using a cache.
-#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// Home directory not found.

@@ -9,6 +9,7 @@ use std::{fmt, fs};
 
 use serde::Serialize;
 use weaver_cache::Cache;
+use weaver_common::diagnostic::DiagnosticMessage;
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
 use weaver_forge::registry::TemplateGroup;
@@ -27,7 +28,7 @@ mod gen;
 mod parser;
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// Thrown when we are unable to find a semconv by id.
@@ -100,10 +101,10 @@ pub enum Error {
 
 impl WeaverError<Error> for Error {
     /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<String> {
+    fn errors(&self) -> Vec<DiagnosticMessage> {
         match self {
-            Self::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
+            Self::CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
+            _ => vec![DiagnosticMessage::new(self.clone())],
         }
     }
     fn compound(errors: Vec<Error>) -> Error {

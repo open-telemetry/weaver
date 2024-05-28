@@ -4,7 +4,9 @@
 
 use miette::Diagnostic;
 use serde::Serialize;
+use weaver_common::diagnostic::DiagnosticMessage;
 use weaver_common::error::{format_errors, WeaverError};
+use crate::Error::CompoundError;
 
 pub mod attribute;
 pub mod group;
@@ -94,18 +96,18 @@ pub enum Error {
 
 impl WeaverError<Error> for Error {
     /// Returns a list of human-readable error messages.
-    fn errors(&self) -> Vec<String> {
+    fn errors(&self) -> Vec<DiagnosticMessage> {
         match self {
-            Error::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
+            CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
+            _ => vec![DiagnosticMessage::new(self.clone())],
         }
     }
     fn compound(errors: Vec<Error>) -> Error {
-        Self::CompoundError(
+        CompoundError(
             errors
                 .into_iter()
                 .flat_map(|e| match e {
-                    Self::CompoundError(errors) => errors,
+                    CompoundError(errors) => errors,
                     e => vec![e],
                 })
                 .collect(),

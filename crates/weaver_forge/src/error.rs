@@ -6,6 +6,7 @@ use std::{path::PathBuf, str::FromStr};
 
 use miette::Diagnostic;
 use serde::Serialize;
+use weaver_common::diagnostic::DiagnosticMessage;
 
 use weaver_common::error::WeaverError;
 use weaver_resolved_schema::attribute::AttributeRef;
@@ -151,10 +152,10 @@ pub enum Error {
 
 impl WeaverError<Error> for Error {
     /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<String> {
+    fn errors(&self) -> Vec<DiagnosticMessage> {
         match self {
-            CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
+            CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
+            _ => vec![DiagnosticMessage::new(self.clone())],
         }
     }
     fn compound(errors: Vec<Error>) -> Error {

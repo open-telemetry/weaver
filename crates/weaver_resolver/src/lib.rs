@@ -12,6 +12,7 @@ use serde::Serialize;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
+use weaver_common::diagnostic::DiagnosticMessage;
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
@@ -33,7 +34,7 @@ pub mod registry;
 pub struct SchemaResolver {}
 
 /// An error that can occur while resolving a telemetry schema.
-#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
@@ -146,10 +147,10 @@ pub enum Error {
 
 impl WeaverError<Error> for Error {
     /// Returns a list of human-readable error messages.
-    fn errors(&self) -> Vec<String> {
+    fn errors(&self) -> Vec<DiagnosticMessage> {
         match self {
-            Error::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
+            Error::CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
+            _ => vec![DiagnosticMessage::new(self.clone())],
         }
     }
     fn compound(errors: Vec<Error>) -> Error {

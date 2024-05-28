@@ -7,9 +7,11 @@
 use crate::Logger;
 use miette::Diagnostic;
 use serde::Serialize;
+use crate::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 /// A trait marker for Weaver diagnostic.
-pub trait WeaverDiagnostic {}
+pub trait WeaverDiagnostic {
+}
 
 /// A blanket implementation of the `WeaverDiagnostic` trait for any type that
 /// implements the `Diagnostic` and `Serialize` traits.
@@ -27,7 +29,7 @@ pub trait WeaverError<T>: Serialize + Diagnostic + Send + Sync {
     ///
     /// # Returns
     /// A `Vec<String>` containing human-readable error messages.
-    fn errors(&self) -> Vec<String>;
+    fn errors(&self) -> Vec<DiagnosticMessage>;
 
     /// Constructs a single compound error from a collection of individuals.
     #[must_use]
@@ -94,7 +96,7 @@ impl<T, E: WeaverError<E>> ExitIfError<T, E> for Result<T, E> {
         match self {
             Ok(value) => value,
             Err(e) => {
-                e.errors().iter().for_each(|msg| logger.error(msg));
+                e.errors().iter().for_each(|msg| logger.error(&msg.diagnostic.message));
                 panic!("One or several errors occurred (see above)");
             }
         }
