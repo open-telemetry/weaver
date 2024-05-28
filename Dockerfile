@@ -10,6 +10,7 @@ COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src
 COPY tests build/tests
+RUN ls -al .
 COPY default_diagnostic_templates build/default_diagnostic_templates
 RUN ls -al /build/
 
