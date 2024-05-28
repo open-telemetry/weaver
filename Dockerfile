@@ -3,14 +3,15 @@
 FROM rust:1.76.0-alpine3.18 as weaver-build
 RUN apk add musl-dev
 WORKDIR /build
+
 # list out directories to avoid pulling local cargo `target/`
 COPY Cargo.toml /build/Cargo.toml
 COPY Cargo.lock /build/Cargo.lock
 COPY crates /build/crates
 COPY data /build/data
 COPY src /build/src
-COPY tests build/tests
-COPY default_diagnostic_templates build/default_diagnostic_templates
+COPY tests /build/tests
+COPY default_diagnostic_templates /build/default_diagnostic_templates
 
 # Don't build release, so we get template debugging output.
 RUN cargo build
