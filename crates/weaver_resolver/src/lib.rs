@@ -39,7 +39,7 @@ pub struct SchemaResolver {}
 pub enum Error {
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
-    #[diagnostic(severity = "error", help("Check the URL and try again."))]
+    #[diagnostic(help("Check the URL and try again."))]
     InvalidUrl {
         /// The invalid URL.
         url: String,
@@ -49,7 +49,6 @@ pub enum Error {
 
     /// A semantic convention error.
     #[error("{message}")]
-    #[diagnostic()]
     SemConvError {
         /// The error that occurred.
         message: String,

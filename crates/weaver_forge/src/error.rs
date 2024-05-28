@@ -19,7 +19,6 @@ pub enum Error {
     /// Invalid config file.
     #[error("Invalid config file `{config_file}`: {error}")]
     #[diagnostic(
-        severity(Error),
         help("Please check the syntax of the weaver.yaml file."),
         url("https://github.com/open-telemetry/weaver/blob/main/docs/weaver-config.md")
     )]
@@ -33,7 +32,6 @@ pub enum Error {
     /// Target not found.
     #[error("Target `{target}` not found in `{root_path}`. Error: {error}")]
     #[diagnostic(
-        severity(Error),
         help("Please check the subdirectories of the template path for the target."),
         url("https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/README.md")
     )]
@@ -48,7 +46,6 @@ pub enum Error {
 
     /// Invalid template directory.
     #[error("Invalid template directory {template_dir}: {error}")]
-    #[diagnostic(severity(Error))]
     InvalidTemplateDir {
         /// Template directory.
         template_dir: PathBuf,
@@ -58,7 +55,6 @@ pub enum Error {
 
     /// Invalid telemetry schema.
     #[error("Invalid telemetry schema {schema}: {error}")]
-    #[diagnostic(severity(Error))]
     InvalidTelemetrySchema {
         /// Schema file.
         schema: PathBuf,
@@ -68,7 +64,6 @@ pub enum Error {
 
     /// Invalid template file.
     #[error("Invalid template file '{template}': {error}")]
-    #[diagnostic(severity(Error))]
     InvalidTemplateFile {
         /// Template path.
         template: PathBuf,
@@ -78,7 +73,6 @@ pub enum Error {
 
     /// Error loading a file content from the file loader.
     #[error("Error loading the file '{file}': {error}")]
-    #[diagnostic(severity(Error))]
     FileLoaderError {
         /// File path.
         file: PathBuf,
@@ -88,7 +82,6 @@ pub enum Error {
 
     /// Template evaluation failed.
     #[error("Template evaluation error -> {error}")]
-    #[diagnostic(severity(Error))]
     TemplateEvaluationFailed {
         /// Template path.
         template: PathBuf,
@@ -100,13 +93,11 @@ pub enum Error {
 
     /// Invalid template directory.
     #[error("Invalid template directory: {0}")]
-    #[diagnostic(severity(Error))]
     InvalidTemplateDirectory(PathBuf),
 
     /// Template file name undefined.
     #[error("File name undefined in the template `{template}`. To resolve this, use the function `config(file_name = <file_name, filter, or expression>)` to set the file name."
     )]
-    #[diagnostic(severity(Error))]
     TemplateFileNameUndefined {
         /// Template path.
         template: PathBuf,
@@ -114,7 +105,6 @@ pub enum Error {
 
     /// Write generated code failed.
     #[error("Writing of the generated code {template} failed: {error}")]
-    #[diagnostic(severity(Error))]
     WriteGeneratedCodeFailed {
         /// Template path.
         template: PathBuf,
@@ -124,7 +114,6 @@ pub enum Error {
 
     /// Attribute reference not found in the catalog.
     #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
-    #[diagnostic(severity(Error))]
     AttributeNotFound {
         /// Group id.
         group_id: String,
@@ -134,7 +123,6 @@ pub enum Error {
 
     /// Filter error.
     #[error("Filter '{filter}' failed: {error}")]
-    #[diagnostic(severity(Error))]
     FilterError {
         /// Filter that caused the error.
         filter: String,
@@ -144,7 +132,6 @@ pub enum Error {
 
     /// Invalid template pattern.
     #[error("Invalid template pattern: {error}")]
-    #[diagnostic(severity(Error))]
     InvalidTemplatePattern {
         /// Error message.
         error: String,
@@ -152,7 +139,6 @@ pub enum Error {
 
     /// The serialization of the context failed.
     #[error("The serialization of the context failed: {error}")]
-    #[diagnostic(severity(Error))]
     ContextSerializationFailed {
         /// Error message.
         error: String,
@@ -160,7 +146,6 @@ pub enum Error {
 
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
-    #[diagnostic(severity(Error))]
     CompoundError(Vec<Error>),
 }
 

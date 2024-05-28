@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_template_engine() -> Result<(), Error> {
-        let loader = FileSystemFileLoader::try_new("templates".into(), "markdown")?;
+        let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
         let template = TemplateEngine::try_new(loader)?;
         let generator = SnippetGenerator::try_from_path("data", Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";

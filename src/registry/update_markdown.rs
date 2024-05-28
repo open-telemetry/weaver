@@ -112,38 +112,37 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    // use weaver_common::TestLogger;
-    //
-    // use crate::cli::{Cli, Commands};
-    // use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
-    // use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    // use crate::run_command;
+    use weaver_common::TestLogger;
+
+    use crate::cli::{Cli, Commands};
+    use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::run_command;
 
     #[test]
     fn test_registry_update_markdown() {
-        // ToDo
-        // let logger = TestLogger::new();
-        // let cli = Cli {
-        //     debug: 0,
-        //     quiet: false,
-        //     command: Some(Commands::Registry(RegistryCommand {
-        //         command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
-        //             markdown_dir: "crates/weaver_semconv_gen/legacy_tests/stability".to_owned(),
-        //             registry: RegistryArgs {
-        //                 registry: RegistryPath::Local("crates/weaver_semconv_gen/legacy_tests/stability".to_owned()),
-        //                 registry_git_sub_dir: None,
-        //             },
-        //             dry_run: true,
-        //             attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-        //             templates: "crates/weaver_semconv_gen/templates".to_owned(),
-        //             diagnostic: Default::default(),
-        //             target: Some("markdown".to_string()),
-        //         })
-        //     })),
-        // };
-        //
-        // let exit_code = run_command(&cli, logger.clone());
-        // // The command should succeed.
-        // assert_eq!(exit_code, 0);
+        let logger = TestLogger::new();
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
+                    markdown_dir: "data/update_markdown/markdown".to_owned(),
+                    registry: RegistryArgs {
+                        registry: RegistryPath::Local("data/update_markdown/registry".to_owned()),
+                        registry_git_sub_dir: None,
+                    },
+                    dry_run: true,
+                    attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
+                    templates: "data/update_markdown/templates".to_owned(),
+                    diagnostic: Default::default(),
+                    target: Some("markdown".to_owned()),
+                }),
+            })),
+        };
+
+        let exit_code = run_command(&cli, logger.clone());
+        // The command should succeed.
+        assert_eq!(exit_code, 0);
     }
 }

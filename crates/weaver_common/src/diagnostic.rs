@@ -92,13 +92,19 @@ impl DiagnosticMessages {
         Self(vec![DiagnosticMessage::new(error)])
     }
 
-    /// Returns true if any of the diagnostic messages have an error severity
-    /// level.
+    /// Returns true if all the diagnostic messages are explicitly marked as
+    /// warnings or advices.
     #[must_use]
     pub fn has_error(&self) -> bool {
-        self.0
+        let non_error_count = self
+            .0
             .iter()
-            .any(|message| message.diagnostic.severity == Some(Severity::Error))
+            .filter(|message| {
+                message.diagnostic.severity == Some(Severity::Warning)
+                    || message.diagnostic.severity == Some(Severity::Advice)
+            })
+            .count();
+        self.0.len() - non_error_count > 0
     }
 
     /// Returns true if there are no diagnostic messages
