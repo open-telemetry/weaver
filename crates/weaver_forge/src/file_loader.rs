@@ -12,7 +12,7 @@ use crate::error::Error;
 use crate::error::Error::TargetNotSupported;
 
 /// An abstraction for loading files from a file system, embedded directory, etc.
-pub trait FileLoader: Send + Sync {
+pub trait FileLoader {
     /// Returns a textual representation of the root path of the loader.
     /// This representation is mostly used for debugging and logging purposes.
     fn root(&self) -> &Path;

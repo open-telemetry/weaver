@@ -99,7 +99,7 @@ impl Object for TemplateObject {
 /// registry and telemetry schema.
 pub struct TemplateEngine {
     /// File loader used by the engine.
-    file_loader: Arc<dyn FileLoader + 'static>,
+    file_loader: Arc<dyn FileLoader + Send + Sync + 'static>,
 
     /// Target configuration
     target_config: TargetConfig,
@@ -137,7 +137,7 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
-    pub fn try_new(loader: impl FileLoader + 'static) -> Result<Self, Error> {
+    pub fn try_new(loader: impl FileLoader + Send + Sync + 'static) -> Result<Self, Error> {
         let target_config = TargetConfig::try_new(&loader)?;
         Ok(Self {
             file_loader: Arc::new(loader),
