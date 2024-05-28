@@ -11,8 +11,7 @@ COPY data /build/data
 COPY src /build/src
 COPY tests build/tests
 COPY default_diagnostic_templates build/default_diagnostic_templates
-# Debug: List contents of the directory to verify it was copied correctly
-RUN ls -al /build/default_diagnostic_templates
+RUN ls -al /build/
 
 # Don't build release, so we get template debugging output.
 RUN cargo build
