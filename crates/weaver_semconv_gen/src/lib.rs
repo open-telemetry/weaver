@@ -116,25 +116,19 @@ impl WeaverError<Error> for Error {
 impl From<Error> for DiagnosticMessages {
     fn from(error: Error) -> Self {
         match error {
-            Error::CompoundError(errors) => DiagnosticMessages::new(errors
-                .into_iter()
-                .flat_map(|e| {
-                    let diag_msgs: DiagnosticMessages = e.into();
-                    diag_msgs.into_inner()
-                })
-                .collect()),
-            Error::SemconvError(e) => {
-                e.into()
-            }
-            Error::ResolverError(e) => {
-                e.into()
-            }
-            Error::CacheError(e) => {
-                e.into()
-            }
-            Error::ForgeError(e) => {
-                e.into()
-            }
+            Error::CompoundError(errors) => DiagnosticMessages::new(
+                errors
+                    .into_iter()
+                    .flat_map(|e| {
+                        let diag_msgs: DiagnosticMessages = e.into();
+                        diag_msgs.into_inner()
+                    })
+                    .collect(),
+            ),
+            Error::SemconvError(e) => e.into(),
+            Error::ResolverError(e) => e.into(),
+            Error::CacheError(e) => e.into(),
+            Error::ForgeError(e) => e.into(),
             _ => DiagnosticMessages::new(vec![DiagnosticMessage::new(error)]),
         }
     }
