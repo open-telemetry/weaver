@@ -1835,12 +1835,12 @@ checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
 
 [[package]]
 name = "jaq-core"
-version = "1.2.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03d6a5713b8f33675abfac79d1db0022a3f28764b2a6b96a185c199ad8dab86d"
+checksum = "eaadb25ab6563759089aa897f8b8d609d108a8531d742b17a2a80220de685440"
 dependencies = [
  "aho-corasick",
- "base64 0.21.7",
+ "base64 0.22.1",
  "hifijson",
  "jaq-interpret",
  "libm",
