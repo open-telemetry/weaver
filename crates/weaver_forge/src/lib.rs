@@ -99,11 +99,7 @@ impl Object for TemplateObject {
 /// registry and telemetry schema.
 pub struct TemplateEngine {
     /// File loader used by the engine.
-    file_loader: Box<dyn FileLoader + 'static>,
-
-    /// The file loader function with a 'static lifetime (required by MiniJinja).
-    loader_function:
-        Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static>,
+    file_loader: Arc<dyn FileLoader + 'static>,
 
     /// Target configuration
     target_config: TargetConfig,
@@ -143,10 +139,8 @@ impl TemplateEngine {
     /// the target does not exist or is not a directory.
     pub fn try_new(loader: impl FileLoader + 'static) -> Result<Self, Error> {
         let target_config = TargetConfig::try_new(&loader)?;
-        let loader_function = loader.file_loader();
         Ok(Self {
-            file_loader: Box::new(loader),
-            loader_function,
+            file_loader: Arc::new(loader),
             target_config,
         })
     }
@@ -376,9 +370,10 @@ impl TemplateEngine {
                 error: e.to_string(),
             })?;
 
-        let loader_function = Arc::clone(&self.loader_function);
+        let file_loader = self.file_loader.clone();
         env.set_loader(move |name| {
-            (*loader_function)(name)
+            file_loader
+                .load_file(name)
                 .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, e.to_string()))
         });
         env.set_syntax(syntax);

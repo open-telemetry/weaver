@@ -3,7 +3,6 @@
 //! Set of supported template loaders
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::{fs, io};
 
 use minijinja::ErrorKind;
@@ -21,10 +20,8 @@ pub trait FileLoader: Send + Sync {
     /// Returns a list of all files in the loader's root directory.
     fn all_files(&self) -> Vec<PathBuf>;
 
-    /// Returns a function that loads a file from a given name
-    fn file_loader(
-        &self,
-    ) -> Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static>;
+    /// Returns the content of a file from a given name.
+    fn load_file(&self, file: &str) -> Result<Option<String>, Error>;
 }
 
 /// A loader that loads files from the embedded directory in the binary of Weaver or
@@ -103,30 +100,24 @@ impl FileLoader for EmbeddedFileLoader {
         files
     }
 
-    /// Returns a function that loads a file from a given name
-    fn file_loader(
-        &self,
-    ) -> Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static> {
+    /// Returns the content of a file from a given name.
+    fn load_file(&self, file: &str) -> Result<Option<String>, Error> {
         if let Some(fs_loader) = &self.fs_loader {
-            return fs_loader.file_loader();
+            return fs_loader.load_file(file);
         }
 
-        let dir = self.embedded_dir;
-        let target = self.target.clone();
-        Arc::new(move |name| {
-            let name = format!("{}/{}", target, name);
-            match dir.get_file(name) {
-                Some(file) => Ok(Some(
-                    file.contents_utf8()
-                        .ok_or_else(|| Error::FileLoaderError {
-                            file: file.path().to_owned(),
-                            error: "Failed to read file contents".to_owned(),
-                        })?
-                        .to_owned(),
-                )),
-                None => Ok(None),
-            }
-        })
+        let name = format!("{}/{}", self.target, file);
+        match self.embedded_dir.get_file(name) {
+            Some(file) => Ok(Some(
+                file.contents_utf8()
+                    .ok_or_else(|| Error::FileLoaderError {
+                        file: file.path().to_owned(),
+                        error: "Failed to read file contents".to_owned(),
+                    })?
+                    .to_owned(),
+            )),
+            None => Ok(None),
+        }
     }
 }
 
@@ -176,25 +167,20 @@ impl FileLoader for FileSystemFileLoader {
     /// Returns a function that loads a file from a given name
     /// Based on MiniJinja loader semantics, the function should return `Ok(None)` if the template
     /// does not exist.
-    fn file_loader(
-        &self,
-    ) -> Arc<dyn for<'a> Fn(&'a str) -> Result<Option<String>, Error> + Send + Sync + 'static> {
-        let dir = self.dir.clone();
-        Arc::new(move |name| {
-            let path = if let Ok(path) = safe_join(&dir, name) {
-                path
-            } else {
-                return Ok(None);
-            };
-            match fs::read_to_string(path.clone()) {
-                Ok(result) => Ok(Some(result)),
-                Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
-                Err(err) => Err(Error::FileLoaderError {
-                    file: path,
-                    error: err.to_string(),
-                }),
-            }
-        })
+    fn load_file(&self, file: &str) -> Result<Option<String>, Error> {
+        let path = if let Ok(path) = safe_join(&self.dir, file) {
+            path
+        } else {
+            return Ok(None);
+        };
+        match fs::read_to_string(path.clone()) {
+            Ok(result) => Ok(Some(result)),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(Error::FileLoaderError {
+                file: path,
+                error: err.to_string(),
+            }),
+        }
     }
 }
 
@@ -251,7 +237,7 @@ mod tests {
             "test",
         )
         .unwrap();
-        let embedded_content = embedded_loader.file_loader()("group.md");
+        let embedded_content = embedded_loader.load_file("group.md");
         assert!(embedded_content.is_ok());
         let embedded_content = embedded_content.unwrap().unwrap();
         assert!(embedded_content.contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
@@ -262,7 +248,7 @@ mod tests {
             "test",
         )
         .unwrap();
-        let overloaded_embedded_content = overloaded_embedded_loader.file_loader()("group.md");
+        let overloaded_embedded_content = overloaded_embedded_loader.load_file("group.md");
         assert!(overloaded_embedded_content.is_ok());
         let overloaded_embedded_content = overloaded_embedded_content.unwrap().unwrap();
         assert!(overloaded_embedded_content
@@ -270,7 +256,7 @@ mod tests {
 
         let fs_loader =
             FileSystemFileLoader::try_new(PathBuf::from("./templates"), "test").unwrap();
-        let fs_content = fs_loader.file_loader()("group.md");
+        let fs_content = fs_loader.load_file("group.md");
         assert!(fs_content.is_ok());
         let fs_content = fs_content.unwrap().unwrap();
         assert!(fs_content.contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
@@ -307,21 +293,21 @@ mod tests {
         assert_eq!(embedded_files, fs_files);
         // Test that all the files can be loaded from the embedded loader
         for file in embedded_files {
-            let content = embedded_loader.file_loader()(&file.to_string_lossy()).unwrap();
+            let content = embedded_loader.load_file(&file.to_string_lossy()).unwrap();
             assert!(content.is_some());
         }
         // Test that all the files can be loaded from the file system loader
         for file in fs_files {
-            let content = fs_loader.file_loader()(&file.to_string_lossy()).unwrap();
+            let content = fs_loader.load_file(&file.to_string_lossy()).unwrap();
             assert!(content.is_some());
         }
 
         // Test case where the file does not exist
-        let embedded_content = embedded_loader.file_loader()("missing_file.md");
+        let embedded_content = embedded_loader.load_file("missing_file.md");
         assert!(embedded_content.is_ok());
         assert!(embedded_content.unwrap().is_none());
 
-        let fs_content = fs_loader.file_loader()("missing_file.md");
+        let fs_content = fs_loader.load_file("missing_file.md");
         assert!(fs_content.is_ok());
         assert!(fs_content.unwrap().is_none());
 
@@ -332,7 +318,7 @@ mod tests {
         // loading files outside the root directory.
         // It's None instead of an error because the contract of the loader is to return None
         // if the file does not exist (cf MiniJinja doc).
-        let fs_content = fs_loader.file_loader()("../../Cargo.toml").unwrap();
+        let fs_content = fs_loader.load_file("../../Cargo.toml").unwrap();
         assert!(fs_content.is_none());
     }
 

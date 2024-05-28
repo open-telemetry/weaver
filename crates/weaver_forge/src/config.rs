@@ -355,10 +355,12 @@ impl CaseConvention {
 
 impl TargetConfig {
     pub fn try_new(loader: &dyn FileLoader) -> Result<TargetConfig, Error> {
-        let weaver_file = loader.file_loader()(WEAVER_YAML).map_err(|e| InvalidConfigFile {
-            config_file: WEAVER_YAML.into(),
-            error: e.to_string(),
-        })?;
+        let weaver_file = loader
+            .load_file(WEAVER_YAML)
+            .map_err(|e| InvalidConfigFile {
+                config_file: WEAVER_YAML.into(),
+                error: e.to_string(),
+            })?;
         if let Some(weaver_file) = weaver_file {
             serde_yaml::from_str(&weaver_file).map_err(|e| InvalidConfigFile {
                 config_file: WEAVER_YAML.into(),
