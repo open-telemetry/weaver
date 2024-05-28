@@ -10,6 +10,7 @@ use include_dir::{include_dir, Dir};
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
 /// Embedded default diagnostic templates
@@ -23,6 +24,12 @@ pub enum Error {
     /// Failed to initialize diagnostic templates
     #[error("Failed to initialize diagnostic templates at {path}: {error}")]
     InitDiagnosticError { path: PathBuf, error: String },
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }
 
 /// Parameters for the `diagnostic` command

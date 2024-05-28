@@ -12,7 +12,7 @@ use serde::Serialize;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
-use weaver_common::diagnostic::DiagnosticMessage;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
@@ -146,13 +146,6 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Returns a list of human-readable error messages.
-    fn errors(&self) -> Vec<DiagnosticMessage> {
-        match self {
-            Error::CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
-            _ => vec![DiagnosticMessage::new(self.clone())],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::CompoundError(
             errors
@@ -163,6 +156,21 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            Error::CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
     }
 }
 

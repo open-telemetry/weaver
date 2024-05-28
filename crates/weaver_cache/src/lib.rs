@@ -20,6 +20,7 @@ use gix::{create, open, progress};
 use miette::Diagnostic;
 use serde::Serialize;
 use tempdir::TempDir;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
@@ -53,6 +54,12 @@ pub enum Error {
         /// The error message
         message: String,
     },
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }
 
 /// A cache system for OTel Weaver.

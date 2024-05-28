@@ -12,6 +12,8 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+weaver_common = { path = "../weaver_common" }
+
 tempdir = "0.3.7"
 dirs = "5.0.1"
 gix = { version = "0.63.0", default-features = false, features = [

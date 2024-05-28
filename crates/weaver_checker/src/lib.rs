@@ -91,13 +91,6 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<DiagnosticMessage> {
-        match self {
-            CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
-            _ => vec![DiagnosticMessage::new(self.clone())],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::CompoundError(
             errors
@@ -111,14 +104,20 @@ impl WeaverError<Error> for Error {
     }
 }
 
-// impl From<Error> for DiagnosticMessages {
-//     fn from(error: Error) -> Self {
-//         DiagnosticMessages::new(match error {
-//             CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
-//             _ => vec![DiagnosticMessage::new(error)],
-//         })
-//     }
-// }
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
+    }
+}
 
 /// A list of supported policy stages.
 pub enum PolicyStage {

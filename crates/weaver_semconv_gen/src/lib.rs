@@ -9,7 +9,7 @@ use std::{fmt, fs};
 
 use serde::Serialize;
 use weaver_cache::Cache;
-use weaver_common::diagnostic::DiagnosticMessage;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
 use weaver_forge::registry::TemplateGroup;
@@ -100,13 +100,6 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<DiagnosticMessage> {
-        match self {
-            Self::CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
-            _ => vec![DiagnosticMessage::new(self.clone())],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::CompoundError(
             errors
@@ -117,6 +110,33 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        match error {
+            Error::CompoundError(errors) => DiagnosticMessages::new(errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect()),
+            Error::SemconvError(e) => {
+                e.into()
+            }
+            Error::ResolverError(e) => {
+                e.into()
+            }
+            Error::CacheError(e) => {
+                e.into()
+            }
+            Error::ForgeError(e) => {
+                e.into()
+            }
+            _ => DiagnosticMessages::new(vec![DiagnosticMessage::new(error)]),
+        }
     }
 }
 

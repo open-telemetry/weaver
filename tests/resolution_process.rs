@@ -3,7 +3,6 @@
 //! Integration tests for the resolution process.
 
 use weaver_cache::Cache;
-use weaver_common::error::ExitIfError;
 use weaver_common::{Logger, TestLogger};
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
@@ -42,7 +41,9 @@ fn test_cli_interface() {
         path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
     };
     let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_path, &cache).panic_if_error(log.clone());
+        SchemaResolver::load_semconv_specs(&registry_path, &cache).unwrap_or_else(|e| {
+            panic!("Failed to load the semantic convention specs, error: {e}");
+        });
     let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     // Check if the logger has reported any warnings or errors.

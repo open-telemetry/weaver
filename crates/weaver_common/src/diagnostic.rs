@@ -2,7 +2,7 @@
 
 //! A generic diagnostic message
 
-use crate::error::WeaverDiagnostic;
+use crate::Logger;
 use miette::{Diagnostic, LabeledSpan, Report, Severity};
 use serde::Serialize;
 use std::error::Error;
@@ -81,8 +81,28 @@ impl DiagnosticMessage {
 
 impl DiagnosticMessages {
     /// Creates a new list of diagnostic messages
+    #[must_use]
     pub fn new(diag_msgs: Vec<DiagnosticMessage>) -> Self {
         Self(diag_msgs)
+    }
+
+    /// Logs all the diagnostic messages
+    pub fn log(&self, logger: impl Logger) {
+        self.0
+            .iter()
+            .for_each(|msg| logger.error(&msg.diagnostic.message));
+    }
+
+    /// Returns the number of diagnostic messages
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the diagnostic messages
+    #[must_use]
+    pub fn into_inner(self) -> Vec<DiagnosticMessage> {
+        self.0
     }
 
     /// Creates a new list of diagnostic messages for a list of errors
@@ -116,15 +136,6 @@ impl DiagnosticMessages {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
-    }
-}
-
-impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<T>
-    for DiagnosticMessages
-{
-    /// Convert errors marked with the DiagnosticMessage trait into a DiagnosticMessages.
-    fn from(error: T) -> Self {
-        Self(vec![DiagnosticMessage::new(error)])
     }
 }
 
