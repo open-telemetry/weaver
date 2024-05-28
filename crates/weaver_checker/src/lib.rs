@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
 use std::fmt::{Display, Formatter};
@@ -10,6 +11,7 @@ use miette::Diagnostic;
 use serde::Serialize;
 use serde_json::to_value;
 use walkdir::DirEntry;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
@@ -27,7 +29,6 @@ pub enum Error {
     /// An invalid policy.
     #[error("Invalid policy file '{file}', error: {error})")]
     #[diagnostic(
-        severity = "error",
         url("https://www.openpolicyagent.org/docs/latest/policy-language/"),
         help("Check the policy file for syntax errors.")
     )]
@@ -41,7 +42,6 @@ pub enum Error {
     /// An invalid policy glob pattern.
     #[error("Invalid policy glob pattern '{pattern}', error: {error})")]
     #[diagnostic(
-        severity = "error",
         url("https://docs.rs/globset/latest/globset/"),
         help("Check the glob pattern for syntax errors.")
     )]
@@ -70,7 +70,6 @@ pub enum Error {
 
     /// Violation evaluation error.
     #[error("Violation evaluation error: {error}")]
-    #[diagnostic(severity = "error")]
     ViolationEvaluationError {
         /// The error that occurred.
         error: String,
@@ -78,7 +77,6 @@ pub enum Error {
 
     /// A policy violation error.
     #[error("Policy violation: {violation}, provenance: {provenance}")]
-    #[diagnostic(severity = "error")]
     PolicyViolation {
         /// The provenance of the violation (URL or path).
         provenance: String,
@@ -93,13 +91,6 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<String> {
-        match self {
-            CompoundError(errors) => errors.iter().flat_map(WeaverError::errors).collect(),
-            _ => vec![self.to_string()],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::CompoundError(
             errors
@@ -110,6 +101,21 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
     }
 }
 

@@ -3,7 +3,6 @@
 //! Integration tests for the resolution process.
 
 use weaver_cache::Cache;
-use weaver_common::error::ExitIfError;
 use weaver_common::{Logger, TestLogger};
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
@@ -16,6 +15,9 @@ const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-c
 /// The directory name of the official semantic convention registry.
 const SEMCONV_REGISTRY_MODEL: &str = "model";
 
+/// This test checks the CLI interface for the registry generate command.
+/// This test doesn't count for the coverage report as it runs a separate process.
+///
 /// Test the resolution process for the official semantic convention registry.
 /// Success criteria:
 /// - All semconv files downloaded from the official semconv repo.
@@ -23,7 +25,7 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 /// - The resolution process should not fail.
 /// - No warn or error messages should be reported by the logger.
 #[test]
-fn test_semconv_registry_resolution() {
+fn test_cli_interface() {
     let log = TestLogger::new();
     let cache = Cache::try_new().unwrap_or_else(|e| {
         log.error(&e.to_string());
@@ -39,7 +41,9 @@ fn test_semconv_registry_resolution() {
         path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
     };
     let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_path, &cache).panic_if_error(log.clone());
+        SchemaResolver::load_semconv_specs(&registry_path, &cache).unwrap_or_else(|e| {
+            panic!("Failed to load the semantic convention specs, error: {e}");
+        });
     let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     // Check if the logger has reported any warnings or errors.
@@ -61,11 +65,4 @@ fn test_semconv_registry_resolution() {
     // Check if the logger has reported any warnings or errors.
     assert_eq!(log.warn_count(), 0);
     assert_eq!(log.error_count(), 0);
-}
-
-/// Test the resolution process for the official Telemetry Schema.
-/// Success criteria: The resolution process should not fail.
-#[test]
-fn test_telemetry_schema_resolution() {
-    // ToDo once the official Application Telemetry Schema is approved and implemented by this project.
 }

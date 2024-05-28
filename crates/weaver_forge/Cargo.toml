@@ -37,3 +37,10 @@ rayon.workspace = true
 walkdir.workspace = true
 globset.workspace = true
 miette.workspace = true
+include_dir.workspace = true
+
+[dev-dependencies]
+opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
+opentelemetry_sdk = { version = "0.22.1", features = ["trace", "metrics", "logs"] }
+opentelemetry-stdout = { version = "0.3.0", features = ["trace", "metrics", "logs"] }
+

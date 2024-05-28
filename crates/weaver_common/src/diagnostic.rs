@@ -2,7 +2,7 @@
 
 //! A generic diagnostic message
 
-use crate::error::WeaverDiagnostic;
+use crate::Logger;
 use miette::{Diagnostic, LabeledSpan, Report, Severity};
 use serde::Serialize;
 use std::error::Error;
@@ -42,9 +42,9 @@ pub struct MietteDiagnosticExt {
 #[derive(Debug, serde::Serialize)]
 pub struct DiagnosticMessage {
     /// The error
-    error: serde_json::Value,
+    pub(crate) error: serde_json::Value,
     /// The diagnostic message
-    diagnostic: MietteDiagnosticExt,
+    pub(crate) diagnostic: MietteDiagnosticExt,
 }
 
 /// A list of diagnostic messages
@@ -80,6 +80,31 @@ impl DiagnosticMessage {
 }
 
 impl DiagnosticMessages {
+    /// Creates a new list of diagnostic messages
+    #[must_use]
+    pub fn new(diag_msgs: Vec<DiagnosticMessage>) -> Self {
+        Self(diag_msgs)
+    }
+
+    /// Logs all the diagnostic messages
+    pub fn log(&self, logger: impl Logger) {
+        self.0
+            .iter()
+            .for_each(|msg| logger.error(&msg.diagnostic.message));
+    }
+
+    /// Returns the number of diagnostic messages
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns the diagnostic messages
+    #[must_use]
+    pub fn into_inner(self) -> Vec<DiagnosticMessage> {
+        self.0
+    }
+
     /// Creates a new list of diagnostic messages for a list of errors
     pub fn from_errors<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(
         errors: Vec<M>,
@@ -92,22 +117,25 @@ impl DiagnosticMessages {
         Self(vec![DiagnosticMessage::new(error)])
     }
 
-    /// Returns true if any of the diagnostic messages have an error severity
-    /// level.
+    /// Returns true if all the diagnostic messages are explicitly marked as
+    /// warnings or advices.
     #[must_use]
     pub fn has_error(&self) -> bool {
-        self.0
+        let non_error_count = self
+            .0
             .iter()
-            .any(|message| message.diagnostic.severity == Some(Severity::Error))
+            .filter(|message| {
+                message.diagnostic.severity == Some(Severity::Warning)
+                    || message.diagnostic.severity == Some(Severity::Advice)
+            })
+            .count();
+        self.0.len() - non_error_count > 0
     }
-}
 
-impl<T: WeaverDiagnostic + Diagnostic + Serialize + Send + Sync + 'static> From<T>
-    for DiagnosticMessages
-{
-    /// Convert errors marked with the DiagnosticMessage trait into a DiagnosticMessages.
-    fn from(error: T) -> Self {
-        Self(vec![DiagnosticMessage::new(error)])
+    /// Returns true if there are no diagnostic messages
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -161,6 +189,8 @@ mod tests {
         };
         let diagnostic_messages = DiagnosticMessages::from_error(error.clone());
         assert_eq!(diagnostic_messages.0.len(), 1);
+        assert!(diagnostic_messages.has_error());
+        assert!(!diagnostic_messages.is_empty());
         assert_eq!(
             diagnostic_messages.0[0].diagnostic.message,
             "This is a test error"

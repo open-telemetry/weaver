@@ -17,11 +17,13 @@ use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
 use gix::{create, open, progress};
+use miette::Diagnostic;
 use serde::Serialize;
 use tempdir::TempDir;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
 /// An error that can occur while creating or using a cache.
-#[derive(thiserror::Error, Debug, Serialize)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// Home directory not found.
@@ -52,6 +54,12 @@ pub enum Error {
         /// The error message
         message: String,
     },
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }
 
 /// A cache system for OTel Weaver.

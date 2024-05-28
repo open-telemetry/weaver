@@ -2,8 +2,10 @@
 
 #![doc = include_str!("../README.md")]
 
+use crate::Error::CompoundError;
 use miette::Diagnostic;
 use serde::Serialize;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
 pub mod attribute;
@@ -93,19 +95,12 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Returns a list of human-readable error messages.
-    fn errors(&self) -> Vec<String> {
-        match self {
-            Error::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
-        Self::CompoundError(
+        CompoundError(
             errors
                 .into_iter()
                 .flat_map(|e| match e {
-                    Self::CompoundError(errors) => errors,
+                    CompoundError(errors) => errors,
                     e => vec![e],
                 })
                 .collect(),
@@ -113,11 +108,26 @@ impl WeaverError<Error> for Error {
     }
 }
 
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::registry::SemConvRegistry;
     use std::vec;
-    use weaver_common::error::WeaverError;
+    use weaver_common::diagnostic::DiagnosticMessages;
 
     /// Load multiple semantic convention files in the semantic convention registry.
     /// No error should be emitted.
@@ -167,8 +177,9 @@ mod tests {
             let result = registry.add_semconv_spec_from_file(yaml);
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
-                assert_eq!(err.errors().len(), 1);
                 let output = format!("{}", err);
+                let diag_msgs: DiagnosticMessages = err.into();
+                assert_eq!(diag_msgs.len(), 1);
                 assert!(!output.is_empty());
             }
         }

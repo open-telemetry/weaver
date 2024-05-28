@@ -2,12 +2,16 @@
 
 //! Error types and utilities.
 
-use crate::error::Error::CompoundError;
+use std::{path::PathBuf, str::FromStr};
+
 use miette::Diagnostic;
 use serde::Serialize;
-use std::{path::PathBuf, str::FromStr};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+
 use weaver_common::error::WeaverError;
 use weaver_resolved_schema::attribute::AttributeRef;
+
+use crate::error::Error::CompoundError;
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
@@ -15,6 +19,10 @@ use weaver_resolved_schema::attribute::AttributeRef;
 pub enum Error {
     /// Invalid config file.
     #[error("Invalid config file `{config_file}`: {error}")]
+    #[diagnostic(
+        help("Please check the syntax of the weaver.yaml file."),
+        url("https://github.com/open-telemetry/weaver/blob/main/docs/weaver-config.md")
+    )]
     InvalidConfigFile {
         /// Config file.
         config_file: PathBuf,
@@ -23,14 +31,18 @@ pub enum Error {
     },
 
     /// Target not found.
-    #[error(
-    "Target `{target}` not found in `{root_path}`. Use the command `targets` to list supported targets."
+    #[error("Target `{target}` not found in `{root_path}`. Error: {error}")]
+    #[diagnostic(
+        help("Please check the subdirectories of the template path for the target."),
+        url("https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/README.md")
     )]
     TargetNotSupported {
         /// Root path.
         root_path: String,
         /// Target name.
         target: String,
+        /// Error message.
+        error: String,
     },
 
     /// Invalid template directory.
@@ -60,6 +72,15 @@ pub enum Error {
         error: String,
     },
 
+    /// Error loading a file content from the file loader.
+    #[error("Error loading the file '{file}': {error}")]
+    FileLoaderError {
+        /// File path.
+        file: PathBuf,
+        /// Error message.
+        error: String,
+    },
+
     /// Template evaluation failed.
     #[error("Template evaluation error -> {error}")]
     TemplateEvaluationFailed {
@@ -76,7 +97,8 @@ pub enum Error {
     InvalidTemplateDirectory(PathBuf),
 
     /// Template file name undefined.
-    #[error("File name undefined in the template `{template}`. To resolve this, use the function `config(file_name = <file_name, filter, or expression>)` to set the file name.")]
+    #[error("File name undefined in the template `{template}`. To resolve this, use the function `config(file_name = <file_name, filter, or expression>)` to set the file name."
+    )]
     TemplateFileNameUndefined {
         /// Template path.
         template: PathBuf,
@@ -129,15 +151,23 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<String> {
-        match self {
-            CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::compound_error(errors)
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
     }
 }
 
