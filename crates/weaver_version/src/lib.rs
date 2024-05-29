@@ -2,6 +2,7 @@
 
 //! The specification of the changes to apply to the schema for different versions.
 
+use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::BufReader;
@@ -59,14 +60,14 @@ pub enum Error {
 pub struct Version(semver::Version);
 
 /// List of versions with their changes.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
 #[serde(transparent)]
 pub struct Versions {
     versions: BTreeMap<semver::Version, VersionSpec>,
 }
 
 /// An history of changes to apply to the schema for different versions.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VersionSpec {
     /// The changes to apply to the metrics specification for a specific version.

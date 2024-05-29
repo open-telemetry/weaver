@@ -5,4 +5,5 @@
 allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
+    "schemars::JsonSchema",
 ]

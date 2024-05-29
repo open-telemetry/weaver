@@ -11,7 +11,7 @@ use crate::DiagnosticArgs;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use weaver_forge::registry::TemplateRegistry;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{
@@ -112,7 +112,7 @@ pub(crate) fn command(
         // The template registry does not include any reference to a shared
         // catalog of attributes.
         false => {
-            let registry = TemplateRegistry::try_from_resolved_registry(
+            let registry = ResolvedRegistry::try_from_resolved_registry(
                 schema
                     .registry(registry_id)
                     .expect("Failed to get the registry from the resolved schema"),

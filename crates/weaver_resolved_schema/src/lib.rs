@@ -8,9 +8,9 @@ use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;
 use crate::resource::Resource;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use schemars::JsonSchema;
 use weaver_version::Versions;
 
 pub mod attribute;
@@ -106,12 +106,16 @@ impl ResolvedTelemetrySchema {
 
 #[cfg(test)]
 mod tests {
-    use schemars::schema_for;
     use crate::ResolvedTelemetrySchema;
+    use schemars::schema_for;
+    use serde_json::to_string_pretty;
 
     #[test]
-    fn test_json_schema() {
+    fn test_json_schema_gen() {
+        // Ensure the JSON schema can be generated for the ResolvedTelemetrySchema
         let schema = schema_for!(ResolvedTelemetrySchema);
-        println!("{}", serde_json::to_string_pretty(&schema).unwrap());
+
+        // Ensure the schema can be serialized to a string
+        assert!(to_string_pretty(&schema).is_ok());
     }
 }

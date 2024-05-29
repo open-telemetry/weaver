@@ -4,8 +4,8 @@
 
 //! A group specification.
 
-use std::fmt::{Display, Formatter};
 use schemars::JsonSchema;
+use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 

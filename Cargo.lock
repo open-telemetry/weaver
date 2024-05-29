@@ -2407,6 +2407,7 @@ checksum = "a76df7075c7d4d01fdcb46c912dd17fba5b60c78ea480b475f2b6ab6f666584e"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
+ "schemars",
  "serde",
 ]
 
@@ -3857,6 +3858,7 @@ dependencies = [
  "opentelemetry_sdk",
  "rayon",
  "regex",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -3937,6 +3939,7 @@ dependencies = [
 name = "weaver_version"
 version = "0.1.0"
 dependencies = [
+ "schemars",
  "semver",
  "serde",
  "serde_yaml",

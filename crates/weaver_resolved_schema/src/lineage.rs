@@ -2,8 +2,8 @@
 
 //! Data structures used to keep track of the lineage of a semantic convention.
 
-use std::collections::{BTreeMap, BTreeSet};
 use schemars::JsonSchema;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 

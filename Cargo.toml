@@ -34,7 +34,7 @@ thiserror = "1.0.58"
 ureq = "2.9.7"
 regex = "1.10.3"
 rayon = "1.10.0"
-ordered-float = { version = "4.2.0", features = ["serde"] }
+ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
 anyhow = "1.0.83"
 itertools = "0.12.1"

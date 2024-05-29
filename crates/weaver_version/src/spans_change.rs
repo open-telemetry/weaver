@@ -2,11 +2,12 @@
 
 //! Spans change specification.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Changes to apply to the spans specification for a specific version.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpansChange {
     /// Changes to apply to the span attributes for a specific version.
@@ -14,7 +15,7 @@ pub struct SpansChange {
 }
 
 /// Changes to apply to the span attributes for a specific version.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RenameAttributes {
     /// A collection of rename operations to apply to the span attributes.

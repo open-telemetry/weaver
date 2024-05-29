@@ -4,8 +4,8 @@
 
 //! A semantic convention registry.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
 use schemars::JsonSchema;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 

@@ -2,9 +2,9 @@
 
 //! Define the concept of tag.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use schemars::JsonSchema;
 
 /// A set of tags.
 ///

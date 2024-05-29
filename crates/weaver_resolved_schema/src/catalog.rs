@@ -4,10 +4,10 @@
 //! that are shared across multiple signals in the Resolved Telemetry Schema.
 
 use crate::attribute::{Attribute, AttributeRef};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
-use schemars::JsonSchema;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::stability::Stability;
 

@@ -8,4 +8,5 @@ allowed_external_types = [
     "ordered_float::OrderedFloat",      # ToDo: Remove this dependency before version 1.0
     "weaver_semconv::*",
     "weaver_version::*",
+    "schemars::JsonSchema",
 ]

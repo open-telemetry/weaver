@@ -4,13 +4,10 @@
 
 //! Attribute specification.
 
-use std::borrow::Cow;
 use ordered_float::OrderedFloat;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use schemars::gen::SchemaGenerator;
-use schemars::JsonSchema;
-use schemars::schema::{InstanceType, Schema, SchemaObject};
 
 use crate::stability::Stability;
 
@@ -337,7 +334,7 @@ impl Display for EnumEntriesSpec {
 }
 
 /// The different types of values.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum ValueSpec {
@@ -348,30 +345,6 @@ pub enum ValueSpec {
     /// A string value.
     String(String),
 }
-
-// ToDo
-// impl JsonSchema for OrderedFloat<f64> {
-//     fn is_referenceable() -> bool {
-//         false
-//     }
-//
-//     fn schema_name() -> String {
-//         "double".to_owned()
-//     }
-//
-//     fn schema_id() -> Cow<'static, str> {
-//         Cow::Borrowed("double")
-//     }
-//
-//     fn json_schema(_: &mut SchemaGenerator) -> Schema {
-//         SchemaObject {
-//             instance_type: Some(InstanceType::Number.into()),
-//             format: (Some("double".to_owned())),
-//             ..Default::default()
-//         }
-//             .into()
-//     }
-// }
 
 /// Implements a human readable display for Value.
 impl Display for ValueSpec {

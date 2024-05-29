@@ -14,7 +14,7 @@ use weaver_cache::Cache;
 use weaver_common::in_memory::LogMessage;
 use weaver_common::{in_memory, Logger};
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::registry::TemplateRegistry;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
@@ -51,7 +51,7 @@ fn main() {
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
     let engine = TemplateEngine::try_new(loader).unwrap_or_else(|e| process_error(&logger, e));
-    let template_registry = TemplateRegistry::try_from_resolved_registry(
+    let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)
             .expect("Failed to get the registry from the resolved schema"),
