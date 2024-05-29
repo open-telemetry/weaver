@@ -105,8 +105,10 @@ deny[schema_evolution_violation("attr_removed", old_group.id, old_attr.id)] {
 }
 ```
 
+> [!NOTE]
 > Note 1: The after_resolution stage is not yet fully supported by Weaver. 
 
+> [!NOTE]
 > Note 2: An upcoming version of Weaver will also allow applying rules on two
 > distinct versions of the registries (before or after resolution). This will
 > enable the definition of schema evolution rules.
