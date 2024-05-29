@@ -13,14 +13,15 @@ use std::process::exit;
 use weaver_cache::Cache;
 use weaver_common::in_memory::LogMessage;
 use weaver_common::{in_memory, Logger};
+use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::TemplateRegistry;
-use weaver_forge::{GeneratorConfig, OutputDirective, TemplateEngine};
+use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
-const TEMPLATES_PATH: &str = "./templates/";
+const TEMPLATES_PATH: &str = "./templates/registry/";
 const REGISTRY_ID: &str = "test";
 const TARGET: &str = "rust";
 
@@ -47,9 +48,9 @@ fn main() {
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
         .unwrap_or_else(|e| process_error(&logger, e));
 
-    let config = GeneratorConfig::new(TEMPLATES_PATH.into());
-    let engine = TemplateEngine::try_new(&format!("registry/{}", TARGET), config)
+    let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
+    let engine = TemplateEngine::try_new(loader).unwrap_or_else(|e| process_error(&logger, e));
     let template_registry = TemplateRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)

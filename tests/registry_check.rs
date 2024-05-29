@@ -4,8 +4,10 @@
 
 use assert_cmd::Command;
 
+/// This test checks the CLI interface for the registry generate command.
+/// This test doesn't count for the coverage report as it runs a separate process.
 #[test]
-fn test_registry_check() {
+fn test_cli_interface() {
     // Test OTel official semantic convention registry.
     // This test requires internet access to fetch the registry.
     // This registry should always be valid!

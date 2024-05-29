@@ -40,6 +40,8 @@ anyhow = "1.0.83"
 itertools = "0.12.1"
 globset = { version = "0.4.14", features = ["serde1"] }
 miette = { version = "7.2.0", features = ["fancy", "serde"] }
+include_dir = "0.7.3"
+tempdir = "0.3.7"
 
 # Features definition =========================================================
 [features]
@@ -69,10 +71,15 @@ serde.workspace = true
 serde_yaml.workspace = true
 serde_json.workspace = true
 walkdir.workspace = true
+include_dir.workspace = true
+thiserror.workspace = true
+miette.workspace = true
 
 rayon = "1.10.0"
 
 [dev-dependencies]
+weaver_diff = { path = "crates/weaver_diff" }
+tempdir.workspace = true
 assert_cmd = "2.0.14"
 
 [profile.release]

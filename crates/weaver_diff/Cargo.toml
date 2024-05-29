@@ -9,6 +9,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+walkdir.workspace = true
 similar = "2.5.0"
 
 

@@ -11,4 +11,5 @@ allowed_external_types = [
     "weaver_semconv::*",
     "minijinja::value::Value",
     "miette::protocol::Diagnostic",
+    "include_dir::dir::Dir",
 ]

@@ -9,6 +9,7 @@ use std::{fmt, fs};
 
 use serde::Serialize;
 use weaver_cache::Cache;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
 use weaver_forge::registry::TemplateGroup;
@@ -27,7 +28,7 @@ mod gen;
 mod parser;
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
     /// Thrown when we are unable to find a semconv by id.
@@ -99,13 +100,6 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Retrieves a list of error messages associated with this error.
-    fn errors(&self) -> Vec<String> {
-        match self {
-            Self::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::CompoundError(
             errors
@@ -116,6 +110,27 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        match error {
+            Error::CompoundError(errors) => DiagnosticMessages::new(
+                errors
+                    .into_iter()
+                    .flat_map(|e| {
+                        let diag_msgs: DiagnosticMessages = e.into();
+                        diag_msgs.into_inner()
+                    })
+                    .collect(),
+            ),
+            Error::SemconvError(e) => e.into(),
+            Error::ResolverError(e) => e.into(),
+            Error::CacheError(e) => e.into(),
+            Error::ForgeError(e) => e.into(),
+            _ => DiagnosticMessages::new(vec![DiagnosticMessage::new(error)]),
+        }
     }
 }
 
@@ -409,7 +424,8 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use weaver_forge::{GeneratorConfig, TemplateEngine};
+    use weaver_forge::file_loader::FileSystemFileLoader;
+    use weaver_forge::TemplateEngine;
 
     use crate::{update_markdown, Error, SnippetGenerator};
 
@@ -422,7 +438,8 @@ mod tests {
 
     #[test]
     fn test_template_engine() -> Result<(), Error> {
-        let template = TemplateEngine::try_new("markdown", GeneratorConfig::default())?;
+        let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
+        let template = TemplateEngine::try_new(loader)?;
         let generator = SnippetGenerator::try_from_path("data", Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.

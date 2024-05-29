@@ -4,7 +4,7 @@ install:
     cargo install cargo-machete
     cargo install cargo-depgraph
     cargo install cargo-edit
-    rustup install nightly-2023-10-10   # used by cargo-check-external-types
+    rustup install nightly-2024-05-01   # used by cargo-check-external-types
     cargo install cargo-check-external-types
     cargo install git-cliff
     cargo install cargo-tarpaulin

@@ -12,6 +12,7 @@ use serde::Serialize;
 use walkdir::DirEntry;
 
 use weaver_cache::Cache;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
@@ -33,13 +34,13 @@ pub mod registry;
 pub struct SchemaResolver {}
 
 /// An error that can occur while resolving a telemetry schema.
-#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
+#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
 #[must_use]
 #[non_exhaustive]
 pub enum Error {
     /// An invalid URL.
     #[error("Invalid URL `{url:?}`, error: {error:?})")]
-    #[diagnostic(severity = "error", help("Check the URL and try again."))]
+    #[diagnostic(help("Check the URL and try again."))]
     InvalidUrl {
         /// The invalid URL.
         url: String,
@@ -49,7 +50,6 @@ pub enum Error {
 
     /// A semantic convention error.
     #[error("{message}")]
-    #[diagnostic()]
     SemConvError {
         /// The error that occurred.
         message: String,
@@ -146,13 +146,6 @@ pub enum Error {
 }
 
 impl WeaverError<Error> for Error {
-    /// Returns a list of human-readable error messages.
-    fn errors(&self) -> Vec<String> {
-        match self {
-            Error::CompoundError(errors) => errors.iter().flat_map(|e| e.errors()).collect(),
-            _ => vec![self.to_string()],
-        }
-    }
     fn compound(errors: Vec<Error>) -> Error {
         Self::CompoundError(
             errors
@@ -163,6 +156,21 @@ impl WeaverError<Error> for Error {
                 })
                 .collect(),
         )
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            Error::CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
     }
 }
 
