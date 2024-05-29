@@ -5,6 +5,7 @@
 //! A group specification.
 
 use std::fmt::{Display, Formatter};
+use schemars::JsonSchema;
 
 use serde::{Deserialize, Serialize};
 
@@ -204,7 +205,7 @@ impl GroupSpec {
 }
 
 /// The different types of groups (specification).
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GroupType {
     /// Attribute group (attribute_group type) defines a set of attributes that
@@ -236,7 +237,7 @@ impl Default for GroupType {
 }
 
 /// The span kind.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SpanKindSpec {
     /// An internal span.
@@ -267,7 +268,7 @@ pub struct ConstraintSpec {
 }
 
 /// The type of the metric.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum InstrumentSpec {
     /// An up-down counter metric.

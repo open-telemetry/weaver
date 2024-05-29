@@ -4,9 +4,13 @@
 
 //! Attribute specification.
 
+use std::borrow::Cow;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use schemars::gen::SchemaGenerator;
+use schemars::JsonSchema;
+use schemars::schema::{InstanceType, Schema, SchemaObject};
 
 use crate::stability::Stability;
 
@@ -175,7 +179,7 @@ impl AttributeSpec {
 }
 
 /// The different types of attributes (specification).
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum AttributeType {
@@ -218,7 +222,7 @@ fn default_as_true() -> bool {
 }
 
 /// Primitive or array types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PrimitiveOrArrayTypeSpec {
     /// A boolean attribute.
@@ -260,7 +264,7 @@ impl Display for PrimitiveOrArrayTypeSpec {
 }
 
 /// Template types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateTypeSpec {
     /// A boolean attribute.
@@ -306,7 +310,7 @@ impl Display for TemplateTypeSpec {
 }
 
 /// Possible enum entries.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
@@ -344,6 +348,30 @@ pub enum ValueSpec {
     /// A string value.
     String(String),
 }
+
+// ToDo
+// impl JsonSchema for OrderedFloat<f64> {
+//     fn is_referenceable() -> bool {
+//         false
+//     }
+//
+//     fn schema_name() -> String {
+//         "double".to_owned()
+//     }
+//
+//     fn schema_id() -> Cow<'static, str> {
+//         Cow::Borrowed("double")
+//     }
+//
+//     fn json_schema(_: &mut SchemaGenerator) -> Schema {
+//         SchemaObject {
+//             instance_type: Some(InstanceType::Number.into()),
+//             format: (Some("double".to_owned())),
+//             ..Default::default()
+//         }
+//             .into()
+//     }
+// }
 
 /// Implements a human readable display for Value.
 impl Display for ValueSpec {
@@ -390,7 +418,7 @@ impl From<&str> for ValueSpec {
 }
 
 /// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum Examples {
@@ -421,7 +449,7 @@ pub enum Examples {
 }
 
 /// The different requirement level specifications.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum RequirementLevel {
@@ -463,7 +491,7 @@ impl Default for RequirementLevel {
 }
 
 /// The different types of basic requirement levels.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BasicRequirementLevelSpec {
     /// A required requirement level.

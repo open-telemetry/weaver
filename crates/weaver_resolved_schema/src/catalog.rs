@@ -7,6 +7,7 @@ use crate::attribute::{Attribute, AttributeRef};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
+use schemars::JsonSchema;
 use weaver_semconv::attribute::{AttributeType, BasicRequirementLevelSpec, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
@@ -14,7 +15,7 @@ use weaver_semconv::stability::Stability;
 /// Attribute references are used to refer to attributes in the catalog.
 ///
 /// Note : In the future, this catalog could be extended with other entities.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[must_use]
 pub struct Catalog {

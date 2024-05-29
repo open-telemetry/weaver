@@ -8,11 +8,12 @@ use crate::tags::Tags;
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use schemars::JsonSchema;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
 /// An attribute definition.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Attribute {
     /// Attribute name.
@@ -81,7 +82,7 @@ pub struct UnresolvedAttribute {
 }
 
 /// An internal reference to an attribute in the catalog.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema)]
 pub struct AttributeRef(pub u32);
 
 impl Display for AttributeRef {

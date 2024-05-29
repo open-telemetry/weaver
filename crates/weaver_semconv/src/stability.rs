@@ -4,9 +4,10 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use schemars::JsonSchema;
 
 /// The level of stability for a definition.
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Stability {
     /// A deprecated definition.

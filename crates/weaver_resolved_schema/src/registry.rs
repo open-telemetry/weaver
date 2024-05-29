@@ -5,6 +5,7 @@
 //! A semantic convention registry.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use schemars::JsonSchema;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +21,7 @@ use crate::registry::GroupStats::{
 };
 
 /// A semantic convention registry.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Registry {
     /// The semantic convention registry url.
@@ -43,7 +44,7 @@ pub struct Stats {
 }
 
 /// Group specification.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct Group {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
@@ -193,7 +194,7 @@ pub enum GroupStats {
 }
 
 /// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Constraint {
     /// any_of accepts a list of sequences. Each sequence contains a list of
