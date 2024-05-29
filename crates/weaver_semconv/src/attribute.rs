@@ -410,6 +410,14 @@ pub enum Examples {
     Bools(Vec<bool>),
     /// A array of strings example.
     Strings(Vec<String>),
+    /// List of arrays of integers example.
+    ListOfInts(Vec<Vec<i64>>),
+    /// List of arrays of doubles example.
+    ListOfDoubles(Vec<Vec<OrderedFloat<f64>>>),
+    /// List of arrays of bools example.
+    ListOfBools(Vec<Vec<bool>>),
+    /// List of arrays of strings example.
+    ListOfStrings(Vec<Vec<String>>),
 }
 
 /// The different requirement level specifications.
@@ -771,6 +779,154 @@ mod tests {
         assert_eq!(attr.note(), "note");
         assert_eq!(attr.tag(), Some("tag".to_owned()));
         assert!(attr.is_required());
+    }
+
+    #[test]
+    fn test_examples_bool() {
+        let yaml = "---\ntrue";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::Bool(true));
+    }
+
+    #[test]
+    fn test_examples_int() {
+        let yaml = "---\n42";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::Int(42));
+    }
+
+    #[test]
+    fn test_examples_double() {
+        let yaml = "---\n3.15";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::Double(OrderedFloat(3.15)));
+    }
+
+    #[test]
+    fn test_examples_string() {
+        let yaml = "---\n\"foo\"";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::String("foo".to_owned()));
+    }
+
+    #[test]
+    fn test_examples_strings() {
+        let yaml = "---\n- \"foo\"\n- \"bar\"";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()])
+        );
+    }
+
+    #[test]
+    fn test_examples_ints() {
+        let yaml = "---\n- 42\n- 43";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::Ints(vec![42, 43]));
+    }
+
+    #[test]
+    fn test_examples_doubles() {
+        let yaml = "---\n- 3.15\n- 2.71";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::Doubles(vec![OrderedFloat(3.15), OrderedFloat(2.71)])
+        );
+    }
+
+    #[test]
+    fn test_examples_bools() {
+        let yaml = "---\n- true\n- false";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::Bools(vec![true, false]));
+    }
+
+    #[test]
+    fn test_examples_list_of_ints() {
+        let yaml = "---\n- [42, 43]\n- [44, 45]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]));
+    }
+
+    #[test]
+    fn test_examples_list_of_doubles() {
+        let yaml = "---\n- [3.15, 2.71]\n- [1.41, 1.61]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::ListOfDoubles(vec![
+                vec![OrderedFloat(3.15), OrderedFloat(2.71)],
+                vec![OrderedFloat(1.41), OrderedFloat(1.61)]
+            ])
+        );
+    }
+
+    #[test]
+    fn test_examples_list_of_bools() {
+        let yaml = "---\n- [true, false]\n- [false, true]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::ListOfBools(vec![vec![true, false], vec![false, true]])
+        );
+    }
+
+    #[test]
+    fn test_examples_list_of_strings() {
+        let yaml = "---\n- [\"foo\", \"bar\"]\n- [\"baz\", \"qux\"]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::ListOfStrings(vec![
+                vec!["foo".to_owned(), "bar".to_owned()],
+                vec!["baz".to_owned(), "qux".to_owned()]
+            ])
+        );
+    }
+
+    #[test]
+    fn test_examples_list_of_ints_array_style() {
+        let yaml = "[ [42, 43], [44, 45] ]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(ex, Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]));
+    }
+
+    #[test]
+    fn test_examples_list_of_doubles_array_style() {
+        let yaml = "[ [3.15, 2.71], [1.41, 1.61] ]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::ListOfDoubles(vec![
+                vec![OrderedFloat(3.15), OrderedFloat(2.71)],
+                vec![OrderedFloat(1.41), OrderedFloat(1.61)]
+            ])
+        );
+    }
+
+    #[test]
+    fn test_examples_list_of_bools_array_style() {
+        let yaml = "[ [true, false], [false, true] ]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::ListOfBools(vec![vec![true, false], vec![false, true]])
+        );
+    }
+
+    #[test]
+    fn test_examples_list_of_strings_array_style() {
+        let yaml = "[ [\"foo\", \"bar\"], [\"baz\", \"qux\"] ]";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::ListOfStrings(vec![
+                vec!["foo".to_owned(), "bar".to_owned()],
+                vec!["baz".to_owned(), "qux".to_owned()]
+            ])
+        );
     }
 }
 
