@@ -1,7 +1,7 @@
 [package]
 name = "weaver"
 version = "0.1.0"
-authors = ["Laurent Querel <l.querel@f5.com>"]
+authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
 description = "Manage semantic convention registry and telemetry schema workflows (OpenTelemetry Project)"
@@ -12,6 +12,15 @@ readme = "README.md"
 publish = false
 resolver = "2"
 
+[package.metadata.dist]
+dist=true
+
+[package.metadata.wix]
+upgrade-guid = "C9F6BF20-4C32-4AF3-8550-79653C00886C"
+path-guid = "A83EC6F0-88E1-4676-BCE2-E4D84A032225"
+license = false
+eula = false
+
 # Workspace definition ========================================================
 [workspace]
 members = [
@@ -19,9 +28,9 @@ members = [
 ]
 
 [workspace.package]
-authors = ["Laurent Querel <l.querel@f5.com>"]
+authors = ["OpenTelemetry"]
 edition = "2021"
-repository = "https://github.com/f5/otel-weaver"
+repository = "https://github.com/open-telemetry/weaver"
 license = "Apache-2.0"
 publish = false
 rust-version = "1.76"
@@ -87,6 +96,11 @@ assert_cmd = "2.0.14"
 lto = true
 strip = true
 panic = "abort"
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 
 [workspace.lints.rust]
 rust_2018_idioms = "warn"
@@ -179,6 +193,21 @@ verbose_file_reads = "warn"
 wildcard_imports = "warn"
 zero_sized_map_values = "warn"
 string_to_string = "warn"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.14.1"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "msi"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Publish jobs to run in CI
+pr-run-mode = "plan"
+# Whether to install an updater program
+install-updater = true
 
 #exhaustive_enums = "warn"
 #doc_markdown = "warn"
