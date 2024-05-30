@@ -74,7 +74,7 @@ impl<'a> SearchApp<'a> {
             Block::default()
                 .borders(Borders::TOP)
                 .border_style(Style::default().fg(Color::Gray))
-                .title("Search (press `Esc` or `Ctrl-C` to stop running) ")
+                .title("Search (press `Esc` or `Ctrl-Q` to stop running) ")
                 .title_style(Style::default().fg(Color::Green)),
         );
         SearchApp { 
@@ -103,14 +103,25 @@ impl<'a> SearchApp<'a> {
         Paragraph::new(title_contents).block(title_block)
     }
 
+    fn search_string(&self) -> String {
+        self.search_area.lines().join(" ")
+    }
+
     // Renders the current results of the search string or state of the UI.
-    fn results(&self) -> Block<'a> {
-        Block::new()
+    fn results(&self) -> Paragraph<'a> {        
+        let results: Vec<Line<'a>> =
+          self.schema.catalog.attributes.iter()
+          .filter(|a| a.name.contains(self.search_string().as_str()))
+          .map(|a| Line::default().style(Style::default().fg(Color::LightBlue)).spans(vec!(Span::raw(" - "), Span::raw(&a.name))))
+          .collect();
+        let block = Block::new()
             .border_type(BorderType::Rounded)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::White))
             .style(Style::default().bg(Color::Black))
-            .title("Results")
+            .title("Results");
+
+        Paragraph::new(results).block(block)
     }
 
     // Creates the footer widget from current state.
@@ -150,6 +161,7 @@ impl<'a> SearchApp<'a> {
                 return Ok(true);
             } else {
                 let _ = self.search_area.input(event);
+                // TODO - should we update search results here?
             }
         }
         Ok(false)
