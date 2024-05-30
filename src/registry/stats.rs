@@ -4,7 +4,7 @@
 
 use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from};
-use crate::DiagnosticArgs;
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -32,7 +32,7 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryStatsArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!(
         "Compute statistics on the registry `{}`",
         args.registry.registry
@@ -52,7 +52,10 @@ pub(crate) fn command(
     let resolved_schema = resolve_semconv_specs(&mut registry, logger)?;
 
     display_schema_stats(&resolved_schema);
-    Ok(())
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
 }
 
 #[cfg(not(tarpaulin_include))]

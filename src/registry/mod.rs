@@ -8,6 +8,7 @@ use std::str::FromStr;
 use clap::{Args, Subcommand};
 
 use crate::registry::generate::RegistryGenerateArgs;
+use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -19,6 +20,7 @@ use weaver_common::Logger;
 
 mod check;
 mod generate;
+mod json_schema;
 mod resolve;
 mod search;
 mod stats;
@@ -73,6 +75,11 @@ pub enum RegistrySubCommand {
     Stats(RegistryStatsArgs),
     /// Update markdown files that contain markers indicating the templates used to update the specified sections.
     UpdateMarkdown(RegistryUpdateMarkdownArgs),
+    /// Generate the JSON Schema of the resolved registry documents consumed by the template generator and the policy engine.
+    ///
+    /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
+    #[clap(verbatim_doc_comment)]
+    JsonSchema(RegistryJsonSchemaArgs),
 }
 
 /// Path to a semantic convention registry.
@@ -154,6 +161,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         RegistrySubCommand::Search(_) => unimplemented!(),
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
             update_markdown::command(log.clone(), &cache, args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::JsonSchema(args) => CmdResult::new(
+            json_schema::command(log.clone(), &cache, args),
             Some(args.diagnostic.clone()),
         ),
     }

@@ -18,7 +18,7 @@ use crate::registry::RegistryArgs;
 use crate::util::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
 };
-use crate::DiagnosticArgs;
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -59,7 +59,7 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryGenerateArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!(
         "Generating artifacts for the registry `{}`",
         args.registry.registry
@@ -102,7 +102,10 @@ pub(crate) fn command(
     )?;
 
     logger.success("Artifacts generated successfully");
-    Ok(())
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
 }
 
 #[cfg(test)]
@@ -145,9 +148,9 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
 
         // Hashset containing recursively all the relative paths of rust files in the
         // output directory.
@@ -212,8 +215,8 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger);
+        let exit_directive = run_command(&cli, logger);
         // The command should exit with an error code.
-        assert_eq!(exit_code, 1);
+        assert_eq!(exit_directive.exit_code, 1);
     }
 }

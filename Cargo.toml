@@ -84,6 +84,7 @@ walkdir.workspace = true
 include_dir.workspace = true
 thiserror.workspace = true
 miette.workspace = true
+schemars.workspace = true
 
 rayon = "1.10.0"
 

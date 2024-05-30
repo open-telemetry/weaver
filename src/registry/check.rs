@@ -6,7 +6,7 @@ use crate::registry::RegistryArgs;
 use crate::util::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
 };
-use crate::DiagnosticArgs;
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use std::path::PathBuf;
 use weaver_cache::Cache;
@@ -41,7 +41,7 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryCheckArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
     let registry_id = "default";
@@ -65,7 +65,10 @@ pub(crate) fn command(
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     _ = resolve_semconv_specs(&mut registry, logger.clone())?;
 
-    Ok(())
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
 }
 
 #[cfg(test)]
@@ -98,9 +101,9 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
 
         // Now, let's run the command again with the policy checks enabled.
         let cli = Cli {
@@ -121,8 +124,8 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger);
+        let exit_directive = run_command(&cli, logger);
         // The command should exit with an error code.
-        assert_eq!(exit_code, 1);
+        assert_eq!(exit_directive.exit_code, 1);
     }
 }

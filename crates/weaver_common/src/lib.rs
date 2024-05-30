@@ -47,6 +47,9 @@ pub trait Logger {
 
     /// Logs a message without icon.
     fn log(&self, message: &str);
+
+    /// Mute all the messages except for the warnings and errors.
+    fn mute(&self);
 }
 
 /// A generic logger that can be used to log messages to the console.
@@ -55,6 +58,7 @@ pub trait Logger {
 pub struct ConsoleLogger {
     logger: Arc<Mutex<paris::Logger<'static>>>,
     debug_level: u8,
+    mute: Arc<Mutex<bool>>,
 }
 
 impl ConsoleLogger {
@@ -64,6 +68,7 @@ impl ConsoleLogger {
         ConsoleLogger {
             logger: Arc::new(Mutex::new(paris::Logger::new())),
             debug_level,
+            mute: Arc::new(Mutex::new(false)),
         }
     }
 }
@@ -71,7 +76,8 @@ impl ConsoleLogger {
 impl Logger for ConsoleLogger {
     /// Logs an trace message (only with debug enabled).
     fn trace(&self, message: &str) {
-        if self.debug_level > 0 {
+        let mute = *self.mute.lock().expect("Failed to lock mute");
+        if self.debug_level > 0 && !mute {
             _ = self
                 .logger
                 .lock()
@@ -82,6 +88,10 @@ impl Logger for ConsoleLogger {
 
     /// Logs an info message.
     fn info(&self, message: &str) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self
             .logger
             .lock()
@@ -109,6 +119,10 @@ impl Logger for ConsoleLogger {
 
     /// Logs a success message.
     fn success(&self, message: &str) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self
             .logger
             .lock()
@@ -118,6 +132,10 @@ impl Logger for ConsoleLogger {
 
     /// Logs a newline.
     fn newline(&self, count: usize) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self
             .logger
             .lock()
@@ -127,6 +145,10 @@ impl Logger for ConsoleLogger {
 
     /// Indents the logger.
     fn indent(&self, count: usize) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self
             .logger
             .lock()
@@ -136,11 +158,19 @@ impl Logger for ConsoleLogger {
 
     /// Stops a loading message.
     fn done(&self) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self.logger.lock().expect("Failed to lock logger").done();
     }
 
     /// Adds a style to the logger.
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return self;
+        }
+
         _ = self
             .logger
             .lock()
@@ -151,6 +181,10 @@ impl Logger for ConsoleLogger {
 
     /// Logs a loading message with a spinner.
     fn loading(&self, message: &str) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self
             .logger
             .lock()
@@ -160,17 +194,30 @@ impl Logger for ConsoleLogger {
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return self;
+        }
+
         _ = self.logger.lock().expect("Failed to lock logger").same();
         self
     }
 
     /// Logs a message without icon.
     fn log(&self, message: &str) {
+        if *self.mute.lock().expect("Failed to lock mute") {
+            return;
+        }
+
         _ = self
             .logger
             .lock()
             .expect("Failed to lock logger")
             .log(message);
+    }
+
+    /// Mute all the messages except for the warnings and errors.
+    fn mute(&self) {
+        *self.mute.lock().expect("Failed to lock mute") = true;
     }
 }
 
@@ -226,6 +273,9 @@ impl Logger for NullLogger {
 
     /// Logs a message without icon.
     fn log(&self, _: &str) {}
+
+    /// Mute all the messages except for the warnings and errors.
+    fn mute(&self) {}
 }
 
 /// A logger that can be used in unit or integration tests.
@@ -362,5 +412,10 @@ impl Logger for TestLogger {
             .lock()
             .expect("Failed to lock logger")
             .log(message);
+    }
+
+    /// Mute all the messages except for the warnings and errors.
+    fn mute(&self) {
+        // We do not need to mute the logger in the tests.
     }
 }
