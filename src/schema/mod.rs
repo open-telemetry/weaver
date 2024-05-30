@@ -2,8 +2,10 @@
 
 //! Commands to manage a telemetry schema.
 
+mod json_schema;
 mod resolve;
 
+use crate::schema::json_schema::SchemaJsonSchemaArgs;
 use crate::schema::resolve::SchemaResolveArgs;
 use crate::CmdResult;
 use clap::{Args, Subcommand};
@@ -31,6 +33,11 @@ pub enum SchemaSubCommand {
     /// The process exits with a code of 0 if the resolution is successful.
     #[clap(verbatim_doc_comment)]
     Resolve(SchemaResolveArgs),
+    /// Generate the JSON Schema of a resolved telemetry schema.
+    ///
+    /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved telemetry schema format for any reason.
+    #[clap(verbatim_doc_comment)]
+    JsonSchema(SchemaJsonSchemaArgs),
 }
 
 /// Manage a telemetry schema and return the exit code.
@@ -43,6 +50,10 @@ pub fn telemetry_schema(log: impl Logger + Sync + Clone, command: &SchemaCommand
     match &command.command {
         SchemaSubCommand::Resolve(args) => CmdResult::new(
             resolve::command(log.clone(), &cache, args),
+            Some(args.diagnostic.clone()),
+        ),
+        SchemaSubCommand::JsonSchema(args) => CmdResult::new(
+            json_schema::command(log.clone(), &cache, args),
             Some(args.diagnostic.clone()),
         ),
     }
