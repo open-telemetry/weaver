@@ -74,6 +74,9 @@ weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
 clap = { version = "4.5.4", features = ["derive"] }
+rayon = "1.10.0"
+ratatui = { version = "0.26.3", features=["serde"] }
+crossterm = { version = "0.27.0", features = ["serde"] }
 
 # workspace dependencies
 serde.workspace = true
@@ -83,8 +86,6 @@ walkdir.workspace = true
 include_dir.workspace = true
 thiserror.workspace = true
 miette.workspace = true
-
-rayon = "1.10.0"
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
