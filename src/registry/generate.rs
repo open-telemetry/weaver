@@ -14,9 +14,9 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{
+use crate::registry::RegistryArgs;
+use crate::util::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    RegistryArgs,
 };
 use crate::DiagnosticArgs;
 

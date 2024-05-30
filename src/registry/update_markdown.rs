@@ -3,7 +3,8 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::{semconv_registry_path_from, RegistryArgs};
+use crate::registry::RegistryArgs;
+use crate::util::semconv_registry_path_from;
 use crate::DiagnosticArgs;
 use clap::Args;
 use weaver_cache::Cache;

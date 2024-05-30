@@ -1,35 +1,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Resolve a semantic convention registry.
+//! Resolve a telemetry schema.
 
-use std::path::PathBuf;
-
-use clap::Args;
-
-use weaver_cache::Cache;
-use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
-use weaver_forge::registry::ResolvedRegistry;
-use weaver_semconv::registry::SemConvRegistry;
-
-use crate::format::{apply_format, Format};
+use crate::format::Format;
 use crate::registry::RegistryArgs;
 use crate::util::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
 };
-use crate::DiagnosticArgs;
+use crate::{format, DiagnosticArgs};
+use clap::Args;
+use std::path::PathBuf;
+use weaver_cache::Cache;
+use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::Logger;
+use weaver_semconv::registry::SemConvRegistry;
 
-/// Parameters for the `registry resolve` sub-command
+/// Parameters for the `schema resolve` sub-command
 #[derive(Debug, Args)]
-pub struct RegistryResolveArgs {
+pub struct SchemaResolveArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
     registry: RegistryArgs,
-
-    /// Flag to indicate if lineage information should be included in the
-    /// resolved schema (not yet implemented)
-    #[arg(long, default_value = "false")]
-    lineage: bool,
 
     /// Output file to write the resolved schema to
     /// If not specified, the resolved schema is printed to stdout
@@ -58,15 +49,15 @@ pub struct RegistryResolveArgs {
     pub diagnostic: DiagnosticArgs,
 }
 
-/// Resolve a semantic convention registry and write the resolved schema to a
+/// Resolve a telemetry schema and write the resolved schema to a
 /// file or print it to stdout.
 #[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
-    args: &RegistryResolveArgs,
+    args: &SchemaResolveArgs,
 ) -> Result<(), DiagnosticMessages> {
-    logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+    logger.loading(&format!("Resolving schema `{}`", args.registry.registry));
 
     let registry_id = "default";
     let registry_path =
@@ -90,15 +81,7 @@ pub(crate) fn command(
 
     // Serialize the resolved schema and write it
     // to a file or print it to stdout.
-    let registry = ResolvedRegistry::try_from_resolved_registry(
-        schema
-            .registry(registry_id)
-            .expect("Failed to get the registry from the resolved schema"),
-        schema.catalog(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
-
-    apply_format(&args.format, &registry)
+    format::apply_format(&args.format, &schema)
         .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
         .and_then(|s| {
             if let Some(ref path) = args.output {
@@ -125,25 +108,25 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::format::Format;
-    use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{RegistryArgs, RegistryPath};
     use crate::run_command;
+    use crate::schema::resolve::SchemaResolveArgs;
+    use crate::schema::{SchemaCommand, SchemaSubCommand};
 
     #[test]
-    fn test_registry_resolve() {
+    fn test_schema_resolve() {
         let logger = TestLogger::new();
         let cli = Cli {
             debug: 0,
             quiet: false,
-            command: Some(Commands::Registry(RegistryCommand {
-                command: RegistrySubCommand::Resolve(RegistryResolveArgs {
+            command: Some(Commands::Schema(SchemaCommand {
+                command: SchemaSubCommand::Resolve(SchemaResolveArgs {
                     registry: RegistryArgs {
                         registry: RegistryPath::Local(
                             "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         ),
                         registry_git_sub_dir: None,
                     },
-                    lineage: true,
                     output: None,
                     format: Format::Yaml,
                     policies: vec![],
@@ -161,15 +144,14 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
-            command: Some(Commands::Registry(RegistryCommand {
-                command: RegistrySubCommand::Resolve(RegistryResolveArgs {
+            command: Some(Commands::Schema(SchemaCommand {
+                command: SchemaSubCommand::Resolve(SchemaResolveArgs {
                     registry: RegistryArgs {
                         registry: RegistryPath::Local(
                             "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         ),
                         registry_git_sub_dir: None,
                     },
-                    lineage: true,
                     output: None,
                     format: Format::Json,
                     policies: vec![],

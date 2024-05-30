@@ -15,10 +15,14 @@ use weaver_forge::{OutputDirective, TemplateEngine};
 
 use crate::cli::{Cli, Commands};
 use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
+use crate::schema::telemetry_schema;
 
 mod cli;
 mod diagnostic;
+mod format;
 mod registry;
+mod schema;
+mod util;
 
 /// Set of parameters used to specify the diagnostic format.
 #[derive(Args, Debug, Clone)]
@@ -90,6 +94,7 @@ fn main() {
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> i32 {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
+        Some(Commands::Schema(params)) => telemetry_schema(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
         None => return 0,
     };
