@@ -11,9 +11,16 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
+<<<<<<< HEAD
     registry::RegistryArgs,
     util::{load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from},
     DiagnosticArgs, ExitDirectives,
+=======
+    registry::{
+        load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryArgs,
+    },
+    DiagnosticArgs,
+>>>>>>> ec57758 (Fix format.)
 };
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
