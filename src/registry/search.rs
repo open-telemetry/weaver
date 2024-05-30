@@ -11,25 +11,21 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
-<<<<<<< HEAD
     registry::RegistryArgs,
     util::{load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from},
     DiagnosticArgs, ExitDirectives,
-=======
-    registry::{
-        load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryArgs,
-    },
-    DiagnosticArgs,
->>>>>>> ec57758 (Fix format.)
 };
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
 use ratatui::{
+    layout::{Constraint, Direction, Layout},
     prelude::{CrosstermBackend, Stylize, Terminal},
-    widgets::Paragraph,
+    style::{Color, Style},
+    text::{Line, Span, Text},
+    widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 use std::io::stdout;
@@ -74,21 +70,58 @@ impl<'a> SearchApp<'a> {
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
-        let area = frame.size();
-        frame.render_widget(
-            Paragraph::new(format!(
-                "Hello Search {0}! (press 'q' to quit)",
-                self.schema.schema_url
-            ))
-            .white()
-            .on_blue(),
-            area,
-        );
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(1),
+                Constraint::Length(3),
+            ])
+            .split(frame.size());
+        let title_block = Block::default()
+            .borders(Borders::TOP)
+            .style(Style::default().bg(Color::Black))
+            .border_style(Style::default().fg(Color::Gray))
+            .title_alignment(ratatui::layout::Alignment::Center)
+            .title_style(Style::default().fg(Color::Green))
+            .title("Weaver Search");
+        let title_contents = Line::from(vec![Span::styled(
+            format!(
+                "Loaded {0:?} registries w/ {1} attributes",
+                self.schema.registries.keys(),
+                self.schema.catalog.attributes.len()
+            ),
+            Style::default().fg(Color::Gray),
+        )]);
+        let title = Paragraph::new(title_contents).block(title_block);
+
+        // Results
+        let results_block = Block::new()
+            .border_type(BorderType::Rounded)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::White))
+            .style(Style::default().bg(Color::Black))
+            .title("Results");
+
+        // Bottom area.
+        let bottom_text = Paragraph::new(Line::from(vec![Span::styled(
+            "(press 'ctrl + q' to quit)",
+            Style::default().fg(Color::Green),
+        )]))
+        .block(Block::default());
+
+        // Render our widgets.
+        frame.render_widget(title, chunks[0]);
+        frame.render_widget(results_block, chunks[1]);
+        frame.render_widget(bottom_text, chunks[2]);
     }
     // Returns true when it's time to quit.
     fn process(&mut self, event: Event) -> Result<bool, Error> {
         if let Event::Key(key) = event {
-            if key.kind == KeyEventKind::Press && key.code == KeyCode::Char('q') {
+            if key.kind == KeyEventKind::Press
+                && key.code == KeyCode::Char('q')
+                && key.modifiers.contains(KeyModifiers::CONTROL)
+            {
                 return Ok(true);
             }
         }
