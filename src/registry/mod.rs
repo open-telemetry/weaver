@@ -164,7 +164,7 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::Search(args) => CmdResult::new(
             search::command(log.clone(), &cache, args),
-            Some(args.diagnostic.clone())
+            Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
             update_markdown::command(log.clone(), &cache, args),

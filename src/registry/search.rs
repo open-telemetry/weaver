@@ -5,27 +5,26 @@
 use clap::Args;
 use miette::Diagnostic;
 use weaver_cache::Cache;
-use weaver_common::Logger;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::{registry::{
-    load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    RegistryArgs,
-}, DiagnosticArgs};
-use crossterm::{
-    event::{self, KeyCode, KeyEventKind, Event},
-    terminal::{
-        disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
-        LeaveAlternateScreen,
+use crate::{
+    registry::{
+        load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from, RegistryArgs,
     },
+    DiagnosticArgs,
+};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyEventKind},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
 use ratatui::{
     prelude::{CrosstermBackend, Stylize, Terminal},
     widgets::Paragraph,
-    Frame
+    Frame,
 };
 use std::io::stdout;
 
@@ -49,7 +48,7 @@ pub struct RegistrySearchArgs {
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum Error {
     #[error("{0}")]
-    StdIoError(String)
+    StdIoError(String),
 }
 
 impl From<std::io::Error> for Error {
@@ -60,40 +59,36 @@ impl From<std::io::Error> for Error {
 
 // Our search application state
 struct SearchApp<'a> {
-    schema: &'a ResolvedTelemetrySchema
+    schema: &'a ResolvedTelemetrySchema,
 }
 
-impl <'a> SearchApp<'a> {
-
+impl<'a> SearchApp<'a> {
     fn new(schema: &'a ResolvedTelemetrySchema) -> SearchApp<'a> {
-        SearchApp {
-            schema,
-        }
+        SearchApp { schema }
     }
 
     fn render(&self, frame: &mut Frame<'_>) {
         let area = frame.size();
         frame.render_widget(
-            Paragraph::new(
-                format!("Hello Search {0}! (press 'q' to quit)", self.schema.schema_url))
-                .white()
-                .on_blue(),
+            Paragraph::new(format!(
+                "Hello Search {0}! (press 'q' to quit)",
+                self.schema.schema_url
+            ))
+            .white()
+            .on_blue(),
             area,
         );
     }
     // Returns true when it's time to quit.
     fn process(&mut self, event: Event) -> Result<bool, Error> {
         if let Event::Key(key) = event {
-            if key.kind == KeyEventKind::Press
-                    && key.code == KeyCode::Char('q')
-                {
-                    return Ok(true);
-                }
+            if key.kind == KeyEventKind::Press && key.code == KeyCode::Char('q') {
+                return Ok(true);
+            }
         }
         Ok(false)
     }
 }
-
 
 fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
     let mut app = SearchApp::new(schema);
@@ -120,7 +115,7 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
-    args: &RegistrySearchArgs
+    args: &RegistrySearchArgs,
 ) -> Result<(), DiagnosticMessages> {
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
@@ -133,7 +128,7 @@ pub(crate) fn command(
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 
-    // TODO - We should have two modes: 
+    // TODO - We should have two modes:
     // 1. An interactive UI
     // 2. a single input we take in and directly output some rendered result.
     run_ui(&schema).map_err(|e| DiagnosticMessages::from_error(e))
