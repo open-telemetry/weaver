@@ -28,6 +28,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
+use tui_textarea::TextArea;
 use std::io::stdout;
 
 /// Parameters for the `registry search` sub-command
@@ -62,22 +63,28 @@ impl From<std::io::Error> for Error {
 // Our search application state
 struct SearchApp<'a> {
     schema: &'a ResolvedTelemetrySchema,
+    search_area: TextArea<'a>,
 }
 
 impl<'a> SearchApp<'a> {
     fn new(schema: &'a ResolvedTelemetrySchema) -> SearchApp<'a> {
-        SearchApp { schema }
+        let mut search_area = TextArea::default();
+        search_area.set_placeholder_text("Enter search string");
+        search_area.set_block(
+            Block::default()
+                .borders(Borders::TOP)
+                .border_style(Style::default().fg(Color::Gray))
+                .title("Search (press `Esc` or `Ctrl-C` to stop running) ")
+                .title_style(Style::default().fg(Color::Green)),
+        );
+        SearchApp { 
+            schema,
+            search_area,
+        }
     }
 
-    fn render(&self, frame: &mut Frame<'_>) {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Min(1),
-                Constraint::Length(3),
-            ])
-            .split(frame.size());
+    // Renders the title component of the UI.
+    fn title(&self) -> Paragraph<'a> {
         let title_block = Block::default()
             .borders(Borders::TOP)
             .style(Style::default().bg(Color::Black))
@@ -93,27 +100,43 @@ impl<'a> SearchApp<'a> {
             ),
             Style::default().fg(Color::Gray),
         )]);
-        let title = Paragraph::new(title_contents).block(title_block);
+        Paragraph::new(title_contents).block(title_block)
+    }
 
-        // Results
-        let results_block = Block::new()
+    // Renders the current results of the search string or state of the UI.
+    fn results(&self) -> Block<'a> {
+        Block::new()
             .border_type(BorderType::Rounded)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::White))
             .style(Style::default().bg(Color::Black))
-            .title("Results");
+            .title("Results")
+    }
 
-        // Bottom area.
-        let bottom_text = Paragraph::new(Line::from(vec![Span::styled(
-            "(press 'ctrl + q' to quit)",
-            Style::default().fg(Color::Green),
-        )]))
-        .block(Block::default());
+    // Creates the footer widget from current state.
+    //
+    // This should show the user what they're actively typing or offer help.
+    fn footer(&self) -> &TextArea<'a> {
+        &self.search_area
+    }
 
-        // Render our widgets.
-        frame.render_widget(title, chunks[0]);
-        frame.render_widget(results_block, chunks[1]);
-        frame.render_widget(bottom_text, chunks[2]);
+
+    // Renders the text-UI to the current frame.
+    fn render(&self, frame: &mut Frame<'_>) {
+        // Set up the UI such that we have a title block,
+        // a large section for results and then a footer with
+        // information on how to get help or quit the application.
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3),
+                Constraint::Min(1),
+                Constraint::Length(3),
+            ])
+            .split(frame.size());
+        frame.render_widget(self.title(), chunks[0]);
+        frame.render_widget(self.results(), chunks[1]);
+        frame.render_widget(self.footer().widget(), chunks[2]);
     }
     // Returns true when it's time to quit.
     fn process(&mut self, event: Event) -> Result<bool, Error> {
@@ -123,6 +146,10 @@ impl<'a> SearchApp<'a> {
                 && key.modifiers.contains(KeyModifiers::CONTROL)
             {
                 return Ok(true);
+            } else if key.code == KeyCode::Esc {
+                return Ok(true);
+            } else {
+                let _ = self.search_area.input(event);
             }
         }
         Ok(false)
