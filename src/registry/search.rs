@@ -28,8 +28,8 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
-use tui_textarea::TextArea;
 use std::io::stdout;
+use tui_textarea::TextArea;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]
@@ -77,7 +77,7 @@ impl<'a> SearchApp<'a> {
                 .title("Search (press `Esc` or `Ctrl-Q` to stop running) ")
                 .title_style(Style::default().fg(Color::Green)),
         );
-        SearchApp { 
+        SearchApp {
             schema,
             search_area,
         }
@@ -108,18 +108,25 @@ impl<'a> SearchApp<'a> {
     }
 
     // Renders the current results of the search string or state of the UI.
-    fn results(&self) -> Paragraph<'a> {        
-        let results: Vec<Line<'a>> =
-          self.schema.catalog.attributes.iter()
-          .filter(|a| a.name.contains(self.search_string().as_str()))
-          .map(|a| Line::default().style(Style::default().fg(Color::LightBlue)).spans(vec!(Span::raw(" - "), Span::raw(&a.name))))
-          .collect();
+    fn results(&self) -> Paragraph<'a> {
+        let results: Vec<Line<'a>> = self
+            .schema
+            .catalog
+            .attributes
+            .iter()
+            .filter(|a| a.name.contains(self.search_string().as_str()))
+            .map(|a| {
+                Line::default()
+                    .style(Style::default().fg(Color::LightBlue))
+                    .spans(vec![Span::raw(" - "), Span::raw(&a.name)])
+            })
+            .collect();
         let block = Block::new()
             .border_type(BorderType::Rounded)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::White))
             .style(Style::default().bg(Color::Black))
-            .title("Results");
+            .title("Results [Attributes]");
 
         Paragraph::new(results).block(block)
     }
@@ -130,7 +137,6 @@ impl<'a> SearchApp<'a> {
     fn footer(&self) -> &TextArea<'a> {
         &self.search_area
     }
-
 
     // Renders the text-UI to the current frame.
     fn render(&self, frame: &mut Frame<'_>) {
