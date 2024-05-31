@@ -4,7 +4,6 @@
 
 use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
-use crate::schema::SchemaCommand;
 use clap::{Parser, Subcommand};
 
 /// Command line arguments.
@@ -36,8 +35,6 @@ pub struct Cli {
 pub enum Commands {
     /// Manage Semantic Convention Registry
     Registry(RegistryCommand),
-    /// Manage Telemetry Schema
-    Schema(SchemaCommand),
     /// Manage Diagnostic Messages
     Diagnostic(DiagnosticCommand),
 }
