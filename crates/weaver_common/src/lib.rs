@@ -7,7 +7,7 @@ pub mod error;
 pub mod in_memory;
 pub mod quiet;
 
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// A trait that defines the interface of a logger.
@@ -58,7 +58,15 @@ pub trait Logger {
 pub struct ConsoleLogger {
     logger: Arc<Mutex<paris::Logger<'static>>>,
     debug_level: u8,
-    mute: Arc<Mutex<bool>>,
+    /// Mute all the messages except for the warnings and errors.
+    /// This flag is used to dynamically mute the logger.
+    ///
+    /// Ordering logic:
+    /// - Ordering::Acquire in load: Ensures that when a thread reads the muted flag, it sees all
+    /// preceding writes to that flag by other threads.
+    /// - Ordering::Release in store: Ensures that when a thread sets the muted flag, the store
+    /// operation is visible to other threads that subsequently perform an acquire load.
+    mute: Arc<AtomicBool>,
 }
 
 impl ConsoleLogger {
@@ -68,7 +76,7 @@ impl ConsoleLogger {
         ConsoleLogger {
             logger: Arc::new(Mutex::new(paris::Logger::new())),
             debug_level,
-            mute: Arc::new(Mutex::new(false)),
+            mute: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -76,8 +84,7 @@ impl ConsoleLogger {
 impl Logger for ConsoleLogger {
     /// Logs an trace message (only with debug enabled).
     fn trace(&self, message: &str) {
-        let mute = *self.mute.lock().expect("Failed to lock mute");
-        if self.debug_level > 0 && !mute {
+        if self.debug_level > 0 && !self.mute.load(Ordering::Acquire) {
             _ = self
                 .logger
                 .lock()
@@ -88,7 +95,7 @@ impl Logger for ConsoleLogger {
 
     /// Logs an info message.
     fn info(&self, message: &str) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -119,7 +126,7 @@ impl Logger for ConsoleLogger {
 
     /// Logs a success message.
     fn success(&self, message: &str) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -132,7 +139,7 @@ impl Logger for ConsoleLogger {
 
     /// Logs a newline.
     fn newline(&self, count: usize) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -145,7 +152,7 @@ impl Logger for ConsoleLogger {
 
     /// Indents the logger.
     fn indent(&self, count: usize) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -158,7 +165,7 @@ impl Logger for ConsoleLogger {
 
     /// Stops a loading message.
     fn done(&self) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -167,7 +174,7 @@ impl Logger for ConsoleLogger {
 
     /// Adds a style to the logger.
     fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return self;
         }
 
@@ -181,7 +188,7 @@ impl Logger for ConsoleLogger {
 
     /// Logs a loading message with a spinner.
     fn loading(&self, message: &str) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -194,7 +201,7 @@ impl Logger for ConsoleLogger {
 
     /// Forces the logger to not print a newline for the next message.
     fn same(&self) -> &Self {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return self;
         }
 
@@ -204,7 +211,7 @@ impl Logger for ConsoleLogger {
 
     /// Logs a message without icon.
     fn log(&self, message: &str) {
-        if *self.mute.lock().expect("Failed to lock mute") {
+        if self.mute.load(Ordering::Acquire) {
             return;
         }
 
@@ -217,7 +224,10 @@ impl Logger for ConsoleLogger {
 
     /// Mute all the messages except for the warnings and errors.
     fn mute(&self) {
-        *self.mute.lock().expect("Failed to lock mute") = true;
+        // Ordering::Release:
+        // Ensures that when a thread sets the muted flag, the store operation is visible to other
+        // threads that subsequently perform an acquire load.
+        self.mute.store(true, Ordering::Release);
     }
 }
 
@@ -301,13 +311,13 @@ impl TestLogger {
     /// Returns the number of warning messages logged.
     #[must_use]
     pub fn warn_count(&self) -> usize {
-        self.warn_count.load(std::sync::atomic::Ordering::Relaxed)
+        self.warn_count.load(Ordering::Relaxed)
     }
 
     /// Returns the number of error messages logged.
     #[must_use]
     pub fn error_count(&self) -> usize {
-        self.error_count.load(std::sync::atomic::Ordering::Relaxed)
+        self.error_count.load(Ordering::Relaxed)
     }
 }
 
@@ -331,9 +341,7 @@ impl Logger for TestLogger {
             .lock()
             .expect("Failed to lock logger")
             .warn(message);
-        _ = self
-            .warn_count
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        _ = self.warn_count.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Logs an error message.
@@ -343,9 +351,7 @@ impl Logger for TestLogger {
             .lock()
             .expect("Failed to lock logger")
             .error(message);
-        _ = self
-            .error_count
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        _ = self.error_count.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Logs a success message.
