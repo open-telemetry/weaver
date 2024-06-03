@@ -3,7 +3,7 @@
 //! Initializes a `diagnostic_templates` directory to define or override diagnostic output formats.
 
 use crate::diagnostic::{Error, DEFAULT_DIAGNOSTIC_TEMPLATES};
-use crate::DiagnosticArgs;
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::DirEntry;
 use std::fs;
@@ -32,7 +32,7 @@ pub struct DiagnosticInitArgs {
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &DiagnosticInitArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
     extract(args.diagnostic_templates_dir.clone(), &args.target).map_err(|e| {
         Error::InitDiagnosticError {
             path: args.diagnostic_templates_dir.clone(),
@@ -44,7 +44,10 @@ pub(crate) fn command(
         "Diagnostic templates initialized at {:?}",
         args.diagnostic_templates_dir
     ));
-    Ok(())
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
 }
 
 /// Extracts the diagnostic templates to the specified path for the given target.
@@ -104,9 +107,9 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
 
         // Check the presence of 3 subdirectories in the temp_output directory
         let subdirs = fs::read_dir(&temp_output).unwrap().count();
@@ -128,9 +131,9 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
 
         // Check the presence of 3 subdirectories in the temp_output directory
         let subdirs = fs::read_dir(&temp_output).unwrap().count();

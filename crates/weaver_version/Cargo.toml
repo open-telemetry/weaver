@@ -15,5 +15,6 @@ workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 thiserror.workspace = true
+schemars.workspace = true
 
 semver = {version =  "1.0.22", features = ["serde"]}

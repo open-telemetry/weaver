@@ -3,14 +3,15 @@
 //! Specification of a resolved metric.
 
 use crate::tags::Tags;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// An internal reference to a metric in the catalog.
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, JsonSchema)]
 pub struct MetricRef(pub u32);
 
 /// A metric definition.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Metric {
     /// Metric name.
@@ -29,7 +30,7 @@ pub struct Metric {
 }
 
 /// The type of the metric.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub enum Instrument {
     /// An up-down counter metric.
     UpDownCounter,

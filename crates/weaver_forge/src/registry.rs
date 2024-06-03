@@ -5,6 +5,7 @@
 //! evaluation.
 
 use crate::error::Error;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
@@ -13,20 +14,21 @@ use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
-/// A semantic convention registry used in the context of the template engine.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+/// A resolved semantic convention registry used in the context of the template and policy
+/// engines.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct TemplateRegistry {
+pub struct ResolvedRegistry {
     /// The semantic convention registry url.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
     /// A list of semantic convention groups.
-    pub groups: Vec<TemplateGroup>,
+    pub groups: Vec<ResolvedGroup>,
 }
 
-/// Group specification used in the context of the template engine.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct TemplateGroup {
+/// Resolved group specification used in the context of the template engine.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+pub struct ResolvedGroup {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the group including the specific fields for each type.
@@ -102,7 +104,7 @@ pub struct TemplateGroup {
     pub lineage: Option<GroupLineage>,
 }
 
-impl TemplateGroup {
+impl ResolvedGroup {
     /// Constructs a Template-friendly groups structure from resolved registry structures.
     pub fn try_from_resolved(group: &Group, catalog: &Catalog) -> Result<Self, Error> {
         let mut errors = Vec::new();
@@ -133,7 +135,7 @@ impl TemplateGroup {
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
         }
-        Ok(TemplateGroup {
+        Ok(ResolvedGroup {
             id,
             r#type: group_type,
             brief,
@@ -155,7 +157,7 @@ impl TemplateGroup {
     }
 }
 
-impl TemplateRegistry {
+impl ResolvedRegistry {
     /// Create a new template registry from a resolved registry.
     pub fn try_from_resolved_registry(
         registry: &Registry,
@@ -191,7 +193,7 @@ impl TemplateRegistry {
                     })
                     .collect();
                 let lineage = group.lineage.clone();
-                TemplateGroup {
+                ResolvedGroup {
                     id,
                     r#type: group_type,
                     brief,
@@ -221,5 +223,21 @@ impl TemplateRegistry {
             registry_url: registry.registry_url.clone(),
             groups,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ResolvedRegistry;
+    use schemars::schema_for;
+    use serde_json::to_string_pretty;
+
+    #[test]
+    fn test_json_schema_gen() {
+        // Ensure the JSON schema can be generated for the TemplateRegistry
+        let schema = schema_for!(ResolvedRegistry);
+
+        // Ensure the schema can be serialized to a string
+        assert!(to_string_pretty(&schema).is_ok());
     }
 }
