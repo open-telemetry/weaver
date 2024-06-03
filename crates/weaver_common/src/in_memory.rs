@@ -151,4 +151,9 @@ impl crate::Logger for Logger {
             .expect("Failed to lock messages")
             .push(LogMessage::Log(message.to_owned()));
     }
+
+    /// Mute all the messages except for the warnings and errors.
+    fn mute(&self) {
+        // We do not mute the logger in this implementation.
+    }
 }

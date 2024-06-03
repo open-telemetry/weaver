@@ -18,7 +18,9 @@ use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
 
 mod cli;
 mod diagnostic;
+mod format;
 mod registry;
+mod util;
 
 /// Set of parameters used to specify the diagnostic format.
 #[derive(Args, Debug, Clone)]
@@ -45,14 +47,23 @@ impl Default for DiagnosticArgs {
 /// Result of a command execution.
 #[derive(Debug)]
 pub(crate) struct CmdResult {
-    pub(crate) command_result: Result<(), DiagnosticMessages>,
+    pub(crate) command_result: Result<ExitDirectives, DiagnosticMessages>,
     pub(crate) diagnostic_args: Option<DiagnosticArgs>,
+}
+
+/// Exit directives.
+#[derive(Debug, Clone)]
+pub(crate) struct ExitDirectives {
+    /// Exit code.
+    exit_code: i32,
+    /// Quiet mode.
+    quiet_mode: bool,
 }
 
 impl CmdResult {
     /// Create a new command result.
     pub(crate) fn new(
-        command_result: Result<(), DiagnosticMessages>,
+        command_result: Result<ExitDirectives, DiagnosticMessages>,
         diagnostic_args: Option<DiagnosticArgs>,
     ) -> Self {
         Self {
@@ -67,7 +78,7 @@ fn main() {
     let cli = Cli::parse();
 
     let start = std::time::Instant::now();
-    let exit_code = if cli.quiet {
+    let exit_directives = if cli.quiet {
         let log = QuietLogger::new();
         run_command(&cli, log)
     } else {
@@ -75,35 +86,51 @@ fn main() {
         run_command(&cli, log)
     };
 
-    if !cli.quiet {
+    if !cli.quiet && !exit_directives.quiet_mode {
         let elapsed = start.elapsed();
-        println!("Total execution time: {:?}s", elapsed.as_secs_f64());
+        println!("\nTotal execution time: {:?}s", elapsed.as_secs_f64());
     }
 
     // Exit the process with the exit code provided by the `run_command` function.
     #[allow(clippy::exit)]
-    std::process::exit(exit_code);
+    std::process::exit(exit_directives.exit_code);
 }
 
-/// Run the command specified by the CLI arguments and return the exit code.
+/// Run the command specified by the CLI arguments and return the exit directives.
 #[cfg(not(tarpaulin_include))]
-fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> i32 {
+fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
-        None => return 0,
+        None => {
+            return ExitDirectives {
+                exit_code: 0,
+                quiet_mode: false,
+            }
+        }
     };
 
     process_diagnostics(cmd_result, log.clone())
 }
 
-/// Render the diagnostic messages based on the diagnostic configuration and return the exit code
-/// based on the diagnostic messages.
-fn process_diagnostics(cmd_result: CmdResult, logger: impl Logger + Sync + Clone) -> i32 {
+/// Render the diagnostic messages based on the diagnostic configuration and return the exit
+/// directives based on the diagnostic messages and the CmdResult quiet mode.
+fn process_diagnostics(
+    cmd_result: CmdResult,
+    logger: impl Logger + Sync + Clone,
+) -> ExitDirectives {
     let diagnostic_args = if let Some(diagnostic_args) = cmd_result.diagnostic_args {
         diagnostic_args
     } else {
         DiagnosticArgs::default() // Default diagnostic arguments;
+    };
+    let mut exit_directives = if let Ok(exit_directives) = &cmd_result.command_result {
+        exit_directives.clone()
+    } else {
+        ExitDirectives {
+            exit_code: 0,
+            quiet_mode: false,
+        }
     };
 
     if let Err(diagnostic_messages) = cmd_result.command_result {
@@ -127,22 +154,21 @@ fn process_diagnostics(cmd_result: CmdResult, logger: impl Logger + Sync + Clone
                             "Failed to render the diagnostic messages. Error: {}",
                             e
                         ));
-                        return 1;
+                        exit_directives.exit_code = 1;
+                        return exit_directives;
                     }
                 }
             }
             Err(e) => {
                 logger.error(&format!("Failed to create the template engine to render the diagnostic messages. Error: {}", e));
-                return 1;
+                exit_directives.exit_code = 1;
+                return exit_directives;
             }
         }
-        return if diagnostic_messages.has_error() {
-            1
-        } else {
-            0
-        };
+        if diagnostic_messages.has_error() {
+            exit_directives.exit_code = 1;
+        }
     }
 
-    // Return 0 if there are no diagnostic messages
-    0
+    exit_directives
 }

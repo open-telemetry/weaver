@@ -4,11 +4,12 @@
 
 use crate::signal::{Event, MultivariateMetric, Span, UnivariateMetric};
 use crate::tags::Tags;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// An instrumentation library specification.
 /// MUST be used both by applications and libraries.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InstrumentationLibrary {
     /// An optional name for the instrumentation library.

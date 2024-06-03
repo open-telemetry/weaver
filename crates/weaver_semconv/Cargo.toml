@@ -20,5 +20,6 @@ thiserror.workspace = true
 ureq.workspace = true
 ordered-float.workspace = true
 miette.workspace = true
+schemars.workspace = true
 
 glob = "0.3.1"

@@ -5,6 +5,7 @@
 //! Attribute specification.
 
 use ordered_float::OrderedFloat;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -175,7 +176,7 @@ impl AttributeSpec {
 }
 
 /// The different types of attributes (specification).
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum AttributeType {
@@ -218,7 +219,7 @@ fn default_as_true() -> bool {
 }
 
 /// Primitive or array types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PrimitiveOrArrayTypeSpec {
     /// A boolean attribute.
@@ -260,7 +261,7 @@ impl Display for PrimitiveOrArrayTypeSpec {
 }
 
 /// Template types.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateTypeSpec {
     /// A boolean attribute.
@@ -306,7 +307,7 @@ impl Display for TemplateTypeSpec {
 }
 
 /// Possible enum entries.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EnumEntriesSpec {
     /// String that uniquely identifies the enum entry.
@@ -333,7 +334,7 @@ impl Display for EnumEntriesSpec {
 }
 
 /// The different types of values.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum ValueSpec {
@@ -390,7 +391,7 @@ impl From<&str> for ValueSpec {
 }
 
 /// The different types of examples.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum Examples {
@@ -421,7 +422,7 @@ pub enum Examples {
 }
 
 /// The different requirement level specifications.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum RequirementLevel {
@@ -463,7 +464,7 @@ impl Default for RequirementLevel {
 }
 
 /// The different types of basic requirement levels.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BasicRequirementLevelSpec {
     /// A required requirement level.

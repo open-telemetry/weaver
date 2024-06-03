@@ -29,7 +29,7 @@ use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
-use crate::registry::{TemplateGroup, TemplateRegistry};
+use crate::registry::{ResolvedGroup, ResolvedRegistry};
 
 mod config;
 pub mod debug;
@@ -109,11 +109,11 @@ pub struct TemplateEngine {
 #[derive(Serialize, Debug)]
 pub struct Context<'a> {
     /// The semantic convention registry.
-    pub registry: &'a TemplateRegistry,
+    pub registry: &'a ResolvedRegistry,
     /// The group to generate doc or code for.
-    pub group: Option<&'a TemplateGroup>,
+    pub group: Option<&'a ResolvedGroup>,
     /// The groups to generate doc or code for.
-    pub groups: Option<Vec<&'a TemplateGroup>>,
+    pub groups: Option<Vec<&'a ResolvedGroup>>,
 }
 
 /// Global context for the template engine.
@@ -432,7 +432,7 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::filter::Filter;
-    use crate::registry::TemplateRegistry;
+    use crate::registry::ResolvedRegistry;
     use crate::OutputDirective;
 
     #[test]
@@ -580,7 +580,7 @@ mod tests {
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
-        let template_registry = TemplateRegistry::try_from_resolved_registry(
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )

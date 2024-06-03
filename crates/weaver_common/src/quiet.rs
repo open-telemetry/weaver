@@ -78,4 +78,9 @@ impl Logger for QuietLogger {
 
     /// Logs a message without icon.
     fn log(&self, _message: &str) {}
+
+    /// Mute all the messages except for the warnings and errors.
+    fn mute(&self) {
+        // Do nothing
+    }
 }

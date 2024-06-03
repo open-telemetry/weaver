@@ -2,6 +2,7 @@
 
 //! Data structures used to keep track of the lineage of a semantic convention.
 
+use schemars::JsonSchema;
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
 /// Attribute lineage (at the field level).
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AttributeLineage {
     /// The group id where the attribute is coming from.
@@ -28,7 +29,7 @@ pub struct AttributeLineage {
 }
 
 /// Group lineage.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[must_use]
 pub struct GroupLineage {
     /// The path or URL of the source file where the group is defined.

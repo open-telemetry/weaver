@@ -8,7 +8,14 @@ use clap::{Parser, Subcommand};
 
 /// Command line arguments.
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about,
+    long_about = None,
+    subcommand_required = true,
+    arg_required_else_help = true
+)]
 pub struct Cli {
     /// Turn debugging information on
     #[arg(short, long, action = clap::ArgAction::Count)]

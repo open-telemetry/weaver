@@ -8,6 +8,7 @@ use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;
 use crate::resource::Resource;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use weaver_version::Versions;
@@ -31,7 +32,7 @@ pub const OTEL_REGISTRY_ID: &str = "OTEL";
 /// A Resolved Telemetry Schema.
 /// A Resolved Telemetry Schema is self-contained and doesn't contain any
 /// external references to other schemas or semantic conventions.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResolvedTelemetrySchema {
     /// Version of the file structure.
@@ -100,5 +101,21 @@ impl ResolvedTelemetrySchema {
             registry_stats,
             catalog_stats: self.catalog.stats(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ResolvedTelemetrySchema;
+    use schemars::schema_for;
+    use serde_json::to_string_pretty;
+
+    #[test]
+    fn test_json_schema_gen() {
+        // Ensure the JSON schema can be generated for the ResolvedTelemetrySchema
+        let schema = schema_for!(ResolvedTelemetrySchema);
+
+        // Ensure the schema can be serialized to a string
+        assert!(to_string_pretty(&schema).is_ok());
     }
 }

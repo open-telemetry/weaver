@@ -12,4 +12,5 @@ allowed_external_types = [
     "minijinja::value::Value",
     "miette::protocol::Diagnostic",
     "include_dir::dir::Dir",
+    "schemars::JsonSchema",
 ]
