@@ -3811,7 +3811,6 @@ name = "weaver_codegen_test"
 version = "0.1.0"
 dependencies = [
  "opentelemetry 0.23.0",
- "serde_yaml",
  "walkdir",
  "weaver_cache",
  "weaver_common",

@@ -18,7 +18,6 @@ weaver_forge = { path = "../weaver_forge" }
 weaver_resolver = { path = "../weaver_resolver" }
 weaver_semconv = { path = "../weaver_semconv" }
 walkdir.workspace = true
-serde_yaml.workspace = true
 
 [dependencies]
 opentelemetry = { version = "0.23.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
