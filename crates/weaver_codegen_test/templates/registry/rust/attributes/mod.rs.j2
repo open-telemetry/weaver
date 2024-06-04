@@ -10,6 +10,8 @@
 
 use opentelemetry::{Key, KeyValue, StringValue};
 
+pub const ATTRIBUTES_PARAM: bool = {{ params.attributes }};
+
 {% for group in ctx %}
 /// Attributes for the `{{ group.id | attribute_registry_namespace }}` namespace.
 pub mod {{ group.id | attribute_registry_namespace | snake_case }};

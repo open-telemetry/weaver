@@ -10,6 +10,7 @@ use registry::semconv_registry;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::quiet::QuietLogger;
 use weaver_common::{ConsoleLogger, Logger};
+use weaver_forge::config::Params;
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 
@@ -140,7 +141,7 @@ fn process_diagnostics(
             &diagnostic_args.diagnostic_format,
         )
         .expect("Failed to create the embedded file loader for the diagnostic templates");
-        match TemplateEngine::try_new(loader) {
+        match TemplateEngine::try_new(loader, Params::default()) {
             Ok(engine) => {
                 match engine.generate(
                     logger.clone(),

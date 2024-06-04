@@ -7,6 +7,12 @@ type_mapping:
   template[string]: String          # Not yet properly handled in codegen
   template[string[]]: Vec<String>   # Not yet properly handled in codegen
 
+# Default parameter values
+params:
+  attributes: true
+  metrics: true
+  registry_prefix: "registry."
+
 templates:
   - pattern: README.md
     filter: .
@@ -23,16 +29,20 @@ templates:
     # - groups are deduplicated by namespace.
     # - groups are sorted by namespace.
     filter: >
-      .groups
-      | map(select(.id | startswith("registry.")))
-      | map(select(.type == "attribute_group")    
-        | { 
-          id, 
-          type, 
-          brief, 
-          prefix})
-      | unique_by(.id | split(".") | .[1])
-      | sort_by(.id | split(".") | .[1])
+      if $attributes then
+        .groups
+        | map(select(.id | startswith($registry_prefix)))
+        | map(select(.type == "attribute_group")    
+          | { 
+            id, 
+            type, 
+            brief, 
+            prefix})
+        | unique_by(.id | split(".") | .[1])
+        | sort_by(.id | split(".") | .[1])
+      else
+        empty
+      end
     application_mode: single
   - pattern: attributes/attributes.rs.j2
     # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
@@ -41,24 +51,28 @@ templates:
     # - groups of the type `attribute_group`.
     # - groups are sorted by namespace.
     filter: >
-      .groups 
-      | map(select(.id | startswith("registry."))) 
-      | map(select(.type == "attribute_group") 
-        | { 
-          id, 
-          type, 
-          brief, 
-          prefix, 
-          attributes}) 
-      | group_by(.id | split(".") | .[1]) 
-      | map({
-          id: (map(select(.id | endswith(".deprecated") | not)) | first).id,
-          type: (map(select(.id | endswith(".deprecated") | not)) | first).type,
-          brief: (map(select(.id | endswith(".deprecated") | not)) | first).brief,
-          prefix: (map(select(.id | endswith(".deprecated") | not)) | first).prefix,
-          attributes: map(.attributes) | add
-        })
-      | sort_by(.id | split(".") | .[1])
+      if $attributes then
+        .groups 
+        | map(select(.id | startswith($registry_prefix))) 
+        | map(select(.type == "attribute_group") 
+          | { 
+            id, 
+            type, 
+            brief, 
+            prefix, 
+            attributes}) 
+        | group_by(.id | split(".") | .[1]) 
+        | map({
+            id: (map(select(.id | endswith(".deprecated") | not)) | first).id,
+            type: (map(select(.id | endswith(".deprecated") | not)) | first).type,
+            brief: (map(select(.id | endswith(".deprecated") | not)) | first).brief,
+            prefix: (map(select(.id | endswith(".deprecated") | not)) | first).prefix,
+            attributes: map(.attributes) | add
+          })
+        | sort_by(.id | split(".") | .[1])
+      else
+        empty
+      end
     application_mode: each
 
     # Templates for the `metric` group type
@@ -69,16 +83,20 @@ templates:
     # - groups are deduplicated by namespace.
     # - groups are sorted by prefix.
     filter: >
-      .groups
-      | map(select(.id | startswith("metric."))) 
-      | map(select(.type == "metric")    
-        | { 
-          id, 
-          type, 
-          brief, 
-          prefix})
-      | unique_by(.id | split(".") | .[1])
-      | sort_by(.id | split(".") | .[1])
+      if $metrics then
+        .groups
+        | map(select(.id | startswith("metric."))) 
+        | map(select(.type == "metric")    
+          | { 
+            id, 
+            type, 
+            brief, 
+            prefix})
+        | unique_by(.id | split(".") | .[1])
+        | sort_by(.id | split(".") | .[1])
+      else
+        empty
+      end
     application_mode: single
   - pattern: metrics/metrics.rs.j2
     # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
@@ -87,13 +105,17 @@ templates:
     # - groups of the type `metric`.
     # - groups are sorted by namespace.
     filter: >
-      .groups 
-      | map(select(.id | startswith("metric."))) 
-      | group_by(.id | split(".") | .[1]) 
-      | map({ 
-        prefix: .[0].id | split(".") | .[1],
-        groups: .   
-      })
+      if $metrics then
+        .groups 
+        | map(select(.id | startswith("metric."))) 
+        | group_by(.id | split(".") | .[1]) 
+        | map({ 
+          prefix: .[0].id | split(".") | .[1],
+          groups: .   
+        })
+      else
+        empty
+      end
     application_mode: each
 
 
