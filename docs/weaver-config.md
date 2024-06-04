@@ -47,6 +47,12 @@ following options:
 # will be interpreted by the acronym filter. This is optional.
 # acronyms: ["iOS", "HTTP", "API", "SDK", "CLI", "URL", "JSON", "XML", "HTML"]
 
+# Uncomment the following section to specify the configuration of parameters.
+# This is optional.
+# params:
+#  param1: val1
+#  param2: val2
+  
 # Uncomment the following templates to override the default template
 # mapping. Each template mapping specifies a jaq filter (compatible with jq)
 # to apply to every file matching the pattern. The application_mode specifies
