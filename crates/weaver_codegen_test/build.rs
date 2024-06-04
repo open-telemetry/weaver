@@ -51,8 +51,8 @@ fn main() {
 
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
-    let engine =
-        TemplateEngine::try_new(loader, Params::default()).unwrap_or_else(|e| process_error(&logger, e));
+    let engine = TemplateEngine::try_new(loader, Params::default())
+        .unwrap_or_else(|e| process_error(&logger, e));
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)
