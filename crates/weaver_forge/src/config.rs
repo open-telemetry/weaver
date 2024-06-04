@@ -81,11 +81,11 @@ pub(crate) struct TargetConfig {
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
-    #[serde(default = "default_templates")]
+    #[serde(default)]
     pub(crate) params: HashMap<String, Value>,
 
     /// Configuration for the templates.
-    #[serde(default)]
+    #[serde(default = "default_templates")]
     pub(crate) templates: Vec<TemplateConfig>,
 
     /// List of acronyms to be considered as unmodifiable words in the case
