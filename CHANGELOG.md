@@ -2,6 +2,82 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2024-06-04
+
+What's Changed
+
+* First cut at a developer's guide to help onboarding users. by @jsuereth in https://github.com/open-telemetry/weaver/pull/166
+* Detect and Process Policy Files into SemConv Registry + Generic Diagnostic Reporting by @lquerel in https://github.com/open-telemetry/weaver/pull/153
+* Bump gix from 0.62.0 to 0.63.0 by @dependabot in https://github.com/open-telemetry/weaver/pull/170
+* Update opentelemetry rust API by @lquerel in https://github.com/open-telemetry/weaver/pull/169
+* Bump serde from 1.0.202 to 1.0.203 by @dependabot in https://github.com/open-telemetry/weaver/pull/176
+* Support for loading templates from the file system or from an embedded representation in the app's binary. by @lquerel in https://github.com/open-telemetry/weaver/pull/171
+* Add support for List of Array examples. by @jerbly in https://github.com/open-telemetry/weaver/pull/177
+* Add distribution (binaries + installers) publishing workflows. by @jsuereth in https://github.com/open-telemetry/weaver/pull/179
+* Generate JSON Schema for both Resolved Telemetry Schema and Resolved Registry by @lquerel in https://github.com/open-telemetry/weaver/pull/187
+* Update README.md, fix Weaver checker link by @xrmx in https://github.com/open-telemetry/weaver/pull/191
+* Support command line parameters to add an additional layer of configurability in the documentation/code generator. by @lquerel in https://github.com/open-telemetry/weaver/pull/195
+
+## New Contributors
+* @jerbly made their first contribution in https://github.com/open-telemetry/weaver/pull/177
+* @xrmx made their first contribution in https://github.com/open-telemetry/weaver/pull/191
+
+**Full Changelog**: https://github.com/open-telemetry/weaver/compare/v0.3.0...v0.4.0
+
+
+## [0.3.0] - 2024-05-16
+
+What's Changed
+
+- Additional filters and tests by @lquerel in https://github.com/open-telemetry/weaver/pull/163
+    - `instantiated_type`: Filters a type to return the instantiated type.
+    - `enum_type`: Filters a type to return the enum type or an error if the type is not an enum.
+    - `capitalize_first`: Capitalizes the first letter of a string.
+    - `map_text` introduces a second parameter to define the default value if the name of the text map or the input are not found in the `text_maps` section (optional parameter).
+    - `enum`: Tests if an attribute has an enum type.
+    - `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean | boolean[]).
+    - `template_type`: Tests if a type is a template type (i.e.: template[]).
+    - `enum_type`: Tests if a type is an enum type.
+
+
+**Full Changelog**: https://github.com/open-telemetry/weaver/compare/v0.2.0...v0.3.0
+
+## [0.2.0] - 2024-04-26
+
+Updates for Semantic Convention markdown generation, and beginnings of a suite of utilities for code generation.
+
+What's Changed:
+
+- Working rust codegen example by @lquerel in https://github.com/open-telemetry/weaver/pull/136
+- Markdown snippet generation now uses weaver_forge templating by @jsuereth in https://github.com/open-telemetry/weaver/pull/141
+- New Jinja filters and predicates for OTel by @lquerel in https://github.com/open-telemetry/weaver/pull/143
+- `attribute_sort` filter to weaver_forge by @jsuereth in https://github.com/open-telemetry/weaver/pull/144
+- Expanding collection of filters by @lquerel in https://github.com/open-telemetry/weaver/pull/162
+- (chore) Removal of Old Tera Templates by @lquerel in https://github.com/open-telemetry/weaver/pull/145
+- (fix) Expand id parsing by @jsuereth in https://github.com/open-telemetry/weaver/pull/152
+- (fix) Update weaver to understand deprecated enum values. by @jsuereth in https://github.com/open-telemetry/weaver/pull/139
+
+**Full Changelog**: https://github.com/open-telemetry/weaver/compare/v0.1.0...v0.2.0
+
+## [0.1.0] - 2024-04-24
+
+Initial release of OpenTelemetry weaver for usage in semantic-conventions repository.
+
+This is a PREVIEW release, and stability guarantees are loose prior to 1.0.
+
+What's Changed:
+
+- The Weaver project, initially hosted by F5, has been moved to open-telemetry/weaver. The project's objectives have
+been redefined into two main phases/focuses: 1) semconv support, 2) application telemetry support. 
+- A Jinja-compatible template engine and a snippet-based generator have been completed and tested to support the
+semantic-convention repository. The template engine can be used for both documentation and code generation.
+- A new policy engine (based on rego) has been added to the project to externalize the declaration of policies and to
+enhance the management, evolution, and maintainability of semantic conventions and application telemetry schemas. It leverages a set of rules or policies to ensure the coherence and quality of these conventions and schemas over time.
+- A lot of documentation has been added to the entire project to make it easier to consume and contribute.
+- A code coverage process has been implemented with the initial goal of keeping the project above 70% coverage.
+- A process for cleaning up APIs has been initiated in anticipation of publishing the crates on crates.io. The
+weaver_semconv crate is the first to undergo this process.
+
 ## [unreleased]
 
 ### 🚀 Features
