@@ -423,6 +423,7 @@ impl ResolvedSemconvRegistry {
 mod tests {
     use std::fs;
     use std::path::PathBuf;
+    use weaver_forge::config::Params;
 
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
@@ -439,7 +440,7 @@ mod tests {
     #[test]
     fn test_template_engine() -> Result<(), Error> {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
-        let template = TemplateEngine::try_new(loader)?;
+        let template = TemplateEngine::try_new(loader, Params::default())?;
         let generator = SnippetGenerator::try_from_path("data", Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
