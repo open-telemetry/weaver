@@ -52,7 +52,8 @@ fn main() {
     let params: Params = serde_yaml::from_str(
         r#"params:
   attributes: true
-  metrics: true"#,
+  metrics: true
+  registry_prefix: \"registry.\""#,
     )
     .unwrap_or_else(|e| process_error(&logger, e));
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)

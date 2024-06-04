@@ -15,7 +15,6 @@ use serde_yaml::Value;
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
 use crate::file_loader::FileLoader;
-use crate::filter::Filter;
 use crate::WEAVER_YAML;
 
 /// Case convention for naming of functions and structs.
@@ -98,104 +97,77 @@ fn default_templates() -> Vec<TemplateConfig> {
     vec![
         TemplateConfig {
             pattern: Glob::new("**/registry.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".").expect("Invalid filter"),
-            r#if: None,
+            filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/attribute_group.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"attribute_group\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/attribute_groups.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"attribute_group\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/event.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"event\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/events.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"event\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/group.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups").expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/groups.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups").expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/metric.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"metric\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/metrics.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"metric\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/resource.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"resource\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/resources.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"resource\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/scope.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"scope\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/scopes.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"scope\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/span.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"span\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/spans.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
-                .expect("Invalid filter"),
-            r#if: None,
+            filter: ".groups[] | select(.type == \"span\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
     ]
@@ -230,15 +202,18 @@ pub(crate) struct TemplateConfig {
     /// The filter to apply to the registry before applying the template.
     /// Applying a filter to a registry will return a list of elements from the
     /// registry that satisfy the filter.
-    pub(crate) filter: Filter,
-    /// An optional `if` condition that must be satisfied to apply the template.
-    /// The condition is a Jinja2 expression that can use the all the variables
-    /// defined in the template context (e.g. ctx, params).
-    pub(crate) r#if: Option<String>,
+    /// By default, the filter is set to "." which means that the whole registry
+    /// is returned.
+    #[serde(default = "default_filter")]
+    pub(crate) filter: String,
     /// The mode to apply the template.
     /// `single`: Apply the template to the output of the filter as a whole.
     /// `each`: Apply the template to each item of the list returned by the filter.
     pub(crate) application_mode: ApplicationMode,
+}
+
+fn default_filter() -> String {
+    ".".to_owned()
 }
 
 /// A template matcher.

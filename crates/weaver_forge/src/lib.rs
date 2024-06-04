@@ -10,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use jaq_interpret::Val;
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
 use minijinja::{Environment, ErrorKind, State, Value};
@@ -27,9 +28,10 @@ use weaver_common::Logger;
 
 use crate::config::{ApplicationMode, Params, TargetConfig};
 use crate::debug::error_summary;
-use crate::error::Error::{IfExprEvaluationFailed, InvalidConfigFile};
+use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
+use crate::filter::Filter;
 use crate::registry::{ResolvedGroup, ResolvedRegistry};
 
 pub mod config;
@@ -112,6 +114,7 @@ impl ParamsObject {
         Self { params: new_params }
     }
 }
+
 impl Display for ParamsObject {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("{:#?}", self.params))
@@ -241,6 +244,27 @@ impl TemplateEngine {
             error: e.to_string(),
         })?;
 
+        let mut errors = Vec::new();
+
+        // Build JQ context from the params.
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = self
+            .target_config
+            .params
+            .iter()
+            .filter_map(|(k, v)| {
+                let json_value = match serde_json::to_value(v) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        errors.push(ContextSerializationFailed {
+                            error: e.to_string(),
+                        });
+                        return None;
+                    }
+                };
+                Some((k.clone(), json_value))
+            })
+            .unzip();
+
         // Process all files in parallel
         // - Filter the files that match the template pattern
         // - Apply the filter to the context
@@ -251,11 +275,21 @@ impl TemplateEngine {
         //   - If the application mode is each, the filtered context is
         // evaluated as an array of objects and each object is evaluated
         // independently and in parallel with the same template.
-        let errs = files
+        let mut errs = files
             .into_par_iter()
             .filter_map(|relative_path| {
                 for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filtered_result = match template.filter.apply(context.clone()) {
+                    let filter = match Filter::try_new(template.filter.as_str(), jq_vars.clone()) {
+                        Ok(filter) => filter,
+                        Err(e) => return Some(e),
+                    };
+                    // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
+                    // jaq_interpret::val::Val here.
+                    let jq_ctx = jq_ctx
+                        .iter()
+                        .map(|v| Val::from(v.clone()))
+                        .collect::<Vec<_>>();
+                    let filtered_result = match filter.apply(context.clone(), jq_ctx) {
                         Ok(result) => result,
                         Err(e) => return Some(e),
                     };
@@ -263,6 +297,13 @@ impl TemplateEngine {
                     match template.application_mode {
                         // The filtered result is evaluated as a single object
                         ApplicationMode::Single => {
+                            if filtered_result.is_null()
+                                || (filtered_result.is_array()
+                                    && filtered_result.as_array().expect("is_array").is_empty())
+                            {
+                                // Skip the template evaluation if the filtered result is null or an empty array
+                                continue;
+                            }
                             if let Err(e) = self.evaluate_template(
                                 log.clone(),
                                 NewContext {
@@ -270,7 +311,6 @@ impl TemplateEngine {
                                 }
                                 .try_into()
                                 .ok()?,
-                                template.r#if.as_ref(),
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -289,7 +329,6 @@ impl TemplateEngine {
                                         if let Err(e) = self.evaluate_template(
                                             log.clone(),
                                             NewContext { ctx: result }.try_into().ok()?,
-                                            template.r#if.as_ref(),
                                             relative_path.as_path(),
                                             output_directive,
                                             output_dir,
@@ -309,7 +348,6 @@ impl TemplateEngine {
                                 }
                                 .try_into()
                                 .ok()?,
-                                template.r#if.as_ref(),
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -323,6 +361,7 @@ impl TemplateEngine {
             })
             .collect::<Vec<Error>>();
 
+        errs.extend(errors);
         handle_errors(errs)
     }
 
@@ -332,7 +371,6 @@ impl TemplateEngine {
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
-        if_expr: Option<&String>,
         template_path: &Path,
         output_directive: &OutputDirective,
         output_dir: &Path,
@@ -358,29 +396,6 @@ impl TemplateEngine {
             "params",
             Value::from_object(ParamsObject::new(self.target_config.params.clone())),
         );
-
-        // Evaluate the if expression if it exists
-        if let Some(if_expr) = if_expr {
-            let compiled_if_expr =
-                engine
-                    .compile_expression(if_expr)
-                    .map_err(|e| IfExprEvaluationFailed {
-                        if_expr: if_expr.clone(),
-                        error_id: e.to_string(),
-                        error: error_summary(e),
-                    })?;
-            let result =
-                compiled_if_expr
-                    .eval(ctx.clone())
-                    .map_err(|e| IfExprEvaluationFailed {
-                        if_expr: if_expr.clone(),
-                        error_id: e.to_string(),
-                        error: error_summary(e),
-                    })?;
-            if !result.is_true() {
-                return Ok(());
-            }
-        }
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -503,7 +518,6 @@ mod tests {
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
-    use crate::filter::Filter;
     use crate::registry::ResolvedRegistry;
     use crate::OutputDirective;
 
@@ -642,8 +656,7 @@ mod tests {
         // for test coverage purposes.
         engine.target_config.templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
-            filter: Filter::try_new(".").unwrap(),
-            r#if: None,
+            filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
         });
 
