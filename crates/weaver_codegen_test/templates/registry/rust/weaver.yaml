@@ -11,6 +11,7 @@ type_mapping:
 params:
   attributes: true
   metrics: true
+  registry_prefix: "registry."
 
 templates:
   - pattern: README.md
@@ -30,7 +31,7 @@ templates:
     filter: >
       if $attributes then
         .groups
-        | map(select(.id | startswith("registry.")))
+        | map(select(.id | startswith($registry_prefix)))
         | map(select(.type == "attribute_group")    
           | { 
             id, 
@@ -52,7 +53,7 @@ templates:
     filter: >
       if $attributes then
         .groups 
-        | map(select(.id | startswith("registry."))) 
+        | map(select(.id | startswith($registry_prefix))) 
         | map(select(.type == "attribute_group") 
           | { 
             id, 
