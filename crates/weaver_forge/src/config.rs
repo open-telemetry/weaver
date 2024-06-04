@@ -81,7 +81,7 @@ pub(crate) struct TargetConfig {
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
-    #[serde(default)]
+    #[serde(default = "default_templates")]
     pub(crate) params: HashMap<String, Value>,
 
     /// Configuration for the templates.
@@ -92,6 +92,113 @@ pub(crate) struct TargetConfig {
     /// conversion.
     #[serde(default)]
     pub(crate) acronyms: Vec<String>,
+}
+
+fn default_templates() -> Vec<TemplateConfig> {
+    vec![
+        TemplateConfig {
+            pattern: Glob::new("**/registry.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".").expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/attribute_group.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/attribute_groups.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/event.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/events.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/group.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups").expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/groups.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups").expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/metric.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/metrics.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/resource.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/resources.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/scope.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/scopes.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/span.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Each,
+        },
+        TemplateConfig {
+            pattern: Glob::new("**/spans.md").expect("Invalid pattern"),
+            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
+                .expect("Invalid filter"),
+            r#if: None,
+            application_mode: ApplicationMode::Single,
+        },
+    ]
 }
 
 /// Parameters defined in the command line via the `--params` argument.

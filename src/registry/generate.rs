@@ -40,7 +40,7 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters key=value, defined in the command line, to pass to the templates.
     /// The value must be a valid YAML value.
-    #[arg(long, value_parser = parse_key_val)]
+    #[arg(short= 'D', long, value_parser = parse_key_val)]
     pub param: Option<Vec<(String, Value)>>,
 
     /// Parameters, defined in a YAML file, to pass to the templates.
