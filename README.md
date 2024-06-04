@@ -134,7 +134,7 @@ Telemetry Schemas.
 - [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
 - [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate
   documentation and code based on semantic conventions.
-- [Weaver Checker](crates/weaver_policy_engine/README.md): An integrated policy
+- [Weaver Checker](crates/weaver_checker/README.md): An integrated policy
   engine for enforcing policies on semantic conventions.
 - [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md):
   A vision and roadmap for the concept of Application Telemetry Schema.
