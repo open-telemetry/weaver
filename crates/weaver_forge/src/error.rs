@@ -92,6 +92,17 @@ pub enum Error {
         error: String,
     },
 
+    /// If expression evaluation failed.
+    #[error("If expression '{if_expr}' evaluation failed -> {error}")]
+    IfExprEvaluationFailed {
+        /// If expression
+        if_expr: String,
+        /// Error id used to deduplicate the error.
+        error_id: String,
+        /// Error message.
+        error: String,
+    },
+
     /// Invalid template directory.
     #[error("Invalid template directory: {0}")]
     InvalidTemplateDirectory(PathBuf),

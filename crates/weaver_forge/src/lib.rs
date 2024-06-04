@@ -3,6 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
@@ -24,14 +25,14 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, TargetConfig};
+use crate::config::{ApplicationMode, Params, TargetConfig};
 use crate::debug::error_summary;
-use crate::error::Error::InvalidConfigFile;
+use crate::error::Error::{IfExprEvaluationFailed, InvalidConfigFile};
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
 use crate::registry::{ResolvedGroup, ResolvedRegistry};
 
-mod config;
+pub mod config;
 pub mod debug;
 pub mod error;
 pub mod extensions;
@@ -95,6 +96,36 @@ impl Object for TemplateObject {
     }
 }
 
+/// A params object accessible from the template.
+#[derive(Debug, Clone)]
+struct ParamsObject {
+    params: HashMap<String, Value>,
+}
+
+impl ParamsObject {
+    /// Creates a new params object.
+    pub(crate) fn new(params: HashMap<String, serde_yaml::Value>) -> Self {
+        let mut new_params = HashMap::new();
+        for (key, value) in params {
+            _ = new_params.insert(key, Value::from_serialize(&value));
+        }
+        Self { params: new_params }
+    }
+}
+impl Display for ParamsObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:#?}", self.params))
+    }
+}
+
+impl Object for ParamsObject {
+    /// Given a key, looks up the associated value.
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        let key = key.to_string();
+        self.params.get(&key).cloned()
+    }
+}
+
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
 pub struct TemplateEngine {
@@ -137,8 +168,18 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
-    pub fn try_new(loader: impl FileLoader + Send + Sync + 'static) -> Result<Self, Error> {
-        let target_config = TargetConfig::try_new(&loader)?;
+    pub fn try_new(
+        loader: impl FileLoader + Send + Sync + 'static,
+        params: Params,
+    ) -> Result<Self, Error> {
+        let mut target_config = TargetConfig::try_new(&loader)?;
+
+        // Override the params defined in the `weaver.yaml` file with the params provided
+        // in the command line.
+        for (name, value) in params.params {
+            _ = target_config.params.insert(name, value);
+        }
+
         Ok(Self {
             file_loader: Arc::new(loader),
             target_config,
@@ -229,6 +270,7 @@ impl TemplateEngine {
                                 }
                                 .try_into()
                                 .ok()?,
+                                template.r#if.as_ref(),
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -247,6 +289,7 @@ impl TemplateEngine {
                                         if let Err(e) = self.evaluate_template(
                                             log.clone(),
                                             NewContext { ctx: result }.try_into().ok()?,
+                                            template.r#if.as_ref(),
                                             relative_path.as_path(),
                                             output_directive,
                                             output_dir,
@@ -266,6 +309,7 @@ impl TemplateEngine {
                                 }
                                 .try_into()
                                 .ok()?,
+                                template.r#if.as_ref(),
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -288,6 +332,7 @@ impl TemplateEngine {
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
+        if_expr: Option<&String>,
         template_path: &Path,
         output_directive: &OutputDirective,
         output_dir: &Path,
@@ -309,6 +354,33 @@ impl TemplateEngine {
         })?;
 
         engine.add_global("template", Value::from_object(template_object.clone()));
+        engine.add_global(
+            "params",
+            Value::from_object(ParamsObject::new(self.target_config.params.clone())),
+        );
+
+        // Evaluate the if expression if it exists
+        if let Some(if_expr) = if_expr {
+            let compiled_if_expr =
+                engine
+                    .compile_expression(if_expr)
+                    .map_err(|e| IfExprEvaluationFailed {
+                        if_expr: if_expr.clone(),
+                        error_id: e.to_string(),
+                        error: error_summary(e),
+                    })?;
+            let result =
+                compiled_if_expr
+                    .eval(ctx.clone())
+                    .map_err(|e| IfExprEvaluationFailed {
+                        if_expr: if_expr.clone(),
+                        error_id: e.to_string(),
+                        error: error_summary(e),
+                    })?;
+            if !result.is_true() {
+                return Ok(());
+            }
+        }
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -427,7 +499,7 @@ mod tests {
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
-    use crate::config::{ApplicationMode, CaseConvention, TemplateConfig};
+    use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
@@ -562,8 +634,8 @@ mod tests {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "test")
             .expect("Failed to create file system loader");
-        let mut engine =
-            super::TemplateEngine::try_new(loader).expect("Failed to create template engine");
+        let mut engine = super::TemplateEngine::try_new(loader, Params::default())
+            .expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
@@ -571,6 +643,7 @@ mod tests {
         engine.target_config.templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
             filter: Filter::try_new(".").unwrap(),
+            r#if: None,
             application_mode: ApplicationMode::Single,
         });
 

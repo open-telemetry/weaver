@@ -13,6 +13,7 @@ use std::process::exit;
 use weaver_cache::Cache;
 use weaver_common::in_memory::LogMessage;
 use weaver_common::{in_memory, Logger};
+use weaver_forge::config::Params;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
@@ -48,9 +49,16 @@ fn main() {
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
         .unwrap_or_else(|e| process_error(&logger, e));
 
+    let params: Params = serde_yaml::from_str(
+        r#"params:
+  attributes: true
+  metrics: true"#,
+    )
+    .unwrap_or_else(|e| process_error(&logger, e));
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
-    let engine = TemplateEngine::try_new(loader).unwrap_or_else(|e| process_error(&logger, e));
+    let engine =
+        TemplateEngine::try_new(loader, params).unwrap_or_else(|e| process_error(&logger, e));
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)

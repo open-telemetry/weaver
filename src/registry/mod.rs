@@ -3,9 +3,12 @@
 //! Commands to manage a semantic convention registry.
 
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::{Args, Subcommand};
+use miette::Diagnostic;
+use serde::Serialize;
 
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
@@ -16,6 +19,7 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_cache::Cache;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
 mod check;
@@ -25,6 +29,25 @@ mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
+
+/// Errors emitted by the `registry` sub-commands
+#[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
+#[non_exhaustive]
+pub enum Error {
+    /// Invalid parameter passed to the command line
+    #[error("The parameter `--param {param}` is invalid. {error}")]
+    InvalidParam { param: String, error: String },
+
+    /// Invalid params file passed to the command line
+    #[error("The params file `{params_file}` is invalid. {error}")]
+    InvalidParams { params_file: PathBuf, error: String },
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
+}
 
 /// Parameters for the `registry` command
 #[derive(Debug, Args)]

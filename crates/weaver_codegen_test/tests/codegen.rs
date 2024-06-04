@@ -27,6 +27,10 @@ use opentelemetry::{global, KeyValue};
 
 #[test]
 fn test_codegen() {
+    // Use a format! macro to avoid compiler optimization
+    assert_eq!(format!("{}",attributes::ATTRIBUTES_PARAM), "true");
+    assert_eq!(format!("{}",metrics::METRICS_PARAM), "true");
+
     // Test the constants generated for the attributes
     // In the generated API the attributes are typed, so the compiler will catch type errors
     assert_eq!(client::CLIENT_ADDRESS.key().as_str(), "client.address");

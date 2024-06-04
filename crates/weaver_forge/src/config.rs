@@ -10,6 +10,7 @@ use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, 
 use convert_case::{Case, Casing, Converter, Pattern};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
+use serde_yaml::Value;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
@@ -21,154 +22,84 @@ use crate::WEAVER_YAML;
 #[derive(Deserialize, Clone, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum CaseConvention {
+    /// Lower case convention (e.g. lowercase).
     #[serde(rename = "lowercase")]
     LowerCase,
+    /// Upper case convention (e.g. UPPERCASE).
     #[serde(rename = "UPPERCASE")]
     UpperCase,
+    /// Title case convention (e.g. Title Case).
     #[serde(rename = "TitleCase")]
     TitleCase,
+    /// Pascal case convention (e.g. PascalCase).
     #[serde(rename = "PascalCase")]
     PascalCase,
+    /// Camel case convention (e.g. camelCase).
     #[serde(rename = "camelCase")]
     CamelCase,
+    /// Snake case convention (e.g. snake_case).
     #[serde(rename = "snake_case")]
     SnakeCase,
+    /// Screaming snake case convention (e.g. SCREAMING_SNAKE_CASE).
     #[serde(rename = "SCREAMING_SNAKE_CASE")]
     ScreamingSnakeCase,
+    /// Kebab case convention (e.g. kebab-case).
     #[serde(rename = "kebab-case")]
     KebabCase,
+    /// Screaming kebab case convention (e.g. SCREAMING-KEBAB-CASE).
     #[serde(rename = "SCREAMING-KEBAB-CASE")]
     ScreamingKebabCase,
 }
 
 /// Target specific configuration.
 #[derive(Deserialize, Debug, Default)]
-pub struct TargetConfig {
+pub(crate) struct TargetConfig {
     /// Case convention used to name a file.
     #[serde(default)]
-    pub file_name: CaseConvention,
+    pub(crate) file_name: CaseConvention,
     /// Case convention used to name a function.
     #[serde(default)]
-    pub function_name: CaseConvention,
+    pub(crate) function_name: CaseConvention,
     /// Case convention used to name a function argument.
     #[serde(default)]
-    pub arg_name: CaseConvention,
+    pub(crate) arg_name: CaseConvention,
     /// Case convention used to name a struct.
     #[serde(default)]
-    pub struct_name: CaseConvention,
+    pub(crate) struct_name: CaseConvention,
     /// Case convention used to name a struct field.
     #[serde(default)]
-    pub field_name: CaseConvention,
+    pub(crate) field_name: CaseConvention,
     /// Type mapping for target specific types (OTel types -> Target language types).
     #[serde(default)]
-    pub type_mapping: HashMap<String, String>,
+    pub(crate) type_mapping: HashMap<String, String>,
     /// Configuration of the `text_map` filter.
     #[serde(default)]
-    pub text_maps: HashMap<String, HashMap<String, String>>,
+    pub(crate) text_maps: HashMap<String, HashMap<String, String>>,
     /// Configuration for the template syntax.
     #[serde(default)]
-    pub template_syntax: TemplateSyntax,
+    pub(crate) template_syntax: TemplateSyntax,
+
+    /// Parameters for the templates.
+    /// These parameters can be overridden by parameters passed to the CLI.
+    #[serde(default)]
+    pub(crate) params: HashMap<String, Value>,
 
     /// Configuration for the templates.
-    #[serde(default = "default_templates")]
-    pub templates: Vec<TemplateConfig>,
+    #[serde(default)]
+    pub(crate) templates: Vec<TemplateConfig>,
 
     /// List of acronyms to be considered as unmodifiable words in the case
     /// conversion.
     #[serde(default)]
-    pub acronyms: Vec<String>,
+    pub(crate) acronyms: Vec<String>,
 }
 
-fn default_templates() -> Vec<TemplateConfig> {
-    vec![
-        TemplateConfig {
-            pattern: Glob::new("**/registry.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".").expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/attribute_group.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/attribute_groups.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"attribute_group\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/event.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/events.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"event\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/group.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups").expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/groups.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups").expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/metric.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/metrics.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"metric\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/resource.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/resources.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"resource\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/scope.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/scopes.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"scope\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/span.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/spans.md").expect("Invalid pattern"),
-            filter: Filter::try_new(".groups[] | select(.type == \"span\")")
-                .expect("Invalid filter"),
-            application_mode: ApplicationMode::Single,
-        },
-    ]
+/// Parameters defined in the command line via the `--params` argument.
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct Params {
+    /// Parameters for the templates.
+    #[serde(default)]
+    pub params: HashMap<String, Value>,
 }
 
 /// Application mode defining how to apply a template on the result of a
@@ -185,18 +116,22 @@ pub enum ApplicationMode {
 /// A template configuration.
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub struct TemplateConfig {
+pub(crate) struct TemplateConfig {
     /// The pattern used to identify when this template configuration must be
     /// applied to a specific template file.
-    pub pattern: Glob,
+    pub(crate) pattern: Glob,
     /// The filter to apply to the registry before applying the template.
     /// Applying a filter to a registry will return a list of elements from the
     /// registry that satisfy the filter.
-    pub filter: Filter,
+    pub(crate) filter: Filter,
+    /// An optional `if` condition that must be satisfied to apply the template.
+    /// The condition is a Jinja2 expression that can use the all the variables
+    /// defined in the template context (e.g. ctx, params).
+    pub(crate) r#if: Option<String>,
     /// The mode to apply the template.
     /// `single`: Apply the template to the output of the filter as a whole.
     /// `each`: Apply the template to each item of the list returned by the filter.
-    pub application_mode: ApplicationMode,
+    pub(crate) application_mode: ApplicationMode,
 }
 
 /// A template matcher.
@@ -206,7 +141,7 @@ pub struct TemplateMatcher<'a> {
 }
 
 impl<'a> TemplateMatcher<'a> {
-    pub fn matches<P: AsRef<Path>>(&self, path: P) -> Vec<&'a TemplateConfig> {
+    pub(crate) fn matches<P: AsRef<Path>>(&self, path: P) -> Vec<&'a TemplateConfig> {
         self.glob_set
             .matches(path)
             .into_iter()
@@ -289,7 +224,7 @@ impl Default for CaseConvention {
 }
 
 impl CaseConvention {
-    pub fn convert(&self, text: &str) -> String {
+    pub(crate) fn convert(&self, text: &str) -> String {
         static LOWER_CASE: OnceLock<Converter> = OnceLock::new();
         static TITLE_CASE: OnceLock<Converter> = OnceLock::new();
         static KEBAB_CASE: OnceLock<Converter> = OnceLock::new();
@@ -354,7 +289,7 @@ impl CaseConvention {
 }
 
 impl TargetConfig {
-    pub fn try_new(loader: &dyn FileLoader) -> Result<TargetConfig, Error> {
+    pub(crate) fn try_new(loader: &dyn FileLoader) -> Result<TargetConfig, Error> {
         let weaver_file = loader
             .load_file(WEAVER_YAML)
             .map_err(|e| InvalidConfigFile {
