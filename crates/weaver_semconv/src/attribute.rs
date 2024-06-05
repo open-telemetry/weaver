@@ -472,6 +472,8 @@ pub enum BasicRequirementLevelSpec {
     Recommended,
     /// An opt-in requirement level.
     OptIn,
+    /// An optional requirement level.
+    Optional,
 }
 
 /// Implements a human readable display for BasicRequirementLevel.
@@ -481,6 +483,7 @@ impl Display for BasicRequirementLevelSpec {
             BasicRequirementLevelSpec::Required => write!(f, "required"),
             BasicRequirementLevelSpec::Recommended => write!(f, "recommended"),
             BasicRequirementLevelSpec::OptIn => write!(f, "opt-in"),
+            BasicRequirementLevelSpec::Optional => write!(f, "optional"),
         }
     }
 }
