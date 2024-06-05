@@ -19,6 +19,7 @@ fn test_cli_interface() {
         .output()
         .expect("failed to execute process");
 
+    dbg!(&output);
     assert!(output.status.success());
 
     // Test a local semantic convention registry.
