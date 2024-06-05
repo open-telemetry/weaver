@@ -69,15 +69,6 @@ impl TemplateObject {
     }
 }
 
-// impl Display for TemplateObject {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         f.write_str(&format!(
-//             "template file name: {}",
-//             self.file_name.lock().expect("Lock poisoned")
-//         ))
-//     }
-// }
-
 impl Object for TemplateObject {
     fn call_method(
         self: &Arc<Self>,

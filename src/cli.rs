@@ -18,11 +18,11 @@ use clap::{Parser, Subcommand};
 )]
 pub struct Cli {
     /// Turn debugging information on
-    #[arg(short, long, action = clap::ArgAction::Count)]
+    #[arg(long, action = clap::ArgAction::Count, global = true)]
     pub debug: u8,
 
     /// Turn the quiet mode on (i.e., minimal output)
-    #[arg(short, long)]
+    #[arg(long, global = true)]
     pub quiet: bool,
 
     /// List of supported commands
