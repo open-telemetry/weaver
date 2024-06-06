@@ -84,6 +84,7 @@ impl Catalog {
                             "recommended"
                         }
                         RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => "opt_in",
+                        RequirementLevel::Basic(BasicRequirementLevelSpec::Optional) => "optional",
                         RequirementLevel::Recommended { .. } => "recommended",
                         RequirementLevel::ConditionallyRequired { .. } => "conditionally_required",
                     };

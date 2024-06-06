@@ -323,6 +323,9 @@ impl<'a> AttributeView<'a> {
             RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => {
                 Ok(write!(out, "`Opt-In`")?)
             }
+            RequirementLevel::Basic(BasicRequirementLevelSpec::Optional) => {
+                Ok(write!(out, "`Optional`")?)
+            }
             RequirementLevel::ConditionallyRequired { text } => {
                 if text.len() > BREAK_COUNT {
                     Ok(write!(
@@ -377,6 +380,7 @@ fn sort_ordinal_for_requirement(e: &RequirementLevel) -> i32 {
         RequirementLevel::Recommended { .. } => 3,
         RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended) => 3,
         RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn) => 4,
+        RequirementLevel::Basic(BasicRequirementLevelSpec::Optional) => todo!(),
     }
 }
 
