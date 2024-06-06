@@ -2,6 +2,7 @@
 
 //! Define the concept of signal.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::AttributeRef;
@@ -9,7 +10,7 @@ use crate::metric::MetricRef;
 use crate::tags::Tags;
 
 /// A univariate metric signal.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UnivariateMetric {
     /// References to attributes defined in the catalog.
@@ -23,7 +24,7 @@ pub struct UnivariateMetric {
 }
 
 /// A multivariate metric signal.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MultivariateMetric {
     /// The name of the multivariate metric.
@@ -44,7 +45,7 @@ pub struct MultivariateMetric {
 }
 
 /// An event signal.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
@@ -65,7 +66,7 @@ pub struct Event {
 }
 
 /// A span signal.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Span {
     /// The name of the span.
@@ -93,7 +94,7 @@ pub struct Span {
 }
 
 /// The span kind.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub enum SpanKind {
     /// An internal span.
     Internal,
@@ -108,7 +109,7 @@ pub enum SpanKind {
 }
 
 /// A span event specification.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpanEvent {
     /// The name of the span event.
@@ -127,7 +128,7 @@ pub struct SpanEvent {
 }
 
 /// A span link specification.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SpanLink {
     /// The name of the span link.

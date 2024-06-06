@@ -12,7 +12,7 @@ use weaver_cache::Cache;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
-use weaver_forge::registry::TemplateGroup;
+use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::TemplateEngine;
 use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::catalog::Catalog;
@@ -207,7 +207,7 @@ impl GenerateMarkdownArgs {
 /// This struct is passed into markdown snippets for generation.
 #[derive(Serialize)]
 struct MarkdownSnippetContext {
-    group: TemplateGroup,
+    group: ResolvedGroup,
     snippet_type: SnippetType,
     tag_filter: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -307,7 +307,7 @@ impl SnippetGenerator {
                 .ok_or(Error::GroupNotFound {
                     id: args.id.clone(),
                 })
-                .and_then(|g| Ok(TemplateGroup::try_from_resolved(g, self.lookup.catalog())?))?;
+                .and_then(|g| Ok(ResolvedGroup::try_from_resolved(g, self.lookup.catalog())?))?;
             // Context is the JSON sent to the jinja template engine.
             let context = MarkdownSnippetContext {
                 group: group.clone(),
@@ -423,6 +423,7 @@ impl ResolvedSemconvRegistry {
 mod tests {
     use std::fs;
     use std::path::PathBuf;
+    use weaver_forge::config::Params;
 
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
@@ -439,7 +440,7 @@ mod tests {
     #[test]
     fn test_template_engine() -> Result<(), Error> {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
-        let template = TemplateEngine::try_new(loader)?;
+        let template = TemplateEngine::try_new(loader, Params::default())?;
         let generator = SnippetGenerator::try_from_path("data", Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.

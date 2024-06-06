@@ -5,20 +5,22 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use serde_yaml::Value;
 
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
+use weaver_forge::config::Params;
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::registry::TemplateRegistry;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{
+use crate::registry::{Error, RegistryArgs};
+use crate::util::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    RegistryArgs,
 };
-use crate::DiagnosticArgs;
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -35,6 +37,15 @@ pub struct RegistryGenerateArgs {
     /// Default is the `templates` directory.
     #[arg(short = 't', long, default_value = "templates")]
     pub templates: PathBuf,
+
+    /// Parameters key=value, defined in the command line, to pass to the templates.
+    /// The value must be a valid YAML value.
+    #[arg(short= 'D', long, value_parser = parse_key_val)]
+    pub param: Option<Vec<(String, Value)>>,
+
+    /// Parameters, defined in a YAML file, to pass to the templates.
+    #[arg(long)]
+    pub params: Option<PathBuf>,
 
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
@@ -54,17 +65,34 @@ pub struct RegistryGenerateArgs {
     pub diagnostic: DiagnosticArgs,
 }
 
+/// Utility function to parse key-value pairs from the command line.
+fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
+    let pos = s.find('=').ok_or_else(|| Error::InvalidParam {
+        param: s.to_owned(),
+        error: "A valid parameter definition is `--param <name>=<yaml-value>`".to_owned(),
+    })?;
+    let value = serde_yaml::from_str(&s[pos + 1..]).map_err(|e| Error::InvalidParam {
+        param: s.to_owned(),
+        error: format!(
+            "A valid parameter definition is `--param <name>=<yaml-value>`. Error: {}",
+            e
+        ),
+    })?;
+    Ok((s[..pos].to_string(), value))
+}
+
 /// Generate artifacts from a semantic convention registry.
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryGenerateArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!(
         "Generating artifacts for the registry `{}`",
         args.registry.registry
     ));
 
+    let params = generate_params(args)?;
     let registry_id = "default";
     let registry_path =
         semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir);
@@ -85,9 +113,9 @@ pub(crate) fn command(
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
-    let engine = TemplateEngine::try_new(loader)?;
+    let engine = TemplateEngine::try_new(loader, params)?;
 
-    let template_registry = TemplateRegistry::try_from_resolved_registry(
+    let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(registry_id)
             .expect("Failed to get the registry from the resolved schema"),
@@ -102,7 +130,39 @@ pub(crate) fn command(
     )?;
 
     logger.success("Artifacts generated successfully");
-    Ok(())
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
+}
+
+/// Generate the parameters to pass to the templates.
+/// The `--params` argument (if provided) is used to load the parameters from a YAML file.
+/// Then the key-value pairs from the `--param` arguments are added to the parameters.
+/// So `--param key=value` will override the value of `key` if it exists in the YAML file.
+fn generate_params(args: &RegistryGenerateArgs) -> Result<Params, Error> {
+    // Load the parameters from the YAML file or if not provided, use the default parameters.
+    let mut params = if let Some(params_file) = &args.params {
+        let file = std::fs::File::open(params_file).map_err(|e| Error::InvalidParams {
+            params_file: params_file.clone(),
+            error: e.to_string(),
+        })?;
+        serde_yaml::from_reader(file).map_err(|e| Error::InvalidParams {
+            params_file: params_file.clone(),
+            error: e.to_string(),
+        })?
+    } else {
+        Params::default()
+    };
+
+    // Override the parameters with the key-value pairs from the command line.
+    if let Some(param) = &args.param {
+        for (name, value) in param {
+            _ = params.params.insert(name.clone(), value.clone());
+        }
+    }
+
+    Ok(params)
 }
 
 #[cfg(test)]
@@ -132,6 +192,8 @@ mod tests {
                     target: "rust".to_owned(),
                     output: temp_output.clone(),
                     templates: PathBuf::from("crates/weaver_codegen_test/templates/"),
+                    param: None,
+                    params: None,
                     registry: RegistryArgs {
                         registry: RegistryPath::Local(
                             "crates/weaver_codegen_test/semconv_registry/".to_owned(),
@@ -145,9 +207,9 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
 
         // Hashset containing recursively all the relative paths of rust files in the
         // output directory.
@@ -199,6 +261,8 @@ mod tests {
                     target: "rust".to_owned(),
                     output: temp_output.clone(),
                     templates: PathBuf::from("crates/weaver_codegen_test/templates/"),
+                    param: None,
+                    params: None,
                     registry: RegistryArgs {
                         registry: RegistryPath::Local(
                             "crates/weaver_codegen_test/semconv_registry/".to_owned(),
@@ -212,8 +276,8 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger);
+        let exit_directive = run_command(&cli, logger);
         // The command should exit with an error code.
-        assert_eq!(exit_code, 1);
+        assert_eq!(exit_directive.exit_code, 1);
     }
 }

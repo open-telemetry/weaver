@@ -3,10 +3,11 @@
 //! Logs version.
 
 use crate::logs_change::LogsChange;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Changes to apply to the logs for a specific version.
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LogsVersion {
     /// Changes to apply to the logs for a specific version.

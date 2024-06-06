@@ -1,6 +1,6 @@
 [package]
 name = "weaver_forge"
-version = "0.1.0"
+version = "0.4.0"
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -38,6 +38,7 @@ walkdir.workspace = true
 globset.workspace = true
 miette.workspace = true
 include_dir.workspace = true
+schemars.workspace = true
 
 [dev-dependencies]
 opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "otel_unstable"] }

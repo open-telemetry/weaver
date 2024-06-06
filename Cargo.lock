@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "anstyle-query"
-version = "1.0.3"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a64c907d4e79225ac72e2a354c9ce84d50ebb4586dee56c82b3ee73004f537f5"
+checksum = "ad186efb764318d35165f1758e7dcef3b10628e26d41a44bc5550652e6804391"
 dependencies = [
  "windows-sys 0.52.0",
 ]
@@ -2407,6 +2407,7 @@ checksum = "a76df7075c7d4d01fdcb46c912dd17fba5b60c78ea480b475f2b6ab6f666584e"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
+ "schemars",
  "serde",
 ]
 
@@ -2590,9 +2591,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.84"
+version = "1.0.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec96c6a92621310b51366f1e28d05ef11489516e93be030060e5fc12024a49d6"
+checksum = "22244ce15aa966053a896d1accb3a6e68469b97c7f33f284b99f0d576879fc23"
 dependencies = [
  "unicode-ident",
 ]
@@ -2941,6 +2942,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars"
+version = "0.8.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
+dependencies = [
+ "dyn-clone",
+ "schemars_derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "0.8.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1eee588578aff73f856ab961cd2f79e36bc45d7ded33a7562adba4667aecc0e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn",
+]
+
+[[package]]
 name = "scientific"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2995,6 +3020,17 @@ name = "serde_derive"
 version = "1.0.203"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "500cbc0ebeb6f46627f50f3f5811ccf6bf00643be300b4c3eabc0ef55dc5b5ba"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3337,9 +3373,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.37.0"
+version = "1.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1adbebffeca75fcfd058afa480fb6c0b81e165a0323f9c9d39c9697e37c46787"
+checksum = "ba4f4a02a7a80d6f274636f0aa95c7e383b912d41fe721a31f29e29698585a4a"
 dependencies = [
  "backtrace",
  "bytes",
@@ -3377,9 +3413,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.13"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4e43f8cc456c9704c851ae29c67e17ef65d2c30017c17a9765b89c382dc8bba"
+checksum = "6f49eb2ab21d2f26bd6db7bf383edc527a7ebaee412d17af4d40fdccd442f335"
 dependencies = [
  "serde",
  "serde_spanned",
@@ -3398,9 +3434,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.13"
+version = "0.22.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c127785850e8c20836d49732ae6abfa47616e60bf9d9f57c43c250361a9db96c"
+checksum = "f21c7aaf97f1bd9ca9d4f9e73b0a6c74bd5afef56f2bc931943a6e1c37e04e38"
 dependencies = [
  "indexmap",
  "serde",
@@ -3523,9 +3559,9 @@ checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.12"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6"
+checksum = "0336d538f7abc86d282a4189614dfaa90810dfc2c6f6427eaf88e16311dd225d"
 
 [[package]]
 name = "unicode-xid"
@@ -3717,13 +3753,14 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "assert_cmd",
  "clap",
  "include_dir",
  "miette",
  "rayon",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -3743,7 +3780,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "dirs",
  "gix",
@@ -3756,7 +3793,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "globset",
  "miette",
@@ -3771,7 +3808,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "opentelemetry 0.23.0",
  "walkdir",
@@ -3784,7 +3821,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "miette",
  "paris",
@@ -3795,7 +3832,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "similar",
  "walkdir",
@@ -3803,7 +3840,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "convert_case",
  "globset",
@@ -3822,6 +3859,7 @@ dependencies = [
  "opentelemetry_sdk",
  "rayon",
  "regex",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -3836,9 +3874,10 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "ordered-float",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",
@@ -3848,7 +3887,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "glob",
  "miette",
@@ -3866,11 +3905,12 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "glob",
  "miette",
  "ordered-float",
+ "schemars",
  "serde",
  "serde_yaml",
  "thiserror",
@@ -3880,7 +3920,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "itertools 0.12.1",
  "miette",
@@ -3898,8 +3938,9 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
+ "schemars",
  "semver",
  "serde",
  "serde_yaml",
@@ -3918,9 +3959,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "0.26.1"
+version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3de34ae270483955a94f4b21bdaaeb83d508bb84a01435f393818edb0012009"
+checksum = "3c452ad30530b54a4d8e71952716a212b08efd0f3562baa66c29a618b07da7c3"
 dependencies = [
  "rustls-pki-types",
 ]
@@ -4106,9 +4147,9 @@ checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
 
 [[package]]
 name = "winnow"
-version = "0.6.9"
+version = "0.6.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86c949fede1d13936a99f14fafd3e76fd642b556dd2ce96287fbe2e0151bfac6"
+checksum = "56c52728401e1dc672a56e81e593e912aa54c78f40246869f78359a2bf24d29d"
 dependencies = [
  "memchr",
 ]

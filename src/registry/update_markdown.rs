@@ -3,12 +3,14 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::{semconv_registry_path_from, RegistryArgs};
-use crate::DiagnosticArgs;
+use crate::registry::RegistryArgs;
+use crate::util::semconv_registry_path_from;
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
+use weaver_forge::config::Params;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
@@ -55,7 +57,7 @@ pub(crate) fn command(
     log: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryUpdateMarkdownArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
         let path = entry.path();
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
@@ -69,7 +71,7 @@ pub(crate) fn command(
                 format!("{}/registry", args.templates).into(),
                 target,
             )?;
-            Some(TemplateEngine::try_new(loader)?)
+            Some(TemplateEngine::try_new(loader, Params::default())?)
         }
     };
 
@@ -107,7 +109,10 @@ pub(crate) fn command(
         panic!("weaver registry update-markdown failed.");
     }
 
-    Ok(())
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
 }
 
 #[cfg(test)]
@@ -141,8 +146,8 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
     }
 }

@@ -6,10 +6,12 @@ allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
     "serde_json::value::Value",
+    "serde_yaml::value::Value",
     "weaver_common::*",
     "weaver_resolved_schema::*",
     "weaver_semconv::*",
     "minijinja::value::Value",
     "miette::protocol::Diagnostic",
     "include_dir::dir::Dir",
+    "schemars::JsonSchema",
 ]

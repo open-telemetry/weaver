@@ -4,29 +4,20 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, ValueEnum};
-use serde::Serialize;
+use clap::Args;
 
-use crate::DiagnosticArgs;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use weaver_forge::registry::TemplateRegistry;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{
+use crate::format::{apply_format, Format};
+use crate::registry::RegistryArgs;
+use crate::util::{
     check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-    RegistryArgs,
 };
-
-/// Supported output formats for the resolved schema
-#[derive(Debug, Clone, ValueEnum)]
-enum Format {
-    /// YAML format
-    Yaml,
-    /// JSON format
-    Json,
-}
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
@@ -34,10 +25,6 @@ pub struct RegistryResolveArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
     registry: RegistryArgs,
-
-    /// Flag to indicate if the shared catalog should be included in the resolved schema
-    #[arg(long, default_value = "false")]
-    catalog: bool,
 
     /// Flag to indicate if lineage information should be included in the
     /// resolved schema (not yet implemented)
@@ -78,7 +65,10 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
     args: &RegistryResolveArgs,
-) -> Result<(), DiagnosticMessages> {
+) -> Result<ExitDirectives, DiagnosticMessages> {
+    if args.output.is_none() {
+        logger.mute();
+    }
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let registry_id = "default";
@@ -103,53 +93,36 @@ pub(crate) fn command(
 
     // Serialize the resolved schema and write it
     // to a file or print it to stdout.
-    match args.catalog {
-        // The original resolved schema already includes the catalog.
-        // So, we just need to serialize it.
-        true => apply_format(&args.format, &schema)
-            .map_err(|e| format!("Failed to serialize the registry: {e:?}")),
-        // Build a template registry from the resolved schema and serialize it.
-        // The template registry does not include any reference to a shared
-        // catalog of attributes.
-        false => {
-            let registry = TemplateRegistry::try_from_resolved_registry(
-                schema
-                    .registry(registry_id)
-                    .expect("Failed to get the registry from the resolved schema"),
-                schema.catalog(),
-            )
-            .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
-            apply_format(&args.format, &registry)
-                .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
-        }
-    }
-    .and_then(|s| {
-        if let Some(ref path) = args.output {
-            // Write the resolved registry to a file.
-            std::fs::write(path, s)
-                .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
-        } else {
-            // Print the resolved registry to stdout.
-            println!("{}", s);
-            Ok(())
-        }
+    let registry = ResolvedRegistry::try_from_resolved_registry(
+        schema
+            .registry(registry_id)
+            .expect("Failed to get the registry from the resolved schema"),
+        schema.catalog(),
+    )
+    .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
+
+    apply_format(&args.format, &registry)
+        .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
+        .and_then(|s| {
+            if let Some(ref path) = args.output {
+                // Write the resolved registry to a file.
+                std::fs::write(path, s)
+                    .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
+            } else {
+                // Print the resolved registry to stdout.
+                println!("{}", s);
+                Ok(())
+            }
+        })
+        .unwrap_or_else(|e| {
+            // Capture all the errors
+            panic!("{}", e);
+        });
+
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: args.output.is_none(),
     })
-    .unwrap_or_else(|e| {
-        // Capture all the errors
-        panic!("{}", e);
-    });
-
-    Ok(())
-}
-
-#[cfg(not(tarpaulin_include))]
-fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {
-    match format {
-        Format::Yaml => serde_yaml::to_string(object)
-            .map_err(|e| format!("Failed to serialize in Yaml the resolved registry: {:?}", e)),
-        Format::Json => serde_json::to_string_pretty(object)
-            .map_err(|e| format!("Failed to serialize in Json the resolved registry: {:?}", e)),
-    }
 }
 
 #[cfg(test)]
@@ -157,7 +130,8 @@ mod tests {
     use weaver_common::TestLogger;
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::resolve::{Format, RegistryResolveArgs};
+    use crate::format::Format;
+    use crate::registry::resolve::RegistryResolveArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
     use crate::run_command;
 
@@ -175,7 +149,6 @@ mod tests {
                         ),
                         registry_git_sub_dir: None,
                     },
-                    catalog: false,
                     lineage: true,
                     output: None,
                     format: Format::Yaml,
@@ -186,9 +159,9 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli, logger.clone());
         // The command should succeed.
-        assert_eq!(exit_code, 0);
+        assert_eq!(exit_directive.exit_code, 0);
 
         // Now, let's run the command again with the policy checks enabled.
         let cli = Cli {
@@ -202,7 +175,6 @@ mod tests {
                         ),
                         registry_git_sub_dir: None,
                     },
-                    catalog: false,
                     lineage: true,
                     output: None,
                     format: Format::Json,
@@ -213,8 +185,8 @@ mod tests {
             })),
         };
 
-        let exit_code = run_command(&cli, logger);
+        let exit_directive = run_command(&cli, logger);
         // The command should exit with an error code.
-        assert_eq!(exit_code, 1);
+        assert_eq!(exit_directive.exit_code, 1);
     }
 }

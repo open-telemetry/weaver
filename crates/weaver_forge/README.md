@@ -75,6 +75,58 @@ its choice.
 The configuration file `weaver.yaml` is optional. See the [Weaver Configuration File](/docs/weaver-config.md)
 documentation for more details.
 
+## Global Variables
+
+All templates have access to the following global variables:
+- `ctx`: The context object that contains the resolved registry or the output of
+the JQ filter if defined in the `weaver.yaml` configuration file.
+- `params`: The parameters defined in the `weaver.yaml` configuration file or overridden
+by the command line `--param`, `-D`, or `--params` arguments.
+- `template`: An object exposing the `set_file_name` method to redefine the name of the
+file that will be produced from the template.
+
+In the following example, the parameters `incubating` and `excluded` are passed via the command line:
+
+```shell
+weaver registry generate --param incubating=true <target> <output-dir>
+```
+
+The `weaver.yaml` configuration file can specify default values for the parameters and can also
+access the parameters in the JQ filters:
+
+```yaml
+params:
+  incubating: false
+  registry_prefix: "registry."
+
+templates:
+  - pattern: <glob-pattern>
+    filter: >
+      if $incubating then
+        .groups
+          | map(select(.type == "attribute_group"))
+          | map(select(.id | startswith($registry_prefix)))
+          | map({ id: .id, group_id: .id | split(".") | .[1], attributes: .attributes })
+          | group_by(.group_id)
+          | map({ id: .[0].group_id, attributes: [.[].attributes[]] | sort_by(.id), output: "_incubating/attributes/", stable_package_name: "opentelemetry.semconv.attributes" })
+          | map(select(.id as $id | any($excluded[]; . == $id) | not))
+          | map(select(.attributes | length > 0))
+      else
+        empty
+      end
+      application_mode: single | each
+```
+
+Jinja templates can also access the parameters:
+
+```jinja
+...
+{% if params.incubating %}
+... generate incubating code ...
+{% endif %}
+...
+```
+
 ## Jinja Filters
 
 All the filters available in the MiniJinja template engine are available (see

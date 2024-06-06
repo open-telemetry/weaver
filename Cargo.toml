@@ -1,6 +1,6 @@
 [package]
 name = "weaver"
-version = "0.1.0"
+version = "0.4.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -43,7 +43,7 @@ thiserror = "1.0.58"
 ureq = "2.9.7"
 regex = "1.10.3"
 rayon = "1.10.0"
-ordered-float = { version = "4.2.0", features = ["serde"] }
+ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
 anyhow = "1.0.83"
 itertools = "0.12.1"
@@ -51,6 +51,7 @@ globset = { version = "0.4.14", features = ["serde1"] }
 miette = { version = "7.2.0", features = ["fancy", "serde"] }
 include_dir = "0.7.3"
 tempdir = "0.3.7"
+schemars = "0.8.21"
 
 # Features definition =========================================================
 [features]
@@ -83,6 +84,7 @@ walkdir.workspace = true
 include_dir.workspace = true
 thiserror.workspace = true
 miette.workspace = true
+schemars.workspace = true
 
 rayon = "1.10.0"
 

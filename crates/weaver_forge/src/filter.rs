@@ -5,7 +5,6 @@
 use crate::error::Error;
 use core::fmt;
 use jaq_interpret::{Ctx, FilterT, RcIter, Val};
-use serde::de;
 use std::fmt::Debug;
 
 /// A filter that can be applied to a JSON value.
@@ -17,8 +16,9 @@ pub struct Filter {
 impl Filter {
     /// Create a new filter from a string expression or return an error if the
     /// expression is invalid.
-    pub fn try_new(filter_expr: &str) -> Result<Self, Error> {
-        let vars = Vec::new();
+    /// The vars parameter is a list of variable names that can be used in the
+    /// filter expression.
+    pub fn try_new(filter_expr: &str, vars: Vec<String>) -> Result<Self, Error> {
         let mut ctx = jaq_interpret::ParseCtx::new(vars);
         ctx.insert_natives(jaq_core::core());
         ctx.insert_defs(jaq_std::std());
@@ -49,9 +49,13 @@ impl Filter {
     }
 
     /// Apply the filter to a JSON value and return the result as a JSON value.
-    pub fn apply(&self, ctx: serde_json::Value) -> Result<serde_json::Value, Error> {
+    pub fn apply(
+        &self,
+        ctx: serde_json::Value,
+        jq_ctx: Vec<Val>,
+    ) -> Result<serde_json::Value, Error> {
         let inputs = RcIter::new(core::iter::empty());
-        let filter_result = self.filter.run((Ctx::new([], &inputs), Val::from(ctx)));
+        let filter_result = self.filter.run((Ctx::new(jq_ctx, &inputs), Val::from(ctx)));
         let mut errs = Vec::new();
         let mut values = Vec::new();
 
@@ -76,28 +80,97 @@ impl Debug for Filter {
     }
 }
 
-struct FilterVisitor;
+#[cfg(test)]
+mod tests {
+    use jaq_interpret::Val;
 
-impl<'de> de::Visitor<'de> for FilterVisitor {
-    type Value = Filter;
+    #[test]
+    fn test_filter() {
+        let filter = super::Filter::try_new("true", Vec::new()).unwrap();
+        let result = filter.apply(serde_json::json!({}), Vec::new()).unwrap();
+        assert_eq!(result, serde_json::json!(true));
 
-    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a filter string")
-    }
+        let filter = super::Filter::try_new(".", Vec::new()).unwrap();
+        let result = filter.apply(serde_json::json!({}), Vec::new()).unwrap();
+        assert_eq!(result, serde_json::Value::Object(serde_json::Map::new()));
 
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Filter::try_new(value).map_err(E::custom)
-    }
-}
+        let filter = super::Filter::try_new(".", Vec::new()).unwrap();
+        let result = filter
+            .apply(
+                serde_json::json!({
+                    "a": 1,
+                    "b": 2,
+                }),
+                Vec::new(),
+            )
+            .unwrap();
+        assert_eq!(
+            result,
+            serde_json::json!({
+                "a": 1,
+                "b": 2,
+            })
+        );
 
-impl<'de> de::Deserialize<'de> for Filter {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(FilterVisitor)
+        let filter = super::Filter::try_new(".key1", Vec::new()).unwrap();
+        let result = filter
+            .apply(
+                serde_json::json!({
+                    "key1": 1,
+                    "key2": 2,
+                }),
+                Vec::new(),
+            )
+            .unwrap();
+        assert_eq!(result, serde_json::json!(1));
+
+        let filter = super::Filter::try_new(".[\"key1\"]", Vec::new()).unwrap();
+        let result = filter
+            .apply(
+                serde_json::json!({
+                    "key1": 1,
+                    "key2": 2,
+                }),
+                Vec::new(),
+            )
+            .unwrap();
+        assert_eq!(result, serde_json::json!(1));
+
+        let vars = vec!["key".to_owned()];
+        let ctx = vec![Val::from(serde_json::Value::String("key1".to_owned()))];
+        let filter = super::Filter::try_new(".[$key]", vars).unwrap();
+        let result = filter
+            .apply(
+                serde_json::json!({
+                    "key1": 1,
+                    "key2": 2,
+                }),
+                ctx,
+            )
+            .unwrap();
+        assert_eq!(result, serde_json::json!(1));
+
+        let jq_filter = r#"
+if $incubating then
+  .
+else
+  null
+end"#;
+        let input = serde_json::json!({
+            "key1": 1,
+            "key2": 2,
+        });
+        let vars = vec!["incubating".to_owned()];
+        // When incubating is true, the entire input is returned.
+        let ctx = vec![Val::from(serde_json::Value::Bool(true))];
+        let filter = super::Filter::try_new(jq_filter, vars.clone()).unwrap();
+        let result = filter.apply(input.clone(), ctx).unwrap();
+        assert_eq!(result, input);
+
+        // When incubating = false the filter should return an empty array
+        let ctx = vec![Val::from(serde_json::Value::Bool(false))];
+        let filter = super::Filter::try_new(jq_filter, vars).unwrap();
+        let result = filter.apply(input.clone(), ctx).unwrap();
+        assert_eq!(result, serde_json::Value::Null);
     }
 }

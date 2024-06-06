@@ -1,6 +1,6 @@
 [package]
 name = "weaver_semconv"
-version = "0.1.0"
+version = "0.4.0"
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -20,5 +20,6 @@ thiserror.workspace = true
 ureq.workspace = true
 ordered-float.workspace = true
 miette.workspace = true
+schemars.workspace = true
 
 glob = "0.3.1"

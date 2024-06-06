@@ -3,12 +3,14 @@
 #![doc = include_str!("../README.md")]
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use jaq_interpret::Val;
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
 use minijinja::{Environment, ErrorKind, State, Value};
@@ -24,14 +26,15 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, TargetConfig};
+use crate::config::{ApplicationMode, Params, TargetConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
-use crate::registry::{TemplateGroup, TemplateRegistry};
+use crate::filter::Filter;
+use crate::registry::{ResolvedGroup, ResolvedRegistry};
 
-mod config;
+pub mod config;
 pub mod debug;
 pub mod error;
 pub mod extensions;
@@ -66,15 +69,6 @@ impl TemplateObject {
     }
 }
 
-impl Display for TemplateObject {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "template file name: {}",
-            self.file_name.lock().expect("Lock poisoned")
-        ))
-    }
-}
-
 impl Object for TemplateObject {
     fn call_method(
         self: &Arc<Self>,
@@ -95,6 +89,37 @@ impl Object for TemplateObject {
     }
 }
 
+/// A params object accessible from the template.
+#[derive(Debug, Clone)]
+struct ParamsObject {
+    params: HashMap<String, Value>,
+}
+
+impl ParamsObject {
+    /// Creates a new params object.
+    pub(crate) fn new(params: HashMap<String, serde_yaml::Value>) -> Self {
+        let mut new_params = HashMap::new();
+        for (key, value) in params {
+            _ = new_params.insert(key, Value::from_serialize(&value));
+        }
+        Self { params: new_params }
+    }
+}
+
+impl Display for ParamsObject {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:#?}", self.params))
+    }
+}
+
+impl Object for ParamsObject {
+    /// Given a key, looks up the associated value.
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        let key = key.to_string();
+        self.params.get(&key).cloned()
+    }
+}
+
 /// Template engine for generating artifacts from a semantic convention
 /// registry and telemetry schema.
 pub struct TemplateEngine {
@@ -109,11 +134,11 @@ pub struct TemplateEngine {
 #[derive(Serialize, Debug)]
 pub struct Context<'a> {
     /// The semantic convention registry.
-    pub registry: &'a TemplateRegistry,
+    pub registry: &'a ResolvedRegistry,
     /// The group to generate doc or code for.
-    pub group: Option<&'a TemplateGroup>,
+    pub group: Option<&'a ResolvedGroup>,
     /// The groups to generate doc or code for.
-    pub groups: Option<Vec<&'a TemplateGroup>>,
+    pub groups: Option<Vec<&'a ResolvedGroup>>,
 }
 
 /// Global context for the template engine.
@@ -137,8 +162,18 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
-    pub fn try_new(loader: impl FileLoader + Send + Sync + 'static) -> Result<Self, Error> {
-        let target_config = TargetConfig::try_new(&loader)?;
+    pub fn try_new(
+        loader: impl FileLoader + Send + Sync + 'static,
+        params: Params,
+    ) -> Result<Self, Error> {
+        let mut target_config = TargetConfig::try_new(&loader)?;
+
+        // Override the params defined in the `weaver.yaml` file with the params provided
+        // in the command line.
+        for (name, value) in params.params {
+            _ = target_config.params.insert(name, value);
+        }
+
         Ok(Self {
             file_loader: Arc::new(loader),
             target_config,
@@ -200,6 +235,27 @@ impl TemplateEngine {
             error: e.to_string(),
         })?;
 
+        let mut errors = Vec::new();
+
+        // Build JQ context from the params.
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = self
+            .target_config
+            .params
+            .iter()
+            .filter_map(|(k, v)| {
+                let json_value = match serde_json::to_value(v) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        errors.push(ContextSerializationFailed {
+                            error: e.to_string(),
+                        });
+                        return None;
+                    }
+                };
+                Some((k.clone(), json_value))
+            })
+            .unzip();
+
         // Process all files in parallel
         // - Filter the files that match the template pattern
         // - Apply the filter to the context
@@ -210,11 +266,21 @@ impl TemplateEngine {
         //   - If the application mode is each, the filtered context is
         // evaluated as an array of objects and each object is evaluated
         // independently and in parallel with the same template.
-        let errs = files
+        let mut errs = files
             .into_par_iter()
             .filter_map(|relative_path| {
                 for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filtered_result = match template.filter.apply(context.clone()) {
+                    let filter = match Filter::try_new(template.filter.as_str(), jq_vars.clone()) {
+                        Ok(filter) => filter,
+                        Err(e) => return Some(e),
+                    };
+                    // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
+                    // jaq_interpret::val::Val here.
+                    let jq_ctx = jq_ctx
+                        .iter()
+                        .map(|v| Val::from(v.clone()))
+                        .collect::<Vec<_>>();
+                    let filtered_result = match filter.apply(context.clone(), jq_ctx) {
                         Ok(result) => result,
                         Err(e) => return Some(e),
                     };
@@ -222,6 +288,13 @@ impl TemplateEngine {
                     match template.application_mode {
                         // The filtered result is evaluated as a single object
                         ApplicationMode::Single => {
+                            if filtered_result.is_null()
+                                || (filtered_result.is_array()
+                                    && filtered_result.as_array().expect("is_array").is_empty())
+                            {
+                                // Skip the template evaluation if the filtered result is null or an empty array
+                                continue;
+                            }
                             if let Err(e) = self.evaluate_template(
                                 log.clone(),
                                 NewContext {
@@ -279,6 +352,7 @@ impl TemplateEngine {
             })
             .collect::<Vec<Error>>();
 
+        errs.extend(errors);
         handle_errors(errs)
     }
 
@@ -309,6 +383,10 @@ impl TemplateEngine {
         })?;
 
         engine.add_global("template", Value::from_object(template_object.clone()));
+        engine.add_global(
+            "params",
+            Value::from_object(ParamsObject::new(self.target_config.params.clone())),
+        );
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -427,12 +505,11 @@ mod tests {
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
-    use crate::config::{ApplicationMode, CaseConvention, TemplateConfig};
+    use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
-    use crate::filter::Filter;
-    use crate::registry::TemplateRegistry;
+    use crate::registry::ResolvedRegistry;
     use crate::OutputDirective;
 
     #[test]
@@ -562,15 +639,15 @@ mod tests {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "test")
             .expect("Failed to create file system loader");
-        let mut engine =
-            super::TemplateEngine::try_new(loader).expect("Failed to create template engine");
+        let mut engine = super::TemplateEngine::try_new(loader, Params::default())
+            .expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
         // for test coverage purposes.
         engine.target_config.templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
-            filter: Filter::try_new(".").unwrap(),
+            filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
         });
 
@@ -580,7 +657,7 @@ mod tests {
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
-        let template_registry = TemplateRegistry::try_from_resolved_registry(
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )

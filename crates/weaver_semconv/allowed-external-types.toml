@@ -8,4 +8,5 @@ allowed_external_types = [
     "weaver_common::error::WeaverError",
     "ordered_float::OrderedFloat",      # ToDo: Remove this dependency before version 1.0
     "miette::protocol::Diagnostic",
+    "schemars::JsonSchema",
 ]
