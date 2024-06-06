@@ -8,6 +8,7 @@ use minijinja::{ErrorKind, Value};
 use serde::de::Error;
 
 use crate::config::CaseConvention;
+use crate::extensions::case::str_to_case_converter;
 
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
@@ -24,6 +25,7 @@ pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("not_required", not_required);
     env.add_filter("instantiated_type", instantiated_type);
     env.add_filter("enum_type", enum_type);
+    env.add_filter("semconv_const", semconv_const);
 
     env.add_test("stable", is_stable);
     env.add_test("experimental", is_experimental);
@@ -139,6 +141,17 @@ pub(crate) fn attribute_namespace(input: &str) -> Result<String, minijinja::Erro
         ));
     }
     Ok(parts[0].to_owned())
+}
+
+/// Converts a semconv id into semconv constant following the namespacing rules.
+///
+/// A [`minijinja::Error`] if the case is not supported.
+pub(crate) fn semconv_const(input: &str, case: &str) -> Result<String, minijinja::Error> {
+    let converter = str_to_case_converter(case)
+        .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, format!("{}", e)))?;
+    // Remove all _ and convert to the desired case
+    let converted_input = converter(&input.replace('_', ""));
+    Ok(converted_input)
 }
 
 /// Compares two attributes by their requirement_level, then name.
@@ -1179,5 +1192,60 @@ mod tests {
             allow_custom_values: true,
             members,
         }
+    }
+
+    #[test]
+    fn test_semconv_const() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'messaging.client_id' | semconv_const('screaming_snake_case') }}",
+                &ctx,
+            )
+            .unwrap(),
+            "MESSAGING_CLIENTID"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'messaging.client_id' | semconv_const('pascal_case') }}",
+                &ctx,
+            )
+            .unwrap(),
+            "MessagingClientid"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'messaging.client.id' | semconv_const('screaming_snake_case') }}",
+                &ctx,
+            )
+            .unwrap(),
+            "MESSAGING_CLIENT_ID"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'messaging.client.id' | semconv_const('pascal_case') }}",
+                &ctx,
+            )
+            .unwrap(),
+            "MessagingClientId"
+        );
+
+        assert!(env
+            .render_str(
+                "{{ 'messaging.client.id' | semconv_const('invalid_case') }}",
+                &ctx,
+            )
+            .is_err());
+
+        assert!(env
+            .render_str("{{ 123 | semconv_const('lower_case') }}", &ctx,)
+            .is_err());
     }
 }

@@ -3,6 +3,7 @@
 //! Case converter filters used by the template engine.
 
 use crate::config::{CaseConvention, TargetConfig};
+use crate::error::Error;
 use minijinja::Environment;
 
 /// Add case converter filters to the environment.
@@ -41,7 +42,8 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &TargetConfi
     );
 }
 
-/// Converts input string to the specified case convention.
+/// Converts a `CaseConvention` to a function that converts a string to the specified case
+/// convention.
 #[must_use]
 pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String {
     match case_convention {
@@ -54,6 +56,30 @@ pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String {
         CaseConvention::ScreamingSnakeCase => screaming_snake_case,
         CaseConvention::KebabCase => kebab_case,
         CaseConvention::ScreamingKebabCase => screaming_kebab_case,
+    }
+}
+
+/// Converts a "string" case convention to a function that converts a string to the specified case
+/// convention.
+///
+/// # Returns
+///
+/// Returns an error if the case convention is not recognized or a function that converts a string
+/// to the specified case convention.
+pub fn str_to_case_converter(case_convention: &str) -> Result<fn(&str) -> String, Error> {
+    match case_convention {
+        "lower_case" => Ok(lower_case),
+        "upper_case" => Ok(upper_case),
+        "title_case" => Ok(title_case),
+        "camel_case" => Ok(camel_case),
+        "pascal_case" => Ok(pascal_case),
+        "snake_case" => Ok(snake_case),
+        "screaming_snake_case" => Ok(screaming_snake_case),
+        "kebab_case" => Ok(kebab_case),
+        "screaming_kebab_case" => Ok(screaming_kebab_case),
+        _ => Err(Error::InvalidCaseConvention {
+            case: case_convention.to_owned(),
+        }),
     }
 }
 
