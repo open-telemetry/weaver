@@ -145,6 +145,13 @@ pub enum Error {
         error: String,
     },
 
+    /// Invalid case convention.
+    #[error("`{case}` is not a valid case convention. Valid case conventions are: lower_case, upper_case, title_case, snake_case, kebab_case, camel_case, pascal_case, screaming_snake_case, and screaming_kebab_case.")]
+    InvalidCaseConvention {
+        /// The invalid case
+        case: String,
+    },
+
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
