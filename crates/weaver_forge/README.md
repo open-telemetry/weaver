@@ -146,7 +146,11 @@ The following filters are available:
 - `kebab_case`: Converts a string to kebab-case.
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
 - `capitalize_first`: Capitalizes the first letter of a string.
-- `semconv_const(case)`: Follows the semantic convention for constants. Underscores are removed and the string is converted to the case provided.
+- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful). 
+- `pascal_case_const`: Generates PascalCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
+- `camel_case_const`: Generates camelCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
+- `snake_case_const`: Generates snake_case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
+- `screaming_snake_case_const`: Generates SCREAMING_SNAKE_CASE constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_ids`: Splits a string by '.' creating a list of nested ids.
 - `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).

@@ -3,7 +3,6 @@
 //! Case converter filters used by the template engine.
 
 use crate::config::{CaseConvention, TargetConfig};
-use crate::error::Error;
 use minijinja::Environment;
 
 /// Add case converter filters to the environment.
@@ -59,77 +58,53 @@ pub fn case_converter(case_convention: CaseConvention) -> fn(&str) -> String {
     }
 }
 
-/// Converts a "string" case convention to a function that converts a string to the specified case
-/// convention.
-///
-/// # Returns
-///
-/// Returns an error if the case convention is not recognized or a function that converts a string
-/// to the specified case convention.
-pub fn str_to_case_converter(case_convention: &str) -> Result<fn(&str) -> String, Error> {
-    match case_convention {
-        "lower_case" => Ok(lower_case),
-        "upper_case" => Ok(upper_case),
-        "title_case" => Ok(title_case),
-        "camel_case" => Ok(camel_case),
-        "pascal_case" => Ok(pascal_case),
-        "snake_case" => Ok(snake_case),
-        "screaming_snake_case" => Ok(screaming_snake_case),
-        "kebab_case" => Ok(kebab_case),
-        "screaming_kebab_case" => Ok(screaming_kebab_case),
-        _ => Err(Error::InvalidCaseConvention {
-            case: case_convention.to_owned(),
-        }),
-    }
-}
-
 /// Converts input string to lower case
-fn lower_case(input: &str) -> String {
+pub(crate) fn lower_case(input: &str) -> String {
     CaseConvention::LowerCase.convert(input)
 }
 
 /// Converts input string to upper case
-fn upper_case(input: &str) -> String {
+pub(crate) fn upper_case(input: &str) -> String {
     CaseConvention::UpperCase.convert(input)
 }
 
 /// Converts input string to title case
-fn title_case(input: &str) -> String {
+pub(crate) fn title_case(input: &str) -> String {
     CaseConvention::TitleCase.convert(input)
 }
 
 /// Converts input string to camel case
-fn camel_case(input: &str) -> String {
+pub(crate) fn camel_case(input: &str) -> String {
     CaseConvention::CamelCase.convert(input)
 }
 
 /// Converts input string to pascal case
-fn pascal_case(input: &str) -> String {
+pub(crate) fn pascal_case(input: &str) -> String {
     CaseConvention::PascalCase.convert(input)
 }
 
 /// Converts input string to snake case
-fn snake_case(input: &str) -> String {
+pub(crate) fn snake_case(input: &str) -> String {
     CaseConvention::SnakeCase.convert(input)
 }
 
 /// Converts input string to screaming snake case
-fn screaming_snake_case(input: &str) -> String {
+pub(crate) fn screaming_snake_case(input: &str) -> String {
     CaseConvention::ScreamingSnakeCase.convert(input)
 }
 
 /// Converts input string to kebab case
-fn kebab_case(input: &str) -> String {
+pub(crate) fn kebab_case(input: &str) -> String {
     CaseConvention::KebabCase.convert(input)
 }
 
 /// Converts input string to screaming kebab case
-fn screaming_kebab_case(input: &str) -> String {
+pub(crate) fn screaming_kebab_case(input: &str) -> String {
     CaseConvention::ScreamingKebabCase.convert(input)
 }
 
 /// Capitalize the first character of a string.
-fn capitalize_first(input: &str) -> String {
+pub(crate) fn capitalize_first(input: &str) -> String {
     let mut chars = input.chars();
     let mut result = String::with_capacity(input.len());
 

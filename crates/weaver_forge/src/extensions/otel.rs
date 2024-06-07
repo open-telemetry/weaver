@@ -8,7 +8,9 @@ use minijinja::{ErrorKind, Value};
 use serde::de::Error;
 
 use crate::config::CaseConvention;
-use crate::extensions::case::str_to_case_converter;
+use crate::extensions::case::{
+    camel_case, kebab_case, pascal_case, screaming_snake_case, snake_case,
+};
 
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
@@ -25,7 +27,11 @@ pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("not_required", not_required);
     env.add_filter("instantiated_type", instantiated_type);
     env.add_filter("enum_type", enum_type);
-    env.add_filter("semconv_const", semconv_const);
+    env.add_filter("kebab_case_const", kebab_case_const);
+    env.add_filter("pascal_case_const", pascal_case_const);
+    env.add_filter("camel_case_const", camel_case_const);
+    env.add_filter("snake_case_const", snake_case_const);
+    env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
 
     env.add_test("stable", is_stable);
     env.add_test("experimental", is_experimental);
@@ -143,15 +149,39 @@ pub(crate) fn attribute_namespace(input: &str) -> Result<String, minijinja::Erro
     Ok(parts[0].to_owned())
 }
 
-/// Converts a semconv id into semconv constant following the namespacing rules.
-///
-/// A [`minijinja::Error`] if the case is not supported.
-pub(crate) fn semconv_const(input: &str, case: &str) -> Result<String, minijinja::Error> {
-    let converter = str_to_case_converter(case)
-        .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, format!("{}", e)))?;
-    // Remove all _ and convert to the desired case
-    let converted_input = converter(&input.replace('_', ""));
-    Ok(converted_input)
+/// Converts a semconv id into semconv constant following the namespacing rules and the
+/// kebab case convention.
+pub(crate) fn kebab_case_const(input: &str) -> String {
+    // Remove all _ and convert to the kebab case
+    kebab_case(&input.replace('_', ""))
+}
+
+/// Converts a semconv id into semconv constant following the namespacing rules and the
+/// pascal case convention.
+pub(crate) fn pascal_case_const(input: &str) -> String {
+    // Remove all _ and convert to the pascal case
+    pascal_case(&input.replace('_', ""))
+}
+
+/// Converts a semconv id into semconv constant following the namespacing rules and the
+/// camel case convention.
+pub(crate) fn camel_case_const(input: &str) -> String {
+    // Remove all _ and convert to the camel case
+    camel_case(&input.replace('_', ""))
+}
+
+/// Converts a semconv id into semconv constant following the namespacing rules and the
+/// snake case convention.
+pub(crate) fn snake_case_const(input: &str) -> String {
+    // Remove all _ and convert to the snake case
+    snake_case(&input.replace('_', ""))
+}
+
+/// Converts a semconv id into semconv constant following the namespacing rules and the
+/// screaming snake case convention.
+pub(crate) fn screaming_snake_case_const(input: &str) -> String {
+    // Remove all _ and convert to the screaming snake case
+    screaming_snake_case(&input.replace('_', ""))
 }
 
 /// Compares two attributes by their requirement_level, then name.
@@ -1203,7 +1233,7 @@ mod tests {
 
         assert_eq!(
             env.render_str(
-                "{{ 'messaging.client_id' | semconv_const('screaming_snake_case') }}",
+                "{{ 'messaging.client_id' | screaming_snake_case_const }}",
                 &ctx,
             )
             .unwrap(),
@@ -1211,17 +1241,14 @@ mod tests {
         );
 
         assert_eq!(
-            env.render_str(
-                "{{ 'messaging.client_id' | semconv_const('pascal_case') }}",
-                &ctx,
-            )
-            .unwrap(),
+            env.render_str("{{ 'messaging.client_id' | pascal_case_const }}", &ctx,)
+                .unwrap(),
             "MessagingClientid"
         );
 
         assert_eq!(
             env.render_str(
-                "{{ 'messaging.client.id' | semconv_const('screaming_snake_case') }}",
+                "{{ 'messaging.client.id' | screaming_snake_case_const }}",
                 &ctx,
             )
             .unwrap(),
@@ -1229,23 +1256,53 @@ mod tests {
         );
 
         assert_eq!(
-            env.render_str(
-                "{{ 'messaging.client.id' | semconv_const('pascal_case') }}",
-                &ctx,
-            )
-            .unwrap(),
+            env.render_str("{{ 'messaging.client.id' | pascal_case_const }}", &ctx,)
+                .unwrap(),
             "MessagingClientId"
         );
 
+        assert_eq!(
+            env.render_str("{{ 'messaging.client.id' | kebab_case_const }}", &ctx,)
+                .unwrap(),
+            "messaging-client-id"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'messaging.client_id' | kebab_case_const }}", &ctx,)
+                .unwrap(),
+            "messaging-clientid"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'messaging.client.id' | camel_case_const }}", &ctx,)
+                .unwrap(),
+            "messagingClientId"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'messaging.client_id' | camel_case_const }}", &ctx,)
+                .unwrap(),
+            "messagingClientid"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'messaging.client.id' | snake_case_const }}", &ctx,)
+                .unwrap(),
+            "messaging_client_id"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'messaging.client_id' | snake_case_const }}", &ctx,)
+                .unwrap(),
+            "messaging_clientid"
+        );
+
         assert!(env
-            .render_str(
-                "{{ 'messaging.client.id' | semconv_const('invalid_case') }}",
-                &ctx,
-            )
+            .render_str("{{ 'messaging.client.id' | invalid_case_const }}", &ctx,)
             .is_err());
 
         assert!(env
-            .render_str("{{ 123 | semconv_const('lower_case') }}", &ctx,)
+            .render_str("{{ 123 | pascal_case_const }}", &ctx,)
             .is_err());
     }
 }
