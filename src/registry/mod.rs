@@ -92,7 +92,7 @@ pub enum RegistrySubCommand {
     /// The process exits with a code of 0 if the resolution is successful.
     #[clap(verbatim_doc_comment)]
     Resolve(RegistryResolveArgs),
-    /// Searches a registry (not yet implemented).
+    /// Searches a registry (requires interactive terminal).
     Search(RegistrySearchArgs),
     /// Calculate a set of general statistics on a semantic convention registry.
     Stats(RegistryStatsArgs),
@@ -181,7 +181,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
             resolve::command(log.clone(), &cache, args),
             Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::Search(_) => unimplemented!(),
+        RegistrySubCommand::Search(args) => CmdResult::new(
+            search::command(log.clone(), &cache, args),
+            Some(args.diagnostic.clone()),
+        ),
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
             update_markdown::command(log.clone(), &cache, args),
             Some(args.diagnostic.clone()),
