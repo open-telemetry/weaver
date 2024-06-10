@@ -2,6 +2,7 @@ groups:
   - id: attributes.faas.common
     type: attribute_group
     brief: "Describes FaaS attributes."
+    display_name: "FaaS Attributes"
     prefix: faas
     attributes:
       - id: trigger
