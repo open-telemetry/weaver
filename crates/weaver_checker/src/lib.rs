@@ -146,6 +146,8 @@ impl Display for PolicyStage {
 pub struct Engine {
     // The `regorus` policy engine.
     engine: regorus::Engine,
+    // Number of policy packages added.
+    policy_package_count: usize,
 }
 
 impl Engine {
@@ -169,7 +171,9 @@ impl Engine {
             .map_err(|e| Error::InvalidPolicyFile {
                 file: policy_path_str.clone(),
                 error: e.to_string(),
-            })
+            }).inspect(|_| {
+            self.policy_package_count += 1;
+        })
     }
 
     /// Adds all the policy files present in the given directory that match the
@@ -224,7 +228,13 @@ impl Engine {
 
         handle_errors(errors)?;
 
+        self.policy_package_count += added_policy_count;
         Ok(added_policy_count)
+    }
+
+    /// Returns the number of policy packages added to the policy engine.
+    pub fn policy_package_count(&self) -> usize {
+        self.policy_package_count
     }
 
     /// Adds a data document to the policy engine.

@@ -2,17 +2,21 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::RegistryArgs;
-use crate::util::{
-    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
-};
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
 use std::path::PathBuf;
+
+use clap::Args;
+
 use weaver_cache::Cache;
+use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::error::handle_errors;
 use weaver_common::Logger;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
+
+use crate::{DiagnosticArgs, ExitDirectives};
+use crate::registry::RegistryArgs;
+use crate::util::{check_policies, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -51,19 +55,43 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local cache.
     // No parsing errors should be observed.
     let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
-
-    if !args.skip_policies {
-        check_policies(
+    let mut policy_engine = if !args.skip_policies {
+        Some(init_policy_engine(
             &registry_path,
             cache,
             &args.policies,
+        )?)
+    } else {
+        None
+    };
+
+    if let Some(policy_engine) = policy_engine.as_ref() {
+        // ToDo accumulate the diagnostic messages
+        check_policies(
+            policy_engine,
             &semconv_specs,
             logger.clone(),
         )?;
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    _ = resolve_semconv_specs(&mut registry, logger.clone())?;
+    let resolved_schema = resolve_semconv_specs(&mut registry, logger.clone())?;
+
+    if let Some(policy_engine) = policy_engine.as_mut() {
+        let resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+            resolved_schema
+                .registry(registry_id)
+                .expect("Failed to get the registry from the resolved schema"),
+            resolved_schema.catalog(),
+        )?;
+        let errs = check_policy_stage(
+            policy_engine,
+            PolicyStage::AfterResolution,
+            &registry_path.to_string(),
+            &resolved_registry,
+        );
+        handle_errors(errs)?
+    }
 
     Ok(ExitDirectives {
         exit_code: 0,
@@ -76,8 +104,8 @@ mod tests {
     use weaver_common::TestLogger;
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::check::RegistryCheckArgs;
     use crate::run_command;
 
     #[test]

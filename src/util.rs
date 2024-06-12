@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Set of utility functions to resolve a semantic convention registry and check policies.
-//! This module is used by the `schema` and `registry` commands.
+//! Utility functions for resolving a semantic convention registry and checking policies.
+//! This module supports the `schema` and `registry` commands.
 
 use crate::registry::RegistryPath;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::path::PathBuf;
+use serde::Serialize;
 use weaver_cache::Cache;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage};
@@ -17,7 +18,12 @@ use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 
-/// Convert a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
+/// Converts a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
+///
+/// # Arguments
+///
+/// * `registry` - A reference to the `RegistryPath`.
+/// * `path` - An optional string representing the path.
 pub(crate) fn semconv_registry_path_from(
     registry: &RegistryPath,
     path: &Option<String>,
@@ -33,13 +39,18 @@ pub(crate) fn semconv_registry_path_from(
     }
 }
 
-/// Load the semantic convention specifications from a registry path.
+/// Loads the semantic convention specifications from a registry path.
 ///
 /// # Arguments
 ///
 /// * `registry_path` - The path to the semantic convention registry.
-/// * `cache` - The cache to use for loading the registry.
-/// * `log` - The logger to use for logging messages.
+/// * `cache` - The cache for loading the registry.
+/// * `log` - The logger for logging messages.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of tuples with file names and `SemConvSpec` on success,
+/// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
     registry_path: &weaver_semconv::path::RegistryPath,
     cache: &Cache,
@@ -53,12 +64,92 @@ pub(crate) fn load_semconv_specs(
     Ok(semconv_specs)
 }
 
-/// Check the policies of a semantic convention registry.
+/// Initializes the policy engine with policies from the registry and command line.
 ///
 /// # Arguments
 ///
-/// * `policy_engine` - The pre-configured policy engine to use for checking the policies.
+/// * `registry_path` - The path to the semantic convention registry.
+/// * `cache` - The cache for loading the registry.
+/// * `policies` - A list of paths to policy files.
+///
+/// # Returns
+///
+/// A `Result` containing the initialized `Engine` on success, or `DiagnosticMessages`
+/// on failure.
+pub(crate) fn init_policy_engine(
+    registry_path: &weaver_semconv::path::RegistryPath,
+    cache: &Cache,
+    policies: &[PathBuf],
+) -> Result<Engine, DiagnosticMessages> {
+    let mut engine = Engine::new();
+
+    // Add policies from the registry
+    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)?;
+    _ = engine.add_policies(registry_path.as_path(), "*.rego")?;
+
+    // Add policies from the command line
+    for policy in policies {
+        engine.add_policy(policy)?;
+    }
+
+    Ok(engine)
+}
+
+/// Runs the policy engine on a serializable input and returns
+/// a list of policy violations represented as errors.
+///
+/// # Arguments
+///
+/// * `policy_engine` - The policy engine.
+/// * `policy_stage` - The policy stage to check.
+/// * `policy_file` - The policy file to check.
+/// * `input` - The input to check.
+///
+/// # Returns
+///
+/// A list of policy violations represented as errors.
+pub(crate) fn check_policy_stage<T: Serialize>(
+    policy_engine: &mut Engine,
+    policy_stage: PolicyStage,
+    policy_file: &str,
+    input: &T,
+) -> Vec<Error> {
+    let mut errors = vec![];
+
+    match policy_engine.set_input(input) {
+        Ok(_) => match policy_engine.check(policy_stage) {
+            Ok(violations) => {
+                for violation in violations {
+                    errors.push(PolicyViolation {
+                        provenance: policy_file.to_owned(),
+                        violation,
+                    });
+                }
+            }
+            Err(e) => errors.push(InvalidPolicyFile {
+                file: policy_file.to_owned(),
+                error: e.to_string(),
+            }),
+        },
+        Err(e) => errors.push(InvalidPolicyFile {
+            file: policy_file.to_owned(),
+            error: e.to_string(),
+        }),
+    }
+    errors
+}
+
+/// Checks the policies of a semantic convention registry.
+///
+/// # Arguments
+///
+/// * `policy_engine` - The pre-configured policy engine for checking policies.
 /// * `semconv_specs` - The semantic convention specifications to check.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` if all policies are checked successfully, or an `Error`
+/// if any policy violations occur.
 pub(crate) fn check_policy(
     policy_engine: &Engine,
     semconv_specs: &[(String, SemConvSpec)],
@@ -70,29 +161,12 @@ pub(crate) fn check_policy(
             // Create a local policy engine inheriting the policies
             // from the global policy engine
             let mut policy_engine = policy_engine.clone();
-            let mut errors = vec![];
-
-            match policy_engine.set_input(semconv) {
-                Ok(_) => match policy_engine.check(PolicyStage::BeforeResolution) {
-                    Ok(violations) => {
-                        for violation in violations {
-                            errors.push(PolicyViolation {
-                                provenance: path.clone(),
-                                violation,
-                            });
-                        }
-                    }
-                    Err(e) => errors.push(InvalidPolicyFile {
-                        file: path.to_string(),
-                        error: e.to_string(),
-                    }),
-                },
-                Err(e) => errors.push(InvalidPolicyFile {
-                    file: path.to_string(),
-                    error: e.to_string(),
-                }),
-            }
-            errors
+            check_policy_stage(
+                &mut policy_engine,
+                PolicyStage::BeforeResolution,
+                path,
+                semconv
+            )
         })
         .collect::<Vec<Error>>();
 
@@ -100,33 +174,25 @@ pub(crate) fn check_policy(
     Ok(())
 }
 
-/// Check the policies of a semantic convention registry.
+/// Checks the policies of a semantic convention registry.
 ///
 /// # Arguments
 ///
-/// * `policies` - The list of policy files to check.
+/// * `policy_engine` - The policy engine.
 /// * `semconv_specs` - The semantic convention specifications to check.
-/// * `logger` - The logger to use for logging messages.
+/// * `logger` - The logger for logging messages.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` if all policies are checked successfully,
+/// or `DiagnosticMessages` if any policy violations occur.
 pub(crate) fn check_policies(
-    registry_path: &weaver_semconv::path::RegistryPath,
-    cache: &Cache,
-    policies: &[PathBuf],
+    policy_engine: &Engine,
     semconv_specs: &[(String, SemConvSpec)],
     logger: impl Logger + Sync + Clone,
 ) -> Result<(), DiagnosticMessages> {
-    let mut engine = Engine::new();
-
-    // Add policies from the registry
-    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)?;
-    let added_policies_count = engine.add_policies(registry_path.as_path(), "*.rego")?;
-
-    // Add policies from the command line
-    for policy in policies {
-        engine.add_policy(policy)?;
-    }
-
-    if added_policies_count + policies.len() > 0 {
-        check_policy(&engine, semconv_specs).map_err(|e| {
+    if policy_engine.policy_package_count() > 0 {
+        check_policy(&policy_engine, semconv_specs).map_err(|e| {
             if let Error::CompoundError(errors) = e {
                 DiagnosticMessages::from_errors(errors)
             } else {
@@ -140,13 +206,17 @@ pub(crate) fn check_policies(
     Ok(())
 }
 
-/// Resolve the semantic convention specifications and return the resolved schema.
+/// Resolves the semantic convention specifications and returns the resolved schema.
 ///
 /// # Arguments
 ///
-/// * `registry_id` - The ID of the semantic convention registry.
-/// * `semconv_specs` - The semantic convention specifications to resolve.
-/// * `logger` - The logger to use for logging messages.
+/// * `registry` - The semantic convention registry to resolve.
+/// * `logger` - The logger for logging messages.
+///
+/// # Returns
+///
+/// A `Result` containing the `ResolvedTelemetrySchema` on success, or
+/// `DiagnosticMessages` on failure.
 pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
     logger: impl Logger + Sync + Clone,
