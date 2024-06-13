@@ -8,6 +8,7 @@ use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::ops::Not;
 
 use crate::stability::Stability;
 
@@ -67,6 +68,13 @@ pub enum AttributeSpec {
         /// to use instead. See also stability.
         #[serde(skip_serializing_if = "Option::is_none")]
         deprecated: Option<String>,
+        /// Specifies the prefix of the attribute.
+        /// If this parameter is set, the resolved id of the referenced attribute will
+        /// have group prefix added to it.
+        /// It defaults to false.
+        #[serde(default)]
+        #[serde(skip_serializing_if = "<&bool>::not")]
+        prefix: bool,
     },
     /// Attribute definition.
     Id {

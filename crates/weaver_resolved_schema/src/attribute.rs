@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
+use std::ops::Not;
 
 /// An attribute definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
@@ -64,6 +65,13 @@ pub struct Attribute {
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<String>,
+    /// Specifies the prefix of the attribute.
+    /// If this parameter is set, the resolved id of the referenced attribute will
+    /// have group prefix added to it.
+    /// It defaults to false.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "<&bool>::not")]
+    pub prefix: bool,
     /// A set of tags for the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Tags>,
