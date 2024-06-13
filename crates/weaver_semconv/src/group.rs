@@ -84,6 +84,8 @@ pub struct GroupSpec {
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     pub name: Option<String>,
+    /// The readable name for attribute groups used when generating registry tables.
+    pub display_name: Option<String>,
 }
 
 impl GroupSpec {
@@ -331,6 +333,7 @@ mod tests {
             instrument: None,
             unit: None,
             name: None,
+            display_name: None,
         };
         assert!(group.validate("<test>").is_ok());
 
@@ -430,6 +433,7 @@ mod tests {
             instrument: None,
             unit: None,
             name: None,
+            display_name: None,
         };
         assert!(group.validate("<test>").is_ok());
 
