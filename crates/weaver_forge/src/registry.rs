@@ -98,10 +98,12 @@ pub struct ResolvedGroup {
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     pub name: Option<String>,
-
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lineage: Option<GroupLineage>,
+    /// The readable name for attribute groups used when generating registry tables.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 impl ResolvedGroup {
@@ -153,6 +155,7 @@ impl ResolvedGroup {
             unit: group.unit.clone(),
             name: group.name.clone(),
             lineage,
+            display_name: group.display_name.clone(),
         })
     }
 }
@@ -211,6 +214,7 @@ impl ResolvedRegistry {
                     unit: group.unit.clone(),
                     name: group.name.clone(),
                     lineage,
+                    display_name: group.display_name.clone(),
                 }
             })
             .collect();
