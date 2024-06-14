@@ -120,11 +120,7 @@ fn process_diagnostics(
     cmd_result: CmdResult,
     logger: impl Logger + Sync + Clone,
 ) -> ExitDirectives {
-    let diagnostic_args = if let Some(diagnostic_args) = cmd_result.diagnostic_args {
-        diagnostic_args
-    } else {
-        DiagnosticArgs::default() // Default diagnostic arguments;
-    };
+    let diagnostic_args = cmd_result.diagnostic_args.unwrap_or_default();
     let mut exit_directives = if let Ok(exit_directives) = &cmd_result.command_result {
         exit_directives.clone()
     } else {
