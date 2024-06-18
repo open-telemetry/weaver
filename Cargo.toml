@@ -41,7 +41,7 @@ serde_yaml = "0.9.32"
 serde_json = { version = "1.0.116"}
 thiserror = "1.0.58"
 ureq = "2.9.7"
-regex = "1.10.3"
+regex = "1.10.5"
 rayon = "1.10.0"
 ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
@@ -74,7 +74,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.4", features = ["derive"] }
+clap = { version = "4.5.7", features = ["derive"] }
 
 # workspace dependencies
 serde.workspace = true
