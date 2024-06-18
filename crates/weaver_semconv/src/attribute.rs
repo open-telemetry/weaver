@@ -785,6 +785,7 @@ mod tests {
             note: Some("note".to_owned()),
             stability: Some(Stability::Stable),
             deprecated: Some("deprecated".to_owned()),
+            prefix: false,
         };
         assert_eq!(attr.id(), "ref");
         assert_eq!(attr.brief(), "brief");

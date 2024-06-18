@@ -90,7 +90,7 @@ impl AttributeCatalog {
 
                     if *prefix {
                         // depending on the prefix we either create embedded attribute or normal reference
-                        name = format!("{}.{}", group_prefix, r#ref.clone());
+                        name = format!("{}.{}", group_prefix, r#ref);
                     } else {
                         name = r#ref.clone();
                     }
@@ -141,7 +141,6 @@ impl AttributeCatalog {
                             },
                         );
                     }
-
 
                     Some(attr_ref)
                 } else {

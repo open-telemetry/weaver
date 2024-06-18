@@ -9,9 +9,9 @@ use crate::value::Value;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::ops::Not;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
-use std::ops::Not;
 
 /// An attribute definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
