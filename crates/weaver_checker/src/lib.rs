@@ -3,6 +3,7 @@
 #![allow(rustdoc::broken_intra_doc_links)]
 #![doc = include_str!("../README.md")]
 
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
@@ -11,12 +12,12 @@ use miette::Diagnostic;
 use serde::Serialize;
 use serde_json::to_value;
 use walkdir::DirEntry;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
-use crate::violation::Violation;
 use crate::Error::CompoundError;
+use crate::violation::Violation;
 
 pub mod violation;
 
@@ -146,8 +147,13 @@ impl Display for PolicyStage {
 pub struct Engine {
     // The `regorus` policy engine.
     engine: regorus::Engine,
+    // Flag to enable the coverage report.
+    coverage_enabled: bool,
     // Number of policy packages added.
     policy_package_count: usize,
+    // Policy packages loaded. This is used to check if a policy package has been imported
+    // before evaluating it.
+    policy_packages: HashSet<String>,
 }
 
 impl Engine {
@@ -157,23 +163,34 @@ impl Engine {
         Default::default()
     }
 
+    /// Enables the coverage report.
+    pub fn enable_coverage(&mut self) {
+        self.engine.set_enable_coverage(true);
+        self.coverage_enabled = true;
+    }
+
     /// Adds a policy file to the policy engine.
     /// A policy file is a `rego` file that contains the policies to be evaluated.
     ///
     /// # Arguments
     ///
     /// * `policy_path` - The path to the policy file.
-    pub fn add_policy<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<(), Error> {
+    pub fn add_policy<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<String, Error> {
         let policy_path_str = policy_path.as_ref().to_string_lossy().to_string();
 
-        self.engine
+        let policy_package = self.engine
             .add_policy_from_file(policy_path)
             .map_err(|e| Error::InvalidPolicyFile {
                 file: policy_path_str.clone(),
                 error: e.to_string(),
             }).inspect(|_| {
             self.policy_package_count += 1;
-        })
+        })?;
+        // Add the policy package defined in the imported policy file.
+        // Nothing prevent multiple policy files to import the same policy package.
+        // All the rules will be combined and evaluated together.
+        _ = self.policy_packages.insert(policy_package.clone());
+        Ok(policy_package)
     }
 
     /// Adds all the policy files present in the given directory that match the
@@ -291,12 +308,30 @@ impl Engine {
     /// Returns a list of violations based on the policies, the data, the
     /// input, and the given policy stage.
     pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<Violation>, Error> {
+        // If we don't have any policy package that matches the stage,
+        // return an empty list of violations.
+        if !self.policy_packages.contains(&format!("data.{}", stage)) {
+            return Ok(vec![]);
+        }
+
         let value = self
             .engine
             .eval_rule(format!("data.{}.deny", stage))
             .map_err(|e| Error::ViolationEvaluationError {
-                error: e.to_string(),
+                error: e.to_string()
             })?;
+
+        // Print the coverage report if enabled
+        // This is useful for debugging purposes
+        if self.coverage_enabled {
+            let report = self.engine.get_coverage_report().map_err(|e| Error::ViolationEvaluationError {
+                error: e.to_string()
+            })?;
+            let pretty_report = report.to_string_pretty().map_err(|e| Error::ViolationEvaluationError {
+                error: e.to_string()
+            })?;
+            println!("{}", pretty_report);
+        }
 
         // convert `regorus` value to `serde_json` value
         let json_value = to_value(&value).map_err(|e| Error::ViolationEvaluationError {
@@ -321,8 +356,8 @@ mod tests {
 
     use weaver_common::error::format_errors;
 
-    use crate::violation::Violation;
     use crate::{Engine, Error, PolicyStage};
+    use crate::violation::Violation;
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
@@ -357,9 +392,9 @@ mod tests {
                 attr: "protocol.port".to_owned(),
             },
         ]
-        .into_iter()
-        .map(|v| (v.id().to_owned(), v))
-        .collect();
+            .into_iter()
+            .map(|v| (v.id().to_owned(), v))
+            .collect();
 
         let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
@@ -442,9 +477,9 @@ mod tests {
                 attr: "protocol.port".to_owned(),
             },
         ]
-        .into_iter()
-        .map(|v| (v.id().to_owned(), v))
-        .collect();
+            .into_iter()
+            .map(|v| (v.id().to_owned(), v))
+            .collect();
 
         let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);

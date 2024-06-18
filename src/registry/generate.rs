@@ -102,7 +102,8 @@ pub(crate) fn command(
         let policy_engine = init_policy_engine(
             &registry_path,
             cache,
-            &args.policies
+            &args.policies,
+            false
         )?;
         check_policies(
             &policy_engine,

@@ -71,6 +71,7 @@ pub(crate) fn load_semconv_specs(
 /// * `registry_path` - The path to the semantic convention registry.
 /// * `cache` - The cache for loading the registry.
 /// * `policies` - A list of paths to policy files.
+/// * `policy_coverage` - A flag to enable policy coverage.
 ///
 /// # Returns
 ///
@@ -80,8 +81,13 @@ pub(crate) fn init_policy_engine(
     registry_path: &weaver_semconv::path::RegistryPath,
     cache: &Cache,
     policies: &[PathBuf],
+    policy_coverage: bool,
 ) -> Result<Engine, DiagnosticMessages> {
     let mut engine = Engine::new();
+
+    if policy_coverage {
+        engine.enable_coverage();
+    }
 
     // Add policies from the registry
     let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)?;
@@ -89,7 +95,7 @@ pub(crate) fn init_policy_engine(
 
     // Add policies from the command line
     for policy in policies {
-        engine.add_policy(policy)?;
+        _ = engine.add_policy(policy)?;
     }
 
     Ok(engine)

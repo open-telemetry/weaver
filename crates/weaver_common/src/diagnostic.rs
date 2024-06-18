@@ -39,7 +39,7 @@ pub struct MietteDiagnosticExt {
 }
 
 /// A generic and serializable representation of a diagnostic message
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct DiagnosticMessage {
     /// The error
     pub(crate) error: serde_json::Value,
@@ -48,7 +48,7 @@ pub struct DiagnosticMessage {
 }
 
 /// A list of diagnostic messages
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 #[serde(transparent)]
 pub struct DiagnosticMessages(Vec<DiagnosticMessage>);
 
@@ -84,6 +84,12 @@ impl DiagnosticMessages {
     #[must_use]
     pub fn new(diag_msgs: Vec<DiagnosticMessage>) -> Self {
         Self(diag_msgs)
+    }
+
+    /// Creates an empty list of diagnostic messages
+    #[must_use]
+    pub fn empty() -> Self {
+        Self(Vec::new())
     }
 
     /// Extends the current `DiagnosticMessages` with the provided
@@ -142,6 +148,42 @@ impl DiagnosticMessages {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+/// An extension trait for `Result` that captures the diagnostic messages
+pub trait ResultExt<T, E> {
+    /// Captures the diagnostic messages into the provided `DiagnosticMessages`
+    /// or returns the value if there are no diagnostic messages.
+    fn capture_diag_msgs_into(self, diags: &mut DiagnosticMessages) -> Option<T>;
+
+    /// Combines the diagnostic messages with the provided `DiagnosticMessages`
+    /// and returns the `ok` value or the combined `DiagnosticMessages`.
+    fn combine_diag_msgs_with(self, diags: &DiagnosticMessages) -> Result<T, DiagnosticMessages>;
+}
+
+impl<T, E> ResultExt<T, E> for Result<T, E> where
+    E: Into<DiagnosticMessages>
+{
+    fn capture_diag_msgs_into(self, diags: &mut DiagnosticMessages) -> Option<T> {
+        match self {
+            Ok(v) => Some(v),
+            Err(diag_msgs) => {
+                diags.extend(diag_msgs.into());
+                None
+            }
+        }
+    }
+
+    fn combine_diag_msgs_with(self, diags: &DiagnosticMessages) -> Result<T, DiagnosticMessages> {
+        match self {
+            Ok(v) => Ok(v),
+            Err(errs) => {
+                let mut diag_msgs: DiagnosticMessages = errs.into();
+                diag_msgs.extend(diags.clone());
+                Err(diag_msgs)
+            }
+        }
     }
 }
 
