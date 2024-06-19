@@ -120,10 +120,12 @@ pub struct Group {
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lineage: Option<GroupLineage>,
+    /// The readable name for attribute groups used when generating registry tables.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 /// Common statistics for a group.
