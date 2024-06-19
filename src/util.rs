@@ -5,8 +5,8 @@
 
 use crate::registry::RegistryPath;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::path::PathBuf;
 use serde::Serialize;
+use std::path::PathBuf;
 use weaver_cache::Cache;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage};
@@ -171,7 +171,7 @@ pub(crate) fn check_policy(
                 &mut policy_engine,
                 PolicyStage::BeforeResolution,
                 path,
-                semconv
+                semconv,
             )
         })
         .collect::<Vec<Error>>();
@@ -198,7 +198,7 @@ pub(crate) fn check_policies(
     logger: impl Logger + Sync + Clone,
 ) -> Result<(), DiagnosticMessages> {
     if policy_engine.policy_package_count() > 0 {
-        check_policy(&policy_engine, semconv_specs).map_err(|e| {
+        check_policy(policy_engine, semconv_specs).map_err(|e| {
             if let Error::CompoundError(errors) = e {
                 DiagnosticMessages::from_errors(errors)
             } else {

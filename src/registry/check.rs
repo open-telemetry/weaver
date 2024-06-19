@@ -14,9 +14,12 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::{DiagnosticArgs, ExitDirectives};
 use crate::registry::RegistryArgs;
-use crate::util::{check_policies, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from};
+use crate::util::{
+    check_policies, check_policy_stage, init_policy_engine, load_semconv_specs,
+    resolve_semconv_specs, semconv_registry_path_from,
+};
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -75,11 +78,8 @@ pub(crate) fn command(
         // Check the policies against the semantic convention specifications before resolution.
         // All violations should be captured into an ongoing list of diagnostic messages which
         // will be combined with the final result of future stages.
-        _ = check_policies(
-            policy_engine,
-            &semconv_specs,
-            logger.clone(),
-        ).capture_diag_msgs_into(&mut diag_msgs);
+        _ = check_policies(policy_engine, &semconv_specs, logger.clone())
+            .capture_diag_msgs_into(&mut diag_msgs);
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
@@ -87,8 +87,8 @@ pub(crate) fn command(
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    let resolved_schema = resolve_semconv_specs(&mut registry, logger.clone())
-        .combine_diag_msgs_with(&diag_msgs)?;
+    let resolved_schema =
+        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(&diag_msgs)?;
 
     if let Some(policy_engine) = policy_engine.as_mut() {
         // Convert the resolved schemas into a resolved registry.
@@ -100,7 +100,8 @@ pub(crate) fn command(
                 .registry(registry_id)
                 .expect("Failed to get the registry from the resolved schema"),
             resolved_schema.catalog(),
-        ).combine_diag_msgs_with(&diag_msgs)?;
+        )
+        .combine_diag_msgs_with(&diag_msgs)?;
 
         // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
         let errs = check_policy_stage(
@@ -131,8 +132,10 @@ mod tests {
     use weaver_common::TestLogger;
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand, semconv_registry};
     use crate::registry::check::RegistryCheckArgs;
+    use crate::registry::{
+        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]
@@ -210,10 +213,12 @@ mod tests {
         assert!(cmd_result.command_result.is_err());
         if let Err(diag_msgs) = cmd_result.command_result {
             assert!(!diag_msgs.is_empty());
-            assert_eq!(diag_msgs.len(),
-                       13 /* before resolution */
+            assert_eq!(
+                diag_msgs.len(),
+                13 /* before resolution */
                            + 3 /* metric after resolution */
-                           + 9 /* http after resolution */);
+                           + 9 /* http after resolution */
+            );
         }
     }
 }

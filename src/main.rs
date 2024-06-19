@@ -99,7 +99,7 @@ fn main() {
 
 /// Run the command specified by the CLI arguments and return the exit directives.
 #[cfg(not(tarpaulin_include))]
-fn  run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
+fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
@@ -120,11 +120,7 @@ fn process_diagnostics(
     cmd_result: CmdResult,
     logger: impl Logger + Sync + Clone,
 ) -> ExitDirectives {
-    let diagnostic_args = if let Some(diagnostic_args) = cmd_result.diagnostic_args {
-        diagnostic_args
-    } else {
-        DiagnosticArgs::default() // Default diagnostic arguments;
-    };
+    let diagnostic_args = cmd_result.diagnostic_args.unwrap_or_default();
     let mut exit_directives = if let Ok(exit_directives) = &cmd_result.command_result {
         exit_directives.clone()
     } else {

@@ -16,8 +16,8 @@ use walkdir::DirEntry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 
-use crate::Error::CompoundError;
 use crate::violation::Violation;
+use crate::Error::CompoundError;
 
 pub mod violation;
 
@@ -178,14 +178,16 @@ impl Engine {
     pub fn add_policy<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<String, Error> {
         let policy_path_str = policy_path.as_ref().to_string_lossy().to_string();
 
-        let policy_package = self.engine
+        let policy_package = self
+            .engine
             .add_policy_from_file(policy_path)
             .map_err(|e| Error::InvalidPolicyFile {
                 file: policy_path_str.clone(),
                 error: e.to_string(),
-            }).inspect(|_| {
-            self.policy_package_count += 1;
-        })?;
+            })
+            .inspect(|_| {
+                self.policy_package_count += 1;
+            })?;
         // Add the policy package defined in the imported policy file.
         // Nothing prevent multiple policy files to import the same policy package.
         // All the rules will be combined and evaluated together.
@@ -250,6 +252,7 @@ impl Engine {
     }
 
     /// Returns the number of policy packages added to the policy engine.
+    #[must_use]
     pub fn policy_package_count(&self) -> usize {
         self.policy_package_count
     }
@@ -307,6 +310,7 @@ impl Engine {
 
     /// Returns a list of violations based on the policies, the data, the
     /// input, and the given policy stage.
+    #[allow(clippy::print_stdout)] // Used to display the coverage (debugging purposes only)
     pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<Violation>, Error> {
         // If we don't have any policy package that matches the stage,
         // return an empty list of violations.
@@ -318,18 +322,24 @@ impl Engine {
             .engine
             .eval_rule(format!("data.{}.deny", stage))
             .map_err(|e| Error::ViolationEvaluationError {
-                error: e.to_string()
+                error: e.to_string(),
             })?;
 
         // Print the coverage report if enabled
         // This is useful for debugging purposes
         if self.coverage_enabled {
-            let report = self.engine.get_coverage_report().map_err(|e| Error::ViolationEvaluationError {
-                error: e.to_string()
-            })?;
-            let pretty_report = report.to_string_pretty().map_err(|e| Error::ViolationEvaluationError {
-                error: e.to_string()
-            })?;
+            let report =
+                self.engine
+                    .get_coverage_report()
+                    .map_err(|e| Error::ViolationEvaluationError {
+                        error: e.to_string(),
+                    })?;
+            let pretty_report =
+                report
+                    .to_string_pretty()
+                    .map_err(|e| Error::ViolationEvaluationError {
+                        error: e.to_string(),
+                    })?;
             println!("{}", pretty_report);
         }
 
@@ -356,13 +366,14 @@ mod tests {
 
     use weaver_common::error::format_errors;
 
-    use crate::{Engine, Error, PolicyStage};
     use crate::violation::Violation;
+    use crate::{Engine, Error, PolicyStage};
 
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine = Engine::new();
-        engine.add_policy("data/policies/otel_policies.rego")?;
+        let policy_package = engine.add_policy("data/policies/otel_policies.rego")?;
+        assert_eq!(policy_package, "data.before_resolution");
 
         let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
         let old_semconv: Value = serde_yaml::from_str(&old_semconv)?;
@@ -392,9 +403,9 @@ mod tests {
                 attr: "protocol.port".to_owned(),
             },
         ]
-            .into_iter()
-            .map(|v| (v.id().to_owned(), v))
-            .collect();
+        .into_iter()
+        .map(|v| (v.id().to_owned(), v))
+        .collect();
 
         let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);
@@ -423,7 +434,7 @@ mod tests {
     #[test]
     fn test_invalid_violation_object() {
         let mut engine = Engine::new();
-        engine
+        _ = engine
             .add_policy("data/policies/invalid_violation_object.rego")
             .unwrap();
 
@@ -477,9 +488,9 @@ mod tests {
                 attr: "protocol.port".to_owned(),
             },
         ]
-            .into_iter()
-            .map(|v| (v.id().to_owned(), v))
-            .collect();
+        .into_iter()
+        .map(|v| (v.id().to_owned(), v))
+        .collect();
 
         let violations = engine.check(PolicyStage::BeforeResolution)?;
         assert_eq!(violations.len(), 3);

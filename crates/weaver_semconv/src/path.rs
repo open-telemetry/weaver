@@ -33,7 +33,7 @@ impl Display for RegistryPath {
             RegistryPath::GitUrl { git_url, path } => match path {
                 Some(path) => format!("GitRegistry:{}/{:?}", git_url, path),
                 None => format!("GitRegistry:{}", git_url),
-            }
+            },
         };
         f.write_str(&path)
     }

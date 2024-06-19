@@ -162,8 +162,9 @@ pub trait ResultExt<T, E> {
     fn combine_diag_msgs_with(self, diags: &DiagnosticMessages) -> Result<T, DiagnosticMessages>;
 }
 
-impl<T, E> ResultExt<T, E> for Result<T, E> where
-    E: Into<DiagnosticMessages>
+impl<T, E> ResultExt<T, E> for Result<T, E>
+where
+    E: Into<DiagnosticMessages>,
 {
     fn capture_diag_msgs_into(self, diags: &mut DiagnosticMessages) -> Option<T> {
         match self {
