@@ -95,7 +95,7 @@ impl DiagnosticMessages {
     /// Extends the current `DiagnosticMessages` with the provided
     /// `DiagnosticMessages`.
     pub fn extend(&mut self, diag_msgs: DiagnosticMessages) {
-        self.0.extend(diag_msgs.0)
+        self.0.extend(diag_msgs.0);
     }
 
     /// Logs all the diagnostic messages
