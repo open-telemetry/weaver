@@ -1,0 +1,12 @@
+groups:
+  - id: usecase
+    brief: Attributes for test.
+    type: attribute_group
+    prefix: usecase
+    attributes:
+      - ref: geo.lat
+        brief: this is ref attribute
+      - ref: client.id
+      - ref: geo.lon
+      - ref: client.geo.lat
+        brief: this is embeded attribute
