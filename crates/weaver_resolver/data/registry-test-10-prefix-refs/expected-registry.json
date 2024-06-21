@@ -42,10 +42,10 @@
       }
     },
     {
-      "id": "usecase",
+      "id": "usage",
       "type": "attribute_group",
       "brief": "Attributes for test.",
-      "prefix": "usecase",
+      "prefix": "usage",
       "attributes": [
         0,
         2,
@@ -53,7 +53,7 @@
         5
       ],
       "lineage": {
-        "source_file": "data/registry-test-10-prefix-refs/registry/usecase.yaml",
+        "source_file": "data/registry-test-10-prefix-refs/registry/usage.yaml",
         "attributes": {
           "client.geo.lat": {
             "source_group": "registry.client",

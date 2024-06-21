@@ -53,7 +53,7 @@
     {
       "name": "client.geo.lat",
       "type": "string",
-      "brief": "this is embeded attribute",
+      "brief": "this is embedded attribute",
       "examples": [
         "123.456"
       ],
