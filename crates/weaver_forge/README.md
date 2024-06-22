@@ -152,7 +152,7 @@ The following filters are available:
 - `snake_case_const`: Generates snake_case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `screaming_snake_case_const`: Generates SCREAMING_SNAKE_CASE constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
-- `split_ids`: Splits a string by '.' creating a list of nested ids.
+- `split_id`: Splits a string by '.' creating a list of nested ids.
 - `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
 - `flatten`: Converts a List of Lists into a single list with all elements.
