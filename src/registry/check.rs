@@ -78,6 +78,11 @@ pub(crate) fn command(
         // Check the policies against the semantic convention specifications before resolution.
         // All violations should be captured into an ongoing list of diagnostic messages which
         // will be combined with the final result of future stages.
+        // `check_policies` either returns `()` or diagnostic messages, and `capture_diag_msgs_into` updates the
+        // provided parameters with any diagnostic messages produced by `check_policies`.
+        // In this specific case, `capture_diag_msgs_into` returns either `Some(())` or `None`
+        // if diagnostic messages have been captured. Therefore, it is acceptable to ignore the result in this
+        // particular case.
         _ = check_policies(policy_engine, &semconv_specs, logger.clone())
             .capture_diag_msgs_into(&mut diag_msgs);
     }

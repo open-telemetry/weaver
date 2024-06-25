@@ -22,8 +22,8 @@ use weaver_semconv::semconv::SemConvSpec;
 ///
 /// # Arguments
 ///
-/// * `registry` - A reference to the `RegistryPath`.
-/// * `path` - An optional string representing the path.
+/// * `registry`: A reference to a registry of telemetry schema.  This is considered identifying for that registry, e.g a git url or local file path.  
+/// * `path`: An optional string representing a sub-directory in the registry identifying path where model/yaml files are located.
 pub(crate) fn semconv_registry_path_from(
     registry: &RegistryPath,
     path: &Option<String>,
