@@ -2,6 +2,8 @@
 
 //! Semantic convention registry path.
 
+use std::fmt::{Display, Formatter};
+
 use serde::{Deserialize, Serialize};
 
 /// A semantic convention registry path.
@@ -22,4 +24,17 @@ pub enum RegistryPath {
         /// the semantic convention files.
         path: Option<String>,
     },
+}
+
+impl Display for RegistryPath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let path = match self {
+            RegistryPath::Local { path_pattern } => format!("LocalRegistry:{}", path_pattern),
+            RegistryPath::GitUrl { git_url, path } => match path {
+                Some(path) => format!("GitRegistry:{}/{:?}", git_url, path),
+                None => format!("GitRegistry:{}", git_url),
+            },
+        };
+        f.write_str(&path)
+    }
 }

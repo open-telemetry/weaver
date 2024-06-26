@@ -18,7 +18,8 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{Error, RegistryArgs};
 use crate::util::{
-    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    check_policies, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
+    semconv_registry_path_from,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -101,13 +102,8 @@ pub(crate) fn command(
     let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
 
     if !args.skip_policies {
-        check_policies(
-            &registry_path,
-            cache,
-            &args.policies,
-            &semconv_specs,
-            logger.clone(),
-        )?;
+        let policy_engine = init_policy_engine(&registry_path, cache, &args.policies, false)?;
+        check_policies(&policy_engine, &semconv_specs, logger.clone())?;
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);

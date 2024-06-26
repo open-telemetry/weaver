@@ -2,17 +2,24 @@
 
 //! Check a semantic convention registry.
 
+use std::path::PathBuf;
+
+use clap::Args;
+
+use weaver_cache::Cache;
+use weaver_checker::PolicyStage;
+use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::error::handle_errors;
+use weaver_common::Logger;
+use weaver_forge::registry::ResolvedRegistry;
+use weaver_semconv::registry::SemConvRegistry;
+
 use crate::registry::RegistryArgs;
 use crate::util::{
-    check_policies, load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from,
+    check_policies, check_policy_stage, init_policy_engine, load_semconv_specs,
+    resolve_semconv_specs, semconv_registry_path_from,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
-use std::path::PathBuf;
-use weaver_cache::Cache;
-use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
-use weaver_semconv::registry::SemConvRegistry;
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -30,6 +37,10 @@ pub struct RegistryCheckArgs {
     #[arg(long, default_value = "false")]
     pub skip_policies: bool,
 
+    /// Display the policy coverage report (useful for debugging).
+    #[arg(long, default_value = "false")]
+    pub display_policy_coverage: bool,
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -42,6 +53,7 @@ pub(crate) fn command(
     cache: &Cache,
     args: &RegistryCheckArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let mut diag_msgs = DiagnosticMessages::empty();
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
     let registry_id = "default";
@@ -51,19 +63,68 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local cache.
     // No parsing errors should be observed.
     let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
-
-    if !args.skip_policies {
-        check_policies(
+    let mut policy_engine = if !args.skip_policies {
+        Some(init_policy_engine(
             &registry_path,
             cache,
             &args.policies,
-            &semconv_specs,
-            logger.clone(),
-        )?;
+            args.display_policy_coverage,
+        )?)
+    } else {
+        None
+    };
+
+    if let Some(policy_engine) = policy_engine.as_ref() {
+        // Check the policies against the semantic convention specifications before resolution.
+        // All violations should be captured into an ongoing list of diagnostic messages which
+        // will be combined with the final result of future stages.
+        // `check_policies` either returns `()` or diagnostic messages, and `capture_diag_msgs_into` updates the
+        // provided parameters with any diagnostic messages produced by `check_policies`.
+        // In this specific case, `capture_diag_msgs_into` returns either `Some(())` or `None`
+        // if diagnostic messages have been captured. Therefore, it is acceptable to ignore the result in this
+        // particular case.
+        _ = check_policies(policy_engine, &semconv_specs, logger.clone())
+            .capture_diag_msgs_into(&mut diag_msgs);
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    _ = resolve_semconv_specs(&mut registry, logger.clone())?;
+    // Resolve the semantic convention specifications.
+    // If there are any resolution errors, they should be captured into the ongoing list of
+    // diagnostic messages and returned immediately because there is no point in continuing
+    // as the resolution is a prerequisite for the next stages.
+    let resolved_schema =
+        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(&diag_msgs)?;
+
+    if let Some(policy_engine) = policy_engine.as_mut() {
+        // Convert the resolved schemas into a resolved registry.
+        // If there are any policy violations, they should be captured into the ongoing list of
+        // diagnostic messages and returned immediately because there is no point in continuing
+        // as the registry resolution is a prerequisite for the next stages.
+        let resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+            resolved_schema
+                .registry(registry_id)
+                .expect("Failed to get the registry from the resolved schema"),
+            resolved_schema.catalog(),
+        )
+        .combine_diag_msgs_with(&diag_msgs)?;
+
+        // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
+        let errs = check_policy_stage(
+            policy_engine,
+            PolicyStage::AfterResolution,
+            &registry_path.to_string(),
+            &resolved_registry,
+        );
+
+        // Append the policy errors to the ongoing list of diagnostic messages and if there are
+        // any errors, return them immediately.
+        if let Err(err) = handle_errors(errs) {
+            diag_msgs.extend(err.into());
+        }
+        if !diag_msgs.is_empty() {
+            return Err(diag_msgs);
+        }
+    }
 
     Ok(ExitDirectives {
         exit_code: 0,
@@ -77,11 +138,13 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{
+        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]
-    fn test_registry_check() {
+    fn test_registry_check_exit_code() {
         let logger = TestLogger::new();
         let cli = Cli {
             debug: 0,
@@ -96,6 +159,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: true,
+                    display_policy_coverage: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -119,6 +183,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: false,
+                    display_policy_coverage: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -127,5 +192,38 @@ mod tests {
         let exit_directive = run_command(&cli, logger);
         // The command should exit with an error code.
         assert_eq!(exit_directive.exit_code, 1);
+    }
+
+    #[test]
+    fn test_semconv_registry() {
+        let logger = TestLogger::new();
+
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Check(RegistryCheckArgs {
+                registry: RegistryArgs {
+                    registry: RegistryPath::Local(
+                        "crates/weaver_codegen_test/semconv_registry/".to_owned(),
+                    ),
+                    registry_git_sub_dir: None,
+                },
+                policies: vec![],
+                skip_policies: false,
+                display_policy_coverage: false,
+                diagnostic: Default::default(),
+            }),
+        };
+
+        let cmd_result = semconv_registry(logger.clone(), &registry_cmd);
+        // Violations should be observed.
+        assert!(cmd_result.command_result.is_err());
+        if let Err(diag_msgs) = cmd_result.command_result {
+            assert!(!diag_msgs.is_empty());
+            assert_eq!(
+                diag_msgs.len(),
+                13 /* before resolution */
+                           + 3 /* metric after resolution */
+                           + 9 /* http after resolution */
+            );
+        }
     }
 }
