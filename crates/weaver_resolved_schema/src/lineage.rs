@@ -399,12 +399,7 @@ impl AttributeLineage {
         }
     }
 
-    /// Determines the value of the tags field by evaluating the presence of
-    /// a local value. If a local value is provided, it is used, and the tags
-    /// field's lineage is marked as local. Otherwise, the specified parent
-    /// value is used, and the tags field's lineage is marked as inherited
-    /// from the parent.
-    /// This method updates the lineage information for the tags field to
+    /// This method updates the lineage information for the prefix field to
     /// reflect the source of its value.
     pub fn prefix(&mut self, local_value: &bool, parent_value: &bool) -> bool {
         if *local_value {
