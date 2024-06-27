@@ -15,8 +15,8 @@ Url:{{ registry_url }}
 {% for group in ctx.groups %}
 {% if group.type == "event" %}
 - [{{ group.id }}](event/{{ group.id | file_name }}.md)
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
 
 ## Metrics
 
@@ -30,28 +30,28 @@ Url:{{ registry_url }}
 {% for group in ctx.groups %}
 {% if group.type == "metric_group" %}
 - [{{ group.id }}](metric_group/{{ group.id | file_name }}.md)
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
 
 ## Resource
 
 {% for group in ctx.groups %}
 {% if group.type == "resource" %}
 - [{{ group.id }}](resource/{{ group.id | file_name }}.md)
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
 
 ## Scope
 {% for group in ctx.groups %}
 {% if group.type == "scope" %}
 - [{{ group.id }}](scope/{{ group.id | file_name }}.md)
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
 
 ## Span
 
 {% for group in ctx.groups %}
 {% if group.type == "span" %}
 - [{{ group.id }}](span/{{ group.id | file_name }}.md)
-  {% endif %}
-  {% endfor %}
+{% endif %}
+{% endfor %}
