@@ -691,7 +691,7 @@ mod tests {
     #[test]
     fn test_whitespace_control() {
         let logger = TestLogger::default();
-        let loader = FileSystemFileLoader::try_new("templates/test".into(), "whitespace_control")
+        let loader = FileSystemFileLoader::try_new("whitespace_control_templates".into(), "test")
             .expect("Failed to create file system loader");
         let engine = super::TemplateEngine::try_new(loader, Params::default())
             .expect("Failed to create template engine");
@@ -717,7 +717,7 @@ mod tests {
             .generate(
                 logger.clone(),
                 &template_registry,
-                Path::new("templates/test/whitespace_control/observed_output"),
+                Path::new("whitespace_control_templates/test/observed_output"),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
@@ -726,8 +726,8 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir(
-            "templates/test/whitespace_control/expected_output",
-            "templates/test/whitespace_control/observed_output"
+            "whitespace_control_templates/test/expected_output",
+            "whitespace_control_templates/test/observed_output"
         )
         .unwrap());
     }
