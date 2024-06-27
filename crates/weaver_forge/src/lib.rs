@@ -725,6 +725,10 @@ mod tests {
             })
             .expect("Failed to generate registry assets");
 
-        assert!(diff_dir("templates/test/whitespace_control/expected_output", "templates/test/whitespace_control/observed_output").unwrap());
+        assert!(diff_dir(
+            "templates/test/whitespace_control/expected_output",
+            "templates/test/whitespace_control/observed_output"
+        )
+        .unwrap());
     }
 }

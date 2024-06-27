@@ -314,7 +314,7 @@ impl Default for TemplateSyntax {
             comment_start: default_comment_start(),
             comment_end: default_comment_end(),
             trim_blocks: default_trim_blocks(),
-            lstrip_blocks: default_lstrip_blocks()
+            lstrip_blocks: default_lstrip_blocks(),
         }
     }
 }
