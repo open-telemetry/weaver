@@ -253,6 +253,15 @@ pub struct TemplateSyntax {
     /// The end of a comment.
     #[serde(default = "default_comment_end")]
     pub comment_end: String,
+    /// Configures the behavior of the first newline after a block.
+    /// See https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks
+    #[serde(default = "default_trim_blocks")]
+    pub trim_blocks: bool,
+    /// Configures the behavior of the first newline after a block.
+    /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
+    /// See https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks
+    #[serde(default = "default_lstrip_blocks")]
+    pub lstrip_blocks: bool,
 }
 
 /// Default block start delimiter.
@@ -285,6 +294,16 @@ fn default_comment_end() -> String {
     "#}".to_owned()
 }
 
+/// Default trim_blocks behavior.
+fn default_trim_blocks() -> bool {
+    false
+}
+
+/// Default lstrip_blocks behavior.
+fn default_lstrip_blocks() -> bool {
+    false
+}
+
 impl Default for TemplateSyntax {
     fn default() -> Self {
         TemplateSyntax {
@@ -294,6 +313,8 @@ impl Default for TemplateSyntax {
             variable_end: default_variable_end(),
             comment_start: default_comment_start(),
             comment_end: default_comment_end(),
+            trim_blocks: default_trim_blocks(),
+            lstrip_blocks: default_lstrip_blocks()
         }
     }
 }

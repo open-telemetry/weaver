@@ -456,6 +456,11 @@ impl TemplateEngine {
         });
         env.set_syntax(syntax);
 
+        // Jinja whitespace control
+        // https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
+        env.set_trim_blocks(template_syntax.trim_blocks);
+        env.set_lstrip_blocks(template_syntax.lstrip_blocks);
+
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
         case::add_filters(&mut env, &self.target_config);
@@ -681,5 +686,45 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output", "observed_output").unwrap());
+    }
+
+    #[test]
+    fn test_whitespace_control() {
+        let logger = TestLogger::default();
+        let loader = FileSystemFileLoader::try_new("templates/test".into(), "whitespace_control")
+            .expect("Failed to create file system loader");
+        let engine = super::TemplateEngine::try_new(loader, Params::default())
+            .expect("Failed to create template engine");
+
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
+
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                Path::new("templates/test/whitespace_control/observed_output"),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir("templates/test/whitespace_control/expected_output", "templates/test/whitespace_control/observed_output").unwrap());
     }
 }

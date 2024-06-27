@@ -34,9 +34,9 @@ templates/
     html/                   <-- Templates to generate the semantic conventions in HTML
       ...
     markdown/               <-- Templates to generate the semantic conventions in markdown
-      ... 
+      ...
     rust/                   <-- Templates to generate the semantic conventions in Rust
-      ...  
+      ...
     go/                     <-- Templates to generate the semantic conventions in Go
       ...
   schema/
@@ -78,6 +78,7 @@ documentation for more details.
 ## Global Variables
 
 All templates have access to the following global variables:
+
 - `ctx`: The context object that contains the resolved registry or the output of
 the JQ filter if defined in the `weaver.yaml` configuration file.
 - `params`: The parameters defined in the `weaver.yaml` configuration file or overridden
@@ -130,12 +131,13 @@ Jinja templates can also access the parameters:
 ## Jinja Filters
 
 All the filters available in the MiniJinja template engine are available (see
-this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)). 
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)).
 
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
 
 The following filters are available:
+
 - `lower_case`: Converts a string to lowercase.
 - `upper_case`: Converts a string to UPPERCASE.
 - `title_case`: Converts a string to TitleCase.
@@ -146,7 +148,7 @@ The following filters are available:
 - `kebab_case`: Converts a string to kebab-case.
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
 - `capitalize_first`: Capitalizes the first letter of a string.
-- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful). 
+- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `pascal_case_const`: Generates PascalCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `camel_case_const`: Generates camelCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `snake_case_const`: Generates snake_case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
@@ -165,7 +167,7 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 - `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
 - `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
-- `instantiated_type`: Filters a type to return the instantiated type. 
+- `instantiated_type`: Filters a type to return the instantiated type.
 - `enum_type`: Filters a type to return the enum type or an error if the type is not an enum.
 - `markdown_to_html`: Converts a markdown string to an HTML string.
 - `map_text`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file
@@ -212,7 +214,7 @@ value if the name of the text map or the input are not found in the `text_maps` 
 
 ## Jinja Functions
 
-All the functions available in the MiniJinja template engine are available (see 
+All the functions available in the MiniJinja template engine are available (see
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
 Right now, OTel Weaver does not provide any custom functions but feel free to

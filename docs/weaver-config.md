@@ -16,7 +16,7 @@ following options:
 #    double: doubleKey
 #    boolean: booleanKey
 #    string: stringKey
-    
+
 # Deprecated, please use text_maps instead
 # Configuration of the type mapping. This is useful to generate code in a
 # specific language. This is optional.
@@ -33,7 +33,8 @@ following options:
 #  "string[]": "[]string"
 #  ...
 
-# Uncomment this section to specify the configuration of the Jinja template syntax.
+# Uncomment this section to specify the configuration of the Jinja template syntax
+# and control whitespace behavior.
 # Note: The default syntax is strongly recommended.
 #template_syntax:
 #  block_start: "{%"
@@ -42,6 +43,8 @@ following options:
 #  variable_end: "}}"
 #  comment_start: "{#"
 #  comment_end: "#}"
+#  trim_blocks: false
+#  lstrip_blocks: false
 
 # Uncomment the following section to specify a list of acronyms that
 # will be interpreted by the acronym filter. This is optional.
@@ -52,7 +55,7 @@ following options:
 # params:
 #  param1: val1
 #  param2: val2
-  
+
 # Uncomment the following templates to override the default template
 # mapping. Each template mapping specifies a jaq filter (compatible with jq)
 # to apply to every file matching the pattern. The application_mode specifies
