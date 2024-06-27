@@ -254,12 +254,12 @@ pub struct TemplateSyntax {
     #[serde(default = "default_comment_end")]
     pub comment_end: String,
     /// Configures the behavior of the first newline after a block.
-    /// See https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
     #[serde(default = "default_trim_blocks")]
     pub trim_blocks: bool,
     /// Configures the behavior of the first newline after a block.
     /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
-    /// See https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks>
     #[serde(default = "default_lstrip_blocks")]
     pub lstrip_blocks: bool,
 }
