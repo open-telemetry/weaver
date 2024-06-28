@@ -302,46 +302,17 @@ impl Default for TemplateSyntax {
 }
 
 /// Whitespace control configuration for the template engine.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct WhitespaceControl {
     /// Configures the behavior of the first newline after a block.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
-    #[serde(default = "default_trim_blocks")]
     pub trim_blocks: bool,
-    /// Configures the behavior of the first newline after a block.
     /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks>
-    #[serde(default = "default_lstrip_blocks")]
     pub lstrip_blocks: bool,
     /// Configures whether trailing newline are preserved when rendering templates.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_keep_trailing_newline>
-    #[serde(default = "default_keep_trailing_newline")]
     pub keep_trailing_newline: bool,
-}
-
-/// Default trim_blocks behavior.
-fn default_trim_blocks() -> bool {
-    false
-}
-
-/// Default lstrip_blocks behavior.
-fn default_lstrip_blocks() -> bool {
-    false
-}
-
-/// Default keep_trailing_newline behavior.
-fn default_keep_trailing_newline() -> bool {
-    false
-}
-
-impl Default for WhitespaceControl {
-    fn default() -> Self {
-        WhitespaceControl {
-            trim_blocks: default_trim_blocks(),
-            lstrip_blocks: default_lstrip_blocks(),
-            keep_trailing_newline: default_keep_trailing_newline(),
-        }
-    }
 }
 
 impl Default for CaseConvention {
