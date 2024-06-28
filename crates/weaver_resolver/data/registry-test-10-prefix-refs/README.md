@@ -1,0 +1,1 @@
+Test adding a prefix to the references in attributes.

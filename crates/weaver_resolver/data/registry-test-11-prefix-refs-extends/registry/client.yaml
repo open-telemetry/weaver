@@ -1,0 +1,15 @@
+groups:
+  - id: registry.client
+    prefix: client
+    type: attribute_group
+    brief: "Describes information about the client."
+    attributes:
+      - id: id
+        type: string
+        stability: experimental
+        brief: >
+          some client id
+        examples: ['a.einstein']
+      - ref: geo.lat
+        prefix: true
+        brief: My own latitude
