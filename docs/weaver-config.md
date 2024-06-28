@@ -43,8 +43,13 @@ following options:
 #  variable_end: "}}"
 #  comment_start: "{#"
 #  comment_end: "#}"
-#  trim_blocks: false
-#  lstrip_blocks: false
+
+# Uncomment this section to specify the whitespace behavior of the Jinja template engine.
+# For more info, see: https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
+# whitespace_control:
+#   trim_blocks: true
+#   lstrip_blocks: true
+#   keep_trailing_newline: true
 
 # Uncomment the following section to specify a list of acronyms that
 # will be interpreted by the acronym filter. This is optional.

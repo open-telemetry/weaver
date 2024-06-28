@@ -16,6 +16,7 @@ type_mapping:
 
 acronyms: ["iOS", "API", "URL"]
 
-template_syntax:
+whitespace_control:
   trim_blocks: true
   lstrip_blocks: true
+  keep_trailing_newline: true

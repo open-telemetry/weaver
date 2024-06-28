@@ -458,8 +458,10 @@ impl TemplateEngine {
 
         // Jinja whitespace control
         // https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
-        env.set_trim_blocks(template_syntax.trim_blocks);
-        env.set_lstrip_blocks(template_syntax.lstrip_blocks);
+        let whitespace_control = self.target_config.whitespace_control.clone();
+        env.set_trim_blocks(whitespace_control.trim_blocks);
+        env.set_lstrip_blocks(whitespace_control.lstrip_blocks);
+        env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline);
 
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);

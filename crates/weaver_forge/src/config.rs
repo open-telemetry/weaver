@@ -77,6 +77,9 @@ pub(crate) struct TargetConfig {
     /// Configuration for the template syntax.
     #[serde(default)]
     pub(crate) template_syntax: TemplateSyntax,
+    /// Configuration for the whitespace behavior on the template engine.
+    #[serde(default)]
+    pub(crate) whitespace_control: WhitespaceControl,
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
@@ -253,15 +256,6 @@ pub struct TemplateSyntax {
     /// The end of a comment.
     #[serde(default = "default_comment_end")]
     pub comment_end: String,
-    /// Configures the behavior of the first newline after a block.
-    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
-    #[serde(default = "default_trim_blocks")]
-    pub trim_blocks: bool,
-    /// Configures the behavior of the first newline after a block.
-    /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
-    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks>
-    #[serde(default = "default_lstrip_blocks")]
-    pub lstrip_blocks: bool,
 }
 
 /// Default block start delimiter.
@@ -294,6 +288,37 @@ fn default_comment_end() -> String {
     "#}".to_owned()
 }
 
+impl Default for TemplateSyntax {
+    fn default() -> Self {
+        TemplateSyntax {
+            block_start: default_block_start(),
+            block_end: default_block_end(),
+            variable_start: default_variable_start(),
+            variable_end: default_variable_end(),
+            comment_start: default_comment_start(),
+            comment_end: default_comment_end(),
+        }
+    }
+}
+
+/// Whitespace control configuration for the template engine.
+#[derive(Deserialize, Debug, Clone)]
+pub struct WhitespaceControl {
+    /// Configures the behavior of the first newline after a block.
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
+    #[serde(default = "default_trim_blocks")]
+    pub trim_blocks: bool,
+    /// Configures the behavior of the first newline after a block.
+    /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks>
+    #[serde(default = "default_lstrip_blocks")]
+    pub lstrip_blocks: bool,
+    /// Configures whether trailing newline are preserved when rendering templates.
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_keep_trailing_newline>
+    #[serde(default = "default_keep_trailing_newline")]
+    pub keep_trailing_newline: bool,
+}
+
 /// Default trim_blocks behavior.
 fn default_trim_blocks() -> bool {
     false
@@ -304,17 +329,17 @@ fn default_lstrip_blocks() -> bool {
     false
 }
 
-impl Default for TemplateSyntax {
+/// Default keep_trailing_newline behavior.
+fn default_keep_trailing_newline() -> bool {
+    false
+}
+
+impl Default for WhitespaceControl {
     fn default() -> Self {
-        TemplateSyntax {
-            block_start: default_block_start(),
-            block_end: default_block_end(),
-            variable_start: default_variable_start(),
-            variable_end: default_variable_end(),
-            comment_start: default_comment_start(),
-            comment_end: default_comment_end(),
+        WhitespaceControl {
             trim_blocks: default_trim_blocks(),
             lstrip_blocks: default_lstrip_blocks(),
+            keep_trailing_newline: default_keep_trailing_newline(),
         }
     }
 }
