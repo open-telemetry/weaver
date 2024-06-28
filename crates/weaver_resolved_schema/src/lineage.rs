@@ -74,6 +74,7 @@ impl AttributeLineage {
                 note,
                 stability,
                 deprecated,
+                prefix,
                 ..
             } => {
                 if brief.is_some() {
@@ -105,6 +106,9 @@ impl AttributeLineage {
                     _ = attr_lineage
                         .inherited_fields
                         .insert("deprecated".to_owned());
+                }
+                if *prefix {
+                    _ = attr_lineage.inherited_fields.insert("prefix".to_owned());
                 }
             }
             AttributeSpec::Id {
@@ -390,6 +394,21 @@ impl AttributeLineage {
         } else {
             if parent_value.is_some() {
                 _ = self.inherited_fields.insert("sampling_relevant".to_owned());
+            }
+            *parent_value
+        }
+    }
+
+    /// This method updates the lineage information for the prefix field to
+    /// reflect the source of its value.
+    pub fn prefix(&mut self, local_value: &bool, parent_value: &bool) -> bool {
+        if *local_value {
+            _ = self.locally_overridden_fields.insert("prefix".to_owned());
+            _ = self.inherited_fields.remove("prefix");
+            *local_value
+        } else {
+            if *parent_value {
+                _ = self.inherited_fields.insert("prefix".to_owned());
             }
             *parent_value
         }

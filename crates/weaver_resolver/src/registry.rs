@@ -318,6 +318,7 @@ fn resolve_attribute_references(
                 .filter_map(|attr| {
                     let attr_ref = attr_catalog.resolve(
                         &unresolved_group.group.id,
+                        &unresolved_group.group.prefix,
                         &attr.spec,
                         unresolved_group.group.lineage.as_mut(),
                     );
@@ -616,6 +617,7 @@ fn resolve_inheritance_attr(
             note,
             stability,
             deprecated,
+            prefix,
         } => {
             match parent_attr {
                 AttributeSpec::Ref {
@@ -627,6 +629,7 @@ fn resolve_inheritance_attr(
                     note: parent_note,
                     stability: parent_stability,
                     deprecated: parent_deprecated,
+                    prefix: parent_prefix,
                     ..
                 } => {
                     // attr and attr_parent are both references.
@@ -644,6 +647,7 @@ fn resolve_inheritance_attr(
                         note: lineage.optional_note(note, parent_note),
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
+                        prefix: lineage.prefix(prefix, parent_prefix),
                     }
                 }
                 AttributeSpec::Id {

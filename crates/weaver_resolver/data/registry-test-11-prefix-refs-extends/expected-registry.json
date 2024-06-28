@@ -1,0 +1,181 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "registry.client",
+      "type": "attribute_group",
+      "brief": "Describes information about the client.",
+      "prefix": "client",
+      "attributes": [
+        0,
+        6
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/client.yaml",
+        "attributes": {
+          "client.geo.lat": {
+            "source_group": "registry.geo",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.geo",
+      "type": "attribute_group",
+      "brief": "Attributes describing geo.",
+      "prefix": "geo",
+      "attributes": [
+        1,
+        2,
+        3
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/geo.yaml"
+      }
+    },
+    {
+      "id": "usage",
+      "type": "attribute_group",
+      "brief": "Attributes for test.",
+      "prefix": "usage",
+      "attributes": [
+        0,
+        2,
+        4,
+        7
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/usage.yaml",
+        "attributes": {
+          "client.geo.lat": {
+            "source_group": "registry.client",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief"
+            ]
+          },
+          "client.id": {
+            "source_group": "registry.client",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          },
+          "geo.lat": {
+            "source_group": "registry.geo",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief"
+            ]
+          },
+          "geo.lon": {
+            "source_group": "registry.geo",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "usage2",
+      "type": "attribute_group",
+      "brief": "Attributes for test.",
+      "prefix": "usage2",
+      "attributes": [
+        0,
+        2,
+        4,
+        5,
+        7
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/usage2.yaml",
+        "attributes": {
+          "client.geo.lat": {
+            "source_group": "registry.client",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief"
+            ]
+          },
+          "client.id": {
+            "source_group": "registry.client",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          },
+          "geo.country": {
+            "source_group": "registry.geo",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief"
+            ]
+          },
+          "geo.lat": {
+            "source_group": "registry.geo",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief"
+            ]
+          },
+          "geo.lon": {
+            "source_group": "registry.geo",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
