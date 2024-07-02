@@ -302,10 +302,7 @@ mod tests {
         let semconv_url = "http://unknown.com/unknown-semconv.yaml";
         let semconv_spec = SemConvSpec::from_url(semconv_url);
         assert!(semconv_spec.is_err());
-        assert!(matches!(
-            semconv_spec.unwrap_err(),
-            InvalidSemConvSpec { .. }
-        ));
+        assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
     }
 
     #[test]

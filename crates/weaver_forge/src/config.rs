@@ -77,6 +77,9 @@ pub(crate) struct TargetConfig {
     /// Configuration for the template syntax.
     #[serde(default)]
     pub(crate) template_syntax: TemplateSyntax,
+    /// Configuration for the whitespace behavior on the template engine.
+    #[serde(default)]
+    pub(crate) whitespace_control: WhitespaceControl,
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
@@ -296,6 +299,20 @@ impl Default for TemplateSyntax {
             comment_end: default_comment_end(),
         }
     }
+}
+
+/// Whitespace control configuration for the template engine.
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct WhitespaceControl {
+    /// Configures the behavior of the first newline after a block.
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
+    pub trim_blocks: bool,
+    /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks>
+    pub lstrip_blocks: bool,
+    /// Configures whether trailing newline are preserved when rendering templates.
+    /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_keep_trailing_newline>
+    pub keep_trailing_newline: bool,
 }
 
 impl Default for CaseConvention {

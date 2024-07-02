@@ -456,6 +456,13 @@ impl TemplateEngine {
         });
         env.set_syntax(syntax);
 
+        // Jinja whitespace control
+        // https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
+        let whitespace_control = self.target_config.whitespace_control.clone();
+        env.set_trim_blocks(whitespace_control.trim_blocks);
+        env.set_lstrip_blocks(whitespace_control.lstrip_blocks);
+        env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline);
+
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
         case::add_filters(&mut env, &self.target_config);
@@ -681,5 +688,49 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output", "observed_output").unwrap());
+    }
+
+    #[test]
+    fn test_whitespace_control() {
+        let logger = TestLogger::default();
+        let loader = FileSystemFileLoader::try_new("whitespace_control_templates".into(), "test")
+            .expect("Failed to create file system loader");
+        let engine = super::TemplateEngine::try_new(loader, Params::default())
+            .expect("Failed to create template engine");
+
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
+
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                Path::new("whitespace_control_templates/test/observed_output"),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(
+            "whitespace_control_templates/test/expected_output",
+            "whitespace_control_templates/test/observed_output"
+        )
+        .unwrap());
     }
 }

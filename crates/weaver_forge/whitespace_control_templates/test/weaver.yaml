@@ -1,0 +1,22 @@
+file_name: snake_case
+function_name: PascalCase
+arg_name: camelCase
+struct_name: PascalCase
+field_name: PascalCase
+
+type_mapping:
+  int: int64
+  double: double
+  boolean: bool
+  string: string
+  "int[]": "[]int64"
+  "double[]": "[]double"
+  "boolean[]": "[]bool"
+  "string[]": "[]string"
+
+acronyms: ["iOS", "API", "URL"]
+
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+  keep_trailing_newline: true
