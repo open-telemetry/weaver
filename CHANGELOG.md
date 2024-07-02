@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2024-07-02
+
+What's Changed
+
+* Add optional variant to requirement_level. by @MadVikingGod in https://github.com/open-telemetry/weaver/pull/199
+* Add semconv_const filter to support semantic convention namespacing rules. by @lquerel in https://github.com/open-telemetry/weaver/pull/200
+* Add display_name field. by @joaopgrassi in https://github.com/open-telemetry/weaver/pull/202
+* Bump regex from 1.10.4 to 1.10.5 by @dependabot in https://github.com/open-telemetry/weaver/pull/205
+* Bump clap from 4.5.6 to 4.5.7 by @dependabot in https://github.com/open-telemetry/weaver/pull/206
+* New entry in developer guide to describe the process of adding new fields in the semantic convention registry by @lquerel in https://github.com/open-telemetry/weaver/pull/209
+* Add Embed option for single attributes by @trisch-me in https://github.com/open-telemetry/weaver/pull/212
+* Bump include_dir from 0.7.3 to 0.7.4 by @dependabot in https://github.com/open-telemetry/weaver/pull/213
+* Add support for post-resolution policies by @lquerel in https://github.com/open-telemetry/weaver/pull/214
+* split_id filter is singular by @bryannaegele in https://github.com/open-telemetry/weaver/pull/217
+* Add Jinja whitespace control by @joaopgrassi in https://github.com/open-telemetry/weaver/pull/224
+
+## New Contributors
+* @MadVikingGod made their first contribution in https://github.com/open-telemetry/weaver/pull/199
+* @joaopgrassi made their first contribution in https://github.com/open-telemetry/weaver/pull/202
+* @trisch-me made their first contribution in https://github.com/open-telemetry/weaver/pull/212
+* @bryannaegele made their first contribution in https://github.com/open-telemetry/weaver/pull/217
+
+**Full Changelog**: https://github.com/open-telemetry/weaver/compare/v0.4.0...v0.5.0
+
+
 ## [0.4.0] - 2024-06-04
 
 What's Changed
