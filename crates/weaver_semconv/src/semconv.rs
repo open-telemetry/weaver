@@ -304,7 +304,7 @@ mod tests {
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
-            InvalidSemConvSpec { .. }
+            RegistryNotFound { .. }
         ));
     }
 
