@@ -7,7 +7,7 @@ use miette::Diagnostic;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
@@ -23,12 +23,12 @@ use crossterm::{
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::{CrosstermBackend, Stylize, Terminal},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, List, ListState, Paragraph},
     Frame,
 };
-use std::io::stdout;
+use std::io::{stdout, IsTerminal};
 use tui_textarea::TextArea;
 
 /// Parameters for the `registry search` sub-command
@@ -60,13 +60,21 @@ impl From<std::io::Error> for Error {
     }
 }
 
-// Our search application state
+// Our search application state.
+// This will be updated by the `process` method, which handles events.
+//
+// It is then used to render in the `render` method, which we try to keep stateless.
 struct SearchApp<'a> {
+    // The current resolved schema that we should be searching.
     schema: &'a ResolvedTelemetrySchema,
+    // A text-input area where users can enter a search string.
     search_area: TextArea<'a>,
+    // The current selected index in search results.  Need to be manually cleared when new search strings are entered.
+    selected_result_index: Option<usize>,
 }
 
 impl<'a> SearchApp<'a> {
+    // Creates a new search application for a given resolved schema.
     fn new(schema: &'a ResolvedTelemetrySchema) -> SearchApp<'a> {
         let mut search_area = TextArea::default();
         search_area.set_placeholder_text("Enter search string");
@@ -80,6 +88,7 @@ impl<'a> SearchApp<'a> {
         SearchApp {
             schema,
             search_area,
+            selected_result_index: None,
         }
     }
 
@@ -103,32 +112,56 @@ impl<'a> SearchApp<'a> {
         Paragraph::new(title_contents).block(title_block)
     }
 
+    // Returns the current search string from the search widget state.
     fn search_string(&self) -> String {
         self.search_area.lines().join(" ")
     }
 
-    // Renders the current results of the search string or state of the UI.
-    fn results(&self) -> Paragraph<'a> {
-        let results: Vec<Line<'a>> = self
+    // Returns a (not yet executed) iterator that will filter catalog attributes by the search string.
+    fn result_set(&'a self) -> impl Iterator<Item=&'a Attribute> {
+        self
             .schema
             .catalog
             .attributes
             .iter()
             .filter(|a| a.name.contains(self.search_string().as_str()))
+    }
+
+    // Returns a widget that will render the current results of all attributes which match the search string.
+    fn results_widget(&'a self) -> List<'a> {
+        let results: Vec<&'a str> = self
+            .result_set()
             .map(|a| {
-                Line::default()
-                    .style(Style::default().fg(Color::LightBlue))
-                    .spans(vec![Span::raw(" - "), Span::raw(&a.name)])
+                a.name.as_str()
             })
             .collect();
-        let block = Block::new()
-            .border_type(BorderType::Rounded)
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::White))
-            .style(Style::default().bg(Color::Black))
-            .title("Results [Attributes]");
+        let list = List::new(results)
+        .block(Block::new()
+        .border_type(BorderType::Rounded)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::White))
+        .style(Style::default().bg(Color::Black))
+        .title("Results [Attributes]"))
+        .highlight_style(Style::default().add_modifier(Modifier::ITALIC).bg(Color::DarkGray))
+        .highlight_symbol(">>")
+        .repeat_highlight_symbol(true)
+        .scroll_padding(2)
+        .direction(ratatui::widgets::ListDirection::TopToBottom);
+        list
+    }
 
-        Paragraph::new(results).block(block)
+    // Returns a resultin gattribute to display, if there are results *AND* a selected result on the result list.
+    fn result(&'a self) -> Option<&'a Attribute> {
+        self.selected_result_index.and_then(|idx| self.result_set().nth(idx))
+    }
+
+    // Returns the widget which displays details of the resulting attribute.
+    fn result_details_widget(&'a self) -> Line<'a> {
+        if let Some(result) = self.result() {
+            Line::from(result.name.as_ref())
+        } else {
+            Line::from("  Select a result to view details  ")
+        }
     }
 
     // Creates the footer widget from current state.
@@ -139,6 +172,9 @@ impl<'a> SearchApp<'a> {
     }
 
     // Renders the text-UI to the current frame.
+    //
+    // This method should focus on LAYOUT of the user interface, and whether certian components are dispayed
+    // at this time.
     fn render(&self, frame: &mut Frame<'_>) {
         // Set up the UI such that we have a title block,
         // a large section for results and then a footer with
@@ -152,28 +188,70 @@ impl<'a> SearchApp<'a> {
             ])
             .split(frame.size());
         frame.render_widget(self.title(), chunks[0]);
-        frame.render_widget(self.results(), chunks[1]);
+
+        // Render search reuslts.
+        if let Some(index) = self.selected_result_index {
+            // If the user is viewing a result, then we split the result window to show those results.
+            let main_area = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Percentage(30),
+                Constraint::Percentage(70),
+            ])
+            .split(chunks[1]);
+            //  Note - this is  hack around avoiding mutating list state in the render call...
+            let mut result_state = ListState::default().with_selected(Some(index));
+            frame.render_stateful_widget(self.results_widget(), main_area[0], &mut result_state);
+            // Render the result details.
+            frame.render_widget(self.result_details_widget(), main_area[1]);
+        } else {
+            frame.render_widget(self.results_widget(), chunks[1]);
+        }
+
+        // Render the footer.
         frame.render_widget(self.footer().widget(), chunks[2]);
     }
-    // Returns true when it's time to quit.
+
+    // Processes events that will change the state of the UI.
+    //
+    // While we should likely encode a "focus" system where events get passed to certain widgets for handling, based on focus, for now
+    // we try to keep all keys disjoint and handle them globally.
+    //
+    // This must return true (or an error) when it's time to quit.
     fn process(&mut self, event: Event) -> Result<bool, Error> {
         if let Event::Key(key) = event {
-            if key.kind == KeyEventKind::Press
-                && key.code == KeyCode::Char('q')
-                && key.modifiers.contains(KeyModifiers::CONTROL)
-            {
-                return Ok(true);
-            } else if key.code == KeyCode::Esc {
-                return Ok(true);
-            } else {
-                let _ = self.search_area.input(event);
-                // TODO - should we update search results here?
+            match key.code {
+                // Handle mechanisms to quite the UI.
+                KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => return Ok(true),
+                KeyCode::Esc => return Ok(true),
+                // Handle all events that could scroll through search results.
+                KeyCode::Up if key.kind == KeyEventKind::Press => self.move_index(-1),
+                KeyCode::Down if key.kind == KeyEventKind::Press => self.move_index(1),
+                // Send everything else to search input.  If search input handled the event, we clear the state of list selection.
+                // This is likely too aggressive and we should check more nuanced changes before killing the state of the results.
+                // We also could attempt to preserve the current index with the resulting list as much as feasible.
+                _ => { if self.search_area.input(event) {
+                  self.selected_result_index = None;  
+                } },
             }
         }
         Ok(false)
     }
+
+    // Helper method for processing move events on the results list widget.
+    fn move_index(&mut self, amt: i32) {
+        let result_count = self.result_set().count();
+        if let Some(value) = self.selected_result_index.as_mut() {
+            *value = usize::min(i32::max(0, *value as i32 + amt) as usize, result_count-1);
+        } else {
+            self.selected_result_index = Some(0);
+        }
+    }
 }
 
+// Boiler plate for running our ratatui UI.
+//
+// This sets up the terminal, and spins in the event loop processing keyboard (and other) events.
 fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
     let mut app = SearchApp::new(schema);
     let _ = stdout().execute(EnterAlternateScreen)?;
@@ -215,7 +293,12 @@ pub(crate) fn command(
     // TODO - We should have two modes:
     // 1. An interactive UI
     // 2. a single input we take in and directly output some rendered result.
-    run_ui(&schema).map_err(|e| DiagnosticMessages::from_error(e))?;
+
+    if stdout().is_terminal() {
+        run_ui(&schema).map_err(|e| DiagnosticMessages::from_error(e))?;
+    } else {
+        println!("NON TERMINAL SEARCH NOT IMPLEMENTED: PLEASE USE AN INTERACTIVE TERMINAL");
+    }
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
