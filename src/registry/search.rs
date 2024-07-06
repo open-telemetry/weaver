@@ -249,7 +249,7 @@ impl<'a> SearchApp<'a> {
 
     // Renders the text-UI to the current frame.
     //
-    // This method should focus on LAYOUT of the user interface, and whether certian components are dispayed
+    // This method should focus on LAYOUT of the user interface, and whether certain components are displayed
     // at this time.
     fn render(&self, frame: &mut Frame<'_>) {
         // Set up the UI such that we have a title block,
