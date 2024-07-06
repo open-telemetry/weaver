@@ -89,6 +89,7 @@ include_dir.workspace = true
 thiserror.workspace = true
 miette.workspace = true
 schemars.workspace = true
+itertools.workspace = true
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }

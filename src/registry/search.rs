@@ -3,6 +3,7 @@
 //! Search a semantic convention registry.
 
 use clap::Args;
+use itertools::Itertools;
 use miette::Diagnostic;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -46,6 +47,10 @@ pub struct RegistrySearchArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// An (optional) search string to use.  If specified, will return matching values on the command line.
+    /// Otherwise, runs an interactive terminal UI.
+    pub search_string: Option<String>,
 }
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -346,6 +351,20 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
     Ok(())
 }
 
+// If the user specified a search string on the command line, we operate as if we're a command-line tool, allowing
+// awk/bash/etc type utilities on the result.
+// TODO - the behavior of this method needs to be sorted out.
+fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
+    let results = schema
+        .catalog()
+        .attributes
+        .iter()
+        .filter(|a| a.name.contains(pattern))
+        .map(|a| a.name.to_owned())
+        .join("\n");
+    println!("{}", results);
+}
+
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     cache: &Cache,
@@ -362,14 +381,20 @@ pub(crate) fn command(
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 
-    // TODO - We should have two modes:
-    // 1. An interactive UI
-    // 2. a single input we take in and directly output some rendered result.
-
-    if stdout().is_terminal() {
+    // We should have two modes:
+    // 1. a single input we take in and directly output some rendered result.
+    // 2. An interactive UI
+    if let Some(pattern) = args.search_string.as_ref() {
+        run_command_line_search(&schema, pattern);
+    } else if stdout().is_terminal() {
         run_ui(&schema).map_err(|e| DiagnosticMessages::from_error(e))?;
     } else {
-        println!("NON TERMINAL SEARCH NOT IMPLEMENTED: PLEASE USE AN INTERACTIVE TERMINAL");
+        // TODO - custom error
+        println!("Error: Could not find a terminal, and no search string was provided.");
+        return Ok(ExitDirectives {
+            exit_code: 1,
+            quiet_mode: false,
+        });
     }
     Ok(ExitDirectives {
         exit_code: 0,

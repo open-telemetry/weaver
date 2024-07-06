@@ -4016,6 +4016,7 @@ dependencies = [
  "clap",
  "crossterm",
  "include_dir",
+ "itertools 0.13.0",
  "miette",
  "ratatui",
  "rayon",
