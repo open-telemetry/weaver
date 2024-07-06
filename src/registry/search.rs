@@ -150,17 +150,84 @@ impl<'a> SearchApp<'a> {
         list
     }
 
-    // Returns a resultin gattribute to display, if there are results *AND* a selected result on the result list.
+    // Returns a resulting attribute to display, if there are results *AND* a selected result on the result list.
     fn result(&'a self) -> Option<&'a Attribute> {
         self.selected_result_index.and_then(|idx| self.result_set().nth(idx))
     }
 
     // Returns the widget which displays details of the resulting attribute.
-    fn result_details_widget(&'a self) -> Line<'a> {
+    // Note: this should be moved to a helper function and generaled to work on any selected result,
+    // not just attributes.
+    fn result_details_widget(&'a self) -> Paragraph<'a> {
         if let Some(result) = self.result() {
-            Line::from(result.name.as_ref())
+            let mut text = vec!(
+            Line::from(vec![
+                Span::styled("Id   : ", Style::default().fg(Color::Blue)),
+                Span::raw(result.name.to_owned()),
+            ]),
+            Line::from(vec![
+                Span::styled("Type : ", Style::default().fg(Color::Blue)),
+                Span::raw(result.r#type.to_string()),
+            ]));
+            // Tag
+            if let Some(tag) = result.tag.as_ref() {
+                text.push(Line::from(vec![
+                    Span::styled("Tag  : ", Style::default().fg(Color::Blue)),
+                    Span::raw(tag),
+                ]));
+            }
+
+            // Brief
+            // TODO - we can parse markdown and ANSI format.
+            if !result.brief.trim().is_empty() {
+                text.push(Line::from(""));
+                text.push(Line::from(Span::styled(
+                    "Brief: ",
+                    Style::default().fg(Color::Blue),
+                )));
+                text.push(Line::from(result.brief.as_str()));
+            }
+
+            // Note
+            if !result.note.trim().is_empty() {
+                text.push(Line::from(""));
+                text.push(Line::from(Span::styled(
+                    "Note : ",
+                    Style::default().fg(Color::Blue),
+                )));
+                text.push(Line::from(result.note.as_str()));
+            }
+
+            // Requirement Level
+            text.push(Line::from(""));
+            text.push(Line::from(vec![
+                Span::styled("Requirement Level: ", Style::default().fg(Color::Blue)),
+                Span::raw(format!("{}", result.requirement_level)),
+            ]));
+
+            // Stability level
+            if let Some(stability) = result.stability.as_ref() {
+                text.push(Line::from(vec![
+                    Span::styled("Stability: ", Style::default().fg(Color::Blue)),
+                    Span::raw(format!("{}", stability)),
+                ]));
+            }
+
+            // Deprecation status.
+            if let Some(deprecated) = result.deprecated.as_ref() {
+                text.push(Line::from(vec![
+                    Span::styled("Deprecated: ", Style::default().fg(Color::Blue)),
+                    Span::raw(deprecated.to_string()),
+                ]));
+            }
+            // Surround this paragraph of text with a border and description.
+            Paragraph::new(text).block(Block::new()
+            .border_type(BorderType::Double)
+            .borders(Borders::all())
+            .border_style(Style::default().fg(Color::Green))
+            .title("Attribute"))
         } else {
-            Line::from("  Select a result to view details  ")
+            Paragraph::new(Line::from("  Select a result to view details  "))
         }
     }
 
