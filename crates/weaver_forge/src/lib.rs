@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use jaq_interpret::Val;
+use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
-use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -26,7 +26,7 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, Params, TargetConfig};
+use crate::config::{ApplicationMode, Params, WeaverConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
@@ -77,7 +77,7 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name,): (&str,) = from_args(args)?;
+            let (file_name, ): (&str,) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
@@ -127,7 +127,7 @@ pub struct TemplateEngine {
     file_loader: Arc<dyn FileLoader + Send + Sync + 'static>,
 
     /// Target configuration
-    target_config: TargetConfig,
+    target_config: WeaverConfig,
 }
 
 /// Global context for the template engine.
@@ -166,12 +166,14 @@ impl TemplateEngine {
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
     ) -> Result<Self, Error> {
-        let mut target_config = TargetConfig::try_new(&loader)?;
+        let mut target_config = WeaverConfig::try_new(&loader)?;
 
         // Override the params defined in the `weaver.yaml` file with the params provided
         // in the command line.
         for (name, value) in params.params {
-            _ = target_config.params.insert(name, value);
+            _ = target_config.params
+                .get_or_insert_with(HashMap::new)
+                .insert(name, value);
         }
 
         Ok(Self {
@@ -241,20 +243,27 @@ impl TemplateEngine {
         let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = self
             .target_config
             .params
-            .iter()
-            .filter_map(|(k, v)| {
-                let json_value = match serde_json::to_value(v) {
-                    Ok(json_value) => json_value,
-                    Err(e) => {
-                        errors.push(ContextSerializationFailed {
-                            error: e.to_string(),
-                        });
-                        return None;
-                    }
-                };
-                Some((k.clone(), json_value))
-            })
-            .unzip();
+            .as_ref()
+            .map_or_else(
+                || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
+                |params| {
+                    params
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            let json_value = match serde_json::to_value(v) {
+                                Ok(json_value) => json_value,
+                                Err(e) => {
+                                    errors.push(ContextSerializationFailed {
+                                        error: e.to_string(),
+                                    });
+                                    return None;
+                                }
+                            };
+                            Some((k.clone(), json_value))
+                        })
+                        .unzip()
+                },
+            );
 
         // Process all files in parallel
         // - Filter the files that match the template pattern
@@ -290,7 +299,7 @@ impl TemplateEngine {
                         ApplicationMode::Single => {
                             if filtered_result.is_null()
                                 || (filtered_result.is_array()
-                                    && filtered_result.as_array().expect("is_array").is_empty())
+                                && filtered_result.as_array().expect("is_array").is_empty())
                             {
                                 // Skip the template evaluation if the filtered result is null or an empty array
                                 continue;
@@ -300,8 +309,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                .try_into()
-                                .ok()?,
+                                    .try_into()
+                                    .ok()?,
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -337,8 +346,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                .try_into()
-                                .ok()?,
+                                    .try_into()
+                                    .ok()?,
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -385,7 +394,7 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
         engine.add_global(
             "params",
-            Value::from_object(ParamsObject::new(self.target_config.params.clone())),
+            Value::from_object(ParamsObject::new(self.target_config.params.clone().unwrap_or_default())),
         );
 
         let template = engine.get_template(template_file).map_err(|e| {
@@ -516,8 +525,8 @@ mod tests {
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
-    use crate::registry::ResolvedRegistry;
     use crate::OutputDirective;
+    use crate::registry::ResolvedRegistry;
 
     #[test]
     fn test_case_converter() {
@@ -668,12 +677,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
 
         engine
             .generate(
@@ -708,12 +717,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
 
         engine
             .generate(
@@ -729,8 +738,8 @@ mod tests {
 
         assert!(diff_dir(
             "whitespace_control_templates/test/expected_output",
-            "whitespace_control_templates/test/observed_output"
+            "whitespace_control_templates/test/observed_output",
         )
-        .unwrap());
+            .unwrap());
     }
 }

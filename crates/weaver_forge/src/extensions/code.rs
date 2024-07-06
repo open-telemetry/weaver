@@ -4,13 +4,13 @@
 
 use std::collections::HashMap;
 
-use crate::config::TargetConfig;
+use crate::config::WeaverConfig;
 use minijinja::{Environment, Value};
 
 /// Add code-oriented filters to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>, config: &TargetConfig) {
-    env.add_filter("type_mapping", type_mapping(config.type_mapping.clone()));
-    env.add_filter("map_text", map_text(config.text_maps.clone()));
+pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) {
+    env.add_filter("type_mapping", type_mapping(config.type_mapping.clone().unwrap_or_default()));
+    env.add_filter("map_text", map_text(config.text_maps.clone().unwrap_or_default()));
     env.add_filter("comment_with_prefix", comment_with_prefix);
     env.add_filter("markdown_to_html", markdown_to_html);
 }

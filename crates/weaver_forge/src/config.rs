@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Configuration for the template crate.
+//! Weaver Configuration Definition.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
 use convert_case::{Case, Casing, Converter, Pattern};
+use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 use serde_yaml::Value;
@@ -16,6 +16,8 @@ use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
 use crate::file_loader::FileLoader;
 use crate::WEAVER_YAML;
+
+const DEFAULT_WEAVER_CONFIG: &'static str = include_str!("../../../defaults/weaver_config/weaver.yaml");
 
 /// Case convention for naming of functions and structs.
 #[derive(Deserialize, Clone, Debug)]
@@ -50,9 +52,9 @@ pub enum CaseConvention {
     ScreamingKebabCase,
 }
 
-/// Target specific configuration.
+/// Weaver configuration.
 #[derive(Deserialize, Debug, Default)]
-pub(crate) struct TargetConfig {
+pub(crate) struct WeaverConfig {
     /// Case convention used to name a file.
     #[serde(default)]
     pub(crate) file_name: CaseConvention,
@@ -69,11 +71,10 @@ pub(crate) struct TargetConfig {
     #[serde(default)]
     pub(crate) field_name: CaseConvention,
     /// Type mapping for target specific types (OTel types -> Target language types).
-    #[serde(default)]
-    pub(crate) type_mapping: HashMap<String, String>,
+    /// Deprecated: Use `text_maps` instead.
+    pub(crate) type_mapping: Option<HashMap<String, String>>,
     /// Configuration of the `text_map` filter.
-    #[serde(default)]
-    pub(crate) text_maps: HashMap<String, HashMap<String, String>>,
+    pub(crate) text_maps: Option<HashMap<String, HashMap<String, String>>>,
     /// Configuration for the template syntax.
     #[serde(default)]
     pub(crate) template_syntax: TemplateSyntax,
@@ -83,8 +84,7 @@ pub(crate) struct TargetConfig {
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
-    #[serde(default)]
-    pub(crate) params: HashMap<String, Value>,
+    pub(crate) params: Option<HashMap<String, Value>>,
 
     /// Configuration for the templates.
     #[serde(default = "default_templates")]
@@ -92,8 +92,7 @@ pub(crate) struct TargetConfig {
 
     /// List of acronyms to be considered as unmodifiable words in the case
     /// conversion.
-    #[serde(default)]
-    pub(crate) acronyms: Vec<String>,
+    pub(crate) acronyms: Option<Vec<String>>,
 }
 
 fn default_templates() -> Vec<TemplateConfig> {
@@ -301,6 +300,20 @@ impl Default for TemplateSyntax {
     }
 }
 
+impl TemplateSyntax {
+    /// Override the current `TemplateSyntax` with the `TemplateSyntax` passed as argument.
+    /// The merge is done in place. The `TemplateSyntax` passed as argument will be consumed and
+    /// used to override the current `TemplateSyntax`.
+    pub fn override_with(&mut self, other: TemplateSyntax) {
+        self.block_start = other.block_start;
+        self.block_end = other.block_end;
+        self.variable_start = other.variable_start;
+        self.variable_end = other.variable_end;
+        self.comment_start = other.comment_start;
+        self.comment_end = other.comment_end;
+    }
+}
+
 /// Whitespace control configuration for the template engine.
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct WhitespaceControl {
@@ -313,6 +326,17 @@ pub struct WhitespaceControl {
     /// Configures whether trailing newline are preserved when rendering templates.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_keep_trailing_newline>
     pub keep_trailing_newline: bool,
+}
+
+impl WhitespaceControl {
+    /// Override the current `WhitespaceControl` with the `WhitespaceControl` passed as argument.
+    /// The merge is done in place. The `WhitespaceControl` passed as argument will be consumed and
+    /// used to override the current `WhitespaceControl`.
+    pub fn override_with(&mut self, other: WhitespaceControl) {
+        self.trim_blocks = other.trim_blocks;
+        self.lstrip_blocks = other.lstrip_blocks;
+        self.keep_trailing_newline = other.keep_trailing_newline;
+    }
 }
 
 impl Default for CaseConvention {
@@ -387,8 +411,8 @@ impl CaseConvention {
     }
 }
 
-impl TargetConfig {
-    pub(crate) fn try_new(loader: &dyn FileLoader) -> Result<TargetConfig, Error> {
+impl WeaverConfig {
+    pub(crate) fn try_new(loader: &dyn FileLoader) -> Result<WeaverConfig, Error> {
         let weaver_file = loader
             .load_file(WEAVER_YAML)
             .map_err(|e| InvalidConfigFile {
@@ -401,8 +425,59 @@ impl TargetConfig {
                 error: e.to_string(),
             })
         } else {
-            Ok(TargetConfig::default())
+            Ok(WeaverConfig::default())
         }
+    }
+
+    /// Loads the Weaver configuration based on the following order:
+    ///
+    /// - the target directory,
+    /// - the parent directory (i.e., the directory containing all targets),
+    /// - the $HOME/.weaver/weaver.yaml directory,
+    /// - and finally the defaults/weaver_config directory embedded in the Weaver binary.
+    ///
+    /// A local definition should override any corresponding definition in the parent directory,
+    /// which itself can override the corresponding entry in the home directory (i.e., defined per
+    /// user), and finally, the Weaver application binary (i.e., defined by Weaver authors). This
+    /// hierarchical structure should allow for configuration at the target level, across all
+    /// targets, at the user level, and even reuse of configurations defined within the Weaver
+    /// application binary.
+    ///
+    /// This method can fail if any of the configuration file is not a valid YAML file or if the
+    /// configuration file can't be deserialized into a `WeaverConfig` struct.
+    pub(crate) fn try_new_2(home_dir: Option<PathBuf>, loader: &dyn FileLoader) -> Result<WeaverConfig, Error> {
+        // Init the weaver config with the embedded defaults
+        let mut config = serde_yaml::from_str(DEFAULT_WEAVER_CONFIG).map_err(|e| InvalidConfigFile {
+            config_file: WEAVER_YAML.into(),
+            error: e.to_string(),
+        })?;
+
+        // Override the defaults with the weaver.yaml file present in the user's home directory
+        // if it exists.
+        if let Some(home_dir) = home_dir {
+            let home_config = home_dir.join(".weaver/weaver.yaml");
+            if home_config.exists() {
+                let home_config_file = std::fs::File::open(home_config.clone()).map_err(|e| InvalidConfigFile {
+                    config_file: home_config.clone(),
+                    error: e.to_string(),
+                })?;
+                let home_config: WeaverConfig = serde_yaml::from_reader(home_config_file)
+                    .map_err(|e| InvalidConfigFile {
+                        config_file: home_config.clone(),
+                        error: e.to_string(),
+                    })?;
+            }
+        }
+
+        // Override the config with the weaver.yaml file present in the parent directory of the
+        // target directory if it exists.
+
+        // Override the config with the weaver.yaml file present in the target directory if it
+        // exists.
+        // deserialize in place, i.e. in the existing config
+
+
+        Ok(config)
     }
 
     /// Return a template matcher for the target configuration.
@@ -422,5 +497,91 @@ impl TargetConfig {
                 templates: &self.templates,
                 glob_set,
             })
+    }
+
+    /// Override the current `WeaverConfig` with the `WeaverConfig` passed as argument.
+    /// The merge is done in place. The `WeaverConfig` passed as argument will be consumed and used
+    /// to override the current `WeaverConfig`.
+    pub fn override_with(&mut self, other: WeaverConfig) {
+        self.file_name = other.file_name;
+        self.function_name = other.function_name;
+        self.arg_name = other.arg_name;
+        self.struct_name = other.struct_name;
+        self.field_name = other.field_name;
+        if other.type_mapping.is_some() {
+            self.type_mapping = other.type_mapping;
+        }
+        if other.text_maps.is_some() {
+            self.text_maps = other.text_maps;
+        }
+        self.template_syntax.override_with(other.template_syntax);
+        self.whitespace_control.override_with(other.whitespace_control);
+        if other.params.is_some() {
+            self.params = other.params;
+        }
+        self.templates = other.templates;
+        if other.acronyms.is_some() {
+            self.acronyms = other.acronyms;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use crate::config::{DEFAULT_WEAVER_CONFIG, WeaverConfig};
+    use crate::file_loader::FileSystemFileLoader;
+
+    #[test]
+    fn test_override_with() {
+        // Tests params overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("params: {a: 3}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.params, Some([("a".to_owned(), 3.into())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("params: {a: 3}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.params, Some([("a".to_owned(), 3.into())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
+        let local= WeaverConfig::default();
+        parent.override_with(local);
+        assert_eq!(parent.params, Some([("a".to_owned(), 1.into()), ("b".to_owned(), 2.into())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("params: {}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.params, Some(HashMap::default()));
+
+        // Tests templates overrides.
+
+        // Tests acronyms overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS']").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.acronyms, Some(vec!["iOS".to_owned()]));
+        let mut parent = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.acronyms, Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()]));
+        let mut parent: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        let local = WeaverConfig::default();
+        parent.override_with(local);
+        assert_eq!(parent.acronyms, Some(vec!["iOS".to_owned(), "API".to_owned(), "URL".to_owned()]));
+        let mut parent: WeaverConfig = serde_yaml::from_str("acronyms: ['iOS', 'API', 'URL']").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("acronyms: []").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.acronyms, Some(vec![]));
+    }
+
+    #[test]
+    fn test_try_new() -> Result<(), Box<dyn std::error::Error>> {
+        let loader = FileSystemFileLoader::try_new("templates/registry".into(), "test")?;
+        let config = WeaverConfig::try_new_2(dirs::home_dir(), &loader)
+            .expect("Failed to load the Weaver configuration");
+
+        dbg!(config);
+        Ok(())
     }
 }
