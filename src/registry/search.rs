@@ -118,9 +118,8 @@ impl<'a> SearchApp<'a> {
     }
 
     // Returns a (not yet executed) iterator that will filter catalog attributes by the search string.
-    fn result_set(&'a self) -> impl Iterator<Item=&'a Attribute> {
-        self
-            .schema
+    fn result_set(&'a self) -> impl Iterator<Item = &'a Attribute> {
+        self.schema
             .catalog
             .attributes
             .iter()
@@ -129,30 +128,32 @@ impl<'a> SearchApp<'a> {
 
     // Returns a widget that will render the current results of all attributes which match the search string.
     fn results_widget(&'a self) -> List<'a> {
-        let results: Vec<&'a str> = self
-            .result_set()
-            .map(|a| {
-                a.name.as_str()
-            })
-            .collect();
+        let results: Vec<&'a str> = self.result_set().map(|a| a.name.as_str()).collect();
         let list = List::new(results)
-        .block(Block::new()
-        .border_type(BorderType::Rounded)
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::White))
-        .style(Style::default().bg(Color::Black))
-        .title("Results [Attributes]"))
-        .highlight_style(Style::default().add_modifier(Modifier::ITALIC).bg(Color::DarkGray))
-        .highlight_symbol(">>")
-        .repeat_highlight_symbol(true)
-        .scroll_padding(2)
-        .direction(ratatui::widgets::ListDirection::TopToBottom);
+            .block(
+                Block::new()
+                    .border_type(BorderType::Rounded)
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::White))
+                    .style(Style::default().bg(Color::Black))
+                    .title("Results [Attributes]"),
+            )
+            .highlight_style(
+                Style::default()
+                    .add_modifier(Modifier::ITALIC)
+                    .bg(Color::DarkGray),
+            )
+            .highlight_symbol(">>")
+            .repeat_highlight_symbol(true)
+            .scroll_padding(2)
+            .direction(ratatui::widgets::ListDirection::TopToBottom);
         list
     }
 
     // Returns a resulting attribute to display, if there are results *AND* a selected result on the result list.
     fn result(&'a self) -> Option<&'a Attribute> {
-        self.selected_result_index.and_then(|idx| self.result_set().nth(idx))
+        self.selected_result_index
+            .and_then(|idx| self.result_set().nth(idx))
     }
 
     // Returns the widget which displays details of the resulting attribute.
@@ -160,15 +161,16 @@ impl<'a> SearchApp<'a> {
     // not just attributes.
     fn result_details_widget(&'a self) -> Paragraph<'a> {
         if let Some(result) = self.result() {
-            let mut text = vec!(
-            Line::from(vec![
-                Span::styled("Id   : ", Style::default().fg(Color::Blue)),
-                Span::raw(result.name.to_owned()),
-            ]),
-            Line::from(vec![
-                Span::styled("Type : ", Style::default().fg(Color::Blue)),
-                Span::raw(result.r#type.to_string()),
-            ]));
+            let mut text = vec![
+                Line::from(vec![
+                    Span::styled("Id   : ", Style::default().fg(Color::Blue)),
+                    Span::raw(result.name.to_owned()),
+                ]),
+                Line::from(vec![
+                    Span::styled("Type : ", Style::default().fg(Color::Blue)),
+                    Span::raw(result.r#type.to_string()),
+                ]),
+            ];
             // Tag
             if let Some(tag) = result.tag.as_ref() {
                 text.push(Line::from(vec![
@@ -221,11 +223,13 @@ impl<'a> SearchApp<'a> {
                 ]));
             }
             // Surround this paragraph of text with a border and description.
-            Paragraph::new(text).block(Block::new()
-            .border_type(BorderType::Double)
-            .borders(Borders::all())
-            .border_style(Style::default().fg(Color::Green))
-            .title("Attribute"))
+            Paragraph::new(text).block(
+                Block::new()
+                    .border_type(BorderType::Double)
+                    .borders(Borders::all())
+                    .border_style(Style::default().fg(Color::Green))
+                    .title("Attribute"),
+            )
         } else {
             Paragraph::new(Line::from("  Select a result to view details  "))
         }
@@ -260,12 +264,9 @@ impl<'a> SearchApp<'a> {
         if let Some(index) = self.selected_result_index {
             // If the user is viewing a result, then we split the result window to show those results.
             let main_area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints(vec![
-                Constraint::Percentage(30),
-                Constraint::Percentage(70),
-            ])
-            .split(chunks[1]);
+                .direction(Direction::Horizontal)
+                .constraints(vec![Constraint::Percentage(30), Constraint::Percentage(70)])
+                .split(chunks[1]);
             //  Note - this is  hack around avoiding mutating list state in the render call...
             let mut result_state = ListState::default().with_selected(Some(index));
             frame.render_stateful_widget(self.results_widget(), main_area[0], &mut result_state);
@@ -289,7 +290,9 @@ impl<'a> SearchApp<'a> {
         if let Event::Key(key) = event {
             match key.code {
                 // Handle mechanisms to quite the UI.
-                KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => return Ok(true),
+                KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    return Ok(true)
+                }
                 KeyCode::Esc => return Ok(true),
                 // Handle all events that could scroll through search results.
                 KeyCode::Up if key.kind == KeyEventKind::Press => self.move_index(-1),
@@ -297,9 +300,11 @@ impl<'a> SearchApp<'a> {
                 // Send everything else to search input.  If search input handled the event, we clear the state of list selection.
                 // This is likely too aggressive and we should check more nuanced changes before killing the state of the results.
                 // We also could attempt to preserve the current index with the resulting list as much as feasible.
-                _ => { if self.search_area.input(event) {
-                  self.selected_result_index = None;  
-                } },
+                _ => {
+                    if self.search_area.input(event) {
+                        self.selected_result_index = None;
+                    }
+                }
             }
         }
         Ok(false)
@@ -309,7 +314,7 @@ impl<'a> SearchApp<'a> {
     fn move_index(&mut self, amt: i32) {
         let result_count = self.result_set().count();
         if let Some(value) = self.selected_result_index.as_mut() {
-            *value = usize::min(i32::max(0, *value as i32 + amt) as usize, result_count-1);
+            *value = usize::min(i32::max(0, *value as i32 + amt) as usize, result_count - 1);
         } else {
             self.selected_result_index = Some(0);
         }
