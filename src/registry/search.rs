@@ -23,9 +23,9 @@ use crossterm::{
 };
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    prelude::{CrosstermBackend, Stylize, Terminal},
+    prelude::{CrosstermBackend, Terminal},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListState, Paragraph},
     Frame,
 };
@@ -339,10 +339,8 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
     // main loop
     loop {
         let _ = terminal.draw(|frame| app.render(frame))?;
-        if event::poll(std::time::Duration::from_millis(16))? {
-            if app.process(event::read()?)? {
-                break;
-            }
+        if event::poll(std::time::Duration::from_millis(16))? && app.process(event::read()?)? {
+            break;
         }
     }
 
@@ -387,7 +385,7 @@ pub(crate) fn command(
     if let Some(pattern) = args.search_string.as_ref() {
         run_command_line_search(&schema, pattern);
     } else if stdout().is_terminal() {
-        run_ui(&schema).map_err(|e| DiagnosticMessages::from_error(e))?;
+        run_ui(&schema).map_err(DiagnosticMessages::from_error)?;
     } else {
         // TODO - custom error
         println!("Error: Could not find a terminal, and no search string was provided.");
