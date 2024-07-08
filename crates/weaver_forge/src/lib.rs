@@ -439,16 +439,16 @@ impl TemplateEngine {
 
         let syntax = SyntaxConfig::builder()
             .block_delimiters(
-                Cow::Owned(template_syntax.block_start),
-                Cow::Owned(template_syntax.block_end),
+                Cow::Owned(template_syntax.block_start.unwrap_or_else(|| "{%".to_owned())),
+                Cow::Owned(template_syntax.block_end.unwrap_or_else(|| "%}".to_owned())),
             )
             .variable_delimiters(
-                Cow::Owned(template_syntax.variable_start),
-                Cow::Owned(template_syntax.variable_end),
+                Cow::Owned(template_syntax.variable_start.unwrap_or_else(|| "{{".to_owned())),
+                Cow::Owned(template_syntax.variable_end.unwrap_or_else(|| "}}".to_owned())),
             )
             .comment_delimiters(
-                Cow::Owned(template_syntax.comment_start),
-                Cow::Owned(template_syntax.comment_end),
+                Cow::Owned(template_syntax.comment_start.unwrap_or_else(|| "{#".to_owned())),
+                Cow::Owned(template_syntax.comment_end.unwrap_or_else(|| "#}".to_owned())),
             )
             .build()
             .map_err(|e| InvalidConfigFile {
@@ -468,9 +468,9 @@ impl TemplateEngine {
         // Jinja whitespace control
         // https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
         let whitespace_control = self.target_config.whitespace_control.clone();
-        env.set_trim_blocks(whitespace_control.trim_blocks);
-        env.set_lstrip_blocks(whitespace_control.lstrip_blocks);
-        env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline);
+        env.set_trim_blocks(whitespace_control.trim_blocks.unwrap_or_default());
+        env.set_lstrip_blocks(whitespace_control.lstrip_blocks.unwrap_or_default());
+        env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline.unwrap_or_default());
 
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
@@ -661,11 +661,11 @@ mod tests {
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
         // for test coverage purposes.
-        engine.target_config.templates.push(TemplateConfig {
+        engine.target_config.templates = Some(vec![TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
-        });
+        }]);
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")

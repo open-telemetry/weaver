@@ -56,18 +56,28 @@ pub enum CaseConvention {
 #[derive(Deserialize, Debug, Default)]
 pub(crate) struct WeaverConfig {
     /// Case convention used to name a file.
+    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
+    /// the case conversion filters than to rely on this configuration.
     #[serde(default)]
     pub(crate) file_name: CaseConvention,
     /// Case convention used to name a function.
+    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
+    /// the case conversion filters than to rely on this configuration.
     #[serde(default)]
     pub(crate) function_name: CaseConvention,
     /// Case convention used to name a function argument.
+    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
+    /// the case conversion filters than to rely on this configuration.
     #[serde(default)]
     pub(crate) arg_name: CaseConvention,
     /// Case convention used to name a struct.
+    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
+    /// the case conversion filters than to rely on this configuration.
     #[serde(default)]
     pub(crate) struct_name: CaseConvention,
     /// Case convention used to name a struct field.
+    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
+    /// the case conversion filters than to rely on this configuration.
     #[serde(default)]
     pub(crate) field_name: CaseConvention,
     /// Type mapping for target specific types (OTel types -> Target language types).
@@ -87,92 +97,11 @@ pub(crate) struct WeaverConfig {
     pub(crate) params: Option<HashMap<String, Value>>,
 
     /// Configuration for the templates.
-    #[serde(default = "default_templates")]
-    pub(crate) templates: Vec<TemplateConfig>,
+    pub(crate) templates: Option<Vec<TemplateConfig>>,
 
     /// List of acronyms to be considered as unmodifiable words in the case
     /// conversion.
     pub(crate) acronyms: Option<Vec<String>>,
-}
-
-fn default_templates() -> Vec<TemplateConfig> {
-    vec![
-        TemplateConfig {
-            pattern: Glob::new("**/registry.md").expect("Invalid pattern"),
-            filter: ".".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/attribute_group.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"attribute_group\")".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/attribute_groups.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"attribute_group\")".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/event.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"event\")".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/events.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"event\")".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/group.md").expect("Invalid pattern"),
-            filter: ".groups".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/groups.md").expect("Invalid pattern"),
-            filter: ".groups".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/metric.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"metric\")".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/metrics.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"metric\")".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/resource.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"resource\")".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/resources.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"resource\")".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/scope.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"scope\")".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/scopes.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"scope\")".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/span.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"span\")".to_owned(),
-            application_mode: ApplicationMode::Each,
-        },
-        TemplateConfig {
-            pattern: Glob::new("**/spans.md").expect("Invalid pattern"),
-            filter: ".groups[] | select(.type == \"span\")".to_owned(),
-            application_mode: ApplicationMode::Single,
-        },
-    ]
 }
 
 /// Parameters defined in the command line via the `--params` argument.
@@ -185,7 +114,7 @@ pub struct Params {
 
 /// Application mode defining how to apply a template on the result of a
 /// filter applied on a registry.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationMode {
     /// Apply the template to the output of the filter as a whole.
@@ -235,69 +164,20 @@ impl<'a> TemplateMatcher<'a> {
 }
 
 /// Syntax configuration for the template engine.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct TemplateSyntax {
     /// The start of a block.
-    #[serde(default = "default_block_start")]
-    pub block_start: String,
+    pub block_start: Option<String>,
     /// The end of a block.
-    #[serde(default = "default_block_end")]
-    pub block_end: String,
+    pub block_end: Option<String>,
     /// The start of a variable.
-    #[serde(default = "default_variable_start")]
-    pub variable_start: String,
+    pub variable_start: Option<String>,
     /// The end of a variable.
-    #[serde(default = "default_variable_end")]
-    pub variable_end: String,
+    pub variable_end: Option<String>,
     /// The start of a comment.
-    #[serde(default = "default_comment_start")]
-    pub comment_start: String,
+    pub comment_start: Option<String>,
     /// The end of a comment.
-    #[serde(default = "default_comment_end")]
-    pub comment_end: String,
-}
-
-/// Default block start delimiter.
-fn default_block_start() -> String {
-    "{%".to_owned()
-}
-
-/// Default block end delimiter.
-fn default_block_end() -> String {
-    "%}".to_owned()
-}
-
-/// Default variable start delimiter.
-fn default_variable_start() -> String {
-    "{{".to_owned()
-}
-
-/// Default variable end delimiter.
-fn default_variable_end() -> String {
-    "}}".to_owned()
-}
-
-/// Default comment start delimiter.
-fn default_comment_start() -> String {
-    "{#".to_owned()
-}
-
-/// Default comment end delimiter.
-fn default_comment_end() -> String {
-    "#}".to_owned()
-}
-
-impl Default for TemplateSyntax {
-    fn default() -> Self {
-        TemplateSyntax {
-            block_start: default_block_start(),
-            block_end: default_block_end(),
-            variable_start: default_variable_start(),
-            variable_end: default_variable_end(),
-            comment_start: default_comment_start(),
-            comment_end: default_comment_end(),
-        }
-    }
+    pub comment_end: Option<String>,
 }
 
 impl TemplateSyntax {
@@ -305,12 +185,24 @@ impl TemplateSyntax {
     /// The merge is done in place. The `TemplateSyntax` passed as argument will be consumed and
     /// used to override the current `TemplateSyntax`.
     pub fn override_with(&mut self, other: TemplateSyntax) {
-        self.block_start = other.block_start;
-        self.block_end = other.block_end;
-        self.variable_start = other.variable_start;
-        self.variable_end = other.variable_end;
-        self.comment_start = other.comment_start;
-        self.comment_end = other.comment_end;
+        if other.block_start.is_some() {
+            self.block_start = other.block_start;
+        }
+        if other.block_end.is_some() {
+            self.block_end = other.block_end;
+        }
+        if other.variable_start.is_some() {
+            self.variable_start = other.variable_start;
+        }
+        if other.variable_end.is_some() {
+            self.variable_end = other.variable_end;
+        }
+        if other.comment_start.is_some() {
+            self.comment_start = other.comment_start;
+        }
+        if other.comment_end.is_some() {
+            self.comment_end = other.comment_end;
+        }
     }
 }
 
@@ -319,13 +211,13 @@ impl TemplateSyntax {
 pub struct WhitespaceControl {
     /// Configures the behavior of the first newline after a block.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
-    pub trim_blocks: bool,
+    pub trim_blocks: Option<bool>,
     /// Configures the behavior of leading spaces and tabs from the start of a line to a block.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_lstrip_blocks>
-    pub lstrip_blocks: bool,
+    pub lstrip_blocks: Option<bool>,
     /// Configures whether trailing newline are preserved when rendering templates.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_keep_trailing_newline>
-    pub keep_trailing_newline: bool,
+    pub keep_trailing_newline: Option<bool>,
 }
 
 impl WhitespaceControl {
@@ -333,9 +225,15 @@ impl WhitespaceControl {
     /// The merge is done in place. The `WhitespaceControl` passed as argument will be consumed and
     /// used to override the current `WhitespaceControl`.
     pub fn override_with(&mut self, other: WhitespaceControl) {
-        self.trim_blocks = other.trim_blocks;
-        self.lstrip_blocks = other.lstrip_blocks;
-        self.keep_trailing_newline = other.keep_trailing_newline;
+        if other.trim_blocks.is_some() {
+            self.trim_blocks = other.trim_blocks;
+        }
+        if other.lstrip_blocks.is_some() {
+            self.lstrip_blocks = other.lstrip_blocks;
+        }
+        if other.keep_trailing_newline.is_some() {
+            self.keep_trailing_newline = other.keep_trailing_newline;
+        }
     }
 }
 
@@ -482,21 +380,28 @@ impl WeaverConfig {
 
     /// Return a template matcher for the target configuration.
     pub fn template_matcher(&self) -> Result<TemplateMatcher<'_>, Error> {
-        let mut builder = GlobSetBuilder::new();
+        if let Some(templates) = &self.templates {
+            let mut builder = GlobSetBuilder::new();
 
-        self.templates.iter().for_each(|template| {
-            _ = builder.add(template.pattern.clone());
-        });
+            templates.iter().for_each(|template| {
+                _ = builder.add(template.pattern.clone());
+            });
 
-        builder
-            .build()
-            .map_err(|e| Error::InvalidTemplatePattern {
-                error: e.to_string(),
+            builder
+                .build()
+                .map_err(|e| Error::InvalidTemplatePattern {
+                    error: e.to_string(),
+                })
+                .map(|glob_set| TemplateMatcher {
+                    templates: &templates,
+                    glob_set,
+                })
+        } else {
+            Ok(TemplateMatcher {
+                templates: &[],
+                glob_set: GlobSet::empty(),
             })
-            .map(|glob_set| TemplateMatcher {
-                templates: &self.templates,
-                glob_set,
-            })
+        }
     }
 
     /// Override the current `WeaverConfig` with the `WeaverConfig` passed as argument.
@@ -519,7 +424,9 @@ impl WeaverConfig {
         if other.params.is_some() {
             self.params = other.params;
         }
-        self.templates = other.templates;
+        if other.templates.is_some() {
+            self.templates = other.templates;
+        }
         if other.acronyms.is_some() {
             self.acronyms = other.acronyms;
         }
@@ -529,11 +436,83 @@ impl WeaverConfig {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use crate::config::{DEFAULT_WEAVER_CONFIG, WeaverConfig};
+    use crate::config::{ApplicationMode, DEFAULT_WEAVER_CONFIG, WeaverConfig};
     use crate::file_loader::FileSystemFileLoader;
 
     #[test]
     fn test_override_with() {
+        // Tests type_mapping overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("type_mapping: {a: \"b\", c: \"d\"}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("type_mapping: {a: \"e\"}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.type_mapping, Some([("a".to_owned(), "e".to_owned())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("type_mapping: {a: \"e\"}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.type_mapping, Some([("a".to_owned(), "e".to_owned())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = serde_yaml::from_str("type_mapping: {a: \"b\", c: \"d\"}").unwrap();
+        let local = WeaverConfig::default();
+        parent.override_with(local);
+        assert_eq!(parent.type_mapping, Some([("a".to_owned(), "b".to_owned()), ("c".to_owned(), "d".to_owned())].iter().cloned().collect()));
+
+        // Tests text_maps overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("text_maps: {a: {b: \"c\"}, d: {e: \"f\"}}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("text_maps: {a: {b: \"g\"}}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.text_maps, Some([("a".to_owned(), [("b".to_owned(), "g".to_owned())].iter().cloned().collect())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("text_maps: {a: {b: \"g\"}}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.text_maps, Some([("a".to_owned(), [("b".to_owned(), "g".to_owned())].iter().cloned().collect())].iter().cloned().collect()));
+        let mut parent: WeaverConfig = serde_yaml::from_str("text_maps: {a: {b: \"c\"}, d: {e: \"f\"}}").unwrap();
+        let local = WeaverConfig::default();
+        parent.override_with(local);
+        assert_eq!(parent.text_maps, Some([("a".to_owned(), [("b".to_owned(), "c".to_owned())].iter().cloned().collect()), ("d".to_owned(), [("e".to_owned(), "f".to_owned())].iter().cloned().collect())].iter().cloned().collect()));
+
+        // Tests template syntax overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("template_syntax: {block_start: \"{{\", block_end: \"}}\", variable_start: \"#\"}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.template_syntax.block_start, Some("[[".to_owned()));
+        assert_eq!(parent.template_syntax.block_end, Some("]]".to_owned()));
+        assert_eq!(parent.template_syntax.variable_start, Some("#".to_owned()));
+        let mut parent: WeaverConfig = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.template_syntax.block_start, Some("[[".to_owned()));
+        assert_eq!(parent.template_syntax.block_end, Some("]]".to_owned()));
+        assert_eq!(parent.template_syntax.variable_start, None);
+        let mut parent: WeaverConfig = serde_yaml::from_str("template_syntax: {block_start: \"{{\", block_end: \"}}\", variable_start: \"#\"}").unwrap();
+        let local = WeaverConfig::default();
+        parent.override_with(local);
+        assert_eq!(parent.template_syntax.block_start, Some("{{".to_owned()));
+        assert_eq!(parent.template_syntax.block_end, Some("}}".to_owned()));
+        assert_eq!(parent.template_syntax.variable_start, Some("#".to_owned()));
+
+        // Tests whitespace control overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("whitespace_control: {lstrip_blocks: false}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.whitespace_control.trim_blocks, Some(true));
+        assert_eq!(parent.whitespace_control.lstrip_blocks, Some(false));
+        assert_eq!(parent.whitespace_control.keep_trailing_newline, None);
+        let mut parent: WeaverConfig = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true, keep_trailing_newline: true}").unwrap();
+        parent.override_with(local);
+        assert_eq!(parent.whitespace_control.trim_blocks, Some(true));
+        assert_eq!(parent.whitespace_control.lstrip_blocks, Some(true));
+        assert_eq!(parent.whitespace_control.keep_trailing_newline, Some(true));
+        let mut parent: WeaverConfig = serde_yaml::from_str("whitespace_control: {trim_blocks: true, lstrip_blocks: true}").unwrap();
+        let local = WeaverConfig::default();
+        parent.override_with(local);
+        assert_eq!(parent.whitespace_control.trim_blocks, Some(true));
+        assert_eq!(parent.whitespace_control.lstrip_blocks, Some(true));
+        assert_eq!(parent.whitespace_control.keep_trailing_newline, None);
+
         // Tests params overrides.
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
@@ -554,6 +533,40 @@ mod tests {
         assert_eq!(parent.params, Some(HashMap::default()));
 
         // Tests templates overrides.
+        // If defined in both, the local configuration should override the parent configuration.
+        let mut parent: WeaverConfig = serde_yaml::from_str("templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]").unwrap();
+        parent.override_with(local);
+        assert!(parent.templates.is_some());
+        let templates = parent.templates.unwrap();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].pattern.to_string(), "**/local.md");
+        assert_eq!(templates[0].filter, ".");
+        assert_eq!(templates[0].application_mode, ApplicationMode::Each);
+        let mut parent: WeaverConfig = WeaverConfig::default();
+        let local: WeaverConfig = serde_yaml::from_str("templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]").unwrap();
+        parent.override_with(local);
+        assert!(parent.templates.is_some());
+        let templates = parent.templates.unwrap();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].pattern.to_string(), "**/local.md");
+        assert_eq!(templates[0].filter, ".");
+        assert_eq!(templates[0].application_mode, ApplicationMode::Each);
+        let mut parent: WeaverConfig = serde_yaml::from_str("templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]").unwrap();
+        let local = WeaverConfig::default();
+        parent.override_with(local);
+        assert!(parent.templates.is_some());
+        let templates = parent.templates.unwrap();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].pattern.to_string(), "**/parent.md");
+        assert_eq!(templates[0].filter, ".");
+        assert_eq!(templates[0].application_mode, ApplicationMode::Single);
+        let mut parent: WeaverConfig = serde_yaml::from_str("templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str("templates: []").unwrap();
+        parent.override_with(local);
+        assert!(parent.templates.is_some());
+        let templates = parent.templates.unwrap();
+        assert_eq!(templates.len(), 0);
 
         // Tests acronyms overrides.
         // If defined in both, the local configuration should override the parent configuration.
