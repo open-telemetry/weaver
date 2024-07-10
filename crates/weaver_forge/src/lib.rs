@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use jaq_interpret::Val;
-use minijinja::{Environment, ErrorKind, State, Value};
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Object};
+use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
@@ -77,7 +77,7 @@ impl Object for TemplateObject {
         args: &[Value],
     ) -> Result<Value, minijinja::Error> {
         if name == "set_file_name" {
-            let (file_name, ): (&str,) = from_args(args)?;
+            let (file_name,): (&str,) = from_args(args)?;
             file_name.clone_into(&mut self.file_name.lock().expect("Lock poisoned"));
             Ok(Value::from(""))
         } else {
@@ -166,12 +166,18 @@ impl TemplateEngine {
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
     ) -> Result<Self, Error> {
-        let mut target_config = WeaverConfig::try_new(&loader)?;
+        let config = loader.load_file(WEAVER_YAML)?;
+        let mut target_config = if let Some(config) = config {
+            WeaverConfig::resolve_from(&[config])?
+        } else {
+            WeaverConfig::default()
+        };
 
         // Override the params defined in the `weaver.yaml` file with the params provided
         // in the command line.
         for (name, value) in params.params {
-            _ = target_config.params
+            _ = target_config
+                .params
                 .get_or_insert_with(HashMap::new)
                 .insert(name, value);
         }
@@ -240,11 +246,8 @@ impl TemplateEngine {
         let mut errors = Vec::new();
 
         // Build JQ context from the params.
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = self
-            .target_config
-            .params
-            .as_ref()
-            .map_or_else(
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) =
+            self.target_config.params.as_ref().map_or_else(
                 || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
                 |params| {
                     params
@@ -299,7 +302,7 @@ impl TemplateEngine {
                         ApplicationMode::Single => {
                             if filtered_result.is_null()
                                 || (filtered_result.is_array()
-                                && filtered_result.as_array().expect("is_array").is_empty())
+                                    && filtered_result.as_array().expect("is_array").is_empty())
                             {
                                 // Skip the template evaluation if the filtered result is null or an empty array
                                 continue;
@@ -309,8 +312,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -346,8 +349,8 @@ impl TemplateEngine {
                                 NewContext {
                                     ctx: &filtered_result,
                                 }
-                                    .try_into()
-                                    .ok()?,
+                                .try_into()
+                                .ok()?,
                                 relative_path.as_path(),
                                 output_directive,
                                 output_dir,
@@ -394,7 +397,9 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
         engine.add_global(
             "params",
-            Value::from_object(ParamsObject::new(self.target_config.params.clone().unwrap_or_default())),
+            Value::from_object(ParamsObject::new(
+                self.target_config.params.clone().unwrap_or_default(),
+            )),
         );
 
         let template = engine.get_template(template_file).map_err(|e| {
@@ -439,16 +444,36 @@ impl TemplateEngine {
 
         let syntax = SyntaxConfig::builder()
             .block_delimiters(
-                Cow::Owned(template_syntax.block_start.unwrap_or_else(|| "{%".to_owned())),
+                Cow::Owned(
+                    template_syntax
+                        .block_start
+                        .unwrap_or_else(|| "{%".to_owned()),
+                ),
                 Cow::Owned(template_syntax.block_end.unwrap_or_else(|| "%}".to_owned())),
             )
             .variable_delimiters(
-                Cow::Owned(template_syntax.variable_start.unwrap_or_else(|| "{{".to_owned())),
-                Cow::Owned(template_syntax.variable_end.unwrap_or_else(|| "}}".to_owned())),
+                Cow::Owned(
+                    template_syntax
+                        .variable_start
+                        .unwrap_or_else(|| "{{".to_owned()),
+                ),
+                Cow::Owned(
+                    template_syntax
+                        .variable_end
+                        .unwrap_or_else(|| "}}".to_owned()),
+                ),
             )
             .comment_delimiters(
-                Cow::Owned(template_syntax.comment_start.unwrap_or_else(|| "{#".to_owned())),
-                Cow::Owned(template_syntax.comment_end.unwrap_or_else(|| "#}".to_owned())),
+                Cow::Owned(
+                    template_syntax
+                        .comment_start
+                        .unwrap_or_else(|| "{#".to_owned()),
+                ),
+                Cow::Owned(
+                    template_syntax
+                        .comment_end
+                        .unwrap_or_else(|| "#}".to_owned()),
+                ),
             )
             .build()
             .map_err(|e| InvalidConfigFile {
@@ -462,6 +487,7 @@ impl TemplateEngine {
             file_loader
                 .load_file(name)
                 .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, e.to_string()))
+                .map(|opt_file_content| opt_file_content.map(|file_content| file_content.content))
         });
         env.set_syntax(syntax);
 
@@ -525,8 +551,8 @@ mod tests {
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
-    use crate::OutputDirective;
     use crate::registry::ResolvedRegistry;
+    use crate::OutputDirective;
 
     #[test]
     fn test_case_converter() {
@@ -653,7 +679,7 @@ mod tests {
     #[test]
     fn test() {
         let logger = TestLogger::default();
-        let loader = FileSystemFileLoader::try_new("templates".into(), "test")
+        let loader = FileSystemFileLoader::try_new("templates/test".into())
             .expect("Failed to create file system loader");
         let mut engine = super::TemplateEngine::try_new(loader, Params::default())
             .expect("Failed to create template engine");
@@ -677,12 +703,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         engine
             .generate(
@@ -702,7 +728,7 @@ mod tests {
     #[test]
     fn test_whitespace_control() {
         let logger = TestLogger::default();
-        let loader = FileSystemFileLoader::try_new("whitespace_control_templates".into(), "test")
+        let loader = FileSystemFileLoader::try_new("whitespace_control_templates/test".into())
             .expect("Failed to create file system loader");
         let engine = super::TemplateEngine::try_new(loader, Params::default())
             .expect("Failed to create template engine");
@@ -717,12 +743,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         engine
             .generate(
@@ -740,6 +766,6 @@ mod tests {
             "whitespace_control_templates/test/expected_output",
             "whitespace_control_templates/test/observed_output",
         )
-            .unwrap());
+        .unwrap());
     }
 }

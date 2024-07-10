@@ -10,7 +10,10 @@ use std::sync::OnceLock;
 
 /// Add utility filters and tests to the environment.
 pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfig) {
-    env.add_filter("acronym", acronym(target_config.acronyms.clone().unwrap_or_default()));
+    env.add_filter(
+        "acronym",
+        acronym(target_config.acronyms.clone().unwrap_or_default()),
+    );
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
 }
