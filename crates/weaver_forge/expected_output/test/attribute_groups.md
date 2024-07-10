@@ -4,6 +4,48 @@
 - one
 - two
 - three
+## Namespace `client`
+
+### Attributes
+
+
+#### Attribute `client.address`
+
+Client address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
+
+
+When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent the client address behind any intermediaries,  for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "client.example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `client.port`
+
+Client port number.
+
+
+When observed from the server side, and when communicating through an intermediary, `client.port` SHOULD represent the client port behind any intermediaries,  for example proxies, if it's available.
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    65123,
+]
+  
+- Stability: Stable
+  
+  
+  
 ## Namespace `db`
 
 ### Attributes
@@ -472,6 +514,378 @@ Username for accessing the database.
   
   
   
+## Namespace `exception`
+
+### Attributes
+
+
+#### Attribute `exception.escaped`
+
+SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
+
+
+
+An exception is considered to have escaped (or left) the scope of a span,
+if that span is ended while the exception is still logically "in flight".
+This may be actually "in flight" in some languages (e.g. if the exception
+is passed to a Context manager's `__exit__` method in Python) but will
+usually be caught at the point of recording the exception in most languages.
+
+It is usually not possible to determine at the point where an exception is thrown
+whether it will escape the scope of a span.
+However, it is trivial to know that an exception
+will escape, if one checks for an active exception just before ending the span,
+as done in the [example for recording span exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/#recording-an-exception).
+
+It follows that an exception may still escape the scope of the span
+even if the `exception.escaped` attribute was not set or set to false,
+since the event might have been recorded at a time where it was not
+clear whether the exception will escape.
+
+- Requirement Level: Recommended
+  
+- Type: boolean
+  
+- Stability: Stable
+  
+  
+#### Attribute `exception.message`
+
+The exception message.
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "Division by zero",
+    "Can't convert 'int' object to str implicitly",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `exception.stacktrace`
+
+A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
+
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)
+  
+- Stability: Stable
+  
+  
+#### Attribute `exception.type`
+
+The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "java.net.ConnectException",
+    "OSError",
+]
+  
+- Stability: Stable
+  
+  
+  
+## Namespace `gen_ai`
+
+### Attributes
+
+
+#### Attribute `gen_ai.completion`
+
+The full response received from the GenAI model.
+
+
+It's RECOMMENDED to format completions as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.operation.name`
+
+The name of the operation being performed.
+
+
+If one of the predefined values applies, but specific system uses a different name it's RECOMMENDED to document it in the semantic conventions for specific GenAI system and use system-specific name in the instrumentation. If a different name is not documented, instrumentation libraries SHOULD use applicable predefined value.
+
+- Requirement Level: Recommended
+  
+- Type: Enum [chat, text_completion]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.prompt`
+
+The full prompt sent to the GenAI model.
+
+
+It's RECOMMENDED to format prompts as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "[{'role': 'user', 'content': 'What is the capital of France?'}]",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.frequency_penalty`
+
+The frequency penalty setting for the GenAI request.
+
+
+- Requirement Level: Recommended
+  
+- Type: double
+- Examples: [
+    0.1,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.max_tokens`
+
+The maximum number of tokens the model generates for a request.
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    100,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.model`
+
+The name of the GenAI model a request is being made to.
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: gpt-4
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.presence_penalty`
+
+The presence penalty setting for the GenAI request.
+
+
+- Requirement Level: Recommended
+  
+- Type: double
+- Examples: [
+    0.1,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.stop_sequences`
+
+List of sequences that the model will use to stop generating further tokens.
+
+
+- Requirement Level: Recommended
+  
+- Type: string[]
+- Examples: [
+    "forest",
+    "lived",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.temperature`
+
+The temperature setting for the GenAI request.
+
+
+- Requirement Level: Recommended
+  
+- Type: double
+- Examples: [
+    0.0,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.top_k`
+
+The top_k sampling setting for the GenAI request.
+
+
+- Requirement Level: Recommended
+  
+- Type: double
+- Examples: [
+    1.0,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.request.top_p`
+
+The top_p sampling setting for the GenAI request.
+
+
+- Requirement Level: Recommended
+  
+- Tag: llm-generic-request
+  
+- Type: double
+- Examples: [
+    1.0,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.response.finish_reasons`
+
+Array of reasons the model stopped generating tokens, corresponding to each generation received.
+
+
+- Requirement Level: Recommended
+  
+- Type: string[]
+- Examples: [
+    "stop",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.response.id`
+
+The unique identifier for the completion.
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "chatcmpl-123",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.response.model`
+
+The name of the model that generated the response.
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "gpt-4-0613",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.system`
+
+The Generative AI product as identified by the client or server instrumentation.
+
+
+The `gen_ai.system` describes a family of GenAI models with specific model identified
+by `gen_ai.request.model` and `gen_ai.response.model` attributes.
+
+The actual GenAI product may differ from the one identified by the client.
+For example, when using OpenAI client libraries to communicate with Mistral, the `gen_ai.system`
+is set to `openai` based on the instrumentation's best knowledge.
+
+For custom model, a custom friendly name SHOULD be used.
+If none of these options apply, the `gen_ai.system` SHOULD be set to `_OTHER`.
+
+- Requirement Level: Recommended
+  
+- Type: Enum [openai, vertex_ai, anthropic, cohere]
+- Examples: openai
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.token.type`
+
+The type of token being counted.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [input, output]
+- Examples: [
+    "input",
+    "output",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.usage.input_tokens`
+
+The number of tokens used in the GenAI input (prompt).
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    100,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `gen_ai.usage.output_tokens`
+
+The number of tokens used in the GenAI response (completion).
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    180,
+]
+  
+- Stability: Experimental
+  
+  
+  
 ## Namespace `http`
 
 ### Attributes
@@ -867,6 +1281,266 @@ The value SHOULD be normalized to lowercase.
 ]
   
 - Stability: Stable
+  
+  
+  
+## Namespace `rpc`
+
+### Attributes
+
+
+#### Attribute `rpc.connect_rpc.error_code`
+
+The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [cancelled, unknown, invalid_argument, deadline_exceeded, not_found, already_exists, permission_denied, resource_exhausted, failed_precondition, aborted, out_of_range, unimplemented, internal, unavailable, data_loss, unauthenticated]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.connect_rpc.request.metadata`
+
+Connect request metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
+
+
+
+Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+
+- Requirement Level: Recommended
+  
+- Type: template[string[]]
+- Examples: [
+    "rpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.connect_rpc.response.metadata`
+
+Connect response metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.
+
+
+
+Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+
+- Requirement Level: Recommended
+  
+- Type: template[string[]]
+- Examples: [
+    "rpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.grpc.request.metadata`
+
+gRPC request metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
+
+
+
+Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+
+- Requirement Level: Recommended
+  
+- Type: template[string[]]
+- Examples: [
+    "rpc.grpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.grpc.response.metadata`
+
+gRPC response metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.
+
+
+
+Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.
+
+- Requirement Level: Recommended
+  
+- Type: template[string[]]
+- Examples: [
+    "rpc.grpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.grpc.status_code`
+
+The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.jsonrpc.error_code`
+
+`error.code` property of response if it is an error response.
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+- Examples: [
+    -32700,
+    100,
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.jsonrpc.error_message`
+
+`error.message` property of response if it is an error response.
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "Parse error",
+    "User already exists",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.jsonrpc.request_id`
+
+`id` property of request or response. Since protocol allows id to be int, string, `null` or missing (for notifications), value is expected to be cast to string for simplicity. Use empty string in case of `null` value. Omit entirely if this is a notification.
+
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "10",
+    "request-7",
+    "",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.jsonrpc.version`
+
+Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 doesn't specify this, the value can be omitted.
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "2.0",
+    "1.0",
+]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.message.compressed_size`
+
+Compressed size of the message in bytes.
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.message.id`
+
+MUST be calculated as two different counters starting from `1` one for sent messages and one for received message.
+
+
+This way we guarantee that the values will be consistent between different implementations.
+
+- Requirement Level: Recommended
+  
+- Type: int
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.message.type`
+
+Whether this is a received or sent message.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [SENT, RECEIVED]
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.message.uncompressed_size`
+
+Uncompressed size of the message in bytes.
+
+
+- Requirement Level: Recommended
+  
+- Type: int
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.method`
+
+The name of the (logical) method being called, must be equal to the $method part in the span name.
+
+
+This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: exampleMethod
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.service`
+
+The full (logical) name of the service being called, including its package name, if applicable.
+
+
+This is the logical name of the service from the RPC interface perspective, which can be different from the name of any implementing class. The `code.namespace` attribute may be used to store the latter (despite the attribute name, it may include a class name; e.g., class with method actually executing the call on the server side, RPC client stub class on the client side).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: myservice.EchoService
+  
+- Stability: Experimental
+  
+  
+#### Attribute `rpc.system`
+
+A string identifying the remoting system. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [grpc, java_rmi, dotnet_wcf, apache_dubbo, connect_rpc]
+  
+- Stability: Experimental
   
   
   

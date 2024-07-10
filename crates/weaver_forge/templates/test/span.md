@@ -1,7 +1,7 @@
-{%- set file_name = ctx.root_namespace | snake_case -%}
+{%- set file_name = ctx.group_namespace | snake_case -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 
-## Namespace Span `{{ ctx.root_namespace }}`
+## Namespace Span `{{ ctx.group_namespace }}`
 
 {% for span in ctx.spans %}
 ## Span `{{ span.id }}`

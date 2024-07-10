@@ -27,16 +27,10 @@ templates:
     filter: semconv_grouped_attributes
     application_mode: single
   - pattern: "**/event.md"
-    filter: >
-      semconv_signal("event"; {})
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) })
+    filter: semconv_grouped_events
     application_mode: each
   - pattern: "**/events.md"
-    filter: >
-      semconv_signal("event"; {})
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) })
+    filter: semconv_grouped_events
     application_mode: single
   - pattern: "**/metric.md"
     filter: semconv_grouped_metrics
@@ -46,25 +40,21 @@ templates:
     application_mode: single
   - pattern: "**/resource.md"
     filter: > 
-      semconv_signal("resource"; {}) 
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
+      semconv_signal_all("resource"; {}) 
+      | semconv_group_by_full_namespace("resources")
     application_mode: each
   - pattern: "**/resources.md"
     filter: >
-      semconv_signal("resource"; {}) 
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
+      semconv_signal_all("resource"; {}) 
+      | semconv_group_by_root_namespace("resources")
     application_mode: single
   - pattern: "**/span.md"
     filter: >
-      semconv_signal("span"; {}) 
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
+      semconv_signal_all("span"; {}) 
+      | semconv_group_by_full_namespace("spans")
     application_mode: each
   - pattern: "**/spans.md"
     filter: >
-      semconv_signal("span"; {}) 
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
+      semconv_signal_all("span"; {}) 
+      | semconv_group_by_root_namespace("spans")
     application_mode: single

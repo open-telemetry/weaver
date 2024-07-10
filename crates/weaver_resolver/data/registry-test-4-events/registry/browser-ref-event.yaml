@@ -1,0 +1,52 @@
+groups:
+  - id: browser.pageview
+    name: browser.pageview
+    type: event
+    brief: >
+      This event represents an occurrence of a page view.
+    attributes:
+      - ref: session.id
+      - ref: browser.platform
+    body:
+      fields:
+        - ref: http.url
+          alias: referrer
+          note: >
+            Referring Page URI (`document.referrer`) whenever available. The user agent SHOULD NOT send the fragment
+            (`#` followed by more data) portion of the URI.
+          brief: This attribute represents the referring page (if available).
+        - id: title
+          brief: >
+            This attribute represents the title of the page that was viewed.
+          note: >
+            The document title (`document.title`) of the page that was viewed. It MAY be equal to the `url` attribute
+            or empty if it is not applicable.
+          type: string
+          examples: ['Wikipedia - The Free Encyclopedia']
+        - ref: http.url
+          alias: url
+          note: >
+            Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`. Usually the fragment is
+            not transmitted over HTTP, but if it is known, it should be included nevertheless. The fragment may be
+            used for `virtual_page`s to disambiguate pages with the same URL (e.g., due to pagination).
+          brief: >
+            This attribute represents the URL of the page that was viewed.
+          examples: ['https://en.wikipedia.org/wiki/Main_Page', 'https://en.wikipedia.org/wiki/Main_Page#foo']
+        - id: type
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          note: >
+            This identifies the type of page view. For example, if the page view represents a user 
+          type:
+            allow_custom_values: false
+            members:
+              - id: physical_page
+                value: '0'
+                brief: >
+                  Initial page load within the browser and will generally also precede a PageNavigationTiming event.
+              - id: virtual_page
+                value: '1'
+                brief: >
+                  This is for Single Page Applications (SPA) where the framework provides the ability to perform
+                  client side only page "navigation", the exact definition of what a virtual page change is determined
+                  by the SPA and the framework it is using.

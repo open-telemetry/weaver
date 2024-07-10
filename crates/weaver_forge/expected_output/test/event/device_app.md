@@ -1,57 +1,38 @@
-## Events Namespace `lifecycle`
+## Events Namespace `device.app`
 
 
 ## Event `device.app.lifecycle`
 
-Note: 
-Brief: This event represents an occurrence of a lifecycle transition on the iOS platform.
+Note: This event identifies the fields that are common to all lifecycle events for android and iOS using the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are mutually exclusive.
+
+Brief: This event represents an occurrence of a lifecycle transition on Android or iOS platform.
 
 Requirement level: 
-Stability: 
+Stability: experimental
 
-### Attributes
+### Body Fields
 
-
-#### Attribute `ios.state`
+#### Field `ios.state`
 
 This attribute represents the state the application has transitioned into at the occurrence of the event.
-
-
 
 The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.
 
-- Requirement Level: Required
-  
+- Requirement Level: Conditionally Required - if and only if `os.name` is `ios`
 - Type: Enum [active, inactive, background, foreground, terminate]
-  
 - Stability: Experimental
-  
-  
-  
-## Event `device.app.lifecycle`
 
-Note: 
-Brief: This event represents an occurrence of a lifecycle transition on the Android platform.
+#### Field `android.state`
 
-Requirement level: 
-Stability: 
+This attribute represents the state the application has transitioned into at the occurrence of the event.
+
+The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.
+
+- Requirement Level: Conditionally Required - if and only if `os.name` is `android`
+- Type: Enum [created, background, foreground]
+- Stability: Experimental
 
 ### Attributes
 
 
-#### Attribute `android.state`
-
-This attribute represents the state the application has transitioned into at the occurrence of the event.
-
-
-
-The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.
-
-- Requirement Level: Required
-  
-- Type: Enum [created, background, foreground]
-  
-- Stability: Experimental
-  
-  
   

@@ -7,7 +7,25 @@
 
 {{ ctx.brief | trim }}
 
+{% if ctx.prefix %}
 prefix: {{ ctx.prefix }}
+{% endif %}
+{% if ctx.type == "event" %}
+## Event details
+
+The event name MUST be `{% ctx.id %}
+
+{% if ctx.body %}
+## Body Fields
+
+{% for bodyField in ctx.body.fields %}
+### Field `{{ bodyField.id }}`
+{% endfor %}
+{% else %}
+No event body defined.
+{% endif %}
+
+{% endif %}
 
 ## Attributes
 

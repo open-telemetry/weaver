@@ -264,4 +264,137 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Examples: mysql-e26b99z.example.com
   
 
+
+## Span `rpc`
+
+This document defines semantic conventions for remote procedure calls.
+
+Prefix: rpc
+Kind: none
+
+### Attributes
+
+
+#### Attribute `network.transport`
+
+[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
+
+
+
+The value SHOULD be normalized to lowercase.
+
+Consider always setting the transport when setting a port number, since
+a port number is ambiguous without knowing the transport. For example
+different processes could be listening on TCP port 12345 and UDP port 12345.
+
+- Requirement Level: Recommended
+  
+- Type: Enum [tcp, udp, pipe, unix]
+- Examples: [
+    "tcp",
+    "udp",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `network.type`
+
+[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
+
+
+The value SHOULD be normalized to lowercase.
+
+- Requirement Level: Recommended
+  
+- Type: Enum [ipv4, ipv6]
+- Examples: [
+    "ipv4",
+    "ipv6",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `rpc.method`
+
+The name of the (logical) method being called, must be equal to the $method part in the span name.
+
+
+This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: exampleMethod
+  
+- Stability: Experimental
+  
+
+#### Attribute `rpc.service`
+
+The full (logical) name of the service being called, including its package name, if applicable.
+
+
+This is the logical name of the service from the RPC interface perspective, which can be different from the name of any implementing class. The `code.namespace` attribute may be used to store the latter (despite the attribute name, it may include a class name; e.g., class with method actually executing the call on the server side, RPC client stub class on the client side).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: myservice.EchoService
+  
+- Stability: Experimental
+  
+
+#### Attribute `rpc.system`
+
+A string identifying the remoting system. See below for a list of well-known identifiers.
+
+
+- Requirement Level: Required
+  
+- Type: Enum [grpc, java_rmi, dotnet_wcf, apache_dubbo, connect_rpc]
+  
+- Stability: Experimental
+  
+
+#### Attribute `server.address`
+
+RPC server [host name](https://grpc.github.io/grpc/core/md_doc_naming.html).
+
+
+
+May contain server IP address, DNS name, or local socket name. When host component is an IP address, instrumentations SHOULD NOT do a reverse proxy lookup to obtain DNS name and SHOULD set `server.address` to the IP address provided in the host component.
+
+- Requirement Level: Required
+  
+- Type: string
+- Examples: [
+    "example.com",
+    "10.1.2.80",
+    "/tmp/my.sock",
+]
+  
+- Stability: Stable
+  
+
+#### Attribute `server.port`
+
+Server port number.
+
+
+When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
+
+- Requirement Level: Conditionally Required - if the port is supported by the network transport used for communication.
+  
+- Type: int
+- Examples: [
+    80,
+    8080,
+    443,
+]
+  
+- Stability: Stable
+  
+
  

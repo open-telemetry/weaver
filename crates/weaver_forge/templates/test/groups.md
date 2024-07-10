@@ -9,6 +9,11 @@
 
 prefix: {{ group.prefix }}
 
+{% if group.type == "event" -%}
+{%- set event = ctx -%}
+{% include "body.j2" -%}
+{% endif -%}
+
 ### Attributes
 
 {% for attribute in group.attributes %}

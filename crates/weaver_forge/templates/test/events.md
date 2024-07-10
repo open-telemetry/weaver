@@ -1,13 +1,15 @@
 {% for grouped_events in ctx %}
-# Events Namespace `{{ grouped_events.root_namespace }}`
+# Events Namespace `{{ grouped_events.group_namespace }}`
 
 {% for event in grouped_events.events %}
-## Event `{{ event.name }}`
+## Event `{{ event.id }}`
 
 Note: {{ event.note }}
 Brief: {{ event.brief }}
 Requirement level: {{ event.requirement_level }}
 Stability: {{ event.stability }}
+
+{% include "body.j2" -%}
 
 ### Attributes
 

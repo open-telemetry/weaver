@@ -1,7 +1,7 @@
-{%- set file_name = ctx.root_namespace | snake_case -%}
+{%- set file_name = ctx.group_namespace | snake_case -%}
 {{- template.set_file_name("resource/" ~ file_name ~ ".md") -}}
 
-## Namespace Resource `{{ ctx.root_namespace }}`
+## Namespace Resource `{{ ctx.group_namespace }}`
 
 {% for resource in ctx.resources %}
 

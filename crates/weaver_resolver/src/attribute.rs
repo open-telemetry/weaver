@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use weaver_resolved_schema::attribute;
 use weaver_resolved_schema::attribute::AttributeRef;
+use weaver_resolved_schema::error::Error;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_semconv::attribute::AttributeSpec;
 
@@ -23,12 +24,55 @@ pub struct AttributeCatalog {
 }
 
 #[derive(Debug, PartialEq)]
-struct AttributeWithGroupId {
+/// The Attribute with its group ID.
+pub struct AttributeWithGroupId {
+    /// The attribute.
     pub attribute: attribute::Attribute,
+    /// The group ID.
     pub group_id: String,
 }
 
+/// A reference to an attribute with its original attribute and group ID.
+pub struct AttributeRefWithGroup {
+    /// The attribute reference.
+    pub attr_ref: AttributeRef,
+    /// The attribute with its group ID.
+    pub attr: AttributeWithGroupId,
+}
+
 impl AttributeCatalog {
+    /// Returns the given attribute from the catalog.
+    #[must_use]
+    pub fn get_attribute(&self, name: &str) -> Option<&AttributeWithGroupId> {
+        self.root_attributes.get(name)
+    }
+
+    /// Returns the reference of the given attribute.
+    pub fn get_attribute_ref(&mut self, name: &str) -> Result<AttributeRefWithGroup, Error> {
+        let attr = self
+            .get_attribute(name)
+            .ok_or_else(|| Error::AttributeNotFound {
+                group_id: name.to_owned(),
+                attr_ref: AttributeRef(0),
+            })?;
+        // let group_id = attr.group_id.clone();
+        let attr_ref =
+            self.attribute_refs
+                .get(&attr.attribute)
+                .ok_or_else(|| Error::AttributeNotFound {
+                    group_id: attr.group_id.clone(),
+                    attr_ref: AttributeRef(0),
+                })?;
+
+        Ok(AttributeRefWithGroup {
+            attr_ref: *attr_ref,
+            attr: AttributeWithGroupId {
+                attribute: attr.attribute.clone(),
+                group_id: attr.group_id.clone(),
+            },
+        })
+    }
+
     /// Returns the reference of the given attribute or creates a new reference if the attribute
     /// does not exist in the catalog.
     pub fn attribute_ref(&mut self, attr: attribute::Attribute) -> AttributeRef {

@@ -1,7 +1,7 @@
 # Semantic Convention Resource Groups
 
 {% for grouped_resources in ctx %}
-## Namespace Resource `{{ grouped_resources.root_namespace }}`
+## Namespace Resource `{{ grouped_resources.group_namespace }}`
 
 {% for resource in grouped_resources.resources %}
 

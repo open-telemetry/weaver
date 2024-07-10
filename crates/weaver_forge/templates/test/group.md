@@ -9,6 +9,11 @@
 
 prefix: {{ ctx.prefix }}
 
+{% if ctx.type == "event" -%}
+{%- set event = ctx -%}
+{% include "body.j2" -%}
+{% endif -%}
+
 ## Attributes
 
 {% for attribute in ctx.attributes %}

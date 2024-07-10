@@ -20,3 +20,7 @@ templates:
     filter: >
       semconv_grouped_metrics({"exclude_stability": ["experimental"]})
     application_mode: single
+  - pattern: semconv_events.json
+    filter: >
+      semconv_grouped_events({"exclude_stability": ["experimental"]})
+    application_mode: single
