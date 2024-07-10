@@ -36,6 +36,11 @@ pub struct RegistryGenerateArgs {
     #[arg(short = 't', long, default_value = "templates")]
     pub templates: PathBuf,
 
+    /// List of `weaver.yaml` configuration files to use. When there is a conflict, the last one
+    /// will override the previous ones for the keys that are defined in both.
+    #[arg(short = 'c', long)]
+    pub config: Option<Vec<PathBuf>>,
+
     /// Parameters key=value, defined in the command line, to pass to the templates.
     /// The value must be a valid YAML value.
     #[arg(short= 'D', long, value_parser = parse_key_val)]
@@ -184,6 +189,7 @@ mod tests {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     output: temp_output.clone(),
                     templates: PathBuf::from("crates/weaver_codegen_test/templates/registry/rust"),
+                    config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {
@@ -252,6 +258,7 @@ mod tests {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     output: temp_output.clone(),
                     templates: PathBuf::from("crates/weaver_codegen_test/templates/registry/rust"),
+                    config: None,
                     param: None,
                     params: None,
                     registry: RegistryArgs {

@@ -677,7 +677,7 @@ mod tests {
     }
 
     #[test]
-    fn test() {
+    fn test_template_engine() {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates/test".into())
             .expect("Failed to create file system loader");
@@ -687,11 +687,13 @@ mod tests {
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
         // for test coverage purposes.
-        engine.target_config.templates = Some(vec![TemplateConfig {
+        let mut templates = engine.target_config.templates.unwrap_or_default();
+        templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
-        }]);
+        });
+        engine.target_config.templates = Some(templates);
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
