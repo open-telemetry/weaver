@@ -14,7 +14,7 @@ To do so we recommend following [Creating a JSON output for your registry](#crea
 
 ## Templates - Tips and Tricks
 
-When designing JINJA templates, you can make use the the `debug` function to output the context of the template at any point in time.  Simply add `{{ debug(ctx.some_variable) }}` do your template and you'll get a
+When designing JINJA templates, you can make use the `debug` function to output the context of the template at any point in time.  Simply add `{{ debug(ctx.some_variable) }}` to your template and you'll get a
 JSON rendered view of whatever is passed into `debug` at that portion of the template.
 
 ## Policies - Tips and tricks
