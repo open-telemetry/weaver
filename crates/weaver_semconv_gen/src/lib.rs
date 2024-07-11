@@ -425,8 +425,8 @@ mod tests {
     use std::path::PathBuf;
     use weaver_forge::config::Params;
 
-    use weaver_forge::file_loader::FileSystemFileLoader;
-    use weaver_forge::TemplateEngine;
+    use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
+    use weaver_forge::{TemplateEngine, WEAVER_YAML};
 
     use crate::{update_markdown, Error, SnippetGenerator};
 
@@ -440,7 +440,11 @@ mod tests {
     #[test]
     fn test_template_engine() -> Result<(), Error> {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
-        let template = TemplateEngine::try_new(loader, Params::default())?;
+        let configs = loader
+            .load_file(WEAVER_YAML)?
+            .into_iter()
+            .collect::<Vec<_>>();
+        let template = TemplateEngine::try_new(&configs, loader, Params::default())?;
         let generator = SnippetGenerator::try_from_path("data", Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.

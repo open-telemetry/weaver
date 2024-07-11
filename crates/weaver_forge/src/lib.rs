@@ -30,7 +30,7 @@ use crate::config::{ApplicationMode, Params, WeaverConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
-use crate::file_loader::FileLoader;
+use crate::file_loader::{FileContent, FileLoader};
 use crate::filter::Filter;
 use crate::registry::{ResolvedGroup, ResolvedRegistry};
 
@@ -163,15 +163,11 @@ impl TemplateEngine {
     /// Create a new template engine for the given target or return an error if
     /// the target does not exist or is not a directory.
     pub fn try_new(
+        configs: &[FileContent],
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
     ) -> Result<Self, Error> {
-        let config = loader.load_file(WEAVER_YAML)?;
-        let mut target_config = if let Some(config) = config {
-            WeaverConfig::resolve_from(&[config])?
-        } else {
-            WeaverConfig::default()
-        };
+        let mut target_config = WeaverConfig::resolve_from(configs)?;
 
         // Override the params defined in the `weaver.yaml` file with the params provided
         // in the command line.
@@ -550,9 +546,9 @@ mod tests {
     use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig};
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
-    use crate::file_loader::FileSystemFileLoader;
+    use crate::file_loader::{FileLoader, FileSystemFileLoader};
     use crate::registry::ResolvedRegistry;
-    use crate::OutputDirective;
+    use crate::{OutputDirective, WEAVER_YAML};
 
     #[test]
     fn test_case_converter() {
@@ -681,7 +677,8 @@ mod tests {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "test")
             .expect("Failed to create file system loader");
-        let mut engine = super::TemplateEngine::try_new(loader, Params::default())
+        let config = loader.load_file(WEAVER_YAML).unwrap().unwrap();
+        let mut engine = super::TemplateEngine::try_new(&[config], loader, Params::default())
             .expect("Failed to create template engine");
 
         // Add a template configuration for converter.md on top
@@ -732,7 +729,8 @@ mod tests {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("whitespace_control_templates".into(), "test")
             .expect("Failed to create file system loader");
-        let engine = super::TemplateEngine::try_new(loader, Params::default())
+        let config = loader.load_file(WEAVER_YAML).unwrap().unwrap();
+        let engine = super::TemplateEngine::try_new(&[config], loader, Params::default())
             .expect("Failed to create template engine");
 
         let registry_id = "default";

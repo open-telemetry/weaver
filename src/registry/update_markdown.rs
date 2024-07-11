@@ -11,8 +11,8 @@ use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::Params;
-use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::TemplateEngine;
+use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
+use weaver_forge::{TemplateEngine, WEAVER_YAML};
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command
@@ -71,7 +71,15 @@ pub(crate) fn command(
                 format!("{}/registry", args.templates).into(),
                 target,
             )?;
-            Some(TemplateEngine::try_new(loader, Params::default())?)
+            let configs = loader
+                .load_file(WEAVER_YAML)?
+                .into_iter()
+                .collect::<Vec<_>>();
+            Some(TemplateEngine::try_new(
+                &configs,
+                loader,
+                Params::default(),
+            )?)
         }
     };
 

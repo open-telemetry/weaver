@@ -10,8 +10,8 @@ use serde_yaml::Value;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use weaver_forge::config::Params;
-use weaver_forge::file_loader::FileSystemFileLoader;
+use weaver_forge::config::{Params, WeaverConfig};
+use weaver_forge::file_loader::{FileContent, FileLoader, FileSystemFileLoader};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
@@ -46,7 +46,7 @@ pub struct RegistryGenerateArgs {
 
     /// Parameters key=value, defined in the command line, to pass to the templates.
     /// The value must be a valid YAML value.
-    #[arg(short= 'D', long, value_parser = parse_key_val)]
+    #[arg(short = 'D', long, value_parser = parse_key_val)]
     pub param: Option<Vec<(String, Value)>>,
 
     /// Parameters, defined in a YAML file, to pass to the templates.
@@ -114,7 +114,16 @@ pub(crate) fn command(
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
-    let engine = TemplateEngine::try_new(loader, params)?;
+    let mut configs = Vec::new();
+
+    if let Some(paths) = &args.config {
+        for path in paths {
+            configs.push(FileContent::try_from_path(path)?);
+        }
+    } else {
+        configs.extend(WeaverConfig::collect_from_path(loader.root()));
+    };
+    let engine = TemplateEngine::try_new(&configs, loader, params)?;
 
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
@@ -282,5 +291,85 @@ mod tests {
         let exit_directive = run_command(&cli, logger);
         // The command should exit with an error code.
         assert_eq!(exit_directive.exit_code, 1);
+    }
+
+    #[test]
+    fn test_registry_generate_with_config() {
+        let logger = TestLogger::new();
+        let temp_output = TempDir::new("output")
+            .expect("Failed to create temporary directory")
+            .into_path();
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::Generate(RegistryGenerateArgs {
+                    target: "rust".to_owned(),
+                    output: temp_output.clone(),
+                    templates: PathBuf::from("crates/weaver_codegen_test/templates/"),
+                    config: Some(vec![
+                        PathBuf::from(
+                            "crates/weaver_codegen_test/templates/registry/alt_weaver.yaml",
+                        ),
+                        PathBuf::from(
+                            "crates/weaver_codegen_test/templates/registry/rust/weaver.yaml",
+                        ),
+                    ]),
+                    param: None,
+                    params: None,
+                    registry: RegistryArgs {
+                        registry: RegistryPath::Local(
+                            "crates/weaver_codegen_test/semconv_registry/".to_owned(),
+                        ),
+                        registry_git_sub_dir: None,
+                    },
+                    policies: vec![],
+                    skip_policies: true,
+                    diagnostic: Default::default(),
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli, logger.clone());
+        // The command should succeed.
+        assert_eq!(exit_directive.exit_code, 0);
+
+        // Hashset containing recursively all the relative paths of rust files in the
+        // output directory.
+        let rust_files: std::collections::HashSet<_> = walkdir::WalkDir::new(&temp_output)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+            .map(|e| {
+                e.path()
+                    .strip_prefix(&temp_output)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+
+        let expected_rust_files = vec![
+            "attributes/client.rs",
+            "attributes/mod.rs",
+            "attributes/exception.rs",
+            "attributes/server.rs",
+            "attributes/network.rs",
+            "attributes/url.rs",
+            "attributes/http.rs",
+            "attributes/system.rs",
+            "attributes/error.rs",
+        ]
+        .into_iter()
+        .map(|s| {
+            // Split the string by `/` and join the parts with the OS specific separator.
+            s.split('/')
+                .collect::<PathBuf>()
+                .to_string_lossy()
+                .to_string()
+        })
+        .collect::<std::collections::HashSet<_>>();
+
+        assert_eq!(rust_files, expected_rust_files);
     }
 }
