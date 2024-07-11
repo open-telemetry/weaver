@@ -2,6 +2,8 @@
 
 //! Weaver Configuration Definition.
 
+#![allow(rustdoc::invalid_html_tags)]
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
