@@ -22,8 +22,9 @@ use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
-const TEMPLATES_PATH: &str = "./templates/registry/rust";
+const TEMPLATES_PATH: &str = "./templates/registry/";
 const REGISTRY_ID: &str = "test";
+const TARGET: &str = "rust";
 
 fn main() {
     // Tell Cargo when to rerun this build script
@@ -48,7 +49,7 @@ fn main() {
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
         .unwrap_or_else(|e| process_error(&logger, e));
 
-    let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into())
+    let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
     let engine = TemplateEngine::try_new(loader, Params::default())
         .unwrap_or_else(|e| process_error(&logger, e));

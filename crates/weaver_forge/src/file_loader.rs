@@ -9,6 +9,7 @@ use minijinja::ErrorKind;
 use walkdir::WalkDir;
 
 use crate::error::Error;
+use crate::error::Error::TargetNotSupported;
 
 /// An abstraction for loading files from a file system, embedded directory, etc.
 pub trait FileLoader {
@@ -50,6 +51,7 @@ impl FileContent {
 /// This is useful for loading templates and other files that are embedded in the binary but
 /// can be overridden by the user.
 pub struct EmbeddedFileLoader {
+    target: String,
     embedded_dir: &'static include_dir::Dir<'static>,
     fs_loader: Option<FileSystemFileLoader>,
 }
@@ -57,28 +59,32 @@ pub struct EmbeddedFileLoader {
 impl EmbeddedFileLoader {
     /// Create a new embedded file loader.
     ///
-    /// If the `local_dir` directory exists, the loader will use the file system loader.
+    /// If the `local_dir/target` directory exists, the loader will use the file system loader.
     /// Otherwise, it will use the embedded directory.
     pub fn try_new(
-        root_embedded_dir: &'static include_dir::Dir<'static>,
-        sub_embedded_dir: &str,
+        embedded_dir: &'static include_dir::Dir<'static>,
         local_dir: PathBuf,
+        target: &str,
     ) -> Result<Self, Error> {
-        let embedded_dir =
-            root_embedded_dir
-                .get_dir(sub_embedded_dir)
-                .ok_or_else(|| Error::FileLoaderError {
-                    file: PathBuf::from(sub_embedded_dir),
-                    error: "Failed to get sub embedded directory".to_owned(),
-                })?;
-        Ok(Self {
-            embedded_dir,
-            fs_loader: if local_dir.exists() {
-                Some(FileSystemFileLoader::try_new(local_dir)?)
-            } else {
-                None
-            },
-        })
+        let target_embedded_dir = embedded_dir.get_dir(target);
+        let target_local_dir = local_dir.join(target);
+        if let Some(dir) = target_embedded_dir {
+            Ok(Self {
+                target: target.to_owned(),
+                embedded_dir: dir,
+                fs_loader: if target_local_dir.exists() {
+                    Some(FileSystemFileLoader::try_new(local_dir, target)?)
+                } else {
+                    None
+                },
+            })
+        } else {
+            Err(TargetNotSupported {
+                root_path: embedded_dir.path().to_string_lossy().to_string(),
+                target: target.to_owned(),
+                error: "Target not found".to_owned(),
+            })
+        }
     }
 }
 
@@ -121,8 +127,8 @@ impl FileLoader for EmbeddedFileLoader {
             return fs_loader.load_file(file);
         }
 
-        let file = &format!("{}/{}", self.embedded_dir.path().to_string_lossy(), file);
-        match self.embedded_dir.get_file(file) {
+        let name = format!("{}/{}", self.target, file);
+        match self.embedded_dir.get_file(name) {
             Some(file) => Ok(Some(FileContent {
                 content: file
                     .contents_utf8()
@@ -145,13 +151,12 @@ pub struct FileSystemFileLoader {
 
 impl FileSystemFileLoader {
     /// Create a new file system loader
-    pub fn try_new(dir: PathBuf) -> Result<Self, Error> {
-        if !dir.exists() {
-            return Err(Error::FileLoaderError {
-                file: dir.clone(),
-                error: "Directory does not exist".to_owned(),
-            });
-        }
+    pub fn try_new(dir: PathBuf, target: &str) -> Result<Self, Error> {
+        let dir = safe_join(&dir, target).map_err(|e| TargetNotSupported {
+            root_path: dir.to_string_lossy().to_string(),
+            target: target.to_owned(),
+            error: e.to_string(),
+        })?;
         Ok(Self { dir })
     }
 }
@@ -254,8 +259,8 @@ mod tests {
     fn test_template_loader() {
         let embedded_loader = EmbeddedFileLoader::try_new(
             &EMBEDDED_TEMPLATES,
+            PathBuf::from("./does-not-exist"),
             "test",
-            PathBuf::from("./does-not-exist/test"),
         )
         .unwrap();
         let embedded_content = embedded_loader.load_file("group.md");
@@ -267,8 +272,8 @@ mod tests {
 
         let overloaded_embedded_loader = EmbeddedFileLoader::try_new(
             &EMBEDDED_TEMPLATES,
+            PathBuf::from("./overloaded-templates"),
             "test",
-            PathBuf::from("./overloaded-templates/test"),
         )
         .unwrap();
         let overloaded_embedded_content = overloaded_embedded_loader.load_file("group.md");
@@ -278,7 +283,8 @@ mod tests {
             .content
             .contains("# Overloaded Group `{{ ctx.id }}` ({{ ctx.type }})"));
 
-        let fs_loader = FileSystemFileLoader::try_new(PathBuf::from("./templates/test")).unwrap();
+        let fs_loader =
+            FileSystemFileLoader::try_new(PathBuf::from("./templates"), "test").unwrap();
         let fs_content = fs_loader.load_file("group.md");
         assert!(fs_content.is_ok());
         let fs_content = fs_content.unwrap().unwrap();
@@ -351,8 +357,8 @@ mod tests {
     fn test_embedded_loader_error() {
         let embedded_loader = EmbeddedFileLoader::try_new(
             &EMBEDDED_TEMPLATES,
+            PathBuf::from("./does-not-exist"),
             "doesn't-exist",
-            PathBuf::from("./does-not-exist/doesn't-exist"),
         );
 
         assert!(embedded_loader.is_err());
@@ -360,7 +366,8 @@ mod tests {
 
     #[test]
     fn test_file_system_loader_error() {
-        let fs_loader = FileSystemFileLoader::try_new(PathBuf::from("./templates/doesn't-exist"));
+        let fs_loader =
+            FileSystemFileLoader::try_new(PathBuf::from("./templates"), "doesn't-exist");
 
         assert!(fs_loader.is_err());
     }

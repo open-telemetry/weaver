@@ -26,6 +26,9 @@ use crate::{DiagnosticArgs, ExitDirectives};
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
 pub struct RegistryGenerateArgs {
+    /// Target to generate the artifacts for.
+    pub target: String,
+
     /// Path to the directory where the generated artifacts will be saved.
     /// Default is the `output` directory.
     #[arg(default_value = "output")]
@@ -110,7 +113,7 @@ pub(crate) fn command(
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
-    let loader = FileSystemFileLoader::try_new(args.templates.clone())?;
+    let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
     let engine = TemplateEngine::try_new(loader, params)?;
 
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
@@ -187,8 +190,9 @@ mod tests {
             quiet: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
+                    target: "rust".to_owned(),
                     output: temp_output.clone(),
-                    templates: PathBuf::from("crates/weaver_codegen_test/templates/registry/rust"),
+                    templates: PathBuf::from("crates/weaver_codegen_test/templates/"),
                     config: None,
                     param: None,
                     params: None,
@@ -256,8 +260,9 @@ mod tests {
             quiet: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
+                    target: "rust".to_owned(),
                     output: temp_output.clone(),
-                    templates: PathBuf::from("crates/weaver_codegen_test/templates/registry/rust"),
+                    templates: PathBuf::from("crates/weaver_codegen_test/templates/"),
                     config: None,
                     param: None,
                     params: None,

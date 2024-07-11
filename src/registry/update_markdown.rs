@@ -68,7 +68,8 @@ pub(crate) fn command(
         None => None,
         Some(target) => {
             let loader = FileSystemFileLoader::try_new(
-                format!("{}/registry/{}", args.templates, target).into(),
+                format!("{}/registry", args.templates).into(),
+                target,
             )?;
             Some(TemplateEngine::try_new(loader, Params::default())?)
         }

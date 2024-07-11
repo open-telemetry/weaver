@@ -375,7 +375,7 @@ impl WeaverConfig {
 
         for path in paths {
             if path.as_ref().exists() {
-                configs.push(FileContent::try_from_path(path.as_ref().clone())
+                configs.push(FileContent::try_from_path(path.as_ref())
                     .map_err(|e| InvalidConfigFile {
                         config_file: path.as_ref().to_path_buf(),
                         error: e.to_string(),
