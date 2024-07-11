@@ -40,7 +40,7 @@ serde = { version = "1.0.204", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.116"}
 thiserror = "1.0.58"
-ureq = "2.9.7"
+ureq = "2.10.0"
 regex = "1.10.5"
 rayon = "1.10.0"
 ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
