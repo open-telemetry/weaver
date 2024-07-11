@@ -3893,6 +3893,7 @@ name = "weaver_forge"
 version = "0.5.0"
 dependencies = [
  "convert_case",
+ "dirs",
  "globset",
  "include_dir",
  "indexmap",

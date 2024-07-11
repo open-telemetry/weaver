@@ -6,8 +6,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
 use convert_case::{Case, Casing, Converter, Pattern};
+use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
+use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 use serde_yaml::Value;
@@ -333,13 +334,65 @@ impl Default for WeaverConfig {
 }
 
 impl WeaverConfig {
+    /// Builds the Weaver configuration from a path pointing to a configuration file.
+    /// The returned configuration is the result of the resolution of all the configurations found
+    /// in:
+    /// - the $HOME/.weaver/weaver.yaml file,
+    /// - the <path>/weaver.yaml and its <parent folders>weaver.yaml.
+    ///
+    /// The resolution process is done in the order of the enumeration above.
+    /// When a configuration is not found, it is skipped.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let mut configs = Vec::new();
+
+        // Detect all the weaver.yaml files in the path and parent folder.
+        let mut current_path = path.as_ref();
+        loop {
+            configs.push(current_path.join("weaver.yaml"));
+
+            if let Some(parent) = current_path.parent() {
+                current_path = parent;
+            } else {
+                break;
+            }
+        }
+
+        // Add the configuration from the home directory.
+        if let Some(home_dir) = home_dir() {
+            configs.push(home_dir.join(".weaver/weaver.yaml"));
+        }
+
+        configs.reverse();
+        Self::from_paths(configs)
+    }
+
+    /// Builds the Weaver configuration from a collection of paths pointing to configuration files.
+    /// If a configuration file is not found, it is skipped.
+    /// The order of the paths is important as the first configuration in the slice is loaded, then
+    /// if present, the second configuration overrides the first one, and so on.
+    pub fn from_paths<P: AsRef<Path>>(paths: Vec<P>) -> Result<Self, Error> {
+        let mut configs : Vec<FileContent> = Vec::new();
+
+        for path in paths {
+            if path.as_ref().exists() {
+                configs.push(FileContent::try_from_path(path.as_ref().clone())
+                    .map_err(|e| InvalidConfigFile {
+                        config_file: path.as_ref().to_path_buf(),
+                        error: e.to_string(),
+                    })?);
+            }
+        }
+
+        Self::resolve_from(&configs)
+    }
+
     /// Builds the Weaver configuration from a collection of configurations passed in parameter.
     /// The first configuration in the slice is loaded, then if present, the second configuration
     /// overrides the first one, and so on. This process is named "configuration resolution".
     ///
     /// This method can fail if any of the configuration content is not a valid YAML file or if the
     /// configuration content can't be deserialized into a `WeaverConfig` struct.
-    pub(crate) fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
+    pub fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
         // The default configuration is used as a base for the resolution.
         let mut config = WeaverConfig::default();
         if configs.is_empty() {
@@ -451,9 +504,9 @@ mod tests {
                     ("a".to_owned(), "b".to_owned()),
                     ("c".to_owned(), "d".to_owned())
                 ]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
     }
@@ -472,9 +525,9 @@ mod tests {
                     "a".to_owned(),
                     [("b".to_owned(), "g".to_owned())].iter().cloned().collect()
                 )]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
@@ -487,9 +540,9 @@ mod tests {
                     "a".to_owned(),
                     [("b".to_owned(), "g".to_owned())].iter().cloned().collect()
                 )]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
         let mut parent: WeaverConfig =
@@ -509,9 +562,9 @@ mod tests {
                         [("e".to_owned(), "f".to_owned())].iter().cloned().collect()
                     )
                 ]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
     }
@@ -522,7 +575,7 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "template_syntax: {block_start: \"{{\", block_end: \"}}\", variable_start: \"#\"}",
         )
-        .unwrap();
+            .unwrap();
         let local: WeaverConfig =
             serde_yaml::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}")
                 .unwrap();
@@ -609,11 +662,11 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
-        .unwrap();
+            .unwrap();
         let local: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
-        .unwrap();
+            .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
@@ -625,7 +678,7 @@ mod tests {
         let local: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
-        .unwrap();
+            .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
@@ -636,7 +689,7 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
-        .unwrap();
+            .unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
         assert!(parent.templates.is_some());
@@ -648,7 +701,7 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
-        .unwrap();
+            .unwrap();
         let local: WeaverConfig = serde_yaml::from_str("templates: []").unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
