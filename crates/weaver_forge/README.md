@@ -23,12 +23,13 @@ using the OTel Weaver tool:
 
 ## Template Directory Structure and Naming Conventions
 
-By default, the OTel Weaver tool expects to find a templates directory in the
-current directory.
+By default, Weaver expects to find the `templates/` directory in the current directory
+with the following structure. The location of this directory can be redefined using
+the `-t` or `--templates` CLI parameter.
 
 ```plaintext
 templates/
-  registry/
+  registry/                 <-- All templates related to the semantic convention registries
     go/                     <-- Templates to generate the semantic conventions in Go
       ...
     html/                   <-- Templates to generate the semantic conventions in HTML
@@ -70,8 +71,25 @@ its choice.
 
 ## Configuration File - `weaver.yaml`
 
-The configuration file `weaver.yaml` is optional. See the [Weaver Configuration File](/docs/weaver-config.md)
-documentation for more details.
+In the simplest case, a configuration file named `weaver.yaml` is searched for by
+the tool within the folder containing the templates. The syntax of this configuration
+file is described here [Weaver Configuration File](/docs/weaver-config.md).
+
+It is possible to utilize the hierarchy of folders containing the targets to share
+segments of the configuration common to all targets. Similarly, you can define
+Weaver configuration segments in your home directory, i.e., $HOME/.weaver/weaver.yaml.
+
+By default, the `weaver.yaml` files are loaded in the following order:
+
+- $HOME/.weaver/weaver.yaml
+- /weaver.yaml, all intermediate directories containing a `weaver.yaml` file up to the
+`templates/registry/<target>` directory.
+- `templates/registry/<target>/weaver.yaml`
+
+The last configuration file loaded will override the previous ones.
+
+For the most complex cases, it is possible to define explicitly the list configuration
+files to load using the `--config` CLI n-ary parameter.
 
 ## Global Variables
 
