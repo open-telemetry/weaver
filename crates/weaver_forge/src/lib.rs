@@ -180,6 +180,11 @@ impl TemplateEngine {
         })
     }
 
+    /// Return the Weaver configuration.
+    pub fn config(&self) -> &TargetConfig {
+        &self.target_config
+    }
+
     /// Generate a template snippet from serializable context and a snippet identifier.
     ///
     /// # Arguments

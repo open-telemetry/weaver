@@ -111,16 +111,19 @@ pub(crate) fn command(
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
     let engine = TemplateEngine::try_new(loader, params)?;
 
-    let template_registry = ResolvedRegistry::try_from_resolved_registry(
+    let mut resolved_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(registry_id)
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
     )?;
+    if let Some(groups_processing) = &engine.config().group_processing {
+        resolved_registry.apply_group_processing(groups_processing);
+    }
 
     engine.generate(
         logger.clone(),
-        &template_registry,
+        &resolved_registry,
         args.output.as_path(),
         &OutputDirective::File,
     )?;

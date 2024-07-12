@@ -4,15 +4,18 @@
 //! catalog are resolved to the actual catalog entries to ease the template
 //! evaluation.
 
-use crate::error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
+
+use crate::config::{AttributeOrCondition, GroupOrCondition, GroupProcessing};
+use crate::error::Error;
 
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
@@ -22,6 +25,7 @@ pub struct ResolvedRegistry {
     /// The semantic convention registry url.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub registry_url: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     /// A list of semantic convention groups.
     pub groups: Vec<ResolvedGroup>,
 }
@@ -138,7 +142,7 @@ impl ResolvedGroup {
             return Err(Error::CompoundError(errors));
         }
         Ok(ResolvedGroup {
-            id,
+            id: id.clone(),
             r#type: group_type,
             brief,
             note,
@@ -197,7 +201,7 @@ impl ResolvedRegistry {
                     .collect();
                 let lineage = group.lineage.clone();
                 ResolvedGroup {
-                    id,
+                    id: id.clone(),
                     r#type: group_type,
                     brief,
                     note,
@@ -228,13 +232,72 @@ impl ResolvedRegistry {
             groups,
         })
     }
+
+    /// Apply the group processing configuration to the resolved registry.
+    pub fn apply_group_processing(&mut self, config: &GroupProcessing) {
+        fn any_of_group_conditions(group: &ResolvedGroup, conditions: &GroupOrCondition) -> bool {
+            let id_matches = conditions.id_regex.iter().any(|re| re.is_match(&group.id));
+            let type_matches = conditions.type_set.iter().any(|type_set| type_set.contains(&group.r#type));
+            let stability_matches = conditions.stability_set.iter().any(|stability_set| if let Some(stability) = &group.stability {
+                stability_set.contains(&stability)
+            } else {
+                false
+            }
+            );
+            let without_attributes_matches = conditions.without_attributes.unwrap_or_default() && group.attributes.is_empty();
+
+            id_matches || type_matches || stability_matches || without_attributes_matches
+        }
+        fn any_of_attribute_conditions(attribute: &Attribute, conditions: &AttributeOrCondition) -> bool {
+            let id_matches = conditions.name_regex.iter().any(|re| re.is_match(&attribute.name));
+            let stability_matches = conditions.stability_set.iter().any(|stability_set| if let Some(stability) = &attribute.stability {
+                stability_set.contains(&stability)
+            } else {
+                false
+            }
+            );
+
+            id_matches || stability_matches
+        }
+
+        if let Some(conditions) = &config.remove_attributes_with {
+            self.groups.iter_mut().for_each(|group| {
+                group.attributes.retain(|attr| {
+                    !any_of_attribute_conditions(attr, conditions)
+                });
+            });
+        }
+        if let Some(conditions) = &config.retain_attributes_with {
+            self.groups.iter_mut().for_each(|group| {
+                group.attributes.retain(|attr| {
+                    any_of_attribute_conditions(attr, conditions)
+                });
+            });
+        }
+
+        if let Some(conditions) = &config.remove_groups_with {
+            self.groups.retain(|group| {
+                !any_of_group_conditions(group, conditions)
+            });
+        }
+        if let Some(conditions) = &config.retain_groups_with {
+            self.groups.retain(|group| {
+                any_of_group_conditions(group, conditions)
+            });
+        }
+
+        if config.sort_groups_by_id.unwrap_or_default() {
+            self.groups.sort_by(|a, b| a.id.cmp(&b.id));
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ResolvedRegistry;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
+
+    use crate::ResolvedRegistry;
 
     #[test]
     fn test_json_schema_gen() {

@@ -2,7 +2,7 @@
 
 //! Configuration for the template crate.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -11,6 +11,8 @@ use convert_case::{Case, Casing, Converter, Pattern};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 use serde_yaml::Value;
+use weaver_semconv::group::GroupType;
+use weaver_semconv::stability::Stability;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
@@ -50,9 +52,113 @@ pub enum CaseConvention {
     ScreamingKebabCase,
 }
 
+/// Configuration for a group processing.
+#[derive(Deserialize, Debug, Default, Clone)]
+pub struct GroupProcessing {
+    /// Retain groups with the specified group filter.
+    pub retain_groups_with: Option<GroupOrCondition>,
+    /// Remove groups with the specified group filter.
+    pub remove_groups_with: Option<GroupOrCondition>,
+    /// Retain attributes with the specified attribute filter.
+    pub retain_attributes_with: Option<AttributeOrCondition>,
+    /// Remove attributes with the specified attribute filter.
+    pub remove_attributes_with: Option<AttributeOrCondition>,
+    /// Whether to sort groups by ID.
+    pub sort_groups_by_id: Option<bool>,
+}
+
+/// Simple group filter configuration.
+/// There is a OR logic between the conditions.
+#[derive(Deserialize, Debug, Default, Clone)]
+pub struct GroupOrCondition {
+    /// Regular expression on the id field.
+    #[serde(with = "serde_regex")]
+    pub id_regex: Option<regex::Regex>,
+    /// Set of group types.
+    pub type_set: Option<HashSet<GroupType>>,
+    /// Set of stability values.
+    pub stability_set: Option<HashSet<Stability>>,
+    /// Whether the group has attributes.
+    pub without_attributes: Option<bool>,
+}
+
+/// Simple attribute filter configuration.
+/// There is a OR logic between the conditions.
+#[derive(Deserialize, Debug, Default, Clone)]
+pub struct AttributeOrCondition {
+    /// Regular expression on the id field.
+    #[serde(with = "serde_regex")]
+    pub name_regex: Option<regex::Regex>,
+    /// Set of stability values.
+    pub stability_set: Option<HashSet<Stability>>,
+}
+
+impl GroupProcessing {
+    /// Override the current group processing with the provided one.
+    pub fn override_with(&mut self, other: GroupProcessing) {
+        if let Some(other) = other.remove_groups_with {
+            self.remove_groups_with = Some(self.remove_groups_with.take().map(|mut existing| {
+                existing.override_with(other.clone());
+                existing
+            }).unwrap_or(other));
+        }
+        if let Some(other) = other.retain_groups_with {
+            self.retain_groups_with = Some(self.retain_groups_with.take().map(|mut existing| {
+                existing.override_with(other.clone());
+                existing
+            }).unwrap_or(other));
+        }
+        if let Some(other) = other.remove_attributes_with {
+            self.remove_attributes_with = Some(self.remove_attributes_with.take().map(|mut existing| {
+                existing.override_with(other.clone());
+                existing
+            }).unwrap_or(other));
+        }
+        if let Some(other) = other.retain_attributes_with {
+            self.retain_attributes_with = Some(self.retain_attributes_with.take().map(|mut existing| {
+                existing.override_with(other.clone());
+                existing
+            }).unwrap_or(other));
+        }
+        if other.sort_groups_by_id.is_some() {
+            self.sort_groups_by_id = other.sort_groups_by_id;
+        }
+    }
+}
+
+impl GroupOrCondition {
+    /// Override the current simple filter with the provided one.
+    pub fn override_with(&mut self, other: GroupOrCondition) {
+        if other.id_regex.is_some() {
+            self.id_regex = other.id_regex;
+        }
+        if other.stability_set.is_some() {
+            self.stability_set = other.stability_set;
+        }
+        if other.type_set.is_some() {
+            self.type_set = other.type_set;
+        }
+        if other.without_attributes.is_some() {
+            self.without_attributes = other.without_attributes;
+        }
+    }
+}
+
+impl AttributeOrCondition {
+    /// Override the current simple filter with the provided one.
+    pub fn override_with(&mut self, other: AttributeOrCondition) {
+        if other.name_regex.is_some() {
+            self.name_regex = other.name_regex;
+        }
+        if other.stability_set.is_some() {
+            self.stability_set = other.stability_set;
+        }
+    }
+}
+
 /// Target specific configuration.
 #[derive(Deserialize, Debug, Default)]
-pub(crate) struct TargetConfig {
+pub struct TargetConfig {
     /// Case convention used to name a file.
     #[serde(default)]
     pub(crate) file_name: CaseConvention,
@@ -86,6 +192,10 @@ pub(crate) struct TargetConfig {
     #[serde(default)]
     pub(crate) params: HashMap<String, Value>,
 
+    /// Configuration for the group processing.
+    #[serde(default)]
+    pub group_processing: Option<GroupProcessing>,
+
     /// Configuration for the templates.
     #[serde(default = "default_templates")]
     pub(crate) templates: Vec<TemplateConfig>,
@@ -100,76 +210,91 @@ fn default_templates() -> Vec<TemplateConfig> {
     vec![
         TemplateConfig {
             pattern: Glob::new("**/registry.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/attribute_group.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"attribute_group\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/attribute_groups.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"attribute_group\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/event.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"event\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/events.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"event\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/group.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/groups.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/metric.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"metric\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/metrics.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"metric\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/resource.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"resource\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/resources.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"resource\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/scope.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"scope\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/scopes.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"scope\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
         TemplateConfig {
             pattern: Glob::new("**/span.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"span\")".to_owned(),
             application_mode: ApplicationMode::Each,
         },
         TemplateConfig {
             pattern: Glob::new("**/spans.md").expect("Invalid pattern"),
+            group_processing: None,
             filter: ".groups[] | select(.type == \"span\")".to_owned(),
             application_mode: ApplicationMode::Single,
         },
@@ -202,12 +327,17 @@ pub(crate) struct TemplateConfig {
     /// The pattern used to identify when this template configuration must be
     /// applied to a specific template file.
     pub(crate) pattern: Glob,
+    /// Configuration of a group processing. This processing is applied to
+    /// the registry before applying the JQ expression and the template.
+    /// The group_processing is simpler to use than JQ but less powerful.
+    #[serde(default)]
+    pub group_processing: Option<GroupProcessing>,
     /// The filter to apply to the registry before applying the template.
     /// Applying a filter to a registry will return a list of elements from the
     /// registry that satisfy the filter.
     /// By default, the filter is set to "." which means that the whole registry
     /// is returned.
-    #[serde(default = "default_filter")]
+    #[serde(default = "default_filter", alias = "jq_expr")]
     pub(crate) filter: String,
     /// The mode to apply the template.
     /// `single`: Apply the template to the output of the filter as a whole.
