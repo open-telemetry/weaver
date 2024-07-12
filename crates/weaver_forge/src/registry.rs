@@ -290,12 +290,22 @@ impl ResolvedRegistry {
             self.groups.sort_by(|a, b| a.id.cmp(&b.id));
         }
     }
+
+    /// Count the number of groups of a specific type in the resolved registry.
+    pub fn count_groups_by_type(&self, group_type: GroupType) -> usize {
+        self.groups.iter().filter(|group| group.r#type == group_type).count()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use schemars::schema_for;
     use serde_json::to_string_pretty;
+    use weaver_resolver::SchemaResolver;
+    use weaver_semconv::group::GroupType;
+    use weaver_semconv::registry::SemConvRegistry;
+    use weaver_semconv::stability::Stability;
+    use crate::config::{AttributeOrCondition, GroupOrCondition, GroupProcessing};
 
     use crate::ResolvedRegistry;
 
@@ -306,5 +316,311 @@ mod tests {
 
         // Ensure the schema can be serialized to a string
         assert!(to_string_pretty(&schema).is_ok());
+    }
+
+    fn create_ref_registry() -> ResolvedRegistry {
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/test_group_processing/registry.yaml")
+            .expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
+
+        let ref_registry = ResolvedRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
+        ref_registry
+    }
+
+    #[test]
+    fn test_group_filtering() {
+        let ref_registry = create_ref_registry();
+
+        // Test default group processing configuration
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing::default();
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file:
+        // 1 resource + 1 event + 2 attribute_group + 1 metric + 1 span = 6
+        assert_eq!(registry.groups.len(), 6);
+
+        // Test retain only attribute groups
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::AttributeGroup].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering: 2 attribute_group
+        assert_eq!(registry.count_groups_by_type(GroupType::AttributeGroup), 2);
+
+        // Test retain only attribute_group and span groups
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::AttributeGroup, GroupType::Span].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering: 2 attribute_group + 1 span = 3
+        assert_eq!(registry.count_groups_by_type(GroupType::AttributeGroup), 2);
+        assert_eq!(registry.count_groups_by_type(GroupType::Span), 1);
+
+        // Test remove attribute groups
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: None,
+            remove_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::AttributeGroup].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering:
+        // - 0 attribute_group
+        // - 1 resource + 1 event + 1 metric + 1 span = 4
+        assert_eq!(registry.count_groups_by_type(GroupType::AttributeGroup), 0);
+        assert_eq!(registry.groups.len(), 4);
+
+        // Test remove attribute_group and span groups
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: None,
+            remove_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::AttributeGroup, GroupType::Span].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering:
+        // - 0 attribute_group
+        // - 0 span
+        // - 1 resource + 1 event + 1 metric = 3
+        assert_eq!(registry.count_groups_by_type(GroupType::AttributeGroup), 0);
+        assert_eq!(registry.count_groups_by_type(GroupType::Span), 0);
+        assert_eq!(registry.groups.len(), 3);
+
+        // Test retain groups starting with "registry."
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: Some(regex::Regex::new(r"^registry\.").unwrap()),
+                type_set: None,
+                stability_set: None,
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering: 1 registry attribute_group
+        assert_eq!(registry.count_groups_by_type(GroupType::AttributeGroup), 1);
+
+        // Test retain groups with stability set to experimental
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: None,
+                stability_set: Some([Stability::Experimental].into()),
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering: 1 event group marked as experimental
+        assert_eq!(registry.count_groups_by_type(GroupType::Event), 1);
+        assert_eq!(registry.groups.len(), 1);
+
+        // Attributes marked as experimental are removed.
+        // Test remove groups without attributes.
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: None,
+            remove_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: None,
+                stability_set: None,
+                without_attributes: Some(true),
+            }),
+            retain_attributes_with: None,
+            remove_attributes_with: Some(AttributeOrCondition {
+                name_regex: None,
+                stability_set: Some([Stability::Experimental].into())
+            }),
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering:
+        // - 0 event group because all the attributes are marked as experimental
+        // - 1 resource + 2 attribute_group + 1 metric + 1 span = 5
+        assert_eq!(registry.count_groups_by_type(GroupType::Event), 0);
+        assert_eq!(registry.groups.len(), 5);
+
+        // All attributes are removed.
+        // Test remove groups without attributes.
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: None,
+            remove_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: None,
+                stability_set: None,
+                without_attributes: Some(true),
+            }),
+            retain_attributes_with: None,
+            remove_attributes_with: Some(AttributeOrCondition {
+                name_regex: Some(regex::Regex::new(r".*").unwrap()),
+                stability_set: None
+            }),
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering: 0 group
+        assert_eq!(registry.groups.len(), 0);
+    }
+
+    #[test]
+    fn test_group_sorting() {
+        let mut registry = create_ref_registry();
+        let config = GroupProcessing {
+            retain_groups_with: None,
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: None,
+            sort_groups_by_id: Some(true),
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file:
+        // 1 resource + 1 event + 2 attribute_group + 1 metric + 1 span = 6
+        assert_eq!(registry.groups.len(), 6);
+        let group_ids = registry.groups.iter().map(|group| group.id.clone()).collect::<Vec<String>>();
+        assert_eq!(group_ids, vec![
+            "attributes.jvm.memory",
+            "db",
+            "ios.lifecycle.events",
+            "metric.jvm.memory.used",
+            "otel.scope",
+            "registry.network",
+        ]);
+    }
+
+    #[test]
+    fn test_attribute_filtering() {
+        let ref_registry = create_ref_registry();
+
+        // Retain only resource groups.
+        // Test remove attributes with stability set to experimental
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::Resource].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: Some(AttributeOrCondition {
+                name_regex: None,
+                stability_set: Some([Stability::Experimental].into())
+            }),
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering:
+        // - 1 resource
+        // - 1 non-experimental attribute named "otel.scope.name"
+        assert_eq!(registry.groups.len(), 1);
+        assert_eq!(registry.groups[0].attributes.len(), 1);
+        assert_eq!(registry.groups[0].attributes[0].name, "otel.scope.name");
+
+        // Retain only resource groups.
+        // Test retain attributes with stability set to experimental
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::Resource].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: Some(AttributeOrCondition {
+                name_regex: None,
+                stability_set: Some([Stability::Experimental].into())
+            }),
+            remove_attributes_with: None,
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering:
+        // - 1 resource
+        // - 1 experimental attribute named "otel.scope.version"
+        assert_eq!(registry.groups.len(), 1);
+        assert_eq!(registry.groups[0].attributes.len(), 1);
+        assert_eq!(registry.groups[0].attributes[0].name, "otel.scope.version");
+
+        // Retain only resource groups.
+        // Test remove attributes with name matching "otel.scope.v*"
+        let mut registry = ref_registry.clone();
+        let config = GroupProcessing {
+            retain_groups_with: Some(GroupOrCondition {
+                id_regex: None,
+                type_set: Some([GroupType::Resource].into()),
+                stability_set: None,
+                without_attributes: None,
+            }),
+            remove_groups_with: None,
+            retain_attributes_with: None,
+            remove_attributes_with: Some(AttributeOrCondition {
+                name_regex: Some(regex::Regex::new(r"otel\.scope\.v.*").unwrap()),
+                stability_set: None
+            }),
+            sort_groups_by_id: None,
+        };
+        registry.apply_group_processing(&config);
+        // Present groups in the yaml file after filtering:
+        // - 1 resource
+        // - 1 non-experimental attribute named "otel.scope.name"
+        assert_eq!(registry.groups.len(), 1);
+        assert_eq!(registry.groups[0].attributes.len(), 1);
+        assert_eq!(registry.groups[0].attributes[0].name, "otel.scope.name");
     }
 }

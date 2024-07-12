@@ -660,6 +660,7 @@ mod tests {
         engine.target_config.templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
+            group_processing: None,
             application_mode: ApplicationMode::Single,
         });
 
