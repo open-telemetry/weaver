@@ -9,6 +9,12 @@
 
 [Getting started](#getting-started) | [Main commands](#main-commands) | [Generate Doc & Code](crates/weaver_forge/README.md) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
 
+> [!NOTE]
+> Codegen authors, please refer to the following documentation to learn how to
+> use Weaver for generating code from semantic conventions:
+> - [Templates organization, integrated Jinja2 engine, list of supported filters/functions/tests](crates/weaver_forge/README.md)
+> - [Weaver Configuration](docs/weaver-config.md)
+
 ## What is OpenTelemetry Weaver?
 
 **OTel Weaver** is a comprehensive tool designed to enable developers to

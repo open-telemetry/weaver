@@ -1,0 +1,6 @@
+Test integration with `py_compat` functions
+
+"Hello, World!".startswith("Hello") => true
+"Hello, World!".startswith("Bonjour") => false
+"Hello, World!".endswith("World!") => true
+"Hello, World!".endswith("Monde!") => false

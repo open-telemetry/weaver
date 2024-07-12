@@ -1,0 +1,6 @@
+Test integration with `py_compat` functions
+
+"{{ctx.text}}".startswith("Hello") => {{ ctx.text.startswith("Hello") }}
+"{{ctx.text}}".startswith("Bonjour") => {{ ctx.text.startswith("Bonjour") }}
+"{{ctx.text}}".endswith("World!") => {{ ctx.text.endswith("World!") }}
+"{{ctx.text}}".endswith("Monde!") => {{ ctx.text.endswith("Monde!") }}

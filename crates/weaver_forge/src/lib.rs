@@ -448,6 +448,11 @@ impl TemplateEngine {
                 error: e.to_string(),
             })?;
 
+        // Add minijinja contrib support
+        minijinja_contrib::add_to_environment(&mut env);
+        // Add minijinja py-compat support to improve compatibility with Python Jinja2
+        env.set_unknown_method_callback(minijinja_contrib::pycompat::unknown_method_callback);
+
         let file_loader = self.file_loader.clone();
         env.set_loader(move |name| {
             file_loader
@@ -506,6 +511,7 @@ mod tests {
     use std::path::Path;
 
     use globset::Glob;
+    use serde::Serialize;
 
     use weaver_common::TestLogger;
     use weaver_diff::diff_dir;
@@ -679,7 +685,7 @@ mod tests {
             .generate(
                 logger.clone(),
                 &template_registry,
-                Path::new("observed_output"),
+                Path::new("observed_output/test"),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
@@ -687,13 +693,13 @@ mod tests {
             })
             .expect("Failed to generate registry assets");
 
-        assert!(diff_dir("expected_output", "observed_output").unwrap());
+        assert!(diff_dir("expected_output/test", "observed_output/test").unwrap());
     }
 
     #[test]
     fn test_whitespace_control() {
         let logger = TestLogger::default();
-        let loader = FileSystemFileLoader::try_new("whitespace_control_templates".into(), "test")
+        let loader = FileSystemFileLoader::try_new("templates".into(), "whitespace_control")
             .expect("Failed to create file system loader");
         let engine = super::TemplateEngine::try_new(loader, Params::default())
             .expect("Failed to create template engine");
@@ -719,7 +725,7 @@ mod tests {
             .generate(
                 logger.clone(),
                 &template_registry,
-                Path::new("whitespace_control_templates/test/observed_output"),
+                Path::new("observed_output/whitespace_control"),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
@@ -728,9 +734,40 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir(
-            "whitespace_control_templates/test/expected_output",
-            "whitespace_control_templates/test/observed_output"
+            "expected_output/whitespace_control",
+            "observed_output/whitespace_control"
         )
         .unwrap());
+    }
+
+    #[test]
+    fn test_py_compat() {
+        #[derive(Serialize)]
+        struct Context {
+            text: String,
+        }
+
+        let logger = TestLogger::default();
+        let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
+            .expect("Failed to create file system loader");
+        let engine = super::TemplateEngine::try_new(loader, Params::default())
+            .expect("Failed to create template engine");
+        let context = Context {
+            text: "Hello, World!".to_owned(),
+        };
+
+        engine
+            .generate(
+                logger.clone(),
+                &context,
+                Path::new("observed_output/py_compat"),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir("expected_output/py_compat", "observed_output/py_compat").unwrap());
     }
 }
