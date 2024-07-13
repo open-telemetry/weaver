@@ -46,3 +46,5 @@ opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "o
 opentelemetry_sdk = { version = "0.22.1", features = ["trace", "metrics", "logs"] }
 opentelemetry-stdout = { version = "0.3.0", features = ["trace", "metrics", "logs"] }
 
+[package.metadata.cargo-machete]
+ignored = ["serde_regex"]

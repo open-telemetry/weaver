@@ -54,6 +54,7 @@ pub enum CaseConvention {
 
 /// Configuration for a group processing.
 #[derive(Deserialize, Debug, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct GroupProcessing {
     /// Retain groups with the specified group filter.
     pub retain_groups_with: Option<GroupOrCondition>,
@@ -70,55 +71,83 @@ pub struct GroupProcessing {
 /// Simple group filter configuration.
 /// There is a OR logic between the conditions.
 #[derive(Deserialize, Debug, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct GroupOrCondition {
     /// Regular expression on the id field.
     #[serde(with = "serde_regex")]
-    pub id_regex: Option<regex::Regex>,
+    #[serde(default)]
+    pub id: Option<regex::Regex>,
     /// Set of group types.
-    pub type_set: Option<HashSet<GroupType>>,
+    pub types_in: Option<HashSet<GroupType>>,
+    /// Whether the group is deprecated.
+    pub deprecated: Option<bool>,
     /// Set of stability values.
-    pub stability_set: Option<HashSet<Stability>>,
-    /// Whether the group has attributes.
-    pub without_attributes: Option<bool>,
+    pub stability_in: Option<HashSet<Stability>>,
+    /// Whether the group has attribute.
+    pub no_attribute: Option<bool>,
 }
 
 /// Simple attribute filter configuration.
 /// There is a OR logic between the conditions.
 #[derive(Deserialize, Debug, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct AttributeOrCondition {
     /// Regular expression on the id field.
     #[serde(with = "serde_regex")]
-    pub name_regex: Option<regex::Regex>,
+    #[serde(default)]
+    pub name: Option<regex::Regex>,
+    /// Whether the group is deprecated.
+    pub deprecated: Option<bool>,
     /// Set of stability values.
-    pub stability_set: Option<HashSet<Stability>>,
+    pub stability_in: Option<HashSet<Stability>>,
 }
 
 impl GroupProcessing {
     /// Override the current group processing with the provided one.
     pub fn override_with(&mut self, other: GroupProcessing) {
         if let Some(other) = other.remove_groups_with {
-            self.remove_groups_with = Some(self.remove_groups_with.take().map(|mut existing| {
-                existing.override_with(other.clone());
-                existing
-            }).unwrap_or(other));
+            self.remove_groups_with = Some(
+                self.remove_groups_with
+                    .take()
+                    .map(|mut existing| {
+                        existing.override_with(other.clone());
+                        existing
+                    })
+                    .unwrap_or(other),
+            );
         }
         if let Some(other) = other.retain_groups_with {
-            self.retain_groups_with = Some(self.retain_groups_with.take().map(|mut existing| {
-                existing.override_with(other.clone());
-                existing
-            }).unwrap_or(other));
+            self.retain_groups_with = Some(
+                self.retain_groups_with
+                    .take()
+                    .map(|mut existing| {
+                        existing.override_with(other.clone());
+                        existing
+                    })
+                    .unwrap_or(other),
+            );
         }
         if let Some(other) = other.remove_attributes_with {
-            self.remove_attributes_with = Some(self.remove_attributes_with.take().map(|mut existing| {
-                existing.override_with(other.clone());
-                existing
-            }).unwrap_or(other));
+            self.remove_attributes_with = Some(
+                self.remove_attributes_with
+                    .take()
+                    .map(|mut existing| {
+                        existing.override_with(other.clone());
+                        existing
+                    })
+                    .unwrap_or(other),
+            );
         }
         if let Some(other) = other.retain_attributes_with {
-            self.retain_attributes_with = Some(self.retain_attributes_with.take().map(|mut existing| {
-                existing.override_with(other.clone());
-                existing
-            }).unwrap_or(other));
+            self.retain_attributes_with = Some(
+                self.retain_attributes_with
+                    .take()
+                    .map(|mut existing| {
+                        existing.override_with(other.clone());
+                        existing
+                    })
+                    .unwrap_or(other),
+            );
         }
         if other.sort_groups_by_id.is_some() {
             self.sort_groups_by_id = other.sort_groups_by_id;
@@ -129,17 +158,17 @@ impl GroupProcessing {
 impl GroupOrCondition {
     /// Override the current simple filter with the provided one.
     pub fn override_with(&mut self, other: GroupOrCondition) {
-        if other.id_regex.is_some() {
-            self.id_regex = other.id_regex;
+        if other.id.is_some() {
+            self.id = other.id;
         }
-        if other.stability_set.is_some() {
-            self.stability_set = other.stability_set;
+        if other.stability_in.is_some() {
+            self.stability_in = other.stability_in;
         }
-        if other.type_set.is_some() {
-            self.type_set = other.type_set;
+        if other.types_in.is_some() {
+            self.types_in = other.types_in;
         }
-        if other.without_attributes.is_some() {
-            self.without_attributes = other.without_attributes;
+        if other.no_attribute.is_some() {
+            self.no_attribute = other.no_attribute;
         }
     }
 }
@@ -147,11 +176,11 @@ impl GroupOrCondition {
 impl AttributeOrCondition {
     /// Override the current simple filter with the provided one.
     pub fn override_with(&mut self, other: AttributeOrCondition) {
-        if other.name_regex.is_some() {
-            self.name_regex = other.name_regex;
+        if other.name.is_some() {
+            self.name = other.name;
         }
-        if other.stability_set.is_some() {
-            self.stability_set = other.stability_set;
+        if other.stability_in.is_some() {
+            self.stability_in = other.stability_in;
         }
     }
 }

@@ -181,6 +181,7 @@ impl TemplateEngine {
     }
 
     /// Return the Weaver configuration.
+    #[must_use]
     pub fn config(&self) -> &TargetConfig {
         &self.target_config
     }
