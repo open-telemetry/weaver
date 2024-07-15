@@ -1,0 +1,9 @@
+groups:
+  - id: usage2
+    brief: Attributes for test.
+    type: attribute_group
+    prefix: usage2
+    extends: usage
+    attributes:
+      - ref: geo.country
+        brief: this is ref country attribute

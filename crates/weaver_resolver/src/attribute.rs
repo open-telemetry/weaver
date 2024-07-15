@@ -66,6 +66,7 @@ impl AttributeCatalog {
     pub fn resolve(
         &mut self,
         group_id: &str,
+        group_prefix: &str,
         attr: &AttributeSpec,
         lineage: Option<&mut GroupLineage>,
     ) -> Option<AttributeRef> {
@@ -80,16 +81,25 @@ impl AttributeCatalog {
                 note,
                 stability,
                 deprecated,
+                prefix,
             } => {
+                let name;
                 let root_attr = self.root_attributes.get(r#ref);
                 if let Some(root_attr) = root_attr {
                     let mut attr_lineage = AttributeLineage::new(&root_attr.group_id);
+
+                    if *prefix {
+                        // depending on the prefix we either create embedded attribute or normal reference
+                        name = format!("{}.{}", group_prefix, r#ref);
+                    } else {
+                        name = r#ref.clone();
+                    }
 
                     // Create a fully resolved attribute from an attribute spec
                     // (ref) and override the root attribute with the new
                     // values if they are present.
                     let resolved_attr = attribute::Attribute {
-                        name: r#ref.clone(),
+                        name: name.clone(),
                         r#type: root_attr.attribute.r#type.clone(),
                         brief: attr_lineage.brief(brief, &root_attr.attribute.brief),
                         examples: attr_lineage.examples(examples, &root_attr.attribute.examples),
@@ -109,14 +119,27 @@ impl AttributeCatalog {
                             .deprecated(deprecated, &root_attr.attribute.deprecated),
                         tags: root_attr.attribute.tags.clone(),
                         value: root_attr.attribute.value.clone(),
+                        prefix: *prefix,
                     };
 
-                    let attr_ref = self.attribute_ref(resolved_attr);
+                    let attr_ref = self.attribute_ref(resolved_attr.clone());
 
                     // Update the lineage based on the inherited fields.
                     // Note: the lineage is only updated if a group lineage is provided.
                     if let Some(lineage) = lineage {
-                        lineage.add_attribute_lineage(r#ref.to_owned(), attr_lineage);
+                        lineage.add_attribute_lineage(name.clone(), attr_lineage);
+                    }
+
+                    if *prefix {
+                        // if it's a prefix with reference
+                        // we need to add it to the dictionary of resolved attributes
+                        _ = self.root_attributes.insert(
+                            name,
+                            AttributeWithGroupId {
+                                attribute: resolved_attr,
+                                group_id: group_id.to_owned(),
+                            },
+                        );
                     }
 
                     Some(attr_ref)
@@ -153,6 +176,7 @@ impl AttributeCatalog {
                     deprecated: deprecated.clone(),
                     tags: None,
                     value: None,
+                    prefix: false,
                 };
 
                 _ = self.root_attributes.insert(

@@ -1,17 +1,12 @@
-type_mapping:
-  int: i64
-  double: f64
-  boolean: bool
-  string: String
-  string[]: Vec<String>
-  template[string]: String          # Not yet properly handled in codegen
-  template[string[]]: Vec<String>   # Not yet properly handled in codegen
-
-# Default parameter values
-params:
-  attributes: true
-  metrics: true
-  registry_prefix: "registry."
+text_maps:
+  rust_types:
+    int: i64
+    double: f64
+    boolean: bool
+    string: String
+    string[]: Vec<String>
+    template[string]: String          # Not yet properly handled in codegen
+    template[string[]]: Vec<String>   # Not yet properly handled in codegen
 
 templates:
   - pattern: README.md

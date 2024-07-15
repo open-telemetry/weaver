@@ -666,6 +666,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "rec.b".into(),
@@ -680,6 +681,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "crec.a".into(),
@@ -694,6 +696,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "crec.b".into(),
@@ -708,6 +711,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "rec.c".into(),
@@ -722,6 +726,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "rec.d".into(),
@@ -736,6 +741,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "opt.a".into(),
@@ -750,6 +756,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "opt.b".into(),
@@ -764,6 +771,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "req.a".into(),
@@ -778,6 +786,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "req.b".into(),
@@ -792,6 +801,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
         ];
         let json =
@@ -849,6 +859,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "attr2".to_owned(),
@@ -863,6 +874,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
             Attribute {
                 name: "attr3".to_owned(),
@@ -877,6 +889,7 @@ mod tests {
                 deprecated: None,
                 tags: None,
                 value: None,
+                prefix: false,
             },
         ];
 
@@ -1163,6 +1176,7 @@ mod tests {
             deprecated: None,
             tags: None,
             value: None,
+            prefix: false,
         };
 
         add_tests_and_filters(&mut env);
@@ -1189,6 +1203,7 @@ mod tests {
             deprecated: None,
             tags: None,
             value: None,
+            prefix: false,
         };
 
         add_tests_and_filters(&mut env);

@@ -422,9 +422,8 @@ impl ResolvedSemconvRegistry {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::PathBuf;
-    use weaver_forge::config::Params;
 
+    use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
 
@@ -440,7 +439,8 @@ mod tests {
     #[test]
     fn test_template_engine() -> Result<(), Error> {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
-        let template = TemplateEngine::try_new(loader, Params::default())?;
+        let config = WeaverConfig::try_from_loader(&loader)?;
+        let template = TemplateEngine::new(config, loader, Params::default());
         let generator = SnippetGenerator::try_from_path("data", Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
@@ -491,7 +491,7 @@ mod tests {
         }
     }
 
-    fn run_legacy_test(path: PathBuf) -> Result<(), Error> {
+    fn run_legacy_test(path: std::path::PathBuf) -> Result<(), Error> {
         let semconv_path = format!("{}", path.display());
         let lookup = SnippetGenerator::try_from_path(&semconv_path, None)?;
         let test_path = path.join("test.md").display().to_string();

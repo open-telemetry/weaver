@@ -23,21 +23,20 @@ using the OTel Weaver tool:
 
 ## Template Directory Structure and Naming Conventions
 
-By default, the OTel Weaver tool expects to find a templates directory in the
-current directory.
+By default, Weaver expects to find the `templates/` directory in the current directory
+with the following structure. The location of this directory can be redefined using
+the `-t` or `--templates` CLI parameter.
 
 ```plaintext
 templates/
-  registry/
+  registry/                 <-- All templates related to the semantic convention registries
     go/                     <-- Templates to generate the semantic conventions in Go
       ...
     html/                   <-- Templates to generate the semantic conventions in HTML
       ...
     markdown/               <-- Templates to generate the semantic conventions in markdown
-      ... 
+      ...
     rust/                   <-- Templates to generate the semantic conventions in Rust
-      ...  
-    go/                     <-- Templates to generate the semantic conventions in Go
       ...
   schema/
     sdk-go/                 <-- Templates to generate a Go Client SDK derived from the telemetry schema
@@ -72,12 +71,30 @@ its choice.
 
 ## Configuration File - `weaver.yaml`
 
-The configuration file `weaver.yaml` is optional. See the [Weaver Configuration File](/docs/weaver-config.md)
-documentation for more details.
+In the simplest case, a configuration file named `weaver.yaml` is searched for by
+the tool within the folder containing the templates. The syntax of this configuration
+file is described here [Weaver Configuration File](/docs/weaver-config.md).
+
+It is possible to utilize the hierarchy of folders containing the targets to share
+segments of the configuration common to all targets. Similarly, you can define
+Weaver configuration segments in your home directory, i.e., $HOME/.weaver/weaver.yaml.
+
+By default, the `weaver.yaml` files are loaded in the following order:
+
+- $HOME/.weaver/weaver.yaml
+- /weaver.yaml, all intermediate directories containing a `weaver.yaml` file up to the
+`templates/registry/<target>` directory.
+- `templates/registry/<target>/weaver.yaml`
+
+The last configuration file loaded will override the previous ones.
+
+For the most complex cases, it is possible to define explicitly the list configuration
+files to load using the `--config` CLI n-ary parameter.
 
 ## Global Variables
 
 All templates have access to the following global variables:
+
 - `ctx`: The context object that contains the resolved registry or the output of
 the JQ filter if defined in the `weaver.yaml` configuration file.
 - `params`: The parameters defined in the `weaver.yaml` configuration file or overridden
@@ -130,12 +147,13 @@ Jinja templates can also access the parameters:
 ## Jinja Filters
 
 All the filters available in the MiniJinja template engine are available (see
-this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)). 
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)).
 
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
 
 The following filters are available:
+
 - `lower_case`: Converts a string to lowercase.
 - `upper_case`: Converts a string to UPPERCASE.
 - `title_case`: Converts a string to TitleCase.
@@ -146,14 +164,13 @@ The following filters are available:
 - `kebab_case`: Converts a string to kebab-case.
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
 - `capitalize_first`: Capitalizes the first letter of a string.
-- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful). 
+- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `pascal_case_const`: Generates PascalCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `camel_case_const`: Generates camelCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `snake_case_const`: Generates snake_case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `screaming_snake_case_const`: Generates SCREAMING_SNAKE_CASE constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
-- `split_ids`: Splits a string by '.' creating a list of nested ids.
-- `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).
+- `split_id`: Splits a string by '.' creating a list of nested ids.
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
 - `flatten`: Converts a List of Lists into a single list with all elements.
 e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
@@ -165,7 +182,7 @@ e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
 - `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
 - `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
-- `instantiated_type`: Filters a type to return the instantiated type. 
+- `instantiated_type`: Filters a type to return the instantiated type.
 - `enum_type`: Filters a type to return the enum type or an error if the type is not an enum.
 - `markdown_to_html`: Converts a markdown string to an HTML string.
 - `map_text`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file
@@ -212,7 +229,7 @@ value if the name of the text map or the input are not found in the `text_maps` 
 
 ## Jinja Functions
 
-All the functions available in the MiniJinja template engine are available (see 
+All the functions available in the MiniJinja template engine are available (see
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
 Right now, OTel Weaver does not provide any custom functions but feel free to

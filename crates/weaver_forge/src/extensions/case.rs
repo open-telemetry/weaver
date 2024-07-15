@@ -2,11 +2,11 @@
 
 //! Case converter filters used by the template engine.
 
-use crate::config::{CaseConvention, TargetConfig};
+use crate::config::{CaseConvention, WeaverConfig};
 use minijinja::Environment;
 
 /// Add case converter filters to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &TargetConfig) {
+pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfig) {
     env.add_filter("lower_case", case_converter(CaseConvention::LowerCase));
     env.add_filter("upper_case", case_converter(CaseConvention::UpperCase));
     env.add_filter("title_case", case_converter(CaseConvention::TitleCase));
@@ -121,13 +121,13 @@ pub(crate) fn capitalize_first(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::TargetConfig;
+    use crate::config::WeaverConfig;
     use crate::extensions::case::add_filters;
     use minijinja::Environment;
 
     #[test]
     fn test_case_converter() {
-        let target_config = TargetConfig::default();
+        let target_config = WeaverConfig::default();
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 

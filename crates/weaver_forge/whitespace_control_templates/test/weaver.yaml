@@ -1,0 +1,69 @@
+file_name: snake_case
+function_name: PascalCase
+arg_name: camelCase
+struct_name: PascalCase
+field_name: PascalCase
+
+type_mapping:
+  int: int64
+  double: double
+  boolean: bool
+  string: string
+  "int[]": "[]int64"
+  "double[]": "[]double"
+  "boolean[]": "[]bool"
+  "string[]": "[]string"
+
+acronyms: ["iOS", "API", "URL"]
+
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+  keep_trailing_newline: true
+
+templates:
+  - pattern: "**/registry.md"
+    filter: "."
+    application_mode: single
+  - pattern: "**/attribute_group.md"
+    filter: ".groups[] | select(.type == \"attribute_group\")"
+    application_mode: each
+  - pattern: "**/attribute_groups.md"
+    filter: ".groups[] | select(.type == \"attribute_group\")"
+    application_mode: single
+  - pattern: "**/event.md"
+    filter: ".groups[] | select(.type == \"event\")"
+    application_mode: each
+  - pattern: "**/events.md"
+    filter: ".groups[] | select(.type == \"event\")"
+    application_mode: single
+  - pattern: "**/group.md"
+    filter: ".groups"
+    application_mode: each
+  - pattern: "**/groups.md"
+    filter: ".groups"
+    application_mode: single
+  - pattern: "**/metric.md"
+    filter: ".groups[] | select(.type == \"metric\")"
+    application_mode: each
+  - pattern: "**/metrics.md"
+    filter: ".groups[] | select(.type == \"metric\")"
+    application_mode: single
+  - pattern: "**/resource.md"
+    filter: ".groups[] | select(.type == \"resource\")"
+    application_mode: each
+  - pattern: "**/resources.md"
+    filter: ".groups[] | select(.type == \"resource\")"
+    application_mode: single
+  - pattern: "**/scope.md"
+    filter: ".groups[] | select(.type == \"scope\")"
+    application_mode: each
+  - pattern: "**/scopes.md"
+    filter: ".groups[] | select(.type == \"scope\")"
+    application_mode: single
+  - pattern: "**/span.md"
+    filter: ".groups[] | select(.type == \"span\")"
+    application_mode: each
+  - pattern: "**/spans.md"
+    filter: ".groups[] | select(.type == \"span\")"
+    application_mode: single

@@ -1,0 +1,24 @@
+groups:
+  - id: registry.geo
+    brief: Attributes describing geo.
+    type: attribute_group
+    prefix: geo
+    attributes:
+      - id: lat
+        type: string
+        stability: experimental
+        brief: >
+          latitude of the geo coordinates.
+        examples: ["123.456"]
+      - id: lon
+        type: string
+        stability: experimental
+        brief: >
+          longitude of the geo coordinates.
+        examples: [ "234.456" ]
+      - id: country
+        type: string
+        stability: experimental
+        brief: >
+          country of the geo coordinates.
+        examples: [ "US" ]
