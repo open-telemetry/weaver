@@ -349,6 +349,19 @@ impl WeaverConfig {
         Self::resolve_from(&configs)
     }
 
+    /// Attempts to load all the configuration files and build a unique `WeaverConfig` from the
+    /// specified configuration files. The last files in the list will override the first ones.
+    ///
+    /// This method can fail if any of the configuration content is not a valid YAML file or if the
+    /// configuration content can't be deserialized into a `WeaverConfig` struct.
+    pub fn try_from_config_files<P: AsRef<Path>>(config_files: &[P]) -> Result<Self, Error> {
+        let mut configs = Vec::new();
+        for config in config_files {
+            configs.push(FileContent::try_from_path(config)?);
+        }
+        WeaverConfig::resolve_from(&configs)
+    }
+
     /// Attempts to load and build a `weaver.yaml` file from the specified file loader. This
     /// constructor is only initializing the configuration from a single weaver.yaml file found
     /// in the loader. If no file is found, the default configuration is returned.
@@ -367,7 +380,7 @@ impl WeaverConfig {
     ///
     /// This method can fail if any of the configuration content is not a valid YAML file or if the
     /// configuration content can't be deserialized into a `WeaverConfig` struct.
-    pub fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
+    fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
         // The default configuration is used as a base for the resolution.
         let mut config = WeaverConfig::default();
         if configs.is_empty() {
@@ -386,7 +399,6 @@ impl WeaverConfig {
 
         Ok(config)
     }
-
 
     fn collect_from_path<P: AsRef<Path>>(path: P) -> Vec<FileContent> {
         let mut file_contents = Vec::new();

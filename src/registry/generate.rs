@@ -11,7 +11,7 @@ use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
-use weaver_forge::file_loader::{FileContent, FileLoader, FileSystemFileLoader};
+use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_semconv::registry::SemConvRegistry;
@@ -115,11 +115,7 @@ pub(crate) fn command(
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
     let config = if let Some(paths) = &args.config {
-        let mut configs = Vec::new();
-        for path in paths {
-            configs.push(FileContent::try_from_path(path)?);
-        }
-        WeaverConfig::resolve_from(&configs)
+        WeaverConfig::try_from_config_files(paths)
     } else {
         WeaverConfig::try_from_path(loader.root())
     }?;
