@@ -129,7 +129,8 @@ Jinja templates can also access the parameters:
 ## Jinja Filters
 
 All the filters available in the MiniJinja template engine are available (see
-this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)).
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)) and the [py_compat](https://github.com/mitsuhiko/minijinja/blob/e8a7ec5198deef7638267f2667714198ef64a1db/minijinja-contrib/src/pycompat.rs) compatibility extensions
+that are also enabled in Weaver.
 
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
