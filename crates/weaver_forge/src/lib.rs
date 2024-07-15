@@ -45,6 +45,26 @@ pub mod registry;
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
 
+// Jinja syntax delimiters
+
+/// Constant defining the start of a Jinja block.
+pub const BLOCK_START: &str = "{%";
+
+/// Constant defining the end of a Jinja block.
+pub const BLOCK_END: &str = "%}";
+
+/// Constant defining the start of a Jinja variable.
+pub const VARIABLE_START: &str = "{{";
+
+/// Constant defining the end of a Jinja variable.
+pub const VARIABLE_END: &str = "}}";
+
+/// Constant defining the start of a Jinja comment.
+pub const COMMENT_START: &str = "{#";
+
+/// Constant defining the end of a Jinja comment.
+pub const COMMEND_END: &str = "#}";
+
 /// Enumeration defining where the output of program execution should be directed.
 #[derive(Debug, Clone)]
 pub enum OutputDirective {
@@ -440,32 +460,36 @@ impl TemplateEngine {
                 Cow::Owned(
                     template_syntax
                         .block_start
-                        .unwrap_or_else(|| "{%".to_owned()),
+                        .unwrap_or_else(|| BLOCK_START.to_owned()),
                 ),
-                Cow::Owned(template_syntax.block_end.unwrap_or_else(|| "%}".to_owned())),
+                Cow::Owned(
+                    template_syntax
+                        .block_end
+                        .unwrap_or_else(|| BLOCK_END.to_owned()),
+                ),
             )
             .variable_delimiters(
                 Cow::Owned(
                     template_syntax
                         .variable_start
-                        .unwrap_or_else(|| "{{".to_owned()),
+                        .unwrap_or_else(|| VARIABLE_START.to_owned()),
                 ),
                 Cow::Owned(
                     template_syntax
                         .variable_end
-                        .unwrap_or_else(|| "}}".to_owned()),
+                        .unwrap_or_else(|| VARIABLE_END.to_owned()),
                 ),
             )
             .comment_delimiters(
                 Cow::Owned(
                     template_syntax
                         .comment_start
-                        .unwrap_or_else(|| "{#".to_owned()),
+                        .unwrap_or_else(|| COMMENT_START.to_owned()),
                 ),
                 Cow::Owned(
                     template_syntax
                         .comment_end
-                        .unwrap_or_else(|| "#}".to_owned()),
+                        .unwrap_or_else(|| COMMEND_END.to_owned()),
                 ),
             )
             .build()
