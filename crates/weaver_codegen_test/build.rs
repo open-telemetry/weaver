@@ -51,9 +51,9 @@ fn main() {
 
     let loader = FileSystemFileLoader::try_new(TEMPLATES_PATH.into(), TARGET)
         .unwrap_or_else(|e| process_error(&logger, e));
-    let configs = WeaverConfig::collect_from_path("./templates/registry/rust");
-    let engine = TemplateEngine::try_new(&configs, loader, Params::default())
+    let config = WeaverConfig::try_from_path("./templates/registry/rust")
         .unwrap_or_else(|e| process_error(&logger, e));
+    let engine = TemplateEngine::new(config, loader, Params::default());
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)

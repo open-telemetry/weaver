@@ -10,9 +10,9 @@ use registry::semconv_registry;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::quiet::QuietLogger;
 use weaver_common::{ConsoleLogger, Logger};
-use weaver_forge::config::Params;
-use weaver_forge::file_loader::{EmbeddedFileLoader, FileLoader};
-use weaver_forge::{OutputDirective, TemplateEngine, WEAVER_YAML};
+use weaver_forge::config::{Params, WeaverConfig};
+use weaver_forge::file_loader::EmbeddedFileLoader;
+use weaver_forge::{OutputDirective, TemplateEngine};
 
 use crate::cli::{Cli, Commands};
 use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
@@ -137,33 +137,21 @@ fn process_diagnostics(
             &diagnostic_args.diagnostic_format,
         )
         .expect("Failed to create the embedded file loader for the diagnostic templates");
-        let config = loader
-            .load_file(WEAVER_YAML)
-            .expect(
-                "Invalid Weaver configuration file: `defaults/diagnostic_templates/weaver.yaml`",
-            )
+        let config = WeaverConfig::try_from_loader(&loader)
             .expect("Failed to load `defaults/diagnostic_templates/weaver.yaml`");
-        match TemplateEngine::try_new(&[config], loader, Params::default()) {
-            Ok(engine) => {
-                match engine.generate(
-                    logger.clone(),
-                    &diagnostic_messages,
-                    PathBuf::new().as_path(),
-                    &OutputDirective::Stdout,
-                ) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        logger.error(&format!(
-                            "Failed to render the diagnostic messages. Error: {}",
-                            e
-                        ));
-                        exit_directives.exit_code = 1;
-                        return exit_directives;
-                    }
-                }
-            }
+        let engine = TemplateEngine::new(config, loader, Params::default());
+        match engine.generate(
+            logger.clone(),
+            &diagnostic_messages,
+            PathBuf::new().as_path(),
+            &OutputDirective::Stdout,
+        ) {
+            Ok(_) => {}
             Err(e) => {
-                logger.error(&format!("Failed to create the template engine to render the diagnostic messages. Error: {}", e));
+                logger.error(&format!(
+                    "Failed to render the diagnostic messages. Error: {}",
+                    e
+                ));
                 exit_directives.exit_code = 1;
                 return exit_directives;
             }

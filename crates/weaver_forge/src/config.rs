@@ -17,7 +17,8 @@ use serde_yaml::Value;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
-use crate::file_loader::FileContent;
+use crate::file_loader::{FileContent, FileLoader};
+use crate::WEAVER_YAML;
 
 /// Case convention for naming of functions and structs.
 #[derive(Deserialize, Clone, Debug)]
@@ -336,11 +337,58 @@ impl Default for WeaverConfig {
 }
 
 impl WeaverConfig {
-    /// Collects all the configurations from the path passed in parameter. The configuration files
-    /// are collected in the order of the enumeration below:
-    /// - the $HOME/.weaver/weaver.yaml file,
-    /// - the <path>/weaver.yaml and its <parent folders>weaver.yaml.
-    pub fn collect_from_path<P: AsRef<Path>>(path: P) -> Vec<FileContent> {
+    /// Attempts to load and build a `WeaverConfig` from configuration files found in the specified
+    /// path. Configuration files are loaded in the following order of precedence:
+    ///
+    /// 1. The `<path>/weaver.yaml` file.
+    /// 2. Any `weaver.yaml` files found in parent directories of the specified path, up to the root
+    /// directory.
+    /// 3. The `$HOME/.weaver/weaver.yaml` file.
+    pub fn try_from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let configs = Self::collect_from_path(path);
+        Self::resolve_from(&configs)
+    }
+
+    /// Attempts to load and build a `weaver.yaml` file from the specified file loader. This
+    /// constructor is only initializing the configuration from a single weaver.yaml file found
+    /// in the loader. If no file is found, the default configuration is returned.
+    pub fn try_from_loader(
+        loader: &(impl FileLoader + Send + Sync + 'static),
+    ) -> Result<Self, Error> {
+        match loader.load_file(WEAVER_YAML)? {
+            Some(config) => Self::resolve_from(&[config]),
+            None => Ok(WeaverConfig::default()),
+        }
+    }
+
+    /// Builds the Weaver configuration from a collection of configurations passed in parameter.
+    /// The first configuration in the slice is loaded, then if present, the second configuration
+    /// overrides the first one, and so on. This process is named "configuration resolution".
+    ///
+    /// This method can fail if any of the configuration content is not a valid YAML file or if the
+    /// configuration content can't be deserialized into a `WeaverConfig` struct.
+    pub fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
+        // The default configuration is used as a base for the resolution.
+        let mut config = WeaverConfig::default();
+        if configs.is_empty() {
+            return Ok(WeaverConfig::default());
+        }
+
+        // Each configuration is loaded and merged into the current configuration.
+        for conf in configs {
+            let conf: WeaverConfig =
+                serde_yaml::from_str(&conf.content).map_err(|e| InvalidConfigFile {
+                    config_file: conf.path.clone(),
+                    error: e.to_string(),
+                })?;
+            config.override_with(conf);
+        }
+
+        Ok(config)
+    }
+
+
+    fn collect_from_path<P: AsRef<Path>>(path: P) -> Vec<FileContent> {
         let mut file_contents = Vec::new();
 
         // Detect all the weaver.yaml files in the path and parent folder.
@@ -368,32 +416,6 @@ impl WeaverConfig {
 
         file_contents.reverse();
         file_contents
-    }
-
-    /// Builds the Weaver configuration from a collection of configurations passed in parameter.
-    /// The first configuration in the slice is loaded, then if present, the second configuration
-    /// overrides the first one, and so on. This process is named "configuration resolution".
-    ///
-    /// This method can fail if any of the configuration content is not a valid YAML file or if the
-    /// configuration content can't be deserialized into a `WeaverConfig` struct.
-    pub fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
-        // The default configuration is used as a base for the resolution.
-        let mut config = WeaverConfig::default();
-        if configs.is_empty() {
-            return Ok(WeaverConfig::default());
-        }
-
-        // Each configuration is loaded and merged into the current configuration.
-        for conf in configs {
-            let conf: WeaverConfig =
-                serde_yaml::from_str(&conf.content).map_err(|e| InvalidConfigFile {
-                    config_file: conf.path.clone(),
-                    error: e.to_string(),
-                })?;
-            config.override_with(conf);
-        }
-
-        Ok(config)
     }
 
     /// Return a template matcher for the target configuration.

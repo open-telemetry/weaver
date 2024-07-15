@@ -114,16 +114,16 @@ pub(crate) fn command(
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
-    let mut configs = Vec::new();
-
-    if let Some(paths) = &args.config {
+    let config = if let Some(paths) = &args.config {
+        let mut configs = Vec::new();
         for path in paths {
             configs.push(FileContent::try_from_path(path)?);
         }
+        WeaverConfig::resolve_from(&configs)
     } else {
-        configs.extend(WeaverConfig::collect_from_path(loader.root()));
-    };
-    let engine = TemplateEngine::try_new(&configs, loader, params)?;
+        WeaverConfig::try_from_path(loader.root())
+    }?;
+    let engine = TemplateEngine::new(config, loader, params);
 
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
