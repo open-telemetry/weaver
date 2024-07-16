@@ -29,7 +29,7 @@ pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
     {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }},
     {%- else %}
-    pub {{ attribute.name | snake_case }}: {{ attribute.type | type_mapping }},
+    pub {{ attribute.name | snake_case }}: {{ attribute.type | map_text("rust_types") }},
     {%- endif %}
     {%- endfor %}
 }
@@ -44,7 +44,7 @@ pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
     {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: Option<crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }}>,
     {%- else %}
-    pub {{ attribute.name | snake_case }}: Option<{{ attribute.type | type_mapping }}>,
+    pub {{ attribute.name | snake_case }}: Option<{{ attribute.type | map_text("rust_types") }}>,
     {%- endif %}
     {%- endfor %}
 }

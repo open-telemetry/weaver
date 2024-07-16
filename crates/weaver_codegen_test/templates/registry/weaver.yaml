@@ -1,0 +1,5 @@
+# These parameters are inherited by all the sub-folders
+params:
+  attributes: true
+  metrics: true
+  registry_prefix: "registry."
