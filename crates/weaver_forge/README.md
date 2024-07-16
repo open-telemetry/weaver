@@ -61,7 +61,7 @@ For example, the following snippet redefine the name of the file that will be
 produced from the template:
 
 ```jinja
-{%- set file_name = group.id | file_name -%}
+{%- set file_name = group.id | snake_case -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 ```
 
