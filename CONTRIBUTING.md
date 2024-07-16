@@ -41,6 +41,101 @@ A PR is considered to be ready to merge when:
 
 Any Maintainer can merge the PR once it is ready to merge. Note, that some PRs may not be merged immediately if the repo is in the process of a release and the maintainers decided to defer the PR to the next release train. Also, maintainers may decide to wait for more than one approval for certain PRs, particularly ones that are affecting multiple areas, or topics that may warrant more discussion.
 
+### Creating a New Release for the Weaver Project
+
+To create a new release for the Weaver project, follow these steps. This process ensures that the release is properly
+versioned, documented, and published using our CI/CD pipeline.
+
+#### 1. Prepare a Pull Request
+
+Before creating a release tag, you need to prepare a Pull Request (PR) with the following updates:
+
+1. **Update Versions**: Bump the version numbers for all crates in the project.
+2. **Update CHANGELOG.md**: Add appropriate entries in `CHANGELOG.md` to reflect the new release, detailing the changes,
+enhancements, and bug fixes.
+
+##### Steps:
+
+1. **Checkout a new branch**:
+    ```bash
+    git checkout -b prepare-release-vX.Y.Z
+    ```
+
+2. **Update the version numbers**: Update the `Cargo.toml` files in each crate to reflect the new version.
+
+3. **Update CHANGELOG.md**: Add a new section for the upcoming release version and list all relevant changes.
+
+4. **Commit your changes**:
+    ```bash
+    git add .
+    git commit -m "Prepare release vX.Y.Z"
+    ```
+
+5. **Push your branch**:
+    ```bash
+    git push origin prepare-release-vX.Y.Z
+    ```
+
+6. **Open a Pull Request**: Go to the GitHub repository and open a PR from your branch. Request reviews and wait for
+approval.
+
+#### 2. Merge the PR
+
+Once the PR is reviewed and approved, merge it into the `main` branch.
+
+#### 3. Create and Push a Signed Tag
+
+After merging the PR, create a signed tag for the new release.
+
+##### Steps:
+
+1. **Checkout the `main` branch**:
+    ```bash
+    git checkout main
+    git pull origin main
+    ```
+
+2. **Create a signed tag**:
+    ```bash
+    git tag -s vX.Y.Z -m "Release vX.Y.Z"
+    ```
+   Replace `X.Y.Z` with the new version number. You will be prompted to enter your GPG passphrase to sign the tag.
+
+3. **Push the tag to the upstream repository**:
+    ```bash
+    git push upstream vX.Y.Z
+    ```
+
+#### 4. Monitor the CI/CD Process
+
+After pushing the tag, the GitHub Actions workflow configured in
+[`.github/workflows/release.yml`](https://github.com/open-telemetry/weaver/blob/main/.github/workflows/release.yml) will
+automatically detect the new tag. This workflow uses `cargo-dist` to create the release and its artifacts.
+
+##### Steps:
+
+1. **Check the Actions Tab**: Go to the "Actions" tab in the GitHub repository to monitor the CI/CD process. Four workflows should be triggered:
+   - **CI**
+   - **Release**
+   - **Spelling**
+   - **Weaver Docker Generator**
+
+2. **Ensure All Workflows Complete Successfully**: Wait for all four workflows to complete. Each workflow should finish without errors.
+
+#### 5. Verify and Update Release Description
+
+Once all workflows are successful:
+
+1. **Check the Release List**: Go to the "Releases" section of the Weaver project on GitHub.
+2. **Update the Release Description**: Edit the release description to ensure it is complete and informative. At this
+time, we do not have an automation for generating a detailed release description, so this step needs to be done manually.
+
+#### 6. Announce the Release
+
+The final step is to announce the new release:
+
+1. **Post in the Slack Channel**: Inform the team and the community about the new release by posting an announcement in
+the relevant Slack channel. Include a summary of the key changes and a link to the release notes.
 
 ### Repository background
 
