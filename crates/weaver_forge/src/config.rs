@@ -56,31 +56,6 @@ pub enum CaseConvention {
 /// Weaver configuration.
 #[derive(Deserialize, Debug)]
 pub struct WeaverConfig {
-    /// Case convention used to name a file.
-    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
-    /// the case conversion filters than to rely on this configuration.
-    #[serde(default)]
-    pub(crate) file_name: CaseConvention,
-    /// Case convention used to name a function.
-    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
-    /// the case conversion filters than to rely on this configuration.
-    #[serde(default)]
-    pub(crate) function_name: CaseConvention,
-    /// Case convention used to name a function argument.
-    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
-    /// the case conversion filters than to rely on this configuration.
-    #[serde(default)]
-    pub(crate) arg_name: CaseConvention,
-    /// Case convention used to name a struct.
-    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
-    /// the case conversion filters than to rely on this configuration.
-    #[serde(default)]
-    pub(crate) struct_name: CaseConvention,
-    /// Case convention used to name a struct field.
-    /// Open question: Do we keep this? It's probably easier for author's templates to use directly
-    /// the case conversion filters than to rely on this configuration.
-    #[serde(default)]
-    pub(crate) field_name: CaseConvention,
     /// Type mapping for target specific types (OTel types -> Target language types).
     /// Deprecated: Use `text_maps` instead.
     pub(crate) type_mapping: Option<HashMap<String, String>>,
@@ -313,11 +288,6 @@ impl CaseConvention {
 impl Default for WeaverConfig {
     fn default() -> Self {
         Self {
-            file_name: Default::default(),
-            function_name: Default::default(),
-            arg_name: Default::default(),
-            struct_name: Default::default(),
-            field_name: Default::default(),
             type_mapping: None,
             text_maps: None,
             template_syntax: TemplateSyntax {
@@ -460,11 +430,6 @@ impl WeaverConfig {
     /// The merge is done in place. The `WeaverConfig` passed as argument will be consumed and used
     /// to override the current `WeaverConfig`.
     pub fn override_with(&mut self, other: WeaverConfig) {
-        self.file_name = other.file_name;
-        self.function_name = other.function_name;
-        self.arg_name = other.arg_name;
-        self.struct_name = other.struct_name;
-        self.field_name = other.field_name;
         if other.type_mapping.is_some() {
             self.type_mapping = other.type_mapping;
         }

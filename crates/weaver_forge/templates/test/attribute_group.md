@@ -1,4 +1,4 @@
-{%- set file_name = ctx.id | file_name -%}
+{%- set file_name = ctx.id | snake_case -%}
 {{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
 
 ## Group `{{ ctx.id | split_id | list | join("_") }}` ({{ ctx.type }})
