@@ -2368,38 +2368,17 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-stdout"
-version = "0.3.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bdf28b381f23afcd150afc0b38a4183dd321fc96320c1554752b6b761648f78"
+checksum = "d408d4345b8be6129a77c46c3bfc75f0d3476f3091909c7dd99c1f3d78582287"
 dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
- "opentelemetry 0.22.0",
- "opentelemetry_sdk 0.22.1",
+ "opentelemetry 0.24.0",
+ "opentelemetry_sdk",
  "ordered-float",
  "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "opentelemetry_sdk"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e90c7113be649e31e9a0f8b5ee24ed7a16923b322c3c5ab6367469c049d6b7e"
-dependencies = [
- "async-trait",
- "crossbeam-channel",
- "futures-channel",
- "futures-executor",
- "futures-util",
- "glob",
- "once_cell",
- "opentelemetry 0.22.0",
- "ordered-float",
- "percent-encoding",
- "rand 0.8.5",
  "serde_json",
  "thiserror",
 ]
@@ -3953,7 +3932,7 @@ dependencies = [
  "minijinja-contrib",
  "opentelemetry 0.22.0",
  "opentelemetry-stdout",
- "opentelemetry_sdk 0.24.0",
+ "opentelemetry_sdk",
  "rayon",
  "regex",
  "schemars",
