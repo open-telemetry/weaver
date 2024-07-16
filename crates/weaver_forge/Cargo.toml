@@ -1,6 +1,6 @@
 [package]
 name = "weaver_forge"
-version = "0.5.0"
+version = "0.6.0"
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -18,7 +18,8 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "2.0.1", features = ["loader", "custom_syntax", "debug", "json", "macros"] }
+minijinja = { version = "2.0.3", features = ["loader", "custom_syntax", "debug", "json", "urlencode", "macros"] }
+minijinja-contrib = { version="2.0.3", features = ["pycompat"] }
 convert_case = "0.6.0"
 jaq-core = "1.2.1"
 jaq-std = "1.5.1"
@@ -43,6 +44,6 @@ dirs.workspace = true
 
 [dev-dependencies]
 opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
-opentelemetry_sdk = { version = "0.22.1", features = ["trace", "metrics", "logs"] }
+opentelemetry_sdk = { version = "0.24.0", features = ["trace", "metrics", "logs"] }
 opentelemetry-stdout = { version = "0.3.0", features = ["trace", "metrics", "logs"] }
 

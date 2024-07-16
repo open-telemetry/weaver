@@ -2162,9 +2162,20 @@ checksum = "933ee10775d58fca8238a84fe165dfe4bde8b07d7574f24d76ffea91170f3ac6"
 dependencies = [
  "aho-corasick",
  "memo-map",
+ "percent-encoding",
  "self_cell",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "minijinja-contrib"
+version = "2.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "237307aea18e4cc6b3ba0d190ee46f06ff82944a99cc895f04e4c94ccbf121d9"
+dependencies = [
+ "minijinja",
+ "serde",
 ]
 
 [[package]]
@@ -2342,6 +2353,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c365a63eec4f55b7efeceb724f1336f26a9cf3427b70e59e2cd2a5b947fba96"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "once_cell",
+ "pin-project-lite",
+ "thiserror",
+]
+
+[[package]]
 name = "opentelemetry-stdout"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2351,7 +2376,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "opentelemetry 0.22.0",
- "opentelemetry_sdk",
+ "opentelemetry_sdk 0.22.1",
  "ordered-float",
  "serde",
  "serde_json",
@@ -2373,6 +2398,25 @@ dependencies = [
  "once_cell",
  "opentelemetry 0.22.0",
  "ordered-float",
+ "percent-encoding",
+ "rand 0.8.5",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opentelemetry_sdk"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a48618fd69580af9aeb349369c07f7ca9d3c30c3cd91dc274f2882a7a5a18599"
+dependencies = [
+ "async-trait",
+ "futures-channel",
+ "futures-executor",
+ "futures-util",
+ "glob",
+ "once_cell",
+ "opentelemetry 0.24.0",
  "percent-encoding",
  "rand 0.8.5",
  "serde_json",
@@ -3803,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -3830,7 +3874,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "dirs",
  "gix",
@@ -3843,7 +3887,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "globset",
  "miette",
@@ -3858,7 +3902,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "dirs",
  "opentelemetry 0.23.0",
@@ -3872,7 +3916,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "miette",
  "paris",
@@ -3883,7 +3927,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "similar",
  "walkdir",
@@ -3891,7 +3935,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -3906,9 +3950,10 @@ dependencies = [
  "markdown",
  "miette",
  "minijinja",
+ "minijinja-contrib",
  "opentelemetry 0.22.0",
  "opentelemetry-stdout",
- "opentelemetry_sdk",
+ "opentelemetry_sdk 0.24.0",
  "rayon",
  "regex",
  "schemars",
@@ -3926,7 +3971,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -3939,7 +3984,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "glob",
  "miette",
@@ -3957,7 +4002,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "glob",
  "miette",
@@ -3972,7 +4017,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "itertools 0.13.0",
  "miette",
@@ -3990,7 +4035,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "schemars",
  "semver",
