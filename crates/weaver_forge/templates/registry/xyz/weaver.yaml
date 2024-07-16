@@ -1,0 +1,8 @@
+template_syntax:
+  block_start: ">"
+  block_end: "<<"
+
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: false
+  keep_trailing_newline: true

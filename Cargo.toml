@@ -1,6 +1,6 @@
 [package]
 name = "weaver"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -36,7 +36,7 @@ publish = false
 rust-version = "1.76"
 
 [workspace.dependencies]
-serde = { version = "1.0.203", features = ["derive"] }
+serde = { version = "1.0.204", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.116"}
 thiserror = "1.0.58"
@@ -52,6 +52,7 @@ miette = { version = "7.2.0", features = ["fancy", "serde"] }
 include_dir = "0.7.4"
 tempdir = "0.3.7"
 schemars = "0.8.21"
+dirs = "5.0.1"
 
 # Features definition =========================================================
 [features]
@@ -74,7 +75,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.7", features = ["derive"] }
+clap = { version = "4.5.9", features = ["derive"] }
 
 # workspace dependencies
 serde.workspace = true
@@ -183,7 +184,8 @@ redundant_feature_names = "warn"
 ref_option_ref = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 same_functions_in_if_condition = "warn"
-self_named_module_files = "warn"
+# disabled due to false positives
+# self_named_module_files = "warn"
 semicolon_if_nothing_returned = "warn"
 single_match_else = "warn"
 string_add = "warn"

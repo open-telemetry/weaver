@@ -21,7 +21,28 @@ pub trait FileLoader {
     fn all_files(&self) -> Vec<PathBuf>;
 
     /// Returns the content of a file from a given name.
-    fn load_file(&self, file: &str) -> Result<Option<String>, Error>;
+    fn load_file(&self, file: &str) -> Result<Option<FileContent>, Error>;
+}
+
+/// A struct that represents the content of a file.
+#[derive(Debug)]
+pub struct FileContent {
+    /// The path from which the file was loaded.
+    pub path: PathBuf,
+    /// The content of the file.
+    pub content: String,
+}
+
+impl FileContent {
+    /// Creates a new file content from a path or returns an error if the path is invalid.
+    pub fn try_from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let path = path.as_ref().to_path_buf();
+        let content = fs::read_to_string(path.clone()).map_err(|e| Error::FileLoaderError {
+            file: path.clone(),
+            error: e.to_string(),
+        })?;
+        Ok(Self { path, content })
+    }
 }
 
 /// A loader that loads files from the embedded directory in the binary of Weaver or
@@ -101,21 +122,23 @@ impl FileLoader for EmbeddedFileLoader {
     }
 
     /// Returns the content of a file from a given name.
-    fn load_file(&self, file: &str) -> Result<Option<String>, Error> {
+    fn load_file(&self, file: &str) -> Result<Option<FileContent>, Error> {
         if let Some(fs_loader) = &self.fs_loader {
             return fs_loader.load_file(file);
         }
 
         let name = format!("{}/{}", self.target, file);
         match self.embedded_dir.get_file(name) {
-            Some(file) => Ok(Some(
-                file.contents_utf8()
+            Some(file) => Ok(Some(FileContent {
+                content: file
+                    .contents_utf8()
                     .ok_or_else(|| Error::FileLoaderError {
                         file: file.path().to_owned(),
                         error: "Failed to read file contents".to_owned(),
                     })?
                     .to_owned(),
-            )),
+                path: file.path().to_path_buf(),
+            })),
             None => Ok(None),
         }
     }
@@ -167,14 +190,17 @@ impl FileLoader for FileSystemFileLoader {
     /// Returns a function that loads a file from a given name
     /// Based on MiniJinja loader semantics, the function should return `Ok(None)` if the template
     /// does not exist.
-    fn load_file(&self, file: &str) -> Result<Option<String>, Error> {
+    fn load_file(&self, file: &str) -> Result<Option<FileContent>, Error> {
         let path = if let Ok(path) = safe_join(&self.dir, file) {
             path
         } else {
             return Ok(None);
         };
         match fs::read_to_string(path.clone()) {
-            Ok(result) => Ok(Some(result)),
+            Ok(result) => Ok(Some(FileContent {
+                content: result,
+                path,
+            })),
             Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(err) => Err(Error::FileLoaderError {
                 file: path,
@@ -240,7 +266,9 @@ mod tests {
         let embedded_content = embedded_loader.load_file("group.md");
         assert!(embedded_content.is_ok());
         let embedded_content = embedded_content.unwrap().unwrap();
-        assert!(embedded_content.contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
+        assert!(embedded_content
+            .content
+            .contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
 
         let overloaded_embedded_loader = EmbeddedFileLoader::try_new(
             &EMBEDDED_TEMPLATES,
@@ -252,6 +280,7 @@ mod tests {
         assert!(overloaded_embedded_content.is_ok());
         let overloaded_embedded_content = overloaded_embedded_content.unwrap().unwrap();
         assert!(overloaded_embedded_content
+            .content
             .contains("# Overloaded Group `{{ ctx.id }}` ({{ ctx.type }})"));
 
         let fs_loader =
@@ -259,10 +288,12 @@ mod tests {
         let fs_content = fs_loader.load_file("group.md");
         assert!(fs_content.is_ok());
         let fs_content = fs_content.unwrap().unwrap();
-        assert!(fs_content.contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
+        assert!(fs_content
+            .content
+            .contains("# Group `{{ ctx.id }}` ({{ ctx.type }})"));
 
         // Test content equality between embedded and file system loaders
-        assert_eq!(embedded_content, fs_content);
+        assert_eq!(embedded_content.content, fs_content.content);
 
         // Test root path
         assert_eq!(

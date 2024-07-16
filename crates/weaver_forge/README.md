@@ -23,12 +23,13 @@ using the OTel Weaver tool:
 
 ## Template Directory Structure and Naming Conventions
 
-By default, the OTel Weaver tool expects to find a templates directory in the
-current directory.
+By default, Weaver expects to find the `templates/` directory in the current directory
+with the following structure. The location of this directory can be redefined using
+the `-t` or `--templates` CLI parameter.
 
 ```plaintext
 templates/
-  registry/
+  registry/                 <-- All templates related to the semantic convention registries
     go/                     <-- Templates to generate the semantic conventions in Go
       ...
     html/                   <-- Templates to generate the semantic conventions in HTML
@@ -60,7 +61,7 @@ For example, the following snippet redefine the name of the file that will be
 produced from the template:
 
 ```jinja
-{%- set file_name = group.id | file_name -%}
+{%- set file_name = group.id | snake_case -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 ```
 
@@ -70,8 +71,25 @@ its choice.
 
 ## Configuration File - `weaver.yaml`
 
-The configuration file `weaver.yaml` is optional. See the [Weaver Configuration File](/docs/weaver-config.md)
-documentation for more details.
+In the simplest case, a configuration file named `weaver.yaml` is searched for by
+the tool within the folder containing the templates. The syntax of this configuration
+file is described here [Weaver Configuration File](/docs/weaver-config.md).
+
+It is possible to utilize the hierarchy of folders containing the targets to share
+segments of the configuration common to all targets. Similarly, you can define
+Weaver configuration segments in your home directory, i.e., $HOME/.weaver/weaver.yaml.
+
+By default, the `weaver.yaml` files are loaded in the following order:
+
+- $HOME/.weaver/weaver.yaml
+- /weaver.yaml, all intermediate directories containing a `weaver.yaml` file up to the
+`templates/registry/<target>` directory.
+- `templates/registry/<target>/weaver.yaml`
+
+The last configuration file loaded will override the previous ones.
+
+For the most complex cases, it is possible to define explicitly the list configuration
+files to load using the `--config` CLI n-ary parameter.
 
 ## Global Variables
 
@@ -129,7 +147,8 @@ Jinja templates can also access the parameters:
 ## Jinja Filters
 
 All the filters available in the MiniJinja template engine are available (see
-this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)).
+this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)) and the [py_compat](https://github.com/mitsuhiko/minijinja/blob/e8a7ec5198deef7638267f2667714198ef64a1db/minijinja-contrib/src/pycompat.rs) compatibility extensions
+that are also enabled in Weaver.
 
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
@@ -153,7 +172,6 @@ The following filters are available:
 - `screaming_snake_case_const`: Generates SCREAMING_SNAKE_CASE constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
 - `split_id`: Splits a string by '.' creating a list of nested ids.
-- `type_mapping`: Converts a semantic convention type to a target type (see weaver.yaml section `type_mapping`).
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
 - `flatten`: Converts a List of Lists into a single list with all elements.
 e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]

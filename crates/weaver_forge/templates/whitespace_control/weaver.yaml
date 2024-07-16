@@ -16,8 +16,13 @@ type_mapping:
 
 acronyms: ["iOS", "API", "URL"]
 
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+  keep_trailing_newline: true
+
 templates:
-  - pattern: "registry.md"
+  - pattern: "**/registry.md"
     filter: "."
     application_mode: single
   - pattern: "**/attribute_group.md"

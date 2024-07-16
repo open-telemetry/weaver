@@ -2,15 +2,18 @@
 
 //! Set of utility filters and tests used by the Weaver project.
 
-use crate::config::TargetConfig;
+use crate::config::WeaverConfig;
 use minijinja::{Environment, ErrorKind, Value};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
 /// Add utility filters and tests to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &TargetConfig) {
-    env.add_filter("acronym", acronym(target_config.acronyms.clone()));
+pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfig) {
+    env.add_filter(
+        "acronym",
+        acronym(target_config.acronyms.clone().unwrap_or_default()),
+    );
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
 }
