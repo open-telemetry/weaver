@@ -45,7 +45,7 @@ pub mod registry;
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
 
-// Jinja syntax delimiters
+// Definition of the Jinja syntax delimiters
 
 /// Constant defining the start of a Jinja block.
 pub const BLOCK_START: &str = "{%";
