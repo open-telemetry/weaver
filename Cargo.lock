@@ -275,9 +275,9 @@ checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
 name = "bytes"
-version = "1.6.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
+checksum = "a12916984aab3fa6e39d655a33e09c0071eb36d6ab3aea5c2d78551f1df6d952"
 
 [[package]]
 name = "bytesize"
@@ -302,9 +302,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.1"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "907d8581360765417f8f2e0e7d602733bbed60156b4465b7617243689ef9b83d"
+checksum = "324c74f2155653c90b04f25b2a47a8a631360cb908f92a772695f430c7e31052"
 
 [[package]]
 name = "cfg-if"
@@ -2430,15 +2430,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "opentelemetry-stdout"
-version = "0.3.0"
+name = "opentelemetry"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bdf28b381f23afcd150afc0b38a4183dd321fc96320c1554752b6b761648f78"
+checksum = "4c365a63eec4f55b7efeceb724f1336f26a9cf3427b70e59e2cd2a5b947fba96"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "once_cell",
+ "pin-project-lite",
+ "thiserror",
+]
+
+[[package]]
+name = "opentelemetry-stdout"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d408d4345b8be6129a77c46c3bfc75f0d3476f3091909c7dd99c1f3d78582287"
 dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
- "opentelemetry 0.22.0",
+ "opentelemetry 0.24.0",
  "opentelemetry_sdk",
  "ordered-float",
  "serde",
@@ -2448,19 +2462,17 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry_sdk"
-version = "0.22.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e90c7113be649e31e9a0f8b5ee24ed7a16923b322c3c5ab6367469c049d6b7e"
+checksum = "a48618fd69580af9aeb349369c07f7ca9d3c30c3cd91dc274f2882a7a5a18599"
 dependencies = [
  "async-trait",
- "crossbeam-channel",
  "futures-channel",
  "futures-executor",
  "futures-util",
  "glob",
  "once_cell",
- "opentelemetry 0.22.0",
- "ordered-float",
+ "opentelemetry 0.24.0",
  "percent-encoding",
  "rand 0.8.5",
  "serde_json",
@@ -2515,7 +2527,7 @@ checksum = "1e401f977ab385c9e4e3ab30627d6f26d00e2c73eef317493c4ec6d468726cf8"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall 0.5.2",
+ "redox_syscall 0.5.3",
  "smallvec",
  "windows-targets 0.52.6",
 ]
@@ -2865,9 +2877,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c82cf8cff14456045f55ec4241383baeff27af886adb72ffb2162f99911de0fd"
+checksum = "2a908a6e00f1fdd0dfd9c0eb08ce85126f6d8bbda50017e74bc4a4b7d4a926a4"
 dependencies = [
  "bitflags 2.6.0",
 ]
@@ -4007,7 +4019,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -4038,7 +4050,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "dirs",
  "gix",
@@ -4051,7 +4063,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "globset",
  "miette",
@@ -4066,8 +4078,9 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
+ "dirs",
  "opentelemetry 0.23.0",
  "walkdir",
  "weaver_cache",
@@ -4079,7 +4092,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "miette",
  "paris",
@@ -4090,7 +4103,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "similar",
  "walkdir",
@@ -4098,9 +4111,10 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "convert_case",
+ "dirs",
  "globset",
  "include_dir",
  "indexmap",
@@ -4133,7 +4147,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -4146,7 +4160,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "glob",
  "miette",
@@ -4164,7 +4178,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "glob",
  "miette",
@@ -4179,7 +4193,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "itertools 0.13.0",
  "miette",
@@ -4197,7 +4211,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "schemars",
  "semver",

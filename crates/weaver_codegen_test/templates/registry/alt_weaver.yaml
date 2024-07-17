@@ -1,0 +1,5 @@
+# These parameters are inherited by all the sub-folders
+params:
+  attributes: true
+  metrics: false    # With this alternate configuration, the metrics are disabled
+  registry_prefix: "registry."

@@ -26,7 +26,7 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, Params, TargetConfig};
+use crate::config::{ApplicationMode, Params, WeaverConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
@@ -44,6 +44,26 @@ pub mod registry;
 
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
+
+// Definition of the Jinja syntax delimiters
+
+/// Constant defining the start of a Jinja block.
+pub const BLOCK_START: &str = "{%";
+
+/// Constant defining the end of a Jinja block.
+pub const BLOCK_END: &str = "%}";
+
+/// Constant defining the start of a Jinja variable.
+pub const VARIABLE_START: &str = "{{";
+
+/// Constant defining the end of a Jinja variable.
+pub const VARIABLE_END: &str = "}}";
+
+/// Constant defining the start of a Jinja comment.
+pub const COMMENT_START: &str = "{#";
+
+/// Constant defining the end of a Jinja comment.
+pub const COMMEND_END: &str = "#}";
 
 /// Enumeration defining where the output of program execution should be directed.
 #[derive(Debug, Clone)]
@@ -127,7 +147,7 @@ pub struct TemplateEngine {
     file_loader: Arc<dyn FileLoader + Send + Sync + 'static>,
 
     /// Target configuration
-    target_config: TargetConfig,
+    target_config: WeaverConfig,
 }
 
 /// Global context for the template engine.
@@ -160,24 +180,25 @@ impl TryInto<serde_json::Value> for NewContext<'_> {
 }
 
 impl TemplateEngine {
-    /// Create a new template engine for the given target or return an error if
-    /// the target does not exist or is not a directory.
-    pub fn try_new(
+    /// Create a new template engine for the given Weaver config.
+    pub fn new(
+        mut config: WeaverConfig,
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
-    ) -> Result<Self, Error> {
-        let mut target_config = TargetConfig::try_new(&loader)?;
-
+    ) -> Self {
         // Override the params defined in the `weaver.yaml` file with the params provided
         // in the command line.
         for (name, value) in params.params {
-            _ = target_config.params.insert(name, value);
+            _ = config
+                .params
+                .get_or_insert_with(HashMap::new)
+                .insert(name, value);
         }
 
-        Ok(Self {
+        Self {
             file_loader: Arc::new(loader),
-            target_config,
-        })
+            target_config: config,
+        }
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -238,23 +259,27 @@ impl TemplateEngine {
         let mut errors = Vec::new();
 
         // Build JQ context from the params.
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = self
-            .target_config
-            .params
-            .iter()
-            .filter_map(|(k, v)| {
-                let json_value = match serde_json::to_value(v) {
-                    Ok(json_value) => json_value,
-                    Err(e) => {
-                        errors.push(ContextSerializationFailed {
-                            error: e.to_string(),
-                        });
-                        return None;
-                    }
-                };
-                Some((k.clone(), json_value))
-            })
-            .unzip();
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) =
+            self.target_config.params.as_ref().map_or_else(
+                || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
+                |params| {
+                    params
+                        .iter()
+                        .filter_map(|(k, v)| {
+                            let json_value = match serde_json::to_value(v) {
+                                Ok(json_value) => json_value,
+                                Err(e) => {
+                                    errors.push(ContextSerializationFailed {
+                                        error: e.to_string(),
+                                    });
+                                    return None;
+                                }
+                            };
+                            Some((k.clone(), json_value))
+                        })
+                        .unzip()
+                },
+            );
 
         // Process all files in parallel
         // - Filter the files that match the template pattern
@@ -385,7 +410,9 @@ impl TemplateEngine {
         engine.add_global("template", Value::from_object(template_object.clone()));
         engine.add_global(
             "params",
-            Value::from_object(ParamsObject::new(self.target_config.params.clone())),
+            Value::from_object(ParamsObject::new(
+                self.target_config.params.clone().unwrap_or_default(),
+            )),
         );
 
         let template = engine.get_template(template_file).map_err(|e| {
@@ -430,16 +457,40 @@ impl TemplateEngine {
 
         let syntax = SyntaxConfig::builder()
             .block_delimiters(
-                Cow::Owned(template_syntax.block_start),
-                Cow::Owned(template_syntax.block_end),
+                Cow::Owned(
+                    template_syntax
+                        .block_start
+                        .unwrap_or_else(|| BLOCK_START.to_owned()),
+                ),
+                Cow::Owned(
+                    template_syntax
+                        .block_end
+                        .unwrap_or_else(|| BLOCK_END.to_owned()),
+                ),
             )
             .variable_delimiters(
-                Cow::Owned(template_syntax.variable_start),
-                Cow::Owned(template_syntax.variable_end),
+                Cow::Owned(
+                    template_syntax
+                        .variable_start
+                        .unwrap_or_else(|| VARIABLE_START.to_owned()),
+                ),
+                Cow::Owned(
+                    template_syntax
+                        .variable_end
+                        .unwrap_or_else(|| VARIABLE_END.to_owned()),
+                ),
             )
             .comment_delimiters(
-                Cow::Owned(template_syntax.comment_start),
-                Cow::Owned(template_syntax.comment_end),
+                Cow::Owned(
+                    template_syntax
+                        .comment_start
+                        .unwrap_or_else(|| COMMENT_START.to_owned()),
+                ),
+                Cow::Owned(
+                    template_syntax
+                        .comment_end
+                        .unwrap_or_else(|| COMMEND_END.to_owned()),
+                ),
             )
             .build()
             .map_err(|e| InvalidConfigFile {
@@ -458,15 +509,16 @@ impl TemplateEngine {
             file_loader
                 .load_file(name)
                 .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, e.to_string()))
+                .map(|opt_file_content| opt_file_content.map(|file_content| file_content.content))
         });
         env.set_syntax(syntax);
 
         // Jinja whitespace control
         // https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
         let whitespace_control = self.target_config.whitespace_control.clone();
-        env.set_trim_blocks(whitespace_control.trim_blocks);
-        env.set_lstrip_blocks(whitespace_control.lstrip_blocks);
-        env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline);
+        env.set_trim_blocks(whitespace_control.trim_blocks.unwrap_or_default());
+        env.set_lstrip_blocks(whitespace_control.lstrip_blocks.unwrap_or_default());
+        env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline.unwrap_or_default());
 
         code::add_filters(&mut env, &self.target_config);
         ansi::add_filters(&mut env);
@@ -518,7 +570,7 @@ mod tests {
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
 
-    use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig};
+    use crate::config::{ApplicationMode, CaseConvention, Params, TemplateConfig, WeaverConfig};
     use crate::debug::print_dedup_errors;
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
@@ -648,21 +700,24 @@ mod tests {
     }
 
     #[test]
-    fn test() {
+    fn test_template_engine() {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "test")
             .expect("Failed to create file system loader");
-        let mut engine = super::TemplateEngine::try_new(loader, Params::default())
-            .expect("Failed to create template engine");
+        let config =
+            WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
+        let mut engine = super::TemplateEngine::new(config, loader, Params::default());
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
         // for test coverage purposes.
-        engine.target_config.templates.push(TemplateConfig {
+        let mut templates = engine.target_config.templates.unwrap_or_default();
+        templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
         });
+        engine.target_config.templates = Some(templates);
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
@@ -701,8 +756,8 @@ mod tests {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "whitespace_control")
             .expect("Failed to create file system loader");
-        let engine = super::TemplateEngine::try_new(loader, Params::default())
-            .expect("Failed to create template engine");
+        let config = WeaverConfig::try_from_loader(&loader).unwrap();
+        let engine = super::TemplateEngine::new(config, loader, Params::default());
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
@@ -750,8 +805,8 @@ mod tests {
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
             .expect("Failed to create file system loader");
-        let engine = super::TemplateEngine::try_new(loader, Params::default())
-            .expect("Failed to create template engine");
+        let config = WeaverConfig::try_from_loader(&loader).unwrap();
+        let engine = super::TemplateEngine::new(config, loader, Params::default());
         let context = Context {
             text: "Hello, World!".to_owned(),
         };

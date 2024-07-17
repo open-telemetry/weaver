@@ -15,7 +15,7 @@ use weaver_common::Logger;
 
 /// Embedded default diagnostic templates
 pub(crate) static DEFAULT_DIAGNOSTIC_TEMPLATES: Dir<'_> =
-    include_dir!("default_diagnostic_templates");
+    include_dir!("defaults/diagnostic_templates");
 
 /// Errors emitted by the `diagnostic` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
