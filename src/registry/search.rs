@@ -109,8 +109,8 @@ impl<'a> SearchApp<'a> {
         let group_count: usize = self
             .schema
             .registries
-            .iter()
-            .map(|(_, r)| r.stats().group_count)
+            .values()
+            .map(|r| r.stats().group_count)
             .sum();
         let title_contents = Line::from(vec![Span::styled(
             format!(
