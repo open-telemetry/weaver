@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2024-07-16
+
+What's Changed
+
+* Support for Hierarchical Weaver Config: We have added support for hierarchical configuration in Weaver. 
+This allows more flexible and powerful configuration management. For more details, please refer to the
+documentation on [configuration file loading order and overriding rules](https://github.com/open-telemetry/weaver/blob/main/docs/weaver-config.md#configuration-file-loading-order-and-overriding-rules). by @lquerel in https://github.com/open-telemetry/weaver/pull/231
+* Support for MiniJinja py_compat Extensions: This release includes support for MiniJinja py_compat
+extensions, enhancing compatibility with Python syntax. For more information, see the [documentation](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/README.md#jinja-filters). by @lquerel
+in https://github.com/open-telemetry/weaver/pull/239
+
+## New Contributors
+
+* @haidong made a first contribution in https://github.com/open-telemetry/weaver/pull/237
+
 ## [0.5.0] - 2024-07-02
 
 What's Changed
