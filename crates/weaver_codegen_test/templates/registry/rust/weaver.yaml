@@ -27,7 +27,6 @@ templates:
       if $attributes then
         semconv_attributes
         | unique_by(.group_id)
-        | sort_by(.group_id)
       else
         empty
       end
@@ -40,8 +39,7 @@ templates:
     # - groups are sorted by namespace.
     filter: >
       if $attributes then
-        semconv_attributes
-        | group_by(.group_id) 
+        semconv_grouped_attributes
         | map({
             id: (map(select(.id | endswith(".deprecated") | not)) | first).id,
             type: (map(select(.id | endswith(".deprecated") | not)) | first).type,
@@ -49,7 +47,6 @@ templates:
             prefix: (map(select(.id | endswith(".deprecated") | not)) | first).prefix,
             attributes: map(.attributes) | add
           })
-        | sort_by(.id | split(".") | .[1])
       else
         empty
       end
@@ -66,7 +63,6 @@ templates:
       if $metrics then
         semconv_metrics
         | unique_by(.group_id)
-        | sort_by(.group_id)
       else
         empty
       end
@@ -79,12 +75,7 @@ templates:
     # - groups are sorted by namespace.
     filter: >
       if $metrics then
-        semconv_metrics 
-        | group_by(.group_id) 
-        | map({ 
-          prefix: .[0].id | split(".") | .[1],
-          groups: .   
-        })
+        semconv_grouped_metrics 
       else
         empty
       end
