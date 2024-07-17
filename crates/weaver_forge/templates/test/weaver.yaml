@@ -21,16 +21,16 @@ templates:
     filter: "."
     application_mode: single
   - pattern: "**/attribute_group.md"
-    filter: ".groups[] | select(.type == \"attribute_group\")"
+    filter: semconv_attributes
     application_mode: each
   - pattern: "**/attribute_groups.md"
-    filter: ".groups[] | select(.type == \"attribute_group\")"
+    filter: semconv_attributes
     application_mode: single
   - pattern: "**/event.md"
-    filter: ".groups[] | select(.type == \"event\")"
+    filter: semconv_events
     application_mode: each
   - pattern: "**/events.md"
-    filter: ".groups[] | select(.type == \"event\")"
+    filter: semconv_events
     application_mode: single
   - pattern: "**/group.md"
     filter: ".groups"
@@ -39,26 +39,26 @@ templates:
     filter: ".groups"
     application_mode: single
   - pattern: "**/metric.md"
-    filter: ".groups[] | select(.type == \"metric\")"
+    filter: semconv_metrics
     application_mode: each
   - pattern: "**/metrics.md"
-    filter: ".groups[] | select(.type == \"metric\")"
+    filter: semconv_metrics
     application_mode: single
   - pattern: "**/resource.md"
-    filter: ".groups[] | select(.type == \"resource\")"
+    filter: semconv_resources
     application_mode: each
   - pattern: "**/resources.md"
-    filter: ".groups[] | select(.type == \"resource\")"
+    filter: semconv_resources
     application_mode: single
   - pattern: "**/scope.md"
-    filter: ".groups[] | select(.type == \"scope\")"
+    filter: semconv_scopes
     application_mode: each
   - pattern: "**/scopes.md"
-    filter: ".groups[] | select(.type == \"scope\")"
+    filter: semconv_scopes
     application_mode: single
   - pattern: "**/span.md"
-    filter: ".groups[] | select(.type == \"span\")"
+    filter: semconv_spans
     application_mode: each
   - pattern: "**/spans.md"
-    filter: ".groups[] | select(.type == \"span\")"
+    filter: semconv_spans
     application_mode: single

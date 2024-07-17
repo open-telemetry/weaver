@@ -7,6 +7,8 @@ use core::fmt;
 use jaq_interpret::{Ctx, FilterT, RcIter, Val};
 use std::fmt::Debug;
 
+const SEMCONV_JQ: &str = include_str!("../../../defaults/jq/semconv.jq");
+
 /// A filter that can be applied to a JSON value.
 pub struct Filter {
     filter_expr: String,
@@ -22,6 +24,21 @@ impl Filter {
         let mut ctx = jaq_interpret::ParseCtx::new(vars);
         ctx.insert_natives(jaq_core::core());
         ctx.insert_defs(jaq_std::std());
+        // ToDO LQ Move this as a parameter
+        let (defs, errs) = jaq_parse::parse(SEMCONV_JQ, jaq_parse::defs());
+        if !errs.is_empty() {
+            return Err(Error::CompoundError(
+                errs.into_iter()
+                    .map(|e| Error::FilterError {
+                        filter: filter_expr.to_owned(),
+                        error: e.to_string(),
+                    })
+                    .collect(),
+            ));
+        }
+        if let Some(defs) = defs {
+            ctx.insert_defs(defs);
+        }
 
         let (parsed_expr, errs) = jaq_parse::parse(filter_expr, jaq_parse::main());
 

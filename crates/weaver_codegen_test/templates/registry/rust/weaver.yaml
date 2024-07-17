@@ -25,16 +25,9 @@ templates:
     # - groups are sorted by namespace.
     filter: >
       if $attributes then
-        .groups
-        | map(select(.id | startswith($registry_prefix)))
-        | map(select(.type == "attribute_group")    
-          | { 
-            id, 
-            type, 
-            brief, 
-            prefix})
-        | unique_by(.id | split(".") | .[1])
-        | sort_by(.id | split(".") | .[1])
+        semconv_attributes
+        | unique_by(.group_id)
+        | sort_by(.group_id)
       else
         empty
       end
@@ -47,16 +40,8 @@ templates:
     # - groups are sorted by namespace.
     filter: >
       if $attributes then
-        .groups 
-        | map(select(.id | startswith($registry_prefix))) 
-        | map(select(.type == "attribute_group") 
-          | { 
-            id, 
-            type, 
-            brief, 
-            prefix, 
-            attributes}) 
-        | group_by(.id | split(".") | .[1]) 
+        semconv_attributes
+        | group_by(.group_id) 
         | map({
             id: (map(select(.id | endswith(".deprecated") | not)) | first).id,
             type: (map(select(.id | endswith(".deprecated") | not)) | first).type,
@@ -79,16 +64,9 @@ templates:
     # - groups are sorted by prefix.
     filter: >
       if $metrics then
-        .groups
-        | map(select(.id | startswith("metric."))) 
-        | map(select(.type == "metric")    
-          | { 
-            id, 
-            type, 
-            brief, 
-            prefix})
-        | unique_by(.id | split(".") | .[1])
-        | sort_by(.id | split(".") | .[1])
+        semconv_metrics
+        | unique_by(.group_id)
+        | sort_by(.group_id)
       else
         empty
       end
@@ -101,9 +79,8 @@ templates:
     # - groups are sorted by namespace.
     filter: >
       if $metrics then
-        .groups 
-        | map(select(.id | startswith("metric."))) 
-        | group_by(.id | split(".") | .[1]) 
+        semconv_metrics 
+        | group_by(.group_id) 
         | map({ 
           prefix: .[0].id | split(".") | .[1],
           groups: .   
