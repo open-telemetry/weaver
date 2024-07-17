@@ -36,11 +36,11 @@ publish = false
 rust-version = "1.76"
 
 [workspace.dependencies]
-serde = { version = "1.0.203", features = ["derive"] }
+serde = { version = "1.0.204", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.116"}
 thiserror = "1.0.58"
-ureq = "2.9.7"
+ureq = "2.10.0"
 regex = "1.10.5"
 rayon = "1.10.0"
 ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
@@ -74,7 +74,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.7", features = ["derive"] }
+clap = { version = "4.5.9", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.26.3", features=["serde"] }
 crossterm = { version = "0.27.0", features = ["serde"] }
@@ -186,7 +186,8 @@ redundant_feature_names = "warn"
 ref_option_ref = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 same_functions_in_if_condition = "warn"
-self_named_module_files = "warn"
+# disabled due to false positives
+# self_named_module_files = "warn"
 semicolon_if_nothing_returned = "warn"
 single_match_else = "warn"
 string_add = "warn"

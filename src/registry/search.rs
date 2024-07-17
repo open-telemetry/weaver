@@ -106,10 +106,16 @@ impl<'a> SearchApp<'a> {
             .title_alignment(ratatui::layout::Alignment::Center)
             .title_style(Style::default().fg(Color::Green))
             .title("Weaver Search");
+        let group_count: usize = self
+            .schema
+            .registries
+            .iter()
+            .map(|(_, r)| r.stats().group_count)
+            .sum();
         let title_contents = Line::from(vec![Span::styled(
             format!(
-                "Loaded {0:?} registries w/ {1} attributes",
-                self.schema.registries.keys(),
+                "Loaded {0:?} groups w/ {1} attributes",
+                group_count,
                 self.schema.catalog.attributes.len()
             ),
             Style::default().fg(Color::Gray),
@@ -135,6 +141,7 @@ impl<'a> SearchApp<'a> {
     fn results_widget(&'a self) -> List<'a> {
         let results: Vec<&'a str> = self.result_set().map(|a| a.name.as_str()).collect();
         let list = List::new(results)
+            .style(Style::default().fg(Color::Gray))
             .block(
                 Block::new()
                     .border_type(BorderType::Rounded)
