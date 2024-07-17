@@ -127,7 +127,7 @@ pub(crate) fn command(
             .expect("Failed to get the registry from the resolved schema"),
         schema.catalog(),
     )?;
-    if let Some(groups_processing) = &engine.config().group_processing {
+    if let Some(groups_processing) = &engine.config().registry_processing {
         resolved_registry.apply_group_processing(groups_processing);
     }
 

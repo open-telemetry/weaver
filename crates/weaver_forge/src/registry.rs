@@ -14,7 +14,7 @@ use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
-use crate::config::{AttributeOrCondition, GroupOrCondition, GroupProcessing};
+use crate::config::{AttributeOrCondition, GroupOrCondition, RegistryProcessing};
 use crate::error::Error;
 
 /// A resolved semantic convention registry used in the context of the template and policy
@@ -234,7 +234,7 @@ impl ResolvedRegistry {
     }
 
     /// Apply the group processing configuration to the resolved registry.
-    pub fn apply_group_processing(&mut self, config: &GroupProcessing) {
+    pub fn apply_group_processing(&mut self, config: &RegistryProcessing) {
         fn any_of_group_conditions(group: &ResolvedGroup, conditions: &GroupOrCondition) -> bool {
             let id_matches = conditions.id.iter().any(|re| re.is_match(&group.id));
             let type_matches = conditions
@@ -321,7 +321,7 @@ impl ResolvedRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::GroupProcessing;
+    use crate::config::RegistryProcessing;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
     use weaver_resolver::SchemaResolver;
@@ -368,7 +368,7 @@ mod tests {
 
         // Test default group processing configuration
         let mut registry = ref_registry.clone();
-        let config = GroupProcessing::default();
+        let config = RegistryProcessing::default();
         registry.apply_group_processing(&config);
         // Present groups in the yaml file:
         // 1 resource + 1 event + 2 attribute_group + 1 metric + 1 span = 6
@@ -376,7 +376,7 @@ mod tests {
 
         // Test retain only attribute groups
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               types_in: [attribute_group]
@@ -389,7 +389,7 @@ mod tests {
 
         // Test retain only attribute_group and span groups
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               types_in: [attribute_group, span]
@@ -403,7 +403,7 @@ mod tests {
 
         // Test remove attribute groups
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             remove_groups_with:
               types_in: [attribute_group]
@@ -419,7 +419,7 @@ mod tests {
 
         // Test remove attribute_group and span groups
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             remove_groups_with:
               types_in: [attribute_group, span]
@@ -437,7 +437,7 @@ mod tests {
 
         // Test retain groups starting with "registry."
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               id: '^registry\.'
@@ -450,7 +450,7 @@ mod tests {
 
         // Test retain groups with stability set to experimental
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               stability_in: [experimental]
@@ -465,7 +465,7 @@ mod tests {
         // Attributes marked as experimental are removed.
         // Test remove groups without attributes.
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             remove_groups_with:
               no_attribute: true
@@ -484,7 +484,7 @@ mod tests {
         // All attributes are removed.
         // Test remove groups without attributes.
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             remove_groups_with:
               no_attribute: true
@@ -501,7 +501,7 @@ mod tests {
     #[test]
     fn test_group_sorting() {
         let mut registry = create_ref_registry();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             sort_groups_by_id: true
             "#,
@@ -536,7 +536,7 @@ mod tests {
         // Retain only resource groups.
         // Test remove attributes with stability set to experimental
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               types_in: [resource]
@@ -556,7 +556,7 @@ mod tests {
         // Retain only resource groups.
         // Test retain attributes with stability set to experimental
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               types_in: [resource]
@@ -576,7 +576,7 @@ mod tests {
         // Retain only resource groups.
         // Test remove attributes with name matching "otel.scope.v*"
         let mut registry = ref_registry.clone();
-        let config: GroupProcessing = serde_yaml::from_str(
+        let config: RegistryProcessing = serde_yaml::from_str(
             r#"
             retain_groups_with:
               types_in: [resource]

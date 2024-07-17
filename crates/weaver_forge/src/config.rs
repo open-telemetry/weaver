@@ -8,12 +8,13 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
 use convert_case::{Case, Casing, Converter, Pattern};
+use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
+
 use weaver_semconv::group::GroupType;
 use weaver_semconv::stability::Stability;
 
@@ -55,10 +56,10 @@ pub enum CaseConvention {
     ScreamingKebabCase,
 }
 
-/// Configuration for a group processing.
+/// Configuration for a registry processing pipeline.
 #[derive(Deserialize, Debug, Default, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct GroupProcessing {
+pub struct RegistryProcessing {
     /// Retain groups with the specified group filter.
     pub retain_groups_with: Option<GroupOrCondition>,
     /// Remove groups with the specified group filter.
@@ -73,41 +74,49 @@ pub struct GroupProcessing {
 
 /// Simple group filter configuration.
 /// There is a OR logic between the conditions.
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct GroupOrCondition {
     /// Regular expression on the id field.
     #[serde(with = "serde_regex")]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<regex::Regex>,
     /// Set of group types.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub types_in: Option<HashSet<GroupType>>,
     /// Whether the group is deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<bool>,
     /// Set of stability values.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stability_in: Option<HashSet<Stability>>,
     /// Whether the group has attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub no_attribute: Option<bool>,
 }
 
 /// Simple attribute filter configuration.
 /// There is a OR logic between the conditions.
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct AttributeOrCondition {
     /// Regular expression on the id field.
     #[serde(with = "serde_regex")]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<regex::Regex>,
     /// Whether the group is deprecated.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<bool>,
     /// Set of stability values.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stability_in: Option<HashSet<Stability>>,
 }
 
-impl GroupProcessing {
+impl RegistryProcessing {
     /// Override the current group processing with the provided one.
-    pub fn override_with(&mut self, other: GroupProcessing) {
+    pub fn override_with(&mut self, other: RegistryProcessing) {
         if let Some(other) = other.remove_groups_with {
             self.remove_groups_with = Some(
                 self.remove_groups_with
@@ -207,9 +216,9 @@ pub struct WeaverConfig {
     /// These parameters can be overridden by parameters passed to the CLI.
     pub(crate) params: Option<HashMap<String, Value>>,
 
-    /// Configuration for the group processing.
+    /// Configuration for the registry processing pipeline.
     #[serde(default)]
-    pub group_processing: Option<GroupProcessing>,
+    pub registry_processing: Option<RegistryProcessing>,
 
     /// Configuration for the templates.
     pub(crate) templates: Option<Vec<TemplateConfig>>,
@@ -246,11 +255,11 @@ pub(crate) struct TemplateConfig {
     /// The pattern used to identify when this template configuration must be
     /// applied to a specific template file.
     pub(crate) pattern: Glob,
-    /// Configuration of a group processing. This processing is applied to
+    /// Configuration of a registry processing pipeline. This processing is applied to
     /// the registry before applying the JQ expression and the template.
-    /// The group_processing is simpler to use than JQ but less powerful.
+    /// The registry_processing is simpler to use than JQ but less powerful.
     #[serde(default)]
-    pub group_processing: Option<GroupProcessing>,
+    pub registry_processing: Option<RegistryProcessing>,
     /// The filter to apply to the registry before applying the template.
     /// Applying a filter to a registry will return a list of elements from the
     /// registry that satisfy the filter.
@@ -445,6 +454,7 @@ impl Default for WeaverConfig {
             },
             whitespace_control: Default::default(),
             params: None,
+            registry_processing: None,
             templates: None,
             acronyms: None,
         }
@@ -632,9 +642,9 @@ mod tests {
                     ("a".to_owned(), "b".to_owned()),
                     ("c".to_owned(), "d".to_owned())
                 ]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
     }
@@ -653,9 +663,9 @@ mod tests {
                     "a".to_owned(),
                     [("b".to_owned(), "g".to_owned())].iter().cloned().collect()
                 )]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
@@ -668,9 +678,9 @@ mod tests {
                     "a".to_owned(),
                     [("b".to_owned(), "g".to_owned())].iter().cloned().collect()
                 )]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
         let mut parent: WeaverConfig =
@@ -690,9 +700,9 @@ mod tests {
                         [("e".to_owned(), "f".to_owned())].iter().cloned().collect()
                     )
                 ]
-                .iter()
-                .cloned()
-                .collect()
+                    .iter()
+                    .cloned()
+                    .collect()
             )
         );
     }
@@ -703,7 +713,7 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "template_syntax: {block_start: \"{{\", block_end: \"}}\", variable_start: \"#\"}",
         )
-        .unwrap();
+            .unwrap();
         let local: WeaverConfig =
             serde_yaml::from_str("template_syntax: {block_start: \"[[\", block_end: \"]]\"}")
                 .unwrap();
@@ -790,11 +800,11 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
-        .unwrap();
+            .unwrap();
         let local: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
-        .unwrap();
+            .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
@@ -806,7 +816,7 @@ mod tests {
         let local: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
-        .unwrap();
+            .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
@@ -817,7 +827,7 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
-        .unwrap();
+            .unwrap();
         let local = WeaverConfig::default();
         parent.override_with(local);
         assert!(parent.templates.is_some());
@@ -829,7 +839,7 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str(
             "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
-        .unwrap();
+            .unwrap();
         let local: WeaverConfig = serde_yaml::from_str("templates: []").unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());

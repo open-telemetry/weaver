@@ -203,7 +203,7 @@ impl TemplateEngine {
 
     /// Return the Weaver configuration.
     #[must_use]
-    pub fn config(&self) -> &TargetConfig {
+    pub fn config(&self) -> &WeaverConfig {
         &self.target_config
     }
 
@@ -721,7 +721,7 @@ mod tests {
         templates.push(TemplateConfig {
             pattern: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
-            group_processing: None,
+            registry_processing: None,
             application_mode: ApplicationMode::Single,
         });
         engine.target_config.templates = Some(templates);
