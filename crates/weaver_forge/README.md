@@ -96,7 +96,7 @@ each object in the array, i.e., to each group of attributes for a given namespac
 
 ```yaml
 templates:
- - pattern: "**/attributes.j2"
+ - pattern: "attributes.j2"             # glob patterns are supported
    filter: semconv_grouped_attributes
    application_mode: each
  - ...
@@ -147,7 +147,7 @@ params:
   # ...
 
 templates:
-  - pattern: "**/attributes.j2"
+  - pattern: "attributes.j2"
     filter: semconv_grouped_attributes
     application_mode: each
   # ...
@@ -164,10 +164,10 @@ More details on the structure of the configuration file [here](/docs/weaver-conf
 # ...
 
 templates:
- - pattern: "**/attributes.j2"
+ - pattern: "attributes.j2"
    filter: semconv_grouped_attributes
    application_mode: each
- - pattern: "**/metrics.j2"
+ - pattern: "metrics.j2"
    filter: semconv_grouped_metrics
    application_mode: each
 
@@ -235,10 +235,10 @@ Example configuration for JQ filters in `weaver.yaml`:
 
 ```yaml  
 templates:  
- - pattern: "**/attributes.j2"   
+ - pattern: "attributes.j2"   
    filter: semconv_grouped_attributes
    application_mode: each
- - pattern: "**/metrics.j2"
+ - pattern: "metrics.j2"
    filter: semconv_grouped_metrics
    application_mode: each 
  # ...  

@@ -131,6 +131,15 @@ pub enum Error {
         error: String,
     },
 
+    /// Import JQ package error.
+    #[error("Import JQ package '{package}' failed: {error}")]
+    ImportError {
+        /// Package that caused the error.
+        package: String,
+        /// Error message.
+        error: String,
+    },
+
     /// Invalid template pattern.
     #[error("Invalid template pattern: {error}")]
     InvalidTemplatePattern {

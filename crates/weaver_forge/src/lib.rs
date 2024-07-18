@@ -45,6 +45,9 @@ pub mod registry;
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
 
+/// Default jq filter for the semantic convention registry.
+pub const SEMCONV_JQ: &str = include_str!("../../../defaults/jq/semconv.jq");
+
 // Definition of the Jinja syntax delimiters
 
 /// Constant defining the start of a Jinja block.
@@ -148,6 +151,9 @@ pub struct TemplateEngine {
 
     /// Target configuration
     target_config: WeaverConfig,
+
+    /// The jq packages that have been imported.
+    jq_packages: Vec<jaq_syn::Def>,
 }
 
 /// Global context for the template engine.
@@ -198,7 +204,30 @@ impl TemplateEngine {
         Self {
             file_loader: Arc::new(loader),
             target_config: config,
+            jq_packages: Vec::new(),
         }
+    }
+
+    /// Import a jq package into the template engine.
+    /// A jq package is a collection of jq functions that can be used in the templates.
+    pub fn import_jq_package(&mut self, package_content: &str) -> Result<(), Error> {
+        let (defs, errs) = jaq_parse::parse(package_content, jaq_parse::defs());
+
+        if !errs.is_empty() {
+            return Err(Error::CompoundError(
+                errs.into_iter()
+                    .map(|e| Error::ImportError {
+                        package: package_content.to_owned(),
+                        error: e.to_string(),
+                    })
+                    .collect(),
+            ));
+        }
+
+        if let Some(def) = defs {
+            self.jq_packages.extend(def);
+        }
+        Ok(())
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -295,7 +324,7 @@ impl TemplateEngine {
             .into_par_iter()
             .filter_map(|relative_path| {
                 for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filter = match Filter::try_new(template.filter.as_str(), jq_vars.clone()) {
+                    let filter = match Filter::try_new(template.filter.as_str(), jq_vars.clone(), self.jq_packages.clone()) {
                         Ok(filter) => filter,
                         Err(e) => return Some(e),
                     };
@@ -834,7 +863,8 @@ mod tests {
             .expect("Failed to create file system loader");
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
-        let engine = super::TemplateEngine::new(config, loader, Params::default());
+        let mut engine = super::TemplateEngine::new(config, loader, Params::default());
+        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
             .expect("Failed to load registry");

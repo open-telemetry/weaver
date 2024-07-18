@@ -4124,6 +4124,7 @@ dependencies = [
  "jaq-interpret",
  "jaq-parse",
  "jaq-std",
+ "jaq-syn",
  "markdown",
  "miette",
  "minijinja",
