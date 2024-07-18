@@ -560,6 +560,7 @@ impl TemplateEngine {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::Path;
 
     use globset::Glob;
@@ -824,5 +825,49 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/py_compat", "observed_output/py_compat").unwrap());
+    }
+
+    #[test]
+    fn test_semconv_jq_functions() {
+        let logger = TestLogger::default();
+        let loader = FileSystemFileLoader::try_new("templates".into(), "semconv_jq_fn")
+            .expect("Failed to create file system loader");
+        let config =
+            WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
+        let engine = super::TemplateEngine::new(config, loader, Params::default());
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
+
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
+
+        // Delete all the files in the observed_output/semconv_jq_fn directory
+        // before generating the new files.
+        fs::remove_dir_all("observed_output/semconv_jq_fn").unwrap_or_default();
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                Path::new("observed_output/semconv_jq_fn"),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir("expected_output/semconv_jq_fn", "observed_output/semconv_jq_fn").unwrap());
     }
 }
