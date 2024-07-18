@@ -45,15 +45,10 @@ templates/
       ...
 ```
 
-The command `weaver generate registry markdown` will generate the markdown
-files based on the templates located in the `templates/registry/markdown`.
+The command `weaver generate registry rust` will generate the rust
+files based on the templates located in the `templates/registry/rust`.
 
-When the name of a file (excluding the extension) matches a recognized pattern
-(e.g., attribute_group, groups, ...), OTel Weaver extracts the objects from the
-registry and passes them to the template at the time of its evaluation.
-Depending on the nature of the pattern, the template is evaluated as many times
-as there are objects that match or only once if the pattern corresponds to a
-set of objects. By default, the name of the file that will be generated from
+By default, the name of the file that will be generated from
 the template will be that of the template, but it is possible within the
 template to dynamically redefine the name of the produced file.
 
@@ -63,6 +58,9 @@ produced from the template:
 ```jinja
 {%- set file_name = group.id | snake_case -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
+...
+rest of the template
+...
 ```
 
 This mechanism allows the template to dynamically generate the name of the file
@@ -91,6 +89,172 @@ The last configuration file loaded will override the previous ones.
 For the most complex cases, it is possible to define explicitly the list configuration
 files to load using the `--config` CLI n-ary parameter.
 
+## JQ Filters
+
+Each template present in the `templates/registry/<target>` directory can be associated
+with a JQ filter that will be applied to the resolved semconv registry before being
+delivered to the template in the `ctx` variable. The definition of the filters follows
+the following syntax:
+
+```yaml
+templates:
+ - pattern: "**/attributes.j2"
+   filter: semconv_grouped_attributes
+   application_mode: each
+ - pattern: "**/metrics.j2"
+   filter: semconv_grouped_metrics
+   application_mode: each
+ - ...
+```
+
+In this example, the `attributes.j2` and `metrics.j2` templates are associated with the
+`semconv_grouped_attributes` and `semconv_grouped_metrics` JQ filters respectively. These
+filters are applied to each object selected by the JQ filter before being delivered to the
+template. `semconv_grouped_attributes` returns an array of objects containing the attributes
+grouped by namespace. The `application_mode` is set to `each` so that the template is
+applied to each object in the array, i.e., to each group of attributes for a given namespace.
+
+A series of JQ filters dedicated to the manipulation of semantic conventions registries is
+available to template authors.
+
+**Process Registry Attributes**
+
+The following JQ filter extracts the registry attributes from the resolved registry and
+returns a list of registry attributes grouped by namespace and sorted by attribute names.
+
+```yaml
+templates:
+  - pattern: attributes.j2
+    filter: semconv_grouped_attributes
+    application_mode: each
+```
+
+The output of the JQ filter has the following structure:
+
+```json5
+[
+  {
+    "namespace": "user_agent",
+    "attributes": [
+      {
+        "brief": "Value of the HTTP User-Agent",
+        "examples": [ ... ],
+        "name": "user_agent.original",
+        "namespace": "user_agent",
+        "requirement_level": "recommended",
+        "stability": "stable",
+        "type": "string",
+        // ... other fields
+      }, 
+      // ... other attributes in the same namespace
+    ]
+  },
+  // ... other namespaces
+]
+```
+
+The `semconv_grouped_attributes` function also supports options to exclude specified namespaces
+or specific stability levels. The following syntax is supported:
+
+```yaml
+templates:
+  - pattern: attributes.j2
+    filter: >
+      semconv_grouped_attributes({
+        "exclude_namespace": ["url", "network"], 
+        "exclude_stability": ["experimental"]
+      })
+    application_mode: each
+```
+
+The structure of the output of `semconv_grouped_attributes` with these options is exactly the
+same as without the options. The JSON object passed as a parameter describes a series of
+options that can easily be extended if needed. Each of these options is optional.
+
+Technically, the `semconv_grouped_attributes` function is a combination of two semconv
+JQ functions:
+
+```jq
+def semconv_grouped_attributes($options):
+    semconv_attributes($options)
+    | semconv_group_attributes_by_namespace;
+
+def semconv_grouped_attributes: semconv_grouped_attributes({});
+```
+
+The `semconv_attributes` function extracts the registry attributes and applies the given options.
+The `semconv_group_attributes_by_namespace` function groups the attributes by namespace. It's
+possible to combine these two functions with your own JQ filters if needed.
+
+**Process Metrics**
+
+The following JQ filter extracts the metrics from the resolved registry, sorted by group
+namespace and sorted by metric names.
+
+```yaml
+templates:
+  - pattern: metrics.j2
+    filter: semconv_grouped_metrics
+    application_mode: each
+```
+
+The output of the JQ filter has the following structure:
+
+```json5
+[
+  {
+    "namespace": "jvm",
+    "metrics": [
+      {
+        "attributes": [ ... ],
+        "brief": "Recent CPU utilization for the process as reported by the JVM.",
+        "id": "metric.jvm.cpu.recent_utilization",
+        "instrument": "gauge",
+        "metric_name": "jvm.cpu.recent_utilization",
+        "namespace": "jvm",
+        "note": "The value range is [0.0,1.0]. ...",
+        "stability": "stable",
+        "type": "metric",
+        "unit": "1",
+        // ... other fields
+      },
+      // ... other metrics in the same namespace
+    ]
+  },
+  // ... other namespaces
+]
+```
+
+The same options are supported by `semconv_grouped_metrics`, as shown in the following example:
+
+```yaml
+templates:
+  - pattern: metrics.j2
+    filter: >
+      semconv_grouped_metrics({
+        "exclude_namespace": ["url", "network"], 
+        "exclude_stability": ["experimental"]
+      })
+    application_mode: each
+```
+
+**Other signals**
+
+The pattern is used for other signals and OTEL entities:
+- `semconv_grouped_resources`
+- `semconv_grouped_scopes`
+- `semconv_grouped_spans`
+- `semconv_grouped_events`
+
+All the `semconv_grouped_<...>` functions are the composition of two functions:
+`semconv_<...>` and `semconv_group_<...>_by_namespace`.
+
+> Note: JQ is a language for querying and transforming structured data. For more
+> information, see [JQ Manual](https://jqlang.github.io/jq/manual/). The
+> integration into Weaver is done through the Rust library `jaq`, which is a
+> reimplementation of JQ in Rust. Most JQ filters are supported. For more
+> information, see [jaq GitHub repository](https://github.com/01mf02/jaq).
+
 ## Global Variables
 
 All templates have access to the following global variables:
@@ -102,7 +266,7 @@ by the command line `--param`, `-D`, or `--params` arguments.
 - `template`: An object exposing the `set_file_name` method to redefine the name of the
 file that will be produced from the template.
 
-In the following example, the parameters `incubating` and `excluded` are passed via the command line:
+In the following example, the parameter `incubating` is passed via the command line:
 
 ```shell
 weaver registry generate --param incubating=true <target> <output-dir>
