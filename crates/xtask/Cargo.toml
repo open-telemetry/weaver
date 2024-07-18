@@ -10,7 +10,7 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-toml = "0.8.12"
+toml = "0.8.15"
 
 [lints]
 workspace = true
