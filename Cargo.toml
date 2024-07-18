@@ -77,7 +77,7 @@ weaver_checker = { path = "crates/weaver_checker" }
 
 clap = { version = "4.5.9", features = ["derive"] }
 rayon = "1.10.0"
-ratatui = { version = "0.26.3", features=["serde"] }
+ratatui = { version = "0.27.0", features=["serde"] }
 crossterm = { version = "0.27.0", features = ["serde"] }
 tui-textarea = "0.4.0"
 
