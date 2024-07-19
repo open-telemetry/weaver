@@ -15,64 +15,31 @@ templates:
   - pattern: lib.rs
     filter: .
     application_mode: single
-
-    # Templates for the `attribute_group` group type
   - pattern: attributes/mod.rs.j2
-    # The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
-    # - groups with an id starting with the prefix `registry.`
-    # - groups of the type `attribute_group`.
-    # - groups are deduplicated by namespace.
-    # - groups are sorted by namespace.
     filter: >
       if $attributes then
-        semconv_attributes
-        | unique_by(.group_id)
+        semconv_grouped_attributes($params)
       else
         empty
       end
     application_mode: single
   - pattern: attributes/attributes.rs.j2
-    # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
-    # criteria:
-    # - groups with an id starting with the prefix `registry.`
-    # - groups of the type `attribute_group`.
-    # - groups are sorted by namespace.
     filter: >
       if $attributes then
-        semconv_grouped_attributes
-        | map({
-            id: (map(select(.id | endswith(".deprecated") | not)) | first).id,
-            type: (map(select(.id | endswith(".deprecated") | not)) | first).type,
-            brief: (map(select(.id | endswith(".deprecated") | not)) | first).brief,
-            prefix: (map(select(.id | endswith(".deprecated") | not)) | first).prefix,
-            attributes: map(.attributes) | add
-          })
+        semconv_grouped_attributes($params)
       else
         empty
       end
     application_mode: each
-
-    # Templates for the `metric` group type
   - pattern: metrics/mod.rs.j2
-    # The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
-    # - groups with an id starting with the prefix `metric.`
-    # - groups of the type `metric`.
-    # - groups are deduplicated by namespace.
-    # - groups are sorted by prefix.
     filter: >
       if $metrics then
-        semconv_metrics
-        | unique_by(.group_id)
+        semconv_grouped_metrics
       else
         empty
       end
     application_mode: single
   - pattern: metrics/metrics.rs.j2
-    # The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
-    # criteria:
-    # - groups with an id starting with the prefix `metric.`
-    # - groups of the type `metric`.
-    # - groups are sorted by namespace.
     filter: >
       if $metrics then
         semconv_grouped_metrics 
@@ -80,62 +47,3 @@ templates:
         empty
       end
     application_mode: each
-
-
-# .groups
-#  | map(select(.type == "attribute_group"))
-#  | map(select(.id | startswith("registry")))
-#  | group_by(.id | split(".") | .[1])
-#  | map({id: .[0].id | split(".") | .[1], groups: .})
-
-# Other examples of filters
-
-# The following JQ filter extracts the id, type, brief, and prefix of groups matching the following criteria:
-# - groups with an id starting with the prefix `registry.`
-# - groups of the type `attribute_group`.
-# - groups with a well-defined prefix.
-# - groups with a non-empty list of attributes that are neither deprecated nor experimental.
-# - groups are deduplicated by prefix.
-# - groups are sorted by prefix.
-#    filter: >
-#      .groups
-#      | map(select(.id | startswith("registry.")))
-#      | map(select(.type == "attribute_group" and .prefix != null and .prefix != "")
-#        | {
-#          id,
-#          type,
-#          brief,
-#          prefix,
-#          attributes: (.attributes
-#            | map(select(.stability == "experimental" and .deprecated | not)))})
-#      | map(select(.attributes | length > 0))
-#      | map(
-#          {
-#            id,
-#            type,
-#            brief,
-#            prefix
-#          }
-#        )
-#      | unique_by(.prefix)
-#      | sort_by(.prefix)
-
-
-# The following JQ filter extracts the id, type, brief, prefix, and attributes of groups matching the following
-# criteria:
-# - groups with an id starting with the prefix `registry.`
-# - groups of the type `attribute_group`.
-# - groups with a well-defined prefix.
-# - groups with a non-empty list of attributes that are neither deprecated nor experimental.
-# - groups are sorted by prefix.
-#    filter: >
-#      .groups
-#      | map(select(.id | startswith("registry.")))
-#      | map(select(.type == "attribute_group" and .prefix != null and .prefix != "")
-#        | {
-#          id,
-#          type,
-#          brief,
-#          prefix,
-#          attributes: (.attributes | map(select(.stability == "experimental" and .deprecated | not)))})
-#      | sort_by(.prefix // empty)

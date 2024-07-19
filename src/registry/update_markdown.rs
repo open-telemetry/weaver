@@ -12,7 +12,7 @@ use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::{SEMCONV_JQ, TemplateEngine};
+use weaver_forge::{TemplateEngine, SEMCONV_JQ};
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command

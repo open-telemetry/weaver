@@ -287,9 +287,31 @@ impl TemplateEngine {
 
         let mut errors = Vec::new();
 
+        let params = if let Some(mut params) = self.target_config.params.clone() {
+            match serde_yaml::to_value(&self.target_config.params) {
+                Ok(value) => {
+                    let prev = params.insert("params".to_owned(), value);
+                    if prev.is_some() {
+                        errors.push(Error::DuplicateParamKey {
+                            key: "params".to_owned(),
+                            error: "The parameter `params` is a reserved parameter name".to_string()
+                        });
+                    }
+                }
+                Err(e) => {
+                    errors.push(ContextSerializationFailed {
+                        error: e.to_string(),
+                    });
+                }
+            }
+            Some(params)
+        } else {
+            None
+        };
+
         // Build JQ context from the params.
         let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) =
-            self.target_config.params.as_ref().map_or_else(
+            params.as_ref().map_or_else(
                 || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
                 |params| {
                     params
@@ -324,7 +346,11 @@ impl TemplateEngine {
             .into_par_iter()
             .filter_map(|relative_path| {
                 for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filter = match Filter::try_new(template.filter.as_str(), jq_vars.clone(), self.jq_packages.clone()) {
+                    let filter = match Filter::try_new(
+                        template.filter.as_str(),
+                        jq_vars.clone(),
+                        self.jq_packages.clone(),
+                    ) {
                         Ok(filter) => filter,
                         Err(e) => return Some(e),
                     };
@@ -875,12 +901,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         // Delete all the files in the observed_output/semconv_jq_fn directory
         // before generating the new files.
@@ -898,6 +924,10 @@ mod tests {
             })
             .expect("Failed to generate registry assets");
 
-        assert!(diff_dir("expected_output/semconv_jq_fn", "observed_output/semconv_jq_fn").unwrap());
+        assert!(diff_dir(
+            "expected_output/semconv_jq_fn",
+            "observed_output/semconv_jq_fn"
+        )
+        .unwrap());
     }
 }

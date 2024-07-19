@@ -154,6 +154,15 @@ pub enum Error {
         error: String,
     },
 
+    /// Duplicate parameter key.
+    #[error("Duplicate parameter key '{key}': {error}")]
+    DuplicateParamKey {
+        /// The duplicate key.
+        key: String,
+        /// Error message.
+        error: String,
+    },
+
     /// Invalid case convention.
     #[error("`{case}` is not a valid case convention. Valid case conventions are: lower_case, upper_case, title_case, snake_case, kebab_case, camel_case, pascal_case, screaming_snake_case, and screaming_kebab_case.")]
     InvalidCaseConvention {

@@ -5,8 +5,8 @@
 use crate::error::Error;
 use core::fmt;
 use jaq_interpret::{Ctx, FilterT, RcIter, Val};
-use std::fmt::Debug;
 use jaq_syn::Def;
+use std::fmt::Debug;
 
 /// A filter that can be applied to a JSON value.
 pub struct Filter {
@@ -19,11 +19,7 @@ impl Filter {
     /// expression is invalid.
     /// The vars parameter is a list of variable names that can be used in the
     /// filter expression.
-    pub fn try_new(
-        filter_expr: &str,
-        vars: Vec<String>,
-        defs: Vec<Def>
-    ) -> Result<Self, Error> {
+    pub fn try_new(filter_expr: &str, vars: Vec<String>, defs: Vec<Def>) -> Result<Self, Error> {
         let mut ctx = jaq_interpret::ParseCtx::new(vars);
         ctx.insert_natives(jaq_core::core());
         ctx.insert_defs(jaq_std::std());

@@ -14,6 +14,11 @@ def semconv_attributes($options):
       else
         .
       end
+    | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
+        map(select(has("deprecated") | not))
+      else
+        .
+      end
     | map(. + {namespace: (if .name | index(".") then .name | split(".")[0] else "other" end)})
     | if ($options | has("exclude_namespace")) then
         map(select(.namespace as $st | $options.exclude_namespace | index($st) | not))
@@ -40,6 +45,11 @@ def semconv_signal($signal; $options):
     | map(select(.type == $signal))
     | if ($options | has("exclude_stability")) then
         map(select(.stability as $st | $options.exclude_stability | index($st) | not))
+      else
+        .
+      end
+    | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
+        map(select(.id | endswith(".deprecated") | not))
       else
         .
       end

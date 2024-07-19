@@ -2,4 +2,5 @@
 params:
   attributes: true
   metrics: true
+  exclude_deprecated: true
   registry_prefix: "registry."

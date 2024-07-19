@@ -10,9 +10,9 @@
 
 pub const METRICS_PARAM: bool = {{ params.metrics }};
 
-{% for group in ctx %}
-/// Metrics for the `{{ group.id | metric_namespace }}` namespace.
-pub mod {{ group.id | metric_namespace | snake_case }};
+{% for attributes_namespace in ctx %}
+/// Metrics for the `{{ attributes_namespace.namespace }}` namespace.
+pub mod {{ attributes_namespace.namespace | snake_case }};
 {%- endfor %}
 
 /// A trait implemented by histogram providers (e.g. `Meter`).
