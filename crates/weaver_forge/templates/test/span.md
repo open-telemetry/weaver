@@ -1,20 +1,19 @@
-{%- set file_name = ctx.id | snake_case -%}
+{%- set file_name = ctx.namespace | snake_case -%}
 {{- template.set_file_name("span/" ~ file_name ~ ".md") -}}
 
-## Group `{{ ctx.id }}` ({{ ctx.type }})
+## Namespace Span `{{ ctx.namespace }}`
 
-### Brief
+{% for span in ctx.spans %}
+## Span `{{ span.id }}`
 
-{{ ctx.brief | trim }}
-
-{{ ctx.note | trim }}
-
-Prefix: {{ ctx.prefix }}
-Kind: {{ ctx.span_kind }}
+{{ span.brief | trim }}
+{{ span.note | trim }}
+Prefix: {{ span.prefix }}
+Kind: {{ span.span_kind }}
 
 ### Attributes
 
-{% for attribute in ctx.attributes %}
+{% for attribute in span.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -46,4 +45,5 @@ Kind: {{ ctx.span_kind }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
-  {% endfor %}
+{% endfor %}
+{% endfor %} 

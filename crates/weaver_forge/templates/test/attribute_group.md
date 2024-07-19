@@ -1,13 +1,7 @@
-{%- set file_name = ctx.id | snake_case -%}
+{%- set file_name = ctx.namespace | snake_case -%}
 {{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
 
-## Group `{{ ctx.id | split_id | list | join("_") }}` ({{ ctx.type }})
-
-### Brief
-
-{{ ctx.brief | trim }}
-
-prefix: {{ ctx.prefix }}
+## Namespace `{{ ctx.namespace }}`
 
 ### Attributes
 

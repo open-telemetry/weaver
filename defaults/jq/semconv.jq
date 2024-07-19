@@ -53,7 +53,7 @@ def semconv_signal($signal; $options):
       else
         .
       end
-    | map(. + {namespace: .id | split(".") | .[1]})
+    | map(. + {namespace: (if .id | index(".") then .id | split(".") | .[1] else "other" end)})
     | if ($options | has("exclude_namespace")) then
         map(select(.namespace as $st | $options.exclude_namespace | index($st) | not))
       else

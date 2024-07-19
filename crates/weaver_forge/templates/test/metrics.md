@@ -1,23 +1,16 @@
-# Semantic Convention Metric Groups
+{% for grouped_metrics in ctx %}
+# Metric Namespace `{{ grouped_metrics.namespace }}`
 
-{% for group in ctx %}
-## Group `{{ group.id }}` ({{ group.type }})
+{% for metric in grouped_metrics.metrics %}
+## Metric `{{ metric.metric_name }}` 
 
-### Brief
-
-{{ group.brief | trim }}
-
-{{ group.note | trim }}
-
-Prefix: {{ group.prefix }}
-Metric: {{ group.metric_name }}
-Instrument: {{ group.instrument }}
-Unit: {{ group.unit }}
-Stability: {{ group.stability | capitalize }}
+Instrument: {{ metric.instrument }}
+Unit: {{ metric.unit }}
+Stability: {{ metric.stability }}
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in metric.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -51,3 +44,5 @@ Stability: {{ group.stability | capitalize }}
   {% endif %}
   {% endfor %}
   {% endfor %}
+  {% endfor %}
+  

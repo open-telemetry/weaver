@@ -1,23 +1,18 @@
-{%- set file_name = ctx.id | snake_case -%}
+{%- set file_name = ctx.namespace | snake_case -%}
 {{- template.set_file_name("metric/" ~ file_name ~ ".md") -}}
 
-## Group `{{ ctx.id }}` ({{ ctx.type }})
+## Metrics Namespace `{{ ctx.namespace }}` 
 
-### Brief
+{% for metric in ctx.metrics %}
+## Metric `{{ metric.metric_name }}`
 
-{{ ctx.brief | trim }}
-
-{{ ctx.note | trim }}
-
-Prefix: {{ ctx.prefix }}
-Metric: {{ ctx.metric_name }}
-Instrument: {{ ctx.instrument }}
-Unit: {{ ctx.unit }}
-Stability: {{ ctx.stability | capitalize }}
+Instrument: {{ metric.instrument }}
+Unit: {{ metric.unit }}
+Stability: {{ metric.stability }}
 
 ### Attributes
 
-{% for attribute in ctx.attributes %}
+{% for attribute in metric.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -49,4 +44,5 @@ Stability: {{ ctx.stability | capitalize }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
+  {% endfor %}
   {% endfor %}

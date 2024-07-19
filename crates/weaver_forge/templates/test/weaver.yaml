@@ -21,44 +21,32 @@ templates:
     filter: "."
     application_mode: single
   - pattern: "**/attribute_group.md"
-    filter: semconv_attributes
+    filter: semconv_grouped_attributes
     application_mode: each
   - pattern: "**/attribute_groups.md"
-    filter: semconv_attributes
+    filter: semconv_grouped_attributes
     application_mode: single
   - pattern: "**/event.md"
-    filter: semconv_events
+    filter: semconv_grouped_events
     application_mode: each
   - pattern: "**/events.md"
-    filter: semconv_events
-    application_mode: single
-  - pattern: "**/group.md"
-    filter: ".groups"
-    application_mode: each
-  - pattern: "**/groups.md"
-    filter: ".groups"
+    filter: semconv_grouped_events
     application_mode: single
   - pattern: "**/metric.md"
-    filter: semconv_metrics
+    filter: semconv_grouped_metrics
     application_mode: each
   - pattern: "**/metrics.md"
-    filter: semconv_metrics
+    filter: semconv_grouped_metrics
     application_mode: single
   - pattern: "**/resource.md"
-    filter: semconv_resources
+    filter: semconv_grouped_resources
     application_mode: each
   - pattern: "**/resources.md"
-    filter: semconv_resources
-    application_mode: single
-  - pattern: "**/scope.md"
-    filter: semconv_scopes
-    application_mode: each
-  - pattern: "**/scopes.md"
-    filter: semconv_scopes
+    filter: semconv_grouped_resources
     application_mode: single
   - pattern: "**/span.md"
-    filter: semconv_spans
+    filter: semconv_grouped_spans
     application_mode: each
   - pattern: "**/spans.md"
-    filter: semconv_spans
+    filter: semconv_grouped_spans
     application_mode: single

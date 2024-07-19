@@ -1,53 +1,7 @@
-
-# Metric Namespace `jvm`
-
-
-## Metric `jvm.memory.used` 
-
-Instrument: updowncounter
-Unit: By
-Stability: stable
-
-### Attributes
+## Metrics Namespace `jvm` 
 
 
-#### Attribute `jvm.memory.type`
-
-The type of memory.
-
-
-- Requirement Level: Recommended
-  
-- Type: Enum [heap, non_heap]
-- Examples: [
-    "heap",
-    "non_heap",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `jvm.memory.pool.name`
-
-Name of the memory pool.
-
-
-Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
-
-- Requirement Level: Recommended
-  
-- Type: string
-- Examples: [
-    "G1 Old Gen",
-    "G1 Eden space",
-    "G1 Survivor Space",
-]
-  
-- Stability: Stable
-  
-  
-  
-## Metric `jvm.memory.committed` 
+## Metric `jvm.memory.used`
 
 Instrument: updowncounter
 Unit: By
@@ -92,7 +46,7 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Metric `jvm.memory.limit` 
+## Metric `jvm.memory.committed`
 
 Instrument: updowncounter
 Unit: By
@@ -137,7 +91,7 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Metric `jvm.memory.used_after_last_gc` 
+## Metric `jvm.memory.limit`
 
 Instrument: updowncounter
 Unit: By
@@ -182,7 +136,52 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Metric `jvm.gc.duration` 
+## Metric `jvm.memory.used_after_last_gc`
+
+Instrument: updowncounter
+Unit: By
+Stability: stable
+
+### Attributes
+
+
+#### Attribute `jvm.memory.type`
+
+The type of memory.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [heap, non_heap]
+- Examples: [
+    "heap",
+    "non_heap",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `jvm.memory.pool.name`
+
+Name of the memory pool.
+
+
+Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "G1 Old Gen",
+    "G1 Eden space",
+    "G1 Survivor Space",
+]
+  
+- Stability: Stable
+  
+  
+  
+## Metric `jvm.gc.duration`
 
 Instrument: histogram
 Unit: s
@@ -228,7 +227,7 @@ Garbage collector action is generally obtained via [GarbageCollectionNotificatio
   
   
   
-## Metric `jvm.thread.count` 
+## Metric `jvm.thread.count`
 
 Instrument: updowncounter
 Unit: {thread}
@@ -266,7 +265,7 @@ State of the thread.
   
   
   
-## Metric `jvm.class.loaded` 
+## Metric `jvm.class.loaded`
 
 Instrument: counter
 Unit: {class}
@@ -276,7 +275,7 @@ Stability: stable
 
 
   
-## Metric `jvm.class.unloaded` 
+## Metric `jvm.class.unloaded`
 
 Instrument: counter
 Unit: {class}
@@ -286,7 +285,7 @@ Stability: stable
 
 
   
-## Metric `jvm.class.count` 
+## Metric `jvm.class.count`
 
 Instrument: updowncounter
 Unit: {class}
@@ -296,7 +295,7 @@ Stability: stable
 
 
   
-## Metric `jvm.cpu.count` 
+## Metric `jvm.cpu.count`
 
 Instrument: updowncounter
 Unit: {cpu}
@@ -306,7 +305,7 @@ Stability: stable
 
 
   
-## Metric `jvm.cpu.time` 
+## Metric `jvm.cpu.time`
 
 Instrument: counter
 Unit: s
@@ -316,7 +315,7 @@ Stability: stable
 
 
   
-## Metric `jvm.cpu.recent_utilization` 
+## Metric `jvm.cpu.recent_utilization`
 
 Instrument: gauge
 Unit: 1
@@ -325,6 +324,4 @@ Stability: stable
 ### Attributes
 
 
-  
-  
   

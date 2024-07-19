@@ -1,19 +1,20 @@
-{%- set file_name = ctx.id | snake_case -%}
+{%- set file_name = ctx.namespace | snake_case -%}
 {{- template.set_file_name("event/" ~ file_name ~ ".md") -}}
 
-# Group `{{ ctx.id }}` ({{ ctx.type }})
+## Events Namespace `{{ ctx.namespace }}`
 
-## Brief
+{% for event in ctx.events %}
+## Event `{{ event.name }}`
 
-{{ ctx.brief | trim }}
+Note: {{ event.note }}
+Brief: {{ event.brief }}
+Requirement level: {{ event.requirement_level }}
+Stability: {{ event.stability }}
 
-Prefix: {{ ctx.prefix }}
-Name: {{ ctx.name }}
+### Attributes
 
-## Attributes
-
-{% for attribute in ctx.attributes %}
-### Attribute `{{ attribute.name }}`
+{% for attribute in event.attributes %}
+#### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
 
@@ -44,4 +45,5 @@ Name: {{ ctx.name }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
+  {% endfor %}
   {% endfor %}

@@ -1,17 +1,18 @@
 # Semantic Convention Resource Groups
 
-{% for group in ctx %}
-## Group `{{ group.id }}` ({{ group.type }})
+{% for grouped_resources in ctx %}
+## Namespace Resource `{{ grouped_resources.namespace }}`
 
-### Brief
+{% for resource in grouped_resources.resources %}
 
-{{ group.brief | trim }}
+## Resource `{{ resource.id }}`
 
-prefix: {{ group.prefix }}
+Note: {{ resource.note }}
+Brief: {{ resource.brief }}
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in resource.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -45,3 +46,4 @@ prefix: {{ group.prefix }}
   {% endif %}
   {% endfor %}
   {% endfor %}
+- {% endfor %}

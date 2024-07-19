@@ -1,5 +1,4 @@
-
-# Events Namespace `lifecycle`
+## Events Namespace `lifecycle`
 
 
 ## Event `device.app.lifecycle`
@@ -53,8 +52,6 @@ The Android lifecycle states are defined in [Activity lifecycle callbacks](https
 - Type: Enum [created, background, foreground]
   
 - Stability: Experimental
-  
-  
   
   
   

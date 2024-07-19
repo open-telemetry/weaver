@@ -1,17 +1,18 @@
-{%- set file_name = ctx.id | snake_case -%}
+{%- set file_name = ctx.namespace | snake_case -%}
 {{- template.set_file_name("resource/" ~ file_name ~ ".md") -}}
 
-## Group `{{ ctx.id }}` ({{ ctx.type }})
+## Namespace Resource `{{ ctx.namespace }}`
 
-### Brief
+{% for resource in ctx.resources %}
 
-{{ ctx.brief | trim }}
+## Resource `{{ resource.id }}`
 
-prefix: {{ ctx.prefix }}
+Note: {{ resource.note }}
+Brief: {{ resource.brief }}
 
 ### Attributes
 
-{% for attribute in ctx.attributes %}
+{% for attribute in resource.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -43,4 +44,5 @@ prefix: {{ ctx.prefix }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
+  {% endfor %}
   {% endfor %}

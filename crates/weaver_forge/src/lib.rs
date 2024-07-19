@@ -294,7 +294,7 @@ impl TemplateEngine {
                     if prev.is_some() {
                         errors.push(Error::DuplicateParamKey {
                             key: "params".to_owned(),
-                            error: "The parameter `params` is a reserved parameter name".to_string()
+                            error: "The parameter `params` is a reserved parameter name".to_owned(),
                         });
                     }
                 }
@@ -310,27 +310,26 @@ impl TemplateEngine {
         };
 
         // Build JQ context from the params.
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) =
-            params.as_ref().map_or_else(
-                || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
-                |params| {
-                    params
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            let json_value = match serde_json::to_value(v) {
-                                Ok(json_value) => json_value,
-                                Err(e) => {
-                                    errors.push(ContextSerializationFailed {
-                                        error: e.to_string(),
-                                    });
-                                    return None;
-                                }
-                            };
-                            Some((k.clone(), json_value))
-                        })
-                        .unzip()
-                },
-            );
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params.as_ref().map_or_else(
+            || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
+            |params| {
+                params
+                    .iter()
+                    .filter_map(|(k, v)| {
+                        let json_value = match serde_json::to_value(v) {
+                            Ok(json_value) => json_value,
+                            Err(e) => {
+                                errors.push(ContextSerializationFailed {
+                                    error: e.to_string(),
+                                });
+                                return None;
+                            }
+                        };
+                        Some((k.clone(), json_value))
+                    })
+                    .unzip()
+            },
+        );
 
         // Process all files in parallel
         // - Filter the files that match the template pattern
@@ -763,6 +762,7 @@ mod tests {
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
         let mut engine = super::TemplateEngine::new(config, loader, Params::default());
+        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
