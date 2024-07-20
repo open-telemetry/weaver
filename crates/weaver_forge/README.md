@@ -146,6 +146,14 @@ params:
   incubating: true
   # ...
 
+# Jinja Engine Whitespace Control Settings
+# With both trim_blocks and lstrip_blocks enabled, you can put block tags on
+# their own lines, and the entire block line will be removed when rendered, 
+# preserving the whitespace of the contents.
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
 templates:
   - pattern: "attributes.j2"
     filter: semconv_grouped_attributes
@@ -290,8 +298,8 @@ The output of the JQ filter has the following structure:
 ]  
 ```  
 
-The `semconv_grouped_attributes` function also supports options to exclude specified namespaces  
-or specific stability levels. The following syntax is supported:
+The `semconv_grouped_attributes` function also supports options to exclude specified namespaces, 
+specific stability levels, and deprecated entities. The following syntax is supported:
 
 ```yaml  
 templates:
@@ -299,7 +307,8 @@ templates:
     filter: >
       semconv_grouped_attributes({
         "exclude_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"]
+        "exclude_stability": ["experimental"],
+        "exclude_deprecated": true
       })
     application_mode: each 
 ```  
@@ -370,7 +379,8 @@ templates:
     filter: >
       semconv_grouped_metrics({
         "exclude_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"]
+        "exclude_stability": ["experimental"],
+        "exclude_deprecated": true
       })
     application_mode: each  
 ```  

@@ -15,7 +15,7 @@ pub const ATTRIBUTES_PARAM: bool = {{ params.attributes }};
 {% for attributes_namespace in ctx %}
 /// Attributes for the `{{ attributes_namespace.namespace }}` namespace.
 pub mod {{ attributes_namespace.namespace | snake_case }};
-{%- endfor %}
+{% endfor %}
 
 /// A typed attribute key.
 pub struct AttributeKey<T> {

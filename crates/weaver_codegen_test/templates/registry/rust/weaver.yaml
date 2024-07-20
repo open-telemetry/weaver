@@ -8,6 +8,11 @@ text_maps:
     template[string]: String          # Not yet properly handled in codegen
     template[string[]]: Vec<String>   # Not yet properly handled in codegen
 
+# Whitespace control settings to simplify the definition of templates
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
 templates:
   - pattern: README.md
     filter: .

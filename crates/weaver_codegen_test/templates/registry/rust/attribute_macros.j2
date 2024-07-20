@@ -1,60 +1,60 @@
 {%- macro comments(attribute, prefix) -%}
-{%- if attribute.brief %}
+    {% if attribute.brief %}
 {{ attribute.brief | comment_with_prefix(prefix ~ " ") }}
-{%- endif %}
-{%- if attribute.note %}
+    {% endif %}
+    {% if attribute.note %}
 {{ prefix }}
 {{ prefix }} Notes:
 {{ attribute.note | comment_with_prefix(prefix ~ "   ") }}
-{%- endif %}
-{%- if attribute.examples %}
-{%- if attribute.examples is sequence %}
+    {% endif %}
+    {% if attribute.examples %}
+        {% if attribute.examples is sequence %}
 {{ prefix }}
 {{ prefix }} Examples:
-{%- for example in attribute.examples %}
+            {% for example in attribute.examples %}
 {{ example | comment_with_prefix(prefix ~ " - ") }}
-{%- endfor %}
-{%- else %}
+            {% endfor %}
+        {% else %}
 {{ prefix }}
 {{ prefix }} Example: {{ attribute.examples | trim }}
-{%- endif %}
-{%- endif %}
-{%- endmacro %}
+        {% endif %}
+    {% endif %}
+{% endmacro %}
 
 {%- macro attributes_to_key_values(required_attributes, not_required_attributes) -%}
         let mut attributes = vec![
-            {%- for attribute in required_attributes | attribute_sort %}
-            {%- if attribute is experimental %}
+            {% for attribute in required_attributes | attribute_sort %}
+            {% if attribute is experimental %}
             #[cfg(feature = "semconv_experimental")]
-            {%- endif %}
-            {%- if attribute.type.members is defined %}
+            {% endif %}
+            {% if attribute.type.members is defined %}
             crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(&required_attributes.{{ attribute.name | snake_case }}),
-            {%- elif attribute.type == "string" %}
+            {% elif attribute.type == "string" %}
             crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}.to_owned().into()),
-            {%- else %}
+            {% else %}
             crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value(required_attributes.{{ attribute.name | snake_case }}),
-            {%- endif %}
-            {%- endfor %}
+            {% endif %}
+            {% endfor %}
         ];
 
         if let Some(value) = &not_required_attributes {
-            {%- for attribute in not_required_attributes | attribute_sort %}
-            {%- if attribute is experimental %}
+            {% for attribute in not_required_attributes | attribute_sort %}
+            {% if attribute is experimental %}
             #[cfg(feature = "semconv_experimental")]
-            {%- endif %}
-            {%- if attribute.type.members is defined %}
+            {% endif %}
+            {% if attribute.type.members is defined %}
             if let Some({{ attribute.name | snake_case }}) = &value.{{ attribute.name | snake_case }} {
                 attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}));
             }
-            {%- elif attribute.type == "string" %}
+            {% elif attribute.type == "string" %}
             if let Some({{ attribute.name | snake_case }}) = &value.{{ attribute.name | snake_case }} {
                 attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}.to_owned().into()));
             }
-            {%- else %}
+            {% else %}
             if let Some({{ attribute.name | snake_case }}) = value.{{ attribute.name | snake_case }} {
                 attributes.push(crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | screaming_snake_case }}.value({{ attribute.name | snake_case }}));
             }
-            {%- endif %}
-            {%- endfor %}
+            {% endif %}
+            {% endfor %}
         }
 {%- endmacro %}

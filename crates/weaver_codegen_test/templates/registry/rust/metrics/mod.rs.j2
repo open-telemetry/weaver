@@ -13,7 +13,7 @@ pub const METRICS_PARAM: bool = {{ params.metrics }};
 {% for attributes_namespace in ctx %}
 /// Metrics for the `{{ attributes_namespace.namespace }}` namespace.
 pub mod {{ attributes_namespace.namespace | snake_case }};
-{%- endfor %}
+{% endfor %}
 
 /// A trait implemented by histogram providers (e.g. `Meter`).
 pub trait HistogramProvider<T> {

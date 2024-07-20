@@ -3,4 +3,3 @@ params:
   attributes: true
   metrics: false    # With this alternate configuration, the metrics are disabled
   exclude_deprecated: true
-  registry_prefix: "registry."
