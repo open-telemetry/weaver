@@ -53,9 +53,11 @@ template engine to generate the desired artifacts.
 
 ### Template Directory Structure and Naming Conventions
 
-By default, Weaver expects to find the `templates/` directory in the current directory with the
-following structure. The location of this directory can be redefined using the `-t` or `--templates` 
-CLI parameter.
+By default, Weaver looks for a directory named `templates/`, which contains
+several collection of templates, also referred to as targets (e.g. go, html,
+markdown, rust, ...). The hierarchical structure of the `templates` directory
+is detailed below. Note that this location can be changed using the `-t` or
+`--templates` CLI parameter.
 
 ```plaintext
 templates/
@@ -71,11 +73,17 @@ templates/
     .../
 ```
 
-In this example, all the templates that belong to `go` must be defined in `templates/registry/go`, 
-and all the templates for `rust` must be defined in `templates/registry/rust`, and so on. 
-`go`, `html`, and `rust` are all generation targets accessible from the `weaver registry generate <target>` 
-command. For example, the command `weaver registry generate rust` will generate the rust files
-based on the templates located in `templates/registry/rust`.
+In this example, all templates for the `go` target are located in
+`templates/registry/go`, and all templates for the `rust` target are in
+`templates/registry/rust`. Similarly, other targets such as `html` have their
+respective templates in designated folders. These targets (`go`, `html`, and
+`rust`) are used for code and documentation generation via the
+`weaver registry generate <target>` command. For instance, running
+`weaver registry generate rust` will generate Rust files based on the templates
+in `templates/registry/rust`. The intermediary `registry` directory groups
+targets that convert a semantic convention registry into generated artifacts.
+In a future version of Weaver, a new class of targets will be introduced to
+generate artifacts from application telemetry schemas (`templates/schema/<target>`).
 
 ### Configuration File - `weaver.yaml`
 
