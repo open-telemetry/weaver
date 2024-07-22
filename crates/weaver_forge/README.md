@@ -87,21 +87,30 @@ generate artifacts from application telemetry schemas (`templates/schema/<target
 
 ### Configuration File - `weaver.yaml`
 
-In the simplest case, a configuration file named `weaver.yaml` is searched for by the tool
-within the folder containing the templates (e.g. `templates/registry/rust/weaver.yaml`). The
-syntax of this configuration file is described here [Weaver Configuration File](/docs/weaver-config.md).
+Weaver searches for a `weaver.yaml` file in the `templates/registry/<target>`
+directory. This file guides Weaver on which Jinja templates to use, the context
+to provide during evaluation, and how to apply them. The template input can be
+applied to the entire document with `application_mode` set to `single`, or to
+each part of the document (if it is an array of objects) with `application_mode`
+set to `multiple`. The file also configures filters (e.g., `map_text` or `acronym`
+filters), controls whitespace handling, and includes other configurations
+detailed in the in-depth section. The complete syntax for this configuration
+file is described [here](/docs/weaver-config.md).
 
-The `weaver.yaml` files are loaded in the following order:
+Weaver supports sharing common configuration parts through an overriding
+mechanism, loading configuration files in this order:
 
 - `$HOME/.weaver/weaver.yaml`
-- `/weaver.yaml`, all intermediate directories containing a `weaver.yaml` file up to the
-`templates/registry/<target>` directory.
+- `/weaver.yaml` and any intermediate directories containing a `weaver.yaml`
+file up to the `templates/registry/<target>` directory.
 - `templates/registry/<target>/weaver.yaml`
 
-The last configuration file loaded will override the previous ones. You can explicitly define
-the list of configuration files to load using the `--config` CLI n-ary parameter.
+Each subsequent configuration file overrides the previous ones, up to the
+`weaver.yaml` in the home directory (if it exists). To define your own
+configuration file list, use the `--config` CLI parameter.
 
-You can use this overriding mechanism to share configuration segments across multiple targets.
+A common use of this configuration hierarchy is to share configuration
+segments across multiple targets.
 
 ### JQ Filters
 
