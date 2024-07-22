@@ -1,4 +1,4 @@
-{%- set file_name = ctx.namespace | snake_case -%}
+{%- set file_name = ctx.root_namespace | snake_case -%}
 {{- template.set_file_name("metrics/" ~ file_name ~ ".rs") -}}
 
 /*

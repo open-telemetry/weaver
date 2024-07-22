@@ -30,8 +30,8 @@ integrated with the standard Jinja logic.
 Weaver Forge also incorporates a YAML/JSON processor compatible with JQ to
 preprocess resolved registries before they are processed by Jinja templates.
 This integration helps avoid complex logic within the templates. A set of
-specialized JQ filters is available to extract and organize attributes, metrics,
-spans, and events, making them directly usable by the templates. This allows
+specialized JQ filters is available to extract and organize attributes and
+metrics, making them directly usable by the templates. This allows
 template authors to focus on rendering rather than filtering, transforming, or
 ordering logic in Jinja.
 
@@ -120,15 +120,15 @@ with a JQ filter, defined in the `weaver.yaml` configuration file. These filters
 the resolved semantic convention registry, allowing you to transform and manipulate the data as
 needed before to being processed in the template.
 
-For example, you can group attributes by namespace or filter out specific stability levels. This
+For example, you can group attributes by root namespace or filter out specific stability levels. This
 preprocessing ensures that the data is in the correct format and structure when it is accessed
 within the corresponding Jinja templates.
 
 In the following example, the `attributes.j2` template is associated with the `semconv_grouped_attributes`
 JQ filter. This filter is applied to each object selected by the JQ filter before being delivered
 to the template. `semconv_grouped_attributes` returns an array of objects containing the attributes
-grouped by namespace. The `application_mode` is set to `each` so that the template is applied to
-each object in the array, i.e., to each group of attributes for a given namespace.
+grouped by root namespace. The `application_mode` is set to `each` so that the template is applied to
+each object in the array, i.e., to each group of attributes for a given root namespace.
 
 ```yaml
 templates:
@@ -228,7 +228,7 @@ More details on the JQ syntax and custom semconv filters [here](#jq-filters-refe
 1. **Create a template file `attributes.j2` in the appropriate directory:**
 
 ```jinja
-{%- set file_name = ctx.namespace | snake_case -%}
+{%- set file_name = ctx.root_namespace | snake_case -%}
 {{- template.set_file_name("attributes/" ~ file_name ~ ".md") -}}
 ...
 a valid jinja template
@@ -237,7 +237,7 @@ a valid jinja template
 
 The first two lines (optional) specify the name of the file generated from the evaluation of the
 current template and the inputs provided by Weaver. In this specific example, an object
-containing a `namespace` and an array of `attributes`.
+containing a `root_namespace` and an array of `attributes`.
 
 2. **Use Jinja syntax to define the content and structure of the generated files.**
 
@@ -292,8 +292,8 @@ In this example, the `attributes.j2` and `metrics.j2` templates are associated w
 `semconv_grouped_attributes` and `semconv_grouped_metrics` JQ filters respectively. These  
 filters are applied to each object selected by the JQ filter before being delivered to the  
 template. `semconv_grouped_attributes` returns an array of objects containing the attributes  
-grouped by namespace. The `application_mode` is set to `each` so that the template is  
-applied to each object in the array, i.e., to each group of attributes for a given namespace.
+grouped by root namespace. The `application_mode` is set to `each` so that the template is  
+applied to each object in the array, i.e., to each group of attributes for a given root namespace.
 
 A series of JQ filters dedicated to the manipulation of semantic conventions registries is  
 available to template authors.
@@ -301,7 +301,7 @@ available to template authors.
 **Process Registry Attributes**
 
 The following JQ filter extracts the registry attributes from the resolved registry and  
-returns a list of registry attributes grouped by namespace and sorted by attribute names.
+returns a list of registry attributes grouped by root namespace and sorted by attribute names.
 
 ```yaml  
 templates:  
@@ -315,7 +315,7 @@ The output of the JQ filter has the following structure:
 ```json5  
 [
   {
-    "namespace": "user_agent",
+    "root_namespace": "user_agent",
     "attributes": [
       {
         "brief": "Value of the HTTP User-Agent",
@@ -327,14 +327,14 @@ The output of the JQ filter has the following structure:
         "type": "string",
         // ... other fields
       },
-      // ... other attributes in the same namespace
+      // ... other attributes in the same root namespace
     ]
   },
-  // ... other namespaces
+  // ... other root namespaces
 ]  
 ```  
 
-The `semconv_grouped_attributes` function also supports options to exclude specified namespaces, 
+The `semconv_grouped_attributes` function also supports options to exclude specified root namespaces, 
 specific stability levels, and deprecated entities. The following syntax is supported:
 
 ```yaml  
@@ -342,7 +342,7 @@ templates:
   - pattern: attributes.j2
     filter: >
       semconv_grouped_attributes({
-        "exclude_namespace": ["url", "network"], 
+        "exclude_root_namespace": ["url", "network"], 
         "exclude_stability": ["experimental"],
         "exclude_deprecated": true
       })
@@ -359,19 +359,19 @@ JQ functions:
 ```jq  
 def semconv_grouped_attributes($options):
     semconv_attributes($options)
-    | semconv_group_attributes_by_namespace;
+    | semconv_group_attributes_by_root_namespace;
 
 def semconv_grouped_attributes: semconv_grouped_attributes({});  
 ```  
 
 The `semconv_attributes` function extracts the registry attributes and applies the given options.  
-The `semconv_group_attributes_by_namespace` function groups the attributes by namespace. It's  
+The `semconv_group_attributes_by_root_namespace` function groups the attributes by root namespace. It's  
 possible to combine these two functions with your own JQ filters if needed.
 
 **Process Metrics**
 
 The following JQ filter extracts the metrics from the resolved registry, sorted by group  
-namespace and sorted by metric names.
+root namespace and sorted by metric names.
 
 ```yaml  
 templates:
@@ -385,7 +385,7 @@ The output of the JQ filter has the following structure:
 ```json5  
 [
   {
-    "namespace": "jvm",
+    "root_namespace": "jvm",
     "metrics": [
       {
         "attributes": [ ... ],
@@ -393,17 +393,17 @@ The output of the JQ filter has the following structure:
         "id": "metric.jvm.cpu.recent_utilization",
         "instrument": "gauge",
         "metric_name": "jvm.cpu.recent_utilization",
-        "namespace": "jvm",
+        "root_namespace": "jvm",
         "note": "The value range is [0.0,1.0]. ...",
         "stability": "stable",
         "type": "metric",
         "unit": "1",
         // ... other fields
       },
-      // ... other metrics in the same namespace
+      // ... other metrics in the same root namespace
     ]
   },
-  // ... other namespaces
+  // ... other root namespaces
 ]
 ```
 
@@ -414,23 +414,15 @@ templates:
   - pattern: metrics.j2
     filter: >
       semconv_grouped_metrics({
-        "exclude_namespace": ["url", "network"], 
+        "exclude_root_namespace": ["url", "network"], 
         "exclude_stability": ["experimental"],
         "exclude_deprecated": true
       })
     application_mode: each  
 ```  
 
-**Other signals**
-
-The pattern is used for other signals and OTEL entities:
-- `semconv_grouped_resources`
-- `semconv_grouped_scopes`
-- `semconv_grouped_spans`
-- `semconv_grouped_events`
-
 All the `semconv_grouped_<...>` functions are the composition of two functions:  
-`semconv_<...>` and `semconv_group_<...>_by_namespace`.
+`semconv_<...>` and `semconv_group_<...>_by_root_namespace`.
 
 > Note: JQ is a language for querying and transforming structured data. For more  
 > information, see [JQ Manual](https://jqlang.github.io/jq/manual/). The  

@@ -27,10 +27,10 @@ templates:
     filter: semconv_grouped_attributes
     application_mode: single
   - pattern: "**/event.md"
-    filter: semconv_grouped_events
+    filter: semconv_signal("event"; {}) | semconv_group_signals_by_root_namespace("events")
     application_mode: each
   - pattern: "**/events.md"
-    filter: semconv_grouped_events
+    filter: semconv_signal("event"; {}) | semconv_group_signals_by_root_namespace("events")
     application_mode: single
   - pattern: "**/metric.md"
     filter: semconv_grouped_metrics
@@ -39,14 +39,14 @@ templates:
     filter: semconv_grouped_metrics
     application_mode: single
   - pattern: "**/resource.md"
-    filter: semconv_grouped_resources
+    filter: semconv_signal("resource"; {}) | semconv_group_signals_by_root_namespace("resources")
     application_mode: each
   - pattern: "**/resources.md"
-    filter: semconv_grouped_resources
+    filter: semconv_signal("resource"; {}) | semconv_group_signals_by_root_namespace("resources")
     application_mode: single
   - pattern: "**/span.md"
-    filter: semconv_grouped_spans
+    filter: semconv_signal("span"; {}) | semconv_group_signals_by_root_namespace("spans")
     application_mode: each
   - pattern: "**/spans.md"
-    filter: semconv_grouped_spans
+    filter: semconv_signal("span"; {}) | semconv_group_signals_by_root_namespace("spans")
     application_mode: single

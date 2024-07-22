@@ -1,5 +1,5 @@
 {% for grouped_metrics in ctx %}
-# Metric Namespace `{{ grouped_metrics.namespace }}`
+# Metric Namespace `{{ grouped_metrics.root_namespace }}`
 
 {% for metric in grouped_metrics.metrics %}
 ## Metric `{{ metric.metric_name }}` 

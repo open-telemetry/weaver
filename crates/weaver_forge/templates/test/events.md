@@ -1,5 +1,5 @@
 {% for grouped_events in ctx %}
-# Events Namespace `{{ grouped_events.namespace }}`
+# Events Namespace `{{ grouped_events.root_namespace }}`
 
 {% for event in grouped_events.events %}
 ## Event `{{ event.name }}`

@@ -7,7 +7,7 @@
 {%- endfor -%}
 
 {% for grouped_attributes in ctx %}
-## Namespace `{{ grouped_attributes.namespace }}`
+## Namespace `{{ grouped_attributes.root_namespace }}`
 
 ### Attributes
 

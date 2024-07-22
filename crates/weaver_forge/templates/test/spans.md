@@ -1,7 +1,7 @@
 # Semantic Convention Span Groups
 
 {% for grouped_spans in ctx %}
-## Namespace Spans `{{ grouped_spans.namespace }}`
+## Namespace Spans `{{ grouped_spans.root_namespace }}`
 
 {% for span in grouped_spans.spans %}
 ## Span `{{ span.id }}`

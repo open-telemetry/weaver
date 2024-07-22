@@ -1,7 +1,7 @@
-{%- set file_name = ctx.namespace | snake_case -%}
+{%- set file_name = ctx.root_namespace | snake_case -%}
 {{- template.set_file_name("event/" ~ file_name ~ ".md") -}}
 
-## Events Namespace `{{ ctx.namespace }}`
+## Events Namespace `{{ ctx.root_namespace }}`
 
 {% for event in ctx.events %}
 ## Event `{{ event.name }}`

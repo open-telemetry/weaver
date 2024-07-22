@@ -1,7 +1,7 @@
-{%- set file_name = ctx.namespace | snake_case -%}
+{%- set file_name = ctx.root_namespace | snake_case -%}
 {{- template.set_file_name("metric/" ~ file_name ~ ".md") -}}
 
-## Metrics Namespace `{{ ctx.namespace }}` 
+## Metrics Namespace `{{ ctx.root_namespace }}` 
 
 {% for metric in ctx.metrics %}
 ## Metric `{{ metric.metric_name }}`

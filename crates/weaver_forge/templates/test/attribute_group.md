@@ -1,7 +1,7 @@
-{%- set file_name = ctx.namespace | snake_case -%}
+{%- set file_name = ctx.root_namespace | snake_case -%}
 {{- template.set_file_name("attribute_group/" ~ file_name ~ ".md") -}}
 
-## Namespace `{{ ctx.namespace }}`
+## Namespace `{{ ctx.root_namespace }}`
 
 ### Attributes
 

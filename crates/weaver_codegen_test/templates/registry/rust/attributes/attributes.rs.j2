@@ -1,4 +1,4 @@
-{%- set file_name = ctx.namespace | snake_case -%}
+{%- set file_name = ctx.root_namespace | snake_case -%}
 {{- template.set_file_name("attributes/" ~ file_name ~ ".rs") -}}
 {%- import 'attribute_macros.j2' as attribute_macros -%}
 

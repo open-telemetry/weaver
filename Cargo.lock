@@ -2066,9 +2066,9 @@ dependencies = [
 
 [[package]]
 name = "kstring"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec3066350882a1cd6d950d055997f379ac37fd39f81cd4d8ed186032eb3c5747"
+checksum = "e703acfd696000db3f6d1238e23b3d1f889192e1e439969c44e8423bb7a5655e"
 dependencies = [
  "static_assertions",
 ]
@@ -2727,14 +2727,13 @@ dependencies = [
 
 [[package]]
 name = "quinn-udp"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9096629c45860fc7fb143e125eb826b5e721e10be3263160c7d60ca832cf8c46"
+checksum = "8bffec3605b73c6f1754535084a85229fa8a30f86014e6c81aeec4abb68b0285"
 dependencies = [
  "libc",
  "once_cell",
  "socket2",
- "tracing",
  "windows-sys 0.52.0",
 ]
 
@@ -3076,9 +3075,9 @@ checksum = "976295e77ce332211c0d24d92c0e83e50f5c5f046d11082cea19f3df13a3562d"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.102.5"
+version = "0.102.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9a6fccd794a42c2c105b513a2f62bc3fd8f3ba57a4593677ceb0bd035164d78"
+checksum = "8e6b52d4fda176fd835fdc55a835d4a89b8499cad995885a21149d5ad62f852e"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -3260,9 +3259,9 @@ dependencies = [
 
 [[package]]
 name = "sha1_smol"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
 
 [[package]]
 name = "sha2"
@@ -3313,9 +3312,9 @@ dependencies = [
 
 [[package]]
 name = "similar"
-version = "2.5.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa42c91313f1d05da9b26f267f931cf178d4aba455b4c4622dd7355eb80c6640"
+checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
 
 [[package]]
 name = "simple_asn1"
@@ -3445,9 +3444,9 @@ checksum = "b7401a30af6cb5818bb64852270bb722533397edcfc7344954a38f420819ece2"
 
 [[package]]
 name = "syn"
-version = "2.0.71"
+version = "2.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b146dcf730474b4bcd16c311627b31ede9ab149045db4d6088b3becaea046462"
+checksum = "dc4b9b9bf2add8093d3f2c0204471e951b2285580335de42f9d2534f3ae7a8af"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4012,7 +4011,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -4043,7 +4042,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "dirs",
  "gix",
@@ -4056,7 +4055,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "globset",
  "miette",
@@ -4071,7 +4070,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "dirs",
  "opentelemetry 0.23.0",
@@ -4085,7 +4084,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "miette",
  "paris",
@@ -4096,7 +4095,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "similar",
  "walkdir",
@@ -4104,7 +4103,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -4141,7 +4140,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -4154,7 +4153,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "glob",
  "miette",
@@ -4172,7 +4171,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "glob",
  "miette",
@@ -4187,7 +4186,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "itertools 0.13.0",
  "miette",
@@ -4205,7 +4204,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "schemars",
  "semver",
@@ -4414,9 +4413,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winnow"
-version = "0.6.14"
+version = "0.6.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "374ec40a2d767a3c1b4972d9475ecd557356637be906f2cb3f7fe17a6eb5e22f"
+checksum = "557404e450152cd6795bb558bca69e43c585055f4606e3bcae5894fc6dac9ba0"
 dependencies = [
  "memchr",
 ]
