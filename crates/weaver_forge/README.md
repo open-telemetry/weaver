@@ -19,16 +19,35 @@
 
 ## Introduction
 
-OTel Weaver is capable of generating documentation or code from a semantic convention registry.
-To do this, OTel Weaver uses a template engine compatible with the Jinja2 syntax (see the
-[MiniJinja](https://github.com/mitsuhiko/minijinja) project for more details). A set of filters,
-functions, tests, and naming conventions have been added to the classic Jinja logic to make the
-task easier for template authors.
+Weaver Forge is a component of OTEL Weaver that facilitates documentation and
+code generation from a semantic convention registry. It uses MiniJinja, a
+template engine compatible with Jinja2 syntax, which provides extensive
+customization options (refer to this [GitHub repository](https://github.com/mitsuhiko/minijinja)
+for more details). To streamline template creation for semantic conventions,
+additional filters, functions, tests, and naming conventions have been
+integrated with the standard Jinja logic.
 
-The following diagram illustrates the documentation and code generation pipeline using the OTel
+Weaver Forge also incorporates a YAML/JSON processor compatible with JQ to
+preprocess resolved registries before they are processed by Jinja templates.
+This integration helps avoid complex logic within the templates. A set of
+specialized JQ filters is available to extract and organize attributes, metrics,
+spans, and events, making them directly usable by the templates. This allows
+template authors to focus on rendering rather than filtering, transforming, or
+ordering logic in Jinja.
+
+The following diagram illustrates the documentation and code generation pipeline using the OTEL
 Weaver tool:
 
 ![Weaver Forge](images/artifact-generation-pipeline.svg)
+
+Weaver's resolution process simplifies the semantic conventions by eliminating
+references, extend statements, and other complex constructs, creating a fully
+resolved, easy-to-use, self-contained version of the registry. This resolved
+registry can be optionally filtered, grouped, sorted, and processed using a
+JQ-based transformation before being used by the Jinja-based template engine
+for documentation and code generation. Additionally, a set of templates and a
+configuration file, stored alongside these templates, are processed by the
+template engine to generate the desired artifacts.
 
 ## General Concepts
 
