@@ -12,7 +12,7 @@ templates:
   - pattern: semconv_grouped_attributes_without_experimental.json
     filter: >
       semconv_grouped_attributes({
-        "exclude_namespace": ["url", "network"], 
+        "exclude_root_namespace": ["url", "network"], 
         "exclude_stability": ["experimental"]
       })
     application_mode: single
