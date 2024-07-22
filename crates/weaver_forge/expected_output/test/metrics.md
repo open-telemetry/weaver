@@ -1,19 +1,12 @@
-# Semantic Convention Metric Groups
+
+# Metric Namespace `jvm`
 
 
-## Group `metric.jvm.memory.used` (metric)
+## Metric `jvm.memory.used` 
 
-### Brief
-
-Measure of memory used.
-
-
-
-Prefix: 
-Metric: jvm.memory.used
 Instrument: updowncounter
 Unit: By
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
@@ -54,19 +47,11 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Group `metric.jvm.memory.committed` (metric)
+## Metric `jvm.memory.committed` 
 
-### Brief
-
-Measure of memory committed.
-
-
-
-Prefix: 
-Metric: jvm.memory.committed
 Instrument: updowncounter
 Unit: By
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
@@ -107,19 +92,11 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Group `metric.jvm.memory.limit` (metric)
+## Metric `jvm.memory.limit` 
 
-### Brief
-
-Measure of max obtainable memory.
-
-
-
-Prefix: 
-Metric: jvm.memory.limit
 Instrument: updowncounter
 Unit: By
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
@@ -160,19 +137,11 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Group `metric.jvm.memory.used_after_last_gc` (metric)
+## Metric `jvm.memory.used_after_last_gc` 
 
-### Brief
-
-Measure of memory used, as measured after the most recent garbage collection event on this pool.
-
-
-
-Prefix: 
-Metric: jvm.memory.used_after_last_gc
 Instrument: updowncounter
 Unit: By
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
@@ -213,19 +182,11 @@ Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.
   
   
   
-## Group `metric.jvm.gc.duration` (metric)
+## Metric `jvm.gc.duration` 
 
-### Brief
-
-Duration of JVM garbage collection actions.
-
-
-
-Prefix: jvm.gc
-Metric: jvm.gc.duration
 Instrument: histogram
 Unit: s
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
@@ -267,19 +228,11 @@ Garbage collector action is generally obtained via [GarbageCollectionNotificatio
   
   
   
-## Group `metric.jvm.thread.count` (metric)
+## Metric `jvm.thread.count` 
 
-### Brief
-
-Number of executing platform threads.
-
-
-
-Prefix: 
-Metric: jvm.thread.count
 Instrument: updowncounter
 Unit: {thread}
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
@@ -313,111 +266,65 @@ State of the thread.
   
   
   
-## Group `metric.jvm.class.loaded` (metric)
+## Metric `jvm.class.loaded` 
 
-### Brief
-
-Number of classes loaded since JVM start.
-
-
-
-Prefix: 
-Metric: jvm.class.loaded
 Instrument: counter
 Unit: {class}
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
 
   
-## Group `metric.jvm.class.unloaded` (metric)
+## Metric `jvm.class.unloaded` 
 
-### Brief
-
-Number of classes unloaded since JVM start.
-
-
-
-Prefix: 
-Metric: jvm.class.unloaded
 Instrument: counter
 Unit: {class}
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
 
   
-## Group `metric.jvm.class.count` (metric)
+## Metric `jvm.class.count` 
 
-### Brief
-
-Number of classes currently loaded.
-
-
-
-Prefix: 
-Metric: jvm.class.count
 Instrument: updowncounter
 Unit: {class}
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
 
   
-## Group `metric.jvm.cpu.count` (metric)
+## Metric `jvm.cpu.count` 
 
-### Brief
-
-Number of processors available to the Java virtual machine.
-
-
-
-Prefix: 
-Metric: jvm.cpu.count
 Instrument: updowncounter
 Unit: {cpu}
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
 
   
-## Group `metric.jvm.cpu.time` (metric)
+## Metric `jvm.cpu.time` 
 
-### Brief
-
-CPU time used by the process as reported by the JVM.
-
-
-
-Prefix: 
-Metric: jvm.cpu.time
 Instrument: counter
 Unit: s
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
 
   
-## Group `metric.jvm.cpu.recent_utilization` (metric)
+## Metric `jvm.cpu.recent_utilization` 
 
-### Brief
-
-Recent CPU utilization for the process as reported by the JVM.
-
-The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).
-
-Prefix: 
-Metric: jvm.cpu.recent_utilization
 Instrument: gauge
 Unit: 1
-Stability: Stable
+Stability: stable
 
 ### Attributes
 
 
+  
+  
   

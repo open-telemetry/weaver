@@ -1,14 +1,14 @@
-# Semantic Convention Event Groups
+
+# Events Namespace `lifecycle`
 
 
-## Group `ios.lifecycle.events` (event)
+## Event `device.app.lifecycle`
 
-### Brief
+Note: 
+Brief: This event represents an occurrence of a lifecycle transition on the iOS platform.
 
-This event represents an occurrence of a lifecycle transition on the iOS platform.
-
-Prefix: ios
-Name: device.app.lifecycle
+Requirement level: 
+Stability: 
 
 ### Attributes
 
@@ -29,14 +29,13 @@ The iOS lifecycle states are defined in the [UIApplicationDelegate documentation
   
   
   
-## Group `android.lifecycle.events` (event)
+## Event `device.app.lifecycle`
 
-### Brief
+Note: 
+Brief: This event represents an occurrence of a lifecycle transition on the Android platform.
 
-This event represents an occurrence of a lifecycle transition on the Android platform.
-
-Prefix: android
-Name: device.app.lifecycle
+Requirement level: 
+Stability: 
 
 ### Attributes
 
@@ -54,6 +53,8 @@ The Android lifecycle states are defined in [Activity lifecycle callbacks](https
 - Type: Enum [created, background, foreground]
   
 - Stability: Experimental
+  
+  
   
   
   

@@ -13,7 +13,7 @@ use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{Error, RegistryArgs};
@@ -119,7 +119,8 @@ pub(crate) fn command(
     } else {
         WeaverConfig::try_from_path(loader.root())
     }?;
-    let engine = TemplateEngine::new(config, loader, params);
+    let mut engine = TemplateEngine::new(config, loader, params);
+    engine.import_jq_package(SEMCONV_JQ)?;
 
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema

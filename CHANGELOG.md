@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2024-07-22
+
+What's Changed
+
+* Add support for new custom semconv JQ filters by @lquerel.
+* Update Weaver Forge documentation and include a step-by-step guide for codegen authors by @lquerel.
+
+The following new filters have been added to the Weaver Forge:
+
+* `semconv_group_attributes_by_root_namespace`: Groups the attributes by their root namespace.
+* `semconv_attributes($options)`: Extracts and processes semantic convention attributes based on provided options. $options is an object that can contain:
+  * `exclude_stability`: a list of stability statuses to exclude.
+  * `exclude_deprecated`: a boolean to exclude deprecated metrics.
+  * `exclude_root_namespace`: a list of root namespaces to exclude.
+* `semconv_attributes`: Convenience function to extract all attributes without any filtering options.
+* `semconv_grouped_attributes($options)`: Groups the processed attributes by their root namespace based on provided options. $options is an object that can contain:
+  * `exclude_stability`: a list of stability statuses to exclude.
+  * `exclude_deprecated`: a boolean to exclude deprecated metrics.
+  * `exclude_root_namespace`: a list of root namespaces to exclude.
+* `semconv_grouped_attributes`: Convenience function to group all attributes by their root namespace without any filtering options.
+* `semconv_group_metrics_by_root_namespace`: Groups the metrics by their root namespace.
+* `semconv_metrics($options)`: Extracts and processes semantic convention metrics based on provided options. $options is an object that can contain:
+  * `exclude_stability`: a list of stability statuses to exclude.
+  * `exclude_deprecated`: a boolean to exclude deprecated metrics.
+  * `exclude_root_namespace`: a list of root namespaces to exclude.
+* `semconv_metrics`: Convenience function to extract all metrics without any filtering options.
+* `semconv_grouped_metrics($options)`: Groups the processed metrics by their root namespace based on provided options. $options is an object that can contain:
+  * `exclude_stability`: a list of stability statuses to exclude.
+  * `exclude_deprecated`: a boolean to exclude deprecated metrics.
+  * `exclude_root_namespace`: a list of root namespaces to exclude.
+* `semconv_grouped_metrics`: Convenience function to group all metrics by their root namespace without any filtering options.
+
 ## [0.6.0] - 2024-07-16
 
 What's Changed

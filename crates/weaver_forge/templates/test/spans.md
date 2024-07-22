@@ -1,20 +1,19 @@
 # Semantic Convention Span Groups
 
-{% for group in ctx %}
-## Group `{{ group.id }}` ({{ group.type }})
+{% for grouped_spans in ctx %}
+## Namespace Spans `{{ grouped_spans.root_namespace }}`
 
-### Brief
+{% for span in grouped_spans.spans %}
+## Span `{{ span.id }}`
 
-{{ group.brief | trim }}
-
-{{ group.note | trim }}
-
-Prefix: {{ group.prefix }}
-Kind: {{ group.span_kind }}
+{{ span.brief | trim }}
+{{ span.note | trim }}
+Prefix: {{ span.prefix }}
+Kind: {{ span.span_kind }}
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in span.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -46,5 +45,7 @@ Kind: {{ group.span_kind }}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
-  {% endfor %}
-  {% endfor %}
+{% endfor %}
+{% endfor %}
+{% endfor %}
+  
