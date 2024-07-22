@@ -45,6 +45,9 @@ pub mod registry;
 /// Name of the Weaver configuration file.
 pub const WEAVER_YAML: &str = "weaver.yaml";
 
+/// Default jq filter for the semantic convention registry.
+pub const SEMCONV_JQ: &str = include_str!("../../../defaults/jq/semconv.jq");
+
 // Definition of the Jinja syntax delimiters
 
 /// Constant defining the start of a Jinja block.
@@ -148,6 +151,9 @@ pub struct TemplateEngine {
 
     /// Target configuration
     target_config: WeaverConfig,
+
+    /// The jq packages that have been imported.
+    jq_packages: Vec<jaq_syn::Def>,
 }
 
 /// Global context for the template engine.
@@ -198,7 +204,30 @@ impl TemplateEngine {
         Self {
             file_loader: Arc::new(loader),
             target_config: config,
+            jq_packages: Vec::new(),
         }
+    }
+
+    /// Import a jq package into the template engine.
+    /// A jq package is a collection of jq functions that can be used in the templates.
+    pub fn import_jq_package(&mut self, package_content: &str) -> Result<(), Error> {
+        let (defs, errs) = jaq_parse::parse(package_content, jaq_parse::defs());
+
+        if !errs.is_empty() {
+            return Err(Error::CompoundError(
+                errs.into_iter()
+                    .map(|e| Error::ImportError {
+                        package: package_content.to_owned(),
+                        error: e.to_string(),
+                    })
+                    .collect(),
+            ));
+        }
+
+        if let Some(def) = defs {
+            self.jq_packages.extend(def);
+        }
+        Ok(())
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -258,28 +287,49 @@ impl TemplateEngine {
 
         let mut errors = Vec::new();
 
+        let params = if let Some(mut params) = self.target_config.params.clone() {
+            match serde_yaml::to_value(&self.target_config.params) {
+                Ok(value) => {
+                    let prev = params.insert("params".to_owned(), value);
+                    if prev.is_some() {
+                        errors.push(Error::DuplicateParamKey {
+                            key: "params".to_owned(),
+                            error: "The parameter `params` is a reserved parameter name".to_owned(),
+                        });
+                    }
+                }
+                Err(e) => {
+                    errors.push(ContextSerializationFailed {
+                        error: e.to_string(),
+                    });
+                }
+            }
+            Some(params)
+        } else {
+            None
+        };
+
         // Build JQ context from the params.
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) =
-            self.target_config.params.as_ref().map_or_else(
-                || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
-                |params| {
-                    params
-                        .iter()
-                        .filter_map(|(k, v)| {
-                            let json_value = match serde_json::to_value(v) {
-                                Ok(json_value) => json_value,
-                                Err(e) => {
-                                    errors.push(ContextSerializationFailed {
-                                        error: e.to_string(),
-                                    });
-                                    return None;
-                                }
-                            };
-                            Some((k.clone(), json_value))
-                        })
-                        .unzip()
-                },
-            );
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params.as_ref().map_or_else(
+            || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
+            |params| {
+                params
+                    .iter()
+                    .filter_map(|(k, v)| {
+                        let json_value = match serde_json::to_value(v) {
+                            Ok(json_value) => json_value,
+                            Err(e) => {
+                                errors.push(ContextSerializationFailed {
+                                    error: e.to_string(),
+                                });
+                                return None;
+                            }
+                        };
+                        Some((k.clone(), json_value))
+                    })
+                    .unzip()
+            },
+        );
 
         // Process all files in parallel
         // - Filter the files that match the template pattern
@@ -295,7 +345,11 @@ impl TemplateEngine {
             .into_par_iter()
             .filter_map(|relative_path| {
                 for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filter = match Filter::try_new(template.filter.as_str(), jq_vars.clone()) {
+                    let filter = match Filter::try_new(
+                        template.filter.as_str(),
+                        jq_vars.clone(),
+                        self.jq_packages.clone(),
+                    ) {
                         Ok(filter) => filter,
                         Err(e) => return Some(e),
                     };
@@ -560,6 +614,7 @@ impl TemplateEngine {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::Path;
 
     use globset::Glob;
@@ -707,6 +762,7 @@ mod tests {
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
         let mut engine = super::TemplateEngine::new(config, loader, Params::default());
+        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
@@ -824,5 +880,54 @@ mod tests {
             .expect("Failed to generate registry assets");
 
         assert!(diff_dir("expected_output/py_compat", "observed_output/py_compat").unwrap());
+    }
+
+    #[test]
+    fn test_semconv_jq_functions() {
+        let logger = TestLogger::default();
+        let loader = FileSystemFileLoader::try_new("templates".into(), "semconv_jq_fn")
+            .expect("Failed to create file system loader");
+        let config =
+            WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
+        let mut engine = super::TemplateEngine::new(config, loader, Params::default());
+        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
+
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
+
+        // Delete all the files in the observed_output/semconv_jq_fn directory
+        // before generating the new files.
+        fs::remove_dir_all("observed_output/semconv_jq_fn").unwrap_or_default();
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                Path::new("observed_output/semconv_jq_fn"),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(
+            "expected_output/semconv_jq_fn",
+            "observed_output/semconv_jq_fn"
+        )
+        .unwrap());
     }
 }

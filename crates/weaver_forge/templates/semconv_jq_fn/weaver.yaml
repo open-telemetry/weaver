@@ -1,0 +1,22 @@
+params:
+  exclude_stability: ["experimental"]
+
+templates:
+  - pattern: semconv_attributes.json
+    filter: semconv_attributes
+    application_mode: single
+  - pattern: semconv_grouped_attributes.json
+    filter: >
+      semconv_grouped_attributes
+    application_mode: single
+  - pattern: semconv_grouped_attributes_without_experimental.json
+    filter: >
+      semconv_grouped_attributes({
+        "exclude_root_namespace": ["url", "network"], 
+        "exclude_stability": ["experimental"]
+      })
+    application_mode: single
+  - pattern: semconv_metrics.json
+    filter: >
+      semconv_grouped_metrics({"exclude_stability": ["experimental"]})
+    application_mode: single

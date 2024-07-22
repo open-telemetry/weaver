@@ -1,18 +1,17 @@
-# Semantic Convention Event Groups
+{% for grouped_events in ctx %}
+# Events Namespace `{{ grouped_events.root_namespace }}`
 
-{% for group in ctx %}
-## Group `{{ group.id }}` ({{ group.type }})
+{% for event in grouped_events.events %}
+## Event `{{ event.name }}`
 
-### Brief
-
-{{ group.brief | trim }}
-
-Prefix: {{ group.prefix }}
-Name: {{ group.name }}
+Note: {{ event.note }}
+Brief: {{ event.brief }}
+Requirement level: {{ event.requirement_level }}
+Stability: {{ event.stability }}
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in event.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}
@@ -46,3 +45,5 @@ Name: {{ group.name }}
   {% endif %}
   {% endfor %}
   {% endfor %}
+  {% endfor %}
+  

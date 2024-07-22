@@ -6,18 +6,12 @@
 - {{item}}
 {%- endfor -%}
 
-{% for group in ctx %}
-## Group `{{ group.id }}` ({{ group.type }})
-
-### Brief
-
-{{ group.brief | trim }}
-
-prefix: {{ group.prefix }}
+{% for grouped_attributes in ctx %}
+## Namespace `{{ grouped_attributes.root_namespace }}`
 
 ### Attributes
 
-{% for attribute in group.attributes %}
+{% for attribute in grouped_attributes.attributes %}
 #### Attribute `{{ attribute.name }}`
 
 {{ attribute.brief }}

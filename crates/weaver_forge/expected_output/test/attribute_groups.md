@@ -4,64 +4,24 @@
 - one
 - two
 - three
-## Group `attributes.jvm.memory` (attribute_group)
-
-### Brief
-
-Describes JVM memory metric attributes.
-
-prefix: jvm.memory
+## Namespace `db`
 
 ### Attributes
 
 
-#### Attribute `jvm.memory.type`
+#### Attribute `db.cassandra.consistency_level`
 
-The type of memory.
-
-
-- Requirement Level: Recommended
-  
-- Type: Enum [heap, non_heap]
-- Examples: [
-    "heap",
-    "non_heap",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `jvm.memory.pool.name`
-
-Name of the memory pool.
+The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 
 
-Pool names are generally obtained via [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
 
 - Requirement Level: Recommended
   
-- Type: string
-- Examples: [
-    "G1 Old Gen",
-    "G1 Eden space",
-    "G1 Survivor Space",
-]
+- Tag: tech-specific-cassandra
   
-- Stability: Stable
+- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
   
   
-  
-## Group `registry.db` (attribute_group)
-
-### Brief
-
-This document defines the attributes used to describe telemetry in the context of databases.
-
-prefix: db
-
-### Attributes
-
-
 #### Attribute `db.cassandra.coordinator.dc`
 
 The data center of the coordinating node for a query.
@@ -88,19 +48,6 @@ The ID of the coordinating node for a query.
   
 - Type: string
 - Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
-  
-  
-#### Attribute `db.cassandra.consistency_level`
-
-The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
-
-
-
-- Requirement Level: Recommended
-  
-- Tag: tech-specific-cassandra
-  
-- Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
   
   
 #### Attribute `db.cassandra.idempotence`
@@ -339,6 +286,20 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
 ]
   
   
+#### Attribute `db.instance.id`
+
+An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
+
+
+
+- Requirement Level: Recommended
+  
+- Tag: db-generic
+  
+- Type: string
+- Examples: mysql-e26b99z.example.com
+  
+  
 #### Attribute `db.jdbc.driver_classname`
 
 The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
@@ -510,28 +471,8 @@ Username for accessing the database.
 ]
   
   
-#### Attribute `db.instance.id`
-
-An identifier (address, unique name, or any other identifier) of the database instance that is executing queries or mutations on the current connection. This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query. The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
-
-
-
-- Requirement Level: Recommended
   
-- Tag: db-generic
-  
-- Type: string
-- Examples: mysql-e26b99z.example.com
-  
-  
-  
-## Group `registry.http` (attribute_group)
-
-### Brief
-
-This document defines semantic convention attributes in the HTTP namespace.
-
-prefix: http
+## Namespace `http`
 
 ### Attributes
 
@@ -707,13 +648,7 @@ SHOULD include the [application root](/docs/http/http-spans.md#http-server-defin
   
   
   
-## Group `registry.network` (attribute_group)
-
-### Brief
-
-These attributes may be used for any network related operation.
-
-prefix: network
+## Namespace `network`
 
 ### Attributes
 
@@ -782,6 +717,19 @@ The internet connection type.
   
 - Type: Enum [wifi, wired, cell, unavailable, unknown]
 - Examples: wifi
+  
+  
+#### Attribute `network.io.direction`
+
+The network IO operation direction.
+
+
+- Requirement Level: Recommended
+  
+- Type: Enum [transmit, receive]
+- Examples: [
+    "transmit",
+]
   
   
 #### Attribute `network.local.address`
@@ -921,93 +869,22 @@ The value SHOULD be normalized to lowercase.
 - Stability: Stable
   
   
-#### Attribute `network.io.direction`
-
-The network IO operation direction.
-
-
-- Requirement Level: Recommended
   
-- Type: Enum [transmit, receive]
-- Examples: [
-    "transmit",
-]
-  
-  
-  
-## Group `server` (attribute_group)
-
-### Brief
-
-These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the "user-facing" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.
-
-prefix: server
+## Namespace `url`
 
 ### Attributes
 
 
-#### Attribute `server.address`
+#### Attribute `url.fragment`
 
-Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Type: string
-- Examples: [
-    "example.com",
-    "10.1.2.80",
-    "/tmp/my.sock",
-]
-  
-- Stability: Stable
-  
-  
-#### Attribute `server.port`
-
-Server port number.
-
-
-When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.
-
-- Requirement Level: Recommended
-  
-- Type: int
-- Examples: [
-    80,
-    8080,
-    443,
-]
-  
-- Stability: Stable
-  
-  
-  
-## Group `registry.url` (attribute_group)
-
-### Brief
-
-Attributes describing URL.
-
-prefix: url
-
-### Attributes
-
-
-#### Attribute `url.scheme`
-
-The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
+The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component
 
 
 - Requirement Level: Recommended
   
 - Type: string
 - Examples: [
-    "https",
-    "ftp",
-    "telnet",
+    "SemConv",
 ]
   
 - Stability: Stable
@@ -1065,29 +942,25 @@ Sensitive content provided in query string SHOULD be scrubbed when instrumentati
 - Stability: Stable
   
   
-#### Attribute `url.fragment`
+#### Attribute `url.scheme`
 
-The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component
+The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.
 
 
 - Requirement Level: Recommended
   
 - Type: string
 - Examples: [
-    "SemConv",
+    "https",
+    "ftp",
+    "telnet",
 ]
   
 - Stability: Stable
   
   
   
-## Group `registry.user_agent` (attribute_group)
-
-### Brief
-
-Describes user-agent attributes.
-
-prefix: user_agent
+## Namespace `user_agent`
 
 ### Attributes
 
