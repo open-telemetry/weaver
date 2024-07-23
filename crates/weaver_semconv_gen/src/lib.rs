@@ -8,6 +8,7 @@ use miette::Diagnostic;
 use std::{fmt, fs};
 
 use serde::Serialize;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
@@ -19,7 +20,6 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::gen::{AttributeTableView, GenerateMarkdownContext, MetricView};
@@ -368,8 +368,8 @@ impl SnippetGenerator {
     ) -> Result<SnippetGenerator, Error> {
         let cache = Cache::try_new()?;
         Self::try_from_url(
-            RegistryPath::Local {
-                path_pattern: path_pattern.to_owned(),
+            RegistryPath::LocalFolder {
+                path: path_pattern.to_owned(),
             },
             &cache,
             template_engine,

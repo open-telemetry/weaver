@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::process::exit;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_common::in_memory::LogMessage;
 use weaver_common::{in_memory, Logger};
@@ -18,7 +19,6 @@ use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
@@ -40,8 +40,8 @@ fn main() {
 
     // Load and resolve the semantic convention registry
     let cache = Cache::try_new().unwrap_or_else(|e| process_error(&logger, e));
-    let registry_path = RegistryPath::Local {
-        path_pattern: SEMCONV_REGISTRY_PATH.into(),
+    let registry_path = RegistryPath::LocalFolder {
+        path: SEMCONV_REGISTRY_PATH.into(),
     };
     let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache)
         .unwrap_or_else(|e| process_error(&logger, e));

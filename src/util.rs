@@ -3,10 +3,10 @@
 //! Utility functions for resolving a semantic convention registry and checking policies.
 //! This module supports the `schema` and `registry` commands.
 
-use crate::registry::RegistryPath;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage};
@@ -17,27 +17,6 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
-
-/// Converts a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
-///
-/// # Arguments
-///
-/// * `registry`: A reference to a registry of telemetry schema.  This is considered identifying for that registry, e.g a git url or local file path.  
-/// * `path`: An optional string representing a sub-directory in the registry identifying path where model/yaml files are located.
-pub(crate) fn semconv_registry_path_from(
-    registry: &RegistryPath,
-    path: &Option<String>,
-) -> weaver_semconv::path::RegistryPath {
-    match registry {
-        RegistryPath::Local(path) => weaver_semconv::path::RegistryPath::Local {
-            path_pattern: path.clone(),
-        },
-        RegistryPath::Url(url) => weaver_semconv::path::RegistryPath::GitUrl {
-            git_url: url.clone(),
-            path: path.clone(),
-        },
-    }
-}
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -52,7 +31,7 @@ pub(crate) fn semconv_registry_path_from(
 /// A `Result` containing a vector of tuples with file names and `SemConvSpec` on success,
 /// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
-    registry_path: &weaver_semconv::path::RegistryPath,
+    registry_path: &RegistryPath,
     cache: &Cache,
     log: impl Logger + Sync + Clone,
 ) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
@@ -78,7 +57,7 @@ pub(crate) fn load_semconv_specs(
 /// A `Result` containing the initialized `Engine` on success, or `DiagnosticMessages`
 /// on failure.
 pub(crate) fn init_policy_engine(
-    registry_path: &weaver_semconv::path::RegistryPath,
+    registry_path: &RegistryPath,
     cache: &Cache,
     policies: &[PathBuf],
     policy_coverage: bool,

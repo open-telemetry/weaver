@@ -3,8 +3,8 @@
 //! Compute stats on a semantic convention registry.
 
 use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from};
-use crate::{DiagnosticArgs, ExitDirectives};
+use crate::util::{load_semconv_specs, resolve_semconv_specs};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -39,8 +39,13 @@ pub(crate) fn command(
     ));
 
     let registry_id = "default";
-    let registry_path =
-        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir);
+    let mut registry_path = args.registry.registry.clone();
+    // Support for --registry-git-sub-dir (should be removed in the future)
+    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
+        if sub_folder.is_none() {
+            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
+        }
+    }
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;

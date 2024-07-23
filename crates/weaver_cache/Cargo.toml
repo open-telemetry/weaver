@@ -27,4 +27,6 @@ gix = { version = "0.63.0", default-features = false, features = [
 thiserror.workspace = true
 serde.workspace = true
 miette.workspace = true
+once_cell.workspace = true
+regex.workspace = true
 

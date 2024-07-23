@@ -11,7 +11,6 @@ use weaver_common::error::{format_errors, WeaverError};
 pub mod attribute;
 pub mod group;
 pub mod metric;
-pub mod path;
 pub mod registry;
 pub mod semconv;
 pub mod stability;

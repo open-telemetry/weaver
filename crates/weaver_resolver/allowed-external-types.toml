@@ -10,6 +10,6 @@ allowed_external_types = [
     "weaver_resolved_schema::*",
     "weaver_semconv::*",
     "weaver_common::*",
-    "weaver_cache::Cache",
+    "weaver_cache::*",
     "weaver_version::*",
 ]

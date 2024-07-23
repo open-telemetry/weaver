@@ -2,12 +2,12 @@
 
 //! Integration tests for the resolution process.
 
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_common::{Logger, TestLogger};
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
 /// The URL of the official semantic convention registry.
@@ -36,9 +36,10 @@ fn test_cli_interface() {
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
-    let registry_path = RegistryPath::GitUrl {
-        git_url: SEMCONV_REGISTRY_URL.to_owned(),
-        path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+    let registry_path = RegistryPath::GitRepo {
+        url: SEMCONV_REGISTRY_URL.to_owned(),
+        sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+        tag: None,
     };
     let semconv_specs =
         SchemaResolver::load_semconv_specs(&registry_path, &cache).unwrap_or_else(|e| {

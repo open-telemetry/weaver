@@ -11,6 +11,7 @@ use rayon::iter::ParallelIterator;
 use serde::Serialize;
 use walkdir::DirEntry;
 
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
@@ -18,7 +19,6 @@ use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 
@@ -250,15 +250,16 @@ impl SchemaResolver {
         cache: &Cache,
     ) -> Result<(PathBuf, String), Error> {
         match registry_path {
-            RegistryPath::Local { path_pattern: path } => Ok((path.into(), path.clone())),
-            RegistryPath::GitUrl { git_url, path } => {
-                match cache.git_repo(git_url.clone(), path.clone()) {
-                    Ok(local_git_repo) => Ok((local_git_repo, git_url.clone())),
-                    Err(e) => Err(Error::SemConvError {
-                        message: e.to_string(),
-                    }),
-                }
-            }
+            RegistryPath::LocalFolder { path } => Ok((path.into(), path.clone())),
+            RegistryPath::GitRepo {
+                url, sub_folder, ..
+            } => match cache.git_repo(url.clone(), sub_folder.clone()) {
+                Ok(local_git_repo) => Ok((local_git_repo, url.clone())),
+                Err(e) => Err(Error::SemConvError {
+                    message: e.to_string(),
+                }),
+            },
+            _ => unimplemented!("Local and remote archives are not supported yet"),
         }
     }
 

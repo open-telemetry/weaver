@@ -5,6 +5,8 @@
 //! Semantic conventions, schemas and other assets are cached
 //! locally to avoid fetching them from the network every time.
 
+pub mod registry_path;
+
 use std::default::Default;
 use std::fs::create_dir_all;
 use std::num::NonZeroU32;
@@ -53,6 +55,15 @@ pub enum Error {
         repo_url: String,
         /// The error message
         message: String,
+    },
+
+    /// An invalid registry path.
+    #[error("The registry path `{path}` is invalid: {error}")]
+    InvalidRegistryPath {
+        /// The registry path
+        path: String,
+        /// The error message
+        error: String,
     },
 }
 

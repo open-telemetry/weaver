@@ -2,9 +2,7 @@
 
 //! Commands to manage a semantic convention registry.
 
-use std::fmt::Display;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use clap::{Args, Subcommand};
 use miette::Diagnostic;
@@ -18,6 +16,7 @@ use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
@@ -103,41 +102,6 @@ pub enum RegistrySubCommand {
     /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
-}
-
-/// Path to a semantic convention registry.
-/// The path can be a local directory or a Git URL.
-#[derive(Debug, Clone)]
-pub enum RegistryPath {
-    Local(String),
-    Url(String),
-}
-
-/// Implement the `FromStr` trait for `RegistryPath`, so that it can be used as
-/// a command-line argument.
-impl FromStr for RegistryPath {
-    type Err = String;
-
-    /// Parse a string into a `RegistryPath`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("http://") || s.starts_with("https://") {
-            Ok(Self::Url(s.to_owned()))
-        } else {
-            Ok(Self::Local(s.to_owned()))
-        }
-    }
-}
-
-/// Implement the `Display` trait for `RegistryPath`, so that it can be printed
-/// to the console.
-impl Display for RegistryPath {
-    /// Format the `RegistryPath` as a string.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RegistryPath::Local(path) => write!(f, "{}", path),
-            RegistryPath::Url(url) => write!(f, "{}", url),
-        }
-    }
 }
 
 /// Set of parameters used to specify a semantic convention registry.
