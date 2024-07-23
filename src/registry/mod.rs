@@ -107,16 +107,20 @@ pub enum RegistrySubCommand {
 /// Set of parameters used to specify a semantic convention registry.
 #[derive(Args, Debug)]
 pub struct RegistryArgs {
-    /// Local path or Git URL of the semantic convention registry.
+    /// Local folder, Git repo URL, or Git archive URL of the semantic
+    /// convention registry. For Git URLs, a sub-folder can be specified
+    /// using the `[sub-folder]` syntax after the URL.
     #[arg(
         short = 'r',
         long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
     )]
     pub registry: RegistryPath,
 
     /// Optional path in the Git repository where the semantic convention
-    /// registry is located
+    /// registry is located. This parameter is deprecated and should be
+    /// removed in the future. Please use the `[sub-folder]` syntax after the
+    /// URL in the `--registry` or `--baseline-registry` parameters instead.
     #[arg(short = 'd', long, default_value = "model")]
     pub registry_git_sub_dir: Option<String>,
 }

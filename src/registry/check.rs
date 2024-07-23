@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::Cache;
 use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
@@ -19,7 +20,7 @@ use crate::util::{
     check_policies, check_policy_stage, init_policy_engine, load_semconv_specs,
     resolve_semconv_specs,
 };
-use crate::{registry, DiagnosticArgs, ExitDirectives};
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -27,6 +28,10 @@ pub struct RegistryCheckArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
     registry: RegistryArgs,
+
+    /// Parameters to specify the baseline semantic convention registry
+    #[arg(long)]
+    baseline_registry: Option<RegistryPath>,
 
     /// Optional list of policy files to check against the files of the semantic
     /// convention registry.
@@ -58,7 +63,7 @@ pub(crate) fn command(
 
     let mut registry_path = args.registry.registry.clone();
     // Support for --registry-git-sub-dir (should be removed in the future)
-    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
+    if let RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
         if sub_folder.is_none() {
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
@@ -163,6 +168,7 @@ mod tests {
                         },
                         registry_git_sub_dir: None,
                     },
+                    baseline_registry: None,
                     policies: vec![],
                     skip_policies: true,
                     display_policy_coverage: false,
@@ -187,6 +193,7 @@ mod tests {
                         },
                         registry_git_sub_dir: None,
                     },
+                    baseline_registry: None,
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
@@ -212,6 +219,7 @@ mod tests {
                     },
                     registry_git_sub_dir: None,
                 },
+                baseline_registry: None,
                 policies: vec![],
                 skip_policies: false,
                 display_policy_coverage: false,
