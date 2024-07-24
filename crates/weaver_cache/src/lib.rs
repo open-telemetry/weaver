@@ -6,26 +6,32 @@
 //! locally to avoid fetching them from the network every time.
 
 use std::default::Default;
-use std::fs::create_dir_all;
+use std::fs::{create_dir_all, File};
+use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
+use gix::{create, open, progress};
 use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
-use gix::{create, open, progress};
 use miette::Diagnostic;
 use serde::Serialize;
 use tempdir::TempDir;
-
+use url::Url;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
+use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
 use crate::registry_path::RegistryPath;
-use crate::Error::GitError;
 
 pub mod registry_path;
+
+/// The extension for a tar gz archive.
+const TAR_GZ_EXT: &str = ".tar.gz";
+/// The extension for a zip archive.
+const ZIP_EXT: &str = ".zip";
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
@@ -65,6 +71,22 @@ pub enum Error {
     InvalidRegistryPath {
         /// The registry path
         path: String,
+        /// The error message
+        error: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("The format of this archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
+    UnsupportedRegistryArchive {
+        /// The registry archive path
+        archive: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("The registry archive `{archive}` is invalid: {error}")]
+    InvalidRegistryArchive {
+        /// The registry archive path
+        archive: String,
         /// The error message
         error: String,
     },
@@ -158,13 +180,13 @@ impl Cache {
             },
             open::Options::isolated(),
         )
-        .map_err(|e| GitError {
-            repo_url: repo_url.clone(),
-            message: e.to_string(),
-        })?
-        .with_shallow(Shallow::DepthAtRemote(
-            NonZeroU32::new(1).expect("1 is not zero"),
-        ));
+            .map_err(|e| GitError {
+                repo_url: repo_url.clone(),
+                message: e.to_string(),
+            })?
+            .with_shallow(Shallow::DepthAtRemote(
+                NonZeroU32::new(1).expect("1 is not zero"),
+            ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -238,10 +260,14 @@ impl SemConvRegistryRepo {
                 url, sub_folder, ..
             } => Self::try_from_git_url(url, sub_folder),
             RegistryPath::LocalArchive { path, sub_folder } => {
-                Self::try_from_local_archive(path, sub_folder)
+                // Create a temporary directory for the repo.
+                let tmp_dir = Self::create_tmp_repo()?;
+                Self::try_from_local_archive(path, sub_folder, tmp_dir)
             }
             RegistryPath::RemoteArchive { url, sub_folder } => {
-                Self::try_from_remote_archive(url, sub_folder)
+                // Create a temporary directory for the repo.
+                let tmp_dir = Self::create_tmp_repo()?;
+                Self::try_from_remote_archive(url, sub_folder, tmp_dir)
             }
         }
     }
@@ -263,13 +289,13 @@ impl SemConvRegistryRepo {
             },
             open::Options::isolated(),
         )
-        .map_err(|e| GitError {
-            repo_url: url.to_owned(),
-            message: e.to_string(),
-        })?
-        .with_shallow(Shallow::DepthAtRemote(
-            NonZeroU32::new(1).expect("1 is not zero"),
-        ));
+            .map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: e.to_string(),
+            })?
+            .with_shallow(Shallow::DepthAtRemote(
+                NonZeroU32::new(1).expect("1 is not zero"),
+            ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -311,18 +337,165 @@ impl SemConvRegistryRepo {
 
     /// Create a new `SemConvRegistryRepo` from a local archive.
     pub fn try_from_local_archive(
-        _path: &str,
-        _sub_folder: &Option<String>,
+        archive_filename: &str,
+        sub_folder: &Option<String>,
+        tmp_dir: TempDir,
     ) -> Result<Self, Error> {
-        unimplemented!("Local archive not implemented")
+        dbg!(archive_filename);
+        dbg!(sub_folder);
+        dbg!(&tmp_dir);
+
+        // Check if the archive exists
+        let archive_path = Path::new(archive_filename);
+        if !archive_path.exists() {
+            return Err(Error::InvalidRegistryPath {
+                path: archive_filename.to_owned(),
+                error: "This archive file doesn't exist".to_owned(),
+            });
+        }
+        let archive_file = File::open(archive_path)
+            .map_err(|e| InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
+                error: e.to_string(),
+            })?;
+
+        // Create a temporary directory for the repo.
+        let mut tmp_path = tmp_dir.path().to_path_buf();
+
+        // Process the supported formats (i.e.: `.tar.gz`, and `.zip`)
+        let archive_ext = if archive_filename.ends_with(TAR_GZ_EXT) {
+            // Decode GZ and unpack the tar archive into the temporary directory.
+            let tar_file = flate2::read::GzDecoder::new(archive_file);
+            let mut archive = tar::Archive::new(tar_file);
+            archive.unpack(tmp_path.clone())
+                .map_err(|e| InvalidRegistryArchive {
+                    archive: archive_filename.to_owned(),
+                    error: e.to_string(),
+                })?;
+            TAR_GZ_EXT
+        } else if archive_filename.ends_with(ZIP_EXT) {
+            // Extract the archive into the temporary directory.
+            zip::ZipArchive::new(archive_file)
+                .map_err(|e| InvalidRegistryArchive {
+                    archive: archive_filename.to_owned(),
+                    error: e.to_string(),
+                })?
+                .extract(tmp_path.clone())
+                .map_err(|e| InvalidRegistryArchive {
+                    archive: archive_filename.to_owned(),
+                    error: e.to_string(),
+                })?;
+            ZIP_EXT
+        } else {
+            return Err(UnsupportedRegistryArchive {
+                archive: archive_filename.to_owned(),
+            });
+        };
+
+        dbg!(&tmp_path);
+        for entry in walkdir::WalkDir::new(&tmp_path) {
+            let entry = entry.unwrap();
+            println!("{}", entry.path().display());
+        }
+
+        // Update the tmp_path to include the name of the archive.
+        tmp_path = tmp_path.join(archive_path.file_name()
+            .and_then(|s| s.to_str())
+            .and_then(|file_name| {
+                if file_name.ends_with(archive_ext) {
+                    Some(file_name[..file_name.len() - archive_ext.len()].to_owned())
+                } else {
+                    None
+                }
+            }).unwrap_or_default());
+
+        // Display recursively the files presents in tmp_path
+        dbg!(&tmp_path);
+        for entry in walkdir::WalkDir::new(&tmp_path) {
+            let entry = entry.unwrap();
+            println!("{}", entry.path().display());
+        }
+
+        // Determines the final path to the repo taking into account the sub_folder.
+        let path = if let Some(sub_folder) = sub_folder {
+            let path_to_repo = tmp_path.join(sub_folder);
+
+            // Checks the existence of the path in the repo.
+            // If the path doesn't exist, returns an error.
+            if !path_to_repo.exists() {
+                return Err(InvalidRegistryArchive {
+                    archive: archive_filename.to_owned(),
+                    error: format!("Path `{}` not found in archive", sub_folder),
+                });
+            }
+
+            path_to_repo
+        } else {
+            tmp_path
+        };
+
+        Ok(Self {
+            path,
+            tmp_dir: Some(tmp_dir),
+        })
     }
 
     /// Create a new `SemConvRegistryRepo` from a remote archive.
     pub fn try_from_remote_archive(
-        _url: &str,
-        _sub_folder: &Option<String>,
+        url: &str,
+        sub_folder: &Option<String>,
+        tmp_dir: TempDir,
     ) -> Result<Self, Error> {
-        unimplemented!("Remote archive not implemented")
+        let tmp_path = tmp_dir.path().to_path_buf();
+
+        // Download the archive from the URL
+        let response = ureq::get(url).call().map_err(|e| InvalidRegistryArchive {
+            archive: url.to_owned(),
+            error: e.to_string(),
+        })?;
+        if response.status() != 200 {
+            return Err(InvalidRegistryArchive {
+                archive: url.to_owned(),
+                error: format!("HTTP status code: {}", response.status()),
+            });
+        }
+
+        response.headers_names().iter().for_each(|header| {
+            println!("{}: {}", header, response.header(header).unwrap());
+        });
+
+        // Parse the URL to get the file name
+        let parsed_url = Url::parse(url).map_err(|e| InvalidRegistryArchive {
+            archive: url.to_owned(),
+            error: e.to_string(),
+        })?;
+        let file_name = parsed_url
+            .path_segments()
+            .and_then(|segments| segments.last())
+            .and_then(|name| if name.is_empty() { None } else { Some(name) })
+            .ok_or_else(|| "Failed to extract file name from URL").map_err(|e| InvalidRegistryArchive {
+                archive: url.to_owned(),
+                error: e.to_string(),
+            })?;
+
+        // Create the full path to the save file
+        let save_path = tmp_path.join(file_name);
+
+        // Open a file in write mode
+        let mut file = File::create(save_path.clone()).map_err(|e| InvalidRegistryArchive {
+            archive: url.to_owned(),
+            error: e.to_string(),
+        })?;
+
+        // Write the response body to the file.
+        // The number of bytes written is ignored as the `try_from_local_archive` function
+        // will handle the archive extraction and return an error if the archive is invalid.
+        _ = io::copy(&mut response.into_reader(), &mut file).map_err(|e| InvalidRegistryArchive {
+            archive: url.to_owned(),
+            error: e.to_string(),
+        })?;
+
+        Self::try_from_local_archive(save_path.to_str().unwrap_or_default(), sub_folder, tmp_dir)
     }
 
     /// Returns the local path to the semconv registry.
@@ -382,15 +555,7 @@ mod tests {
         assert!(repo_path.exists());
     }
 
-    #[test]
-    fn test_semconv_registry_git_repo() {
-        // A SemConvRegistryRepo created from a Git repository with a specified sub-folder.
-        let registry_path = RegistryPath::GitRepo {
-            // This git repo is expected to be available.
-            url: "https://github.com/open-telemetry/semantic-conventions.git".to_owned(),
-            sub_folder: Some("model".to_owned()),
-            tag: None,
-        };
+    fn check_archive(registry_path: RegistryPath, file_to_check: Option<&str>) {
         let repo = SemConvRegistryRepo::try_from_registry_path(&registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         // At this point, the repo should be cloned into a temporary directory.
@@ -399,6 +564,10 @@ mod tests {
             count_yaml_files(&repo_path) > 0,
             "There should be at least one `.yaml` file in the repo"
         );
+        if let Some(file_to_check) = file_to_check {
+            let file_path = repo_path.join(file_to_check);
+            assert!(file_path.exists());
+        }
         // Simulate a SemConvRegistryRepo going out of scope.
         drop(repo);
         // The temporary directory should be deleted automatically.
@@ -406,8 +575,41 @@ mod tests {
     }
 
     #[test]
-    fn test_semconv_registry_local_archive() {}
+    fn test_semconv_registry_git_repo() {
+        let registry_path = RegistryPath::GitRepo {
+            // This git repo is expected to be available.
+            url: "https://github.com/open-telemetry/semantic-conventions.git".to_owned(),
+            sub_folder: Some("model".to_owned()),
+            tag: None,
+        };
+        check_archive(registry_path, None);
+    }
 
     #[test]
-    fn test_semconv_registry_remote_archive() {}
+    fn test_semconv_registry_local_tar_gz_archive() {
+        let registry_path = "../../test_data/semantic-conventions-1.26.0.tar.gz[model]"
+            .parse::<RegistryPath>().unwrap();
+        check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_semconv_registry_local_zip_archive() {
+        let registry_path = "../../test_data/semantic-conventions-1.26.0.zip[model]"
+            .parse::<RegistryPath>().unwrap();
+        check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_semconv_registry_remote_tar_gz_archive() {
+        let registry_path = "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.26.0.tar.gz[model]"
+            .parse::<RegistryPath>().unwrap();
+        check_archive(registry_path, Some("general.yaml"));
+    }
+
+    #[test]
+    fn test_semconv_registry_remote_zip_archive() {
+        let registry_path = "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.26.0.zip[model]"
+            .parse::<RegistryPath>().unwrap();
+        check_archive(registry_path, Some("general.yaml"));
+    }
 }
