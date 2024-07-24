@@ -4068,6 +4068,7 @@ dependencies = [
  "serde",
  "tempdir",
  "thiserror",
+ "walkdir",
  "weaver_common",
 ]
 
