@@ -111,7 +111,7 @@ pub struct RegistryRepo {
 impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `RegistryPath` object that
     /// specifies the location of the registry.
-    pub fn try_from_registry_path(registry_path: &RegistryPath) -> Result<Self, Error> {
+    pub fn try_new(registry_path: &RegistryPath) -> Result<Self, Error> {
         let registry_path_repr = registry_path.to_string();
         match registry_path {
             RegistryPath::LocalFolder { path } => Ok(Self {
@@ -518,7 +518,7 @@ mod tests {
         let registry_path = RegistryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = RegistryRepo::try_from_registry_path(&registry_path).unwrap();
+        let repo = RegistryRepo::try_new(&registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(
@@ -532,7 +532,7 @@ mod tests {
     }
 
     fn check_archive(registry_path: RegistryPath, file_to_check: Option<&str>) {
-        let repo = RegistryRepo::try_from_registry_path(&registry_path).unwrap();
+        let repo = RegistryRepo::try_new(&registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         // At this point, the repo should be cloned into a temporary directory.
         assert!(repo_path.exists());

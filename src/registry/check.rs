@@ -15,12 +15,12 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
+use crate::{DiagnosticArgs, ExitDirectives};
 use crate::registry::RegistryArgs;
 use crate::util::{
     check_policies, check_policy_stage, init_policy_engine, load_semconv_specs,
     resolve_semconv_specs,
 };
-use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -59,23 +59,34 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
+    // Initialize the main registry.
+    let registry_id = "default";
     let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir (should be removed in the future)
+    // Support for --registry-git-sub-dir
+    // ToDo: This parameter is now deprecated and should be removed in the future
     if let RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
         if sub_folder.is_none() {
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
     }
+    let main_registry_repo = RegistryRepo::try_new(&registry_path)?;
 
-    let registry_id = "default";
-    let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+    // Initialize the baseline registry if provided.
+    let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
+        Some(RegistryRepo::try_new(baseline_registry)?)
+    } else { None };
 
-    // Load the semantic convention registry into a local cache.
+    // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())?;
+    let baseline_semconv_specs = baseline_registry_repo
+        .as_ref()
+        .map(|repo| load_semconv_specs(repo, logger.clone()))
+        .transpose()?;
+
     let mut policy_engine = if !args.skip_policies {
         Some(init_policy_engine(
-            &registry_repo,
+            &main_registry_repo,
             &args.policies,
             args.display_policy_coverage,
         )?)
@@ -92,11 +103,11 @@ pub(crate) fn command(
         // In this specific case, `capture_diag_msgs_into` returns either `Some(())` or `None`
         // if diagnostic messages have been captured. Therefore, it is acceptable to ignore the result in this
         // particular case.
-        _ = check_policies(policy_engine, &semconv_specs, logger.clone())
+        _ = check_policies(policy_engine, &main_semconv_specs, logger.clone())
             .capture_diag_msgs_into(&mut diag_msgs);
     }
 
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, main_semconv_specs);
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
@@ -115,7 +126,7 @@ pub(crate) fn command(
                 .expect("Failed to get the registry from the resolved schema"),
             resolved_schema.catalog(),
         )
-        .combine_diag_msgs_with(&diag_msgs)?;
+            .combine_diag_msgs_with(&diag_msgs)?;
 
         // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
         let errs = check_policy_stage(
@@ -146,10 +157,10 @@ mod tests {
     use weaver_common::TestLogger;
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+        RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand, semconv_registry,
     };
+    use crate::registry::check::RegistryCheckArgs;
     use crate::run_command;
 
     #[test]
@@ -233,8 +244,8 @@ mod tests {
             assert_eq!(
                 diag_msgs.len(),
                 13 /* before resolution */
-                           + 3 /* metric after resolution */
-                           + 9 /* http after resolution */
+                    + 3 /* metric after resolution */
+                    + 9 /* http after resolution */
             );
         }
     }

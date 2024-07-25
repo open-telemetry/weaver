@@ -426,7 +426,7 @@ mod tests {
         let registry_path = RegistryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+        let registry_repo = RegistryRepo::try_new(&registry_path)?;
         let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
@@ -446,7 +446,7 @@ mod tests {
         let registry_path = RegistryPath::LocalFolder {
             path: "data".to_owned(),
         };
-        let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+        let registry_repo = RegistryRepo::try_new(&registry_path)?;
         let lookup = SnippetGenerator::try_from_registry_repo(&registry_repo, None)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Check our test files.
@@ -485,7 +485,7 @@ mod tests {
         let registry_path = RegistryPath::LocalFolder {
             path: format!("{}", path.display()),
         };
-        let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+        let registry_repo = RegistryRepo::try_new(&registry_path)?;
         let lookup = SnippetGenerator::try_from_registry_repo(&registry_repo, None)?;
         let test_path = path.join("test.md").display().to_string();
         // Attempts to update the test - will fail if there is any difference in the generated markdown.
