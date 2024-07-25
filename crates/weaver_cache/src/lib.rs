@@ -13,18 +13,19 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
-use gix::{create, open, progress};
 use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
+use gix::{create, open, progress};
 use miette::Diagnostic;
 use serde::Serialize;
 use tempdir::TempDir;
 use url::Url;
+
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 
-use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
 use crate::registry_path::RegistryPath;
+use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
 
 pub mod registry_path;
 
@@ -76,7 +77,7 @@ pub enum Error {
     },
 
     /// An invalid registry archive.
-    #[error("The format of this archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
+    #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
     UnsupportedRegistryArchive {
         /// The registry archive path
         archive: String,
@@ -180,13 +181,13 @@ impl Cache {
             },
             open::Options::isolated(),
         )
-            .map_err(|e| GitError {
-                repo_url: repo_url.clone(),
-                message: e.to_string(),
-            })?
-            .with_shallow(Shallow::DepthAtRemote(
-                NonZeroU32::new(1).expect("1 is not zero"),
-            ));
+        .map_err(|e| GitError {
+            repo_url: repo_url.clone(),
+            message: e.to_string(),
+        })?
+        .with_shallow(Shallow::DepthAtRemote(
+            NonZeroU32::new(1).expect("1 is not zero"),
+        ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -260,14 +261,16 @@ impl SemConvRegistryRepo {
                 url, sub_folder, ..
             } => Self::try_from_git_url(url, sub_folder),
             RegistryPath::LocalArchive { path, sub_folder } => {
-                // Create a temporary directory for the repo.
+                // Create a temporary directory for the repo that will be deleted
+                // when the SemConvRegistryRepo goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_local_archive(path, sub_folder, tmp_dir)
+                Self::try_from_local_archive(path, sub_folder.as_ref(), tmp_dir)
             }
             RegistryPath::RemoteArchive { url, sub_folder } => {
-                // Create a temporary directory for the repo.
+                // Create a temporary directory for the repo that will be deleted
+                // when the SemConvRegistryRepo goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_remote_archive(url, sub_folder, tmp_dir)
+                Self::try_from_remote_archive(url, sub_folder.as_ref(), tmp_dir)
             }
         }
     }
@@ -289,13 +292,13 @@ impl SemConvRegistryRepo {
             },
             open::Options::isolated(),
         )
-            .map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: e.to_string(),
-            })?
-            .with_shallow(Shallow::DepthAtRemote(
-                NonZeroU32::new(1).expect("1 is not zero"),
-            ));
+        .map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: e.to_string(),
+        })?
+        .with_shallow(Shallow::DepthAtRemote(
+            NonZeroU32::new(1).expect("1 is not zero"),
+        ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -336,117 +339,208 @@ impl SemConvRegistryRepo {
     }
 
     /// Create a new `SemConvRegistryRepo` from a local archive.
-    pub fn try_from_local_archive(
+    /// The archive can be in `.tar.gz` or `.zip` format.
+    /// The sub_folder is used to filter the entries inside the archive to unpack.
+    /// The temporary directory is created in the `.weaver/semconv_registry_cache`.
+    /// The temporary directory is deleted when the `SemConvRegistryRepo` goes out of scope.
+    ///
+    /// Arguments:
+    /// - `archive_filename`: The path to the archive file.
+    /// - `sub_folder`: The sub-folder to unpack inside the archive.
+    /// - `target_dir`: The temporary target directory where the archive will be unpacked.
+    fn try_from_local_archive(
         archive_filename: &str,
-        sub_folder: &Option<String>,
-        tmp_dir: TempDir,
+        sub_folder: Option<&String>,
+        target_dir: TempDir,
     ) -> Result<Self, Error> {
-        dbg!(archive_filename);
-        dbg!(sub_folder);
-        dbg!(&tmp_dir);
-
-        // Check if the archive exists
         let archive_path = Path::new(archive_filename);
         if !archive_path.exists() {
-            return Err(Error::InvalidRegistryPath {
-                path: archive_filename.to_owned(),
+            return Err(InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
                 error: "This archive file doesn't exist".to_owned(),
             });
         }
-        let archive_file = File::open(archive_path)
-            .map_err(|e| InvalidRegistryArchive {
-                archive: archive_filename.to_owned(),
-                error: e.to_string(),
-            })?;
-
-        // Create a temporary directory for the repo.
-        let mut tmp_path = tmp_dir.path().to_path_buf();
+        let archive_file = File::open(archive_path).map_err(|e| InvalidRegistryArchive {
+            archive: archive_filename.to_owned(),
+            error: e.to_string(),
+        })?;
+        let target_path_buf = target_dir.path().to_path_buf();
 
         // Process the supported formats (i.e.: `.tar.gz`, and `.zip`)
-        let archive_ext = if archive_filename.ends_with(TAR_GZ_EXT) {
-            // Decode GZ and unpack the tar archive into the temporary directory.
-            let tar_file = flate2::read::GzDecoder::new(archive_file);
-            let mut archive = tar::Archive::new(tar_file);
-            archive.unpack(tmp_path.clone())
-                .map_err(|e| InvalidRegistryArchive {
-                    archive: archive_filename.to_owned(),
-                    error: e.to_string(),
-                })?;
-            TAR_GZ_EXT
+        if archive_filename.ends_with(TAR_GZ_EXT) {
+            Self::unpack_tar_gz(archive_filename, archive_file, &target_path_buf, sub_folder)?;
         } else if archive_filename.ends_with(ZIP_EXT) {
-            // Extract the archive into the temporary directory.
-            zip::ZipArchive::new(archive_file)
-                .map_err(|e| InvalidRegistryArchive {
-                    archive: archive_filename.to_owned(),
-                    error: e.to_string(),
-                })?
-                .extract(tmp_path.clone())
-                .map_err(|e| InvalidRegistryArchive {
-                    archive: archive_filename.to_owned(),
-                    error: e.to_string(),
-                })?;
-            ZIP_EXT
+            Self::unpack_zip(archive_filename, archive_file, &target_path_buf, sub_folder)?;
         } else {
             return Err(UnsupportedRegistryArchive {
                 archive: archive_filename.to_owned(),
             });
         };
 
-        dbg!(&tmp_path);
-        for entry in walkdir::WalkDir::new(&tmp_path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-
-        // Update the tmp_path to include the name of the archive.
-        tmp_path = tmp_path.join(archive_path.file_name()
-            .and_then(|s| s.to_str())
-            .and_then(|file_name| {
-                if file_name.ends_with(archive_ext) {
-                    Some(file_name[..file_name.len() - archive_ext.len()].to_owned())
-                } else {
-                    None
-                }
-            }).unwrap_or_default());
-
-        // Display recursively the files presents in tmp_path
-        dbg!(&tmp_path);
-        for entry in walkdir::WalkDir::new(&tmp_path) {
-            let entry = entry.unwrap();
-            println!("{}", entry.path().display());
-        }
-
-        // Determines the final path to the repo taking into account the sub_folder.
-        let path = if let Some(sub_folder) = sub_folder {
-            let path_to_repo = tmp_path.join(sub_folder);
-
-            // Checks the existence of the path in the repo.
-            // If the path doesn't exist, returns an error.
-            if !path_to_repo.exists() {
-                return Err(InvalidRegistryArchive {
-                    archive: archive_filename.to_owned(),
-                    error: format!("Path `{}` not found in archive", sub_folder),
-                });
-            }
-
-            path_to_repo
-        } else {
-            tmp_path
-        };
-
         Ok(Self {
-            path,
-            tmp_dir: Some(tmp_dir),
+            path: target_path_buf,
+            tmp_dir: Some(target_dir),
         })
     }
 
+    /// Unpacks a tar.gz archive into the specified target directory.
+    ///
+    /// This first directory in the archive is skipped as it is the directory corresponding to the
+    /// archive itself. The sub_folder is used to filter the entries to unpack. The sub_folder
+    /// directory is also skipped in the folder hierarchy to only unpack the content of the
+    /// sub-folder.
+    fn unpack_tar_gz(
+        archive_filename: &str,
+        archive_file: File,
+        target_path: &Path,
+        sub_folder: Option<&String>,
+    ) -> Result<(), Error> {
+        let tar_file = flate2::read::GzDecoder::new(archive_file);
+        let mut archive = tar::Archive::new(tar_file);
+
+        for entry in archive.entries().map_err(|e| InvalidRegistryArchive {
+            archive: archive_filename.to_owned(),
+            error: e.to_string(),
+        })? {
+            let mut entry = entry.map_err(|e| InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
+                error: e.to_string(),
+            })?;
+
+            let path = entry.path().map_err(|e| InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
+                error: e.to_string(),
+            })?;
+
+            if let Some(valid_entry_path) = Self::path_to_unpack(&path, sub_folder, target_path) {
+                Self::create_parent_dirs(&valid_entry_path, archive_filename)?;
+                // Unpack returns an Unpacked type containing the file descriptor to the
+                // unpacked file. The file descriptor is ignored as we don't have any use for it.
+                _ = entry
+                    .unpack(valid_entry_path)
+                    .map_err(|e| InvalidRegistryArchive {
+                        archive: archive_filename.to_owned(),
+                        error: e.to_string(),
+                    })?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Unpacks a zip archive into the specified target directory.
+    ///
+    /// This first directory in the archive is skipped as it is the directory corresponding to the
+    /// archive itself. The sub_folder is used to filter the entries to unpack. The sub_folder
+    /// directory is also skipped in the folder hierarchy to only unpack the content of the
+    /// sub-folder.
+    fn unpack_zip(
+        archive_filename: &str,
+        archive_file: File,
+        tmp_path: &Path,
+        sub_folder: Option<&String>,
+    ) -> Result<(), Error> {
+        let mut archive =
+            zip::ZipArchive::new(archive_file).map_err(|e| InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
+                error: e.to_string(),
+            })?;
+
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i).map_err(|e| InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
+                error: e.to_string(),
+            })?;
+
+            if let Some(path) = entry.enclosed_name() {
+                if let Some(valid_entry_path) = Self::path_to_unpack(&path, sub_folder, tmp_path) {
+                    Self::create_parent_dirs(&valid_entry_path, archive_filename)?;
+
+                    if entry.is_dir() {
+                        create_dir_all(&valid_entry_path).map_err(|e| InvalidRegistryArchive {
+                            archive: archive_filename.to_owned(),
+                            error: e.to_string(),
+                        })?;
+                    } else {
+                        let mut outfile = File::create(&valid_entry_path).map_err(|e| {
+                            InvalidRegistryArchive {
+                                archive: archive_filename.to_owned(),
+                                error: e.to_string(),
+                            }
+                        })?;
+                        // Copy the content of the entry to the output file.
+                        // `io::copy` returns the number of bytes copied, but it is ignored here
+                        // as the function will return an error if the copy fails.
+                        _ = io::copy(&mut entry, &mut outfile).map_err(|e| {
+                            InvalidRegistryArchive {
+                                archive: archive_filename.to_owned(),
+                                error: e.to_string(),
+                            }
+                        })?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns the corrected path to unpack from an entry in the archive knowing:
+    /// - the top-level directory in the archive corresponds to the initial directory archived
+    /// - the sub-folder in the archive to unpack
+    fn path_to_unpack(
+        entry_path: &Path,
+        sub_folder: Option<&String>,
+        target_path: &Path,
+    ) -> Option<PathBuf> {
+        let mut components = entry_path.components();
+
+        // Skip the first component, i.e. the top-level directory in the archive that
+        // corresponds to the initial directory archived.
+        _ = components.next();
+
+        // If a sub-folder is specified, skip entries not in the sub-folder.
+        if let Some(sub_folder) = sub_folder {
+            if !sub_folder.trim().is_empty() {
+                // Skip any entry that is not in the sub-folder.
+                // If the entry is in the sub-folder, the sub-folder component is skipped.
+                let component = components.next();
+                if let Some(component) = component {
+                    if component.as_os_str() != sub_folder.as_str() {
+                        return None; // Skip entries not in the sub-folder
+                    }
+                }
+            }
+        }
+        Some(target_path.join(components.collect::<PathBuf>()))
+    }
+
+    /// Creates parent directories for the given path.
+    fn create_parent_dirs(new_path: &Path, archive_filename: &str) -> Result<(), Error> {
+        if let Some(parent) = new_path.parent() {
+            create_dir_all(parent).map_err(|e| InvalidRegistryArchive {
+                archive: archive_filename.to_owned(),
+                error: e.to_string(),
+            })?;
+        }
+        Ok(())
+    }
+
     /// Create a new `SemConvRegistryRepo` from a remote archive.
-    pub fn try_from_remote_archive(
+    ///
+    /// The archive can be in `.tar.gz` or `.zip` format.
+    /// The sub_folder is used to filter the entries inside the archive to unpack.
+    /// The temporary directory is created in the `.weaver/semconv_registry_cache`.
+    /// The temporary directory is deleted when the `SemConvRegistryRepo` goes out of scope.
+    ///
+    /// Arguments:
+    /// - `url`: The URL of the archive.
+    /// - `sub_folder`: The sub-folder to unpack inside the archive.
+    /// - `target_dir`: The temporary target directory where the archive will be unpacked.
+    fn try_from_remote_archive(
         url: &str,
-        sub_folder: &Option<String>,
-        tmp_dir: TempDir,
+        sub_folder: Option<&String>,
+        target_dir: TempDir,
     ) -> Result<Self, Error> {
-        let tmp_path = tmp_dir.path().to_path_buf();
+        let tmp_path = target_dir.path().to_path_buf();
 
         // Download the archive from the URL
         let response = ureq::get(url).call().map_err(|e| InvalidRegistryArchive {
@@ -460,10 +554,6 @@ impl SemConvRegistryRepo {
             });
         }
 
-        response.headers_names().iter().for_each(|header| {
-            println!("{}: {}", header, response.header(header).unwrap());
-        });
-
         // Parse the URL to get the file name
         let parsed_url = Url::parse(url).map_err(|e| InvalidRegistryArchive {
             archive: url.to_owned(),
@@ -473,9 +563,10 @@ impl SemConvRegistryRepo {
             .path_segments()
             .and_then(|segments| segments.last())
             .and_then(|name| if name.is_empty() { None } else { Some(name) })
-            .ok_or_else(|| "Failed to extract file name from URL").map_err(|e| InvalidRegistryArchive {
+            .ok_or("Failed to extract file name from URL")
+            .map_err(|e| InvalidRegistryArchive {
                 archive: url.to_owned(),
-                error: e.to_string(),
+                error: e.to_owned(),
             })?;
 
         // Create the full path to the save file
@@ -490,12 +581,18 @@ impl SemConvRegistryRepo {
         // Write the response body to the file.
         // The number of bytes written is ignored as the `try_from_local_archive` function
         // will handle the archive extraction and return an error if the archive is invalid.
-        _ = io::copy(&mut response.into_reader(), &mut file).map_err(|e| InvalidRegistryArchive {
-            archive: url.to_owned(),
-            error: e.to_string(),
+        _ = io::copy(&mut response.into_reader(), &mut file).map_err(|e| {
+            InvalidRegistryArchive {
+                archive: url.to_owned(),
+                error: e.to_string(),
+            }
         })?;
 
-        Self::try_from_local_archive(save_path.to_str().unwrap_or_default(), sub_folder, tmp_dir)
+        Self::try_from_local_archive(
+            save_path.to_str().unwrap_or_default(),
+            sub_folder,
+            target_dir,
+        )
     }
 
     /// Returns the local path to the semconv registry.
@@ -588,14 +685,16 @@ mod tests {
     #[test]
     fn test_semconv_registry_local_tar_gz_archive() {
         let registry_path = "../../test_data/semantic-conventions-1.26.0.tar.gz[model]"
-            .parse::<RegistryPath>().unwrap();
+            .parse::<RegistryPath>()
+            .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 
     #[test]
     fn test_semconv_registry_local_zip_archive() {
         let registry_path = "../../test_data/semantic-conventions-1.26.0.zip[model]"
-            .parse::<RegistryPath>().unwrap();
+            .parse::<RegistryPath>()
+            .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 
