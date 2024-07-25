@@ -15,8 +15,8 @@ For a formal definition of the allowed syntax, see the [build-tools JSON schema]
 # Design Principles
 
 - Collect as many warnings and errors as possible. Do not stop at the first error; this approach helps the user fix
-multiple issues at once.
+  multiple issues at once.
 - Rely on the Serde ecosystem for serialization and deserialization. This reliance simplifies support for multiple
-formats such as YAML, JSON, etc.
+  formats such as YAML, JSON, etc.
 - This crate is foundational for the OpenTelemetry Weaver project. Therefore, it is crucial to keep the API stable and
-user-friendly. Maintaining a test coverage greater than 80% is important. Test as many as possible error cases/paths.
+  user-friendly. Maintaining a test coverage greater than 80% is important. Test as many as possible error cases/paths.

@@ -102,7 +102,7 @@ mechanism, loading configuration files in this order:
 
 - `$HOME/.weaver/weaver.yaml`
 - `/weaver.yaml` and any intermediate directories containing a `weaver.yaml`
-file up to the `templates/registry/<target>` directory.
+  file up to the `templates/registry/<target>` directory.
 - `templates/registry/<target>/weaver.yaml`
 
 Each subsequent configuration file overrides the previous ones, up to the
@@ -145,11 +145,11 @@ More details [here](#jq-filters-reference).
 All templates have access to the following global variables:
 
 - `ctx`: The context object that contains the resolved registry or the output of the JQ filter
-if defined in the `weaver.yaml` configuration file.
+  if defined in the `weaver.yaml` configuration file.
 - `params`: The parameters defined in the `weaver.yaml` configuration file or overridden by the
-command line `--param`, `-D`, or `--params` arguments.
+  command line `--param`, `-D`, or `--params` arguments.
 - `template`: An object exposing various helper functions such as the `set_file_name` method to
-redefine the name of the file that will be produced from the template.
+  redefine the name of the file that will be produced from the template.
 
 ## Step-by-Step Guide
 

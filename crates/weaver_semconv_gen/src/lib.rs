@@ -8,8 +8,7 @@ use miette::Diagnostic;
 use std::{fmt, fs};
 
 use serde::Serialize;
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
@@ -347,33 +346,16 @@ impl SnippetGenerator {
         Ok(result)
     }
 
-    /// Resolve semconv registry (possibly from git), and make it available for rendering.
-    pub fn try_from_url(
-        registry_path: RegistryPath,
-        cache: &Cache,
+    /// Resolve semconv registry, and make it available for rendering.
+    pub fn try_from_registry_repo(
+        registry_repo: &RegistryRepo,
         template_engine: Option<TemplateEngine>,
     ) -> Result<SnippetGenerator, Error> {
-        let registry = ResolvedSemconvRegistry::try_from_url(registry_path, cache)?;
+        let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo)?;
         Ok(SnippetGenerator {
             lookup: registry,
             template_engine,
         })
-    }
-
-    // Used in tests
-    #[allow(dead_code)]
-    fn try_from_path(
-        path_pattern: &str,
-        template_engine: Option<TemplateEngine>,
-    ) -> Result<SnippetGenerator, Error> {
-        let cache = Cache::try_new()?;
-        Self::try_from_url(
-            RegistryPath::LocalFolder {
-                path: path_pattern.to_owned(),
-            },
-            &cache,
-            template_engine,
-        )
     }
 }
 
@@ -385,12 +367,11 @@ struct ResolvedSemconvRegistry {
 
 impl ResolvedSemconvRegistry {
     /// Resolve semconv registry (possibly from git), and make it available for rendering.
-    fn try_from_url(
-        registry_path: RegistryPath,
-        cache: &Cache,
+    fn try_from_registry_repo(
+        registry_repo: &RegistryRepo,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, cache)?;
+        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
@@ -422,7 +403,8 @@ impl ResolvedSemconvRegistry {
 #[cfg(test)]
 mod tests {
     use std::fs;
-
+    use weaver_cache::registry_path::RegistryPath;
+    use weaver_cache::RegistryRepo;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
@@ -441,7 +423,11 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         let template = TemplateEngine::new(config, loader, Params::default());
-        let generator = SnippetGenerator::try_from_path("data", Some(template))?;
+        let registry_path = RegistryPath::LocalFolder {
+            path: "data".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, Some(template))?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data/templates.md";
@@ -457,7 +443,11 @@ mod tests {
 
     #[test]
     fn test_http_semconv() -> Result<(), Error> {
-        let lookup = SnippetGenerator::try_from_path("data", None)?;
+        let registry_path = RegistryPath::LocalFolder {
+            path: "data".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+        let lookup = SnippetGenerator::try_from_registry_repo(&registry_repo, None)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Check our test files.
         for test in [
@@ -492,8 +482,11 @@ mod tests {
     }
 
     fn run_legacy_test(path: std::path::PathBuf) -> Result<(), Error> {
-        let semconv_path = format!("{}", path.display());
-        let lookup = SnippetGenerator::try_from_path(&semconv_path, None)?;
+        let registry_path = RegistryPath::LocalFolder {
+            path: format!("{}", path.display()),
+        };
+        let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+        let lookup = SnippetGenerator::try_from_registry_repo(&registry_repo, None)?;
         let test_path = path.join("test.md").display().to_string();
         // Attempts to update the test - will fail if there is any difference in the generated markdown.
         update_markdown(&test_path, &lookup, true, None)

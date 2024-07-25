@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::process::exit;
 use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::in_memory::LogMessage;
 use weaver_common::{in_memory, Logger};
 use weaver_forge::config::{Params, WeaverConfig};
@@ -39,11 +39,12 @@ fn main() {
     let logger = in_memory::Logger::new(0);
 
     // Load and resolve the semantic convention registry
-    let cache = Cache::try_new().unwrap_or_else(|e| process_error(&logger, e));
     let registry_path = RegistryPath::LocalFolder {
         path: SEMCONV_REGISTRY_PATH.into(),
     };
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_path, &cache)
+    let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)
+        .unwrap_or_else(|e| process_error(&logger, e));
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo)
         .unwrap_or_else(|e| process_error(&logger, e));
     let mut registry = SemConvRegistry::from_semconv_specs(REGISTRY_ID, semconv_specs);
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)

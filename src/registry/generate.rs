@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Args;
 use serde_yaml::Value;
 
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -87,7 +87,6 @@ fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
 /// Generate artifacts from a semantic convention registry.
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    cache: &Cache,
     args: &RegistryGenerateArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!(
@@ -104,12 +103,13 @@ pub(crate) fn command(
         }
     }
     let registry_id = "default";
+    let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
 
     if !args.skip_policies {
-        let policy_engine = init_policy_engine(&registry_path, cache, &args.policies, false)?;
+        let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
         check_policies(&policy_engine, &semconv_specs, logger.clone())?;
     }
 

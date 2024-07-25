@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Args;
 
 use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::error::handle_errors;
@@ -52,10 +52,8 @@ pub struct RegistryCheckArgs {
 }
 
 /// Check a semantic convention registry.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    cache: &Cache,
     args: &RegistryCheckArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
@@ -70,14 +68,14 @@ pub(crate) fn command(
     }
 
     let registry_id = "default";
+    let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
 
     // Load the semantic convention registry into a local cache.
     // No parsing errors should be observed.
-    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
     let mut policy_engine = if !args.skip_policies {
         Some(init_policy_engine(
-            &registry_path,
-            cache,
+            &registry_repo,
             &args.policies,
             args.display_policy_coverage,
         )?)

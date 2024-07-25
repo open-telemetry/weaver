@@ -10,7 +10,6 @@ use schemars::schema_for;
 use serde::Serialize;
 use serde_json::to_string_pretty;
 use std::path::PathBuf;
-use weaver_cache::Cache;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
@@ -57,10 +56,8 @@ impl From<Error> for DiagnosticMessages {
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
 /// file or print it to stdout.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    _cache: &Cache,
     args: &RegistryJsonSchemaArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = schema_for!(ResolvedRegistry);

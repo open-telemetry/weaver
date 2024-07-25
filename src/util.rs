@@ -6,8 +6,7 @@
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage};
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -31,11 +30,10 @@ use weaver_semconv::semconv::SemConvSpec;
 /// A `Result` containing a vector of tuples with file names and `SemConvSpec` on success,
 /// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
-    registry_path: &RegistryPath,
-    cache: &Cache,
+    registry_repo: &RegistryRepo,
     log: impl Logger + Sync + Clone,
 ) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs = SchemaResolver::load_semconv_specs(registry_path, cache)?;
+    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
     log.success(&format!(
         "SemConv registry loaded ({} files)",
         semconv_specs.len()
@@ -57,8 +55,7 @@ pub(crate) fn load_semconv_specs(
 /// A `Result` containing the initialized `Engine` on success, or `DiagnosticMessages`
 /// on failure.
 pub(crate) fn init_policy_engine(
-    registry_path: &RegistryPath,
-    cache: &Cache,
+    registry_repo: &RegistryRepo,
     policies: &[PathBuf],
     policy_coverage: bool,
 ) -> Result<Engine, DiagnosticMessages> {
@@ -69,8 +66,7 @@ pub(crate) fn init_policy_engine(
     }
 
     // Add policies from the registry
-    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)?;
-    _ = engine.add_policies(registry_path.as_path(), "*.rego")?;
+    _ = engine.add_policies(registry_repo.path(), "*.rego")?;
 
     // Add policies from the command line
     for policy in policies {

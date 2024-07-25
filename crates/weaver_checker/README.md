@@ -71,9 +71,9 @@ The following diagram illustrates the policy verification process:
 ## Policy Stages
 Policies can be applied at two different stages of the resolution process.
 1) To apply policies before the resolution process, simply group the policies
-into a package named `before_resolution`. 
+   into a package named `before_resolution`. 
 2) To apply them after the resolution process, the `after_resolution` package
-should be used
+   should be used
 
 The example below presents a set of violation detection rules that will apply
 before the validation process.

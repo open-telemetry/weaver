@@ -6,7 +6,7 @@
 use crate::registry::RegistryArgs;
 use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -54,7 +54,6 @@ pub struct RegistryUpdateMarkdownArgs {
 /// Update markdown files.
 pub(crate) fn command(
     log: impl Logger + Sync + Clone,
-    cache: &Cache,
     args: &RegistryUpdateMarkdownArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
@@ -84,8 +83,8 @@ pub(crate) fn command(
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
     }
-
-    let generator = SnippetGenerator::try_from_url(registry_path, cache, generator)?;
+    let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
+    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"

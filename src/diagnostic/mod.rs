@@ -50,7 +50,6 @@ pub enum DiagnosticSubCommand {
 }
 
 /// Manage diagnostic messages.
-#[cfg(not(tarpaulin_include))]
 pub fn diagnostic(log: impl Logger + Sync + Clone, command: &DiagnosticCommand) -> CmdResult {
     match &command.command {
         DiagnosticSubCommand::Init(args) => {

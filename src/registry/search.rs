@@ -5,7 +5,7 @@
 use clap::Args;
 use itertools::Itertools;
 use miette::Diagnostic;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
@@ -373,7 +373,6 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
 
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    cache: &Cache,
     args: &RegistrySearchArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
@@ -386,9 +385,10 @@ pub(crate) fn command(
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
     }
+    let registry_repo = RegistryRepo::try_from_registry_path(&registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 

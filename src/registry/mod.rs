@@ -17,7 +17,6 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::Cache;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
@@ -127,38 +126,33 @@ pub struct RegistryArgs {
 
 /// Manage a semantic convention registry and return the exit code.
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
-    let cache = match Cache::try_new() {
-        Ok(cache) => cache,
-        Err(e) => return CmdResult::new(Err(e.into()), None),
-    };
-
     match &command.command {
         RegistrySubCommand::Check(args) => CmdResult::new(
-            check::command(log.clone(), &cache, args),
+            check::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Generate(args) => CmdResult::new(
-            generate::command(log.clone(), &cache, args),
+            generate::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Stats(args) => CmdResult::new(
-            stats::command(log.clone(), &cache, args),
+            stats::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Resolve(args) => CmdResult::new(
-            resolve::command(log.clone(), &cache, args),
+            resolve::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Search(args) => CmdResult::new(
-            search::command(log.clone(), &cache, args),
+            search::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
-            update_markdown::command(log.clone(), &cache, args),
+            update_markdown::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
-            json_schema::command(log.clone(), &cache, args),
+            json_schema::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }

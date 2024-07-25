@@ -51,6 +51,7 @@ allow = [
     "ISC",
     "OpenSSL",
     "Zlib",
+    "BSL-1.0", # BOSL license used by https://crates.io/crates/lockfree-object-pool
 ]
 
 # List of explicitly disallowed licenses

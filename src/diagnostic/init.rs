@@ -28,7 +28,6 @@ pub struct DiagnosticInitArgs {
 }
 
 /// Initializes a `diagnostic_templates` directory to define or override diagnostic output formats.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &DiagnosticInitArgs,

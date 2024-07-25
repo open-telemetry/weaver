@@ -8,6 +8,9 @@ publish.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
+[features]
+semconv_experimental = []
+
 [lints]
 workspace = true
 

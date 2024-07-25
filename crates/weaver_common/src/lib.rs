@@ -63,9 +63,9 @@ pub struct ConsoleLogger {
     ///
     /// Ordering logic:
     /// - Ordering::Acquire in load: Ensures that when a thread reads the muted flag, it sees all
-    /// preceding writes to that flag by other threads.
+    ///   preceding writes to that flag by other threads.
     /// - Ordering::Release in store: Ensures that when a thread sets the muted flag, the store
-    /// operation is visible to other threads that subsequently perform an acquire load.
+    ///   operation is visible to other threads that subsequently perform an acquire load.
     mute: Arc<AtomicBool>,
 }
 

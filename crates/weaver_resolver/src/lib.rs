@@ -11,8 +11,7 @@ use rayon::iter::ParallelIterator;
 use serde::Serialize;
 use walkdir::DirEntry;
 
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 use weaver_common::Logger;
@@ -236,31 +235,12 @@ impl SchemaResolver {
     /// * `registry_path` - The registry path containing the semantic convention files.
     /// * `cache` - The cache to store the semantic convention files.
     pub fn load_semconv_specs(
-        registry_path: &RegistryPath,
-        cache: &Cache,
+        registry_repo: &RegistryRepo,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
-        let (local_path, registry_path_repr) = Self::path_to_registry(registry_path, cache)?;
-        Self::load_semconv_from_local_path(local_path, &registry_path_repr)
-    }
-
-    /// Returns a tuple absolute ['PathBuf'], logical registry path to the registry based on the
-    /// given ['RegistryPath'] and the cache.
-    pub fn path_to_registry(
-        registry_path: &RegistryPath,
-        cache: &Cache,
-    ) -> Result<(PathBuf, String), Error> {
-        match registry_path {
-            RegistryPath::LocalFolder { path } => Ok((path.into(), path.clone())),
-            RegistryPath::GitRepo {
-                url, sub_folder, ..
-            } => match cache.git_repo(url.clone(), sub_folder.clone()) {
-                Ok(local_git_repo) => Ok((local_git_repo, url.clone())),
-                Err(e) => Err(Error::SemConvError {
-                    message: e.to_string(),
-                }),
-            },
-            _ => unimplemented!("Local and remote archives are not supported yet"),
-        }
+        Self::load_semconv_from_local_path(
+            registry_repo.path().to_path_buf(),
+            registry_repo.registry_path_repr(),
+        )
     }
 
     /// Loads the semantic convention specifications from the given local path.

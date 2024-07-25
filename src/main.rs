@@ -74,7 +74,6 @@ impl CmdResult {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn main() {
     let cli = Cli::parse();
 
@@ -98,7 +97,6 @@ fn main() {
 }
 
 /// Run the command specified by the CLI arguments and return the exit directives.
-#[cfg(not(tarpaulin_include))]
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),

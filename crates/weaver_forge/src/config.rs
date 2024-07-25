@@ -312,7 +312,7 @@ impl WeaverConfig {
     ///
     /// 1. The `<path>/weaver.yaml` file.
     /// 2. Any `weaver.yaml` files found in parent directories of the specified path, up to the root
-    /// directory.
+    ///    directory.
     /// 3. The `$HOME/.weaver/weaver.yaml` file.
     pub fn try_from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         let configs = Self::collect_from_path(path);
