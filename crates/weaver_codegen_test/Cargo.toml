@@ -21,4 +21,4 @@ walkdir.workspace = true
 dirs.workspace = true
 
 [dependencies]
-opentelemetry = { version = "0.23.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
+opentelemetry.workspace = true

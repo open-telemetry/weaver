@@ -44,7 +44,7 @@ schemars.workspace = true
 dirs.workspace = true
 
 [dev-dependencies]
-opentelemetry = { version = "0.22.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
+opentelemetry.workspace = true
 opentelemetry_sdk = { version = "0.24.0", features = ["trace", "metrics", "logs"] }
 opentelemetry-stdout = { version = "0.5.0", features = ["trace", "metrics", "logs"] }
 
