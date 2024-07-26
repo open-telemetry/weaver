@@ -385,7 +385,7 @@ pub(crate) fn command(
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
     }
-    let registry_repo = RegistryRepo::try_new(&registry_path)?;
+    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;

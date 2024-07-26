@@ -36,7 +36,7 @@ fn test_cli_interface() {
         sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
         tag: None,
     };
-    let registry_repo = RegistryRepo::try_new(&registry_path).unwrap_or_else(|e| {
+    let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
         panic!("Failed to create the registry repo, error: {e}");
     });
     let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo).unwrap_or_else(|e| {

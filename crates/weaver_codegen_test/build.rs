@@ -42,8 +42,8 @@ fn main() {
     let registry_path = RegistryPath::LocalFolder {
         path: SEMCONV_REGISTRY_PATH.into(),
     };
-    let registry_repo = RegistryRepo::try_new(&registry_path)
-        .unwrap_or_else(|e| process_error(&logger, e));
+    let registry_repo =
+        RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
     let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo)
         .unwrap_or_else(|e| process_error(&logger, e));
     let mut registry = SemConvRegistry::from_semconv_specs(REGISTRY_ID, semconv_specs);

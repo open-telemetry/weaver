@@ -83,7 +83,7 @@ pub(crate) fn command(
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
     }
-    let registry_repo = RegistryRepo::try_new(&registry_path)?;
+    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {

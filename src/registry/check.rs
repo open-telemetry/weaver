@@ -15,12 +15,12 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::{DiagnosticArgs, ExitDirectives};
 use crate::registry::RegistryArgs;
 use crate::util::{
     check_policies, check_policy_stage, init_policy_engine, load_semconv_specs,
     resolve_semconv_specs,
 };
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -57,10 +57,10 @@ pub(crate) fn command(
     args: &RegistryCheckArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
+    logger.log("Weaver Registry Check");
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
     // Initialize the main registry.
-    let registry_id = "default";
     let mut registry_path = args.registry.registry.clone();
     // Support for --registry-git-sub-dir
     // ToDo: This parameter is now deprecated and should be removed in the future
@@ -69,12 +69,14 @@ pub(crate) fn command(
             sub_folder.clone_from(&args.registry.registry_git_sub_dir);
         }
     }
-    let main_registry_repo = RegistryRepo::try_new(&registry_path)?;
+    let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
-        Some(RegistryRepo::try_new(baseline_registry)?)
-    } else { None };
+        Some(RegistryRepo::try_new("baseline", baseline_registry)?)
+    } else {
+        None
+    };
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
@@ -107,40 +109,75 @@ pub(crate) fn command(
             .capture_diag_msgs_into(&mut diag_msgs);
     }
 
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, main_semconv_specs);
+    let mut main_registry =
+        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(&diag_msgs)?;
+    let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
+        .combine_diag_msgs_with(&diag_msgs)?;
 
     if let Some(policy_engine) = policy_engine.as_mut() {
         // Convert the resolved schemas into a resolved registry.
         // If there are any policy violations, they should be captured into the ongoing list of
         // diagnostic messages and returned immediately because there is no point in continuing
         // as the registry resolution is a prerequisite for the next stages.
-        let resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-            resolved_schema
-                .registry(registry_id)
+        let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+            main_resolved_schema
+                .registry(main_registry_repo.id())
                 .expect("Failed to get the registry from the resolved schema"),
-            resolved_schema.catalog(),
+            main_resolved_schema.catalog(),
         )
-            .combine_diag_msgs_with(&diag_msgs)?;
+        .combine_diag_msgs_with(&diag_msgs)?;
 
         // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
         let errs = check_policy_stage(
             policy_engine,
             PolicyStage::AfterResolution,
             &registry_path.to_string(),
-            &resolved_registry,
+            &main_resolved_registry,
+            &[],
         );
-
         // Append the policy errors to the ongoing list of diagnostic messages and if there are
         // any errors, return them immediately.
         if let Err(err) = handle_errors(errs) {
             diag_msgs.extend(err.into());
         }
+
+        if let (Some(baseline_registry_repo), Some(baseline_semconv_specs)) =
+            (baseline_registry_repo, baseline_semconv_specs)
+        {
+            let mut baseline_registry = SemConvRegistry::from_semconv_specs(
+                baseline_registry_repo.id(),
+                baseline_semconv_specs,
+            );
+            let baseline_resolved_schema =
+                resolve_semconv_specs(&mut baseline_registry, logger.clone())
+                    .combine_diag_msgs_with(&diag_msgs)?;
+            let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+                baseline_resolved_schema
+                    .registry(baseline_registry_repo.id())
+                    .expect("Failed to get the registry from the baseline resolved schema"),
+                baseline_resolved_schema.catalog(),
+            )
+            .combine_diag_msgs_with(&diag_msgs)?;
+
+            // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
+            let errs = check_policy_stage(
+                policy_engine,
+                PolicyStage::ComparisonAfterResolution,
+                &registry_path.to_string(),
+                &main_resolved_registry,
+                &[baseline_resolved_registry],
+            );
+            // Append the policy errors to the ongoing list of diagnostic messages and if there are
+            // any errors, return them immediately.
+            if let Err(err) = handle_errors(errs) {
+                diag_msgs.extend(err.into());
+            }
+        }
+
         if !diag_msgs.is_empty() {
             return Err(diag_msgs);
         }
@@ -157,10 +194,10 @@ mod tests {
     use weaver_common::TestLogger;
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::{
-        RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand, semconv_registry,
-    };
     use crate::registry::check::RegistryCheckArgs;
+    use crate::registry::{
+        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]

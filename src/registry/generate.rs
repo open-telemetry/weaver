@@ -103,7 +103,7 @@ pub(crate) fn command(
         }
     }
     let registry_id = "default";
-    let registry_repo = RegistryRepo::try_new(&registry_path)?;
+    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;

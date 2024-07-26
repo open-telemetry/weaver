@@ -101,6 +101,8 @@ impl From<Error> for DiagnosticMessages {
 /// - Initialized from a Git archive
 #[derive(Default)]
 pub struct RegistryRepo {
+    // A unique identifier for the registry (e.g. main, baseline, etc.)
+    id: String,
     registry_path: String,
     path: PathBuf,
     // Need to keep the tempdir live for the lifetime of the RegistryRepo.
@@ -111,34 +113,48 @@ pub struct RegistryRepo {
 impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `RegistryPath` object that
     /// specifies the location of the registry.
-    pub fn try_new(registry_path: &RegistryPath) -> Result<Self, Error> {
+    pub fn try_new(id: &str, registry_path: &RegistryPath) -> Result<Self, Error> {
         let registry_path_repr = registry_path.to_string();
         match registry_path {
             RegistryPath::LocalFolder { path } => Ok(Self {
+                id: id.to_owned(),
                 registry_path: registry_path_repr,
                 path: path.into(),
                 tmp_dir: None,
             }),
             RegistryPath::GitRepo {
                 url, sub_folder, ..
-            } => Self::try_from_git_url(url, sub_folder, registry_path_repr),
+            } => Self::try_from_git_url(id, url, sub_folder, registry_path_repr),
             RegistryPath::LocalArchive { path, sub_folder } => {
                 // Create a temporary directory for the repo that will be deleted
                 // when the RegistryRepo goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_local_archive(path, sub_folder.as_ref(), tmp_dir, registry_path_repr)
+                Self::try_from_local_archive(
+                    id,
+                    path,
+                    sub_folder.as_ref(),
+                    tmp_dir,
+                    registry_path_repr,
+                )
             }
             RegistryPath::RemoteArchive { url, sub_folder } => {
                 // Create a temporary directory for the repo that will be deleted
                 // when the RegistryRepo goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
-                Self::try_from_remote_archive(url, sub_folder.as_ref(), tmp_dir, registry_path_repr)
+                Self::try_from_remote_archive(
+                    id,
+                    url,
+                    sub_folder.as_ref(),
+                    tmp_dir,
+                    registry_path_repr,
+                )
             }
         }
     }
 
     /// Creates a new `RegistryRepo` from a Git URL.
     fn try_from_git_url(
+        id: &str,
         url: &str,
         sub_folder: &Option<String>,
         registry_path: String,
@@ -199,6 +215,7 @@ impl RegistryRepo {
         };
 
         Ok(Self {
+            id: id.to_owned(),
             registry_path,
             path,
             tmp_dir: Some(tmp_dir),
@@ -212,11 +229,13 @@ impl RegistryRepo {
     /// The temporary directory is deleted when the `RegistryRepo` goes out of scope.
     ///
     /// Arguments:
+    /// - `id`: The unique identifier for the registry.
     /// - `archive_filename`: The path to the archive file.
     /// - `sub_folder`: The sub-folder to unpack inside the archive.
     /// - `target_dir`: The temporary target directory where the archive will be unpacked.
     /// - `registry_path`: The registry path representation (for debug purposes).
     fn try_from_local_archive(
+        id: &str,
         archive_filename: &str,
         sub_folder: Option<&String>,
         target_dir: TempDir,
@@ -247,10 +266,17 @@ impl RegistryRepo {
         };
 
         Ok(Self {
+            id: id.to_owned(),
             registry_path,
             path: target_path_buf,
             tmp_dir: Some(target_dir),
         })
+    }
+
+    /// Returns the unique identifier for the registry.
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     /// Unpacks a tar.gz archive into the specified target directory.
@@ -402,11 +428,13 @@ impl RegistryRepo {
     /// The temporary directory is deleted when the `RegistryRepo` goes out of scope.
     ///
     /// Arguments:
+    /// - `id`: The unique identifier for the registry.
     /// - `url`: The URL of the archive.
     /// - `sub_folder`: The sub-folder to unpack inside the archive.
     /// - `target_dir`: The temporary target directory where the archive will be unpacked.
     /// - `registry_path`: The registry path representation (for debug purposes).
     fn try_from_remote_archive(
+        id: &str,
         url: &str,
         sub_folder: Option<&String>,
         target_dir: TempDir,
@@ -461,6 +489,7 @@ impl RegistryRepo {
         })?;
 
         Self::try_from_local_archive(
+            id,
             save_path.to_str().unwrap_or_default(),
             sub_folder,
             target_dir,
@@ -518,7 +547,7 @@ mod tests {
         let registry_path = RegistryPath::LocalFolder {
             path: "../../crates/weaver_codegen_test/semconv_registry".to_owned(),
         };
-        let repo = RegistryRepo::try_new(&registry_path).unwrap();
+        let repo = RegistryRepo::try_new("main", &registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         assert!(repo_path.exists());
         assert!(
@@ -532,7 +561,7 @@ mod tests {
     }
 
     fn check_archive(registry_path: RegistryPath, file_to_check: Option<&str>) {
-        let repo = RegistryRepo::try_new(&registry_path).unwrap();
+        let repo = RegistryRepo::try_new("main", &registry_path).unwrap();
         let repo_path = repo.path().to_path_buf();
         // At this point, the repo should be cloned into a temporary directory.
         assert!(repo_path.exists());
