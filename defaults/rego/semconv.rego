@@ -29,15 +29,30 @@ registry_groups := [g | g := input.groups[_]; startswith(g.id, "registry.")]
 
 # Collect all attribute names from the baseline registry
 # This set comprehension gathers all attribute names from groups
-# in the baseline registry that start with "registry."
+# in the baseline registry
 baseline_attributes := {attr.name |
+    some g in baseline_groups
+    some attr in g.attributes
+}
+
+# Collect all registry attribute names from the baseline registry
+# This set comprehension gathers all attribute names from groups
+# in the baseline registry that start with "registry."
+registry_baseline_attributes := {attr.name |
     some g in registry_baseline_groups
     some attr in g.attributes
 }
 
 # Collect all attribute names from the current registry
-# Similar to baseline_attributes, but for the current registry groups
+# Similar to baseline_attributes, but for the current groups
 attributes := {attr.name |
+    some g in groups
+    some attr in g.attributes
+}
+
+# Collect all registry attribute names from the current registry
+# Similar to baseline_attributes, but for the current registry groups
+registry_attributes := {attr.name |
     some g in registry_groups
     some attr in g.attributes
 }

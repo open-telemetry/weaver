@@ -39,7 +39,7 @@ deny contains violation if {
         some other_name, other_namespace in namespaces
         startswith(other_name, namespace)
         other_name != name
-        not excluded_namespace_collisions[other_name]
+        #not excluded_namespace_collisions[other_name]
     ]
     count(collisions) > 0
     violation := attr_registry_collision(
@@ -63,4 +63,6 @@ to_const_name(name) := replace(name, ".", "_")
 # see phase 2 in https://github.com/open-telemetry/semantic-conventions/issues/1118#issuecomment-2173803006
 # For now just allow current collisions.
 #excluded_const_collisions := {"messaging.client_id"}
-excluded_namespace_collisions := {"messaging.operation", "db.operation", "deployment.environment"}
+excluded_const_collisions := {}
+#excluded_namespace_collisions := {"messaging.operation", "db.operation", "deployment.environment"}
+excluded_namespace_collisions := {}

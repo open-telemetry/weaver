@@ -10,7 +10,7 @@ import rego.v1
 # semconv package.
 
 # Import the set of baseline attributes from the semconv package
-baseline_attributes := data.semconv.baseline_attributes
+baseline_attributes := data.semconv.registry_baseline_attributes
 
 # Rule: Detect Removed Attributes
 #
@@ -25,7 +25,7 @@ baseline_attributes := data.semconv.baseline_attributes
 deny contains back_comp_violation(description, group_id, attr_name) if {
     # Check if an attribute from the baseline is missing in the current registry
     some attr_name in baseline_attributes
-    not data.semconv.attributes[attr_name]
+    not data.semconv.registry_attributes[attr_name]
 
     # Retrieve the group ID of the attribute from the baseline registry
     group_id := data.semconv.baseline_group_ids_by_attribute[attr_name]

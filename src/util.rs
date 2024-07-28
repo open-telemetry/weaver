@@ -199,9 +199,9 @@ pub(crate) fn check_policies(
                 DiagnosticMessages::from_error(e)
             }
         })?;
-        logger.success("All policies checked");
+        logger.success("All `before_resolution` policies checked");
     } else {
-        logger.success("No policy found");
+        logger.success("No `before_resolution` policy found");
     }
     Ok(())
 }
