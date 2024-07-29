@@ -139,7 +139,10 @@ pub(crate) fn command(
             &main_resolved_registry,
             &[],
         );
-        logger.success(&format!("All `after_resolution` policies checked ({} violations found)", errs.len()));
+        logger.success(&format!(
+            "All `after_resolution` policies checked ({} violations found)",
+            errs.len()
+        ));
 
         // Append the policy errors to the ongoing list of diagnostic messages and if there are
         // any errors, return them immediately.
@@ -173,7 +176,10 @@ pub(crate) fn command(
                 &main_resolved_registry,
                 &[baseline_resolved_registry],
             );
-            logger.success(&format!("All `comparison_after_resolution` policies checked ({} violations found)", errs.len()));
+            logger.success(&format!(
+                "All `comparison_after_resolution` policies checked ({} violations found)",
+                errs.len()
+            ));
 
             // Append the policy errors to the ongoing list of diagnostic messages and if there are
             // any errors, return them immediately.

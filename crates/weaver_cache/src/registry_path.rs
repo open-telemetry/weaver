@@ -13,8 +13,8 @@ use crate::Error;
 /// Regex to parse a registry path supporting the following formats:
 /// - source
 /// - source@tag
-/// - source[sub_folder]
-/// - source@tag[sub_folder]
+/// - source\[sub_folder\]
+/// - source@tag\[sub_folder\]
 static REGISTRY_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^(?P<source>.+?)(?:@(?P<tag>.+?))?(?:\[(?P<sub_folder>.+?)])?$")
         .expect("Invalid regex")
