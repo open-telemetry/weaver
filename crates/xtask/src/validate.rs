@@ -13,11 +13,11 @@ use toml::Value;
 /// each crate in the cargo workspace.
 /// - Each crate must have a README.md file.
 /// - Each crate name must start with "weaver_" to avoid conflicts with other
-/// crates.
+///   crates.
 /// - Each crate must have an allowed-external-types.toml file defining the types
-/// that are allowed to be used in the public API.
+///   that are allowed to be used in the public API.
 /// - Each Cargo.toml must contain \[lints\] workspace = true and few other fields
-/// in the \[package\] section.
+///   in the \[package\] section.
 #[cfg(not(tarpaulin_include))]
 pub fn run() -> anyhow::Result<()> {
     let mut errors = vec![];

@@ -2,12 +2,12 @@
 
 //! Integration tests for the resolution process.
 
-use weaver_cache::Cache;
-use weaver_common::{Logger, TestLogger};
+use weaver_cache::registry_path::RegistryPath;
+use weaver_cache::RegistryRepo;
+use weaver_common::TestLogger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 
 /// The URL of the official semantic convention registry.
@@ -27,23 +27,21 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 #[test]
 fn test_cli_interface() {
     let log = TestLogger::new();
-    let cache = Cache::try_new().unwrap_or_else(|e| {
-        log.error(&e.to_string());
-        panic!("Failed to create the git cache repo, error: {e}");
-    });
-
     let registry_id = "default";
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
-    let registry_path = RegistryPath::GitUrl {
-        git_url: SEMCONV_REGISTRY_URL.to_owned(),
-        path: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+    let registry_path = RegistryPath::GitRepo {
+        url: SEMCONV_REGISTRY_URL.to_owned(),
+        sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
+        refspec: None,
     };
-    let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_path, &cache).unwrap_or_else(|e| {
-            panic!("Failed to load the semantic convention specs, error: {e}");
-        });
+    let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
+        panic!("Failed to create the registry repo, error: {e}");
+    });
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo).unwrap_or_else(|e| {
+        panic!("Failed to load the semantic convention specs, error: {e}");
+    });
     let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     // Check if the logger has reported any warnings or errors.

@@ -11,14 +11,13 @@ use rayon::iter::ParallelIterator;
 use serde::Serialize;
 use walkdir::DirEntry;
 
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, handle_errors, WeaverError};
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::path::RegistryPath;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 
@@ -236,30 +235,12 @@ impl SchemaResolver {
     /// * `registry_path` - The registry path containing the semantic convention files.
     /// * `cache` - The cache to store the semantic convention files.
     pub fn load_semconv_specs(
-        registry_path: &RegistryPath,
-        cache: &Cache,
+        registry_repo: &RegistryRepo,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
-        let (local_path, registry_path_repr) = Self::path_to_registry(registry_path, cache)?;
-        Self::load_semconv_from_local_path(local_path, &registry_path_repr)
-    }
-
-    /// Returns a tuple absolute ['PathBuf'], logical registry path to the registry based on the
-    /// given ['RegistryPath'] and the cache.
-    pub fn path_to_registry(
-        registry_path: &RegistryPath,
-        cache: &Cache,
-    ) -> Result<(PathBuf, String), Error> {
-        match registry_path {
-            RegistryPath::Local { path_pattern: path } => Ok((path.into(), path.clone())),
-            RegistryPath::GitUrl { git_url, path } => {
-                match cache.git_repo(git_url.clone(), path.clone()) {
-                    Ok(local_git_repo) => Ok((local_git_repo, git_url.clone())),
-                    Err(e) => Err(Error::SemConvError {
-                        message: e.to_string(),
-                    }),
-                }
-            }
-        }
+        Self::load_semconv_from_local_path(
+            registry_repo.path().to_path_buf(),
+            registry_repo.registry_path_repr(),
+        )
     }
 
     /// Loads the semantic convention specifications from the given local path.

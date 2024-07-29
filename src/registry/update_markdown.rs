@@ -4,10 +4,9 @@
 //! update the specified sections.
 
 use crate::registry::RegistryArgs;
-use crate::util::semconv_registry_path_from;
-use crate::{DiagnosticArgs, ExitDirectives};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -55,7 +54,6 @@ pub struct RegistryUpdateMarkdownArgs {
 /// Update markdown files.
 pub(crate) fn command(
     log: impl Logger + Sync + Clone,
-    cache: &Cache,
     args: &RegistryUpdateMarkdownArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
@@ -78,11 +76,15 @@ pub(crate) fn command(
         }
     };
 
-    let generator = SnippetGenerator::try_from_url(
-        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir),
-        cache,
-        generator,
-    )?;
+    let mut registry_path = args.registry.registry.clone();
+    // Support for --registry-git-sub-dir (should be removed in the future)
+    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
+        if sub_folder.is_none() {
+            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
+        }
+    }
+    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -137,7 +139,9 @@ mod tests {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: "data/update_markdown/markdown".to_owned(),
                     registry: RegistryArgs {
-                        registry: RegistryPath::Local("data/update_markdown/registry".to_owned()),
+                        registry: RegistryPath::LocalFolder {
+                            path: "data/update_markdown/registry".to_owned(),
+                        },
                         registry_git_sub_dir: None,
                     },
                     dry_run: true,

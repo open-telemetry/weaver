@@ -3,13 +3,12 @@
 //! Utility functions for resolving a semantic convention registry and checking policies.
 //! This module supports the `schema` and `registry` commands.
 
-use crate::registry::RegistryPath;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
-use weaver_checker::{Engine, Error, PolicyStage};
+use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
@@ -17,27 +16,6 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
-
-/// Converts a `RegistryPath` to a `weaver_semconv::path::RegistryPath`.
-///
-/// # Arguments
-///
-/// * `registry`: A reference to a registry of telemetry schema.  This is considered identifying for that registry, e.g a git url or local file path.  
-/// * `path`: An optional string representing a sub-directory in the registry identifying path where model/yaml files are located.
-pub(crate) fn semconv_registry_path_from(
-    registry: &RegistryPath,
-    path: &Option<String>,
-) -> weaver_semconv::path::RegistryPath {
-    match registry {
-        RegistryPath::Local(path) => weaver_semconv::path::RegistryPath::Local {
-            path_pattern: path.clone(),
-        },
-        RegistryPath::Url(url) => weaver_semconv::path::RegistryPath::GitUrl {
-            git_url: url.clone(),
-            path: path.clone(),
-        },
-    }
-}
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -52,13 +30,14 @@ pub(crate) fn semconv_registry_path_from(
 /// A `Result` containing a vector of tuples with file names and `SemConvSpec` on success,
 /// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
-    registry_path: &weaver_semconv::path::RegistryPath,
-    cache: &Cache,
+    registry_repo: &RegistryRepo,
     log: impl Logger + Sync + Clone,
 ) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs = SchemaResolver::load_semconv_specs(registry_path, cache)?;
+    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
     log.success(&format!(
-        "SemConv registry loaded ({} files)",
+        "`{}` semconv registry `{}` loaded ({} files)",
+        registry_repo.id(),
+        registry_repo.registry_path_repr(),
         semconv_specs.len()
     ));
     Ok(semconv_specs)
@@ -78,8 +57,7 @@ pub(crate) fn load_semconv_specs(
 /// A `Result` containing the initialized `Engine` on success, or `DiagnosticMessages`
 /// on failure.
 pub(crate) fn init_policy_engine(
-    registry_path: &weaver_semconv::path::RegistryPath,
-    cache: &Cache,
+    registry_repo: &RegistryRepo,
     policies: &[PathBuf],
     policy_coverage: bool,
 ) -> Result<Engine, DiagnosticMessages> {
@@ -89,13 +67,18 @@ pub(crate) fn init_policy_engine(
         engine.enable_coverage();
     }
 
+    // Add the standard semconv policies
+    // Note: `add_policy` the package name, we ignore it here as we don't need it
+    _ = engine
+        .add_policy("defaults/rego/semconv.rego", SEMCONV_REGO)
+        .map_err(DiagnosticMessages::from_error)?;
+
     // Add policies from the registry
-    let (registry_path, _) = SchemaResolver::path_to_registry(registry_path, cache)?;
-    _ = engine.add_policies(registry_path.as_path(), "*.rego")?;
+    _ = engine.add_policies(registry_repo.path(), "*.rego")?;
 
     // Add policies from the command line
     for policy in policies {
-        _ = engine.add_policy(policy)?;
+        _ = engine.add_policy_from_file(policy)?;
     }
 
     Ok(engine)
@@ -114,13 +97,23 @@ pub(crate) fn init_policy_engine(
 /// # Returns
 ///
 /// A list of policy violations represented as errors.
-pub(crate) fn check_policy_stage<T: Serialize>(
+pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
     policy_engine: &mut Engine,
     policy_stage: PolicyStage,
     policy_file: &str,
     input: &T,
+    data: &[U],
 ) -> Vec<Error> {
     let mut errors = vec![];
+
+    for d in data {
+        if let Err(err) = policy_engine.add_data(d) {
+            errors.push(InvalidPolicyFile {
+                file: policy_file.to_owned(),
+                error: err.to_string(),
+            });
+        }
+    }
 
     match policy_engine.set_input(input) {
         Ok(_) => match policy_engine.check(policy_stage) {
@@ -167,11 +160,12 @@ pub(crate) fn check_policy(
             // Create a local policy engine inheriting the policies
             // from the global policy engine
             let mut policy_engine = policy_engine.clone();
-            check_policy_stage(
+            check_policy_stage::<SemConvSpec, ()>(
                 &mut policy_engine,
                 PolicyStage::BeforeResolution,
                 path,
                 semconv,
+                &[],
             )
         })
         .collect::<Vec<Error>>();
@@ -205,9 +199,9 @@ pub(crate) fn check_policies(
                 DiagnosticMessages::from_error(e)
             }
         })?;
-        logger.success("Policies checked");
+        logger.success("All `before_resolution` policies checked");
     } else {
-        logger.success("No policy found");
+        logger.success("No `before_resolution` policy found");
     }
     Ok(())
 }
@@ -227,8 +221,9 @@ pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
     logger: impl Logger + Sync + Clone,
 ) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
+    let registry_id = registry.id().to_owned();
     let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(registry)?;
 
-    logger.success("SemConv registry resolved");
+    logger.success(&format!("`{}` semconv registry resolved", registry_id));
     Ok(resolved_schema)
 }

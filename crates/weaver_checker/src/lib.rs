@@ -21,6 +21,9 @@ use crate::Error::CompoundError;
 
 pub mod violation;
 
+/// Default semconv rules/functions for the semantic convention registry.
+pub const SEMCONV_REGO: &str = include_str!("../../../defaults/rego/semconv.rego");
+
 /// An error that can occur while evaluating policies.
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic, Clone)]
 #[must_use]
@@ -126,6 +129,8 @@ pub enum PolicyStage {
     BeforeResolution,
     /// Policies that are evaluated after resolution.
     AfterResolution,
+    /// Policies that are evaluated between two registries the resolution phase.
+    ComparisonAfterResolution,
 }
 
 impl Display for PolicyStage {
@@ -137,6 +142,9 @@ impl Display for PolicyStage {
             }
             PolicyStage::AfterResolution => {
                 write!(f, "after_resolution")
+            }
+            PolicyStage::ComparisonAfterResolution => {
+                write!(f, "comparison_after_resolution")
             }
         }
     }
@@ -169,13 +177,48 @@ impl Engine {
         self.coverage_enabled = true;
     }
 
+    /// Adds a rego policy (content) to the policy engine.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the policy (used for error messages).
+    /// * `rego` - The content of the rego policy.
+    ///
+    /// # Returns
+    ///
+    /// The policy package name.
+    pub fn add_policy(&mut self, path: &str, rego: &str) -> Result<String, Error> {
+        let policy_package = self
+            .engine
+            .add_policy(path.to_owned(), rego.to_owned())
+            .map_err(|e| Error::InvalidPolicyFile {
+                file: path.to_owned(),
+                error: e.to_string(),
+            })
+            .inspect(|_| {
+                self.policy_package_count += 1;
+            })?;
+        // Add the policy package defined in the imported policy file.
+        // Nothing prevent multiple policy files to import the same policy package.
+        // All the rules will be combined and evaluated together.
+        _ = self.policy_packages.insert(policy_package.clone());
+        Ok(policy_package)
+    }
+
     /// Adds a policy file to the policy engine.
     /// A policy file is a `rego` file that contains the policies to be evaluated.
     ///
     /// # Arguments
     ///
     /// * `policy_path` - The path to the policy file.
-    pub fn add_policy<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<String, Error> {
+    ///
+    /// # Returns
+    ///
+    /// The policy package name.
+    pub fn add_policy_from_file<P: AsRef<Path>>(
+        &mut self,
+        policy_path: P,
+    ) -> Result<String, Error> {
         let policy_path_str = policy_path.as_ref().to_string_lossy().to_string();
 
         let policy_package = self
@@ -237,7 +280,7 @@ impl Engine {
                 continue;
             }
             if is_policy_file(&entry) {
-                if let Err(err) = self.add_policy(entry.path()) {
+                if let Err(err) = self.add_policy_from_file(entry.path()) {
                     errors.push(err);
                 } else {
                     added_policy_count += 1;
@@ -372,7 +415,7 @@ mod tests {
     #[test]
     fn test_policy() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine = Engine::new();
-        let policy_package = engine.add_policy("data/policies/otel_policies.rego")?;
+        let policy_package = engine.add_policy_from_file("data/policies/otel_policies.rego")?;
         assert_eq!(policy_package, "data.before_resolution");
 
         let old_semconv = std::fs::read_to_string("data/registries/registry.network.old.yaml")?;
@@ -420,7 +463,7 @@ mod tests {
     #[test]
     fn test_invalid_policy() {
         let mut engine = Engine::new();
-        let result = engine.add_policy("data/policies/invalid_policy.rego");
+        let result = engine.add_policy_from_file("data/policies/invalid_policy.rego");
         assert!(result.is_err());
     }
 
@@ -435,7 +478,7 @@ mod tests {
     fn test_invalid_violation_object() {
         let mut engine = Engine::new();
         _ = engine
-            .add_policy("data/policies/invalid_violation_object.rego")
+            .add_policy_from_file("data/policies/invalid_violation_object.rego")
             .unwrap();
 
         let new_semconv =

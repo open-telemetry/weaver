@@ -14,7 +14,6 @@ pub(crate) enum Format {
     Json,
 }
 
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {
     match format {
         Format::Yaml => serde_yaml::to_string(object)

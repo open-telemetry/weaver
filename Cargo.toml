@@ -40,6 +40,7 @@ serde = { version = "1.0.204", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.116"}
 thiserror = "1.0.63"
+url = "2.5.2"
 ureq = "2.10.0"
 regex = "1.10.5"
 rayon = "1.10.0"
@@ -53,6 +54,8 @@ include_dir = "0.7.4"
 tempdir = "0.3.7"
 schemars = "0.8.21"
 dirs = "5.0.1"
+once_cell = "1.19.0"
+opentelemetry = { version = "0.23.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
 
 # Features definition =========================================================
 [features]
@@ -108,7 +111,7 @@ inherits = "release"
 lto = "thin"
 
 [workspace.lints.rust]
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 unused_lifetimes = "warn"
 # unreachable_pub = "warn"
 semicolon_in_expressions_from_macros = "warn"

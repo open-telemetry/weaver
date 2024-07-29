@@ -3,10 +3,10 @@
 //! Compute stats on a semantic convention registry.
 
 use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_semconv_specs, semconv_registry_path_from};
-use crate::{DiagnosticArgs, ExitDirectives};
+use crate::util::{load_semconv_specs, resolve_semconv_specs};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
-use weaver_cache::Cache;
+use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
@@ -27,10 +27,8 @@ pub struct RegistryStatsArgs {
 }
 
 /// Compute stats on a semantic convention registry.
-#[cfg(not(tarpaulin_include))]
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    cache: &Cache,
     args: &RegistryStatsArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!(
@@ -39,11 +37,17 @@ pub(crate) fn command(
     ));
 
     let registry_id = "default";
-    let registry_path =
-        semconv_registry_path_from(&args.registry.registry, &args.registry.registry_git_sub_dir);
+    let mut registry_path = args.registry.registry.clone();
+    // Support for --registry-git-sub-dir (should be removed in the future)
+    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
+        if sub_folder.is_none() {
+            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
+        }
+    }
+    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_path, cache, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     display_semconv_registry_stats(&registry);
@@ -58,14 +62,12 @@ pub(crate) fn command(
     })
 }
 
-#[cfg(not(tarpaulin_include))]
 fn display_semconv_registry_stats(semconv_registry: &SemConvRegistry) {
     let stats = semconv_registry.stats();
     println!("Semantic Convention Registry Stats:");
     println!("  - Total number of files: {}", stats.file_count);
 }
 
-#[cfg(not(tarpaulin_include))]
 fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
     let stats = schema.stats();
     println!("Resolved Telemetry Schema Stats:");
@@ -167,7 +169,6 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroupStats) {
     println!("    - {} {:#?}s", common_stats.count, group_type);
     println!(

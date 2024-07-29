@@ -12,5 +12,7 @@ rust-version.workspace = true
 anyhow.workspace = true
 toml = "0.8.15"
 
-[lints]
-workspace = true
+#[lints]
+#workspace = true
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }

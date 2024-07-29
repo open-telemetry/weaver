@@ -2,9 +2,7 @@
 
 //! Commands to manage a semantic convention registry.
 
-use std::fmt::Display;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use clap::{Args, Subcommand};
 use miette::Diagnostic;
@@ -18,7 +16,7 @@ use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
-use weaver_cache::Cache;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
@@ -105,92 +103,56 @@ pub enum RegistrySubCommand {
     JsonSchema(RegistryJsonSchemaArgs),
 }
 
-/// Path to a semantic convention registry.
-/// The path can be a local directory or a Git URL.
-#[derive(Debug, Clone)]
-pub enum RegistryPath {
-    Local(String),
-    Url(String),
-}
-
-/// Implement the `FromStr` trait for `RegistryPath`, so that it can be used as
-/// a command-line argument.
-impl FromStr for RegistryPath {
-    type Err = String;
-
-    /// Parse a string into a `RegistryPath`.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("http://") || s.starts_with("https://") {
-            Ok(Self::Url(s.to_owned()))
-        } else {
-            Ok(Self::Local(s.to_owned()))
-        }
-    }
-}
-
-/// Implement the `Display` trait for `RegistryPath`, so that it can be printed
-/// to the console.
-impl Display for RegistryPath {
-    /// Format the `RegistryPath` as a string.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RegistryPath::Local(path) => write!(f, "{}", path),
-            RegistryPath::Url(url) => write!(f, "{}", url),
-        }
-    }
-}
-
 /// Set of parameters used to specify a semantic convention registry.
 #[derive(Args, Debug)]
 pub struct RegistryArgs {
-    /// Local path or Git URL of the semantic convention registry.
+    /// Local folder, Git repo URL, or Git archive URL of the semantic
+    /// convention registry. For Git URLs, a sub-folder can be specified
+    /// using the `[sub-folder]` syntax after the URL.
     #[arg(
         short = 'r',
         long,
-        default_value = "https://github.com/open-telemetry/semantic-conventions.git"
+        default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
     )]
     pub registry: RegistryPath,
 
     /// Optional path in the Git repository where the semantic convention
-    /// registry is located
+    /// registry is located. This parameter is deprecated and should be
+    /// removed in the future. Please use the `[sub-folder]` syntax after the
+    /// URL in the `--registry` or `--baseline-registry` parameters instead.
     #[arg(short = 'd', long, default_value = "model")]
     pub registry_git_sub_dir: Option<String>,
 }
 
 /// Manage a semantic convention registry and return the exit code.
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
-    let cache = match Cache::try_new() {
-        Ok(cache) => cache,
-        Err(e) => return CmdResult::new(Err(e.into()), None),
-    };
-
     match &command.command {
         RegistrySubCommand::Check(args) => CmdResult::new(
-            check::command(log.clone(), &cache, args),
+            check::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Generate(args) => CmdResult::new(
-            generate::command(log.clone(), &cache, args),
+            generate::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Stats(args) => CmdResult::new(
-            stats::command(log.clone(), &cache, args),
+            stats::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Resolve(args) => CmdResult::new(
-            resolve::command(log.clone(), &cache, args),
+            resolve::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::Search(args) => CmdResult::new(
-            search::command(log.clone(), &cache, args),
+            search::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
-            update_markdown::command(log.clone(), &cache, args),
+            update_markdown::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
-            json_schema::command(log.clone(), &cache, args),
+            json_schema::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }
