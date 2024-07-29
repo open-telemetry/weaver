@@ -16,7 +16,7 @@ use crate::Error;
 /// - source\[sub_folder\]
 /// - source@tag\[sub_folder\]
 static REGISTRY_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(?P<source>.+?)(?:@(?P<tag>.+?))?(?:\[(?P<sub_folder>.+?)])?$")
+    Regex::new(r"^(?P<source>.+?)(?:@(?P<refspec>.+?))?(?:\[(?P<sub_folder>.+?)])?$")
         .expect("Invalid regex")
 });
 
@@ -47,8 +47,8 @@ pub enum RegistryPath {
     GitRepo {
         /// URL of the Git repository
         url: String,
-        /// Tag of the Git repository (NOT YET SUPPORTED)
-        tag: Option<String>,
+        /// Specific Tag, Branch, or Commit of the Git repository (NOT YET SUPPORTED)
+        refspec: Option<String>,
         /// Sub-folder within the repository containing the semantic convention registry
         sub_folder: Option<String>,
     },
@@ -74,7 +74,7 @@ impl FromStr for RegistryPath {
                 error: "Invalid registry path. No local path or URL found".to_owned(),
             })?
             .as_str();
-        let tag = captures.name("tag").map(|m| m.as_str().to_owned());
+        let refspec = captures.name("refspec").map(|m| m.as_str().to_owned());
         let sub_folder = captures.name("sub_folder").map(|m| m.as_str().to_owned());
 
         if source.starts_with("http://") || source.starts_with("https://") {
@@ -86,7 +86,7 @@ impl FromStr for RegistryPath {
             } else {
                 Ok(Self::GitRepo {
                     url: source.to_owned(),
-                    tag,
+                    refspec,
                     sub_folder,
                 })
             }
@@ -126,18 +126,14 @@ impl Display for RegistryPath {
             }
             RegistryPath::GitRepo {
                 url,
-                tag,
+                refspec,
                 sub_folder,
-            } => {
-                let mut registry_path = url.clone();
-                if let Some(tag) = tag {
-                    registry_path.push_str(&format!("@{}", tag));
-                }
-                if let Some(sub_folder) = sub_folder {
-                    registry_path.push_str(&format!("[{}]", sub_folder));
-                }
-                write!(f, "{}", registry_path)
-            }
+            } => match (refspec, sub_folder) {
+                (Some(refspec), Some(folder)) => write!(f, "{}@{}[{}]", url, refspec, folder),
+                (Some(refspec), None) => write!(f, "{}@{}", url, refspec),
+                (None, Some(folder)) => write!(f, "{}[{}]", url, folder),
+                (None, None) => write!(f, "{}", url),
+            },
         }
     }
 }
@@ -207,12 +203,12 @@ mod tests {
         let registry_path: RegistryPath = registry_path_str.parse().unwrap();
         if let RegistryPath::GitRepo {
             url,
-            tag,
+            refspec,
             sub_folder,
         } = &registry_path
         {
             assert_eq!(url, registry_path_str);
-            assert_eq!(*tag, None);
+            assert_eq!(*refspec, None);
             assert_eq!(*sub_folder, None);
         } else {
             panic!("Expected GitRepo, got something else");
@@ -224,12 +220,12 @@ mod tests {
         let registry_path: RegistryPath = registry_path_str.parse().unwrap();
         if let RegistryPath::GitRepo {
             url,
-            tag,
+            refspec,
             sub_folder,
         } = &registry_path
         {
             assert_eq!(url, "http://example.com/registry.git");
-            assert_eq!(*tag, None);
+            assert_eq!(*refspec, None);
             assert_eq!(*sub_folder, Some("model".to_owned()));
         } else {
             panic!("Expected GitRepo, got something else");
@@ -241,12 +237,12 @@ mod tests {
         let registry_path: RegistryPath = registry_path_str.parse().unwrap();
         if let RegistryPath::GitRepo {
             url,
-            tag,
+            refspec,
             sub_folder,
         } = &registry_path
         {
             assert_eq!(url, "http://example.com/registry.git");
-            assert_eq!(*tag, Some("v1.0.0".to_owned()));
+            assert_eq!(*refspec, Some("v1.0.0".to_owned()));
             assert_eq!(*sub_folder, None);
         } else {
             panic!("Expected GitRepo, got something else");
@@ -258,12 +254,12 @@ mod tests {
         let registry_path: RegistryPath = registry_path_str.parse().unwrap();
         if let RegistryPath::GitRepo {
             url,
-            tag,
+            refspec,
             sub_folder,
         } = &registry_path
         {
             assert_eq!(url, "http://example.com/registry.git");
-            assert_eq!(*tag, Some("v1.0.0".to_owned()));
+            assert_eq!(*refspec, Some("v1.0.0".to_owned()));
             assert_eq!(*sub_folder, Some("model".to_owned()));
         } else {
             panic!("Expected GitRepo, got something else");

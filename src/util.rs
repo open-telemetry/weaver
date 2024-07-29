@@ -97,12 +97,12 @@ pub(crate) fn init_policy_engine(
 /// # Returns
 ///
 /// A list of policy violations represented as errors.
-pub(crate) fn check_policy_stage<T: Serialize>(
+pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
     policy_engine: &mut Engine,
     policy_stage: PolicyStage,
     policy_file: &str,
     input: &T,
-    data: &[T],
+    data: &[U],
 ) -> Vec<Error> {
     let mut errors = vec![];
 
@@ -160,7 +160,7 @@ pub(crate) fn check_policy(
             // Create a local policy engine inheriting the policies
             // from the global policy engine
             let mut policy_engine = policy_engine.clone();
-            check_policy_stage(
+            check_policy_stage::<SemConvSpec, ()>(
                 &mut policy_engine,
                 PolicyStage::BeforeResolution,
                 path,

@@ -585,7 +585,7 @@ mod tests {
             // This git repo is expected to be available.
             url: "https://github.com/open-telemetry/semantic-conventions.git".to_owned(),
             sub_folder: Some("model".to_owned()),
-            tag: None,
+            refspec: None,
         };
         check_archive(registry_path, None);
     }

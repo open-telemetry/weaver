@@ -5,7 +5,6 @@
 use std::path::PathBuf;
 
 use clap::Args;
-
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_checker::PolicyStage;
@@ -132,7 +131,7 @@ pub(crate) fn command(
         .combine_diag_msgs_with(&diag_msgs)?;
 
         // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-        let errs = check_policy_stage(
+        let errs = check_policy_stage::<ResolvedRegistry, ()>(
             policy_engine,
             PolicyStage::AfterResolution,
             &registry_path.to_string(),
