@@ -9,9 +9,9 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use convert_case::Boundary::{
-    Acronym, DigitLower, DigitUpper, Hyphen, LowerDigit, LowerUpper, Space, Underscore, UpperDigit,
+    DigitLower, DigitUpper, Hyphen, LowerDigit, LowerUpper, Space, Underscore, UpperDigit,
 };
-use convert_case::{Case, Casing, Converter, Pattern};
+use convert_case::{Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
@@ -224,96 +224,60 @@ impl Default for CaseConvention {
 
 impl CaseConvention {
     pub(crate) fn convert(&self, text: &str) -> String {
+        // The converters are cached to avoid re-creating them for each conversion.
+        // We use a `OnceLock` to ensure that the converters are created only once and
+        // are thread-safe.
         static LOWER_CASE: OnceLock<Converter> = OnceLock::new();
+        static UPPER_CASE: OnceLock<Converter> = OnceLock::new();
+        static CAMEL_CASE: OnceLock<Converter> = OnceLock::new();
         static TITLE_CASE: OnceLock<Converter> = OnceLock::new();
         static KEBAB_CASE: OnceLock<Converter> = OnceLock::new();
-        static SNAKE_CASE: OnceLock<Converter> = OnceLock::new();
+        static SCREAMING_KEBAB_CASE: OnceLock<Converter> = OnceLock::new();
         static PASCAL_CASE: OnceLock<Converter> = OnceLock::new();
+        static SNAKE_CASE: OnceLock<Converter> = OnceLock::new();
+        static SCREAMING_SNAKE_CASE: OnceLock<Converter> = OnceLock::new();
+
+        fn new_converter<T: ToString>(pattern: Pattern, delim: T) -> Converter {
+            // For all case converters, we do not consider digits
+            // as boundaries.
+            Converter::new()
+                .remove_boundary(DigitLower)
+                .remove_boundary(DigitUpper)
+                .remove_boundary(UpperDigit)
+                .remove_boundary(LowerDigit)
+                .set_pattern(pattern)
+                .set_delim(delim)
+        }
 
         let text = text.replace('.', "_");
         match self {
-            CaseConvention::LowerCase => {
-                // Convert to lower case but do not consider digits
-                // as boundaries. So that `k8s` will stay `k8s` and
-                // not `k-8-s`.
-                let conv = LOWER_CASE.get_or_init(|| {
-                    Converter::new()
-                        .add_boundary(Space)
-                        .remove_boundary(DigitLower)
-                        .remove_boundary(DigitUpper)
-                        .remove_boundary(UpperDigit)
-                        .remove_boundary(LowerDigit)
-                        .set_pattern(Pattern::Lowercase)
-                        .set_delim(" ")
-                });
-                conv.convert(&text)
-            }
-            CaseConvention::UpperCase => text.to_case(Case::Upper),
-            CaseConvention::TitleCase => {
-                // Convert to title case but do not consider digits
-                // as boundaries.
-                let conv = TITLE_CASE.get_or_init(|| {
-                    Converter::new()
-                        .add_boundary(Space)
-                        .remove_boundary(DigitLower)
-                        .remove_boundary(DigitUpper)
-                        .remove_boundary(UpperDigit)
-                        .remove_boundary(LowerDigit)
-                        .set_pattern(Pattern::Capital)
-                        .set_delim(" ")
-                });
-                conv.convert(&text)
-            }
-            CaseConvention::PascalCase => {
-                // Convert to pascal case but do not consider digits
-                // as boundaries.
-                let conv = PASCAL_CASE.get_or_init(|| {
-                    Converter::new()
-                        .add_boundary(LowerUpper)
-                        .add_boundary(Acronym)
-                        .remove_boundary(DigitLower)
-                        .remove_boundary(DigitUpper)
-                        .remove_boundary(UpperDigit)
-                        .remove_boundary(LowerDigit)
-                        .set_pattern(Pattern::Capital)
-                        .set_delim("")
-                });
-                conv.convert(&text)
-            }
-            CaseConvention::CamelCase => text.to_case(Case::Camel),
-            CaseConvention::SnakeCase => {
-                // Convert to snake case but do not consider digits
-                // as boundaries.
-                let conv = SNAKE_CASE.get_or_init(|| {
-                    Converter::new()
-                        .add_boundary(Underscore)
-                        .remove_boundary(DigitLower)
-                        .remove_boundary(DigitUpper)
-                        .remove_boundary(UpperDigit)
-                        .remove_boundary(LowerDigit)
-                        .set_pattern(Pattern::Lowercase)
-                        .set_delim("_")
-                });
-                conv.convert(&text)
-            }
-            CaseConvention::ScreamingSnakeCase => text.to_case(Case::ScreamingSnake),
-            CaseConvention::KebabCase => {
-                // Convert to kebab case but do not consider digits
-                // as boundaries. So that `k8s` will stay `k8s` and
-                // not `k-8-s`.
-                let conv = KEBAB_CASE.get_or_init(|| {
-                    Converter::new()
-                        .add_boundary(Hyphen)
-                        .remove_boundary(DigitLower)
-                        .remove_boundary(DigitUpper)
-                        .remove_boundary(UpperDigit)
-                        .remove_boundary(LowerDigit)
-                        .set_pattern(Pattern::Lowercase)
-                        .set_delim("-")
-                });
-                conv.convert(&text)
-            }
-            CaseConvention::ScreamingKebabCase => text.to_case(Case::Cobol),
+            CaseConvention::LowerCase => LOWER_CASE
+                .get_or_init(|| new_converter(Pattern::Lowercase, " ").add_boundary(Space))
+                .convert(&text),
+            CaseConvention::UpperCase => UPPER_CASE
+                .get_or_init(|| new_converter(Pattern::Uppercase, " ").add_boundary(Space))
+                .convert(&text),
+            CaseConvention::TitleCase => TITLE_CASE
+                .get_or_init(|| new_converter(Pattern::Capital, " ").add_boundary(Space))
+                .convert(&text),
+            CaseConvention::PascalCase => PASCAL_CASE
+                .get_or_init(|| new_converter(Pattern::Capital, "").add_boundary(LowerUpper))
+                .convert(&text),
+            CaseConvention::CamelCase => CAMEL_CASE
+                .get_or_init(|| new_converter(Pattern::Camel, "").add_boundary(LowerUpper))
+                .convert(&text),
+            CaseConvention::SnakeCase => SNAKE_CASE
+                .get_or_init(|| new_converter(Pattern::Lowercase, "_").add_boundary(Underscore))
+                .convert(&text),
+            CaseConvention::ScreamingSnakeCase => SCREAMING_SNAKE_CASE
+                .get_or_init(|| new_converter(Pattern::Uppercase, "_").add_boundary(Underscore))
+                .convert(&text),
+            CaseConvention::KebabCase => KEBAB_CASE
+                .get_or_init(|| new_converter(Pattern::Lowercase, "-").add_boundary(Hyphen))
+                .convert(&text),
+            CaseConvention::ScreamingKebabCase => SCREAMING_KEBAB_CASE
+                .get_or_init(|| new_converter(Pattern::Uppercase, "-").add_boundary(Hyphen))
+                .convert(&text),
         }
     }
 }

@@ -150,6 +150,36 @@ mod tests {
         add_filters(&mut env, &target_config);
 
         assert_eq!(
+            env.render_str("{{ 'v8js.heap.space.name' | upper_case }}", &ctx)
+                .unwrap(),
+            "V8JS HEAP SPACE NAME"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'k8s.job.name' | upper_case }}", &ctx)
+                .unwrap(),
+            "K8S JOB NAME"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'host.cpu.cache.l2.size' | upper_case }}", &ctx)
+                .unwrap(),
+            "HOST CPU CACHE L2 SIZE"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'nodejs.eventloop.delay.p99' | upper_case }}", &ctx)
+                .unwrap(),
+            "NODEJS EVENTLOOP DELAY P99"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'http.request.resend_count' | upper_case }}", &ctx)
+                .unwrap(),
+            "HTTP REQUEST RESEND COUNT"
+        );
+
+        assert_eq!(
             env.render_str("{{ 'Hello World' | upper_case }}", &ctx)
                 .unwrap(),
             "HELLO WORLD"
@@ -178,6 +208,36 @@ mod tests {
         let ctx = serde_json::Value::Null;
 
         add_filters(&mut env, &target_config);
+
+        assert_eq!(
+            env.render_str("{{ 'v8js.heap.space.name' | camel_case }}", &ctx)
+                .unwrap(),
+            "v8jsHeapSpaceName"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'k8s.job.name' | camel_case }}", &ctx)
+                .unwrap(),
+            "k8sJobName"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'host.cpu.cache.l2.size' | camel_case }}", &ctx)
+                .unwrap(),
+            "hostCpuCacheL2Size"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'nodejs.eventloop.delay.p99' | camel_case }}", &ctx)
+                .unwrap(),
+            "nodejsEventloopDelayP99"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'http.request.resend_count' | camel_case }}", &ctx)
+                .unwrap(),
+            "httpRequestResendCount"
+        );
 
         assert_eq!(
             env.render_str("{{ 'hello_world' | camel_case }}", &ctx)
@@ -225,6 +285,12 @@ mod tests {
         );
 
         assert_eq!(
+            env.render_str("{{ 'HTTP.request.resend_count' | pascal_case }}", &ctx)
+                .unwrap(),
+            "HttpRequestResendCount"
+        );
+
+        assert_eq!(
             env.render_str("{{ 'hello_world' | pascal_case }}", &ctx)
                 .unwrap(),
             "HelloWorld"
@@ -260,6 +326,45 @@ mod tests {
         add_filters(&mut env, &target_config);
 
         assert_eq!(
+            env.render_str("{{ 'v8js.heap.space.name' | screaming_snake_case }}", &ctx)
+                .unwrap(),
+            "V8JS_HEAP_SPACE_NAME"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'k8s.job.name' | screaming_snake_case }}", &ctx)
+                .unwrap(),
+            "K8S_JOB_NAME"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'host.cpu.cache.l2.size' | screaming_snake_case }}",
+                &ctx
+            )
+            .unwrap(),
+            "HOST_CPU_CACHE_L2_SIZE"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'nodejs.eventloop.delay.p99' | screaming_snake_case }}",
+                &ctx
+            )
+            .unwrap(),
+            "NODEJS_EVENTLOOP_DELAY_P99"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'http.request.resend_count' | screaming_snake_case }}",
+                &ctx
+            )
+            .unwrap(),
+            "HTTP_REQUEST_RESEND_COUNT"
+        );
+
+        assert_eq!(
             env.render_str("{{ 'Hello World' | screaming_snake_case }}", &ctx)
                 .unwrap(),
             "HELLO_WORLD"
@@ -273,6 +378,45 @@ mod tests {
         let ctx = serde_json::Value::Null;
 
         add_filters(&mut env, &target_config);
+
+        assert_eq!(
+            env.render_str("{{ 'v8js.heap.space.name' | screaming_kebab_case }}", &ctx)
+                .unwrap(),
+            "V8JS-HEAP-SPACE-NAME"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'k8s.job.name' | screaming_kebab_case }}", &ctx)
+                .unwrap(),
+            "K8S-JOB-NAME"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'host.cpu.cache.l2.size' | screaming_kebab_case }}",
+                &ctx
+            )
+            .unwrap(),
+            "HOST-CPU-CACHE-L2-SIZE"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'nodejs.eventloop.delay.p99' | screaming_kebab_case }}",
+                &ctx
+            )
+            .unwrap(),
+            "NODEJS-EVENTLOOP-DELAY-P99"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ 'http.request.resend_count' | screaming_kebab_case }}",
+                &ctx
+            )
+            .unwrap(),
+            "HTTP-REQUEST-RESEND-COUNT"
+        );
 
         assert_eq!(
             env.render_str("{{ 'Hello World' | screaming_kebab_case }}", &ctx)
