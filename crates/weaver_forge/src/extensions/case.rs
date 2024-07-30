@@ -143,11 +143,6 @@ mod tests {
             "HelloWorld"
         );
         assert_eq!(
-            env.render_str("{{ 'Hello World' | snake_case }}", &ctx)
-                .unwrap(),
-            "hello_world"
-        );
-        assert_eq!(
             env.render_str("{{ 'Hello World' | screaming_snake_case }}", &ctx)
                 .unwrap(),
             "HELLO_WORLD"
@@ -171,6 +166,51 @@ mod tests {
             env.render_str("{{ 'Hello WORLD' | capitalize_first }}", &ctx)
                 .unwrap(),
             "Hello WORLD"
+        );
+    }
+
+    #[test]
+    fn test_snake_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
+        assert_eq!(
+            env.render_str("{{ 'v8js.heap.space.name' | snake_case }}", &ctx)
+                .unwrap(),
+            "v8js_heap_space_name"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'k8s.job.name' | snake_case }}", &ctx)
+                .unwrap(),
+            "k8s_job_name"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'host.cpu.cache.l2.size' | snake_case }}", &ctx)
+                .unwrap(),
+            "host_cpu_cache_l2_size"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'nodejs.eventloop.delay.p99' | snake_case }}", &ctx)
+                .unwrap(),
+            "nodejs_eventloop_delay_p99"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'http.request.resend_count' | snake_case }}", &ctx)
+                .unwrap(),
+            "http_request_resend_count"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'Hello World!' | snake_case }}", &ctx)
+                .unwrap(),
+            "hello_world!"
         );
     }
 }

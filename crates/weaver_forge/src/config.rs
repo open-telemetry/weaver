@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, UpperDigit};
+use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, Underscore, UpperDigit};
 use convert_case::{Case, Casing, Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -262,7 +262,21 @@ impl CaseConvention {
             }
             CaseConvention::PascalCase => text.to_case(Case::Pascal),
             CaseConvention::CamelCase => text.to_case(Case::Camel),
-            CaseConvention::SnakeCase => text.to_case(Case::Snake),
+            CaseConvention::SnakeCase => {
+                // Convert to title case but do not consider digits
+                // as boundaries.
+                let conv = TITLE_CASE.get_or_init(|| {
+                    Converter::new()
+                        .add_boundary(Underscore)
+                        .remove_boundary(DigitLower)
+                        .remove_boundary(DigitUpper)
+                        .remove_boundary(UpperDigit)
+                        .remove_boundary(LowerDigit)
+                        .set_pattern(Pattern::Lowercase)
+                        .set_delim("_")
+                });
+                conv.convert(&text)
+            },
             CaseConvention::ScreamingSnakeCase => text.to_case(Case::ScreamingSnake),
             CaseConvention::KebabCase => {
                 // Convert to kebab case but do not consider digits
