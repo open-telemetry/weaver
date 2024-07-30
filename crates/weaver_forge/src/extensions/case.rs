@@ -2,8 +2,9 @@
 
 //! Case converter filters used by the template engine.
 
-use crate::config::{CaseConvention, WeaverConfig};
 use minijinja::Environment;
+
+use crate::config::{CaseConvention, WeaverConfig};
 
 /// Add case converter filters to the environment.
 pub(crate) fn add_filters(env: &mut Environment<'_>, _: &WeaverConfig) {
@@ -105,12 +106,29 @@ pub(crate) fn capitalize_first(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::WeaverConfig;
-    use crate::extensions::case::add_filters;
     use minijinja::Environment;
 
+    use crate::config::WeaverConfig;
+    use crate::extensions::case::add_filters;
+
     #[test]
-    fn test_case_converter() {
+    fn test_kebab_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
+
+        assert_eq!(
+            env.render_str("{{ 'Hello World' | kebab_case }}", &ctx)
+                .unwrap(),
+            "hello-world"
+        );
+    }
+
+    #[test]
+    fn test_lower_case() {
         let target_config = WeaverConfig::default();
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
@@ -122,41 +140,76 @@ mod tests {
                 .unwrap(),
             "hello world"
         );
+    }
+
+    #[test]
+    fn test_upper_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
         assert_eq!(
             env.render_str("{{ 'Hello World' | upper_case }}", &ctx)
                 .unwrap(),
             "HELLO WORLD"
         );
+    }
+
+    #[test]
+    fn test_title_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
         assert_eq!(
             env.render_str("{{ 'Hello World' | title_case }}", &ctx)
                 .unwrap(),
             "Hello World"
         );
+    }
+
+    #[test]
+    fn test_camel_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
         assert_eq!(
             env.render_str("{{ 'hello_world' | camel_case }}", &ctx)
                 .unwrap(),
             "helloWorld"
         );
+    }
+
+    #[test]
+    fn test_pascal_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
         assert_eq!(
             env.render_str("{{ 'hello_world' | pascal_case }}", &ctx)
                 .unwrap(),
             "HelloWorld"
         );
-        assert_eq!(
-            env.render_str("{{ 'Hello World' | screaming_snake_case }}", &ctx)
-                .unwrap(),
-            "HELLO_WORLD"
-        );
-        assert_eq!(
-            env.render_str("{{ 'Hello World' | kebab_case }}", &ctx)
-                .unwrap(),
-            "hello-world"
-        );
-        assert_eq!(
-            env.render_str("{{ 'Hello World' | screaming_kebab_case }}", &ctx)
-                .unwrap(),
-            "HELLO-WORLD"
-        );
+    }
+
+    #[test]
+    fn test_capitalize_first_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
         assert_eq!(
             env.render_str("{{ 'hello world' | capitalize_first }}", &ctx)
                 .unwrap(),
@@ -166,6 +219,36 @@ mod tests {
             env.render_str("{{ 'Hello WORLD' | capitalize_first }}", &ctx)
                 .unwrap(),
             "Hello WORLD"
+        );
+    }
+
+    #[test]
+    fn test_screaming_snake_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
+        assert_eq!(
+            env.render_str("{{ 'Hello World' | screaming_snake_case }}", &ctx)
+                .unwrap(),
+            "HELLO_WORLD"
+        );
+    }
+
+    #[test]
+    fn test_screaming_kebab_case() {
+        let target_config = WeaverConfig::default();
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_filters(&mut env, &target_config);
+
+        assert_eq!(
+            env.render_str("{{ 'Hello World' | screaming_kebab_case }}", &ctx)
+                .unwrap(),
+            "HELLO-WORLD"
         );
     }
 
@@ -211,6 +294,12 @@ mod tests {
             env.render_str("{{ 'Hello World!' | snake_case }}", &ctx)
                 .unwrap(),
             "hello_world!"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'this IS an ios device with a nice api!' | snake_case }}", &ctx)
+                .unwrap(),
+            "this_is_an_ios_device_with_a_nice_api!"
         );
     }
 }

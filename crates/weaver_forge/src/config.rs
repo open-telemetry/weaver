@@ -225,6 +225,7 @@ impl CaseConvention {
         static LOWER_CASE: OnceLock<Converter> = OnceLock::new();
         static TITLE_CASE: OnceLock<Converter> = OnceLock::new();
         static KEBAB_CASE: OnceLock<Converter> = OnceLock::new();
+        static SNAKE_CASE: OnceLock<Converter> = OnceLock::new();
 
         let text = text.replace('.', "_");
         match self {
@@ -263,9 +264,9 @@ impl CaseConvention {
             CaseConvention::PascalCase => text.to_case(Case::Pascal),
             CaseConvention::CamelCase => text.to_case(Case::Camel),
             CaseConvention::SnakeCase => {
-                // Convert to title case but do not consider digits
+                // Convert to snake case but do not consider digits
                 // as boundaries.
-                let conv = TITLE_CASE.get_or_init(|| {
+                let conv = SNAKE_CASE.get_or_init(|| {
                     Converter::new()
                         .add_boundary(Underscore)
                         .remove_boundary(DigitLower)
