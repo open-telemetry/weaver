@@ -8,7 +8,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::Boundary::{DigitLower, DigitUpper, Hyphen, LowerDigit, Space, Underscore, UpperDigit};
+use convert_case::Boundary::{
+    Acronym, DigitLower, DigitUpper, Hyphen, LowerDigit, LowerUpper, Space, Underscore, UpperDigit,
+};
 use convert_case::{Case, Casing, Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -226,6 +228,7 @@ impl CaseConvention {
         static TITLE_CASE: OnceLock<Converter> = OnceLock::new();
         static KEBAB_CASE: OnceLock<Converter> = OnceLock::new();
         static SNAKE_CASE: OnceLock<Converter> = OnceLock::new();
+        static PASCAL_CASE: OnceLock<Converter> = OnceLock::new();
 
         let text = text.replace('.', "_");
         match self {
@@ -261,7 +264,22 @@ impl CaseConvention {
                 });
                 conv.convert(&text)
             }
-            CaseConvention::PascalCase => text.to_case(Case::Pascal),
+            CaseConvention::PascalCase => {
+                // Convert to pascal case but do not consider digits
+                // as boundaries.
+                let conv = PASCAL_CASE.get_or_init(|| {
+                    Converter::new()
+                        .add_boundary(LowerUpper)
+                        .add_boundary(Acronym)
+                        .remove_boundary(DigitLower)
+                        .remove_boundary(DigitUpper)
+                        .remove_boundary(UpperDigit)
+                        .remove_boundary(LowerDigit)
+                        .set_pattern(Pattern::Capital)
+                        .set_delim("")
+                });
+                conv.convert(&text)
+            }
             CaseConvention::CamelCase => text.to_case(Case::Camel),
             CaseConvention::SnakeCase => {
                 // Convert to snake case but do not consider digits
@@ -277,7 +295,7 @@ impl CaseConvention {
                         .set_delim("_")
                 });
                 conv.convert(&text)
-            },
+            }
             CaseConvention::ScreamingSnakeCase => text.to_case(Case::ScreamingSnake),
             CaseConvention::KebabCase => {
                 // Convert to kebab case but do not consider digits

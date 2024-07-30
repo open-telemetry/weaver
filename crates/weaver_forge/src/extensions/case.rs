@@ -119,7 +119,6 @@ mod tests {
 
         add_filters(&mut env, &target_config);
 
-
         assert_eq!(
             env.render_str("{{ 'Hello World' | kebab_case }}", &ctx)
                 .unwrap(),
@@ -194,6 +193,36 @@ mod tests {
         let ctx = serde_json::Value::Null;
 
         add_filters(&mut env, &target_config);
+
+        assert_eq!(
+            env.render_str("{{ 'v8js.heap.space.name' | pascal_case }}", &ctx)
+                .unwrap(),
+            "V8jsHeapSpaceName"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'k8s.job.name' | pascal_case }}", &ctx)
+                .unwrap(),
+            "K8sJobName"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'host.cpu.cache.l2.size' | pascal_case }}", &ctx)
+                .unwrap(),
+            "HostCpuCacheL2Size"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'nodejs.eventloop.delay.p99' | pascal_case }}", &ctx)
+                .unwrap(),
+            "NodejsEventloopDelayP99"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'http.request.resend_count' | pascal_case }}", &ctx)
+                .unwrap(),
+            "HttpRequestResendCount"
+        );
 
         assert_eq!(
             env.render_str("{{ 'hello_world' | pascal_case }}", &ctx)
@@ -297,8 +326,11 @@ mod tests {
         );
 
         assert_eq!(
-            env.render_str("{{ 'this IS an ios device with a nice api!' | snake_case }}", &ctx)
-                .unwrap(),
+            env.render_str(
+                "{{ 'this IS an ios device with a nice api!' | snake_case }}",
+                &ctx
+            )
+            .unwrap(),
             "this_is_an_ios_device_with_a_nice_api!"
         );
     }
