@@ -43,10 +43,22 @@ impl Filter {
             filter: filter_expr.to_owned(),
             error: "No parsed expression".to_owned(),
         })?;
+        let filter = ctx.compile(parsed_expr);
+        if !ctx.errs.is_empty() {
+            return Err(Error::CompoundError(
+                ctx.errs
+                    .iter()
+                    .map(|e| Error::FilterError {
+                        filter: filter_expr.to_owned(),
+                        error: e.0.to_string(),
+                    })
+                    .collect(),
+            ));
+        }
 
         Ok(Self {
             filter_expr: filter_expr.to_owned(),
-            filter: ctx.compile(parsed_expr),
+            filter,
         })
     }
 
