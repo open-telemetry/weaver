@@ -52,12 +52,6 @@ def semconv_grouped_attributes: semconv_grouped_attributes({});
 
 # Generic Signal Functions
 
-# Groups the signals by their root namespace and sorts them by name.
-# $signal is the type of signal to group.
-def semconv_group_signals_by_root_namespace($signal):
-    group_by(.root_namespace)
-    | map({ root_namespace: .[0].root_namespace, ($signal): . | sort_by(.name) });
-
 # Extracts and processes semantic convention signals based on provided options.
 # $signal is the type of signal to process.
 # $options is an object that can contain:
@@ -86,8 +80,10 @@ def semconv_signal($signal; $options):
     | sort_by(.root_namespace);
 
 # Metric Functions
-# Groups the metrics by their root namespace.
-def semconv_group_metrics_by_root_namespace: semconv_group_signals_by_root_namespace("metrics");
+# Groups the metrics by their root namespace and sorts metrics by metric_name.
+def semconv_group_metrics_by_root_namespace:
+    group_by(.root_namespace)
+    | map({ root_namespace: .[0].root_namespace, metrics: . | sort_by(.metric_name) });
 
 # Extracts and processes semantic convention metrics based on provided options.
 # $options is an object that can contain:
