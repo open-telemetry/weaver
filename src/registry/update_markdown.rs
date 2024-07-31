@@ -44,7 +44,7 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(long)]
-    pub target: Option<String>,
+    pub target: String,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -62,18 +62,15 @@ pub(crate) fn command(
         path.is_file() && extension == "md"
     }
     // Construct a generator if we were given a `--target` argument.
-    let generator = match args.target.as_ref() {
-        None => None,
-        Some(target) => {
-            let loader = FileSystemFileLoader::try_new(
-                format!("{}/registry", args.templates).into(),
-                target,
-            )?;
-            let config = WeaverConfig::try_from_loader(&loader)?;
-            let mut engine = TemplateEngine::new(config, loader, Params::default());
-            engine.import_jq_package(SEMCONV_JQ)?;
-            Some(engine)
-        }
+    let generator = {
+        let loader = FileSystemFileLoader::try_new(
+            format!("{}/registry", args.templates).into(),
+            &args.target,
+        )?;
+        let config = WeaverConfig::try_from_loader(&loader)?;
+        let mut engine = TemplateEngine::new(config, loader, Params::default());
+        engine.import_jq_package(SEMCONV_JQ)?;
+        engine
     };
 
     let mut registry_path = args.registry.registry.clone();
@@ -148,7 +145,7 @@ mod tests {
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
                     templates: "data/update_markdown/templates".to_owned(),
                     diagnostic: Default::default(),
-                    target: Some("markdown".to_owned()),
+                    target: "markdown".to_owned(),
                 }),
             })),
         };

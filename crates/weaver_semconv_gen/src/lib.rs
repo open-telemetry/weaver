@@ -14,16 +14,12 @@ use weaver_common::error::{format_errors, WeaverError};
 use weaver_diff::diff_output;
 use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::TemplateEngine;
-use weaver_resolved_schema::attribute::{Attribute, AttributeRef};
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::gen::{AttributeTableView, GenerateMarkdownContext, MetricView};
-
-mod gen;
 mod parser;
 
 /// Errors emitted by this crate.
@@ -163,31 +159,11 @@ pub struct GenerateMarkdownArgs {
 }
 
 impl GenerateMarkdownArgs {
-    // Returns true if the `full` flag was specified.
-    fn is_full(&self) -> bool {
-        self.args
-            .iter()
-            .any(|a| matches!(a, MarkdownGenParameters::Full))
-    }
-    /// Returns true if the `omit_requirement_level` flag was specified.
-    fn is_omit_requirement(&self) -> bool {
-        self.args
-            .iter()
-            .any(|a| matches!(a, MarkdownGenParameters::OmitRequirementLevel))
-    }
     /// Returns true if a metric table should be rendered.
     fn is_metric_table(&self) -> bool {
         self.args
             .iter()
             .any(|a| matches!(a, MarkdownGenParameters::MetricTable))
-    }
-
-    /// Returns the tag filter specified, if any.  Assumes only one.
-    fn tag_filter(&self) -> Option<&str> {
-        self.args.iter().find_map(|arg| match arg {
-            MarkdownGenParameters::Tag(value) => Some(value.as_str()),
-            _ => None,
-        })
     }
 
     /// Returns all tag filters in a list.
@@ -283,7 +259,7 @@ pub fn update_markdown(
 /// State we need to generate markdown snippets from configuration.
 pub struct SnippetGenerator {
     lookup: ResolvedSemconvRegistry,
-    template_engine: Option<TemplateEngine>,
+    template_engine: TemplateEngine,
 }
 
 impl SnippetGenerator {
@@ -293,63 +269,43 @@ impl SnippetGenerator {
         args: GenerateMarkdownArgs,
         attribute_registry_base_url: Option<&str>,
     ) -> Result<String, Error> {
-        if let Some(template) = &self.template_engine {
-            // TODO - define context.
-            let snippet_type = if args.is_metric_table() {
-                SnippetType::MetricTable
-            } else {
-                SnippetType::AttributeTable
-            };
-            let group = self
-                .lookup
-                .find_group(&args.id)
-                .ok_or(Error::GroupNotFound {
-                    id: args.id.clone(),
-                })
-                .and_then(|g| Ok(ResolvedGroup::try_from_resolved(g, self.lookup.catalog())?))?;
-            // Context is the JSON sent to the jinja template engine.
-            let context = MarkdownSnippetContext {
-                group: group.clone(),
-                snippet_type,
-                tag_filter: args
-                    .tag_filters()
-                    .into_iter()
-                    .map(|s| s.to_owned())
-                    .collect(),
-                attribute_registry_base_url: attribute_registry_base_url.map(|s| s.to_owned()),
-            };
-            // We automatically default to specific file for the snippet types.
-            let snippet_template_file = "snippet.md.j2";
-            let mut result =
-                template.generate_snippet(&context, snippet_template_file.to_owned())?;
-            result.push('\n');
-            Ok(result)
+        // TODO - define context.
+        let snippet_type = if args.is_metric_table() {
+            SnippetType::MetricTable
         } else {
-            self.generate_legacy_markdown_snippet(args, attribute_registry_base_url)
-        }
-    }
-
-    fn generate_legacy_markdown_snippet(
-        &self,
-        args: GenerateMarkdownArgs,
-        attribute_registry_base_url: Option<&str>,
-    ) -> Result<String, Error> {
-        let mut ctx = GenerateMarkdownContext::default();
-        let mut result = String::new();
-        if args.is_metric_table() {
-            let view = MetricView::try_new(args.id.as_str(), &self.lookup)?;
-            view.generate_markdown(&mut result, &mut ctx)?;
-        } else {
-            let other = AttributeTableView::try_new(args.id.as_str(), &self.lookup)?;
-            other.generate_markdown(&mut result, &args, &mut ctx, attribute_registry_base_url)?;
-        }
+            SnippetType::AttributeTable
+        };
+        let group = self
+            .lookup
+            .find_group(&args.id)
+            .ok_or(Error::GroupNotFound {
+                id: args.id.clone(),
+            })
+            .and_then(|g| Ok(ResolvedGroup::try_from_resolved(g, self.lookup.catalog())?))?;
+        // Context is the JSON sent to the jinja template engine.
+        let context = MarkdownSnippetContext {
+            group: group.clone(),
+            snippet_type,
+            tag_filter: args
+                .tag_filters()
+                .into_iter()
+                .map(|s| s.to_owned())
+                .collect(),
+            attribute_registry_base_url: attribute_registry_base_url.map(|s| s.to_owned()),
+        };
+        // We automatically default to specific file for the snippet types.
+        let snippet_template_file = "snippet.md.j2";
+        let mut result = self
+            .template_engine
+            .generate_snippet(&context, snippet_template_file.to_owned())?;
+        result.push('\n');
         Ok(result)
     }
 
     /// Resolve semconv registry, and make it available for rendering.
     pub fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
-        template_engine: Option<TemplateEngine>,
+        template_engine: TemplateEngine,
     ) -> Result<SnippetGenerator, Error> {
         let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo)?;
         Ok(SnippetGenerator {
@@ -393,16 +349,10 @@ impl ResolvedSemconvRegistry {
         self.my_registry()
             .and_then(|r| r.groups.iter().find(|g| g.id == id))
     }
-
-    /// Finds an attribute by reference.
-    fn attribute(&self, attr: &AttributeRef) -> Option<&Attribute> {
-        self.schema.catalog.attribute(attr)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use weaver_cache::registry_path::RegistryPath;
     use weaver_cache::RegistryRepo;
     use weaver_forge::config::{Params, WeaverConfig};
@@ -427,7 +377,7 @@ mod tests {
             path: "data".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, Some(template))?;
+        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, template)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data/templates.md";
@@ -439,56 +389,5 @@ mod tests {
             Some(attribute_registry_url),
         ));
         Ok(())
-    }
-
-    #[test]
-    fn test_http_semconv() -> Result<(), Error> {
-        let registry_path = RegistryPath::LocalFolder {
-            path: "data".to_owned(),
-        };
-        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let lookup = SnippetGenerator::try_from_registry_repo(&registry_repo, None)?;
-        let attribute_registry_url = "/docs/attributes-registry";
-        // Check our test files.
-        for test in [
-            "data/http-span-full-attribute-table.md",
-            "data/http-metric-semconv.md",
-            "data/user-agent.md",
-        ] {
-            println!("--- Running test: {test} ---");
-            force_print_error(update_markdown(
-                test,
-                &lookup,
-                true,
-                Some(attribute_registry_url),
-            ));
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn run_legacy_tests() {
-        // Note: We could update this to run all tests in parallel and join results.
-        // For now we're just getting things working.
-        let test_dirs = fs::read_dir("legacy_tests").unwrap();
-        for dir in test_dirs.flatten() {
-            if dir.path().join("test.md").exists() {
-                println!();
-                println!("--- Running test: {} ---", dir.path().display());
-                println!();
-                force_print_error(run_legacy_test(dir.path()));
-            }
-        }
-    }
-
-    fn run_legacy_test(path: std::path::PathBuf) -> Result<(), Error> {
-        let registry_path = RegistryPath::LocalFolder {
-            path: format!("{}", path.display()),
-        };
-        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let lookup = SnippetGenerator::try_from_registry_repo(&registry_repo, None)?;
-        let test_path = path.join("test.md").display().to_string();
-        // Attempts to update the test - will fail if there is any difference in the generated markdown.
-        update_markdown(&test_path, &lookup, true, None)
     }
 }
