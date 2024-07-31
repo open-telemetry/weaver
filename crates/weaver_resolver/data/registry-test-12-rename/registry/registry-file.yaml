@@ -1,0 +1,10 @@
+groups:
+  - id: registry.file
+    type: attribute_group
+    brief: 'Attributes describing telemetry around files.'
+    attributes:
+      - id: file.name
+        type: string
+        brief: 'The name of the file.'
+        note: 'The name of the file'
+        examples: ['log.txt', '/var/log/messages']

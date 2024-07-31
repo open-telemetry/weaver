@@ -618,6 +618,7 @@ fn resolve_inheritance_attr(
             stability,
             deprecated,
             prefix,
+            ..
         } => {
             match parent_attr {
                 AttributeSpec::Ref {
@@ -648,6 +649,7 @@ fn resolve_inheritance_attr(
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
                         prefix: lineage.prefix(prefix, parent_prefix),
+                        rename: None,
                     }
                 }
                 AttributeSpec::Id {

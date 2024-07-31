@@ -1,0 +1,48 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "logs.file",
+      "type": "attribute_group",
+      "brief": "Common log file attributes.",
+      "attributes": [
+        1,
+        2
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-12-rename/registry/logs-file.yaml",
+        "attributes": {
+          "log.error.file.name": {
+            "source_group": "registry.file",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level"
+            ]
+          },
+          "log.file.name": {
+            "source_group": "registry.file",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.file",
+      "type": "attribute_group",
+      "brief": "Attributes describing telemetry around files.",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-12-rename/registry/registry-file.yaml"
+      }
+    }
+  ]
+}

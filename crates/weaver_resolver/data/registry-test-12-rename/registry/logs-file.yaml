@@ -1,0 +1,10 @@
+groups:
+  - id: logs.file
+    type: attribute_group
+    brief: "Common log file attributes."
+    attributes:
+      - ref: file.name
+        rename: log.file.name
+      - ref: file.name
+        rename: log.error.file.name
+         

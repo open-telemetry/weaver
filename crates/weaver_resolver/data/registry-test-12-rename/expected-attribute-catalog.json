@@ -1,0 +1,35 @@
+[
+  {
+    "name": "file.name",
+    "type": "string",
+    "brief": "The name of the file.",
+    "examples": [
+      "log.txt",
+      "/var/log/messages"
+    ],
+    "requirement_level": "recommended",
+    "note": "The name of the file"
+  },
+  {
+    "name": "log.file.name",
+    "type": "string",
+    "brief": "The name of the file.",
+    "examples": [
+      "log.txt",
+      "/var/log/messages"
+    ],
+    "requirement_level": "recommended",
+    "note": "The name of the file"
+  },
+  {
+    "name": "log.error.file.name",
+    "type": "string",
+    "brief": "The name of the file.",
+    "examples": [
+      "log.txt",
+      "/var/log/messages"
+    ],
+    "requirement_level": "recommended",
+    "note": "The name of the file"
+  }
+]
