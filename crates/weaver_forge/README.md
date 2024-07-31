@@ -1,6 +1,7 @@
 # Weaver Forge - A Jinja-based Doc/Code Generation Engine
 
 ## Table of Contents
+
 - [Introduction](#introduction)
 - [General Concepts](#general-concepts)
     - [Template Directory Structure and Naming Conventions](#template-directory-structure-and-naming-conventions)
@@ -132,10 +133,10 @@ each object in the array, i.e., to each group of attributes for a given root nam
 
 ```yaml
 templates:
- - pattern: "attributes.j2"             # glob patterns are supported
-   filter: semconv_grouped_attributes
-   application_mode: each
- - ...
+  - pattern: "attributes.j2"             # glob patterns are supported
+    filter: semconv_grouped_attributes
+    application_mode: each
+  - ...
 ```
 
 More details [here](#jq-filters-reference).
@@ -175,8 +176,8 @@ text_maps:
     boolean: bool
     string: String
     string[]: Vec<String>
-    template[string]: String          
-    template[string[]]: Vec<String>   
+    template[string]: String
+    template[string[]]: Vec<String>
 
 params:
   incubating: true
@@ -208,12 +209,12 @@ More details on the structure of the configuration file [here](/docs/weaver-conf
 # ...
 
 templates:
- - pattern: "attributes.j2"
-   filter: semconv_grouped_attributes
-   application_mode: each
- - pattern: "metrics.j2"
-   filter: semconv_grouped_metrics
-   application_mode: each
+  - pattern: "attributes.j2"
+    filter: semconv_grouped_attributes
+    application_mode: each
+  - pattern: "metrics.j2"
+    filter: semconv_grouped_metrics
+    application_mode: each
 
 # ...
 ```
@@ -278,14 +279,14 @@ resolved semantic convention registry.
 Example configuration for JQ filters in `weaver.yaml`:
 
 ```yaml  
-templates:  
- - pattern: "attributes.j2"   
-   filter: semconv_grouped_attributes
-   application_mode: each
- - pattern: "metrics.j2"
-   filter: semconv_grouped_metrics
-   application_mode: each 
- # ...  
+templates:
+  - pattern: "attributes.j2"
+    filter: semconv_grouped_attributes
+    application_mode: each
+  - pattern: "metrics.j2"
+    filter: semconv_grouped_metrics
+    application_mode: each
+  # ...  
 ```  
 
 In this example, the `attributes.j2` and `metrics.j2` templates are associated with the  
@@ -304,7 +305,7 @@ The following JQ filter extracts the registry attributes from the resolved regis
 returns a list of registry attributes grouped by root namespace and sorted by attribute names.
 
 ```yaml  
-templates:  
+templates:
   - pattern: attributes.j2
     filter: semconv_grouped_attributes
     application_mode: each  
@@ -319,7 +320,9 @@ The output of the JQ filter has the following structure:
     "attributes": [
       {
         "brief": "Value of the HTTP User-Agent",
-        "examples": [ ... ],
+        "examples": [
+          ...
+        ],
         "name": "user_agent.original",
         "namespace": "user_agent",
         "requirement_level": "recommended",
@@ -334,7 +337,7 @@ The output of the JQ filter has the following structure:
 ]  
 ```  
 
-The `semconv_grouped_attributes` function also supports options to exclude specified root namespaces, 
+The `semconv_grouped_attributes` function also supports options to exclude specified root namespaces,
 specific stability levels, and deprecated entities. The following syntax is supported:
 
 ```yaml  
@@ -388,7 +391,9 @@ The output of the JQ filter has the following structure:
     "root_namespace": "jvm",
     "metrics": [
       {
-        "attributes": [ ... ],
+        "attributes": [
+          ...
+        ],
         "brief": "Recent CPU utilization for the process as reported by the JVM.",
         "id": "metric.jvm.cpu.recent_utilization",
         "instrument": "gauge",
@@ -434,7 +439,7 @@ All the `semconv_grouped_<...>` functions are the composition of two functions:
 
 All the filters available in the MiniJinja template engine are available (see  
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)) and
-the [py_compat](https://github.com/mitsuhiko/minijinja/blob/e8a7ec5198deef7638267f2667714198ef64a1db/minijinja-contrib/src/pycompat.rs) 
+the [py_compat](https://github.com/mitsuhiko/minijinja/blob/e8a7ec5198deef7638267f2667714198ef64a1db/minijinja-contrib/src/pycompat.rs)
 compatibility extensions that are also enabled in Weaver.
 
 In addition, OTel Weaver provides a set of custom filters to facilitate the  
@@ -452,29 +457,40 @@ The following filters are available:
 - `kebab_case`: Converts a string to kebab-case.
 - `screaming_kebab_case`: Converts a string to SCREAMING-KEBAB-CASE.
 - `capitalize_first`: Capitalizes the first letter of a string.
-- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
-- `pascal_case_const`: Generates PascalCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
-- `camel_case_const`: Generates camelCase constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
-- `snake_case_const`: Generates snake_case constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
-- `screaming_snake_case_const`: Generates SCREAMING_SNAKE_CASE constants which follow semantic convention namespacing rules (underscores are ignored, but . is meaningful).
-- `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the `weaver.yaml` configuration file.
+- `kebab_case_const`: Generates kebab-case constants which follow semantic convention namespacing rules (underscores are
+  ignored, but . is meaningful).
+- `pascal_case_const`: Generates PascalCase constants which follow semantic convention namespacing rules (underscores
+  are ignored, but . is meaningful).
+- `camel_case_const`: Generates camelCase constants which follow semantic convention namespacing rules (underscores are
+  ignored, but . is meaningful).
+- `snake_case_const`: Generates snake_case constants which follow semantic convention namespacing rules (underscores are
+  ignored, but . is meaningful).
+- `screaming_snake_case_const`: Generates SCREAMING_SNAKE_CASE constants which follow semantic convention namespacing
+  rules (underscores are ignored, but . is meaningful).
+- `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the
+  `weaver.yaml` configuration file.
 - `split_id`: Splits a string by '.' creating a list of nested ids.
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
 - `flatten`: Converts a List of Lists into a single list with all elements.  
   e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_sort`: Sorts a list of `Attribute`s by requirement level, then name.
 - `metric_namespace`: Converts registry.{namespace}.{other}.{components} to {namespace}.
-- `attribute_registry_file`: Converts registry.{namespace}.{other}.{components} to attributes-registry/{namespace}.md (kebab-case namespace).
-- `attribute_registry_title`: Converts registry.{namespace}.{other}.{components} to {Namespace} (title case the namespace).
+- `attribute_registry_file`: Converts registry.{namespace}.{other}.{components} to attributes-registry/{namespace}.md (
+  kebab-case namespace).
+- `attribute_registry_title`: Converts registry.{namespace}.{other}.{components} to {Namespace} (title case the
+  namespace).
 - `attribute_registry_namespace`: Converts metric.{namespace}.{other}.{components} to {namespace}.
 - `attribute_namespace`: Converts {namespace}.{attribute_id} to {namespace}.
-- `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required" attributes are not returned by this filter.
-- `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required" attributes are returned by this filter.
+- `required`: Filters a list of `Attribute`s to include only the required attributes. The "conditionally_required"
+  attributes are not returned by this filter.
+- `not_required`: Filters a list of `Attribute`s to only include non-required attributes. The "conditionally_required"
+  attributes are returned by this filter.
 - `instantiated_type`: Filters a type to return the instantiated type.
 - `enum_type`: Filters a type to return the enum type or an error if the type is not an enum.
 - `markdown_to_html`: Converts a markdown string to an HTML string.
 - `map_text`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file  
-  and a named text_map. The first parameter is the name of the text_map (required). The second parameter is the default  
+  and a named text_map. The first parameter is the name of the text_map (required). The second parameter is the
+  default  
   value if the name of the text map or the input are not found in the `text_maps` section (optional).
 - `ansi_black`: Format a text using the black ansi code.
 - `ansi_red`: Format a text using the red ansi code.
@@ -512,6 +528,9 @@ The following filters are available:
 - `ansi_italic`: Format a text using the italic ansi code.
 - `ansi_underline`: Format a text using the underline ansi code.
 - `ansi_strikethrough`: Format a text using the strikethrough ansi code.
+- `print_value`: Filter returning a quoted and escaped string representation of the input
+if the input is of type string. Numbers and booleans are stringified without the quotes,
+and an empty string is returned for other types.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
@@ -535,7 +554,8 @@ generation of assets.
 - `experimental`: Tests if an `Attribute` is experimental.
 - `deprecated`: Tests if an `Attribute` is deprecated.
 - `enum`: Tests if an attribute has an enum type.
-- `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean | boolean[]).
+- `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean |
+  boolean[]).
 - `template_type`: Tests if a type is a template type (i.e.: template[]).
 - `enum_type`: Tests if a type is an enum type.
 
