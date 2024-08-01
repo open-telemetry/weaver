@@ -5,6 +5,7 @@
 
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
+use std::fs::metadata;
 use std::path::Path;
 
 use globset::Glob;
@@ -39,6 +40,24 @@ pub enum Error {
     InvalidPolicyFile {
         /// The file that caused the error.
         file: String,
+        /// The error that occurred.
+        error: String,
+    },
+
+    /// An unsupported policy path.
+    #[error("Invalid policy path '{path}'")]
+    #[diagnostic(help("Check the exists and is a valid policy file."))]
+    UnsupportedPolicyPath {
+        /// The path that caused the error.
+        path: String,
+    },
+
+    /// Unable to access policy path.
+    #[error("Invalid policy path '{path}'")]
+    #[diagnostic(help("Check the exists and is a valid policy file."))]
+    AccessDenied {
+        /// The path that caused the error.
+        path: String,
         /// The error that occurred.
         error: String,
     },
@@ -205,6 +224,41 @@ impl Engine {
         Ok(policy_package)
     }
 
+    /// Adds a policy files to the policy engine. If path is a directory it will add any file matching *.rego
+    /// A policy file is a `rego` file that contains the policies to be evaluated.
+    ///
+    /// # Arguments
+    ///
+    /// * `policy_path` - The path to the policy file or directory.
+    ///
+    /// # Returns
+    ///
+    /// The policy package name.
+    pub fn add_policy_from_file_or_dir<P: AsRef<Path>>(
+        &mut self,
+        policy_path: P,
+    ) -> Result<(), Error> {
+        let path = policy_path.as_ref();
+
+        let md = metadata(path).map_err(|err| Error::AccessDenied {
+            path: path.to_string_lossy().to_string(),
+            error: err.to_string(),
+        })?;
+        match (md.is_file(), md.is_dir()) {
+            (true, _) => {
+                _ = self.add_policy_from_file(path)?;
+            }
+            (false, true) => {
+                _ = self.add_policies(path, "*.rego")?;
+            }
+            _ => {
+                return Err(Error::UnsupportedPolicyPath {
+                    path: path.to_string_lossy().to_string(),
+                });
+            }
+        };
+        Ok(())
+    }
     /// Adds a policy file to the policy engine.
     /// A policy file is a `rego` file that contains the policies to be evaluated.
     ///
@@ -557,5 +611,17 @@ mod tests {
         } else {
             panic!("Expected a CompoundError");
         }
+    }
+
+    #[test]
+    fn test_policy_from_file_or_dir() -> Result<(), Box<dyn std::error::Error>> {
+        let mut engine = Engine::new();
+        _ = engine.add_policy_from_file_or_dir("data/policies/otel_policies.rego")?;
+        assert_eq!(1, engine.policy_package_count);
+
+        _ = engine.add_policy_from_file_or_dir("data/multi-policies")?;
+        // TODO: add_policies double counts the number of files it adds.
+        assert_eq!(5, engine.policy_package_count);
+        Ok(())
     }
 }
