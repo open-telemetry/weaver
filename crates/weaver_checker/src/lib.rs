@@ -54,7 +54,9 @@ pub enum Error {
 
     /// Unable to access policy path.
     #[error("Invalid policy path '{path}'")]
-    #[diagnostic(help("Verify that the specified path exists and has the appropriate permissions."))]
+    #[diagnostic(help(
+        "Verify that the specified path exists and has the appropriate permissions."
+    ))]
     AccessDenied {
         /// The path that caused the error.
         path: String,
@@ -615,10 +617,10 @@ mod tests {
     #[test]
     fn test_policy_from_file_or_dir() -> Result<(), Box<dyn std::error::Error>> {
         let mut engine = Engine::new();
-        _ = engine.add_policy_from_file_or_dir("data/policies/otel_policies.rego")?;
+        engine.add_policy_from_file_or_dir("data/policies/otel_policies.rego")?;
         assert_eq!(1, engine.policy_package_count);
 
-        _ = engine.add_policy_from_file_or_dir("data/multi-policies")?;
+        engine.add_policy_from_file_or_dir("data/multi-policies")?;
         // TODO: add_policies double counts the number of files it adds.
         assert_eq!(3, engine.policy_package_count);
         Ok(())
