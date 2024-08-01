@@ -15,10 +15,11 @@ weaver registry check \
 --policy compatibility_check.rego
 ```
 
-* (#270 by @lquerel) Follow build tools case conversion rules.
+* (#284 by MadVikingGod) The `--policy` flag now accepts directories.
+* (#270 by @lquerel) Follow build tools’ case conversion rules. Numbers are no longer considered word splitters.
 * (#276 by @jsuereth) Remove legacy way of writing templates for semconv.
-* (#274 by @lquerel) Report an error when the compilation fail.
-* (#275 by @lquerel) Fix metric order in JQ filters (issue #268).
+* (#274 by @lquerel) Enhance error reporting for invalid JQ expressions.
+* (#275 by @lquerel) The custom JQ filter semconv_grouped_metrics now sorts metrics by their metric_name (issue #268).
 * (#256) Bump gix from 0.63.0 to 0.64.0.
 * (#271) Bump jaq-parse from 1.0.2 to 1.0.3.
 * (#272) Bump jaq-core from 1.5.0 to 1.5.1
