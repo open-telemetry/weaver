@@ -344,7 +344,6 @@ impl Engine {
 
         handle_errors(errors)?;
 
-        self.policy_package_count += added_policy_count;
         Ok(added_policy_count)
     }
 
@@ -621,7 +620,7 @@ mod tests {
 
         _ = engine.add_policy_from_file_or_dir("data/multi-policies")?;
         // TODO: add_policies double counts the number of files it adds.
-        assert_eq!(5, engine.policy_package_count);
+        assert_eq!(3, engine.policy_package_count);
         Ok(())
     }
 }
