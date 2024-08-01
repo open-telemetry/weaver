@@ -46,7 +46,7 @@ pub enum Error {
 
     /// An unsupported policy path.
     #[error("Invalid policy path '{path}'")]
-    #[diagnostic(help("Check the exists and is a valid policy file."))]
+    #[diagnostic(help("The specified path is neither a file nor a directory.”"))]
     UnsupportedPolicyPath {
         /// The path that caused the error.
         path: String,
@@ -54,7 +54,7 @@ pub enum Error {
 
     /// Unable to access policy path.
     #[error("Invalid policy path '{path}'")]
-    #[diagnostic(help("Check the exists and is a valid policy file."))]
+    #[diagnostic(help("Verify that the specified path exists and has the appropriate permissions."))]
     AccessDenied {
         /// The path that caused the error.
         path: String,

@@ -78,7 +78,7 @@ pub(crate) fn init_policy_engine(
 
     // Add policies from the command line
     for policy in policies {
-        _ = engine.add_policy_from_file_or_dir(policy)?;
+        engine.add_policy_from_file_or_dir(policy)?;
     }
     Ok(engine)
 }
