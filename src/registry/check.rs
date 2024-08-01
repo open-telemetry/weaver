@@ -32,8 +32,9 @@ pub struct RegistryCheckArgs {
     #[arg(long)]
     baseline_registry: Option<RegistryPath>,
 
-    /// Optional list of policy files to check against the files of the semantic
-    /// convention registry.
+    /// Optional list of policy files or directories to check against the files of the semantic
+    /// convention registry.  If a directory is provided all `.rego` files in the directory will be
+    /// loaded.
     #[arg(short = 'p', long = "policy")]
     pub policies: Vec<PathBuf>,
 
