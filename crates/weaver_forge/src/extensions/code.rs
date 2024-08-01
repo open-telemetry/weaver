@@ -5,7 +5,6 @@
 use std::collections::HashMap;
 
 use crate::config::WeaverConfig;
-use minijinja::value::ValueKind;
 use minijinja::{Environment, Value};
 
 /// Add code-oriented filters to the environment.
@@ -20,7 +19,6 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) {
     );
     env.add_filter("comment_with_prefix", comment_with_prefix);
     env.add_filter("markdown_to_html", markdown_to_html);
-    env.add_filter("print_value", print_value);
 }
 
 /// Converts the input string into a string comment with a prefix.
@@ -63,19 +61,6 @@ pub(crate) fn type_mapping(type_mapping: HashMap<String, String>) -> impl Fn(&Va
 pub(crate) fn markdown_to_html(input: &Value) -> String {
     let markdown = input.to_string();
     markdown::to_html(&markdown)
-}
-
-/// Converts the input value into:
-/// - A quoted string if the input is a string.
-/// - A non-quoted string if the input is a number or a boolean.
-/// - An empty string otherwise.
-pub(crate) fn print_value(input: &Value) -> String {
-    match input.kind() {
-        ValueKind::String => format!("\"{}\"", input),
-        ValueKind::Number => input.to_string(),
-        ValueKind::Bool => input.to_string(),
-        _ => "".to_owned(),
-    }
 }
 
 /// Create a filter that uses the `text_maps` section defined in `weaver.yaml` to replace
@@ -170,41 +155,6 @@ This also covers UDP network interactions where one side initiates the interacti
         let markdown = r#"A [link](https://example.com)"#;
         let expected_html = "<p>A <a href=\"https://example.com\">link</a></p>";
         assert_eq!(markdown_to_html(&Value::from(markdown)), expected_html);
-    }
-
-    #[test]
-    fn test_print_value() {
-        let config = WeaverConfig::default();
-        let mut env = Environment::new();
-        let ctx = serde_json::Value::Null;
-
-        add_filters(&mut env, &config);
-
-        assert_eq!(env.render_str("{{ 1 | print_value }}", &ctx).unwrap(), "1");
-        assert_eq!(
-            env.render_str("{{ 1.1 | print_value }}", &ctx).unwrap(),
-            "1.1"
-        );
-        assert_eq!(
-            env.render_str("{{ true | print_value }}", &ctx).unwrap(),
-            "true"
-        );
-        assert_eq!(
-            env.render_str("{{ false | print_value }}", &ctx).unwrap(),
-            "false"
-        );
-        assert_eq!(
-            env.render_str("{{ '1' | print_value }}", &ctx).unwrap(),
-            "\"1\""
-        );
-        assert_eq!(
-            env.render_str("{{ 'test' | print_value }}", &ctx).unwrap(),
-            "\"test\""
-        );
-        assert_eq!(
-            env.render_str("{{ [1,2] | print_value }}", &ctx).unwrap(),
-            ""
-        );
     }
 
     #[test]

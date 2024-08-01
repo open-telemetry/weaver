@@ -32,6 +32,7 @@ pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("camel_case_const", camel_case_const);
     env.add_filter("snake_case_const", snake_case_const);
     env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
+    env.add_filter("print_member_value", print_member_value);
 
     env.add_test("stable", is_stable);
     env.add_test("experimental", is_experimental);
@@ -324,6 +325,19 @@ pub(crate) fn instantiated_type(attr_type: &Value) -> Result<String, minijinja::
     )))
 }
 
+/// Converts an enum member value into:
+/// - A quoted string if the input is a string.
+/// - A non-quoted string if the input is a number or a boolean.
+/// - An empty string otherwise.
+pub(crate) fn print_member_value(input: &Value) -> String {
+    match input.kind() {
+        ValueKind::String => format!("\"{}\"", input),
+        ValueKind::Number => input.to_string(),
+        ValueKind::Bool => input.to_string(),
+        _ => "".to_owned(),
+    }
+}
+
 /// Returns the inferred enum type of the input type or an error if the input type is not an enum.
 pub(crate) fn enum_type(attr_type: &Value) -> Result<String, minijinja::Error> {
     if let Ok(members) = attr_type.get_attr("members") {
@@ -430,17 +444,16 @@ mod tests {
     use minijinja::{Environment, Value};
     use serde::Serialize;
 
-    use weaver_resolved_schema::attribute::Attribute;
-    use weaver_semconv::attribute::BasicRequirementLevelSpec;
-    use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
-    use weaver_semconv::attribute::RequirementLevel;
-    use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
-
     use crate::extensions::otel::{
         add_tests_and_filters, attribute_registry_file, attribute_registry_namespace,
         attribute_registry_title, attribute_sort, is_deprecated, is_experimental, is_stable,
         metric_namespace,
     };
+    use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::attribute::BasicRequirementLevelSpec;
+    use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
+    use weaver_semconv::attribute::RequirementLevel;
+    use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
 
     #[derive(Debug)]
     struct DynAttr {
@@ -1319,5 +1332,49 @@ mod tests {
         assert!(env
             .render_str("{{ 123 | pascal_case_const }}", &ctx,)
             .is_err());
+    }
+
+    #[test]
+    fn test_member_print_value() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        add_tests_and_filters(&mut env);
+
+        assert_eq!(
+            env.render_str("{{ 1 | print_member_value }}", &ctx)
+                .unwrap(),
+            "1"
+        );
+        assert_eq!(
+            env.render_str("{{ 1.1 | print_member_value }}", &ctx)
+                .unwrap(),
+            "1.1"
+        );
+        assert_eq!(
+            env.render_str("{{ true | print_member_value }}", &ctx)
+                .unwrap(),
+            "true"
+        );
+        assert_eq!(
+            env.render_str("{{ false | print_member_value }}", &ctx)
+                .unwrap(),
+            "false"
+        );
+        assert_eq!(
+            env.render_str("{{ '1' | print_member_value }}", &ctx)
+                .unwrap(),
+            "\"1\""
+        );
+        assert_eq!(
+            env.render_str("{{ 'test' | print_member_value }}", &ctx)
+                .unwrap(),
+            "\"test\""
+        );
+        assert_eq!(
+            env.render_str("{{ [1,2] | print_member_value }}", &ctx)
+                .unwrap(),
+            ""
+        );
     }
 }
