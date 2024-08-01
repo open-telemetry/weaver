@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2024-08-01
+
+What's Changed
+
+* (#257 by lquerel) Infrastructure to support backward-compatibility testing and, more generally, policies applied to multi-version registries.
+
+```
+weaver registry check \
+--registry https://github.com/open-telemetry/semantic-conventions.git[model] \
+--baseline-registry https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.26.0.zip[model] \
+--policy compatibility_check.rego
+```
+
+* (#270 by @lquerel) Follow build tools case conversion rules.
+* (#276 by @jsuereth) Remove legacy way of writing templates for semconv.
+* (#274 by @lquerel) Report an error when the compilation fail.
+* (#275 by @lquerel) Fix metric order in JQ filters (issue #268).
+* (#256) Bump gix from 0.63.0 to 0.64.0.
+* (#271) Bump jaq-parse from 1.0.2 to 1.0.3.
+* (#272) Bump jaq-core from 1.5.0 to 1.5.1
+* (#273) Bump toml from 0.8.16 to 0.8.17
+* (#283) Bump minijinja from 2.1.0 to 2.1.1
+
 ## [0.7.0] - 2024-07-22
 
 What's Changed

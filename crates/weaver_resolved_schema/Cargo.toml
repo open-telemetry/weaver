@@ -1,6 +1,6 @@
 [package]
 name = "weaver_resolved_schema"
-version = "0.7.0"
+version = "0.8.0"
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
