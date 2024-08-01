@@ -88,9 +88,8 @@ pub(crate) fn map_text(
 
 #[cfg(test)]
 mod tests {
-    use crate::extensions::code;
-
     use super::*;
+    use crate::extensions::code;
 
     #[test]
     fn test_comment() {
