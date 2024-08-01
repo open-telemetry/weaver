@@ -326,15 +326,30 @@ pub(crate) fn instantiated_type(attr_type: &Value) -> Result<String, minijinja::
 }
 
 /// Converts an enum member value into:
-/// - A quoted string if the input is a string.
+/// - A quoted and escaped string if the input is a string. JSON escapes are used.
 /// - A non-quoted string if the input is a number or a boolean.
 /// - An empty string otherwise.
-pub(crate) fn print_member_value(input: &Value) -> String {
+pub(crate) fn print_member_value(input: &Value) -> Result<String, minijinja::Error> {
     match input.kind() {
-        ValueKind::String => format!("\"{}\"", input),
-        ValueKind::Number => input.to_string(),
-        ValueKind::Bool => input.to_string(),
-        _ => "".to_owned(),
+        ValueKind::String => {
+            if let Some(input) = input.as_str() {
+                // Escape the string and add quotes.
+                // JSON escapes are used as they are very common for most languages.
+                if let Ok(input) = serde_json::to_string(input) {
+                    Ok(input)
+                } else {
+                    Err(minijinja::Error::custom(format!(
+                        "`print_member_value` failed to convert {} to a string",
+                        input
+                    )))
+                }
+            } else {
+                Ok("".to_owned())
+            }
+        }
+        ValueKind::Number => Ok(input.to_string()),
+        ValueKind::Bool => Ok(input.to_string()),
+        _ => Ok("".to_owned()),
     }
 }
 
@@ -444,16 +459,17 @@ mod tests {
     use minijinja::{Environment, Value};
     use serde::Serialize;
 
-    use crate::extensions::otel::{
-        add_tests_and_filters, attribute_registry_file, attribute_registry_namespace,
-        attribute_registry_title, attribute_sort, is_deprecated, is_experimental, is_stable,
-        metric_namespace,
-    };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
     use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
+
+    use crate::extensions::otel::{
+        add_tests_and_filters, attribute_registry_file, attribute_registry_namespace,
+        attribute_registry_title, attribute_sort, is_deprecated, is_experimental, is_stable,
+        metric_namespace, print_member_value,
+    };
 
     #[derive(Debug)]
     struct DynAttr {
@@ -936,7 +952,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
             )
             .unwrap(),
             "int"
@@ -945,7 +961,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
             )
             .unwrap(),
             "int[]"
@@ -954,7 +970,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::Template(TemplateTypeSpec::Int)
+                AttributeType::Template(TemplateTypeSpec::Int),
             )
             .unwrap(),
             "int"
@@ -963,7 +979,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
             )
             .unwrap(),
             "double"
@@ -972,7 +988,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
             )
             .unwrap(),
             "double[]"
@@ -981,7 +997,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::Template(TemplateTypeSpec::Double)
+                AttributeType::Template(TemplateTypeSpec::Double),
             )
             .unwrap(),
             "double"
@@ -990,7 +1006,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean),
             )
             .unwrap(),
             "boolean"
@@ -999,7 +1015,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans),
             )
             .unwrap(),
             "boolean[]"
@@ -1008,7 +1024,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::Template(TemplateTypeSpec::Boolean)
+                AttributeType::Template(TemplateTypeSpec::Boolean),
             )
             .unwrap(),
             "boolean"
@@ -1017,7 +1033,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             )
             .unwrap(),
             "string"
@@ -1026,7 +1042,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
+                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
             )
             .unwrap(),
             "string[]"
@@ -1035,7 +1051,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                AttributeType::Template(TemplateTypeSpec::String)
+                AttributeType::Template(TemplateTypeSpec::String),
             )
             .unwrap(),
             "string"
@@ -1044,7 +1060,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                enum_type(vec![1.into(), 2.into()])
+                enum_type(vec![1.into(), 2.into()]),
             )
             .unwrap(),
             "int"
@@ -1053,7 +1069,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                enum_type(vec![1.1.into(), 2.1.into()])
+                enum_type(vec![1.1.into(), 2.1.into()]),
             )
             .unwrap(),
             "double"
@@ -1062,7 +1078,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                enum_type(vec!["value1".into(), "value2".into()])
+                enum_type(vec!["value1".into(), "value2".into()]),
             )
             .unwrap(),
             "string"
@@ -1071,7 +1087,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                enum_type(vec![1.into(), 2.1.into()])
+                enum_type(vec![1.into(), 2.1.into()]),
             )
             .unwrap(),
             "string"
@@ -1080,7 +1096,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                enum_type(vec![1.into(), "two".into()])
+                enum_type(vec![1.into(), "two".into()]),
             )
             .unwrap(),
             "string"
@@ -1089,7 +1105,7 @@ mod tests {
             eval(
                 &env,
                 "{{ attr_type | instantiated_type }}",
-                enum_type(vec![1.0.into(), "two".into()])
+                enum_type(vec![1.0.into(), "two".into()]),
             )
             .unwrap(),
             "string"
@@ -1097,7 +1113,7 @@ mod tests {
         assert!(eval(
             &env,
             "{{ 'something else' | instantiated_type }}",
-            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
         )
         .is_err());
     }
@@ -1269,7 +1285,7 @@ mod tests {
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client_id' | pascal_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client_id' | pascal_case_const }}", &ctx)
                 .unwrap(),
             "MessagingClientid"
         );
@@ -1284,58 +1300,58 @@ mod tests {
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client.id' | pascal_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client.id' | pascal_case_const }}", &ctx)
                 .unwrap(),
             "MessagingClientId"
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client.id' | kebab_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client.id' | kebab_case_const }}", &ctx)
                 .unwrap(),
             "messaging-client-id"
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client_id' | kebab_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client_id' | kebab_case_const }}", &ctx)
                 .unwrap(),
             "messaging-clientid"
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client.id' | camel_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client.id' | camel_case_const }}", &ctx)
                 .unwrap(),
             "messagingClientId"
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client_id' | camel_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client_id' | camel_case_const }}", &ctx)
                 .unwrap(),
             "messagingClientid"
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client.id' | snake_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client.id' | snake_case_const }}", &ctx)
                 .unwrap(),
             "messaging_client_id"
         );
 
         assert_eq!(
-            env.render_str("{{ 'messaging.client_id' | snake_case_const }}", &ctx,)
+            env.render_str("{{ 'messaging.client_id' | snake_case_const }}", &ctx)
                 .unwrap(),
             "messaging_clientid"
         );
 
         assert!(env
-            .render_str("{{ 'messaging.client.id' | invalid_case_const }}", &ctx,)
+            .render_str("{{ 'messaging.client.id' | invalid_case_const }}", &ctx)
             .is_err());
 
         assert!(env
-            .render_str("{{ 123 | pascal_case_const }}", &ctx,)
+            .render_str("{{ 123 | pascal_case_const }}", &ctx)
             .is_err());
     }
 
     #[test]
-    fn test_member_print_value() {
+    fn test_print_member_value() {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 
@@ -1372,9 +1388,19 @@ mod tests {
             "\"test\""
         );
         assert_eq!(
+            env.render_str("{{ 'test\\bla' | print_member_value }}", &ctx)
+                .unwrap(),
+            "\"test\\bla\""
+        );
+        assert_eq!(
             env.render_str("{{ [1,2] | print_member_value }}", &ctx)
                 .unwrap(),
             ""
         );
+
+        assert_eq!(
+            print_member_value(&Value::from(r#"This is a test
+        on multiple lines with characters like ',   , \, and /"#)).unwrap(),
+            "\"This is a test\\n        on multiple lines with characters like ',   , \\\\, and /\"");
     }
 }

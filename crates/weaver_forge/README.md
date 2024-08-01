@@ -529,8 +529,8 @@ The following filters are available:
 - `ansi_underline`: Format a text using the underline ansi code.
 - `ansi_strikethrough`: Format a text using the strikethrough ansi code.
 - `print_value`: Filter returning a quoted and escaped string representation of the input
-  if the input is of type string. Numbers and booleans are stringified without the quotes,
-  and an empty string is returned for other types.
+  if the input is of type string (JSON escape rules are used). Numbers and booleans are
+  stringified without the quotes, and an empty string is returned for other types.
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
