@@ -621,7 +621,6 @@ mod tests {
         assert_eq!(1, engine.policy_package_count);
 
         engine.add_policy_from_file_or_dir("data/multi-policies")?;
-        // TODO: add_policies double counts the number of files it adds.
         assert_eq!(3, engine.policy_package_count);
         Ok(())
     }
