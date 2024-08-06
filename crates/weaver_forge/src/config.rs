@@ -119,6 +119,10 @@ pub(crate) struct TemplateConfig {
     /// `single`: Apply the template to the output of the filter as a whole.
     /// `each`: Apply the template to each item of the list returned by the filter.
     pub(crate) application_mode: ApplicationMode,
+    /// Parameters for the current template. All the parameters defined here will
+    /// override the parameters defined in the `params` section of the configuration.
+    /// These parameters can be overridden by parameters passed to the CLI.
+    pub(crate) params: Option<HashMap<String, Value>>,
 }
 
 fn default_filter() -> String {

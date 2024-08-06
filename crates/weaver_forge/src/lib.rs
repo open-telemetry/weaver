@@ -26,7 +26,7 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, Params, WeaverConfig};
+use crate::config::{ApplicationMode, Params, TemplateConfig, WeaverConfig};
 use crate::debug::error_summary;
 use crate::error::Error::InvalidConfigFile;
 use crate::extensions::{ansi, case, code, otel, util};
@@ -192,13 +192,33 @@ impl TemplateEngine {
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
     ) -> Self {
-        // Override the params defined in the `weaver.yaml` file with the params provided
-        // in the command line.
-        for (name, value) in params.params {
-            _ = config
-                .params
-                .get_or_insert_with(HashMap::new)
-                .insert(name, value);
+        // Compute the params for each template based on:
+        // - CLI-level params
+        // - Top-level params in the `weaver.yaml` file
+        if let Some(templates) = config.templates.as_mut() {
+            for template in templates {
+                let template_params = template.params.get_or_insert_with(HashMap::new);
+
+                // Add CLI-level params to the template params. If a param is already defined
+                // in the template params, the CLI-level param will override it.
+                // Note: The result of the insert method is ignored because we don't care about
+                // the previous value of the param.
+                for (name, value) in params.params.iter() {
+                    _ = template_params.insert(name.clone(), value.clone());
+                }
+
+                // Add the params defined at the top level of the `weaver.yaml` file
+                // to the local params if they are not already defined locally.
+                if let Some(top_level_params) = config.params.as_ref() {
+                    for (key, value) in top_level_params {
+                        if !template_params.contains_key(key) {
+                            // Note: The result of the insert method is ignored because we don't
+                            // care about the previous value of the param.
+                            _ = template_params.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+            }
         }
 
         Self {
@@ -280,159 +300,188 @@ impl TemplateEngine {
         let files = self.file_loader.all_files();
         let tmpl_matcher = self.target_config.template_matcher()?;
 
-        // Create a read-only context for the filter evaluations
+        // Serialize the context in JSON
         let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
             error: e.to_string(),
         })?;
 
-        let mut errors = Vec::new();
-
-        let params = if let Some(mut params) = self.target_config.params.clone() {
-            match serde_yaml::to_value(&self.target_config.params) {
-                Ok(value) => {
-                    let prev = params.insert("params".to_owned(), value);
-                    if prev.is_some() {
-                        errors.push(Error::DuplicateParamKey {
-                            key: "params".to_owned(),
-                            error: "The parameter `params` is a reserved parameter name".to_owned(),
-                        });
-                    }
-                }
-                Err(e) => {
-                    errors.push(ContextSerializationFailed {
-                        error: e.to_string(),
-                    });
-                }
-            }
-            Some(params)
-        } else {
-            None
-        };
-
-        // Build JQ context from the params.
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params.as_ref().map_or_else(
-            || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
-            |params| {
-                params
-                    .iter()
-                    .filter_map(|(k, v)| {
-                        let json_value = match serde_json::to_value(v) {
-                            Ok(json_value) => json_value,
-                            Err(e) => {
-                                errors.push(ContextSerializationFailed {
-                                    error: e.to_string(),
-                                });
-                                return None;
-                            }
-                        };
-                        Some((k.clone(), json_value))
-                    })
-                    .unzip()
-            },
-        );
-
-        // Process all files in parallel
-        // - Filter the files that match the template pattern
-        // - Apply the filter to the context
-        // - Evaluate the template with the filtered context based on the
-        // application mode.
-        //   - If the application mode is single, the filtered context is
-        // evaluated as a single object.
-        //   - If the application mode is each, the filtered context is
-        // evaluated as an array of objects and each object is evaluated
-        // independently and in parallel with the same template.
-        let mut errs = files
+        // Process each file and collect any errors.
+        // The files are processed in parallel.
+        let errs = files
             .into_par_iter()
-            .filter_map(|relative_path| {
-                for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filter = match Filter::try_new(
-                        template.filter.as_str(),
-                        jq_vars.clone(),
-                        self.jq_packages.clone(),
-                    ) {
-                        Ok(filter) => filter,
-                        Err(e) => return Some(e),
-                    };
-                    // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
-                    // jaq_interpret::val::Val here.
-                    let jq_ctx = jq_ctx
-                        .iter()
-                        .map(|v| Val::from(v.clone()))
-                        .collect::<Vec<_>>();
-                    let filtered_result = match filter.apply(context.clone(), jq_ctx) {
-                        Ok(result) => result,
-                        Err(e) => return Some(e),
-                    };
-
-                    match template.application_mode {
-                        // The filtered result is evaluated as a single object
-                        ApplicationMode::Single => {
-                            if filtered_result.is_null()
-                                || (filtered_result.is_array()
-                                    && filtered_result.as_array().expect("is_array").is_empty())
-                            {
-                                // Skip the template evaluation if the filtered result is null or an empty array
-                                continue;
-                            }
-                            if let Err(e) = self.evaluate_template(
-                                log.clone(),
-                                NewContext {
-                                    ctx: &filtered_result,
-                                }
-                                .try_into()
-                                .ok()?,
-                                relative_path.as_path(),
-                                output_directive,
-                                output_dir,
-                            ) {
-                                return Some(e);
-                            }
-                        }
-                        // The filtered result is evaluated as an array of objects
-                        // and each object is evaluated independently and in parallel
-                        // with the same template.
-                        ApplicationMode::Each => {
-                            if let Some(values) = filtered_result.as_array() {
-                                let errs = values
-                                    .into_par_iter()
-                                    .filter_map(|result| {
-                                        if let Err(e) = self.evaluate_template(
-                                            log.clone(),
-                                            NewContext { ctx: result }.try_into().ok()?,
-                                            relative_path.as_path(),
-                                            output_directive,
-                                            output_dir,
-                                        ) {
-                                            return Some(e);
-                                        }
-                                        None
-                                    })
-                                    .collect::<Vec<Error>>();
-                                if !errs.is_empty() {
-                                    return Some(Error::compound_error(errs));
-                                }
-                            } else if let Err(e) = self.evaluate_template(
-                                log.clone(),
-                                NewContext {
-                                    ctx: &filtered_result,
-                                }
-                                .try_into()
-                                .ok()?,
-                                relative_path.as_path(),
-                                output_directive,
-                                output_dir,
-                            ) {
-                                return Some(e);
-                            }
-                        }
-                    }
-                }
-                None
+            .flat_map(|file_to_process| {
+                // Iterate over the all the template configurations that match the file
+                // to process in parallel.
+                tmpl_matcher
+                    .matches(file_to_process.clone())
+                    .into_par_iter()
+                    .filter_map(|template| {
+                        self.process_template(
+                            &file_to_process,
+                            template,
+                            &context,
+                            output_dir,
+                            output_directive,
+                            log.clone(),
+                        )
+                        .err()
+                    })
+                    .collect::<Vec<Error>>()
             })
             .collect::<Vec<Error>>();
 
-        errs.extend(errors);
         handle_errors(errs)
+    }
+
+    /// Process a single template file with the given template configuration,
+    /// context, output directory, and output directive.
+    fn process_template(
+        &self,
+        template_file: &Path,
+        template: &TemplateConfig,
+        context: &serde_json::Value,
+        output_dir: &Path,
+        output_directive: &OutputDirective,
+        log: impl Logger + Sync + Clone,
+    ) -> Result<(), Error> {
+        let params = Self::init_params(template.params.clone())?;
+        let (jq_vars, jq_ctx) = Self::prepare_jq_context(&params)?;
+        let filter = Filter::try_new(
+            template.filter.as_str(),
+            jq_vars.clone(),
+            self.jq_packages.clone(),
+        )?;
+        // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
+        // jaq_interpret::val::Val here.
+        let jq_ctx = jq_ctx.into_iter().map(Val::from).collect::<Vec<_>>();
+        let filtered_result = filter.apply(context.clone(), jq_ctx)?;
+
+        match template.application_mode {
+            ApplicationMode::Single => self.process_single_mode(
+                &filtered_result,
+                template_file,
+                output_dir,
+                output_directive,
+                log,
+            ),
+            ApplicationMode::Each => self.process_each_mode(
+                &filtered_result,
+                template_file,
+                output_dir,
+                output_directive,
+                log,
+            ),
+        }
+    }
+
+    /// Evaluate the template for each object in the context if the context is an array, otherwise
+    /// evaluate the template for the context entire object.
+    /// The evaluation is done in parallel.
+    fn process_each_mode(
+        &self,
+        ctx: &serde_json::Value,
+        template_file: &Path,
+        output_dir: &Path,
+        output_directive: &OutputDirective,
+        log: impl Logger + Sync + Clone,
+    ) -> Result<(), Error> {
+        match ctx {
+            serde_json::Value::Array(values) => {
+                // Evaluate the template for each object in the array context in parallel
+                let errs = values
+                    .into_par_iter()
+                    .filter_map(|result| {
+                        self.evaluate_template(
+                            log.clone(),
+                            NewContext { ctx: result }.try_into().ok()?,
+                            template_file,
+                            output_directive,
+                            output_dir,
+                        )
+                        .err()
+                    })
+                    .collect::<Vec<Error>>();
+                handle_errors(errs)
+            }
+            _ => self.evaluate_template(
+                log.clone(),
+                NewContext { ctx }.try_into()?,
+                template_file,
+                output_directive,
+                output_dir,
+            ),
+        }
+    }
+
+    /// Evaluate the template for the entire context.
+    fn process_single_mode(
+        &self,
+        ctx: &serde_json::Value,
+        template_file: &Path,
+        output_dir: &Path,
+        output_directive: &OutputDirective,
+        log: impl Logger + Sync + Clone,
+    ) -> Result<(), Error> {
+        if ctx.is_null() || (ctx.is_array() && ctx.as_array().expect("is_array").is_empty()) {
+            // Skip the template evaluation if the filtered result is null or an empty array
+            return Ok(());
+        }
+        self.evaluate_template(
+            log.clone(),
+            NewContext { ctx }.try_into()?,
+            template_file,
+            output_directive,
+            output_dir,
+        )
+    }
+
+    /// Build a JQ context from the Weaver parameters.
+    fn prepare_jq_context(
+        params: &HashMap<String, serde_yaml::Value>,
+    ) -> Result<(Vec<String>, Vec<serde_json::Value>), Error> {
+        let mut errs = Vec::new();
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params
+            .iter()
+            .filter_map(|(k, v)| {
+                let json_value = match serde_json::to_value(v) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        errs.push(ContextSerializationFailed {
+                            error: e.to_string(),
+                        });
+                        return None;
+                    }
+                };
+                Some((k.clone(), json_value))
+            })
+            .unzip();
+
+        handle_errors(errs)?;
+        Ok((jq_vars, jq_ctx))
+    }
+
+    /// Initialize a map of parameters from the template parameters.
+    /// If there are template parameters then the map returned contains the entry `params`
+    /// initialized with an in-memory yaml representation of the template parameters.
+    /// Otherwise, an empty map is returned if there is no template parameter.
+    fn init_params(
+        template_params: Option<HashMap<String, serde_yaml::Value>>,
+    ) -> Result<HashMap<String, serde_yaml::Value>, Error> {
+        if let Some(mut params) = template_params.clone() {
+            let value =
+                serde_yaml::to_value(template_params).map_err(|e| ContextSerializationFailed {
+                    error: e.to_string(),
+                })?;
+            if params.insert("params".to_owned(), value).is_some() {
+                return Err(Error::DuplicateParamKey {
+                    key: "params".to_owned(),
+                    error: "The parameter `params` is a reserved parameter name".to_owned(),
+                });
+            }
+            Ok(params)
+        } else {
+            Ok(HashMap::new())
+        }
     }
 
     #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
@@ -772,6 +821,7 @@ mod tests {
             pattern: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
+            params: None,
         });
         engine.target_config.templates = Some(templates);
 
@@ -846,7 +896,7 @@ mod tests {
 
         assert!(diff_dir(
             "expected_output/whitespace_control",
-            "observed_output/whitespace_control"
+            "observed_output/whitespace_control",
         )
         .unwrap());
     }
@@ -926,7 +976,7 @@ mod tests {
 
         assert!(diff_dir(
             "expected_output/semconv_jq_fn",
-            "observed_output/semconv_jq_fn"
+            "observed_output/semconv_jq_fn",
         )
         .unwrap());
     }
