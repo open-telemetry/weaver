@@ -92,6 +92,19 @@ pub struct Params {
     pub params: HashMap<String, Value>,
 }
 
+impl Params {
+    /// Create a new `Params` struct from a slice of key-value pairs.
+    #[must_use]
+    pub fn from_key_value_pairs(params: &[(&str, Value)]) -> Self {
+        Params {
+            params: params
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), v.to_owned()))
+                .collect(),
+        }
+    }
+}
+
 /// Application mode defining how to apply a template on the result of a
 /// filter applied on a registry.
 #[derive(Deserialize, Debug, PartialEq)]

@@ -64,6 +64,8 @@ The following options can be configured in the `weaver.yaml` file:
 #  - pattern: "**/attribute_group.md"
 #    filter: ".groups[] | select(.type == \"attribute_group\")"
 #    application_mode: each
+#    params:
+#      param1: val1_bis
 #  - pattern: "**/attribute_groups.md"
 #    filter: ".groups[] | select(.type == \"attribute_group\")"
 #    application_mode: single
@@ -89,6 +91,21 @@ The last configuration file loaded will override the previous ones.
 
 For the most complex cases, it is possible to define explicitly the list configuration
 files to load using the `--config` CLI n-ary parameter.
+
+## Parameters
+
+Weaver supports the definition of parameters both in the `weaver.yaml` file and in the CLI.
+The parameters defined in the `weaver.yaml` file will be overridden by the parameters
+defined in the CLI.
+
+The parameters defined in the `weaver.yaml` file are accessible in both the JQ expressions
+and the Jinja templates (see this [documentation](/crates/weaver_forge/README.md) for more
+details). Inside the `weaver.yaml` file, parameters can be defined at multiple levels:
+- At the file level, using the top-level `params` section.
+- At the template level, using the `params` section inside the `templates` section.
+
+Template-level parameters override file-level parameters. CLI parameters override both
+file-level and template-level parameters.
 
 ## Example
 

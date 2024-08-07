@@ -701,6 +701,7 @@ mod tests {
 
     fn prepare_test(
         target: &str,
+        cli_params: Params,
     ) -> (
         TestLogger,
         TemplateEngine,
@@ -711,7 +712,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
-        let mut engine = TemplateEngine::new(config, loader, Params::default());
+        let mut engine = TemplateEngine::new(config, loader, cli_params);
         engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
         let registry_id = "default";
@@ -923,7 +924,7 @@ mod tests {
     #[test]
     fn test_whitespace_control() {
         let (logger, engine, template_registry, observed_output, expected_output) =
-            prepare_test("whitespace_control");
+            prepare_test("whitespace_control", Params::default());
 
         engine
             .generate(
@@ -974,7 +975,7 @@ mod tests {
     #[test]
     fn test_semconv_jq_functions() {
         let (logger, engine, template_registry, observed_output, expected_output) =
-            prepare_test("semconv_jq_fn");
+            prepare_test("semconv_jq_fn", Params::default());
 
         engine
             .generate(
@@ -993,8 +994,15 @@ mod tests {
 
     #[test]
     fn test_template_params() {
+        let cli_params = Params::from_key_value_pairs(&[
+            (
+                "param_config",
+                serde_yaml::Value::String("cli_value".to_owned()),
+            ),
+            ("shared_2", serde_yaml::Value::Bool(true)),
+        ]);
         let (logger, engine, template_registry, observed_output, expected_output) =
-            prepare_test("template_params");
+            prepare_test("template_params", cli_params);
 
         engine
             .generate(

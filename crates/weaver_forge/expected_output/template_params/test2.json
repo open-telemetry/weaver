@@ -1,13 +1,13 @@
 {
-  "param_config": "weaver-file-level-param",
+  "param_config": "cli_value",
   "params": {
-    "param_config": "weaver-file-level-param",
+    "param_config": "cli_value",
     "shared_1": [
       "1",
       "2",
       "3"
     ],
-    "shared_2": false,
+    "shared_2": true,
     "template_name": "test2",
     "test_2": true
   },
@@ -16,7 +16,7 @@
     "2",
     "3"
   ],
-  "shared_2": false,
+  "shared_2": true,
   "template_name": "test2",
   "test_2": true
 }
