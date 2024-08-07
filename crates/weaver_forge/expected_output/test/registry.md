@@ -4,6 +4,7 @@ Url:
 
 # Attribute Groups
 
+- [registry.exception](attribute_group/registry_exception.md)
 - [attributes.jvm.memory](attribute_group/attributes_jvm_memory.md)
 - [registry.db](attribute_group/registry_db.md)
 - [registry.http](attribute_group/registry_http.md)
@@ -14,8 +15,8 @@ Url:
 
 # Events
 
-- [ios.lifecycle.events](event/ios_lifecycle_events.md)
-- [android.lifecycle.events](event/android_lifecycle_events.md)
+- [device.app.lifecycle](event/device_app_lifecycle.md)
+- [trace-exception](event/trace_exception.md)
 
 # Metrics
 

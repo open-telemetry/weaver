@@ -72,3 +72,78 @@ groups:
                 brief: >
                   Any time after Activity.onResume() or, if the app has no Activity,
                   Context.startService() has been called when the app was in either the created or background states.
+
+  - id: span.event.test.no_name
+    stability: experimental
+    type: event
+    prefix: span.event.test
+    brief: >
+      This event represents an occurrence of a span event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+
+  - id: span.event.test.with_name
+    name: span.event.test.with_name
+    stability: experimental
+    type: event
+    prefix: span.event.test.with_name
+    brief: >
+      This event represents an occurrence of a span event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+
+  - id: test.event.with_attributes
+    name: test.event.with_attributes
+    stability: experimental
+    type: event
+    brief: >
+      This event represents an occurrence of a test event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+    body:
+      fields:
+        - id: field1
+          type: string
+          brief: 'The field1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `field2` is not set, recommended otherwise.
+        - id: field2
+          type: string
+          brief: 'The field2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `field1` is not set, recommended otherwise.

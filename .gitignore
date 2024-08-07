@@ -15,6 +15,9 @@ just.zsh
 .vscode/
 .devcontainer/
 
+# Visual Studio
+.vs/
+
 # Emacs
 *~
 \#*\#

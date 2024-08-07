@@ -28,15 +28,11 @@ templates:
     application_mode: single
   - pattern: "**/event.md"
     filter: >
-      semconv_signal("event"; {})
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) })
+      semconv_grouped_events
     application_mode: each
   - pattern: "**/events.md"
     filter: >
-      semconv_signal("event"; {})
-      | group_by(.root_namespace)
-      | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) })
+      semconv_grouped_events
     application_mode: single
   - pattern: "**/metric.md"
     filter: semconv_grouped_metrics
