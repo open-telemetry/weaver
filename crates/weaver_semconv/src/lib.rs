@@ -9,6 +9,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
 pub mod attribute;
+pub mod body;
 pub mod group;
 pub mod metric;
 pub mod registry;
@@ -178,6 +179,7 @@ mod tests {
             "data/cloudevents.yaml",
             "data/database.yaml",
             "data/database-metrics.yaml",
+            "data/event.yaml",
             "data/exception.yaml",
             "data/faas.yaml",
             "data/faas-common.yaml",

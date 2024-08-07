@@ -1,73 +1,1411 @@
 [
   {
-    "name": "ios.state",
-    "type": {
-      "allow_custom_values": false,
-      "members": [
-        {
-          "id": "active",
-          "value": "active",
-          "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
-          "note": null
-        },
-        {
-          "id": "inactive",
-          "value": "inactive",
-          "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n",
-          "note": null
-        },
-        {
-          "id": "background",
-          "value": "background",
-          "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n",
-          "note": null
-        },
-        {
-          "id": "foreground",
-          "value": "foreground",
-          "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n",
-          "note": null
-        },
-        {
-          "id": "terminate",
-          "value": "terminate",
-          "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n",
-          "note": null
-        }
+    "name": "browser.brands",
+    "type": "string[]",
+    "brief": "Array of brand name and version separated by a space",
+    "examples": [
+      [
+        " Not A;Brand 99",
+        "Chromium 99",
+        "Chrome 99"
       ]
-    },
-    "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
-    "requirement_level": "required",
-    "note": "The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.\n"
+    ],
+    "requirement_level": "recommended",
+    "note": "This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.brands`).\n"
   },
   {
-    "name": "android.state",
+    "name": "browser.platform",
+    "type": "string",
+    "brief": "The platform on which the browser is running",
+    "examples": [
+      "Windows",
+      "macOS",
+      "Android",
+      "iOS",
+      "Linux"
+    ],
+    "requirement_level": "recommended",
+    "note": "This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.platform`). If unavailable, the legacy `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD be left unset in order for the values to be consistent. The list of possible values is defined in the [W3C User-Agent Client Hints specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform). Note that some (but not all) of these values can overlap with values in the [`os.type` and `os.name` attributes](./os.md). However, for consistency, the values in the `browser.platform` attribute should capture the exact value that the user agent provides.\n"
+  },
+  {
+    "name": "browser.mobile",
+    "type": "boolean",
+    "brief": "A boolean that is true if the browser is running on a mobile device",
+    "requirement_level": "recommended",
+    "note": "This value is intended to be taken from the [UA client hints API](https://wicg.github.io/ua-client-hints/#interface) (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be left unset.\n"
+  },
+  {
+    "name": "browser.language",
+    "type": "string",
+    "brief": "Preferred language of the user using the browser",
+    "examples": [
+      "en",
+      "en-US",
+      "en-AU",
+      "fr",
+      "fr-FR"
+    ],
+    "requirement_level": "recommended",
+    "note": "This value is intended to be taken from the Navigator API `navigator.language`.\n"
+  },
+  {
+    "name": "client.name",
+    "type": "string",
+    "brief": "The name of the client that reported the exception.\n",
+    "examples": [
+      "myclient"
+    ],
+    "requirement_level": "recommended"
+  },
+  {
+    "name": "browser.platform",
+    "type": "string",
+    "brief": "The browser platform",
+    "examples": [
+      "Windows",
+      "macOS",
+      "Android"
+    ],
+    "requirement_level": "recommended",
+    "note": "Test value.",
+    "stability": "stable"
+  },
+  {
+    "name": "http.url",
+    "type": "string",
+    "brief": "The Url",
+    "examples": [
+      "https://example.com"
+    ],
+    "requirement_level": "recommended",
+    "note": "Test url value.",
+    "stability": "stable"
+  },
+  {
+    "name": "log.event.attr",
+    "type": "string",
+    "brief": "Just making sure the referenced attributes are defined",
+    "examples": "some value",
+    "requirement_level": "recommended",
+    "note": "Test value.",
+    "stability": "stable"
+  },
+  {
+    "name": "session.id",
+    "type": "string",
+    "brief": "The session id",
+    "examples": "127836abcdef98",
+    "requirement_level": "recommended",
+    "note": "Test value.",
+    "stability": "stable"
+  },
+  {
+    "name": "client.address",
+    "type": "string",
+    "brief": "Client address - domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+    "examples": [
+      "client.example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "note": "When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent the client address behind any intermediaries,  for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "client.port",
+    "type": "int",
+    "brief": "Client port number.",
+    "examples": [
+      65123
+    ],
+    "requirement_level": "recommended",
+    "note": "When observed from the server side, and when communicating through an intermediary, `client.port` SHOULD represent the client port behind any intermediaries,  for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "exception.type",
+    "type": "string",
+    "brief": "The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.\n",
+    "examples": [
+      "java.net.ConnectException",
+      "OSError"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "exception.message",
+    "type": "string",
+    "brief": "The exception message.",
+    "examples": [
+      "Division by zero",
+      "Can't convert 'int' object to str implicitly"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "exception.stacktrace",
+    "type": "string",
+    "brief": "A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.\n",
+    "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "exception.escaped",
+    "type": "boolean",
+    "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
+    "requirement_level": "recommended",
+    "note": "An exception is considered to have escaped (or left) the scope of a span,\nif that span is ended while the exception is still logically \"in flight\".\nThis may be actually \"in flight\" in some languages (e.g. if the exception\nis passed to a Context manager's `__exit__` method in Python) but will\nusually be caught at the point of recording the exception in most languages.\n\nIt is usually not possible to determine at the point where an exception is thrown\nwhether it will escape the scope of a span.\nHowever, it is trivial to know that an exception\nwill escape, if one checks for an active exception just before ending the span,\nas done in the [example for recording span exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/#recording-an-exception).\n\nIt follows that an exception may still escape the scope of the span\neven if the `exception.escaped` attribute was not set or set to false,\nsince the event might have been recorded at a time where it was not\nclear whether the exception will escape.",
+    "stability": "stable"
+  },
+  {
+    "name": "gen_ai.system",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "openai",
+          "value": "openai",
+          "brief": "OpenAI",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "vertex_ai",
+          "value": "vertex_ai",
+          "brief": "Vertex AI",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "anthropic",
+          "value": "anthropic",
+          "brief": "Anthropic",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cohere",
+          "value": "cohere",
+          "brief": "Cohere",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The Generative AI product as identified by the client or server instrumentation.",
+    "examples": "openai",
+    "requirement_level": "recommended",
+    "note": "The `gen_ai.system` describes a family of GenAI models with specific model identified\nby `gen_ai.request.model` and `gen_ai.response.model` attributes.\n\nThe actual GenAI product may differ from the one identified by the client.\nFor example, when using OpenAI client libraries to communicate with Mistral, the `gen_ai.system`\nis set to `openai` based on the instrumentation's best knowledge.\n\nFor custom model, a custom friendly name SHOULD be used.\nIf none of these options apply, the `gen_ai.system` SHOULD be set to `_OTHER`.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.model",
+    "type": "string",
+    "brief": "The name of the GenAI model a request is being made to.",
+    "examples": "gpt-4",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.max_tokens",
+    "type": "int",
+    "brief": "The maximum number of tokens the model generates for a request.",
+    "examples": [
+      100
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.temperature",
+    "type": "double",
+    "brief": "The temperature setting for the GenAI request.",
+    "examples": [
+      0.0
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.top_p",
+    "type": "double",
+    "brief": "The top_p sampling setting for the GenAI request.",
+    "examples": [
+      1.0
+    ],
+    "tag": "llm-generic-request",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.top_k",
+    "type": "double",
+    "brief": "The top_k sampling setting for the GenAI request.",
+    "examples": [
+      1.0
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.stop_sequences",
+    "type": "string[]",
+    "brief": "List of sequences that the model will use to stop generating further tokens.",
+    "examples": [
+      [
+        "forest",
+        "lived"
+      ]
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.frequency_penalty",
+    "type": "double",
+    "brief": "The frequency penalty setting for the GenAI request.",
+    "examples": [
+      0.1
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.presence_penalty",
+    "type": "double",
+    "brief": "The presence penalty setting for the GenAI request.",
+    "examples": [
+      0.1
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.response.id",
+    "type": "string",
+    "brief": "The unique identifier for the completion.",
+    "examples": [
+      "chatcmpl-123"
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.response.model",
+    "type": "string",
+    "brief": "The name of the model that generated the response.",
+    "examples": [
+      "gpt-4-0613"
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.response.finish_reasons",
+    "type": "string[]",
+    "brief": "Array of reasons the model stopped generating tokens, corresponding to each generation received.",
+    "examples": [
+      [
+        "stop"
+      ]
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.usage.input_tokens",
+    "type": "int",
+    "brief": "The number of tokens used in the GenAI input (prompt).",
+    "examples": [
+      100
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.usage.output_tokens",
+    "type": "int",
+    "brief": "The number of tokens used in the GenAI response (completion).",
+    "examples": [
+      180
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.token.type",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "input",
+          "value": "input",
+          "brief": "Input tokens (prompt, input, etc.)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "completion",
+          "value": "output",
+          "brief": "Output tokens (completion, response, etc.)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The type of token being counted.",
+    "examples": [
+      "input",
+      "output"
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.prompt",
+    "type": "string",
+    "brief": "The full prompt sent to the GenAI model.",
+    "examples": [
+      "[{'role': 'user', 'content': 'What is the capital of France?'}]"
+    ],
+    "requirement_level": "recommended",
+    "note": "It's RECOMMENDED to format prompts as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.completion",
+    "type": "string",
+    "brief": "The full response received from the GenAI model.",
+    "examples": [
+      "[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]"
+    ],
+    "requirement_level": "recommended",
+    "note": "It's RECOMMENDED to format completions as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.operation.name",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "chat",
+          "value": "chat",
+          "brief": "Chat completion operation such as [OpenAI Chat API](https://platform.openai.com/docs/api-reference/chat)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "text_completion",
+          "value": "text_completion",
+          "brief": "Text completions operation such as [OpenAI Completions API (Legacy)](https://platform.openai.com/docs/api-reference/completions)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The name of the operation being performed.",
+    "requirement_level": "recommended",
+    "note": "If one of the predefined values applies, but specific system uses a different name it's RECOMMENDED to document it in the semantic conventions for specific GenAI system and use system-specific name in the instrumentation. If a different name is not documented, instrumentation libraries SHOULD use applicable predefined value.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.carrier.icc",
+    "type": "string",
+    "brief": "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.",
+    "examples": "DE",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.carrier.mcc",
+    "type": "string",
+    "brief": "The mobile carrier country code.",
+    "examples": "310",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.carrier.mnc",
+    "type": "string",
+    "brief": "The mobile carrier network code.",
+    "examples": "001",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.carrier.name",
+    "type": "string",
+    "brief": "The name of the mobile carrier.",
+    "examples": "sprint",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.connection.subtype",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "gprs",
+          "value": "gprs",
+          "brief": "GPRS",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "edge",
+          "value": "edge",
+          "brief": "EDGE",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "umts",
+          "value": "umts",
+          "brief": "UMTS",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cdma",
+          "value": "cdma",
+          "brief": "CDMA",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "evdo_0",
+          "value": "evdo_0",
+          "brief": "EVDO Rel. 0",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "evdo_a",
+          "value": "evdo_a",
+          "brief": "EVDO Rev. A",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cdma2000_1xrtt",
+          "value": "cdma2000_1xrtt",
+          "brief": "CDMA2000 1XRTT",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "hsdpa",
+          "value": "hsdpa",
+          "brief": "HSDPA",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "hsupa",
+          "value": "hsupa",
+          "brief": "HSUPA",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "hspa",
+          "value": "hspa",
+          "brief": "HSPA",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "iden",
+          "value": "iden",
+          "brief": "IDEN",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "evdo_b",
+          "value": "evdo_b",
+          "brief": "EVDO Rev. B",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "lte",
+          "value": "lte",
+          "brief": "LTE",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "ehrpd",
+          "value": "ehrpd",
+          "brief": "EHRPD",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "hspap",
+          "value": "hspap",
+          "brief": "HSPAP",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "gsm",
+          "value": "gsm",
+          "brief": "GSM",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "td_scdma",
+          "value": "td_scdma",
+          "brief": "TD-SCDMA",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "iwlan",
+          "value": "iwlan",
+          "brief": "IWLAN",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "nr",
+          "value": "nr",
+          "brief": "5G NR (New Radio)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "nrnsa",
+          "value": "nrnsa",
+          "brief": "5G NRNSA (New Radio Non-Standalone)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "lte_ca",
+          "value": "lte_ca",
+          "brief": "LTE CA",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.",
+    "examples": "LTE",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.connection.type",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "wifi",
+          "value": "wifi",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "wired",
+          "value": "wired",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cell",
+          "value": "cell",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unavailable",
+          "value": "unavailable",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unknown",
+          "value": "unknown",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The internet connection type.",
+    "examples": "wifi",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "network.local.address",
+    "type": "string",
+    "brief": "Local address of the network connection - IP address or Unix domain socket name.",
+    "examples": [
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "network.local.port",
+    "type": "int",
+    "brief": "Local port number of the network connection.",
+    "examples": [
+      65123
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "network.peer.address",
+    "type": "string",
+    "brief": "Peer address of the network connection - IP address or Unix domain socket name.",
+    "examples": [
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "network.peer.port",
+    "type": "int",
+    "brief": "Peer port number of the network connection.",
+    "examples": [
+      65123
+    ],
+    "requirement_level": "recommended",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.name",
+    "type": "string",
+    "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
+    "examples": [
+      "amqp",
+      "http",
+      "mqtt"
+    ],
+    "requirement_level": "recommended",
+    "note": "The value SHOULD be normalized to lowercase.",
+    "stability": "stable"
+  },
+  {
+    "name": "network.protocol.version",
+    "type": "string",
+    "brief": "The actual version of the protocol used for network communication.",
+    "examples": [
+      "1.1",
+      "2"
+    ],
+    "requirement_level": "recommended",
+    "note": "If protocol version is subject to negotiation (for example using [ALPN](https://www.rfc-editor.org/rfc/rfc7301.html)), this attribute SHOULD be set to the negotiated version. If the actual protocol version is not known, this attribute SHOULD NOT be set.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "network.transport",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "tcp",
+          "value": "tcp",
+          "brief": "TCP",
+          "note": null,
+          "stability": "stable",
+          "deprecated": null
+        },
+        {
+          "id": "udp",
+          "value": "udp",
+          "brief": "UDP",
+          "note": null,
+          "stability": "stable",
+          "deprecated": null
+        },
+        {
+          "id": "pipe",
+          "value": "pipe",
+          "brief": "Named or anonymous pipe.",
+          "note": null,
+          "stability": "stable",
+          "deprecated": null
+        },
+        {
+          "id": "unix",
+          "value": "unix",
+          "brief": "Unix domain socket",
+          "note": null,
+          "stability": "stable",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).\n",
+    "examples": [
+      "tcp",
+      "udp"
+    ],
+    "requirement_level": "recommended",
+    "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "network.type",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "ipv4",
+          "value": "ipv4",
+          "brief": "IPv4",
+          "note": null,
+          "stability": "stable",
+          "deprecated": null
+        },
+        {
+          "id": "ipv6",
+          "value": "ipv6",
+          "brief": "IPv6",
+          "note": null,
+          "stability": "stable",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.",
+    "examples": [
+      "ipv4",
+      "ipv6"
+    ],
+    "requirement_level": "recommended",
+    "note": "The value SHOULD be normalized to lowercase.",
+    "stability": "stable"
+  },
+  {
+    "name": "network.io.direction",
     "type": {
       "allow_custom_values": false,
       "members": [
         {
-          "id": "created",
-          "value": "created",
-          "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",
-          "note": null
+          "id": "transmit",
+          "value": "transmit",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
         },
         {
-          "id": "background",
-          "value": "background",
-          "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n",
-          "note": null
-        },
-        {
-          "id": "foreground",
-          "value": "foreground",
-          "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.",
-          "note": null
+          "id": "receive",
+          "value": "receive",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
         }
       ]
     },
-    "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
-    "requirement_level": "required",
-    "note": "The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.\n"
+    "brief": "The network IO operation direction.",
+    "examples": [
+      "transmit"
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.connect_rpc.error_code",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "cancelled",
+          "value": "cancelled",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unknown",
+          "value": "unknown",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "invalid_argument",
+          "value": "invalid_argument",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "deadline_exceeded",
+          "value": "deadline_exceeded",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "not_found",
+          "value": "not_found",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "already_exists",
+          "value": "already_exists",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "permission_denied",
+          "value": "permission_denied",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "resource_exhausted",
+          "value": "resource_exhausted",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "failed_precondition",
+          "value": "failed_precondition",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "aborted",
+          "value": "aborted",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "out_of_range",
+          "value": "out_of_range",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unimplemented",
+          "value": "unimplemented",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "internal",
+          "value": "internal",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unavailable",
+          "value": "unavailable",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "data_loss",
+          "value": "data_loss",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unauthenticated",
+          "value": "unauthenticated",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.connect_rpc.request.metadata",
+    "type": "template[string[]]",
+    "brief": "Connect request metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]"
+    ],
+    "requirement_level": "recommended",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.connect_rpc.response.metadata",
+    "type": "template[string[]]",
+    "brief": "Connect response metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]"
+    ],
+    "requirement_level": "recommended",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.grpc.status_code",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "ok",
+          "value": 0,
+          "brief": "OK",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cancelled",
+          "value": 1,
+          "brief": "CANCELLED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unknown",
+          "value": 2,
+          "brief": "UNKNOWN",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "invalid_argument",
+          "value": 3,
+          "brief": "INVALID_ARGUMENT",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "deadline_exceeded",
+          "value": 4,
+          "brief": "DEADLINE_EXCEEDED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "not_found",
+          "value": 5,
+          "brief": "NOT_FOUND",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "already_exists",
+          "value": 6,
+          "brief": "ALREADY_EXISTS",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "permission_denied",
+          "value": 7,
+          "brief": "PERMISSION_DENIED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "resource_exhausted",
+          "value": 8,
+          "brief": "RESOURCE_EXHAUSTED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "failed_precondition",
+          "value": 9,
+          "brief": "FAILED_PRECONDITION",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "aborted",
+          "value": 10,
+          "brief": "ABORTED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "out_of_range",
+          "value": 11,
+          "brief": "OUT_OF_RANGE",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unimplemented",
+          "value": 12,
+          "brief": "UNIMPLEMENTED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "internal",
+          "value": 13,
+          "brief": "INTERNAL",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unavailable",
+          "value": 14,
+          "brief": "UNAVAILABLE",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "data_loss",
+          "value": 15,
+          "brief": "DATA_LOSS",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unauthenticated",
+          "value": 16,
+          "brief": "UNAUTHENTICATED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.grpc.request.metadata",
+    "type": "template[string[]]",
+    "brief": "gRPC request metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.grpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]"
+    ],
+    "requirement_level": "recommended",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.grpc.response.metadata",
+    "type": "template[string[]]",
+    "brief": "gRPC response metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.grpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]"
+    ],
+    "requirement_level": "recommended",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.error_code",
+    "type": "int",
+    "brief": "`error.code` property of response if it is an error response.",
+    "examples": [
+      -32700,
+      100
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.error_message",
+    "type": "string",
+    "brief": "`error.message` property of response if it is an error response.",
+    "examples": [
+      "Parse error",
+      "User already exists"
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.request_id",
+    "type": "string",
+    "brief": "`id` property of request or response. Since protocol allows id to be int, string, `null` or missing (for notifications), value is expected to be cast to string for simplicity. Use empty string in case of `null` value. Omit entirely if this is a notification.\n",
+    "examples": [
+      "10",
+      "request-7",
+      ""
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.version",
+    "type": "string",
+    "brief": "Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 doesn't specify this, the value can be omitted.",
+    "examples": [
+      "2.0",
+      "1.0"
+    ],
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.method",
+    "type": "string",
+    "brief": "The name of the (logical) method being called, must be equal to the $method part in the span name.",
+    "examples": "exampleMethod",
+    "requirement_level": "recommended",
+    "note": "This is the logical name of the method from the RPC interface perspective, which can be different from the name of any implementing method/function. The `code.function` attribute may be used to store the latter (e.g., method actually executing the call on the server side, RPC client stub method on the client side).\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.service",
+    "type": "string",
+    "brief": "The full (logical) name of the service being called, including its package name, if applicable.",
+    "examples": "myservice.EchoService",
+    "requirement_level": "recommended",
+    "note": "This is the logical name of the service from the RPC interface perspective, which can be different from the name of any implementing class. The `code.namespace` attribute may be used to store the latter (despite the attribute name, it may include a class name; e.g., class with method actually executing the call on the server side, RPC client stub class on the client side).\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.system",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "grpc",
+          "value": "grpc",
+          "brief": "gRPC",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "java_rmi",
+          "value": "java_rmi",
+          "brief": "Java RMI",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "dotnet_wcf",
+          "value": "dotnet_wcf",
+          "brief": ".NET WCF",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "apache_dubbo",
+          "value": "apache_dubbo",
+          "brief": "Apache Dubbo",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "connect_rpc",
+          "value": "connect_rpc",
+          "brief": "Connect RPC",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "A string identifying the remoting system. See below for a list of well-known identifiers.",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.message.type",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "sent",
+          "value": "SENT",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "received",
+          "value": "RECEIVED",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "Whether this is a received or sent message.",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.message.id",
+    "type": "int",
+    "brief": "MUST be calculated as two different counters starting from `1` one for sent messages and one for received message.",
+    "requirement_level": "recommended",
+    "note": "This way we guarantee that the values will be consistent between different implementations.",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.message.compressed_size",
+    "type": "int",
+    "brief": "Compressed size of the message in bytes.",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.message.uncompressed_size",
+    "type": "int",
+    "brief": "Uncompressed size of the message in bytes.",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "server.address",
+    "type": "string",
+    "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "recommended",
+    "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.port",
+    "type": "int",
+    "brief": "Server port number.",
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": "recommended",
+    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "exception.type",
+    "type": "string",
+    "brief": "The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.\n",
+    "examples": [
+      "java.net.ConnectException",
+      "OSError"
+    ],
+    "requirement_level": {
+      "conditionally_required": "Required if `exception.message` is not set, recommended otherwise."
+    },
+    "stability": "stable"
+  },
+  {
+    "name": "exception.message",
+    "type": "string",
+    "brief": "The exception message.",
+    "examples": [
+      "Division by zero",
+      "Can't convert 'int' object to str implicitly"
+    ],
+    "requirement_level": {
+      "conditionally_required": "Required if `exception.type` is not set, recommended otherwise."
+    },
+    "stability": "stable"
   },
   {
     "name": "feature_flag.key",
@@ -98,5 +1436,616 @@
     ],
     "requirement_level": "recommended",
     "note": "A semantic identifier, commonly referred to as a variant, provides a means\nfor referring to a value without including the value itself. This can\nprovide additional context for understanding the meaning behind a value.\nFor example, the variant `red` maybe be used for the value `#c05543`.\n\nA stringified version of the value can be used in situations where a\nsemantic identifier is unavailable. String representation of the value\nshould be determined by the implementer."
+  },
+  {
+    "name": "gen_ai.system",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "openai",
+          "value": "openai",
+          "brief": "OpenAI",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "vertex_ai",
+          "value": "vertex_ai",
+          "brief": "Vertex AI",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "anthropic",
+          "value": "anthropic",
+          "brief": "Anthropic",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cohere",
+          "value": "cohere",
+          "brief": "Cohere",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The Generative AI product as identified by the client or server instrumentation.",
+    "examples": "openai",
+    "requirement_level": "required",
+    "note": "The `gen_ai.system` describes a family of GenAI models with specific model identified\nby `gen_ai.request.model` and `gen_ai.response.model` attributes.\n\nThe actual GenAI product may differ from the one identified by the client.\nFor example, when using OpenAI client libraries to communicate with Mistral, the `gen_ai.system`\nis set to `openai` based on the instrumentation's best knowledge.\n\nFor custom model, a custom friendly name SHOULD be used.\nIf none of these options apply, the `gen_ai.system` SHOULD be set to `_OTHER`.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.request.model",
+    "type": "string",
+    "brief": "The name of the GenAI model a request is being made to.",
+    "examples": "gpt-4",
+    "requirement_level": "required",
+    "note": "The name of the GenAI model a request is being made to. If the model is supplied by a vendor, then the value must be the exact name of the model requested. If the model is a fine-tuned custom model, the value should have a more specific name than the base model that's been fine-tuned.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.operation.name",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "chat",
+          "value": "chat",
+          "brief": "Chat completion operation such as [OpenAI Chat API](https://platform.openai.com/docs/api-reference/chat)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "text_completion",
+          "value": "text_completion",
+          "brief": "Text completions operation such as [OpenAI Completions API (Legacy)](https://platform.openai.com/docs/api-reference/completions)",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The name of the operation being performed.",
+    "requirement_level": "required",
+    "note": "If one of the predefined values applies, but specific system uses a different name it's RECOMMENDED to document it in the semantic conventions for specific GenAI system and use system-specific name in the instrumentation. If a different name is not documented, instrumentation libraries SHOULD use applicable predefined value.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.response.model",
+    "type": "string",
+    "brief": "The name of the model that generated the response.",
+    "examples": [
+      "gpt-4-0613"
+    ],
+    "requirement_level": "recommended",
+    "note": "If available. The name of the GenAI model that provided the response. If the model is supplied by a vendor, then the value must be the exact name of the model actually used. If the model is a fine-tuned custom model, the value should have a more specific name than the base model that's been fine-tuned.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.prompt",
+    "type": "string",
+    "brief": "The full prompt sent to the GenAI model.",
+    "examples": [
+      "[{'role': 'user', 'content': 'What is the capital of France?'}]"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if and only if corresponding event is enabled"
+    },
+    "note": "It's RECOMMENDED to format prompts as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "gen_ai.completion",
+    "type": "string",
+    "brief": "The full response received from the GenAI model.",
+    "examples": [
+      "[{'role': 'assistant', 'content': 'The capital of France is Paris.'}]"
+    ],
+    "requirement_level": {
+      "conditionally_required": "if and only if corresponding event is enabled"
+    },
+    "note": "It's RECOMMENDED to format completions as JSON string matching [OpenAI messages format](https://platform.openai.com/docs/guides/text-generation)\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.system",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "grpc",
+          "value": "grpc",
+          "brief": "gRPC",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "java_rmi",
+          "value": "java_rmi",
+          "brief": "Java RMI",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "dotnet_wcf",
+          "value": "dotnet_wcf",
+          "brief": ".NET WCF",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "apache_dubbo",
+          "value": "apache_dubbo",
+          "brief": "Apache Dubbo",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "connect_rpc",
+          "value": "connect_rpc",
+          "brief": "Connect RPC",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "A string identifying the remoting system. See below for a list of well-known identifiers.",
+    "requirement_level": "required",
+    "stability": "experimental"
+  },
+  {
+    "name": "server.address",
+    "type": "string",
+    "brief": "RPC server [host name](https://grpc.github.io/grpc/core/md_doc_naming.html).\n",
+    "examples": [
+      "example.com",
+      "10.1.2.80",
+      "/tmp/my.sock"
+    ],
+    "requirement_level": "required",
+    "note": "May contain server IP address, DNS name, or local socket name. When host component is an IP address, instrumentations SHOULD NOT do a reverse proxy lookup to obtain DNS name and SHOULD set `server.address` to the IP address provided in the host component.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "server.port",
+    "type": "int",
+    "brief": "Server port number.",
+    "examples": [
+      80,
+      8080,
+      443
+    ],
+    "requirement_level": {
+      "conditionally_required": "if the port is supported by the network transport used for communication."
+    },
+    "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
+    "stability": "stable"
+  },
+  {
+    "name": "network.peer.port",
+    "type": "int",
+    "brief": "Peer port number of the network connection.",
+    "examples": [
+      65123
+    ],
+    "requirement_level": {
+      "recommended": "If `network.peer.address` is set."
+    },
+    "stability": "stable"
+  },
+  {
+    "name": "rpc.grpc.request.metadata",
+    "type": "template[string[]]",
+    "brief": "gRPC request metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.grpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]"
+    ],
+    "tag": "grpc-tech-specific",
+    "requirement_level": "opt_in",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.grpc.response.metadata",
+    "type": "template[string[]]",
+    "brief": "gRPC response metadata, `<key>` being the normalized gRPC Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.grpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]"
+    ],
+    "tag": "grpc-tech-specific",
+    "requirement_level": "opt_in",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.grpc.status_code",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "ok",
+          "value": 0,
+          "brief": "OK",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "cancelled",
+          "value": 1,
+          "brief": "CANCELLED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unknown",
+          "value": 2,
+          "brief": "UNKNOWN",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "invalid_argument",
+          "value": 3,
+          "brief": "INVALID_ARGUMENT",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "deadline_exceeded",
+          "value": 4,
+          "brief": "DEADLINE_EXCEEDED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "not_found",
+          "value": 5,
+          "brief": "NOT_FOUND",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "already_exists",
+          "value": 6,
+          "brief": "ALREADY_EXISTS",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "permission_denied",
+          "value": 7,
+          "brief": "PERMISSION_DENIED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "resource_exhausted",
+          "value": 8,
+          "brief": "RESOURCE_EXHAUSTED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "failed_precondition",
+          "value": 9,
+          "brief": "FAILED_PRECONDITION",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "aborted",
+          "value": 10,
+          "brief": "ABORTED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "out_of_range",
+          "value": 11,
+          "brief": "OUT_OF_RANGE",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unimplemented",
+          "value": 12,
+          "brief": "UNIMPLEMENTED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "internal",
+          "value": 13,
+          "brief": "INTERNAL",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unavailable",
+          "value": 14,
+          "brief": "UNAVAILABLE",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "data_loss",
+          "value": 15,
+          "brief": "DATA_LOSS",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unauthenticated",
+          "value": 16,
+          "brief": "UNAUTHENTICATED",
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request.",
+    "tag": "grpc-tech-specific",
+    "requirement_level": "required",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.error_code",
+    "type": "int",
+    "brief": "`error.code` property of response if it is an error response.",
+    "examples": [
+      -32700,
+      100
+    ],
+    "tag": "jsonrpc-tech-specific",
+    "requirement_level": {
+      "conditionally_required": "If response is not successful."
+    },
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.error_message",
+    "type": "string",
+    "brief": "`error.message` property of response if it is an error response.",
+    "examples": [
+      "Parse error",
+      "User already exists"
+    ],
+    "tag": "jsonrpc-tech-specific",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.request_id",
+    "type": "string",
+    "brief": "`id` property of request or response. Since protocol allows id to be int, string, `null` or missing (for notifications), value is expected to be cast to string for simplicity. Use empty string in case of `null` value. Omit entirely if this is a notification.\n",
+    "examples": [
+      "10",
+      "request-7",
+      ""
+    ],
+    "tag": "jsonrpc-tech-specific",
+    "requirement_level": "recommended",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.jsonrpc.version",
+    "type": "string",
+    "brief": "Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 doesn't specify this, the value can be omitted.",
+    "examples": [
+      "2.0",
+      "1.0"
+    ],
+    "tag": "jsonrpc-tech-specific",
+    "requirement_level": {
+      "conditionally_required": "If other than the default version (`1.0`)"
+    },
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.method",
+    "type": "string",
+    "brief": "The name of the (logical) method being called, must be equal to the $method part in the span name.",
+    "examples": "exampleMethod",
+    "tag": "jsonrpc-tech-specific",
+    "requirement_level": "required",
+    "note": "This is always required for jsonrpc. See the note in the general RPC conventions for more information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.connect_rpc.error_code",
+    "type": {
+      "allow_custom_values": true,
+      "members": [
+        {
+          "id": "cancelled",
+          "value": "cancelled",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unknown",
+          "value": "unknown",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "invalid_argument",
+          "value": "invalid_argument",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "deadline_exceeded",
+          "value": "deadline_exceeded",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "not_found",
+          "value": "not_found",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "already_exists",
+          "value": "already_exists",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "permission_denied",
+          "value": "permission_denied",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "resource_exhausted",
+          "value": "resource_exhausted",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "failed_precondition",
+          "value": "failed_precondition",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "aborted",
+          "value": "aborted",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "out_of_range",
+          "value": "out_of_range",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unimplemented",
+          "value": "unimplemented",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "internal",
+          "value": "internal",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unavailable",
+          "value": "unavailable",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "data_loss",
+          "value": "data_loss",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        },
+        {
+          "id": "unauthenticated",
+          "value": "unauthenticated",
+          "brief": null,
+          "note": null,
+          "stability": "experimental",
+          "deprecated": null
+        }
+      ]
+    },
+    "brief": "The [error codes](https://connect.build/docs/protocol/#error-codes) of the Connect request. Error codes are always string values.",
+    "tag": "connect_rpc-tech-specific",
+    "requirement_level": {
+      "conditionally_required": "If response is not successful and if error code available."
+    },
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.connect_rpc.request.metadata",
+    "type": "template[string[]]",
+    "brief": "Connect request metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.request.metadata.my-custom-metadata-attribute=[\"1.2.3.4\", \"1.2.3.5\"]"
+    ],
+    "tag": "connect_rpc-tech-specific",
+    "requirement_level": "opt_in",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all request metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
+  },
+  {
+    "name": "rpc.connect_rpc.response.metadata",
+    "type": "template[string[]]",
+    "brief": "Connect response metadata, `<key>` being the normalized Connect Metadata key (lowercase), the value being the metadata values.\n",
+    "examples": [
+      "rpc.response.metadata.my-custom-metadata-attribute=[\"attribute_value\"]"
+    ],
+    "tag": "connect_rpc-tech-specific",
+    "requirement_level": "opt_in",
+    "note": "Instrumentations SHOULD require an explicit configuration of which metadata values are to be captured. Including all response metadata values can be a security risk - explicit configuration helps avoid leaking sensitive information.\n",
+    "stability": "experimental"
   }
 ]

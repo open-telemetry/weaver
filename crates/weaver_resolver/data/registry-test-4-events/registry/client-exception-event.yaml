@@ -1,0 +1,39 @@
+groups:
+  - id: client.exception.event
+    name: client.exception.event
+    type: event
+    brief: >
+      This document defines the log event used to
+      report a client exception.
+    body:
+      fields:
+        - id: type
+          type: string
+          brief: >
+            The type of the exception.
+          examples: ["java.net.ConnectException","OSError"]
+        - id: message
+          type: string
+          brief: The exception message.
+          examples: ["Division by zero","Can't convert 'int' object to str implicitly"]
+        - id: stacktrace
+          type: string
+          brief: >
+            A stacktrace.
+          examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n
+          at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n
+          at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n
+          at com.example.GenerateTrace.main(GenerateTrace.java:5)'
+        - id: escaped
+          type: boolean
+          brief: >
+            SHOULD be set to true if the exception event is recorded at a point where
+            it is known that the exception is escaping the scope of the span.
+          note: |-
+            An exception is considered to have escaped.
+    attributes:
+      - id: client.name
+        type: string
+        brief: >
+          The name of the client that reported the exception.
+        examples: ["myclient"]

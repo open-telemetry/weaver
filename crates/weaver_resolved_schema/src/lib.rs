@@ -14,8 +14,9 @@ use std::collections::HashMap;
 use weaver_version::Versions;
 
 pub mod attribute;
+pub mod body;
 pub mod catalog;
-mod error;
+pub mod error;
 pub mod instrumentation_library;
 pub mod lineage;
 pub mod metric;

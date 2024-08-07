@@ -20,3 +20,12 @@ templates:
     filter: >
       semconv_grouped_metrics({"exclude_stability": ["experimental"]})
     application_mode: single
+  - pattern: semconv_events.json
+    filter: >
+      .groups
+      | map(select(.type == "event"))
+      | map(. + {
+          event_namespace: (if .id | index(".") then (.id | split(".") | .[0:-1] | join(".")) else "other" end)
+        })
+      | sort_by(.event_namespace, .id)
+    application_mode: single

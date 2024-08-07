@@ -10,6 +10,7 @@ use std::fmt::{Display, Formatter};
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
+use crate::body::BodySpec;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
 use crate::Error;
@@ -86,6 +87,9 @@ pub struct GroupSpec {
     pub name: Option<String>,
     /// The readable name for attribute groups used when generating registry tables.
     pub display_name: Option<String>,
+    /// The event body definition
+    /// Note: only valid if type is event
+    pub body: Option<BodySpec>,
 }
 
 impl GroupSpec {
@@ -114,11 +118,30 @@ impl GroupSpec {
         }
 
         // Field name is required if prefix is empty and if type is event.
-        if self.r#type == GroupType::Event && self.prefix.is_empty() && self.name.is_none() {
+        if self.r#type == GroupType::Event {
+            if self.body.is_some() && self.name.is_none() {
+                // Must have a name which is assigned to event.name for log based events
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains an event type with a body definition but the name is not set.".to_owned(),
+                });
+            }
+            if self.name.is_none() && self.prefix.is_empty() {
+                // Must have a name (whether explicit or via a prefix which will derive the name)
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains an event type but the name is not set and no prefix is defined.".to_owned(),
+                });
+            }
+        } else if self.body.is_some() {
+            // Make sure that body is only used for events
             errors.push(Error::InvalidGroup {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
-                error: "This group contains an event type but the prefix is empty and the name is not set.".to_owned(),
+                error: "This group contains a body field but the type is not set to event."
+                    .to_owned(),
             });
         }
 
@@ -348,6 +371,7 @@ mod tests {
             unit: None,
             name: None,
             display_name: None,
+            body: None,
         };
         assert!(group
             .validate("<test>")
@@ -413,7 +437,7 @@ mod tests {
                     InvalidGroup {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
-                        error: "This group contains an event type but the prefix is empty and the name is not set.".to_owned(),
+                        error: "This group contains an event type but the name is not set and no prefix is defined.".to_owned(),
                     },
                 ],
             ),
@@ -451,6 +475,7 @@ mod tests {
             unit: None,
             name: None,
             display_name: None,
+            body: None,
         };
         assert!(group
             .validate("<test>")
