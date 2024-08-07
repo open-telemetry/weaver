@@ -140,6 +140,11 @@ pub(crate) struct TemplateConfig {
     /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
     /// when serialized to YAML. This is useful for testing purposes.
     pub(crate) params: Option<BTreeMap<String, Value>>,
+    /// An optional file name defining where to write the output of the template.
+    /// This name is relative to the output directory.
+    /// The default value of this path is the same as the input file path.
+    /// This file path can be a Jinja expression referencing the parameters.
+    pub(crate) file_name: Option<String>,
 }
 
 fn default_filter() -> String {

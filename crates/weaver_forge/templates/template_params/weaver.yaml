@@ -9,14 +9,17 @@ templates:
     params:
       template_name: test1
       test_1: true
+    file_name: "{{params.template_name | snake_case}}.json"
   - pattern: test.md
     filter: .
     application_mode: single
     params:
       template_name: test2
       test_2: true
+    file_name: "{{params.template_name | snake_case}}.json"
   - pattern: test.md
     filter: .
     application_mode: single
     params:
       test_3: true
+    file_name: "{{params.template_name | snake_case}}.json"

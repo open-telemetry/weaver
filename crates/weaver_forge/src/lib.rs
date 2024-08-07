@@ -28,7 +28,7 @@ use weaver_common::Logger;
 
 use crate::config::{ApplicationMode, Params, TemplateConfig, WeaverConfig};
 use crate::debug::error_summary;
-use crate::error::Error::InvalidConfigFile;
+use crate::error::Error::{InvalidConfigFile, InvalidFilePath};
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
 use crate::filter::Filter;
@@ -365,6 +365,7 @@ impl TemplateEngine {
         match template.application_mode {
             ApplicationMode::Single => self.process_single_mode(
                 &filtered_result,
+                template.file_name.as_ref(),
                 &params,
                 template_file,
                 output_dir,
@@ -373,6 +374,7 @@ impl TemplateEngine {
             ),
             ApplicationMode::Each => self.process_each_mode(
                 &filtered_result,
+                template.file_name.as_ref(),
                 &params,
                 template_file,
                 output_dir,
@@ -388,6 +390,7 @@ impl TemplateEngine {
     fn process_each_mode(
         &self,
         ctx: &serde_json::Value,
+        file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
         template_file: &Path,
         output_dir: &Path,
@@ -403,6 +406,7 @@ impl TemplateEngine {
                         self.evaluate_template(
                             log.clone(),
                             NewContext { ctx: result }.try_into().ok()?,
+                            file_path,
                             params,
                             template_file,
                             output_directive,
@@ -416,6 +420,7 @@ impl TemplateEngine {
             _ => self.evaluate_template(
                 log.clone(),
                 NewContext { ctx }.try_into()?,
+                file_path,
                 params,
                 template_file,
                 output_directive,
@@ -428,6 +433,7 @@ impl TemplateEngine {
     fn process_single_mode(
         &self,
         ctx: &serde_json::Value,
+        file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
         template_file: &Path,
         output_dir: &Path,
@@ -441,6 +447,7 @@ impl TemplateEngine {
         self.evaluate_template(
             log.clone(),
             NewContext { ctx }.try_into()?,
+            file_path,
             params,
             template_file,
             output_directive,
@@ -509,32 +516,53 @@ impl TemplateEngine {
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
+        file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
         template_path: &Path,
         output_directive: &OutputDirective,
         output_dir: &Path,
     ) -> Result<(), Error> {
-        // By default, the file name is the template file name without the extension ".j2"
-        let file_name = template_path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .trim_end_matches(".j2")
-            .to_owned();
-        let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(file_name)),
-        };
         let mut engine = self.template_engine()?;
+
+        // Add the Weaver parameters to the template context
+        engine.add_global(
+            "params",
+            Value::from_object(ParamsObject::new(params.clone())),
+        );
+
+        // Pre-determine the file path for the generated file based on the template file path
+        // if defined, otherwise use the default file path based on the template file name.
+        let file_path = match file_path {
+            Some(file_path) => {
+                engine
+                    .render_str(file_path, ctx.clone())
+                    .map_err(|e| InvalidFilePath {
+                        file_path: file_path.clone(),
+                        error: e.to_string(),
+                    })?
+            }
+            None => {
+                // By default, the file name is the template file name without
+                // the extension ".j2"
+                template_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .trim_end_matches(".j2")
+                    .to_owned()
+            }
+        };
+        let template_object = TemplateObject {
+            file_name: Arc::new(Mutex::new(file_path)),
+        };
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
             template: template_path.to_path_buf(),
             error: "".to_owned(),
         })?;
 
+        // Add the handler to programmatically set the file name of the generated file
+        // from the template.
         engine.add_global("template", Value::from_object(template_object.clone()));
-        engine.add_global(
-            "params",
-            Value::from_object(ParamsObject::new(params.clone())),
-        );
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -886,6 +914,7 @@ mod tests {
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
             params: None,
+            file_name: None,
         });
         engine.target_config.templates = Some(templates);
 

@@ -66,6 +66,7 @@ The following options can be configured in the `weaver.yaml` file:
 #    application_mode: each
 #    params:
 #      param1: val1_bis
+#    file_path: "{{ctx.root_namespace}}.md"
 #  - pattern: "**/attribute_groups.md"
 #    filter: ".groups[] | select(.type == \"attribute_group\")"
 #    application_mode: single
