@@ -4,7 +4,7 @@
 
 #![allow(rustdoc::invalid_html_tags)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -72,7 +72,9 @@ pub struct WeaverConfig {
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
-    pub(crate) params: Option<HashMap<String, Value>>,
+    /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
+    /// when serialized to YAML. This is useful for testing purposes.
+    pub(crate) params: Option<BTreeMap<String, Value>>,
 
     /// Configuration for the templates.
     pub(crate) templates: Option<Vec<TemplateConfig>>,
@@ -122,7 +124,9 @@ pub(crate) struct TemplateConfig {
     /// Parameters for the current template. All the parameters defined here will
     /// override the parameters defined in the `params` section of the configuration.
     /// These parameters can be overridden by parameters passed to the CLI.
-    pub(crate) params: Option<HashMap<String, Value>>,
+    /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
+    /// when serialized to YAML. This is useful for testing purposes.
+    pub(crate) params: Option<BTreeMap<String, Value>>,
 }
 
 fn default_filter() -> String {
@@ -440,8 +444,30 @@ impl WeaverConfig {
         self.template_syntax.override_with(other.template_syntax);
         self.whitespace_control
             .override_with(other.whitespace_control);
-        if other.params.is_some() {
-            self.params = other.params;
+        if let Some(other_params) = other.params {
+            // `params` are merged in an additive way. For example, if a parameter is defined in
+            // the `params` section of a template, then the final `params` section for this template
+            // will include both the `params` inherited from the file-level configuration and the
+            // `params` defined in the template configuration.
+            // If the override is a parameter set to null, then this parameter is removed from the
+            // final `params` section.
+            for (key, value) in other_params {
+                if value.is_null() {
+                    // If the value is null, the key is removed from the parameters.
+                    if let Some(params) = &mut self.params {
+                        // We don't need to do anything with the previous value, so we can ignore
+                        // the result of the remove operation.
+                        _ = params.remove(&key);
+                    }
+                } else {
+                    // If the key is already defined, the value is overridden. So no need to check if
+                    // the key is already present.
+                    _ = self
+                        .params
+                        .get_or_insert_with(BTreeMap::new)
+                        .insert(key, value);
+                }
+            }
         }
         if other.templates.is_some() {
             self.templates = other.templates;
@@ -454,8 +480,6 @@ impl WeaverConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::config::{ApplicationMode, WeaverConfig};
     use crate::file_loader::FileContent;
 
@@ -613,7 +637,12 @@ mod tests {
         parent.override_with(local);
         assert_eq!(
             parent.params,
-            Some([("a".to_owned(), 3.into())].iter().cloned().collect())
+            Some(
+                [("a".to_owned(), 3.into()), ("b".to_owned(), 2.into())]
+                    .iter()
+                    .cloned()
+                    .collect()
+            )
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
         let local: WeaverConfig = serde_yaml::from_str("params: {a: 3}").unwrap();
@@ -637,7 +666,22 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
         let local: WeaverConfig = serde_yaml::from_str("params: {}").unwrap();
         parent.override_with(local);
-        assert_eq!(parent.params, Some(HashMap::default()));
+        assert_eq!(
+            parent.params,
+            Some(
+                [("a".to_owned(), 1.into()), ("b".to_owned(), 2.into())]
+                    .iter()
+                    .cloned()
+                    .collect()
+            )
+        );
+        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str(r#"params: {b: Null}"#).unwrap();
+        parent.override_with(local);
+        assert_eq!(
+            parent.params,
+            Some([("a".to_owned(), 1.into())].iter().cloned().collect())
+        );
     }
 
     #[test]

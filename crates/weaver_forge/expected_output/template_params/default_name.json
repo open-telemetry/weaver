@@ -1,0 +1,22 @@
+{
+  "param_config": "weaver-file-level-param",
+  "params": {
+    "param_config": "weaver-file-level-param",
+    "shared_1": [
+      "1",
+      "2",
+      "3"
+    ],
+    "shared_2": false,
+    "template_name": "default_name",
+    "test_3": true
+  },
+  "shared_1": [
+    "1",
+    "2",
+    "3"
+  ],
+  "shared_2": false,
+  "template_name": "default_name",
+  "test_3": true
+}
