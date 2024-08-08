@@ -77,6 +77,19 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention asset contains an invalid example.
+    #[error("The attribute `{attribute_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
+    InvalidExample {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {

@@ -6,7 +6,7 @@ use miette::Diagnostic;
 use std::collections::HashMap;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use rayon::iter::ParallelBridge;
+use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use rayon::iter::ParallelIterator;
 use serde::Serialize;
 use walkdir::DirEntry;
@@ -278,18 +278,14 @@ impl SchemaResolver {
                 .into_iter()
                 .filter_entry(|e| !is_hidden(e))
                 .par_bridge()
-                .filter_map(|entry| {
+                .flat_map(|entry| {
                     match entry {
                         Ok(entry) => {
                             if !is_semantic_convention_file(&entry) {
-                                return None;
+                                return vec![].into_par_iter();
                             }
 
-                            let spec = SemConvRegistry::semconv_spec_from_file(entry.path())
-                                .map_err(|e| Error::SemConvError {
-                                    message: e.to_string(),
-                                });
-                            match spec {
+                            match SemConvRegistry::semconv_spec_from_file(entry.path()) {
                                 Ok((path, spec)) => {
                                     // Replace the local path with the git URL combined with the relative path
                                     // of the semantic convention file.
@@ -304,14 +300,29 @@ impl SchemaResolver {
                                         let relative_path = &path[prefix.len() + 1..];
                                         format!("{}/{}", registry_path_repr, relative_path)
                                     };
-                                    Some(Ok((path, spec)))
+                                    vec![Ok((path, spec))].into_par_iter()
                                 }
-                                Err(e) => Some(Err(e)),
+                                Err(e) => {
+                                    match e {
+                                        weaver_semconv::Error::CompoundError(errors) => {
+                                            errors
+                                                .into_iter()
+                                                .map(|e| Err(Error::SemConvError {
+                                                    message: e.to_string(),
+                                                }))
+                                                .collect::<Vec<_>>()
+                                                .into_par_iter()
+                                        }
+                                        _ => vec![Err(Error::SemConvError {
+                                            message: e.to_string(),
+                                        })].into_par_iter(),
+                                    }
+                                },
                             }
                         }
-                        Err(e) => Some(Err(Error::SemConvError {
+                        Err(e) => vec![Err(Error::SemConvError {
                             message: e.to_string(),
-                        })),
+                        })].into_par_iter(),
                     }
                 })
                 .collect::<Vec<_>>();

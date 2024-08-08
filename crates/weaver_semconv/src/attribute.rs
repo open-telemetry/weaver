@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
-
+use crate::Error;
 use crate::stability::Stability;
 
 /// An attribute specification.
@@ -427,6 +427,54 @@ pub enum Examples {
     ListOfBools(Vec<Vec<bool>>),
     /// List of arrays of strings example.
     ListOfStrings(Vec<Vec<String>>),
+}
+
+impl Examples {
+    /// Validation logic for the group.
+    pub(crate) fn validate(
+        &self,
+        attr_type: &AttributeType,
+        group_id: &str,
+        attr_id: &str,
+        path_or_url: &str
+    ) -> Result<(), Error> {
+        match (self, attr_type) {
+            (Examples::Bool(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean))
+            | (Examples::Int(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int))
+            | (Examples::Double(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double))
+            | (Examples::String(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String))
+            | (Examples::Ints(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int))
+            | (Examples::Doubles(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double))
+            | (Examples::Bools(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean))
+            | (Examples::Strings(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String))
+            | (Examples::ListOfInts(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
+            | (Examples::ListOfDoubles(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
+            | (Examples::ListOfBools(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
+            | (Examples::ListOfStrings(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings))
+            | (Examples::Ints(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
+            | (Examples::Doubles(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
+            | (Examples::Bools(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
+            | (Examples::Strings(_), AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
+                Ok(())
+            }
+            (_, AttributeType::Enum {..}) => {
+                // enum types are open so it's not possible to validate the examples
+                Ok(())
+            }
+            (Examples::String(_), AttributeType::Template(TemplateTypeSpec::String))
+            | (Examples::Strings(_), AttributeType::Template(TemplateTypeSpec::String))
+            | (Examples::String(_), AttributeType::Template(TemplateTypeSpec::Strings))
+            | (Examples::Strings(_), AttributeType::Template(TemplateTypeSpec::Strings)) => {
+                Ok(())
+            }
+            _ => Err(Error::InvalidExample {
+                path_or_url: path_or_url.to_owned(),
+                group_id: group_id.to_owned(),
+                attribute_id: attr_id.to_owned(),
+                error: format!("All examples must be of type `{}`", attr_type),
+            }),
+        }
+    }
 }
 
 /// The different requirement level specifications.

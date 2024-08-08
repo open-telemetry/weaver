@@ -170,11 +170,15 @@ impl GroupSpec {
             }
 
             // Examples are required only for string and string array attributes.
+            // When examples are set, the attribute type and examples type must match.
             if let AttributeSpec::Id {
-                r#type, examples, ..
+                id, r#type, examples, ..
             } = attribute
             {
-                if examples.is_some() {
+                if let Some(examples) = examples {
+                    if let Err(err) = examples.validate(r#type, &self.id, id, path_or_url) {
+                        errors.push(err);
+                    }
                     continue;
                 }
 
