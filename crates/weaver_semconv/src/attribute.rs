@@ -971,6 +971,171 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn test_examples_validate() {
+        let attr_int = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int);
+        let attr_ints = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints);
+        let attr_double = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double);
+        let attr_doubles = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles);
+        let attr_str = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String);
+        let attr_strs = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings);
+        let attr_bool = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean);
+        let attr_bools = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans);
+
+        // === Test int-like examples ===
+        let examples = Examples::Int(42);
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_str, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::Ints(vec![42, 43]);
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_str, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples
+            .validate(true, &attr_ints, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfStrings(vec![
+            vec!["42".to_owned(), "43".to_owned()],
+            vec!["44".to_owned(), "45".to_owned()],
+        ]);
+        assert!(examples
+            .validate(true, &attr_ints, "grp", "attr", "url")
+            .is_err());
+
+        // Non-strict validation
+        let examples = Examples::Ints(vec![42, 43]);
+        assert!(examples
+            .validate(false, &attr_ints, "grp", "attr", "url")
+            .is_ok());
+
+        // === Test string-like examples ===
+        let examples = Examples::String("foo".to_owned());
+        assert!(examples
+            .validate(true, &attr_str, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()]);
+        assert!(examples
+            .validate(true, &attr_str, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfStrings(vec![
+            vec!["foo".to_owned(), "bar".to_owned()],
+            vec!["baz".to_owned(), "qux".to_owned()],
+        ]);
+        assert!(examples
+            .validate(true, &attr_strs, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_ints, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples
+            .validate(true, &attr_str, "grp", "attr", "url")
+            .is_err());
+
+        // Non-strict validation
+        let examples = Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()]);
+        assert!(examples
+            .validate(false, &attr_str, "grp", "attr", "url")
+            .is_ok());
+
+        // === Test bool-like examples ===
+        let examples = Examples::Bool(true);
+        assert!(examples
+            .validate(true, &attr_bool, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::Bools(vec![true, false]);
+        assert!(examples
+            .validate(true, &attr_bool, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfBools(vec![vec![true, false], vec![false, true]]);
+        assert!(examples
+            .validate(true, &attr_bools, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_bool, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples
+            .validate(true, &attr_bool, "grp", "attr", "url")
+            .is_err());
+
+        // Non-strict validation
+        let examples = Examples::Bools(vec![true, false]);
+        assert!(examples
+            .validate(false, &attr_bools, "grp", "attr", "url")
+            .is_ok());
+
+        // === Test double-like examples ===
+        let examples = Examples::Double(OrderedFloat(42.0));
+        assert!(examples
+            .validate(true, &attr_double, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)]);
+        assert!(examples
+            .validate(true, &attr_double, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_int, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfDoubles(vec![
+            vec![OrderedFloat(42.0), OrderedFloat(43.0)],
+            vec![OrderedFloat(44.0), OrderedFloat(45.0)],
+        ]);
+        assert!(examples
+            .validate(true, &attr_doubles, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(true, &attr_double, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples
+            .validate(true, &attr_double, "grp", "attr", "url")
+            .is_err());
+
+        // Non-strict validation
+        let examples = Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)]);
+        assert!(examples
+            .validate(false, &attr_doubles, "grp", "attr", "url")
+            .is_ok());
+    }
 }
 
 /// An attribute definition with its provenance (path or URL).
