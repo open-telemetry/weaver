@@ -6,8 +6,8 @@ use miette::Diagnostic;
 use std::collections::HashMap;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use rayon::iter::ParallelIterator;
+use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use serde::Serialize;
 use walkdir::DirEntry;
 
@@ -236,10 +236,12 @@ impl SchemaResolver {
     /// * `cache` - The cache to store the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
+        strict_mode: bool,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
+            strict_mode,
         )
     }
 
@@ -253,6 +255,7 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
+        strict_mode: bool,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -273,59 +276,58 @@ impl SchemaResolver {
         // Loads the semantic convention specifications from the git repo.
         // All yaml files are recursively loaded and parsed in parallel from
         // the given path.
-        let result =
-            walkdir::WalkDir::new(local_path.clone())
-                .into_iter()
-                .filter_entry(|e| !is_hidden(e))
-                .par_bridge()
-                .flat_map(|entry| {
-                    match entry {
-                        Ok(entry) => {
-                            if !is_semantic_convention_file(&entry) {
-                                return vec![].into_par_iter();
-                            }
-
-                            match SemConvRegistry::semconv_spec_from_file(entry.path()) {
-                                Ok((path, spec)) => {
-                                    // Replace the local path with the git URL combined with the relative path
-                                    // of the semantic convention file.
-                                    let prefix = local_path
-                                        .to_str()
-                                        .map(|s| s.to_owned())
-                                        .unwrap_or_default();
-                                    let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
-                                        let relative_path = &path[prefix.len()..];
-                                        format!("{}{}", registry_path_repr, relative_path)
-                                    } else {
-                                        let relative_path = &path[prefix.len() + 1..];
-                                        format!("{}/{}", registry_path_repr, relative_path)
-                                    };
-                                    vec![Ok((path, spec))].into_par_iter()
-                                }
-                                Err(e) => {
-                                    match e {
-                                        weaver_semconv::Error::CompoundError(errors) => {
-                                            errors
-                                                .into_iter()
-                                                .map(|e| Err(Error::SemConvError {
-                                                    message: e.to_string(),
-                                                }))
-                                                .collect::<Vec<_>>()
-                                                .into_par_iter()
-                                        }
-                                        _ => vec![Err(Error::SemConvError {
-                                            message: e.to_string(),
-                                        })].into_par_iter(),
-                                    }
-                                },
-                            }
+        let result = walkdir::WalkDir::new(local_path.clone())
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+            .par_bridge()
+            .flat_map(|entry| {
+                match entry {
+                    Ok(entry) => {
+                        if !is_semantic_convention_file(&entry) {
+                            return vec![].into_par_iter();
                         }
-                        Err(e) => vec![Err(Error::SemConvError {
-                            message: e.to_string(),
-                        })].into_par_iter(),
+
+                        match SemConvRegistry::semconv_spec_from_file(entry.path(), strict_mode) {
+                            Ok((path, spec)) => {
+                                // Replace the local path with the git URL combined with the relative path
+                                // of the semantic convention file.
+                                let prefix = local_path
+                                    .to_str()
+                                    .map(|s| s.to_owned())
+                                    .unwrap_or_default();
+                                let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                    let relative_path = &path[prefix.len()..];
+                                    format!("{}{}", registry_path_repr, relative_path)
+                                } else {
+                                    let relative_path = &path[prefix.len() + 1..];
+                                    format!("{}/{}", registry_path_repr, relative_path)
+                                };
+                                vec![Ok((path, spec))].into_par_iter()
+                            }
+                            Err(e) => match e {
+                                weaver_semconv::Error::CompoundError(errors) => errors
+                                    .into_iter()
+                                    .map(|e| {
+                                        Err(Error::SemConvError {
+                                            message: e.to_string(),
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .into_par_iter(),
+                                _ => vec![Err(Error::SemConvError {
+                                    message: e.to_string(),
+                                })]
+                                .into_par_iter(),
+                            },
+                        }
                     }
-                })
-                .collect::<Vec<_>>();
+                    Err(e) => vec![Err(Error::SemConvError {
+                        message: e.to_string(),
+                    })]
+                    .into_par_iter(),
+                }
+            })
+            .collect::<Vec<_>>();
 
         let mut error = vec![];
         let result = result

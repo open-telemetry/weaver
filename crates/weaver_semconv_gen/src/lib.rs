@@ -306,8 +306,9 @@ impl SnippetGenerator {
     pub fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
         template_engine: TemplateEngine,
+        strict_mode: bool,
     ) -> Result<SnippetGenerator, Error> {
-        let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo)?;
+        let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo, strict_mode)?;
         Ok(SnippetGenerator {
             lookup: registry,
             template_engine,
@@ -325,9 +326,10 @@ impl ResolvedSemconvRegistry {
     /// Resolve semconv registry (possibly from git), and make it available for rendering.
     fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
+        strict_mode: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
+        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, strict_mode)?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
@@ -377,7 +379,7 @@ mod tests {
             path: "data".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, template)?;
+        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, template, true)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data/templates.md";

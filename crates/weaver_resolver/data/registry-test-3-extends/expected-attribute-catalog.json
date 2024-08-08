@@ -111,11 +111,7 @@
       ]
     },
     "brief": "HTTP request method.",
-    "examples": [
-      "GET",
-      "POST",
-      "HEAD"
-    ],
+    "examples": ["GET", "POST", "HEAD"],
     "requirement_level": "recommended",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
     "stability": "stable"
@@ -124,11 +120,7 @@
     "name": "http.request.method_original",
     "type": "string",
     "brief": "Original HTTP method sent by the client in the request line.",
-    "examples": [
-      "GeT",
-      "ACL",
-      "foo"
-    ],
+    "examples": ["GeT", "ACL", "foo"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -165,9 +157,7 @@
     "name": "http.response.status_code",
     "type": "int",
     "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
-    "examples": [
-      200
-    ],
+    "examples": [200],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -175,10 +165,7 @@
     "name": "http.route",
     "type": "string",
     "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
-    "examples": [
-      "/users/:userID?",
-      "{controller}/{action}/{id?}"
-    ],
+    "examples": ["/users/:userID?", "{controller}/{action}/{id?}"],
     "requirement_level": "recommended",
     "note": "MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.\nSHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.",
     "stability": "stable"
@@ -187,11 +174,7 @@
     "name": "messaging.batch.message_count",
     "type": "int",
     "brief": "The number of messages sent, received, or processed in the scope of the batching operation.",
-    "examples": [
-      0,
-      1,
-      2
-    ],
+    "examples": [0, 1, 2],
     "requirement_level": "recommended",
     "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n"
   },
@@ -199,20 +182,14 @@
     "name": "messaging.client_id",
     "type": "string",
     "brief": "A unique identifier for the client that consumes or produces a message.\n",
-    "examples": [
-      "client-5",
-      "myhost@8742@s8083jm"
-    ],
+    "examples": ["client-5", "myhost@8742@s8083jm"],
     "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
+    "examples": ["MyQueue", "MyTopic"],
     "requirement_level": "recommended",
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
@@ -220,9 +197,7 @@
     "name": "messaging.destination.template",
     "type": "string",
     "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
+    "examples": ["/customers/{customerId}"],
     "requirement_level": "recommended",
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   },
@@ -248,10 +223,7 @@
     "name": "messaging.destination_publish.name",
     "type": "string",
     "brief": "The name of the original destination the message was published to",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
+    "examples": ["MyQueue", "MyTopic"],
     "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n"
   },
@@ -416,10 +388,7 @@
     "name": "messaging.rocketmq.message.keys",
     "type": "string[]",
     "brief": "Key(s) of message, another way to mark message besides message id.\n",
-    "examples": [
-      "keyA",
-      "keyB"
-    ],
+    "examples": [["keyA"], ["keyB"]],
     "requirement_level": "recommended"
   },
   {
@@ -757,10 +726,7 @@
     "name": "network.local.address",
     "type": "string",
     "brief": "Local address of the network connection - IP address or Unix domain socket name.",
-    "examples": [
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
+    "examples": ["10.1.2.80", "/tmp/my.sock"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -768,9 +734,7 @@
     "name": "network.local.port",
     "type": "int",
     "brief": "Local port number of the network connection.",
-    "examples": [
-      65123
-    ],
+    "examples": [65123],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -778,10 +742,7 @@
     "name": "network.peer.address",
     "type": "string",
     "brief": "Peer address of the network connection - IP address or Unix domain socket name.",
-    "examples": [
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
+    "examples": ["10.1.2.80", "/tmp/my.sock"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -789,9 +750,7 @@
     "name": "network.peer.port",
     "type": "int",
     "brief": "Peer port number of the network connection.",
-    "examples": [
-      65123
-    ],
+    "examples": [65123],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -799,11 +758,7 @@
     "name": "network.protocol.name",
     "type": "string",
     "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "amqp",
-      "http",
-      "mqtt"
-    ],
+    "examples": ["amqp", "http", "mqtt"],
     "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
     "stability": "stable"
@@ -849,10 +804,7 @@
       ]
     },
     "brief": "[OSI transport layer](https://osi-model.com/transport-layer/) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).\n",
-    "examples": [
-      "tcp",
-      "udp"
-    ],
+    "examples": ["tcp", "udp"],
     "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.\n\nConsider always setting the transport when setting a port number, since\na port number is ambiguous without knowing the transport. For example\ndifferent processes could be listening on TCP port 12345 and UDP port 12345.\n",
     "stability": "stable"
@@ -877,10 +829,7 @@
       ]
     },
     "brief": "[OSI network layer](https://osi-model.com/network-layer/) or non-OSI equivalent.",
-    "examples": [
-      "ipv4",
-      "ipv6"
-    ],
+    "examples": ["ipv4", "ipv6"],
     "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
     "stability": "stable"
@@ -905,20 +854,14 @@
       ]
     },
     "brief": "The network IO operation direction.",
-    "examples": [
-      "transmit"
-    ],
+    "examples": ["transmit"],
     "requirement_level": "recommended"
   },
   {
     "name": "server.address",
     "type": "string",
     "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
+    "examples": ["example.com", "10.1.2.80", "/tmp/my.sock"],
     "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.address` SHOULD represent the server address behind any intermediaries, for example proxies, if it's available.\n",
     "stability": "stable"
@@ -927,11 +870,7 @@
     "name": "server.port",
     "type": "int",
     "brief": "Server port number.",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
+    "examples": [80, 8080, 443],
     "requirement_level": "recommended",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
     "stability": "stable"
@@ -940,11 +879,7 @@
     "name": "url.scheme",
     "type": "string",
     "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "https",
-      "ftp",
-      "telnet"
-    ],
+    "examples": ["https", "ftp", "telnet"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -964,9 +899,7 @@
     "name": "url.path",
     "type": "string",
     "brief": "The [URI path](https://www.rfc-editor.org/rfc/rfc3986#section-3.3) component",
-    "examples": [
-      "/search"
-    ],
+    "examples": ["/search"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -974,9 +907,7 @@
     "name": "url.query",
     "type": "string",
     "brief": "The [URI query](https://www.rfc-editor.org/rfc/rfc3986#section-3.4) component",
-    "examples": [
-      "q=OpenTelemetry"
-    ],
+    "examples": ["q=OpenTelemetry"],
     "requirement_level": "recommended",
     "note": "Sensitive content provided in query string SHOULD be scrubbed when instrumentations can identify it.",
     "stability": "stable"
@@ -985,9 +916,7 @@
     "name": "url.fragment",
     "type": "string",
     "brief": "The [URI fragment](https://www.rfc-editor.org/rfc/rfc3986#section-3.5) component",
-    "examples": [
-      "SemConv"
-    ],
+    "examples": ["SemConv"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -1059,11 +988,7 @@
       ]
     },
     "brief": "HTTP request method.",
-    "examples": [
-      "GET",
-      "POST",
-      "HEAD"
-    ],
+    "examples": ["GET", "POST", "HEAD"],
     "requirement_level": "required",
     "note": "HTTP request method value SHOULD be \"known\" to the instrumentation.\nBy default, this convention defines \"known\" methods as the ones listed in [RFC9110](https://www.rfc-editor.org/rfc/rfc9110.html#name-methods)\nand the PATCH method defined in [RFC5789](https://www.rfc-editor.org/rfc/rfc5789.html).\n\nIf the HTTP request method is not known to instrumentation, it MUST set the `http.request.method` attribute to `_OTHER`.\n\nIf the HTTP instrumentation could end up converting valid HTTP request methods to `_OTHER`, then it MUST provide a way to override\nthe list of known HTTP methods. If this override is done via environment variable, then the environment variable MUST be named\nOTEL_INSTRUMENTATION_HTTP_KNOWN_METHODS and support a comma-separated list of case-sensitive known HTTP methods\n(this list MUST be a full override of the default known method, it is not a list of known methods in addition to the defaults).\n\nHTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.\nInstrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.\nTracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.\n",
     "stability": "stable"
@@ -1072,9 +997,7 @@
     "name": "http.response.status_code",
     "type": "int",
     "brief": "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).",
-    "examples": [
-      200
-    ],
+    "examples": [200],
     "requirement_level": {
       "conditionally_required": "If and only if one was received/sent."
     },
@@ -1110,10 +1033,7 @@
     "name": "network.protocol.name",
     "type": "string",
     "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "http",
-      "spdy"
-    ],
+    "examples": ["http", "spdy"],
     "requirement_level": {
       "conditionally_required": "If not `http` and `network.protocol.version` is set."
     },
@@ -1124,12 +1044,7 @@
     "name": "network.protocol.version",
     "type": "string",
     "brief": "Version of the protocol specified in `network.protocol.name`.",
-    "examples": [
-      "1.0",
-      "1.1",
-      "2",
-      "3"
-    ],
+    "examples": ["1.0", "1.1", "2", "3"],
     "requirement_level": "recommended",
     "note": "`network.protocol.version` refers to the version of the protocol used and might be different from the protocol client's version. If the HTTP client has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.\n",
     "stability": "stable"
@@ -1138,11 +1053,7 @@
     "name": "server.address",
     "type": "string",
     "brief": "Host identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
+    "examples": ["example.com", "10.1.2.80", "/tmp/my.sock"],
     "requirement_level": "required",
     "note": "If an HTTP client request is explicitly made to an IP address, e.g. `http://x.x.x.x:8080`, then `server.address` SHOULD be the IP address `x.x.x.x`. A DNS lookup SHOULD NOT be used.\n",
     "stability": "stable"
@@ -1151,11 +1062,7 @@
     "name": "server.port",
     "type": "int",
     "brief": "Port identifier of the [\"URI origin\"](https://www.rfc-editor.org/rfc/rfc9110.html#name-uri-origin) HTTP request is sent to.\n",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
+    "examples": [80, 8080, 443],
     "requirement_level": "required",
     "note": "When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent the server port behind any intermediaries, for example proxies, if it's available.\n",
     "stability": "stable"
@@ -1164,10 +1071,7 @@
     "name": "url.scheme",
     "type": "string",
     "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "http",
-      "https"
-    ],
+    "examples": ["http", "https"],
     "requirement_level": "opt_in",
     "stability": "stable"
   },
@@ -1175,10 +1079,7 @@
     "name": "http.route",
     "type": "string",
     "brief": "The matched route, that is, the path template in the format used by the respective server framework.\n",
-    "examples": [
-      "/users/:userID?",
-      "{controller}/{action}/{id?}"
-    ],
+    "examples": ["/users/:userID?", "{controller}/{action}/{id?}"],
     "requirement_level": {
       "conditionally_required": "If and only if it's available"
     },
@@ -1189,11 +1090,7 @@
     "name": "server.address",
     "type": "string",
     "brief": "Name of the local HTTP server that received the request.\n",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
+    "examples": ["example.com", "10.1.2.80", "/tmp/my.sock"],
     "requirement_level": "recommended",
     "note": "See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).\n",
     "stability": "stable"
@@ -1202,11 +1099,7 @@
     "name": "server.port",
     "type": "int",
     "brief": "Port of the local HTTP server that received the request.\n",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
+    "examples": [80, 8080, 443],
     "requirement_level": {
       "conditionally_required": "If `server.address` is set."
     },
@@ -1217,10 +1110,7 @@
     "name": "url.scheme",
     "type": "string",
     "brief": "The [URI scheme](https://www.rfc-editor.org/rfc/rfc3986#section-3.1) component identifying the used protocol.",
-    "examples": [
-      "http",
-      "https"
-    ],
+    "examples": ["http", "https"],
     "requirement_level": "required",
     "note": "The scheme of the original client request, if known (e.g. from [Forwarded#proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/Forwarded#proto), [X-Forwarded-Proto](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-Proto), or a similar header). Otherwise, the scheme of the immediate peer request.",
     "stability": "stable"
@@ -1309,11 +1199,7 @@
       ]
     },
     "brief": "Describes a class of error the operation ended with.\n",
-    "examples": [
-      "amqp:decode-error",
-      "KAFKA_STORAGE_ERROR",
-      "channel-error"
-    ],
+    "examples": ["amqp:decode-error", "KAFKA_STORAGE_ERROR", "channel-error"],
     "requirement_level": {
       "conditionally_required": "If and only if the messaging operation has failed."
     },
@@ -1324,11 +1210,7 @@
     "name": "server.address",
     "type": "string",
     "brief": "Server domain name if available without reverse DNS lookup; otherwise, IP address or Unix domain socket name.",
-    "examples": [
-      "example.com",
-      "10.1.2.80",
-      "/tmp/my.sock"
-    ],
+    "examples": ["example.com", "10.1.2.80", "/tmp/my.sock"],
     "requirement_level": {
       "conditionally_required": "If available."
     },
@@ -1339,10 +1221,7 @@
     "name": "network.protocol.name",
     "type": "string",
     "brief": "[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.",
-    "examples": [
-      "amqp",
-      "mqtt"
-    ],
+    "examples": ["amqp", "mqtt"],
     "tag": "connection-level",
     "requirement_level": "recommended",
     "note": "The value SHOULD be normalized to lowercase.",
@@ -1362,10 +1241,7 @@
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
+    "examples": ["MyQueue", "MyTopic"],
     "requirement_level": {
       "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
@@ -1375,9 +1251,7 @@
     "name": "messaging.destination.template",
     "type": "string",
     "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
+    "examples": ["/customers/{customerId}"],
     "requirement_level": {
       "conditionally_required": "if available."
     },

@@ -64,7 +64,11 @@ impl SemConvRegistry {
     /// # Errors
     ///
     /// If the registry path pattern is invalid.
-    pub fn try_from_path_pattern(registry_id: &str, path_pattern: &str) -> Result<Self, Error> {
+    pub fn try_from_path_pattern(
+        registry_id: &str,
+        path_pattern: &str,
+        strict_mode: bool,
+    ) -> Result<Self, Error> {
         let mut registry = SemConvRegistry::new(registry_id);
         for sc_entry in glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
             path_pattern: path_pattern.to_owned(),
@@ -74,7 +78,8 @@ impl SemConvRegistry {
                 path_pattern: path_pattern.to_owned(),
                 error: e.to_string(),
             })?;
-            let semconv_spec = SemConvSpecWithProvenance::from_file(path_buf.as_path())?;
+            let semconv_spec =
+                SemConvSpecWithProvenance::from_file(path_buf.as_path(), strict_mode)?;
             registry.add_semconv_spec(semconv_spec);
         }
         Ok(registry)
@@ -121,8 +126,12 @@ impl SemConvRegistry {
     pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
         &mut self,
         path: P,
+        strict_mode: bool,
     ) -> Result<(), Error> {
-        self.add_semconv_spec(SemConvSpecWithProvenance::from_file(path.clone())?);
+        self.add_semconv_spec(SemConvSpecWithProvenance::from_file(
+            path.clone(),
+            strict_mode,
+        )?);
         Ok(())
     }
 
@@ -131,23 +140,32 @@ impl SemConvRegistry {
         &mut self,
         provenance: &str,
         spec: &str,
+        strict_mode: bool,
     ) -> Result<(), Error> {
-        self.add_semconv_spec(SemConvSpecWithProvenance::from_string(provenance, spec)?);
+        self.add_semconv_spec(SemConvSpecWithProvenance::from_string(
+            provenance,
+            spec,
+            strict_mode,
+        )?);
         Ok(())
     }
 
     /// Loads and returns the semantic convention spec from a file.
     pub fn semconv_spec_from_file<P: AsRef<Path>>(
         semconv_path: P,
+        strict_mode: bool,
     ) -> Result<(String, SemConvSpec), Error> {
         let provenance = semconv_path.as_ref().display().to_string();
-        let spec = SemConvSpec::from_file(semconv_path)?;
+        let spec = SemConvSpec::from_file(semconv_path, strict_mode)?;
         Ok((provenance, spec))
     }
 
     /// Downloads and returns the semantic convention spec from an URL.
-    pub fn semconv_spec_from_url(sem_conv_url: &str) -> Result<(String, SemConvSpec), Error> {
-        let spec = SemConvSpec::from_url(sem_conv_url)?;
+    pub fn semconv_spec_from_url(
+        sem_conv_url: &str,
+        strict_mode: bool,
+    ) -> Result<(String, SemConvSpec), Error> {
+        let spec = SemConvSpec::from_url(sem_conv_url, strict_mode)?;
         Ok((sem_conv_url.to_owned(), spec))
     }
 
@@ -204,12 +222,13 @@ mod tests {
     #[test]
     fn test_try_from_path_pattern() {
         // Test with a valid path pattern
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let registry =
+            SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml", true).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 3);
 
         // Test with an invalid path pattern
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c***.yml");
+        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c***.yml", true);
         assert!(registry.is_err());
         assert!(matches!(
             registry.unwrap_err(),
@@ -220,7 +239,7 @@ mod tests {
     #[test]
     fn test_semconv_spec_from_url() {
         let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
-        let result = SemConvRegistry::semconv_spec_from_url(semconv_url);
+        let result = SemConvRegistry::semconv_spec_from_url(semconv_url, true);
         assert!(result.is_ok());
     }
 
@@ -303,19 +322,21 @@ mod tests {
 
     #[test]
     fn test_semconv_from_path_pattern() {
-        let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let mut registry =
+            SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml", true).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 3);
 
         registry
-            .add_semconv_spec_from_file("data/database.yaml")
+            .add_semconv_spec_from_file("data/database.yaml", true)
             .unwrap();
         assert_eq!(registry.semconv_spec_count(), 4);
     }
 
     #[test]
     fn test_stats() {
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let registry =
+            SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml", true).unwrap();
         let stats = registry.stats();
         assert_eq!(stats.file_count, 3);
         assert_eq!(stats.group_count, 3);
@@ -333,7 +354,8 @@ mod tests {
 
     #[test]
     fn test_unresolved_group_with_provenance_iter() {
-        let registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml").unwrap();
+        let registry =
+            SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml", true).unwrap();
 
         let groups = registry
             .unresolved_group_with_provenance_iter()

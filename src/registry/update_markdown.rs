@@ -46,6 +46,10 @@ pub struct RegistryUpdateMarkdownArgs {
     #[arg(long)]
     pub target: String,
 
+    /// Enable strict mode for the validation of the semantic convention registry.
+    #[arg(long, default_value = "false")]
+    pub strict: bool,
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -81,7 +85,8 @@ pub(crate) fn command(
         }
     }
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
+    let generator =
+        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, args.strict)?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -144,6 +149,7 @@ mod tests {
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
                     templates: "data/update_markdown/templates".to_owned(),
+                    strict: false,
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
                 }),

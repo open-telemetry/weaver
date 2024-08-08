@@ -175,7 +175,7 @@ mod tests {
 
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = registry.add_semconv_spec_from_file(yaml);
+            let result = registry.add_semconv_spec_from_file(yaml, true);
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
     }
@@ -186,7 +186,7 @@ mod tests {
 
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = registry.add_semconv_spec_from_file(yaml);
+            let result = registry.add_semconv_spec_from_file(yaml, true);
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
                 let output = format!("{}", err);
