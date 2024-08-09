@@ -42,7 +42,7 @@
     "requirement_level": "recommended"
   },
   {
-    "name": "network.protocol.name",
+    "name": "network.protocol.name2",
     "type": "string",
     "brief": "Network protocol name",
     "examples": [
@@ -66,7 +66,7 @@
   {
     "name": "network.protocol.name",
     "type": "string",
-    "brief": "Network protocol name",
+    "brief": "Network protocol name (registry)",
     "examples": [
       "http",
       "spdy"

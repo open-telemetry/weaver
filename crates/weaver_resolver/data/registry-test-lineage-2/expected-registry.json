@@ -57,6 +57,7 @@
       "brief": "Top level",
       "attributes": [
         3,
+        4,
         6,
         7,
         8
@@ -65,13 +66,16 @@
         "source_file": "data/registry-test-lineage-2/registry/groups.yaml",
         "attributes": {
           "network.protocol.name": {
+            "source_group": "registry.xyz",
+            "inherited_fields": ["brief", "examples", "note"],
+            "locally_overridden_fields": ["requirement_level"]
+          },
+          "network.protocol.name2": {
             "source_group": "intermediate.level",
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
-            ],
-            "locally_overridden_fields": [
+              "note",
               "requirement_level"
             ]
           },
