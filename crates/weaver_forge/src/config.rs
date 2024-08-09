@@ -69,6 +69,9 @@ pub struct WeaverConfig {
     /// Configuration for the whitespace behavior on the template engine.
     #[serde(default)]
     pub(crate) whitespace_control: WhitespaceControl,
+    /// Configuration for the comment formats.
+    #[serde(default)]
+    pub(crate) comment_formats: Option<HashMap<String, CommentFormat>>,
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
@@ -215,6 +218,53 @@ impl WhitespaceControl {
     }
 }
 
+/// Supported comment syntaxes.
+#[derive(Deserialize, Debug, Clone)]
+pub enum CommentSyntax {
+    /// Markdown comment syntax.
+    Markdown,
+    /// HTML comment syntax.
+    Html
+}
+
+impl Default for CommentSyntax {
+    fn default() -> Self {
+        CommentSyntax::Markdown
+    }
+}
+
+/// Used to set a default value for a boolean field in a struct.
+pub const fn default_bool<const V: bool>() -> bool {
+    V
+}
+
+/// Configuration for the comment format. This configuration is used
+/// by the comment filter to format comments.
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct CommentFormat {
+    /// The low-level comment syntax.
+    pub syntax: CommentSyntax,
+    /// Flag to trim the comment content.
+    #[serde(default = "default_bool::<true>")]
+    pub trim: bool,
+    /// Flag to remove trailing dots from the comment content.
+    #[serde(default = "default_bool::<false>")]
+    pub remove_trailing_dots: bool,
+    /// Flag to remove line breaks in sentences.
+    #[serde(default = "default_bool::<false>")]
+    pub remove_line_breaks_in_sentences: bool,
+    /// Jinja expression to specify the formatting of inline code.
+    pub inline_code_style: Option<String>,
+    /// Jinja expression to specify the formatting of block code.
+    pub block_code_style: Option<String>,
+    /// List of strong words to highlight in the comment.
+    /// e.g. ["MUST", "SHOULD", "TODO", "FIXME"]
+    #[serde(default = "Vec::default")]
+    pub strong_words: Vec<String>,
+    /// Jinja expression to specify the style of the strong words.
+    pub strong_word_style: Option<String>,
+}
+
 impl Default for CaseConvention {
     /// Default case convention is PascalCase
     fn default() -> Self {
@@ -296,6 +346,7 @@ impl Default for WeaverConfig {
                 comment_end: Some("#}".to_owned()),
             },
             whitespace_control: Default::default(),
+            comment_formats: None,
             params: None,
             templates: None,
             acronyms: None,
