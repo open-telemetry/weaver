@@ -207,9 +207,9 @@ impl TemplateEngine {
 
                 // Add CLI-level params to the template params. If a param is already defined
                 // in the template params, the CLI-level param will override it.
-                // Note: The result of the insert method is ignored because we don't care about
-                // the previous value of the param.
                 for (name, value) in params.params.iter() {
+                    // The result of the insert method is ignored because we don't care about
+                    // the previous value of the param.
                     _ = template_params.insert(name.clone(), value.clone());
                 }
 
