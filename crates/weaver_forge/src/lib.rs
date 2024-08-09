@@ -574,7 +574,7 @@ impl TemplateEngine {
         env.set_lstrip_blocks(whitespace_control.lstrip_blocks.unwrap_or_default());
         env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline.unwrap_or_default());
 
-        code::add_filters(&mut env, &self.target_config);
+        code::add_filters(&mut env, &self.target_config)?;
         ansi::add_filters(&mut env);
         case::add_filters(&mut env, &self.target_config);
         otel::add_tests_and_filters(&mut env);

@@ -72,6 +72,8 @@ pub struct WeaverConfig {
     /// Configuration for the comment formats.
     #[serde(default)]
     pub(crate) comment_formats: Option<HashMap<String, CommentFormat>>,
+    /// Default comment format used by the comment filter.
+    pub(crate) default_comment_format: Option<String>,
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
@@ -219,21 +221,17 @@ impl WhitespaceControl {
 }
 
 /// Supported comment syntaxes.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Default, Deserialize, Debug, Clone)]
 pub enum CommentSyntax {
     /// Markdown comment syntax.
+    #[default]
     Markdown,
     /// HTML comment syntax.
     Html
 }
 
-impl Default for CommentSyntax {
-    fn default() -> Self {
-        CommentSyntax::Markdown
-    }
-}
-
 /// Used to set a default value for a boolean field in a struct.
+#[must_use]
 pub const fn default_bool<const V: bool>() -> bool {
     V
 }
@@ -347,6 +345,7 @@ impl Default for WeaverConfig {
             },
             whitespace_control: Default::default(),
             comment_formats: None,
+            default_comment_format: None,
             params: None,
             templates: None,
             acronyms: None,

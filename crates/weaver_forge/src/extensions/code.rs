@@ -3,12 +3,12 @@
 //! Set of filters used to facilitate the generation of code.
 
 use std::collections::HashMap;
-
-use crate::config::WeaverConfig;
+use crate::config::{CommentFormat, WeaverConfig};
 use minijinja::{Environment, Value};
+use crate::error::Error;
 
 /// Add code-oriented filters to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) {
+pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) -> Result<(), Error> {
     env.add_filter(
         "type_mapping",
         type_mapping(config.type_mapping.clone().unwrap_or_default()),
@@ -18,7 +18,19 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) {
         map_text(config.text_maps.clone().unwrap_or_default()),
     );
     env.add_filter("comment_with_prefix", comment_with_prefix);
+    let comment_format = if let Some(default_comment_format) = config.default_comment_format.as_ref() {
+        config.comment_formats
+            .as_ref()
+            .and_then(|comment_formats| {
+                comment_formats.get(default_comment_format).cloned()
+            })
+            .unwrap_or_default()
+    } else {
+        CommentFormat::default()
+    };
+    env.add_filter("comment", comment(comment_format));
     env.add_filter("markdown_to_html", markdown_to_html);
+    Ok(())
 }
 
 /// Converts the input string into a string comment with a prefix.
@@ -33,6 +45,30 @@ pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
         comment.push_str(&format!("{}{}", prefix, line));
     }
     comment
+}
+
+/// Generic comment filter reading its configuration from the `weaver.yaml` file.
+pub(crate) fn comment(comment_format: CommentFormat) -> impl Fn(&Value) -> String {
+    move |input: &Value| -> String {
+        let mut comment = String::new();
+        let prefix = ""; // ToDo
+
+        for line in input.to_string().lines() {
+            if !comment.is_empty() {
+                comment.push('\n');
+            }
+            comment.push_str(&format!("{}{}", prefix, line));
+        }
+
+        if comment_format.trim {
+            comment = comment.trim().to_owned();
+        }
+        if comment_format.remove_trailing_dots {
+            comment = comment.trim_end_matches('.').to_owned();
+        }
+
+        comment
+    }
 }
 
 /// Create a filter that uses the type mapping defined in `weaver.yaml` to replace
@@ -92,7 +128,40 @@ mod tests {
     use crate::extensions::code;
 
     #[test]
-    fn test_comment() {
+    fn test_comment() -> Result<(), Error> {
+        let mut env = Environment::new();
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "javadoc".to_owned(),
+                    CommentFormat {
+                        trim: true,
+                        remove_trailing_dots: true,
+                        ..Default::default()
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("javadoc".to_owned()),
+            ..Default::default()
+        };
+        let ctx = serde_json::json!({
+            "note": " A example of multi-line comment.\n\nThis is the second line..  "
+        });
+
+        add_filters(&mut env, &config)?;
+
+        assert_eq!(
+            env.render_str("{{ note | comment }}", &ctx)
+                .unwrap(),
+            "A example of multi-line comment.\n\nThis is the second line"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_comment_with_prefix() {
         assert_eq!(comment_with_prefix(&Value::from("test"), "// "), "// test");
         assert_eq!(comment_with_prefix(&Value::from(12), "// "), "// 12");
 
