@@ -46,8 +46,7 @@ Any Maintainer can merge the PR once it is ready to merge. Note, that some PRs m
 Before introducing any non-trivial schema changes, we recommend discussing them in the
 [semantic-conventions](https://github.com/open-telemetry/semantic-conventions) repo.
 
-Changes affecting semantic conventions schema should be reflected in the formal schema definition and require
-approval from @open-telemetry/specs-semconv-approvers.
+Changes affecting semantic conventions schema should be reflected in the formal schema definition and require approval from @open-telemetry/specs-semconv-approvers.
 
 Semantic conventions schema is formally defined in [semconv.schema.json](./schemas/semconv.schema.json),
 human-readable documentation is available in [semconv-syntax.md](./schemas/semconv-syntax.md).
