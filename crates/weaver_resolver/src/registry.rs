@@ -366,10 +366,8 @@ fn resolve_attribute_references(
     ureg: &mut UnresolvedRegistry,
     attr_catalog: &mut AttributeCatalog,
 ) -> Result<(), Error> {
-    let mut permanent_errors = vec![];
-
     loop {
-        let mut transient_errors = vec![];
+        let mut errors = vec![];
         let mut resolved_attr_count = 0;
 
         // Iterate over all groups and resolve the attributes.
@@ -401,8 +399,8 @@ fn resolve_attribute_references(
                         // Attribute reference could not be resolved.
                         if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
                             // Keep track of unresolved attribute references in
-                            // the transient errors.
-                            transient_errors.push(Error::UnresolvedAttributeRef {
+                            // the errors.
+                            errors.push(Error::UnresolvedAttributeRef {
                                 group_id: unresolved_group.group.id.clone(),
                                 attribute_ref: r#ref.clone(),
                                 provenance: unresolved_group.provenance.clone(),
@@ -416,7 +414,7 @@ fn resolve_attribute_references(
             unresolved_group.group.attributes.extend(resolved_attr);
         }
 
-        if transient_errors.is_empty() {
+        if errors.is_empty() {
             break;
         }
 
@@ -425,14 +423,10 @@ fn resolve_attribute_references(
         // It means that we have an issue with the semantic convention
         // specifications.
         if resolved_attr_count == 0 {
-            permanent_errors.extend(transient_errors);
-            break;
+            return Err(Error::CompoundError(errors));
         }
     }
 
-    if !permanent_errors.is_empty() {
-        return Err(Error::CompoundError(permanent_errors));
-    }
     Ok(())
 }
 
