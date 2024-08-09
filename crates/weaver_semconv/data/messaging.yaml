@@ -2,19 +2,19 @@ groups:
   - id: messaging.message
     prefix: messaging
     type: attribute_group
-    brief: 'Semantic convention describing per-message attributes populated on messaging spans or links.'
+    brief: "Semantic convention describing per-message attributes populated on messaging spans or links."
     attributes:
       - ref: messaging.destination.name
       - id: message.id
         type: string
-        brief: 'A value used by the messaging system as an identifier for the message, represented as a string.'
-        examples: '452a7c7c7c7048c2f887f61572b18fc2'
+        brief: "A value used by the messaging system as an identifier for the message, represented as a string."
+        examples: "452a7c7c7c7048c2f887f61572b18fc2"
       - id: message.conversation_id
         type: string
         brief: >
           The [conversation ID](#conversations) identifying the conversation to which the message belongs,
           represented as a string. Sometimes called "Correlation ID".
-        examples: 'MyConversationId'
+        examples: "MyConversationId"
       - id: message.payload_size_bytes
         type: int
         brief: >
@@ -23,13 +23,13 @@ groups:
         examples: 2738
       - id: message.payload_compressed_size_bytes
         type: int
-        brief: 'The compressed size of the message payload in bytes.'
+        brief: "The compressed size of the message payload in bytes."
         examples: 2048
 
   - id: messaging.destination
     prefix: messaging.destination
     type: attribute_group
-    brief: 'Semantic convention for attributes that describe messaging destination on broker'
+    brief: "Semantic convention for attributes that describe messaging destination on broker"
     note: |
       Destination attributes should be set on publish, receive, or other spans
       describing messaging operations.
@@ -42,11 +42,11 @@ groups:
     attributes:
       - id: name
         type: string
-        brief: 'The message destination name'
+        brief: "The message destination name"
         note: |
           Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If
           the broker does not have such notion, the destination name SHOULD uniquely identify the broker.
-        examples: ['MyQueue', 'MyTopic']
+        examples: ["MyQueue", "MyTopic"]
       - id: template
         type: string
         brief: Low cardinality representation of the messaging destination name
@@ -56,13 +56,13 @@ groups:
           Although the destination name in this case is of high cardinality,
           the underlying template is of low cardinality and can be effectively
           used for grouping and aggregation.
-        examples: ['/customers/{customerId}']
+        examples: ["/customers/{customerId}"]
       - id: temporary
         type: boolean
-        brief: 'A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.'
+        brief: "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed."
       - id: anonymous
         type: boolean
-        brief: 'A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).'
+        brief: "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name)."
 
   - id: messaging.destination_publish
     prefix: messaging.destination_publish
@@ -83,14 +83,14 @@ groups:
     attributes:
       - id: name
         type: string
-        brief: 'The name of the original destination the message was published to'
+        brief: "The name of the original destination the message was published to"
         note: |
           The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If
           the broker does not have such notion, the original destination name SHOULD uniquely identify the broker.
-        examples: ['MyQueue', 'MyTopic']
+        examples: ["MyQueue", "MyTopic"]
       - id: anonymous
         type: boolean
-        brief: 'A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).'
+        brief: "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name)."
 
   - id: messaging
     prefix: messaging
@@ -102,8 +102,8 @@ groups:
       - id: system
         type: string
         requirement_level: required
-        brief: 'A string identifying the messaging system.'
-        examples: ['kafka', 'rabbitmq', 'rocketmq', 'activemq', 'AmazonSQS']
+        brief: "A string identifying the messaging system."
+        examples: ["kafka", "rabbitmq", "rocketmq", "activemq", "AmazonSQS"]
       - id: operation
         type:
           allow_custom_values: true
@@ -135,7 +135,7 @@ groups:
           recommended: If a client id is available
         brief: >
           A unique identifier for the client that consumes or produces a message.
-        examples: ['client-5', 'myhost@8742@s8083jm']
+        examples: ["client-5", "myhost@8742@s8083jm"]
       - ref: messaging.destination.name
         requirement_level:
           conditionally_required: If span describes operation on a single message or if the value applies to all messages in the batch.
@@ -180,7 +180,7 @@ groups:
         requirement_level:
           recommended: If different than `server.address` and if `server.socket.address` is set.
       - ref: network.protocol.name
-        examples: ['amqp', 'mqtt']
+        examples: ["amqp", "mqtt"]
       - ref: network.protocol.version
 
   - id: messaging.rabbitmq
@@ -196,7 +196,7 @@ groups:
           conditionally_required: If not empty.
         brief: >
           RabbitMQ message routing key.
-        examples: 'myKey'
+        examples: "myKey"
 
   - id: messaging.kafka
     prefix: messaging.kafka
@@ -214,13 +214,13 @@ groups:
         note: >
           If the key type is not string, it's string representation has to be supplied for the attribute.
           If the key has no unambiguous, canonical string form, don't include its value.
-        examples: 'myKey'
+        examples: "myKey"
       - id: consumer.group
         type: string
         brief: >
           Name of the Kafka Consumer Group that is handling the message.
           Only applies to consumers, not producers.
-        examples: 'my-group'
+        examples: "my-group"
       - id: destination.partition
         type: int
         brief: >
@@ -235,7 +235,7 @@ groups:
         type: boolean
         requirement_level:
           conditionally_required: If value is `true`. When missing, the value is assumed to be `false`.
-        brief: 'A boolean that is true if the message is a tombstone.'
+        brief: "A boolean that is true if the message is a tombstone."
 
   - id: messaging.rocketmq
     prefix: messaging.rocketmq
@@ -249,13 +249,13 @@ groups:
         requirement_level: required
         brief: >
           Namespace of RocketMQ resources, resources in different namespaces are individual.
-        examples: 'myNamespace'
+        examples: "myNamespace"
       - id: client_group
         type: string
         requirement_level: required
         brief: >
           Name of the RocketMQ producer/consumer group that is handling the message. The client type is identified by the SpanKind.
-        examples: 'myConsumerGroup'
+        examples: "myConsumerGroup"
       - id: message.delivery_timestamp
         type: int
         requirement_level:
@@ -276,23 +276,23 @@ groups:
           conditionally_required: If the message type is FIFO.
         brief: >
           It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.
-        examples: 'myMessageGroup'
+        examples: "myMessageGroup"
       - id: message.type
         type:
           allow_custom_values: false
           members:
             - id: normal
-              value: 'normal'
+              value: "normal"
               brief: "Normal message"
             - id: fifo
-              value: 'fifo'
-              brief: 'FIFO message'
+              value: "fifo"
+              brief: "FIFO message"
             - id: delay
-              value: 'delay'
-              brief: 'Delay message'
+              value: "delay"
+              brief: "Delay message"
             - id: transaction
-              value: 'transaction'
-              brief: 'Transaction message'
+              value: "transaction"
+              brief: "Transaction message"
         brief: >
           Type of message.
       - id: message.tag
@@ -304,16 +304,16 @@ groups:
         type: string[]
         brief: >
           Key(s) of message, another way to mark message besides message id.
-        examples: ['keyA', 'keyB']
+        examples: [["keyA"], ["keyB"]]
       - id: consumption_model
         type:
           allow_custom_values: false
           members:
             - id: clustering
-              value: 'clustering'
-              brief: 'Clustering consumption model'
+              value: "clustering"
+              brief: "Clustering consumption model"
             - id: broadcasting
-              value: 'broadcasting'
-              brief: 'Broadcasting consumption model'
+              value: "broadcasting"
+              brief: "Broadcasting consumption model"
         brief: >
           Model of message consumption. This only applies to consumer spans.

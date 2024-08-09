@@ -90,7 +90,7 @@ pub struct GroupSpec {
 
 impl GroupSpec {
     /// Validation logic for the group.
-    pub(crate) fn validate(&self, path_or_url: &str) -> Result<(), Error> {
+    pub(crate) fn validate(&self, path_or_url: &str, strict_mode: bool) -> Result<(), Error> {
         let mut errors = vec![];
 
         // Fields span_kind and events are only valid if type is span (the default).
@@ -170,11 +170,20 @@ impl GroupSpec {
             }
 
             // Examples are required only for string and string array attributes.
+            // When examples are set, the attribute type and examples type must match.
             if let AttributeSpec::Id {
-                r#type, examples, ..
+                id,
+                r#type,
+                examples,
+                ..
             } = attribute
             {
-                if examples.is_some() {
+                if let Some(examples) = examples {
+                    if let Err(err) =
+                        examples.validate(strict_mode, r#type, &self.id, id, path_or_url)
+                    {
+                        errors.push(err);
+                    }
                     continue;
                 }
 
@@ -335,11 +344,11 @@ mod tests {
             name: None,
             display_name: None,
         };
-        assert!(group.validate("<test>").is_ok());
+        assert!(group.validate("<test>", true).is_ok());
 
         // Span kind is set but the type is not span.
         group.r#type = GroupType::Metric;
-        let result = group.validate("<test>");
+        let result = group.validate("<test>", true);
         assert_eq!(
             Err(CompoundError(vec![
                 InvalidGroup {
@@ -379,7 +388,7 @@ mod tests {
         group.r#type = GroupType::Event;
         "".clone_into(&mut group.prefix);
         group.name = None;
-        let result = group.validate("<test>");
+        let result = group.validate("<test>", true);
         assert_eq!(Err(
             CompoundError(
                 vec![
@@ -435,7 +444,7 @@ mod tests {
             name: None,
             display_name: None,
         };
-        assert!(group.validate("<test>").is_ok());
+        assert!(group.validate("<test>", true).is_ok());
 
         // Examples are mandatory for string attributes.
         group.attributes = vec![AttributeSpec::Id {
@@ -450,7 +459,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
         }];
-        let result = group.validate("<test>");
+        let result = group.validate("<test>", true);
         assert_eq!(
             Err(InvalidAttribute {
                 path_or_url: "<test>".to_owned(),
@@ -475,7 +484,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
         }];
-        let result = group.validate("<test>");
+        let result = group.validate("<test>", true);
         assert_eq!(
             Err(InvalidAttribute {
                 path_or_url: "<test>".to_owned(),

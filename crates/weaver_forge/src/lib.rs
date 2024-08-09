@@ -776,7 +776,7 @@ mod tests {
         engine.target_config.templates = Some(templates);
 
         let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml", true)
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
@@ -816,7 +816,7 @@ mod tests {
         let engine = super::TemplateEngine::new(config, loader, Params::default());
 
         let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml", true)
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
@@ -892,7 +892,7 @@ mod tests {
         let mut engine = super::TemplateEngine::new(config, loader, Params::default());
         engine.import_jq_package(super::SEMCONV_JQ).unwrap();
         let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml", true)
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");

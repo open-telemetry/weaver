@@ -77,6 +77,19 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention asset contains an invalid example.
+    #[error("The attribute `{attribute_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
+    InvalidExample {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
@@ -162,7 +175,7 @@ mod tests {
 
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = registry.add_semconv_spec_from_file(yaml);
+            let result = registry.add_semconv_spec_from_file(yaml, true);
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
     }
@@ -173,7 +186,7 @@ mod tests {
 
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = registry.add_semconv_spec_from_file(yaml);
+            let result = registry.add_semconv_spec_from_file(yaml, true);
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
                 let output = format!("{}", err);

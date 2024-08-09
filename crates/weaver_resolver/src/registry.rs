@@ -740,6 +740,7 @@ mod tests {
             let sc_specs = SemConvRegistry::try_from_path_pattern(
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
+                true,
             )
             .expect("Failed to load semconv specs");
 
@@ -789,7 +790,7 @@ mod tests {
     fn create_registry_from_string(registry_spec: &str) -> Result<Registry, crate::Error> {
         let mut sc_specs = SemConvRegistry::new("default");
         sc_specs
-            .add_semconv_spec_from_string("<str>", registry_spec)
+            .add_semconv_spec_from_string("<str>", registry_spec, true)
             .expect("Failed to load semconv spec");
 
         let mut attr_catalog = AttributeCatalog::default();
@@ -933,6 +934,7 @@ groups:
         let mut semconv_registry = SemConvRegistry::try_from_path_pattern(
             registry_id,
             "data/registry-test-7-spans/registry/*.yaml",
+            true,
         )?;
 
         // Resolve the semantic convention registry.

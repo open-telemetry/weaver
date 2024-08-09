@@ -3,11 +3,7 @@
     "name": "messaging.batch.message_count",
     "type": "int",
     "brief": "The number of messages sent, received, or processed in the scope of the batching operation.",
-    "examples": [
-      0,
-      1,
-      2
-    ],
+    "examples": [0, 1, 2],
     "requirement_level": "recommended",
     "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n"
   },
@@ -15,20 +11,14 @@
     "name": "messaging.client_id",
     "type": "string",
     "brief": "A unique identifier for the client that consumes or produces a message.\n",
-    "examples": [
-      "client-5",
-      "myhost@8742@s8083jm"
-    ],
+    "examples": ["client-5", "myhost@8742@s8083jm"],
     "requirement_level": "recommended"
   },
   {
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
+    "examples": ["MyQueue", "MyTopic"],
     "requirement_level": "recommended",
     "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
   },
@@ -36,9 +26,7 @@
     "name": "messaging.destination.template",
     "type": "string",
     "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
+    "examples": ["/customers/{customerId}"],
     "requirement_level": "recommended",
     "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
   },
@@ -64,10 +52,7 @@
     "name": "messaging.destination_publish.name",
     "type": "string",
     "brief": "The name of the original destination the message was published to",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
+    "examples": ["MyQueue", "MyTopic"],
     "requirement_level": "recommended",
     "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n"
   },
@@ -232,10 +217,7 @@
     "name": "messaging.rocketmq.message.keys",
     "type": "string[]",
     "brief": "Key(s) of message, another way to mark message besides message id.\n",
-    "examples": [
-      "keyA",
-      "keyB"
-    ],
+    "examples": [["keyA"], ["keyB"]],
     "requirement_level": "recommended"
   },
   {
@@ -367,10 +349,7 @@
     "name": "messaging.destination.name",
     "type": "string",
     "brief": "The message destination name",
-    "examples": [
-      "MyQueue",
-      "MyTopic"
-    ],
+    "examples": ["MyQueue", "MyTopic"],
     "requirement_level": {
       "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
@@ -380,9 +359,7 @@
     "name": "messaging.destination.template",
     "type": "string",
     "brief": "Low cardinality representation of the messaging destination name",
-    "examples": [
-      "/customers/{customerId}"
-    ],
+    "examples": ["/customers/{customerId}"],
     "requirement_level": {
       "conditionally_required": "if available."
     },

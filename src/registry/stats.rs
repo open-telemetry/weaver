@@ -21,6 +21,10 @@ pub struct RegistryStatsArgs {
     #[command(flatten)]
     registry: RegistryArgs,
 
+    /// Enable strict mode for the validation of the semantic convention registry.
+    #[arg(long, default_value = "false")]
+    pub strict: bool,
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -47,7 +51,7 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, args.strict, logger.clone())?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     display_semconv_registry_stats(&registry);

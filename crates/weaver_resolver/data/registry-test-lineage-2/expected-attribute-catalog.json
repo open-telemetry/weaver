@@ -3,11 +3,7 @@
     "name": "server.port",
     "type": "string",
     "brief": "Server port",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
+    "examples": ["80", "8080", "443"],
     "requirement_level": "recommended",
     "stability": "stable"
   },
@@ -15,51 +11,35 @@
     "name": "network.protocol.name",
     "type": "string",
     "brief": "Network protocol name (registry)",
-    "examples": [
-      "http",
-      "spdy"
-    ],
+    "examples": ["http", "spdy"],
     "requirement_level": "recommended"
   },
   {
     "name": "network.protocol.version",
     "type": "string",
     "brief": "Network protocol version (registry)",
-    "examples": [
-      "1.0",
-      "2.0"
-    ],
+    "examples": ["1.0", "2.0"],
     "requirement_level": "recommended"
   },
   {
     "name": "network.type",
     "type": "string",
     "brief": "Network type (registry)",
-    "examples": [
-      "ipv4",
-      "ipv6"
-    ],
+    "examples": ["ipv4", "ipv6"],
     "requirement_level": "recommended"
   },
   {
     "name": "network.protocol.name",
     "type": "string",
     "brief": "Network protocol name",
-    "examples": [
-      "http",
-      "spdy"
-    ],
+    "examples": ["http", "spdy"],
     "requirement_level": "recommended"
   },
   {
     "name": "server.port",
     "type": "string",
     "brief": "Server port",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
+    "examples": ["80", "8080", "443"],
     "requirement_level": "opt_in",
     "stability": "stable"
   },
@@ -67,31 +47,21 @@
     "name": "network.protocol.name",
     "type": "string",
     "brief": "Network protocol name",
-    "examples": [
-      "http",
-      "spdy"
-    ],
+    "examples": ["http", "spdy"],
     "requirement_level": "opt_in"
   },
   {
     "name": "network.protocol.version",
     "type": "string",
     "brief": "Network protocol version (registry)",
-    "examples": [
-      "1.0",
-      "2.0"
-    ],
+    "examples": ["1.0", "2.0"],
     "requirement_level": "opt_in"
   },
   {
     "name": "server.port",
     "type": "string",
     "brief": "Brief of the top level",
-    "examples": [
-      80,
-      8080,
-      443
-    ],
+    "examples": [80, 8080, 443],
     "requirement_level": "opt_in",
     "stability": "stable"
   }
