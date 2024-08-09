@@ -46,9 +46,10 @@ pub struct RegistryUpdateMarkdownArgs {
     #[arg(long)]
     pub target: String,
 
-    /// Enable strict mode for the validation of the semantic convention registry.
+    /// Enable the most recent validation rules for the semconv registry. It is recommended
+    /// to enable this flag when checking a new registry.
     #[arg(long, default_value = "false")]
-    pub strict: bool,
+    pub future: bool,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -86,7 +87,7 @@ pub(crate) fn command(
     }
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let generator =
-        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, args.strict)?;
+        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, args.future)?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -149,7 +150,7 @@ mod tests {
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
                     templates: "data/update_markdown/templates".to_owned(),
-                    strict: false,
+                    future: false,
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
                 }),

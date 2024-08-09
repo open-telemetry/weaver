@@ -64,9 +64,10 @@ pub struct RegistryGenerateArgs {
     #[arg(long, default_value = "false")]
     pub skip_policies: bool,
 
-    /// Enable strict mode for the validation of the semantic convention registry.
+    /// Enable the most recent validation rules for the semconv registry. It is recommended
+    /// to enable this flag when checking a new registry.
     #[arg(long, default_value = "false")]
-    pub strict: bool,
+    pub future: bool,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -111,7 +112,7 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.strict, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, args.future, logger.clone())?;
 
     if !args.skip_policies {
         let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
@@ -217,7 +218,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: true,
-                    strict: false,
+                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -288,7 +289,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: false,
-                    strict: false,
+                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -331,7 +332,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: true,
-                    strict: false,
+                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),

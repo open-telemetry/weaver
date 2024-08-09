@@ -236,12 +236,12 @@ impl SchemaResolver {
     /// * `cache` - The cache to store the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
-            strict_mode,
+            future_mode,
         )
     }
 
@@ -255,7 +255,7 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -287,7 +287,7 @@ impl SchemaResolver {
                             return vec![].into_par_iter();
                         }
 
-                        match SemConvRegistry::semconv_spec_from_file(entry.path(), strict_mode) {
+                        match SemConvRegistry::semconv_spec_from_file(entry.path(), future_mode) {
                             Ok((path, spec)) => {
                                 // Replace the local path with the git URL combined with the relative path
                                 // of the semantic convention file.

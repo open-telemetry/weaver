@@ -67,7 +67,7 @@ impl SemConvRegistry {
     pub fn try_from_path_pattern(
         registry_id: &str,
         path_pattern: &str,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<Self, Error> {
         let mut registry = SemConvRegistry::new(registry_id);
         for sc_entry in glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
@@ -79,7 +79,7 @@ impl SemConvRegistry {
                 error: e.to_string(),
             })?;
             let semconv_spec =
-                SemConvSpecWithProvenance::from_file(path_buf.as_path(), strict_mode)?;
+                SemConvSpecWithProvenance::from_file(path_buf.as_path(), future_mode)?;
             registry.add_semconv_spec(semconv_spec);
         }
         Ok(registry)
@@ -126,11 +126,11 @@ impl SemConvRegistry {
     pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
         &mut self,
         path: P,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<(), Error> {
         self.add_semconv_spec(SemConvSpecWithProvenance::from_file(
             path.clone(),
-            strict_mode,
+            future_mode,
         )?);
         Ok(())
     }
@@ -140,12 +140,12 @@ impl SemConvRegistry {
         &mut self,
         provenance: &str,
         spec: &str,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<(), Error> {
         self.add_semconv_spec(SemConvSpecWithProvenance::from_string(
             provenance,
             spec,
-            strict_mode,
+            future_mode,
         )?);
         Ok(())
     }
@@ -153,19 +153,19 @@ impl SemConvRegistry {
     /// Loads and returns the semantic convention spec from a file.
     pub fn semconv_spec_from_file<P: AsRef<Path>>(
         semconv_path: P,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<(String, SemConvSpec), Error> {
         let provenance = semconv_path.as_ref().display().to_string();
-        let spec = SemConvSpec::from_file(semconv_path, strict_mode)?;
+        let spec = SemConvSpec::from_file(semconv_path, future_mode)?;
         Ok((provenance, spec))
     }
 
     /// Downloads and returns the semantic convention spec from an URL.
     pub fn semconv_spec_from_url(
         sem_conv_url: &str,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<(String, SemConvSpec), Error> {
-        let spec = SemConvSpec::from_url(sem_conv_url, strict_mode)?;
+        let spec = SemConvSpec::from_url(sem_conv_url, future_mode)?;
         Ok((sem_conv_url.to_owned(), spec))
     }
 

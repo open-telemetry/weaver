@@ -31,10 +31,10 @@ use weaver_semconv::semconv::SemConvSpec;
 /// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
-    strict_mode: bool,
+    future_mode: bool,
     log: impl Logger + Sync + Clone,
 ) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, strict_mode)?;
+    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, future_mode)?;
     log.success(&format!(
         "`{}` semconv registry `{}` loaded ({} files)",
         registry_repo.id(),

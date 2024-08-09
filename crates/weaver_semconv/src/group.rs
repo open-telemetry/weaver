@@ -90,7 +90,7 @@ pub struct GroupSpec {
 
 impl GroupSpec {
     /// Validation logic for the group.
-    pub(crate) fn validate(&self, path_or_url: &str, strict_mode: bool) -> Result<(), Error> {
+    pub(crate) fn validate(&self, path_or_url: &str, future_mode: bool) -> Result<(), Error> {
         let mut errors = vec![];
 
         // Fields span_kind and events are only valid if type is span (the default).
@@ -180,7 +180,7 @@ impl GroupSpec {
             {
                 if let Some(examples) = examples {
                     if let Err(err) =
-                        examples.validate(strict_mode, r#type, &self.id, id, path_or_url)
+                        examples.validate(future_mode, r#type, &self.id, id, path_or_url)
                     {
                         errors.push(err);
                     }

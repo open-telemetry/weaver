@@ -434,7 +434,7 @@ impl Examples {
     /// Validation logic for the group.
     pub(crate) fn validate(
         &self,
-        strict_mode: bool,
+        future_mode: bool,
         attr_type: &AttributeType,
         group_id: &str,
         attr_id: &str,
@@ -459,13 +459,13 @@ impl Examples {
                 // enum types are open so it's not possible to validate the examples
                 Ok(())
             }
-            // Only if strict mode is disabled, we allow to have examples following
+            // Only if future mode is disabled, we allow to have examples following
             // the conventions used in semconv 1.27.0 and earlier.
             (Examples::Ints(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
             | (Examples::Doubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
             | (Examples::Bools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
             | (Examples::Strings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings))
-                if !strict_mode =>
+                if !future_mode =>
             {
                 Ok(())
             }

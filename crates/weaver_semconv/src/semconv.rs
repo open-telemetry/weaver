@@ -38,7 +38,7 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P, strict_mode: bool) -> Result<SemConvSpec, Error> {
+    pub fn from_file<P: AsRef<Path>>(path: P, future_mode: bool) -> Result<SemConvSpec, Error> {
         let provenance = path.as_ref().display().to_string();
 
         // Load and deserialize the semantic convention registry
@@ -56,7 +56,7 @@ impl SemConvSpec {
 
         // Important note: the resolution process expects this step of validation to be done for
         // each semantic convention spec.
-        semconv_spec.validate(&provenance, strict_mode)?;
+        semconv_spec.validate(&provenance, future_mode)?;
         Ok(semconv_spec)
     }
 
@@ -69,7 +69,7 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_string(spec: &str, strict_mode: bool) -> Result<SemConvSpec, Error> {
+    pub fn from_string(spec: &str, future_mode: bool) -> Result<SemConvSpec, Error> {
         let semconv_spec: SemConvSpec =
             serde_yaml::from_str(spec).map_err(|e| Error::InvalidSemConvSpec {
                 path_or_url: "<str>".to_owned(),
@@ -80,7 +80,7 @@ impl SemConvSpec {
 
         // Important note: the resolution process expects this step of validation to be done for
         // each semantic convention spec.
-        semconv_spec.validate("<str>", strict_mode)?;
+        semconv_spec.validate("<str>", future_mode)?;
         Ok(semconv_spec)
     }
 
@@ -93,7 +93,7 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_url(semconv_url: &str, strict_mode: bool) -> Result<SemConvSpec, Error> {
+    pub fn from_url(semconv_url: &str, future_mode: bool) -> Result<SemConvSpec, Error> {
         // Create a content reader from the semantic convention URL
         let reader = ureq::get(semconv_url)
             .call()
@@ -114,15 +114,15 @@ impl SemConvSpec {
 
         // Important note: the resolution process expects this step of validation to be done for
         // each semantic convention spec.
-        semconv_spec.validate(semconv_url, strict_mode)?;
+        semconv_spec.validate(semconv_url, future_mode)?;
         Ok(semconv_spec)
     }
 
-    fn validate(&self, provenance: &str, strict_mode: bool) -> Result<(), Error> {
+    fn validate(&self, provenance: &str, future_mode: bool) -> Result<(), Error> {
         let errors: Vec<Error> = self
             .groups
             .iter()
-            .filter_map(|group| group.validate(provenance, strict_mode).err())
+            .filter_map(|group| group.validate(provenance, future_mode).err())
             .collect();
 
         handle_errors(errors)?;
@@ -143,10 +143,10 @@ impl SemConvSpecWithProvenance {
     /// convention spec is invalid.
     pub fn from_file<P: AsRef<Path>>(
         path: P,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<SemConvSpecWithProvenance, Error> {
         let provenance = path.as_ref().display().to_string();
-        let spec = SemConvSpec::from_file(path, strict_mode)?;
+        let spec = SemConvSpec::from_file(path, future_mode)?;
         Ok(SemConvSpecWithProvenance { spec, provenance })
     }
 
@@ -164,9 +164,9 @@ impl SemConvSpecWithProvenance {
     pub fn from_string(
         provenance: &str,
         spec: &str,
-        strict_mode: bool,
+        future_mode: bool,
     ) -> Result<SemConvSpecWithProvenance, Error> {
-        let spec = SemConvSpec::from_string(spec, strict_mode)?;
+        let spec = SemConvSpec::from_string(spec, future_mode)?;
         Ok(SemConvSpecWithProvenance {
             spec,
             provenance: provenance.to_owned(),

@@ -46,9 +46,10 @@ pub struct RegistryCheckArgs {
     #[arg(long, default_value = "false")]
     pub display_policy_coverage: bool,
 
-    /// Enable strict mode for the validation of the semantic convention registry.
+    /// Enable the most recent validation rules for the semconv registry. It is recommended
+    /// to enable this flag when checking a new registry.
     #[arg(long, default_value = "false")]
-    pub strict: bool,
+    pub future: bool,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -84,10 +85,10 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.strict, logger.clone())?;
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.future, logger.clone())?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
-        .map(|repo| load_semconv_specs(repo, args.strict, logger.clone()))
+        .map(|repo| load_semconv_specs(repo, args.future, logger.clone()))
         .transpose()?;
 
     let mut policy_engine = if !args.skip_policies {
@@ -232,7 +233,7 @@ mod tests {
                     policies: vec![],
                     skip_policies: true,
                     display_policy_coverage: false,
-                    strict: true,
+                    future: true,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -258,7 +259,7 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
-                    strict: true,
+                    future: true,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -285,7 +286,7 @@ mod tests {
                 policies: vec![],
                 skip_policies: false,
                 display_policy_coverage: false,
-                strict: true,
+                future: true,
                 diagnostic: Default::default(),
             }),
         };

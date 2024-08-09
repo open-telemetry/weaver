@@ -53,9 +53,10 @@ pub struct RegistrySearchArgs {
     /// Otherwise, runs an interactive terminal UI.
     pub search_string: Option<String>,
 
-    /// Enable strict mode for the validation of the semantic convention registry.
+    /// Enable the most recent validation rules for the semconv registry. It is recommended
+    /// to enable this flag when checking a new registry.
     #[arg(long, default_value = "false")]
-    pub strict: bool,
+    pub future: bool,
 }
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -392,7 +393,7 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.strict, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, args.future, logger.clone())?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 
