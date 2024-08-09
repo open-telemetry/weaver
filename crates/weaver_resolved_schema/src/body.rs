@@ -2,23 +2,41 @@
 
 #![allow(rustdoc::invalid_html_tags)]
 
-//! Specification of a resolved attribute.
+//! Specification of a resolved body field.
 
-use crate::tags::Tags;
-use crate::value::Value;
+use crate::attribute::AttributeRef;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::ops::Not;
-use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
+use weaver_semconv::attribute::{AttributeType, Examples, RequirementLevel};
+use weaver_semconv::body::{BodyFieldSpec, BodySpec};
 use weaver_semconv::stability::Stability;
 
 /// An attribute definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct Attribute {
+pub struct Body {
+    /// The body specification.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fields: Option<Vec<BodyField>>,
+    // Not yet defined in the spec or implemented in the resolver
+    // The body value when there are no fields
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub value: Option<Value>
+}
+
+/// An attribute definition.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BodyField {
     /// Attribute name.
     pub name: String,
+    /// A reference to an attribute definition, used to populate the relevant
+    /// fields of the body field, unless they are overridden by the body field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#attr: Option<AttributeRef>,
+    /// A alias to use for the field for the referenced attribute.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
     /// Either a string literal denoting the type as a primitive or an
     /// array type, a template type or an enum definition.
     pub r#type: AttributeType,
@@ -32,22 +50,12 @@ pub struct Attribute {
     /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
-    /// Associates a tag ("sub-group") to the attribute. It carries no
-    /// particular semantic meaning but can be used e.g. for filtering
-    /// in the markdown generator.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tag: Option<String>,
     /// Specifies if the attribute is mandatory. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
     /// the attribute is "recommended". When set to
     /// "conditionally_required", the string provided as <condition> MUST
     /// specify the conditions under which the attribute is required.
     pub requirement_level: RequirementLevel,
-    /// Specifies if the attribute is (especially) relevant for sampling
-    /// and thus should be set at span start. It defaults to false.
-    /// Note: this field is experimental.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sampling_relevant: Option<bool>,
     /// A more elaborate description of the attribute.
     /// It defaults to an empty string.
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -65,38 +73,18 @@ pub struct Attribute {
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<String>,
-    /// Specifies the prefix of the attribute.
-    /// If this parameter is set, the resolved id of the referenced attribute will
-    /// have group prefix added to it.
-    /// It defaults to false.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "<&bool>::not")]
-    pub prefix: bool,
-    /// A set of tags for the attribute.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Tags>,
-
-    /// The value of the attribute.
-    /// Note: This is only used in a telemetry schema specification.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<Value>,
 }
 
-/// An unresolved attribute definition.
+/// An unresolved body definition.
 #[derive(Debug, Deserialize, Clone)]
-pub struct UnresolvedAttribute {
-    /// The attribute specification.
-    pub spec: AttributeSpec,
+pub struct UnresolvedBody {
+    /// The body specification.
+    pub spec: BodySpec,
 }
 
-/// An internal reference to an attribute in the catalog.
-#[derive(
-    Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, JsonSchema,
-)]
-pub struct AttributeRef(pub u32);
-
-impl Display for AttributeRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AttributeRef({})", self.0)
-    }
+/// An unresolved body field definition.
+#[derive(Debug, Deserialize, Clone)]
+pub struct UnresolvedBodyField {
+    /// The body field specification.
+    pub spec: BodyFieldSpec,
 }

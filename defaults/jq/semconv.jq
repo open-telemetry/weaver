@@ -50,7 +50,9 @@ def semconv_grouped_attributes($options):
 # any filtering options.
 def semconv_grouped_attributes: semconv_grouped_attributes({});
 
+##########################
 # Generic Signal Functions
+##########################
 
 # Extracts and processes semantic convention signals based on provided options.
 # $signal is the type of signal to process.
@@ -79,7 +81,9 @@ def semconv_signal($signal; $options):
       end
     | sort_by(.root_namespace);
 
+##################
 # Metric Functions
+##################
 # Groups the metrics by their root namespace and sorts metrics by metric_name.
 def semconv_group_metrics_by_root_namespace:
     group_by(.root_namespace)
@@ -104,3 +108,51 @@ def semconv_grouped_metrics($options): semconv_metrics($options) | semconv_group
 
 # Convenience function to group all metrics by their root namespace without any filtering options.
 def semconv_grouped_metrics: semconv_grouped_metrics({});
+
+#################
+# Event Functions
+#################
+
+# Extracts and processes semantic convention events based on provided options.
+# $options is an object that can contain:
+# - exclude_stability: a list of stability statuses to exclude.
+# - exclude_deprecated: a boolean to exclude deprecated events.
+# - exclude_event_namespace: a list of event domain to exclude.
+def semconv_events($options):
+    .groups
+    | map(select(.type == "event"))
+    | if ($options | has("exclude_stability")) then
+        map(select(.stability as $st | $options.exclude_stability | index($st) | not))
+      else
+        .
+      end
+    | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
+        map(select(.id | endswith(".deprecated") | not))
+      else
+        .
+      end
+    | map(. + {
+        event_namespace: (if .id | index(".") then (.id | split(".") | .[0:-1] | join(".")) else "other" end)
+      })
+    | if ($options | has("exclude_event_namespace")) then
+        map(select(.event_namespace as $st | $options.exclude_event_namespace | index($st) | not))
+      else
+        .
+      end
+    | sort_by(.event_namespace, .id);
+
+# Convenience function to extract all events without any filtering options.
+def semconv_events: semconv_events({});
+
+# Groups the processed events by their root namespace based on provided options.
+# $options is an object that can contain:
+# - exclude_stability: a list of stability statuses to exclude.
+# - exclude_deprecated: a boolean to exclude deprecated events.
+# - exclude_event_namespace: a list of event_namespaces to exclude.
+def semconv_grouped_events($options): 
+    semconv_events($options)
+    | group_by(.event_namespace)
+    | map({ event_namespace: .[0].event_namespace, events: . | sort_by(.id) });
+
+# Convenience function to group all events by their root namespace without any filtering options.
+def semconv_grouped_events: semconv_grouped_events({});
