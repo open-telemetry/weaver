@@ -133,7 +133,7 @@ each object in the array, i.e., to each group of attributes for a given root nam
 
 ```yaml
 templates:
-  - pattern: "attributes.j2"             # glob patterns are supported
+  - template: "attributes.j2"             # glob patterns are supported
     filter: semconv_grouped_attributes
     application_mode: each
   - ...
@@ -192,7 +192,7 @@ whitespace_control:
   lstrip_blocks: true
 
 templates:
-  - pattern: "attributes.md.j2"
+  - template: "attributes.md.j2"
     filter: semconv_grouped_attributes
     application_mode: each
     file_name: "attributes/{{ctx.root_namespace}}.md"
@@ -210,11 +210,11 @@ More details on the structure of the configuration file [here](/docs/weaver-conf
 # ...
 
 templates:
-  - pattern: "attributes.md.j2"
+  - template: "attributes.md.j2"
     filter: semconv_grouped_attributes
     application_mode: each
     file_name: "attributes/{{ctx.root_namespace | snake_case}}.md"
-  - pattern: "metrics.md.j2"
+  - template: "metrics.md.j2"
     filter: semconv_grouped_metrics
     application_mode: each
     file_name: "metrics/{{ctx.root_namespace | snake_case}}.md"
@@ -296,10 +296,10 @@ Example configuration for JQ filters in `weaver.yaml`:
 
 ```yaml  
 templates:
-  - pattern: "attributes.j2"
+  - template: "attributes.j2"
     filter: semconv_grouped_attributes
     application_mode: each
-  - pattern: "metrics.j2"
+  - template: "metrics.j2"
     filter: semconv_grouped_metrics
     application_mode: each
   # ...  
@@ -322,7 +322,7 @@ returns a list of registry attributes grouped by root namespace and sorted by at
 
 ```yaml  
 templates:
-  - pattern: attributes.j2
+  - template: attributes.j2
     filter: semconv_grouped_attributes
     application_mode: each  
 ```  
@@ -358,7 +358,7 @@ specific stability levels, and deprecated entities. The following syntax is supp
 
 ```yaml  
 templates:
-  - pattern: attributes.j2
+  - template: attributes.j2
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"], 
@@ -394,7 +394,7 @@ root namespace and sorted by metric names.
 
 ```yaml  
 templates:
-  - pattern: metrics.j2
+  - template: metrics.j2
     filter: semconv_grouped_metrics
     application_mode: each
 ```  
@@ -432,7 +432,7 @@ The same options are supported by `semconv_grouped_metrics`, as shown in the fol
 
 ```yaml  
 templates:
-  - pattern: metrics.j2
+  - template: metrics.j2
     filter: >
       semconv_grouped_metrics({
         "exclude_root_namespace": ["url", "network"], 

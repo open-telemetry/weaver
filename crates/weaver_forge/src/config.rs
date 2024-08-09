@@ -120,9 +120,10 @@ pub enum ApplicationMode {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub(crate) struct TemplateConfig {
-    /// The pattern used to identify when this template configuration must be
-    /// applied to a specific template file.
-    pub(crate) pattern: Glob,
+    /// The template pattern used to identify when this template configuration
+    /// must be applied to a specific template file.
+    #[serde(alias = "pattern")] // Alias for backward compatibility.
+    pub(crate) template: Glob,
     /// The filter to apply to the registry before applying the template.
     /// Applying a filter to a registry will return a list of elements from the
     /// registry that satisfy the filter.
@@ -429,7 +430,7 @@ impl WeaverConfig {
             let mut builder = GlobSetBuilder::new();
 
             for template in templates.iter() {
-                _ = builder.add(template.pattern.clone());
+                _ = builder.add(template.template.clone());
             }
 
             builder
@@ -706,34 +707,34 @@ mod tests {
     fn test_templates_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
+            "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
         let local: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
+            "templates: [{template: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
         .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
         assert_eq!(templates.len(), 1);
-        assert_eq!(templates[0].pattern.to_string(), "**/local.md");
+        assert_eq!(templates[0].template.to_string(), "**/local.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Each);
         let mut parent: WeaverConfig = WeaverConfig::default();
         let local: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
+            "templates: [{template: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
         .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
         assert_eq!(templates.len(), 1);
-        assert_eq!(templates[0].pattern.to_string(), "**/local.md");
+        assert_eq!(templates[0].template.to_string(), "**/local.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Each);
         let mut parent: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
+            "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
         let local = WeaverConfig::default();
@@ -741,11 +742,11 @@ mod tests {
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
         assert_eq!(templates.len(), 1);
-        assert_eq!(templates[0].pattern.to_string(), "**/parent.md");
+        assert_eq!(templates[0].template.to_string(), "**/parent.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Single);
         let mut parent: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
+            "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
         let local: WeaverConfig = serde_yaml::from_str("templates: []").unwrap();

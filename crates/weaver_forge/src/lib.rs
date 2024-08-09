@@ -910,7 +910,7 @@ mod tests {
         // for test coverage purposes.
         let mut templates = engine.target_config.templates.unwrap_or_default();
         templates.push(TemplateConfig {
-            pattern: Glob::new("converter.md").unwrap(),
+            template: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
             params: None,
