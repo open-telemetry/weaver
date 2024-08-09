@@ -158,7 +158,7 @@ The OpenTelemetry Weaver was initially developed in the
 
 For github groups see the [codeowners](./.github/CODEOWNERS) file.
 
-### Maintainers
+### Maintainers (@open-telemetry/weaver-maintainers)
 
 - [Laurent Quérel](https://github.com/lquerel) F5 Networks
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
