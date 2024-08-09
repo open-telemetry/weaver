@@ -156,7 +156,7 @@ The OpenTelemetry Weaver was initially developed in the
 
 ## Approvers and Maintainers
 
-For github groups see the [codeowners](./.github/CODEOWNERS) file.
+For github groups see the [codeowners](CODEOWNERS) file.
 
 ### Maintainers (@open-telemetry/weaver-maintainers)
 
