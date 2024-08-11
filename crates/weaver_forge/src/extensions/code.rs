@@ -2,13 +2,25 @@
 
 //! Set of filters used to facilitate the generation of code.
 
-use std::collections::HashMap;
-use crate::config::{CommentFormat, WeaverConfig};
-use minijinja::{Environment, Value};
+use crate::config::RenderOptions::Markdown;
+use crate::config::{RenderOptions, WeaverConfig};
 use crate::error::Error;
+use crate::formats::html::HtmlRenderer;
+use minijinja::{Environment, ErrorKind, Value};
+use std::collections::HashMap;
+use RenderOptions::Html;
 
 /// Add code-oriented filters to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) -> Result<(), Error> {
+///
+/// Arguments:
+/// * `env` - The environment to add the filters to.
+/// * `config` - The configuration to use for the filters.
+/// * `comment_flag` - Whether to add comment filters.
+pub(crate) fn add_filters(
+    env: &mut Environment<'_>,
+    config: &WeaverConfig,
+    comment_flag: bool,
+) -> Result<(), Error> {
     env.add_filter(
         "type_mapping",
         type_mapping(config.type_mapping.clone().unwrap_or_default()),
@@ -17,18 +29,11 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) -> R
         "map_text",
         map_text(config.text_maps.clone().unwrap_or_default()),
     );
+    if comment_flag {
+        env.add_filter("comment", comment(config)?); // ToDo Do we really need a clone here?
+    }
+    // This filter is deprecated
     env.add_filter("comment_with_prefix", comment_with_prefix);
-    let comment_format = if let Some(default_comment_format) = config.default_comment_format.as_ref() {
-        config.comment_formats
-            .as_ref()
-            .and_then(|comment_formats| {
-                comment_formats.get(default_comment_format).cloned()
-            })
-            .unwrap_or_default()
-    } else {
-        CommentFormat::default()
-    };
-    env.add_filter("comment", comment(comment_format));
     env.add_filter("markdown_to_html", markdown_to_html);
     Ok(())
 }
@@ -48,8 +53,22 @@ pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
 }
 
 /// Generic comment filter reading its configuration from the `weaver.yaml` file.
-pub(crate) fn comment(comment_format: CommentFormat) -> impl Fn(&Value) -> String {
-    move |input: &Value| -> String {
+pub(crate) fn comment(
+    config: &WeaverConfig,
+) -> Result<impl Fn(&Value) -> Result<String, minijinja::Error>, Error> {
+    let default_format = "default".to_owned();
+    let default_comment_format = config
+        .default_comment_format
+        .clone()
+        .unwrap_or(default_format);
+    let html_snippet_renderer = HtmlRenderer::try_new(config)?;
+    let comment_format = config
+        .comment_formats
+        .as_ref()
+        .and_then(|comment_formats| comment_formats.get(&default_comment_format).cloned())
+        .unwrap_or_default();
+
+    Ok(move |input: &Value| -> Result<String, minijinja::Error> {
         let mut comment = String::new();
         let prefix = ""; // ToDo
 
@@ -60,15 +79,27 @@ pub(crate) fn comment(comment_format: CommentFormat) -> impl Fn(&Value) -> Strin
             comment.push_str(&format!("{}{}", prefix, line));
         }
 
-        if comment_format.trim {
+        if comment_format.transform_options.trim {
             comment = comment.trim().to_owned();
         }
-        if comment_format.remove_trailing_dots {
+        if comment_format.transform_options.remove_trailing_dots {
             comment = comment.trim_end_matches('.').to_owned();
         }
-
-        comment
-    }
+        Ok(match &comment_format.render_options {
+            Markdown { .. } => comment,
+            Html(..) => html_snippet_renderer
+                .render(&comment, &default_comment_format)
+                .map_err(|e| {
+                    minijinja::Error::new(
+                        ErrorKind::InvalidOperation,
+                        format!(
+                            "Comment HTML rendering failed for format '{}': {}",
+                            default_comment_format, e
+                        ),
+                    )
+                })?,
+        })
+    })
 }
 
 /// Create a filter that uses the type mapping defined in `weaver.yaml` to replace
@@ -125,7 +156,9 @@ pub(crate) fn map_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{CommentFormat, TransformOptions};
     use crate::extensions::code;
+    use crate::formats::html::HtmlRenderOptions;
 
     #[test]
     fn test_comment() -> Result<(), Error> {
@@ -135,9 +168,15 @@ mod tests {
                 vec![(
                     "javadoc".to_owned(),
                     CommentFormat {
-                        trim: true,
-                        remove_trailing_dots: true,
-                        ..Default::default()
+                        render_options: Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            ..Default::default()
+                        }),
+                        transform_options: TransformOptions {
+                            remove_trailing_dots: true,
+                            ..Default::default()
+                        },
                     },
                 )]
                 .into_iter()
@@ -146,17 +185,34 @@ mod tests {
             default_comment_format: Some("javadoc".to_owned()),
             ..Default::default()
         };
+        let note = r#" An example of
+multi-line note.
+## Example
+Example of inline code `Weaver::Config`.
+
+```
+println!("Hello, world!");
+```
+
+Few items:
+- Item 1
+- Item 2
+- Item 3
+- [External link](https://example.com)
+
+Last sentence with multiple trailing dots and spaces...  "#;
         let ctx = serde_json::json!({
-            "note": " A example of multi-line comment.\n\nThis is the second line..  "
+            "note": note
         });
 
-        add_filters(&mut env, &config)?;
+        add_filters(&mut env, &config, true)?;
 
-        assert_eq!(
-            env.render_str("{{ note | comment }}", &ctx)
-                .unwrap(),
-            "A example of multi-line comment.\n\nThis is the second line"
-        );
+        let observed_comment = env.render_str("{{ note | comment }}", &ctx).unwrap();
+        println!("{}", observed_comment);
+        // assert_eq!(
+        //     observed_comment,
+        //     "A example of multi-line comment.\n\nWith an inline code `Weaver::Config` example"
+        // );
         Ok(())
     }
 

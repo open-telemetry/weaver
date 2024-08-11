@@ -14,12 +14,13 @@ use convert_case::Boundary::{
 use convert_case::{Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
 use crate::file_loader::{FileContent, FileLoader};
+use crate::formats::html::HtmlRenderOptions;
 use crate::WEAVER_YAML;
 
 /// Case convention for naming of functions and structs.
@@ -56,7 +57,7 @@ pub enum CaseConvention {
 }
 
 /// Weaver configuration.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct WeaverConfig {
     /// Type mapping for target specific types (OTel types -> Target language types).
     /// Deprecated: Use `text_maps` instead.
@@ -97,7 +98,7 @@ pub struct Params {
 
 /// Application mode defining how to apply a template on the result of a
 /// filter applied on a registry.
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationMode {
     /// Apply the template to the output of the filter as a whole.
@@ -107,7 +108,7 @@ pub enum ApplicationMode {
 }
 
 /// A template configuration.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub(crate) struct TemplateConfig {
     /// The pattern used to identify when this template configuration must be
@@ -220,14 +221,49 @@ impl WhitespaceControl {
     }
 }
 
-/// Supported comment syntaxes.
-#[derive(Default, Deserialize, Debug, Clone)]
-pub enum CommentSyntax {
-    /// Markdown comment syntax.
+/// Supported comment formats.
+#[derive(Default, Deserialize, Serialize, Debug, Clone)]
+#[serde(tag = "format")]
+#[serde(rename_all = "snake_case")]
+pub enum RenderOptions {
+    /// Markdown format.
     #[default]
     Markdown,
-    /// HTML comment syntax.
-    Html
+    /// HTML format.
+    Html(HtmlRenderOptions),
+}
+
+/// Transform options for the comment filter.
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct TransformOptions {
+    /// Flag to trim the comment content.
+    #[serde(default = "default_bool::<true>")]
+    pub trim: bool,
+    /// Flag to remove trailing dots from the comment content.
+    #[serde(default = "default_bool::<false>")]
+    pub remove_trailing_dots: bool,
+    /// Flag to remove line breaks in sentences.
+    #[serde(default = "default_bool::<false>")]
+    pub remove_line_breaks_in_sentences: bool,
+    /// List of strong words to highlight in the comment.
+    /// e.g. ["MUST", "SHOULD", "TODO", "FIXME"]
+    #[serde(default = "Vec::default")]
+    pub strong_words: Vec<String>,
+    /// Jinja expression to specify the style of the strong words.
+    pub strong_word_style: Option<String>,
+}
+
+impl Default for TransformOptions {
+    fn default() -> Self {
+        TransformOptions {
+            trim: true,
+            remove_trailing_dots: false,
+            remove_line_breaks_in_sentences: false,
+            strong_words: Vec::default(),
+            strong_word_style: None,
+        }
+    }
 }
 
 /// Used to set a default value for a boolean field in a struct.
@@ -238,29 +274,12 @@ pub const fn default_bool<const V: bool>() -> bool {
 
 /// Configuration for the comment format. This configuration is used
 /// by the comment filter to format comments.
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct CommentFormat {
     /// The low-level comment syntax.
-    pub syntax: CommentSyntax,
-    /// Flag to trim the comment content.
-    #[serde(default = "default_bool::<true>")]
-    pub trim: bool,
-    /// Flag to remove trailing dots from the comment content.
-    #[serde(default = "default_bool::<false>")]
-    pub remove_trailing_dots: bool,
-    /// Flag to remove line breaks in sentences.
-    #[serde(default = "default_bool::<false>")]
-    pub remove_line_breaks_in_sentences: bool,
-    /// Jinja expression to specify the formatting of inline code.
-    pub inline_code_style: Option<String>,
-    /// Jinja expression to specify the formatting of block code.
-    pub block_code_style: Option<String>,
-    /// List of strong words to highlight in the comment.
-    /// e.g. ["MUST", "SHOULD", "TODO", "FIXME"]
-    #[serde(default = "Vec::default")]
-    pub strong_words: Vec<String>,
-    /// Jinja expression to specify the style of the strong words.
-    pub strong_word_style: Option<String>,
+    pub render_options: RenderOptions,
+    /// Transform options for the comment filter.
+    pub transform_options: TransformOptions,
 }
 
 impl Default for CaseConvention {
@@ -500,10 +519,9 @@ impl WeaverConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::config::{ApplicationMode, WeaverConfig};
     use crate::file_loader::FileContent;
+    use std::collections::HashMap;
 
     #[test]
     fn test_type_mapping_override_with() {

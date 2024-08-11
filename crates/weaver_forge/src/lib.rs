@@ -40,6 +40,7 @@ pub mod error;
 pub mod extensions;
 pub mod file_loader;
 mod filter;
+mod formats;
 pub mod registry;
 
 /// Name of the Weaver configuration file.
@@ -574,11 +575,7 @@ impl TemplateEngine {
         env.set_lstrip_blocks(whitespace_control.lstrip_blocks.unwrap_or_default());
         env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline.unwrap_or_default());
 
-        code::add_filters(&mut env, &self.target_config)?;
-        ansi::add_filters(&mut env);
-        case::add_filters(&mut env, &self.target_config);
-        otel::add_tests_and_filters(&mut env);
-        util::add_filters(&mut env, &self.target_config);
+        install_weaver_extensions(&mut env, &self.target_config, true)?;
 
         Ok(env)
     }
@@ -610,6 +607,22 @@ impl TemplateEngine {
 
         Ok(output_file_path)
     }
+}
+
+/// Install all the Weaver extensions into the Jinja environment.
+/// This includes the filters, functions, and tests.
+pub(crate) fn install_weaver_extensions(
+    env: &mut Environment<'_>,
+    config: &WeaverConfig,
+    comment_flag: bool,
+) -> Result<(), Error> {
+    code::add_filters(env, config, comment_flag)?;
+    ansi::add_filters(env);
+    case::add_filters(env);
+    otel::add_filters(env);
+    util::add_filters(env, config);
+    otel::add_tests(env);
+    Ok(())
 }
 
 #[cfg(test)]

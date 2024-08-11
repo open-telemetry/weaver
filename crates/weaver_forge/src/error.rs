@@ -72,11 +72,40 @@ pub enum Error {
         error: String,
     },
 
+    /// Invalid code snippet.
+    #[error("Invalid {mode} code snippet: {error}")]
+    InvalidCodeSnippet {
+        /// Comment format.
+        format: String,
+        /// Snippet mode.
+        mode: String,
+        /// Error message.
+        error: String,
+    },
+
+    /// Comment format not found in the configuration.
+    #[error(
+        "Comment format `{format}` not found in the configuration. Available formats: {formats:?}"
+    )]
+    CommentFormatNotFound {
+        /// Comment format.
+        format: String,
+        /// Available formats.
+        formats: Vec<String>,
+    },
+
     /// Error loading a file content from the file loader.
     #[error("Error loading the file '{file}': {error}")]
     FileLoaderError {
         /// File path.
         file: PathBuf,
+        /// Error message.
+        error: String,
+    },
+
+    /// Template engine error.
+    #[error("Template engine error -> {error}")]
+    TemplateEngineError {
         /// Error message.
         error: String,
     },
@@ -168,6 +197,13 @@ pub enum Error {
     InvalidCaseConvention {
         /// The invalid case
         case: String,
+    },
+
+    /// Invalid Markdown text.
+    #[error("Invalid Markdown content: {error}")]
+    InvalidMarkdown {
+        /// Error message.
+        error: String,
     },
 
     /// A generic container for multiple errors.
