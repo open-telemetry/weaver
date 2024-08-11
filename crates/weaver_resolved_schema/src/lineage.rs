@@ -429,6 +429,12 @@ impl GroupLineage {
         _ = self.attributes.insert(attr_id, attribute_lineage);
     }
 
+    /// Checks if a given attribute is present in the group lineage.
+    #[must_use]
+    pub fn has_attribute(&self, attr_id: &str) -> bool {
+        self.attributes.contains_key(attr_id)
+    }
+
     /// Returns the source file of the group (path or URL).
     #[must_use]
     pub fn source_file(&self) -> &str {
