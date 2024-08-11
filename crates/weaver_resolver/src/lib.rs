@@ -139,6 +139,15 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// A duplicate attribute id error.
+    #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
+    DuplicateAttributeId {
+        /// The groups where this attribute is duplicated.
+        group_ids: Vec<String>,
+        /// The attribute id.
+        attribute_id: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(Vec<Error>),
