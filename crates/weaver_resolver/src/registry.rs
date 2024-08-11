@@ -104,6 +104,9 @@ pub fn resolve_semconv_registry(
         group.constraints.clear();
     }
 
+    // Other complementary checks.
+    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index)?;
+
     Ok(ureg.registry)
 }
 
@@ -197,6 +200,68 @@ fn check_group_any_of_constraints(
             .collect();
         return Err(Error::CompoundError(errors));
     }
+    Ok(())
+}
+
+/// Checks for duplicate attribute IDs in the given registry.
+///
+/// This function iterates over all groups in the registry that are of type `AttributeGroup`.
+/// For each root attribute in these groups (i.e. the ones without lineage), it maps the root
+/// attribute ID to the group ID.
+/// It then checks if any root attribute ID is found in multiple groups and collects errors
+/// for such duplicates.
+///
+/// # Arguments
+///
+/// * `registry` - The registry to check for duplicate attribute IDs.
+/// * `attr_name_index` - The index of attribute names (catalog).
+///
+/// # Returns
+///
+/// This function returns `Ok(())` if no duplicate attribute IDs are found. Otherwise, it returns
+/// an error indicating the duplicate attribute IDs.
+pub fn check_root_attribute_id_duplicates(
+    registry: &Registry,
+    attr_name_index: &[String],
+) -> Result<(), Error> {
+    // Map to track groups by their root attribute ID.
+    let mut groups_by_root_attr_id = HashMap::new();
+
+    // Iterate over all groups in the registry that are of type `AttributeGroup`.
+    registry
+        .groups
+        .iter()
+        .filter(|group| group.r#type == weaver_semconv::group::GroupType::AttributeGroup)
+        .for_each(|group| {
+            // Iterate over all attribute references in the group.
+            for attr_ref in group.attributes.iter() {
+                // Get the attribute ID from the attribute name index.
+                let attr_id = &attr_name_index[attr_ref.0 as usize];
+                // Check if the group has a lineage and if the lineage does not already have the attribute.
+                if let Some(lineage) = group.lineage.as_ref() {
+                    if !lineage.has_attribute(attr_id) {
+                        // Add the group ID to the map entry for the attribute ID.
+                        groups_by_root_attr_id
+                            .entry(attr_id.clone())
+                            .or_insert_with(Vec::new)
+                            .push(group.id.clone());
+                    }
+                }
+            }
+        });
+
+    // Collect errors for attribute IDs that are found in multiple groups.
+    let errors = groups_by_root_attr_id
+        .into_iter()
+        .filter(|(_, group_ids)| group_ids.len() > 1)
+        .map(|(attr_id, group_ids)| Error::DuplicateAttributeId {
+            attribute_id: attr_id,
+            group_ids,
+        })
+        .collect();
+
+    // Handle any errors that were found.
+    handle_errors(errors)?;
     Ok(())
 }
 
@@ -323,11 +388,18 @@ fn resolve_attribute_references(
                         unresolved_group.group.lineage.as_mut(),
                     );
                     if let Some(attr_ref) = attr_ref {
+                        // Attribute reference resolved successfully.
                         resolved_attr.push(attr_ref);
                         resolved_attr_count += 1;
+
+                        // Return None to remove this attribute from the
+                        // unresolved group.
                         None
                     } else {
+                        // Attribute reference could not be resolved.
                         if let AttributeSpec::Ref { r#ref, .. } = &attr.spec {
+                            // Keep track of unresolved attribute references in
+                            // the errors.
                             errors.push(Error::UnresolvedAttributeRef {
                                 group_id: unresolved_group.group.id.clone(),
                                 attribute_ref: r#ref.clone(),
@@ -689,6 +761,7 @@ fn resolve_inheritance_attr(
 mod tests {
     use std::collections::HashSet;
     use std::error::Error;
+    use std::path::PathBuf;
 
     use glob::glob;
     use serde::Serialize;
@@ -746,15 +819,26 @@ mod tests {
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
-                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
-                    .expect("Failed to resolve registry");
+                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs);
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
 
+            // If the expected attr catalog is not defined in the test directory, then it means
+            // that the normal behavior of this test is to fail.
+            let expected_attr_catalog_file =
+                format!("{}/expected-attribute-catalog.json", test_dir);
+            if !PathBuf::from(&expected_attr_catalog_file).exists() {
+                assert!(observed_registry.is_err(), "This test is expected to fail");
+                continue;
+            }
+
+            // At this point, the normal behavior of this test is to pass.
+            let observed_registry = observed_registry.expect("Failed to resolve the registry");
+
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
-                std::fs::File::open(format!("{}/expected-attribute-catalog.json", test_dir))
+                std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
             )
             .expect("Failed to deserialize expected attribute catalog");
