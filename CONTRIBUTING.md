@@ -41,6 +41,16 @@ A PR is considered to be ready to merge when:
 
 Any Maintainer can merge the PR once it is ready to merge. Note, that some PRs may not be merged immediately if the repo is in the process of a release and the maintainers decided to defer the PR to the next release train. Also, maintainers may decide to wait for more than one approval for certain PRs, particularly ones that are affecting multiple areas, or topics that may warrant more discussion.
 
+### How to suggest semantic convention schema changes
+
+Before introducing any non-trivial schema changes, we recommend discussing them in the
+[semantic-conventions](https://github.com/open-telemetry/semantic-conventions) repo.
+
+Changes affecting semantic conventions schema should be reflected in the formal schema definition and require approval from @open-telemetry/specs-semconv-approvers.
+
+Semantic conventions schema is formally defined in [semconv.schema.json](./schemas/semconv.schema.json),
+human-readable documentation is available in [semconv-syntax.md](./schemas/semconv-syntax.md).
+
 ### Creating a New Release for the Weaver Project
 
 To create a new release for the Weaver project, follow these steps. This process ensures that the release is properly
@@ -147,7 +157,7 @@ The OpenTelemetry Weaver was initially developed in the
 
 For github groups see the [codeowners](CODEOWNERS) file.
 
-### Maintainers
+### Maintainers (@open-telemetry/weaver-maintainers)
 
 - [Laurent Quérel](https://github.com/lquerel) F5 Networks
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
