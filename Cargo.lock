@@ -472,6 +472,20 @@ dependencies = [
  "cfg-if",
  "itoa",
  "ryu",
+ "static_assertions",
+]
+
+[[package]]
+name = "compact_str"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6050c3a16ddab2e412160b31f2c871015704239bca62f72f6e5f0be631d3f644"
+dependencies = [
+ "castaway",
+ "cfg-if",
+ "itoa",
+ "rustversion",
+ "ryu",
  "serde",
  "static_assertions",
 ]
@@ -628,6 +642,22 @@ dependencies = [
  "mio 0.8.11",
  "parking_lot",
  "serde",
+ "signal-hook",
+ "signal-hook-mio",
+ "winapi",
+]
+
+[[package]]
+name = "crossterm"
+version = "0.28.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "829d955a0bb380ef178a640b91779e3987da38c9aea133b20614cfed8cdea9c6"
+dependencies = [
+ "bitflags 2.6.0",
+ "crossterm_winapi",
+ "mio 1.0.1",
+ "parking_lot",
+ "rustix",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -1987,6 +2017,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "instability"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b23a0c8dfe501baac4adf6ebbfa6eddf8f0c07f56b058cc1288017e32397846c"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "io-close"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2411,6 +2451,7 @@ checksum = "4569e456d394deccd22ce1c1913e6ea0e54519f577285001215d33557431afe4"
 dependencies = [
  "hermit-abi",
  "libc",
+ "log",
  "wasi",
  "windows-sys 0.52.0",
 ]
@@ -2963,13 +3004,34 @@ checksum = "d16546c5b5962abf8ce6e2881e722b4e0ae3b6f1a08a26ae3573c55853ca68d3"
 dependencies = [
  "bitflags 2.6.0",
  "cassowary",
- "compact_str",
- "crossterm",
+ "compact_str 0.7.1",
+ "crossterm 0.27.0",
+ "itertools 0.13.0",
+ "lru",
+ "paste",
+ "stability",
+ "strum",
+ "strum_macros",
+ "unicode-segmentation",
+ "unicode-truncate",
+ "unicode-width",
+]
+
+[[package]]
+name = "ratatui"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ba6a365afbe5615999275bea2446b970b10a41102500e27ce7678d50d978303"
+dependencies = [
+ "bitflags 2.6.0",
+ "cassowary",
+ "compact_str 0.8.0",
+ "crossterm 0.28.1",
+ "instability",
  "itertools 0.13.0",
  "lru",
  "paste",
  "serde",
- "stability",
  "strum",
  "strum_macros",
  "unicode-segmentation",
@@ -3439,6 +3501,7 @@ checksum = "34db1a06d485c9142248b7a054f034b349b212551f3dfd19c94d45a754a217cd"
 dependencies = [
  "libc",
  "mio 0.8.11",
+ "mio 1.0.1",
  "signal-hook",
 ]
 
@@ -3887,8 +3950,8 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00524c1366ee838839dd327d1f339ff51846ad4ea85bfa1332859e79adec612c"
 dependencies = [
- "crossterm",
- "ratatui",
+ "crossterm 0.27.0",
+ "ratatui 0.27.0",
  "unicode-width",
 ]
 
@@ -4162,11 +4225,11 @@ version = "0.8.0"
 dependencies = [
  "assert_cmd",
  "clap",
- "crossterm",
+ "crossterm 0.27.0",
  "include_dir",
  "itertools 0.13.0",
  "miette",
- "ratatui",
+ "ratatui 0.28.0",
  "rayon",
  "schemars",
  "serde",
