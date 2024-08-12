@@ -4,7 +4,7 @@
 
 #![allow(rustdoc::invalid_html_tags)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -72,7 +72,9 @@ pub struct WeaverConfig {
 
     /// Parameters for the templates.
     /// These parameters can be overridden by parameters passed to the CLI.
-    pub(crate) params: Option<HashMap<String, Value>>,
+    /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
+    /// when serialized to YAML. This is useful for testing purposes.
+    pub(crate) params: Option<BTreeMap<String, Value>>,
 
     /// Configuration for the templates.
     pub(crate) templates: Option<Vec<TemplateConfig>>,
@@ -90,6 +92,19 @@ pub struct Params {
     pub params: HashMap<String, Value>,
 }
 
+impl Params {
+    /// Create a new `Params` struct from a slice of key-value pairs.
+    #[must_use]
+    pub fn from_key_value_pairs(params: &[(&str, Value)]) -> Self {
+        Params {
+            params: params
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), v.to_owned()))
+                .collect(),
+        }
+    }
+}
+
 /// Application mode defining how to apply a template on the result of a
 /// filter applied on a registry.
 #[derive(Deserialize, Debug, PartialEq)]
@@ -105,9 +120,10 @@ pub enum ApplicationMode {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub(crate) struct TemplateConfig {
-    /// The pattern used to identify when this template configuration must be
-    /// applied to a specific template file.
-    pub(crate) pattern: Glob,
+    /// The template pattern used to identify when this template configuration
+    /// must be applied to a specific template file.
+    #[serde(alias = "pattern")] // Alias for backward compatibility.
+    pub(crate) template: Glob,
     /// The filter to apply to the registry before applying the template.
     /// Applying a filter to a registry will return a list of elements from the
     /// registry that satisfy the filter.
@@ -119,6 +135,17 @@ pub(crate) struct TemplateConfig {
     /// `single`: Apply the template to the output of the filter as a whole.
     /// `each`: Apply the template to each item of the list returned by the filter.
     pub(crate) application_mode: ApplicationMode,
+    /// Parameters for the current template. All the parameters defined here will
+    /// override the parameters defined in the `params` section of the configuration.
+    /// These parameters can be overridden by parameters passed to the CLI.
+    /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
+    /// when serialized to YAML. This is useful for testing purposes.
+    pub(crate) params: Option<BTreeMap<String, Value>>,
+    /// An optional file name defining where to write the output of the template.
+    /// This name is relative to the output directory.
+    /// The default value of this path is the same as the input file path.
+    /// This file path can be a Jinja expression referencing the parameters.
+    pub(crate) file_name: Option<String>,
 }
 
 fn default_filter() -> String {
@@ -403,7 +430,7 @@ impl WeaverConfig {
             let mut builder = GlobSetBuilder::new();
 
             for template in templates.iter() {
-                _ = builder.add(template.pattern.clone());
+                _ = builder.add(template.template.clone());
             }
 
             builder
@@ -436,8 +463,30 @@ impl WeaverConfig {
         self.template_syntax.override_with(other.template_syntax);
         self.whitespace_control
             .override_with(other.whitespace_control);
-        if other.params.is_some() {
-            self.params = other.params;
+        if let Some(other_params) = other.params {
+            // `params` are merged in an additive way. For example, if a parameter is defined in
+            // the `params` section of a template, then the final `params` section for this template
+            // will include both the `params` inherited from the file-level configuration and the
+            // `params` defined in the template configuration.
+            // If the override is a parameter set to null, then this parameter is removed from the
+            // final `params` section.
+            for (key, value) in other_params {
+                if value.is_null() {
+                    // If the value is null, the key is removed from the parameters.
+                    if let Some(params) = &mut self.params {
+                        // We don't need to do anything with the previous value, so we can ignore
+                        // the result of the remove operation.
+                        _ = params.remove(&key);
+                    }
+                } else {
+                    // If the key is already defined, the value is overridden. So no need to check if
+                    // the key is already present.
+                    _ = self
+                        .params
+                        .get_or_insert_with(BTreeMap::new)
+                        .insert(key, value);
+                }
+            }
         }
         if other.templates.is_some() {
             self.templates = other.templates;
@@ -450,8 +499,6 @@ impl WeaverConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use crate::config::{ApplicationMode, WeaverConfig};
     use crate::file_loader::FileContent;
 
@@ -609,7 +656,12 @@ mod tests {
         parent.override_with(local);
         assert_eq!(
             parent.params,
-            Some([("a".to_owned(), 3.into())].iter().cloned().collect())
+            Some(
+                [("a".to_owned(), 3.into()), ("b".to_owned(), 2.into())]
+                    .iter()
+                    .cloned()
+                    .collect()
+            )
         );
         let mut parent: WeaverConfig = WeaverConfig::default();
         let local: WeaverConfig = serde_yaml::from_str("params: {a: 3}").unwrap();
@@ -633,41 +685,56 @@ mod tests {
         let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
         let local: WeaverConfig = serde_yaml::from_str("params: {}").unwrap();
         parent.override_with(local);
-        assert_eq!(parent.params, Some(HashMap::default()));
+        assert_eq!(
+            parent.params,
+            Some(
+                [("a".to_owned(), 1.into()), ("b".to_owned(), 2.into())]
+                    .iter()
+                    .cloned()
+                    .collect()
+            )
+        );
+        let mut parent: WeaverConfig = serde_yaml::from_str("params: {a: 1, b: 2}").unwrap();
+        let local: WeaverConfig = serde_yaml::from_str(r#"params: {b: Null}"#).unwrap();
+        parent.override_with(local);
+        assert_eq!(
+            parent.params,
+            Some([("a".to_owned(), 1.into())].iter().cloned().collect())
+        );
     }
 
     #[test]
     fn test_templates_override_with() {
         // If defined in both, the local configuration should override the parent configuration.
         let mut parent: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
+            "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
         let local: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
+            "templates: [{template: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
         .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
         assert_eq!(templates.len(), 1);
-        assert_eq!(templates[0].pattern.to_string(), "**/local.md");
+        assert_eq!(templates[0].template.to_string(), "**/local.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Each);
         let mut parent: WeaverConfig = WeaverConfig::default();
         let local: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
+            "templates: [{template: \"**/local.md\", filter: \".\", application_mode: \"each\"}]",
         )
         .unwrap();
         parent.override_with(local);
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
         assert_eq!(templates.len(), 1);
-        assert_eq!(templates[0].pattern.to_string(), "**/local.md");
+        assert_eq!(templates[0].template.to_string(), "**/local.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Each);
         let mut parent: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
+            "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
         let local = WeaverConfig::default();
@@ -675,11 +742,11 @@ mod tests {
         assert!(parent.templates.is_some());
         let templates = parent.templates.unwrap();
         assert_eq!(templates.len(), 1);
-        assert_eq!(templates[0].pattern.to_string(), "**/parent.md");
+        assert_eq!(templates[0].template.to_string(), "**/parent.md");
         assert_eq!(templates[0].filter, ".");
         assert_eq!(templates[0].application_mode, ApplicationMode::Single);
         let mut parent: WeaverConfig = serde_yaml::from_str(
-            "templates: [{pattern: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
+            "templates: [{template: \"**/parent.md\", filter: \".\", application_mode: \"single\"}]",
         )
         .unwrap();
         let local: WeaverConfig = serde_yaml::from_str("templates: []").unwrap();

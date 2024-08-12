@@ -1,0 +1,22 @@
+{
+  "param_config": "cli_value",
+  "params": {
+    "param_config": "cli_value",
+    "shared_1": [
+      "1",
+      "2",
+      "3"
+    ],
+    "shared_2": true,
+    "template_name": "test2",
+    "test_2": true
+  },
+  "shared_1": [
+    "1",
+    "2",
+    "3"
+  ],
+  "shared_2": true,
+  "template_name": "test2",
+  "test_2": true
+}
