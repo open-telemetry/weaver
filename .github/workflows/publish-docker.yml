@@ -17,15 +17,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Build the Docker image
+    - name: Build and Test the Docker image
       run: docker build . -t weaver && docker run --rm weaver --help
   build-and-publish-docker:
     runs-on: ubuntu-latest
     needs: tests
     steps:      
     - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . -t weaver
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v5.5.1
