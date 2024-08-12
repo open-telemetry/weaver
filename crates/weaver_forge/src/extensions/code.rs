@@ -30,7 +30,7 @@ pub(crate) fn add_filters(
         map_text(config.text_maps.clone().unwrap_or_default()),
     );
     if comment_flag {
-        env.add_filter("comment", comment(config)?); // ToDo Do we really need a clone here?
+        env.add_filter("comment", comment(config)?);
     }
     // This filter is deprecated
     env.add_filter("comment_with_prefix", comment_with_prefix);
