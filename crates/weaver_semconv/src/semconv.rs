@@ -298,8 +298,8 @@ mod tests {
             InvalidSemConvSpec { .. }
         ));
 
-        // Non-existing URL
-        let semconv_url = "http://unknown.com/unknown-semconv.yaml";
+        // Non-existing URL (including both a leading underscore (which is not a valid domain) and a non-existing domain)
+        let semconv_url = "http://_unknown.com.invalid/unknown-semconv.yaml";
         let semconv_spec = SemConvSpec::from_url(semconv_url);
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
