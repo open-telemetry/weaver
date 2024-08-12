@@ -22,48 +22,48 @@ whitespace_control:
   keep_trailing_newline: true
 
 templates:
-  - pattern: "**/registry.md"
+  - template: "**/registry.md"
     filter: "."
     application_mode: single
-  - pattern: "**/attribute_group.md"
+  - template: "**/attribute_group.md"
     filter: ".groups[] | select(.type == \"attribute_group\")"
     application_mode: each
-  - pattern: "**/attribute_groups.md"
+  - template: "**/attribute_groups.md"
     filter: ".groups[] | select(.type == \"attribute_group\")"
     application_mode: single
-  - pattern: "**/event.md"
+  - template: "**/event.md"
     filter: ".groups[] | select(.type == \"event\")"
     application_mode: each
-  - pattern: "**/events.md"
+  - template: "**/events.md"
     filter: ".groups[] | select(.type == \"event\")"
     application_mode: single
-  - pattern: "**/group.md"
+  - template: "**/group.md"
     filter: ".groups"
     application_mode: each
-  - pattern: "**/groups.md"
+  - template: "**/groups.md"
     filter: ".groups"
     application_mode: single
-  - pattern: "**/metric.md"
+  - template: "**/metric.md"
     filter: ".groups[] | select(.type == \"metric\")"
     application_mode: each
-  - pattern: "**/metrics.md"
+  - template: "**/metrics.md"
     filter: ".groups[] | select(.type == \"metric\")"
     application_mode: single
-  - pattern: "**/resource.md"
+  - template: "**/resource.md"
     filter: ".groups[] | select(.type == \"resource\")"
     application_mode: each
-  - pattern: "**/resources.md"
+  - template: "**/resources.md"
     filter: ".groups[] | select(.type == \"resource\")"
     application_mode: single
-  - pattern: "**/scope.md"
+  - template: "**/scope.md"
     filter: ".groups[] | select(.type == \"scope\")"
     application_mode: each
-  - pattern: "**/scopes.md"
+  - template: "**/scopes.md"
     filter: ".groups[] | select(.type == \"scope\")"
     application_mode: single
-  - pattern: "**/span.md"
+  - template: "**/span.md"
     filter: ".groups[] | select(.type == \"span\")"
     application_mode: each
-  - pattern: "**/spans.md"
+  - template: "**/spans.md"
     filter: ".groups[] | select(.type == \"span\")"
     application_mode: single

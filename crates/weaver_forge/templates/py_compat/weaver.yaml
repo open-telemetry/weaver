@@ -1,4 +1,4 @@
 templates:
-  - pattern: test
+  - template: test
     filter: .
     application_mode: single

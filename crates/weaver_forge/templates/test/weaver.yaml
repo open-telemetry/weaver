@@ -17,52 +17,52 @@ type_mapping:
 acronyms: ["iOS", "API", "URL"]
 
 templates:
-  - pattern: "registry.md"
+  - template: "registry.md"
     filter: "."
     application_mode: single
-  - pattern: "**/attribute_group.md"
+  - template: "**/attribute_group.md"
     filter: semconv_grouped_attributes
     application_mode: each
-  - pattern: "**/attribute_groups.md"
+  - template: "**/attribute_groups.md"
     filter: semconv_grouped_attributes
     application_mode: single
-  - pattern: "**/event.md"
+  - template: "**/event.md"
     filter: >
       semconv_signal("event"; {})
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) })
     application_mode: each
-  - pattern: "**/events.md"
+  - template: "**/events.md"
     filter: >
       semconv_signal("event"; {})
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, events: . | sort_by(.name) })
     application_mode: single
-  - pattern: "**/metric.md"
+  - template: "**/metric.md"
     filter: semconv_grouped_metrics
     application_mode: each
-  - pattern: "**/metrics.md"
+  - template: "**/metrics.md"
     filter: semconv_grouped_metrics
     application_mode: single
-  - pattern: "**/resource.md"
+  - template: "**/resource.md"
     filter: > 
       semconv_signal("resource"; {}) 
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
     application_mode: each
-  - pattern: "**/resources.md"
+  - template: "**/resources.md"
     filter: >
       semconv_signal("resource"; {}) 
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
     application_mode: single
-  - pattern: "**/span.md"
+  - template: "**/span.md"
     filter: >
       semconv_signal("span"; {}) 
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
     application_mode: each
-  - pattern: "**/spans.md"
+  - template: "**/spans.md"
     filter: >
       semconv_signal("span"; {}) 
       | group_by(.root_namespace)

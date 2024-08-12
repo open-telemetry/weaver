@@ -48,7 +48,7 @@ The following options can be configured in the `weaver.yaml` file:
 
 # Uncomment the following templates to override the default template
 # mapping. Each template mapping specifies a jaq filter (compatible with jq)
-# to apply to every file matching the pattern. The application_mode specifies
+# to apply to every file matching the template pattern. The application_mode specifies
 # how the template should be applied. The application_mode can be `each` or
 # `single`. The `each` mode will evaluate the template for each object selected
 # by the jaq filter. The `single` mode will evaluate the template once with all
@@ -58,16 +58,23 @@ The following options can be configured in the `weaver.yaml` file:
 # supported. For more information, see https://github.com/01mf02/jaq
 #
 # templates:
-#  - pattern: "**/registry.md"
+#  - template: "**/registry.md"
 #    filter: "."
 #    application_mode: single
-#  - pattern: "**/attribute_group.md"
+#  - template: "**/attribute_group.md"
 #    filter: ".groups[] | select(.type == \"attribute_group\")"
 #    application_mode: each
-#  - pattern: "**/attribute_groups.md"
+#    params:
+#      param1: val1_bis
+#    file_path: "{{ctx.root_namespace}}.md"
+#  - template: "**/attribute_groups.md"
 #    filter: ".groups[] | select(.type == \"attribute_group\")"
 #    application_mode: single
 ```
+
+> [!IMPORTANT]
+> **Backward compatibility note**: The field `pattern` has been renamed to `template` in the
+> `templates` section. The `pattern` field is still supported for backward compatibility.
 
 # Configuration File Loading Order and Overriding Rules
 
@@ -89,6 +96,21 @@ The last configuration file loaded will override the previous ones.
 
 For the most complex cases, it is possible to define explicitly the list configuration
 files to load using the `--config` CLI n-ary parameter.
+
+## Parameters
+
+Weaver supports the definition of parameters both in the `weaver.yaml` file and in the CLI.
+The parameters defined in the `weaver.yaml` file will be overridden by the parameters
+defined in the CLI.
+
+The parameters defined in the `weaver.yaml` file are accessible in both the JQ expressions
+and the Jinja templates (see this [documentation](/crates/weaver_forge/README.md) for more
+details). Inside the `weaver.yaml` file, parameters can be defined at multiple levels:
+- At the file level, using the top-level `params` section.
+- At the template level, using the `params` section inside the `templates` section.
+
+Template-level parameters override file-level parameters. CLI parameters override both
+file-level and template-level parameters.
 
 ## Example
 
