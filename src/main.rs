@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser};
 
 use registry::semconv_registry;
-use weaver_common::diagnostic::{DiagnosticMessages, FUTURE_MODE};
+use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
 use weaver_common::quiet::QuietLogger;
 use weaver_common::{ConsoleLogger, Logger};
 use weaver_forge::config::{Params, WeaverConfig};
@@ -99,7 +99,7 @@ fn main() {
 /// Run the command specified by the CLI arguments and return the exit directives.
 fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     if cli.future {
-        FUTURE_MODE.set(true);
+        enable_future_mode();
     }
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),

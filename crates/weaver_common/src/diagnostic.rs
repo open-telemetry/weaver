@@ -5,14 +5,29 @@
 use crate::Logger;
 use miette::{Diagnostic, LabeledSpan, MietteDiagnostic, Report, Severity};
 use serde::Serialize;
-use std::cell::Cell;
 use std::error::Error;
 use std::fmt::Debug;
+use std::sync::atomic::AtomicBool;
 
-thread_local! {
-    /// A flag to enable future mode for diagnostics
-    /// When enabled, all the warning messages will be treated as errors.
-    pub static FUTURE_MODE: Cell<bool> = const { Cell::new(false) };
+/// A flag to globally enable future mode for diagnostics.
+/// When enabled, all the warning messages will be treated as errors.
+static FUTURE_MODE: AtomicBool = const { AtomicBool::new(false) };
+
+/// Enable future mode for diagnostics.
+/// When enabled, all the warning messages will be treated as errors.
+pub fn enable_future_mode() {
+    FUTURE_MODE.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Disable future mode for diagnostics.
+/// When disabled, all the warning messages will be treated as warnings.
+pub fn disable_future_mode() {
+    FUTURE_MODE.store(false, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Returns true if future mode is enabled for diagnostics.
+pub fn is_future_mode_enabled() -> bool {
+    FUTURE_MODE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// An extension to the [`miette::Diagnostic`] struct that adds an ansi message
@@ -72,21 +87,19 @@ impl DiagnosticMessage {
         let labels = error.labels().map(|labels| labels.collect());
         let ansi_message = format!(
             "{:?}",
-            FUTURE_MODE.with(|future_mode| {
-                if future_mode.get() {
-                    severity = Some(Severity::Error);
-                    Report::new(MietteDiagnostic {
-                        message: message.clone(),
-                        code: code.clone(),
-                        severity,
-                        help: help.clone(),
-                        url: url.clone(),
-                        labels: labels.clone(),
-                    })
-                } else {
-                    Report::new(error)
-                }
-            })
+            if is_future_mode_enabled() {
+                severity = Some(Severity::Error);
+                Report::new(MietteDiagnostic {
+                    message: message.clone(),
+                    code: code.clone(),
+                    severity,
+                    help: help.clone(),
+                    url: url.clone(),
+                    labels: labels.clone(),
+                })
+            } else {
+                Report::new(error)
+            }
         );
 
         let diagnostic = MietteDiagnosticExt {
