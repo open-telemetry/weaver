@@ -270,7 +270,7 @@ impl<'a> SearchApp<'a> {
                 Constraint::Min(1),
                 Constraint::Length(3),
             ])
-            .split(frame.size());
+            .split(frame.area());
         frame.render_widget(self.title(), chunks[0]);
 
         // Render search reuslts.
