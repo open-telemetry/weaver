@@ -76,7 +76,7 @@ impl DiagnosticMessage {
                 Report::new(MietteDiagnostic {
                     message: message.clone(),
                     code: code.clone(),
-                    severity: severity.clone(),
+                    severity,
                     help: help.clone(),
                     url: url.clone(),
                     labels: labels.clone(),
