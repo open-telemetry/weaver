@@ -14,13 +14,13 @@ whitespace_control:
   lstrip_blocks: true
 
 templates:
-  - pattern: README.md
+  - template: README.md
     filter: .
     application_mode: single
-  - pattern: lib.rs
+  - template: lib.rs
     filter: .
     application_mode: single
-  - pattern: attributes/mod.rs.j2
+  - template: attributes/mod.rs.j2
     filter: >
       if $attributes then
         semconv_grouped_attributes($params)
@@ -28,7 +28,7 @@ templates:
         empty
       end
     application_mode: single
-  - pattern: attributes/attributes.rs.j2
+  - template: attributes/attributes.rs.j2
     filter: >
       if $attributes then
         semconv_grouped_attributes($params)
@@ -36,7 +36,7 @@ templates:
         empty
       end
     application_mode: each
-  - pattern: metrics/mod.rs.j2
+  - template: metrics/mod.rs.j2
     filter: >
       if $metrics then
         semconv_grouped_metrics
@@ -44,7 +44,7 @@ templates:
         empty
       end
     application_mode: single
-  - pattern: metrics/metrics.rs.j2
+  - template: metrics/metrics.rs.j2
     filter: >
       if $metrics then
         semconv_grouped_metrics 

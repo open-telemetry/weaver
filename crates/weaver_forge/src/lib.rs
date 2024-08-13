@@ -3,16 +3,16 @@
 #![doc = include_str!("../README.md")]
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fmt::{Debug, Display, Formatter};
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fmt, fs};
 
 use jaq_interpret::Val;
 use minijinja::syntax::SyntaxConfig;
-use minijinja::value::{from_args, Object};
+use minijinja::value::{from_args, Enumerator, Object};
 use minijinja::{Environment, ErrorKind, State, Value};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
@@ -26,9 +26,9 @@ use error::Error::{
 use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 
-use crate::config::{ApplicationMode, Params, WeaverConfig};
+use crate::config::{ApplicationMode, Params, TemplateConfig, WeaverConfig};
 use crate::debug::error_summary;
-use crate::error::Error::InvalidConfigFile;
+use crate::error::Error::{InvalidConfigFile, InvalidFilePath};
 use crate::extensions::{ansi, case, code, otel, util};
 use crate::file_loader::FileLoader;
 use crate::filter::Filter;
@@ -115,13 +115,13 @@ impl Object for TemplateObject {
 /// A params object accessible from the template.
 #[derive(Debug, Clone)]
 struct ParamsObject {
-    params: HashMap<String, Value>,
+    params: BTreeMap<String, Value>,
 }
 
 impl ParamsObject {
     /// Creates a new params object.
-    pub(crate) fn new(params: HashMap<String, serde_yaml::Value>) -> Self {
-        let mut new_params = HashMap::new();
+    pub(crate) fn new(params: BTreeMap<String, serde_yaml::Value>) -> Self {
+        let mut new_params = BTreeMap::new();
         for (key, value) in params {
             _ = new_params.insert(key, Value::from_serialize(&value));
         }
@@ -130,7 +130,7 @@ impl ParamsObject {
 }
 
 impl Display for ParamsObject {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(&format!("{:#?}", self.params))
     }
 }
@@ -140,6 +140,12 @@ impl Object for ParamsObject {
     fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
         let key = key.to_string();
         self.params.get(&key).cloned()
+    }
+
+    /// Enumerates the keys of the object.
+    fn enumerate(self: &Arc<Self>) -> Enumerator {
+        let keys: Vec<_> = self.params.keys().map(Value::from).collect();
+        Enumerator::Values(keys)
     }
 }
 
@@ -192,13 +198,33 @@ impl TemplateEngine {
         loader: impl FileLoader + Send + Sync + 'static,
         params: Params,
     ) -> Self {
-        // Override the params defined in the `weaver.yaml` file with the params provided
-        // in the command line.
-        for (name, value) in params.params {
-            _ = config
-                .params
-                .get_or_insert_with(HashMap::new)
-                .insert(name, value);
+        // Compute the params for each template based on:
+        // - CLI-level params
+        // - Top-level params in the `weaver.yaml` file
+        if let Some(templates) = config.templates.as_mut() {
+            for template in templates {
+                let template_params = template.params.get_or_insert_with(BTreeMap::new);
+
+                // Add CLI-level params to the template params. If a param is already defined
+                // in the template params, the CLI-level param will override it.
+                for (name, value) in params.params.iter() {
+                    // The result of the insert method is ignored because we don't care about
+                    // the previous value of the param.
+                    _ = template_params.insert(name.clone(), value.clone());
+                }
+
+                // Add the params defined at the top level of the `weaver.yaml` file
+                // to the local params if they are not already defined locally.
+                if let Some(top_level_params) = config.params.as_ref() {
+                    for (key, value) in top_level_params {
+                        if !template_params.contains_key(key) {
+                            // Note: The result of the insert method is ignored because we don't
+                            // care about the previous value of the param.
+                            _ = template_params.insert(key.clone(), value.clone());
+                        }
+                    }
+                }
+            }
         }
 
         Self {
@@ -280,159 +306,208 @@ impl TemplateEngine {
         let files = self.file_loader.all_files();
         let tmpl_matcher = self.target_config.template_matcher()?;
 
-        // Create a read-only context for the filter evaluations
+        // Serialize the context in JSON
         let context = serde_json::to_value(context).map_err(|e| ContextSerializationFailed {
             error: e.to_string(),
         })?;
 
-        let mut errors = Vec::new();
-
-        let params = if let Some(mut params) = self.target_config.params.clone() {
-            match serde_yaml::to_value(&self.target_config.params) {
-                Ok(value) => {
-                    let prev = params.insert("params".to_owned(), value);
-                    if prev.is_some() {
-                        errors.push(Error::DuplicateParamKey {
-                            key: "params".to_owned(),
-                            error: "The parameter `params` is a reserved parameter name".to_owned(),
-                        });
-                    }
-                }
-                Err(e) => {
-                    errors.push(ContextSerializationFailed {
-                        error: e.to_string(),
-                    });
-                }
-            }
-            Some(params)
-        } else {
-            None
-        };
-
-        // Build JQ context from the params.
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params.as_ref().map_or_else(
-            || (Vec::new(), Vec::new()), // If self.target_config.params is None, return empty vectors
-            |params| {
-                params
-                    .iter()
-                    .filter_map(|(k, v)| {
-                        let json_value = match serde_json::to_value(v) {
-                            Ok(json_value) => json_value,
-                            Err(e) => {
-                                errors.push(ContextSerializationFailed {
-                                    error: e.to_string(),
-                                });
-                                return None;
-                            }
-                        };
-                        Some((k.clone(), json_value))
-                    })
-                    .unzip()
-            },
-        );
-
-        // Process all files in parallel
-        // - Filter the files that match the template pattern
-        // - Apply the filter to the context
-        // - Evaluate the template with the filtered context based on the
-        // application mode.
-        //   - If the application mode is single, the filtered context is
-        // evaluated as a single object.
-        //   - If the application mode is each, the filtered context is
-        // evaluated as an array of objects and each object is evaluated
-        // independently and in parallel with the same template.
-        let mut errs = files
+        // Process each file and collect any errors.
+        // The files are processed in parallel.
+        let errs = files
             .into_par_iter()
-            .filter_map(|relative_path| {
-                for template in tmpl_matcher.matches(relative_path.clone()) {
-                    let filter = match Filter::try_new(
-                        template.filter.as_str(),
-                        jq_vars.clone(),
-                        self.jq_packages.clone(),
-                    ) {
-                        Ok(filter) => filter,
-                        Err(e) => return Some(e),
-                    };
-                    // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
-                    // jaq_interpret::val::Val here.
-                    let jq_ctx = jq_ctx
-                        .iter()
-                        .map(|v| Val::from(v.clone()))
-                        .collect::<Vec<_>>();
-                    let filtered_result = match filter.apply(context.clone(), jq_ctx) {
-                        Ok(result) => result,
-                        Err(e) => return Some(e),
-                    };
-
-                    match template.application_mode {
-                        // The filtered result is evaluated as a single object
-                        ApplicationMode::Single => {
-                            if filtered_result.is_null()
-                                || (filtered_result.is_array()
-                                    && filtered_result.as_array().expect("is_array").is_empty())
-                            {
-                                // Skip the template evaluation if the filtered result is null or an empty array
-                                continue;
-                            }
-                            if let Err(e) = self.evaluate_template(
-                                log.clone(),
-                                NewContext {
-                                    ctx: &filtered_result,
-                                }
-                                .try_into()
-                                .ok()?,
-                                relative_path.as_path(),
-                                output_directive,
-                                output_dir,
-                            ) {
-                                return Some(e);
-                            }
-                        }
-                        // The filtered result is evaluated as an array of objects
-                        // and each object is evaluated independently and in parallel
-                        // with the same template.
-                        ApplicationMode::Each => {
-                            if let Some(values) = filtered_result.as_array() {
-                                let errs = values
-                                    .into_par_iter()
-                                    .filter_map(|result| {
-                                        if let Err(e) = self.evaluate_template(
-                                            log.clone(),
-                                            NewContext { ctx: result }.try_into().ok()?,
-                                            relative_path.as_path(),
-                                            output_directive,
-                                            output_dir,
-                                        ) {
-                                            return Some(e);
-                                        }
-                                        None
-                                    })
-                                    .collect::<Vec<Error>>();
-                                if !errs.is_empty() {
-                                    return Some(Error::compound_error(errs));
-                                }
-                            } else if let Err(e) = self.evaluate_template(
-                                log.clone(),
-                                NewContext {
-                                    ctx: &filtered_result,
-                                }
-                                .try_into()
-                                .ok()?,
-                                relative_path.as_path(),
-                                output_directive,
-                                output_dir,
-                            ) {
-                                return Some(e);
-                            }
-                        }
-                    }
-                }
-                None
+            .flat_map(|file_to_process| {
+                // Iterate over the all the template configurations that match the file
+                // to process in parallel.
+                tmpl_matcher
+                    .matches(file_to_process.clone())
+                    .into_par_iter()
+                    .filter_map(|template| {
+                        self.process_template(
+                            &file_to_process,
+                            template,
+                            &context,
+                            output_dir,
+                            output_directive,
+                            log.clone(),
+                        )
+                        .err()
+                    })
+                    .collect::<Vec<Error>>()
             })
             .collect::<Vec<Error>>();
 
-        errs.extend(errors);
         handle_errors(errs)
+    }
+
+    /// Process a single template file with the given template configuration,
+    /// context, output directory, and output directive.
+    fn process_template(
+        &self,
+        template_file: &Path,
+        template: &TemplateConfig,
+        context: &serde_json::Value,
+        output_dir: &Path,
+        output_directive: &OutputDirective,
+        log: impl Logger + Sync + Clone,
+    ) -> Result<(), Error> {
+        let params = Self::init_params(template.params.clone())?;
+        let (jq_vars, jq_ctx) = Self::prepare_jq_context(&params)?;
+        let filter = Filter::try_new(
+            template.filter.as_str(),
+            jq_vars.clone(),
+            self.jq_packages.clone(),
+        )?;
+        // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
+        // jaq_interpret::val::Val here.
+        let jq_ctx = jq_ctx.into_iter().map(Val::from).collect::<Vec<_>>();
+        let filtered_result = filter.apply(context.clone(), jq_ctx)?;
+
+        match template.application_mode {
+            ApplicationMode::Single => self.process_single_mode(
+                &filtered_result,
+                template.file_name.as_ref(),
+                &params,
+                template_file,
+                output_dir,
+                output_directive,
+                log,
+            ),
+            ApplicationMode::Each => self.process_each_mode(
+                &filtered_result,
+                template.file_name.as_ref(),
+                &params,
+                template_file,
+                output_dir,
+                output_directive,
+                log,
+            ),
+        }
+    }
+
+    /// Evaluate the template for each object in the context if the context is an array, otherwise
+    /// evaluate the template for the context entire object.
+    /// The evaluation is done in parallel.
+    fn process_each_mode(
+        &self,
+        ctx: &serde_json::Value,
+        file_path: Option<&String>,
+        params: &BTreeMap<String, serde_yaml::Value>,
+        template_file: &Path,
+        output_dir: &Path,
+        output_directive: &OutputDirective,
+        log: impl Logger + Sync + Clone,
+    ) -> Result<(), Error> {
+        match ctx {
+            serde_json::Value::Array(values) => {
+                // Evaluate the template for each object in the array context in parallel
+                let errs = values
+                    .into_par_iter()
+                    .filter_map(|result| {
+                        self.evaluate_template(
+                            log.clone(),
+                            NewContext { ctx: result }.try_into().ok()?,
+                            file_path,
+                            params,
+                            template_file,
+                            output_directive,
+                            output_dir,
+                        )
+                        .err()
+                    })
+                    .collect::<Vec<Error>>();
+                handle_errors(errs)
+            }
+            _ => self.evaluate_template(
+                log.clone(),
+                NewContext { ctx }.try_into()?,
+                file_path,
+                params,
+                template_file,
+                output_directive,
+                output_dir,
+            ),
+        }
+    }
+
+    /// Evaluate the template for the entire context.
+    fn process_single_mode(
+        &self,
+        ctx: &serde_json::Value,
+        file_path: Option<&String>,
+        params: &BTreeMap<String, serde_yaml::Value>,
+        template_file: &Path,
+        output_dir: &Path,
+        output_directive: &OutputDirective,
+        log: impl Logger + Sync + Clone,
+    ) -> Result<(), Error> {
+        if ctx.is_null() || (ctx.is_array() && ctx.as_array().expect("is_array").is_empty()) {
+            // Skip the template evaluation if the filtered result is null or an empty array
+            return Ok(());
+        }
+        self.evaluate_template(
+            log.clone(),
+            NewContext { ctx }.try_into()?,
+            file_path,
+            params,
+            template_file,
+            output_directive,
+            output_dir,
+        )
+    }
+
+    /// Build a JQ context from the Weaver parameters.
+    fn prepare_jq_context(
+        params: &BTreeMap<String, serde_yaml::Value>,
+    ) -> Result<(Vec<String>, Vec<serde_json::Value>), Error> {
+        let mut errs = Vec::new();
+        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params
+            .iter()
+            .filter_map(|(k, v)| {
+                let json_value = match serde_json::to_value(v) {
+                    Ok(json_value) => json_value,
+                    Err(e) => {
+                        errs.push(ContextSerializationFailed {
+                            error: e.to_string(),
+                        });
+                        return None;
+                    }
+                };
+                Some((k.clone(), json_value))
+            })
+            .unzip();
+
+        handle_errors(errs)?;
+        Ok((jq_vars, jq_ctx))
+    }
+
+    /// Initialize a map of parameters from the template parameters.
+    /// If there are template parameters then the map returned contains the entry `params`
+    /// initialized with an in-memory yaml representation of the template parameters.
+    /// Otherwise, an empty map is returned if there is no template parameter.
+    fn init_params(
+        template_params: Option<BTreeMap<String, serde_yaml::Value>>,
+    ) -> Result<BTreeMap<String, serde_yaml::Value>, Error> {
+        if let Some(mut params) = template_params.clone() {
+            let value =
+                serde_yaml::to_value(template_params).map_err(|e| ContextSerializationFailed {
+                    error: e.to_string(),
+                })?;
+            // The `params` parameter is a reserved entry within the `params` sections.
+            // This parameter is automatically injected by Weaver to allow passing all parameters
+            // to a JQ function or a Jinja filter without having to explicitly enumerate all the
+            // parameters.
+            // e.g. `semconv_grouped_attributes($params)` will pass all the parameters to the
+            // `semconv_grouped_attributes` JQ function.
+            if params.insert("params".to_owned(), value).is_some() {
+                return Err(Error::DuplicateParamKey {
+                    key: "params".to_owned(),
+                    error: "The parameter `params` is a reserved parameter name".to_owned(),
+                });
+            }
+            Ok(params)
+        } else {
+            Ok(BTreeMap::new())
+        }
     }
 
     #[allow(clippy::print_stdout)] // This is used for the OutputDirective::Stdout variant
@@ -441,33 +516,53 @@ impl TemplateEngine {
         &self,
         log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
+        file_path: Option<&String>,
+        params: &BTreeMap<String, serde_yaml::Value>,
         template_path: &Path,
         output_directive: &OutputDirective,
         output_dir: &Path,
     ) -> Result<(), Error> {
-        // By default, the file name is the template file name without the extension ".j2"
-        let file_name = template_path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .trim_end_matches(".j2")
-            .to_owned();
-        let template_object = TemplateObject {
-            file_name: Arc::new(Mutex::new(file_name)),
-        };
         let mut engine = self.template_engine()?;
+
+        // Add the Weaver parameters to the template context
+        engine.add_global(
+            "params",
+            Value::from_object(ParamsObject::new(params.clone())),
+        );
+
+        // Pre-determine the file path for the generated file based on the template file path
+        // if defined, otherwise use the default file path based on the template file name.
+        let file_path = match file_path {
+            Some(file_path) => {
+                engine
+                    .render_str(file_path, ctx.clone())
+                    .map_err(|e| InvalidFilePath {
+                        file_path: file_path.clone(),
+                        error: e.to_string(),
+                    })?
+            }
+            None => {
+                // By default, the file name is the template file name without
+                // the extension ".j2"
+                template_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .trim_end_matches(".j2")
+                    .to_owned()
+            }
+        };
+        let template_object = TemplateObject {
+            file_name: Arc::new(Mutex::new(file_path)),
+        };
         let template_file = template_path.to_str().ok_or(InvalidTemplateFile {
             template: template_path.to_path_buf(),
             error: "".to_owned(),
         })?;
 
+        // Add the handler to programmatically set the file name of the generated file
+        // from the template.
         engine.add_global("template", Value::from_object(template_object.clone()));
-        engine.add_global(
-            "params",
-            Value::from_object(ParamsObject::new(
-                self.target_config.params.clone().unwrap_or_default(),
-            )),
-        );
 
         let template = engine.get_template(template_file).map_err(|e| {
             let templates = engine
@@ -615,7 +710,7 @@ impl TemplateEngine {
 #[cfg(test)]
 mod tests {
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use globset::Glob;
     use serde::Serialize;
@@ -630,7 +725,53 @@ mod tests {
     use crate::extensions::case::case_converter;
     use crate::file_loader::FileSystemFileLoader;
     use crate::registry::ResolvedRegistry;
-    use crate::OutputDirective;
+    use crate::{OutputDirective, TemplateEngine};
+
+    fn prepare_test(
+        target: &str,
+        cli_params: Params,
+    ) -> (
+        TestLogger,
+        TemplateEngine,
+        ResolvedRegistry,
+        PathBuf,
+        PathBuf,
+    ) {
+        let loader = FileSystemFileLoader::try_new("templates".into(), target)
+            .expect("Failed to create file system loader");
+        let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
+        let mut engine = TemplateEngine::new(config, loader, cli_params);
+        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
+
+        let registry_id = "default";
+        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .expect("Failed to resolve registry");
+
+        let template_registry = ResolvedRegistry::try_from_resolved_registry(
+            schema.registry(registry_id).expect("registry not found"),
+            schema.catalog(),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
+
+        // Delete all the files in the observed_output/target directory
+        // before generating the new files.
+        fs::remove_dir_all(&format!("observed_output/{}", target)).unwrap_or_default();
+
+        (
+            TestLogger::default(),
+            engine,
+            template_registry,
+            PathBuf::from(format!("observed_output/{}", target)),
+            PathBuf::from(format!("expected_output/{}", target)),
+        )
+    }
 
     #[test]
     fn test_case_converter() {
@@ -761,7 +902,7 @@ mod tests {
             .expect("Failed to create file system loader");
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
-        let mut engine = super::TemplateEngine::new(config, loader, Params::default());
+        let mut engine = TemplateEngine::new(config, loader, Params::default());
         engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
         // Add a template configuration for converter.md on top
@@ -769,9 +910,11 @@ mod tests {
         // for test coverage purposes.
         let mut templates = engine.target_config.templates.unwrap_or_default();
         templates.push(TemplateConfig {
-            pattern: Glob::new("converter.md").unwrap(),
+            template: Glob::new("converter.md").unwrap(),
             filter: ".".to_owned(),
             application_mode: ApplicationMode::Single,
+            params: None,
+            file_name: None,
         });
         engine.target_config.templates = Some(templates);
 
@@ -809,34 +952,14 @@ mod tests {
 
     #[test]
     fn test_whitespace_control() {
-        let logger = TestLogger::default();
-        let loader = FileSystemFileLoader::try_new("templates".into(), "whitespace_control")
-            .expect("Failed to create file system loader");
-        let config = WeaverConfig::try_from_loader(&loader).unwrap();
-        let engine = super::TemplateEngine::new(config, loader, Params::default());
-
-        let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .expect("Failed to load registry");
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
-            .expect("Failed to resolve registry");
-
-        let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            schema.registry(registry_id).expect("registry not found"),
-            schema.catalog(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+        let (logger, engine, template_registry, observed_output, expected_output) =
+            prepare_test("whitespace_control", Params::default());
 
         engine
             .generate(
                 logger.clone(),
                 &template_registry,
-                Path::new("observed_output/whitespace_control"),
+                observed_output.as_path(),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
@@ -844,11 +967,7 @@ mod tests {
             })
             .expect("Failed to generate registry assets");
 
-        assert!(diff_dir(
-            "expected_output/whitespace_control",
-            "observed_output/whitespace_control"
-        )
-        .unwrap());
+        assert!(diff_dir(expected_output, observed_output).unwrap());
     }
 
     #[test]
@@ -862,7 +981,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_loader(&loader).unwrap();
-        let engine = super::TemplateEngine::new(config, loader, Params::default());
+        let engine = TemplateEngine::new(config, loader, Params::default());
         let context = Context {
             text: "Hello, World!".to_owned(),
         };
@@ -884,39 +1003,14 @@ mod tests {
 
     #[test]
     fn test_semconv_jq_functions() {
-        let logger = TestLogger::default();
-        let loader = FileSystemFileLoader::try_new("templates".into(), "semconv_jq_fn")
-            .expect("Failed to create file system loader");
-        let config =
-            WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
-        let mut engine = super::TemplateEngine::new(config, loader, Params::default());
-        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
-        let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .expect("Failed to load registry");
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
-            .expect("Failed to resolve registry");
-
-        let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            schema.registry(registry_id).expect("registry not found"),
-            schema.catalog(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
-
-        // Delete all the files in the observed_output/semconv_jq_fn directory
-        // before generating the new files.
-        fs::remove_dir_all("observed_output/semconv_jq_fn").unwrap_or_default();
+        let (logger, engine, template_registry, observed_output, expected_output) =
+            prepare_test("semconv_jq_fn", Params::default());
 
         engine
             .generate(
                 logger.clone(),
                 &template_registry,
-                Path::new("observed_output/semconv_jq_fn"),
+                observed_output.as_path(),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
@@ -924,10 +1018,33 @@ mod tests {
             })
             .expect("Failed to generate registry assets");
 
-        assert!(diff_dir(
-            "expected_output/semconv_jq_fn",
-            "observed_output/semconv_jq_fn"
-        )
-        .unwrap());
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_template_params() {
+        let cli_params = Params::from_key_value_pairs(&[
+            (
+                "param_config",
+                serde_yaml::Value::String("cli_value".to_owned()),
+            ),
+            ("shared_2", serde_yaml::Value::Bool(true)),
+        ]);
+        let (logger, engine, template_registry, observed_output, expected_output) =
+            prepare_test("template_params", cli_params);
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                observed_output.as_path(),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
     }
 }

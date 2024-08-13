@@ -1,4 +1,4 @@
 templates:
-  - pattern: errors.json.j2
+  - template: errors.json.j2
     filter: .
     application_mode: single
