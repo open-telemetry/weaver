@@ -70,21 +70,24 @@ impl DiagnosticMessage {
         let help = error.help().map(|help| help.to_string());
         let url = error.url().map(|url| url.to_string());
         let labels = error.labels().map(|labels| labels.collect());
-        let ansi_message= format!("{:?}", FUTURE_MODE.with(|future_mode| {
-            if future_mode.get() {
-                severity = Some(Severity::Error);
-                Report::new(MietteDiagnostic {
-                    message: message.clone(),
-                    code: code.clone(),
-                    severity,
-                    help: help.clone(),
-                    url: url.clone(),
-                    labels: labels.clone(),
-                })
-            } else {
-                Report::new(error)
-            }
-        }));
+        let ansi_message = format!(
+            "{:?}",
+            FUTURE_MODE.with(|future_mode| {
+                if future_mode.get() {
+                    severity = Some(Severity::Error);
+                    Report::new(MietteDiagnostic {
+                        message: message.clone(),
+                        code: code.clone(),
+                        severity,
+                        help: help.clone(),
+                        url: url.clone(),
+                        labels: labels.clone(),
+                    })
+                } else {
+                    Report::new(error)
+                }
+            })
+        );
 
         let diagnostic = MietteDiagnosticExt {
             message,
