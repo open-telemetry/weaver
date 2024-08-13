@@ -46,11 +46,6 @@ pub struct RegistryCheckArgs {
     #[arg(long, default_value = "false")]
     pub display_policy_coverage: bool,
 
-    /// Enable the most recent validation rules for the semconv registry. It is recommended
-    /// to enable this flag when checking a new registry.
-    #[arg(long, default_value = "false")]
-    pub future: bool,
-
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -85,10 +80,10 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.future, logger.clone())?;
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
-        .map(|repo| load_semconv_specs(repo, args.future, logger.clone()))
+        .map(|repo| load_semconv_specs(repo, logger.clone()))
         .transpose()?;
 
     let mut policy_engine = if !args.skip_policies {
@@ -221,6 +216,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
@@ -233,7 +229,6 @@ mod tests {
                     policies: vec![],
                     skip_policies: true,
                     display_policy_coverage: false,
-                    future: true,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -247,6 +242,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
@@ -259,7 +255,6 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
-                    future: true,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -286,7 +281,6 @@ mod tests {
                 policies: vec![],
                 skip_policies: false,
                 display_policy_coverage: false,
-                future: true,
                 diagnostic: Default::default(),
             }),
         };

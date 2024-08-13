@@ -25,6 +25,12 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub quiet: bool,
 
+    /// Enable the most recent validation rules for the semconv registry. It is recommended
+    /// to enable this flag when checking a new registry.
+    /// Note: `semantic_conventions` main branch should always enable this flag.
+    #[arg(long, global = true)]
+    pub future: bool,
+
     /// List of supported commands
     #[command(subcommand)]
     pub command: Option<Commands>,

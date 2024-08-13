@@ -48,10 +48,19 @@ pub enum Error {
     },
 
     /// A semantic convention error.
-    #[error("{message}")]
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     SemConvError {
+        /// The semconv error that occurred.
+        #[from]
+        error: weaver_semconv::Error,
+    },
+
+    /// Failed to walk dir.
+    #[error("Failed walk dir: {error}")]
+    FailToWalkDir {
         /// The error that occurred.
-        message: String,
+        error: String,
     },
 
     /// Failed to resolve a set of attributes.
@@ -150,7 +159,7 @@ pub enum Error {
 
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
-    CompoundError(Vec<Error>),
+    CompoundError(#[related] Vec<Error>),
 }
 
 impl WeaverError<Error> for Error {
@@ -241,16 +250,13 @@ impl SchemaResolver {
     /// all errors are collected and returned as a compound error.
     ///
     /// # Arguments
-    /// * `registry_path` - The registry path containing the semantic convention files.
-    /// * `cache` - The cache to store the semantic convention files.
+    /// * `registry_repo` - The registry repository containing the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
-        future_mode: bool,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
-            future_mode,
         )
     }
 
@@ -264,7 +270,6 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
-        future_mode: bool,
     ) -> Result<Vec<(String, SemConvSpec)>, Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -296,7 +301,7 @@ impl SchemaResolver {
                             return vec![].into_par_iter();
                         }
 
-                        match SemConvRegistry::semconv_spec_from_file(entry.path(), future_mode) {
+                        match SemConvRegistry::semconv_spec_from_file(entry.path()) {
                             Ok((path, spec)) => {
                                 // Replace the local path with the git URL combined with the relative path
                                 // of the semantic convention file.
@@ -316,22 +321,15 @@ impl SchemaResolver {
                             Err(e) => match e {
                                 weaver_semconv::Error::CompoundError(errors) => errors
                                     .into_iter()
-                                    .map(|e| {
-                                        Err(Error::SemConvError {
-                                            message: e.to_string(),
-                                        })
-                                    })
+                                    .map(|e| Err(Error::SemConvError { error: e }))
                                     .collect::<Vec<_>>()
                                     .into_par_iter(),
-                                _ => vec![Err(Error::SemConvError {
-                                    message: e.to_string(),
-                                })]
-                                .into_par_iter(),
+                                _ => vec![Err(Error::SemConvError { error: e })].into_par_iter(),
                             },
                         }
                     }
-                    Err(e) => vec![Err(Error::SemConvError {
-                        message: e.to_string(),
+                    Err(e) => vec![Err(Error::FailToWalkDir {
+                        error: e.to_string(),
                     })]
                     .into_par_iter(),
                 }

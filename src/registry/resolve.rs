@@ -52,11 +52,6 @@ pub struct RegistryResolveArgs {
     #[arg(long, default_value = "false")]
     pub skip_policies: bool,
 
-    /// Enable the most recent validation rules for the semconv registry. It is recommended
-    /// to enable this flag when checking a new registry.
-    #[arg(long, default_value = "false")]
-    pub future: bool,
-
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -85,7 +80,7 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, args.future, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
 
     if !args.skip_policies {
         let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
@@ -145,6 +140,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -158,7 +154,6 @@ mod tests {
                     format: Format::Yaml,
                     policies: vec![],
                     skip_policies: true,
-                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -172,6 +167,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -185,7 +181,6 @@ mod tests {
                     format: Format::Json,
                     policies: vec![],
                     skip_policies: false,
-                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),

@@ -3,9 +3,17 @@
 //! A generic diagnostic message
 
 use crate::Logger;
-use miette::{Diagnostic, LabeledSpan, Report, Severity};
+use miette::{Diagnostic, LabeledSpan, MietteDiagnostic, Report, Severity};
 use serde::Serialize;
+use std::cell::Cell;
 use std::error::Error;
+use std::fmt::Debug;
+
+thread_local! {
+    /// A flag to enable future mode for diagnostics
+    /// When enabled, all the warning messages will be treated as errors.
+    pub static FUTURE_MODE: Cell<bool> = const { Cell::new(false) };
+}
 
 /// An extension to the [`miette::Diagnostic`] struct that adds an ansi message
 /// representation of the diagnostic message.
@@ -58,14 +66,29 @@ impl DiagnosticMessage {
         let json_error = serde_json::to_value(&error).expect("Failed to serialize error");
         let message = error.to_string();
         let code = error.code().map(|error_code| error_code.to_string());
-        let severity = error.severity();
+        let mut severity = error.severity();
         let help = error.help().map(|help| help.to_string());
         let url = error.url().map(|url| url.to_string());
         let labels = error.labels().map(|labels| labels.collect());
+        let ansi_message= format!("{:?}", FUTURE_MODE.with(|future_mode| {
+            if future_mode.get() {
+                severity = Some(Severity::Error);
+                Report::new(MietteDiagnostic {
+                    message: message.clone(),
+                    code: code.clone(),
+                    severity: severity.clone(),
+                    help: help.clone(),
+                    url: url.clone(),
+                    labels: labels.clone(),
+                })
+            } else {
+                Report::new(error)
+            }
+        }));
 
         let diagnostic = MietteDiagnosticExt {
             message,
-            ansi_message: format!("{:?}", Report::new(error)),
+            ansi_message,
             code,
             severity,
             help,

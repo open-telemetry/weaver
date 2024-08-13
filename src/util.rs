@@ -21,8 +21,7 @@ use weaver_semconv::semconv::SemConvSpec;
 ///
 /// # Arguments
 ///
-/// * `registry_path` - The path to the semantic convention registry.
-/// * `cache` - The cache for loading the registry.
+/// * `registry_repo` - The registry repository.
 /// * `log` - The logger for logging messages.
 ///
 /// # Returns
@@ -31,10 +30,9 @@ use weaver_semconv::semconv::SemConvSpec;
 /// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
-    future_mode: bool,
     log: impl Logger + Sync + Clone,
 ) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, future_mode)?;
+    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
     log.success(&format!(
         "`{}` semconv registry `{}` loaded ({} files)",
         registry_repo.id(),

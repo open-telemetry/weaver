@@ -39,10 +39,9 @@ fn test_cli_interface() {
     let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
         panic!("Failed to create the registry repo, error: {e}");
     });
-    let semconv_specs =
-        SchemaResolver::load_semconv_specs(&registry_repo, false).unwrap_or_else(|e| {
-            panic!("Failed to load the semantic convention specs, error: {e}");
-        });
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo).unwrap_or_else(|e| {
+        panic!("Failed to load the semantic convention specs, error: {e}");
+    });
     let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     // Check if the logger has reported any warnings or errors.
