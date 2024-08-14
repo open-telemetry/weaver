@@ -264,6 +264,8 @@ pub enum RenderOptions {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct TransformOptions {
+    /// Prefix to add to each line of the comment.
+    pub line_prefix: Option<String>,
     /// Flag to trim the comment content.
     #[serde(default = "default_bool::<true>")]
     pub trim: bool,
@@ -289,6 +291,7 @@ impl Default for TransformOptions {
             remove_line_breaks_in_sentences: false,
             strong_words: Vec::default(),
             strong_word_style: None,
+            line_prefix: None,
         }
     }
 }

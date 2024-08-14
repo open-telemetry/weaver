@@ -147,7 +147,13 @@ impl<'source> HtmlRenderer<'source> {
                 error: e.to_string(),
             })?;
         let mut render_context = RenderContext::default();
-        self.write_html_to(&mut render_context, "", &md_node, format, html_render_options)?;
+        self.write_html_to(
+            &mut render_context,
+            "",
+            &md_node,
+            format,
+            html_render_options,
+        )?;
         Ok(render_context.html)
     }
 
@@ -338,11 +344,12 @@ mod tests {
                             remove_line_breaks_in_sentences: false,
                             strong_words: vec![],
                             strong_word_style: None,
+                            line_prefix: None,
                         },
                     },
                 )]
-                    .into_iter()
-                    .collect(),
+                .into_iter()
+                .collect(),
             ),
             default_comment_format: Some("java".to_owned()),
             ..WeaverConfig::default()
@@ -351,8 +358,11 @@ mod tests {
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"In some cases a URL may refer to an IP and/or port directly,
-The file extension extracted from the {@code url.full}, excluding the leading dot."##);
+        assert_eq!(
+            html,
+            r##"In some cases a URL may refer to an IP and/or port directly,
+The file extension extracted from the {@code url.full}, excluding the leading dot."##
+        );
 
         let markdown = r##"Follows
 [OCI Image Manifest Specification](https://github.com/opencontainers/image-spec/blob/main/manifest.md),
@@ -362,23 +372,29 @@ and specifically the
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"Follows
+        assert_eq!(
+            html,
+            r##"Follows
 <a href="https://github.com/opencontainers/image-spec/blob/main/manifest.md">OCI Image Manifest Specification</a>,
 and specifically the
 <a href="https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests">Digest property</a>.
 <p>
 An example can be found in
-<a href="https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest">Example Image Manifest</a>."##);
+<a href="https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest">Example Image Manifest</a>."##
+        );
 
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
 without a domain name. In this case, the IP address would go to the domain field.
 If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2)
 enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field."##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"In some cases a URL may refer to an IP and/or port directly,
+        assert_eq!(
+            html,
+            r##"In some cases a URL may refer to an IP and/or port directly,
 without a domain name. In this case, the IP address would go to the domain field.
 If the URL contains a <a href="https://www.rfc-editor.org/rfc/rfc2732#section-2">literal IPv6 address</a>
-enclosed by {@code [} and {@code ]}, the {@code [} and {@code ]} characters should also be captured in the domain field."##);
+enclosed by {@code [} and {@code ]}, the {@code [} and {@code ]} characters should also be captured in the domain field."##
+        );
 
         let markdown = r##"For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment
 is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
@@ -389,24 +405,33 @@ In such case username and password SHOULD be redacted and attribute's value SHOU
 `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
 Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it."##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"For network calls, URL usually has {@code scheme://host[:port][path][?query][#fragment]} format, where the fragment
+        assert_eq!(
+            html,
+            r##"For network calls, URL usually has {@code scheme://host[:port][path][?query][#fragment]} format, where the fragment
 is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
 <p>
 {@code url.full} MUST NOT contain credentials passed via URL in form of {@code https://username:password@www.example.com/}.
 In such case username and password SHOULD be redacted and attribute's value SHOULD be {@code https://REDACTED:REDACTED@www.example.com/}.
 <p>
 {@code url.full} SHOULD capture the absolute URL when it is available (or can be reconstructed).
-Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumentations can identify it."##);
+Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumentations can identify it."##
+        );
 
         let markdown = r##"Pool names are generally obtained via
 [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName())."##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"Pool names are generally obtained via
-<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()">BufferPoolMXBean#getName()</a>."##);
+        assert_eq!(
+            html,
+            r##"Pool names are generally obtained via
+<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()">BufferPoolMXBean#getName()</a>."##
+        );
 
         let markdown = r##"Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)"##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"Value can be retrieved from value {@code space_name} of <a href="https://nodejs.org/api/v8.html#v8getheapspacestatistics">{@code v8.getHeapSpaceStatistics()}</a>"##);
+        assert_eq!(
+            html,
+            r##"Value can be retrieved from value {@code space_name} of <a href="https://nodejs.org/api/v8.html#v8getheapspacestatistics">{@code v8.getHeapSpaceStatistics()}</a>"##
+        );
 
         let markdown = r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
 
@@ -428,7 +453,9 @@ it's RECOMMENDED to:
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
         let html = renderer.render(markdown, "java")?;
-        assert_eq!(html, r##"The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+        assert_eq!(
+            html,
+            r##"The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
 <p>
 When {@code error.type} is set to a type (e.g., an exception type), its
 canonical class name identifying the type within the artifact SHOULD be used.
@@ -449,7 +476,8 @@ it's RECOMMENDED to:
   <li>Use a domain-specific attribute
   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not.
 </ul>
-"##);
+"##
+        );
         Ok(())
     }
 }

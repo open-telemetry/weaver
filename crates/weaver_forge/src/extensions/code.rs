@@ -6,6 +6,7 @@ use crate::config::RenderOptions::Markdown;
 use crate::config::{RenderOptions, WeaverConfig};
 use crate::error::Error;
 use crate::formats::html::HtmlRenderer;
+use minijinja::value::Kwargs;
 use minijinja::{Environment, ErrorKind, Value};
 use std::collections::HashMap;
 use RenderOptions::Html;
@@ -55,51 +56,61 @@ pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
 /// Generic comment filter reading its configuration from the `weaver.yaml` file.
 pub(crate) fn comment(
     config: &WeaverConfig,
-) -> Result<impl Fn(&Value) -> Result<String, minijinja::Error>, Error> {
+) -> Result<impl Fn(&Value, Kwargs) -> Result<String, minijinja::Error>, Error> {
     let default_format = "default".to_owned();
     let default_comment_format = config
         .default_comment_format
         .clone()
         .unwrap_or(default_format);
     let html_snippet_renderer = HtmlRenderer::try_new(config)?;
-    let comment_format = config
-        .comment_formats
-        .as_ref()
-        .and_then(|comment_formats| comment_formats.get(&default_comment_format).cloned())
-        .unwrap_or_default();
+    let config = config.clone();
 
-    Ok(move |input: &Value| -> Result<String, minijinja::Error> {
-        let mut comment = String::new();
-        let prefix = ""; // ToDo
+    Ok(
+        move |input: &Value, args: Kwargs| -> Result<String, minijinja::Error> {
+            let format = args
+                .get("format")
+                .map(|v: String| v)
+                .unwrap_or(default_comment_format.clone());
+            let comment_format = config
+                .comment_formats
+                .as_ref()
+                .and_then(|comment_formats| comment_formats.get(&format).cloned())
+                .unwrap_or_default();
+            let mut comment = input.to_string();
 
-        for line in input.to_string().lines() {
-            if !comment.is_empty() {
-                comment.push('\n');
+            if comment_format.transform_options.trim {
+                comment = comment.trim().to_owned();
             }
-            comment.push_str(&format!("{}{}", prefix, line));
-        }
-
-        if comment_format.transform_options.trim {
-            comment = comment.trim().to_owned();
-        }
-        if comment_format.transform_options.remove_trailing_dots {
-            comment = comment.trim_end_matches('.').to_owned();
-        }
-        Ok(match &comment_format.render_options {
-            Markdown { .. } => comment,
-            Html(..) => html_snippet_renderer
-                .render(&comment, &default_comment_format)
-                .map_err(|e| {
-                    minijinja::Error::new(
-                        ErrorKind::InvalidOperation,
-                        format!(
-                            "Comment HTML rendering failed for format '{}': {}",
-                            default_comment_format, e
-                        ),
-                    )
-                })?,
-        })
-    })
+            if comment_format.transform_options.remove_trailing_dots {
+                comment = comment.trim_end_matches('.').to_owned();
+            }
+            comment = match &comment_format.render_options {
+                Markdown { .. } => comment,
+                Html(..) => html_snippet_renderer
+                    .render(&comment, &default_comment_format)
+                    .map_err(|e| {
+                        minijinja::Error::new(
+                            ErrorKind::InvalidOperation,
+                            format!(
+                                "Comment HTML rendering failed for format '{}': {}",
+                                default_comment_format, e
+                            ),
+                        )
+                    })?,
+            };
+            if let Some(line_prefix) = comment_format.transform_options.line_prefix.as_ref() {
+                let mut new_comment = String::new();
+                for line in comment.lines() {
+                    if !new_comment.is_empty() {
+                        new_comment.push('\n');
+                    }
+                    new_comment.push_str(&format!("{}{}", line_prefix, line));
+                }
+                comment = new_comment;
+            }
+            Ok(comment)
+        },
+    )
 }
 
 /// Create a filter that uses the type mapping defined in `weaver.yaml` to replace
@@ -180,6 +191,7 @@ mod tests {
                             remove_line_breaks_in_sentences: false,
                             strong_words: vec![],
                             strong_word_style: None,
+                            line_prefix: Some("* ".to_owned()),
                         },
                     },
                 )]
@@ -214,30 +226,35 @@ it's RECOMMENDED to:
 
         add_filters(&mut env, &config, true)?;
 
-        let observed_comment = env.render_str("{{ note | comment | indent(2) }}", &ctx).unwrap();
-        println!("{}", observed_comment);
+        let observed_comment = env
+            .render_str(
+                "{{ note | comment(format='java') | indent(2,true,true) }}",
+                &ctx,
+            )
+            .unwrap();
         assert_eq!(
             observed_comment,
-            r##"  <p>
-  When {@code error.type} is set to a type (e.g., an exception type), its
-  canonical class name identifying the type within the artifact SHOULD be used.
-  <p>
-  Instrumentations SHOULD document the list of errors they report.
-  <p>
-  The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
-  Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
-  should be prepared for {@code error.type} to have high cardinality at query time when no
-  additional filters are applied.
-  <p>
-  If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
-  <p>
-  If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
-  it's RECOMMENDED to:
-  <p>
-  <ul>
-    <li>Use a domain-specific attribute
-    <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
-  </ul>"##
+            r##"  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+  * <p>
+  * When {@code error.type} is set to a type (e.g., an exception type), its
+  * canonical class name identifying the type within the artifact SHOULD be used.
+  * <p>
+  * Instrumentations SHOULD document the list of errors they report.
+  * <p>
+  * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+  * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+  * should be prepared for {@code error.type} to have high cardinality at query time when no
+  * additional filters are applied.
+  * <p>
+  * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+  * <p>
+  * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+  * it's RECOMMENDED to:
+  * <p>
+  * <ul>
+  *   <li>Use a domain-specific attribute
+  *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+  * </ul>"##
         );
         Ok(())
     }
