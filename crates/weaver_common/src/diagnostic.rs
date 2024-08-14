@@ -11,7 +11,7 @@ use std::sync::atomic::AtomicBool;
 
 /// A flag to globally enable future mode for diagnostics.
 /// When enabled, all the warning messages will be treated as errors.
-static FUTURE_MODE: AtomicBool = const { AtomicBool::new(false) };
+static FUTURE_MODE: AtomicBool = AtomicBool::new(false);
 
 /// Enable future mode for diagnostics.
 /// When enabled, all the warning messages will be treated as errors.
