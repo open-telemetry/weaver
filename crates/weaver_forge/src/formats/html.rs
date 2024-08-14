@@ -8,8 +8,8 @@ use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const INLINE_CODE_SNIPPET: &str = "inline";
-const BLOCK_CODE_SNIPPET: &str = "block";
+const INLINE_CODE_SNIPPET_MODE: &str = "inline_code";
+const BLOCK_CODE_SNIPPET_MODE: &str = "block_code";
 
 /// Options for rendering markdown to HTML.
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -58,6 +58,19 @@ struct CodeContext {
 pub(crate) struct HtmlRenderer<'source> {
     html_options_by_format: HashMap<String, HtmlRenderOptions>,
     env: Environment<'source>,
+}
+
+#[derive(Default)]
+struct RenderContext {
+    // The rendered HTML.
+    html: String,
+
+    // The rendering process traverses the AST tree in a depth-first manner.
+    // In certain circumstances, a tag should only be rendered if there is a
+    // node following the current one in the AST traversal. This field contains
+    // such a tag left by the previous node, which must be added by the current
+    // node during rendering, if it exists.
+    leftover_tag: Option<String>,
 }
 
 impl<'source> HtmlRenderer<'source> {
@@ -133,9 +146,9 @@ impl<'source> HtmlRenderer<'source> {
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
             })?;
-        let mut html = String::new();
-        self.write_html_to(&mut html, "", &md_node, format, html_render_options)?;
-        Ok(html)
+        let mut render_context = RenderContext::default();
+        self.write_html_to(&mut render_context, "", &md_node, format, html_render_options)?;
+        Ok(render_context.html)
     }
 
     /// Render inline code to HTML.
@@ -157,7 +170,7 @@ impl<'source> HtmlRenderer<'source> {
             .render_str(&options.inline_code_snippet, &ctx)
             .map_err(|e| InvalidCodeSnippet {
                 format: format.to_owned(),
-                mode: INLINE_CODE_SNIPPET.to_owned(),
+                mode: INLINE_CODE_SNIPPET_MODE.to_owned(),
                 error: e.to_string(),
             })
     }
@@ -181,7 +194,7 @@ impl<'source> HtmlRenderer<'source> {
             .render_str(&options.block_code_snippet, &ctx)
             .map_err(|e| InvalidCodeSnippet {
                 format: format.to_owned(),
-                mode: BLOCK_CODE_SNIPPET.to_owned(),
+                mode: BLOCK_CODE_SNIPPET_MODE.to_owned(),
                 error: e.to_string(),
             })
     }
@@ -189,84 +202,88 @@ impl<'source> HtmlRenderer<'source> {
     /// Render HTML from a markdown AST tree into a buffer.
     fn write_html_to(
         &self,
-        buffer: &mut String,
+        ctx: &mut RenderContext,
         indent: &str,
         md_node: &Node,
         format: &str,
         options: &HtmlRenderOptions,
     ) -> Result<(), Error> {
+        if let Some(tag) = ctx.leftover_tag.take() {
+            ctx.html.push_str(&tag);
+        }
+
         match md_node {
             Node::Root(root) => {
                 for child in &root.children {
-                    self.write_html_to(buffer, indent, child, format, options)?;
+                    self.write_html_to(ctx, indent, child, format, options)?;
                 }
             }
             Node::Text(text) => {
-                buffer.push_str(&text.value);
+                ctx.html.push_str(&text.value);
             }
             Node::Paragraph(p) => {
                 if !options.old_style_paragraph {
-                    buffer.push_str("<p>");
+                    ctx.html.push_str("<p>");
                 }
                 for child in &p.children {
-                    self.write_html_to(buffer, indent, child, format, options)?;
+                    self.write_html_to(ctx, indent, child, format, options)?;
                 }
                 if options.old_style_paragraph {
-                    buffer.push_str("\n<p>\n");
+                    ctx.leftover_tag = Some("\n<p>\n".to_owned());
                 } else {
-                    buffer.push_str("</p>\n");
+                    ctx.html.push_str("</p>\n");
                 }
             }
             Node::List(list) => {
                 let tag = if list.ordered { "ol" } else { "ul" };
-                buffer.push_str(&format!("<{}>\n", tag));
+                ctx.html.push_str(&format!("<{}>\n", tag));
                 let li_indent = format!("{}  ", indent);
                 for item in &list.children {
-                    buffer.push_str(&format!("{}<li>", li_indent));
-                    self.write_html_to(buffer, indent, item, format, options)?;
+                    ctx.html.push_str(&format!("{}<li>", li_indent));
+                    self.write_html_to(ctx, indent, item, format, options)?;
                     if options.omit_closing_li {
-                        buffer.push('\n');
+                        ctx.html.push('\n');
                     } else {
-                        buffer.push_str("</li>\n");
+                        ctx.html.push_str("</li>\n");
                     }
                 }
-                buffer.push_str(&format!("</{}>\n", tag));
+                ctx.html.push_str(&format!("</{}>\n", tag));
             }
             Node::ListItem(item) => {
                 for child in &item.children {
                     match child {
                         Node::Paragraph(paragraph) => {
                             for child in &paragraph.children {
-                                self.write_html_to(buffer, indent, child, format, options)?;
+                                self.write_html_to(ctx, indent, child, format, options)?;
                             }
                         }
                         _ => {
-                            self.write_html_to(buffer, indent, child, format, options)?;
+                            self.write_html_to(ctx, indent, child, format, options)?;
                         }
                     }
                 }
             }
             Node::Html(html) => {
-                buffer.push_str(&html.value);
+                ctx.html.push_str(&html.value);
             }
             Node::InlineCode(code) => {
-                buffer.push_str(
+                ctx.html.push_str(
                     self.render_inline_code(code.value.as_str(), format, options)?
                         .as_str(),
                 );
             }
             Node::Code(code) => {
-                buffer.push_str(
+                ctx.html.push_str(
                     self.render_block_code(code.value.as_str(), format, options)?
                         .as_str(),
                 );
             }
             Node::BlockQuote(block_quote) => {
-                buffer.push_str("<blockquote>\n");
+                ctx.html.push_str("<blockquote>\n");
                 for child in &block_quote.children {
-                    self.write_html_to(buffer, indent, child, format, options)?;
+                    self.write_html_to(ctx, indent, child, format, options)?;
                 }
-                buffer.push_str("</blockquote>\n");
+                ctx.html.push_str("</blockquote>\n");
             }
             Node::Toml(_) => {}
             Node::Yaml(_) => {}
@@ -276,11 +293,11 @@ impl<'source> HtmlRenderer<'source> {
             Node::Image(_) => {}
             Node::ImageReference(_) => {}
             Node::Link(link) => {
-                buffer.push_str(&format!("<a href=\"{}\">", link.url));
+                ctx.html.push_str(&format!("<a href=\"{}\">", link.url));
                 for child in &link.children {
-                    self.write_html_to(buffer, indent, child, format, options)?;
+                    self.write_html_to(ctx, indent, child, format, options)?;
                 }
-                buffer.push_str("</a>");
+                ctx.html.push_str("</a>");
             }
             Node::LinkReference(_) => {}
             Node::Strong(_) => {}
@@ -298,78 +315,141 @@ impl<'source> HtmlRenderer<'source> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{CommentFormat, RenderOptions, WeaverConfig};
+    use crate::config::{CommentFormat, RenderOptions, TransformOptions, WeaverConfig};
     use crate::error::Error;
     use crate::formats::html::{HtmlRenderOptions, HtmlRenderer};
 
     #[test]
     fn test_html_renderer() -> Result<(), Error> {
-        let markdown = r##"
-Graphics is the abstract base class for all graphics contexts
-which allow an application to draw onto components realized on
-various devices or onto off-screen images.
-A Graphics object encapsulates the state information needed
-for the various rendering operations that Java supports.  This
-state information includes:
-- The Component to draw on
-- A translation origin for rendering and clipping coordinates
-- The current clip
-- The current color
-- The current font
-- The current logical pixel operation function (XOR or Paint)
-- The current XOR alternation color
-  (see <a href="#setXORMode">setXORMode</a>)
-
-Coordinates are infinitely thin and lie between the pixels of the
-output device.
-Operations which draw the outline of a figure operate by traversing
-along the infinitely thin path with a pixel-sized pen that hangs
-down and to the right of the anchor point on the path.
-Operations which fill a figure operate by filling the interior
-of the infinitely thin path.
-Operations which render horizontal text render the ascending
-portion of the characters entirely above the baseline coordinate.
-
-Some important points to consider are that drawing a figure that
-covers a given rectangle will occupy one extra row of pixels on
-the right and bottom edges compared to filling a figure that is
-bounded by that same rectangle.
-Also, drawing a horizontal line along the same y coordinate as
-the baseline of a line of text will draw the line entirely below
-the text except for any descenders.
-Both of these properties are due to the pen hanging down and to
-the right from the path that it traverses.
-This is now an inline code `let x = 5;` and this is a block code:
-
-```rust
-fn main() {
-    println!("Hello, world!");
-}
-```
-"##;
         let config = WeaverConfig {
             comment_formats: Some(
                 vec![(
-                    "javadoc".to_owned(),
+                    "java".to_owned(),
                     CommentFormat {
                         render_options: RenderOptions::Html(HtmlRenderOptions {
                             old_style_paragraph: true,
-                            omit_closing_li: false,
-                            ..HtmlRenderOptions::default()
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
                         }),
-                        transform_options: Default::default(),
+                        transform_options: TransformOptions {
+                            trim: true,
+                            remove_trailing_dots: true,
+                            remove_line_breaks_in_sentences: false,
+                            strong_words: vec![],
+                            strong_word_style: None,
+                        },
                     },
                 )]
-                .into_iter()
-                .collect(),
+                    .into_iter()
+                    .collect(),
             ),
-            default_comment_format: Some("javadoc".to_owned()),
+            default_comment_format: Some("java".to_owned()),
             ..WeaverConfig::default()
         };
         let renderer = HtmlRenderer::try_new(&config)?;
-        let html = renderer.render(markdown, "javadoc")?;
-        println!("{}", html);
+        let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
+          The file extension extracted from the `url.full`, excluding the leading dot."##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"In some cases a URL may refer to an IP and/or port directly,
+The file extension extracted from the {@code url.full}, excluding the leading dot."##);
 
+        let markdown = r##"Follows
+[OCI Image Manifest Specification](https://github.com/opencontainers/image-spec/blob/main/manifest.md),
+and specifically the
+[Digest property](https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests).
+
+An example can be found in
+[Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"Follows
+<a href="https://github.com/opencontainers/image-spec/blob/main/manifest.md">OCI Image Manifest Specification</a>,
+and specifically the
+<a href="https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests">Digest property</a>.
+<p>
+An example can be found in
+<a href="https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest">Example Image Manifest</a>."##);
+
+        let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
+without a domain name. In this case, the IP address would go to the domain field.
+If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2)
+enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field."##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"In some cases a URL may refer to an IP and/or port directly,
+without a domain name. In this case, the IP address would go to the domain field.
+If the URL contains a <a href="https://www.rfc-editor.org/rfc/rfc2732#section-2">literal IPv6 address</a>
+enclosed by {@code [} and {@code ]}, the {@code [} and {@code ]} characters should also be captured in the domain field."##);
+
+        let markdown = r##"For network calls, URL usually has `scheme://host[:port][path][?query][#fragment]` format, where the fragment
+is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
+
+`url.full` MUST NOT contain credentials passed via URL in form of `https://username:password@www.example.com/`.
+In such case username and password SHOULD be redacted and attribute's value SHOULD be `https://REDACTED:REDACTED@www.example.com/`.
+
+`url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
+Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it."##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"For network calls, URL usually has {@code scheme://host[:port][path][?query][#fragment]} format, where the fragment
+is not transmitted over HTTP, but if it is known, it SHOULD be included nevertheless.
+<p>
+{@code url.full} MUST NOT contain credentials passed via URL in form of {@code https://username:password@www.example.com/}.
+In such case username and password SHOULD be redacted and attribute's value SHOULD be {@code https://REDACTED:REDACTED@www.example.com/}.
+<p>
+{@code url.full} SHOULD capture the absolute URL when it is available (or can be reconstructed).
+Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumentations can identify it."##);
+
+        let markdown = r##"Pool names are generally obtained via
+[BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName())."##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"Pool names are generally obtained via
+<a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()">BufferPoolMXBean#getName()</a>."##);
+
+        let markdown = r##"Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)"##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"Value can be retrieved from value {@code space_name} of <a href="https://nodejs.org/api/v8.html#v8getheapspacestatistics">{@code v8.getHeapSpaceStatistics()}</a>"##);
+
+        let markdown = r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
+
+When `error.type` is set to a type (e.g., an exception type), its
+canonical class name identifying the type within the artifact SHOULD be used.
+
+Instrumentations SHOULD document the list of errors they report.
+
+The cardinality of `error.type` within one instrumentation library SHOULD be low.
+Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+should be prepared for `error.type` to have high cardinality at query time when no
+additional filters are applied.
+
+If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
+If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+it's RECOMMENDED to:
+
+* Use a domain-specific attribute
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
+        let html = renderer.render(markdown, "java")?;
+        assert_eq!(html, r##"The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+<p>
+When {@code error.type} is set to a type (e.g., an exception type), its
+canonical class name identifying the type within the artifact SHOULD be used.
+<p>
+Instrumentations SHOULD document the list of errors they report.
+<p>
+The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+should be prepared for {@code error.type} to have high cardinality at query time when no
+additional filters are applied.
+<p>
+If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+<p>
+If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+it's RECOMMENDED to:
+<p>
+<ul>
+  <li>Use a domain-specific attribute
+  <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not.
+</ul>
+"##);
         Ok(())
     }
 }

@@ -570,7 +570,6 @@ impl WeaverConfig {
 mod tests {
     use crate::config::{ApplicationMode, WeaverConfig};
     use crate::file_loader::FileContent;
-    use std::collections::HashMap;
 
     #[test]
     fn test_type_mapping_override_with() {

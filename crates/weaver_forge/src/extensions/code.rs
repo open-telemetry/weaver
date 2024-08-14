@@ -166,53 +166,79 @@ mod tests {
         let config = WeaverConfig {
             comment_formats: Some(
                 vec![(
-                    "javadoc".to_owned(),
+                    "java".to_owned(),
                     CommentFormat {
                         render_options: Html(HtmlRenderOptions {
                             old_style_paragraph: true,
                             omit_closing_li: true,
-                            ..Default::default()
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
                         }),
                         transform_options: TransformOptions {
+                            trim: true,
                             remove_trailing_dots: true,
-                            ..Default::default()
+                            remove_line_breaks_in_sentences: false,
+                            strong_words: vec![],
+                            strong_word_style: None,
                         },
                     },
                 )]
                 .into_iter()
                 .collect(),
             ),
-            default_comment_format: Some("javadoc".to_owned()),
+            default_comment_format: Some("java".to_owned()),
             ..Default::default()
         };
-        let note = r#" An example of
-multi-line note.
-## Example
-Example of inline code `Weaver::Config`.
+        let note = r#" The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
 
-```
-println!("Hello, world!");
-```
+When `error.type` is set to a type (e.g., an exception type), its
+canonical class name identifying the type within the artifact SHOULD be used.
 
-Few items:
-- Item 1
-- Item 2
-- Item 3
-- [External link](https://example.com)
+Instrumentations SHOULD document the list of errors they report.
 
-Last sentence with multiple trailing dots and spaces...  "#;
+The cardinality of `error.type` within one instrumentation library SHOULD be low.
+Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+should be prepared for `error.type` to have high cardinality at query time when no
+additional filters are applied.
+
+If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
+If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+it's RECOMMENDED to:
+
+* Use a domain-specific attribute
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not..  "#;
         let ctx = serde_json::json!({
             "note": note
         });
 
         add_filters(&mut env, &config, true)?;
 
-        let observed_comment = env.render_str("{{ note | comment }}", &ctx).unwrap();
+        let observed_comment = env.render_str("{{ note | comment | indent(2) }}", &ctx).unwrap();
         println!("{}", observed_comment);
-        // assert_eq!(
-        //     observed_comment,
-        //     "A example of multi-line comment.\n\nWith an inline code `Weaver::Config` example"
-        // );
+        assert_eq!(
+            observed_comment,
+            r##"  <p>
+  When {@code error.type} is set to a type (e.g., an exception type), its
+  canonical class name identifying the type within the artifact SHOULD be used.
+  <p>
+  Instrumentations SHOULD document the list of errors they report.
+  <p>
+  The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+  Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+  should be prepared for {@code error.type} to have high cardinality at query time when no
+  additional filters are applied.
+  <p>
+  If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+  <p>
+  If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+  it's RECOMMENDED to:
+  <p>
+  <ul>
+    <li>Use a domain-specific attribute
+    <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+  </ul>"##
+        );
         Ok(())
     }
 
