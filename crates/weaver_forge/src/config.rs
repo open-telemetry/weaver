@@ -70,6 +70,7 @@ pub struct WeaverConfig {
     /// Configuration for the whitespace behavior on the template engine.
     #[serde(default)]
     pub(crate) whitespace_control: WhitespaceControl,
+
     /// Configuration for the comment formats.
     #[serde(default)]
     pub(crate) comment_formats: Option<HashMap<String, CommentFormat>>,
@@ -307,8 +308,10 @@ pub const fn default_bool<const V: bool>() -> bool {
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct CommentFormat {
     /// The low-level comment syntax.
+    #[serde(default)]
     pub render_options: RenderOptions,
     /// Transform options for the comment filter.
+    #[serde(default)]
     pub transform_options: TransformOptions,
 }
 
@@ -525,17 +528,27 @@ impl WeaverConfig {
     /// Override the current `WeaverConfig` with the `WeaverConfig` passed as argument.
     /// The merge is done in place. The `WeaverConfig` passed as argument will be consumed and used
     /// to override the current `WeaverConfig`.
-    pub fn override_with(&mut self, other: WeaverConfig) {
-        if other.type_mapping.is_some() {
-            self.type_mapping = other.type_mapping;
+    pub fn override_with(&mut self, child: WeaverConfig) {
+        if child.type_mapping.is_some() {
+            self.type_mapping = child.type_mapping;
         }
-        if other.text_maps.is_some() {
-            self.text_maps = other.text_maps;
+        if child.text_maps.is_some() {
+            self.text_maps = child.text_maps;
         }
-        self.template_syntax.override_with(other.template_syntax);
+        self.template_syntax.override_with(child.template_syntax);
         self.whitespace_control
-            .override_with(other.whitespace_control);
-        if let Some(other_params) = other.params {
+            .override_with(child.whitespace_control);
+
+        // If the `comment_formats` are defined in the child configuration, they override the
+        // parent configuration.
+        if child.comment_formats.is_some() {
+            self.comment_formats = child.comment_formats;
+        }
+        if child.default_comment_format.is_some() {
+            self.default_comment_format = child.default_comment_format;
+        }
+
+        if let Some(other_params) = child.params {
             // `params` are merged in an additive way. For example, if a parameter is defined in
             // the `params` section of a template, then the final `params` section for this template
             // will include both the `params` inherited from the file-level configuration and the
@@ -560,11 +573,11 @@ impl WeaverConfig {
                 }
             }
         }
-        if other.templates.is_some() {
-            self.templates = other.templates;
+        if child.templates.is_some() {
+            self.templates = child.templates;
         }
-        if other.acronyms.is_some() {
-            self.acronyms = other.acronyms;
+        if child.acronyms.is_some() {
+            self.acronyms = child.acronyms;
         }
     }
 }

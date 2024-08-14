@@ -1,0 +1,63 @@
+# Whitespace control settings to simplify the definition of templates
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+comment_formats:
+  rust:
+    transform_options:
+      line_prefix: "/// "
+      trim: true
+      remove_trailing_dots: true
+  javadoc:
+    render_options:
+      format: html
+      header: "/**"
+      prefix: " * "
+      footer: " */"
+      old_style_paragraph: true
+      omit_closing_li: true
+      inline_code_snippet: "{@code {{code}}}"
+      block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    transform_options:
+      trim: true
+      remove_trailing_dots: true
+  java:
+    render_options:
+      format: html
+      prefix: "// "
+      old_style_paragraph: true
+      omit_closing_li: true
+      inline_code_snippet: "{@code {{code}}}"
+      block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    transform_options:
+      trim: true
+      remove_trailing_dots: true
+  go:
+    # add support for shortcut_reference_link
+    transform_options:
+      line_prefix: "// "
+      trim: true
+      remove_trailing_dots: true
+  python:
+    transform_options:
+      line_prefix: "/// "
+      trim: true
+      remove_trailing_dots: true
+
+templates:
+  - template: "example.java.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.rs.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.go.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.py.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single

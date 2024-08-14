@@ -750,15 +750,30 @@ mod tests {
         PathBuf,
         PathBuf,
     ) {
+        let registry_id = "default";
+        let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        prepare_test_with_registry(target, cli_params, registry_id, registry)
+    }
+
+    fn prepare_test_with_registry(
+        target: &str,
+        cli_params: Params,
+        registry_id: &str,
+        mut registry: SemConvRegistry,
+    ) -> (
+        TestLogger,
+        TemplateEngine,
+        ResolvedRegistry,
+        PathBuf,
+        PathBuf,
+    ) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
         let mut engine = TemplateEngine::new(config, loader, cli_params);
         engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
-        let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
@@ -766,12 +781,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to create the context for the template evaluation: {:?}",
+                    e
+                )
+            });
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
@@ -1045,6 +1060,29 @@ mod tests {
         ]);
         let (logger, engine, template_registry, observed_output, expected_output) =
             prepare_test("template_params", cli_params);
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                observed_output.as_path(),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_comment_format() {
+        let registry_id = "default";
+        let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/mini_registry_for_comments/*.yaml")
+            .expect("Failed to load registry");
+        let (logger, engine, template_registry, observed_output, expected_output) =
+            prepare_test_with_registry("comment_format", Params::default(), registry_id, registry);
 
         engine
             .generate(

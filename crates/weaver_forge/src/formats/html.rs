@@ -15,6 +15,12 @@ const BLOCK_CODE_SNIPPET_MODE: &str = "block_code";
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct HtmlRenderOptions {
+    /// A comment header (e.g. in Java `/**`).
+    pub(crate) header: Option<String>,
+    /// A comment prefix (e.g. in Java ` * `).
+    pub(crate) prefix: Option<String>,
+    /// A comment footer (e.g. in Java ` */`).
+    pub(crate) footer: Option<String>,
     /// Use old-style HTML paragraphs (i.e. single <p> tag).
     /// Default is false.
     #[serde(default)]
@@ -42,6 +48,9 @@ fn default_block_code_snippet() -> String {
 impl Default for HtmlRenderOptions {
     fn default() -> Self {
         HtmlRenderOptions {
+            header: None,
+            prefix: None,
+            footer: None,
             old_style_paragraph: false,
             omit_closing_li: false,
             inline_code_snippet: default_inline_code_snippet(),
@@ -333,6 +342,9 @@ mod tests {
                     "java".to_owned(),
                     CommentFormat {
                         render_options: RenderOptions::Html(HtmlRenderOptions {
+                            header: None,
+                            prefix: None,
+                            footer: None,
                             old_style_paragraph: true,
                             omit_closing_li: true,
                             inline_code_snippet: "{@code {{code}}}".to_owned(),
