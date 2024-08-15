@@ -5,8 +5,10 @@ whitespace_control:
 
 comment_formats:
   rust:
+    render_options:
+      format: markdown
+      prefix: "/// "
     transform_options:
-      line_prefix: "/// "
       trim: true
       remove_trailing_dots: true
   javadoc:
@@ -34,14 +36,18 @@ comment_formats:
       trim: true
       remove_trailing_dots: true
   go:
-    # add support for shortcut_reference_link
+    render_options:
+      format: markdown
+      prefix: "// "
+      shortcut_reference_link: true
     transform_options:
-      line_prefix: "// "
       trim: true
       remove_trailing_dots: true
   python:
+    render_options:
+      format: markdown
+      prefix: "// "
     transform_options:
-      line_prefix: "/// "
       trim: true
       remove_trailing_dots: true
 

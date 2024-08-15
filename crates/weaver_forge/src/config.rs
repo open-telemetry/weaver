@@ -21,6 +21,7 @@ use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
 use crate::file_loader::{FileContent, FileLoader};
 use crate::formats::html::HtmlRenderOptions;
+use crate::formats::markdown::MarkdownRenderOptions;
 use crate::WEAVER_YAML;
 
 /// Case convention for naming of functions and structs.
@@ -57,7 +58,7 @@ pub enum CaseConvention {
 }
 
 /// Weaver configuration.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WeaverConfig {
     /// Type mapping for target specific types (OTel types -> Target language types).
     /// Deprecated: Use `text_maps` instead.
@@ -114,7 +115,7 @@ impl Params {
 
 /// Application mode defining how to apply a template on the result of a
 /// filter applied on a registry.
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationMode {
     /// Apply the template to the output of the filter as a whole.
@@ -124,7 +125,7 @@ pub enum ApplicationMode {
 }
 
 /// A template configuration.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub(crate) struct TemplateConfig {
     /// The template pattern used to identify when this template configuration
@@ -176,7 +177,7 @@ impl<'a> TemplateMatcher<'a> {
 }
 
 /// Syntax configuration for the template engine.
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TemplateSyntax {
     /// The start of a block.
     pub block_start: Option<String>,
@@ -219,7 +220,7 @@ impl TemplateSyntax {
 }
 
 /// Whitespace control configuration for the template engine.
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct WhitespaceControl {
     /// Configures the behavior of the first newline after a block.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
@@ -251,31 +252,46 @@ impl WhitespaceControl {
 
 /// Supported comment formats.
 #[derive(Default, Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct RenderOptions {
+    /// A comment header (e.g. in Java `/**`).
+    pub(crate) header: Option<String>,
+    /// A comment prefix (e.g. in Java ` * `).
+    pub(crate) prefix: Option<String>,
+    /// A comment footer (e.g. in Java ` */`).
+    pub(crate) footer: Option<String>,
+    /// Options for a specific format
+    #[serde(flatten)]
+    pub(crate) format: RenderFormat,
+}
+
+/// The different supported formats for rendering comments.
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "format")]
 #[serde(rename_all = "snake_case")]
-pub enum RenderOptions {
+pub enum RenderFormat {
     /// Markdown format.
-    #[default]
-    Markdown,
+    Markdown(MarkdownRenderOptions),
     /// HTML format.
     Html(HtmlRenderOptions),
+}
+
+impl Default for RenderFormat {
+    fn default() -> Self {
+        RenderFormat::Markdown(MarkdownRenderOptions::default())
+    }
 }
 
 /// Transform options for the comment filter.
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct TransformOptions {
-    /// Prefix to add to each line of the comment.
-    pub line_prefix: Option<String>,
     /// Flag to trim the comment content.
     #[serde(default = "default_bool::<true>")]
     pub trim: bool,
     /// Flag to remove trailing dots from the comment content.
     #[serde(default = "default_bool::<false>")]
     pub remove_trailing_dots: bool,
-    /// Flag to remove line breaks in sentences.
-    #[serde(default = "default_bool::<false>")]
-    pub remove_line_breaks_in_sentences: bool,
     /// List of strong words to highlight in the comment.
     /// e.g. ["MUST", "SHOULD", "TODO", "FIXME"]
     #[serde(default = "Vec::default")]
@@ -289,10 +305,8 @@ impl Default for TransformOptions {
         TransformOptions {
             trim: true,
             remove_trailing_dots: false,
-            remove_line_breaks_in_sentences: false,
             strong_words: Vec::default(),
             strong_word_style: None,
-            line_prefix: None,
         }
     }
 }

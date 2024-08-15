@@ -2,14 +2,12 @@
 
 //! Set of filters used to facilitate the generation of code.
 
-use crate::config::RenderOptions::Markdown;
-use crate::config::{RenderOptions, WeaverConfig};
+use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::formats::html::HtmlRenderer;
 use minijinja::value::{Kwargs, ValueKind};
 use minijinja::{Environment, ErrorKind, Value};
 use std::collections::HashMap;
-use RenderOptions::Html;
 
 /// Add code-oriented filters to the environment.
 ///
@@ -99,9 +97,9 @@ pub(crate) fn comment(
             if comment_format.transform_options.remove_trailing_dots {
                 comment = comment.trim_end_matches('.').to_owned();
             }
-            comment = match &comment_format.render_options {
-                Markdown { .. } => comment,
-                Html(..) => html_snippet_renderer
+            comment = match &comment_format.render_options.format {
+                RenderFormat::Markdown { .. } => comment,
+                RenderFormat::Html(..) => html_snippet_renderer
                     .render(&comment, &comment_format_name)
                     .map_err(|e| {
                         minijinja::Error::new(
@@ -116,21 +114,46 @@ pub(crate) fn comment(
             let indent = " ".repeat(args.get("indent")
                 .map(|v: usize| v)
                 .unwrap_or(0));
-            let line_prefix = args.get("prefix")
+
+            let header = args.get("header")
                 .map(|v: String| v)
-                .unwrap_or_else(|_| comment_format.transform_options.line_prefix
+                .unwrap_or_else(|_|
+                    comment_format.render_options.header
+                        .clone().unwrap_or("".to_owned()));
+            let prefix = args.get("prefix")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.render_options.prefix
                     .clone().unwrap_or("".to_owned()));
-            let line_prefix = format!("{}{}", indent, line_prefix);
-            if !line_prefix.is_empty() {
+            let footer = args.get("footer")
+                .map(|v: String| v)
+                .unwrap_or_else(|_|
+                    comment_format.render_options.footer
+                        .clone().unwrap_or("".to_owned()));
+
+            if !prefix.is_empty() {
                 let mut new_comment = String::new();
                 for line in comment.lines() {
                     if !new_comment.is_empty() {
                         new_comment.push('\n');
                     }
-                    new_comment.push_str(&format!("{}{}", line_prefix, line));
+                    if header.is_empty() && new_comment.is_empty() {
+                        // For the first line we don't add the indentation
+                        new_comment.push_str(&format!("{}{}", prefix, line));
+                    } else {
+                        new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                    }
                 }
                 comment = new_comment;
             }
+
+            if !header.is_empty() {
+                comment = format!("{}\n{}", header, comment);
+            }
+
+            if !footer.is_empty() {
+                comment = format!("{}\n{}{}", comment, indent, footer);
+            }
+
             Ok(comment)
         },
     )
@@ -190,7 +213,7 @@ pub(crate) fn map_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{CommentFormat, TransformOptions};
+    use crate::config::{CommentFormat, RenderOptions, TransformOptions};
     use crate::extensions::code;
     use crate::formats::html::HtmlRenderOptions;
 
@@ -202,22 +225,22 @@ mod tests {
                 vec![(
                     "java".to_owned(),
                     CommentFormat {
-                        render_options: Html(HtmlRenderOptions {
-                            header: None,
-                            prefix: None,
-                            footer: None,
-                            old_style_paragraph: true,
-                            omit_closing_li: true,
-                            inline_code_snippet: "{@code {{code}}}".to_owned(),
-                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
-                        }),
+                        render_options: RenderOptions {
+                            header: Some("/**".to_owned()),
+                            prefix: Some(" * ".to_owned()),
+                            footer: Some(" */".to_owned()),
+                            format: RenderFormat::Html(HtmlRenderOptions {
+                                old_style_paragraph: true,
+                                omit_closing_li: true,
+                                inline_code_snippet: "{@code {{code}}}".to_owned(),
+                                block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                            })
+                        },
                         transform_options: TransformOptions {
                             trim: true,
                             remove_trailing_dots: true,
-                            remove_line_breaks_in_sentences: false,
                             strong_words: vec![],
                             strong_word_style: None,
-                            line_prefix: Some("* ".to_owned()),
                         },
                     },
                 )]

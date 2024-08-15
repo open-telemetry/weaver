@@ -1,4 +1,4 @@
-use crate::config::{RenderOptions, WeaverConfig};
+use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::error::Error::InvalidCodeSnippet;
 use crate::install_weaver_extensions;
@@ -15,12 +15,6 @@ const BLOCK_CODE_SNIPPET_MODE: &str = "block_code";
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct HtmlRenderOptions {
-    /// A comment header (e.g. in Java `/**`).
-    pub(crate) header: Option<String>,
-    /// A comment prefix (e.g. in Java ` * `).
-    pub(crate) prefix: Option<String>,
-    /// A comment footer (e.g. in Java ` */`).
-    pub(crate) footer: Option<String>,
     /// Use old-style HTML paragraphs (i.e. single <p> tag).
     /// Default is false.
     #[serde(default)]
@@ -48,9 +42,6 @@ fn default_block_code_snippet() -> String {
 impl Default for HtmlRenderOptions {
     fn default() -> Self {
         HtmlRenderOptions {
-            header: None,
-            prefix: None,
-            footer: None,
             old_style_paragraph: false,
             omit_closing_li: false,
             inline_code_snippet: default_inline_code_snippet(),
@@ -65,7 +56,7 @@ struct CodeContext {
 }
 
 pub(crate) struct HtmlRenderer<'source> {
-    html_options_by_format: HashMap<String, HtmlRenderOptions>,
+    options_by_format: HashMap<String, HtmlRenderOptions>,
     env: Environment<'source>,
 }
 
@@ -94,14 +85,14 @@ impl<'source> HtmlRenderer<'source> {
         install_weaver_extensions(&mut env, config, false)?;
 
         Ok(Self {
-            html_options_by_format: config
+            options_by_format: config
                 .comment_formats
                 .clone()
                 .unwrap_or_default()
                 .into_iter()
-                .filter_map(|(name, format)| match format.render_options {
-                    RenderOptions::Html(html_options) => Some((name, html_options)),
-                    RenderOptions::Markdown => None,
+                .filter_map(|(name, format)| match format.render_options.format {
+                    RenderFormat::Html(html_options) => Some((name, html_options)),
+                    RenderFormat::Markdown(..) => None,
                 })
                 .collect(),
             env,
@@ -115,12 +106,12 @@ impl<'source> HtmlRenderer<'source> {
     /// * `markdown` - The markdown text to render.
     /// * `format` - The comment format to use.
     pub fn render(&self, markdown: &str, format: &str) -> Result<String, Error> {
-        let html_render_options = if let Some(options) = self.html_options_by_format.get(format) {
+        let html_render_options = if let Some(options) = self.options_by_format.get(format) {
             options
         } else {
             return Err(Error::CommentFormatNotFound {
                 format: format.to_owned(),
-                formats: self.html_options_by_format.keys().cloned().collect(),
+                formats: self.options_by_format.keys().cloned().collect(),
             });
         };
 
@@ -330,7 +321,7 @@ impl<'source> HtmlRenderer<'source> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{CommentFormat, RenderOptions, TransformOptions, WeaverConfig};
+    use crate::config::{CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig};
     use crate::error::Error;
     use crate::formats::html::{HtmlRenderOptions, HtmlRenderer};
 
@@ -341,31 +332,32 @@ mod tests {
                 vec![(
                     "java".to_owned(),
                     CommentFormat {
-                        render_options: RenderOptions::Html(HtmlRenderOptions {
-                            header: None,
-                            prefix: None,
-                            footer: None,
-                            old_style_paragraph: true,
-                            omit_closing_li: true,
-                            inline_code_snippet: "{@code {{code}}}".to_owned(),
-                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
-                        }),
+                        render_options: RenderOptions {
+                            header: Some("/**".to_owned()),
+                            prefix: Some(" * ".to_owned()),
+                            footer: Some(" */".to_owned()),
+                            format: RenderFormat::Html(HtmlRenderOptions {
+                                old_style_paragraph: true,
+                                omit_closing_li: true,
+                                inline_code_snippet: "{@code {{code}}}".to_owned(),
+                                block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                            })
+                        },
                         transform_options: TransformOptions {
                             trim: true,
                             remove_trailing_dots: true,
-                            remove_line_breaks_in_sentences: false,
                             strong_words: vec![],
                             strong_word_style: None,
-                            line_prefix: None,
                         },
                     },
                 )]
-                .into_iter()
-                .collect(),
+                    .into_iter()
+                    .collect(),
             ),
             default_comment_format: Some("java".to_owned()),
             ..WeaverConfig::default()
         };
+
         let renderer = HtmlRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;

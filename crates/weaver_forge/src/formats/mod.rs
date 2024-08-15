@@ -3,3 +3,4 @@
 //! Configurable markdown to HTML converter.
 
 pub mod html;
+pub mod markdown;
