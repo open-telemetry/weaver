@@ -270,7 +270,7 @@ impl<'a> SearchApp<'a> {
                 Constraint::Min(1),
                 Constraint::Length(3),
             ])
-            .split(frame.size());
+            .split(frame.area());
         frame.render_widget(self.title(), chunks[0]);
 
         // Render search reuslts.
@@ -290,7 +290,7 @@ impl<'a> SearchApp<'a> {
         }
 
         // Render the footer.
-        frame.render_widget(self.footer().widget(), chunks[2]);
+        frame.render_widget(self.footer(), chunks[2]);
     }
 
     // Processes events that will change the state of the UI.
