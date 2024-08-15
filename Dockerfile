@@ -19,6 +19,13 @@ RUN cargo build --release
 # The runtime image
 FROM alpine:3.18.3
 LABEL maintainer="The OpenTelemetry Authors"
+RUN addgroup weaver \
+  && adduser \
+  --ingroup weaver \
+  --no-create-home \
+  --disabled-password \
+  weaver
 WORKDIR /weaver
 COPY --from=weaver-build /build/target/release/weaver /weaver/weaver
+USER weaver
 ENTRYPOINT ["/weaver/weaver"]
