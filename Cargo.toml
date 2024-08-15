@@ -36,7 +36,7 @@ publish = false
 rust-version = "1.76"
 
 [workspace.dependencies]
-serde = { version = "1.0.204", features = ["derive"] }
+serde = { version = "1.0.207", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.122"}
 thiserror = "1.0.63"
@@ -80,9 +80,9 @@ weaver_checker = { path = "crates/weaver_checker" }
 
 clap = { version = "4.5.14", features = ["derive"] }
 rayon = "1.10.0"
-ratatui = { version = "0.27.0", features=["serde"] }
-crossterm = { version = "0.27.0", features = ["serde"] }
-tui-textarea = "0.5.1"
+ratatui = { version = "0.28.0", features=["serde"] }
+crossterm = { version = "0.28.1", features = ["serde"] }
+tui-textarea = "0.6.1"
 
 # workspace dependencies
 serde.workspace = true

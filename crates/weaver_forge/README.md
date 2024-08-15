@@ -133,7 +133,7 @@ each object in the array, i.e., to each group of attributes for a given root nam
 
 ```yaml
 templates:
-  - pattern: "attributes.j2"             # glob patterns are supported
+  - template: "attributes.j2"             # glob patterns are supported
     filter: semconv_grouped_attributes
     application_mode: each
   - ...
@@ -192,9 +192,10 @@ whitespace_control:
   lstrip_blocks: true
 
 templates:
-  - pattern: "attributes.j2"
+  - template: "attributes.md.j2"
     filter: semconv_grouped_attributes
     application_mode: each
+    file_name: "attributes/{{ctx.root_namespace}}.md"
   # ...
 ```
 
@@ -209,24 +210,39 @@ More details on the structure of the configuration file [here](/docs/weaver-conf
 # ...
 
 templates:
-  - pattern: "attributes.j2"
+  - template: "attributes.md.j2"
     filter: semconv_grouped_attributes
     application_mode: each
-  - pattern: "metrics.j2"
+    file_name: "attributes/{{ctx.root_namespace | snake_case}}.md"
+  - template: "metrics.md.j2"
     filter: semconv_grouped_metrics
     application_mode: each
-
+    file_name: "metrics/{{ctx.root_namespace | snake_case}}.md"
 # ...
 ```
 
-In this example, the `attributes.j2` template is feed with the output of the `semconv_grouped_attributes`
-and `metrics.j2` with the output of the `semconv_grouped_metrics` JQ filter.
+In this example, the `attributes.md.j2` template is feed with the output of the `semconv_grouped_attributes`
+and `metrics.md.j2` with the output of the `semconv_grouped_metrics` JQ filter.
+
+The `file_name` is an optional field that allows you to define the name of the file generated from the
+evaluation of the provided Jinja expression. A Jinja expression can be a standard string or a more
+complex expression using the global variables `ctx` and `params`. If not defined, the file will be named
+after the template file name without the `.j2` extension.
 
 More details on the JQ syntax and custom semconv filters [here](#jq-filters-reference).
 
 ### Step 3: Writing Your First Template
 
-1. **Create a template file `attributes.j2` in the appropriate directory:**
+1. **Create a template file `attributes.md.j2` in the appropriate directory:**
+
+The file generated from the evaluation of this template will be named `attributes/<root_namespace>.md`.
+```jinja
+...
+a valid jinja template
+...
+```
+
+or if you want to programmatically generate a file name directly from the template:
 
 ```jinja
 {%- set file_name = ctx.root_namespace | snake_case -%}
@@ -280,10 +296,10 @@ Example configuration for JQ filters in `weaver.yaml`:
 
 ```yaml  
 templates:
-  - pattern: "attributes.j2"
+  - template: "attributes.j2"
     filter: semconv_grouped_attributes
     application_mode: each
-  - pattern: "metrics.j2"
+  - template: "metrics.j2"
     filter: semconv_grouped_metrics
     application_mode: each
   # ...  
@@ -306,7 +322,7 @@ returns a list of registry attributes grouped by root namespace and sorted by at
 
 ```yaml  
 templates:
-  - pattern: attributes.j2
+  - template: attributes.j2
     filter: semconv_grouped_attributes
     application_mode: each  
 ```  
@@ -342,7 +358,7 @@ specific stability levels, and deprecated entities. The following syntax is supp
 
 ```yaml  
 templates:
-  - pattern: attributes.j2
+  - template: attributes.j2
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"], 
@@ -378,7 +394,7 @@ root namespace and sorted by metric names.
 
 ```yaml  
 templates:
-  - pattern: metrics.j2
+  - template: metrics.j2
     filter: semconv_grouped_metrics
     application_mode: each
 ```  
@@ -416,7 +432,7 @@ The same options are supported by `semconv_grouped_metrics`, as shown in the fol
 
 ```yaml  
 templates:
-  - pattern: metrics.j2
+  - template: metrics.j2
     filter: >
       semconv_grouped_metrics({
         "exclude_root_namespace": ["url", "network"], 

@@ -63,6 +63,15 @@ pub enum Error {
         error: String,
     },
 
+    /// Invalid file path.
+    #[error("A `file_path` must be a valid Jinja expression (file_path: '{file_path}'): {error}")]
+    InvalidFilePath {
+        /// File path.
+        file_path: String,
+        /// Error message.
+        error: String,
+    },
+
     /// Invalid template file.
     #[error("Invalid template file '{template}': {error}")]
     InvalidTemplateFile {
