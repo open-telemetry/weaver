@@ -11,6 +11,7 @@ on:
       - .github/workflows/publish-docker.yml
       - 'src/**'
       - 'crates/**'
+      - Dockerfile
 env:
   TEST_WEAVER_TAG: otel/weaver:test
 jobs:
@@ -45,5 +46,7 @@ jobs:
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       with:
         push: true
+        provenance: mode=max
+        sbom: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
