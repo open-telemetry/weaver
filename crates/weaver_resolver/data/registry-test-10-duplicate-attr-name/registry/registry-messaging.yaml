@@ -186,7 +186,7 @@ groups:
         type: string[]
         brief: >
           Key(s) of message, another way to mark message besides message id.
-        examples: ["keyA", "keyB"]
+        examples: [["keyA"], ["keyB"]]
       - id: rocketmq.message.tag
         type: string
         brief: >

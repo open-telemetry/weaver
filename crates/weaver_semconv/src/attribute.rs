@@ -4,13 +4,14 @@
 
 //! Attribute specification.
 
+use crate::stability::Stability;
+use crate::Error;
 use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
-
-use crate::stability::Stability;
+use AttributeType::{Enum, PrimitiveOrArray, Template};
 
 /// An attribute specification.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -207,9 +208,9 @@ pub enum AttributeType {
 impl Display for AttributeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttributeType::PrimitiveOrArray(t) => write!(f, "{}", t),
-            AttributeType::Template(t) => write!(f, "{}", t),
-            AttributeType::Enum { members, .. } => {
+            PrimitiveOrArray(t) => write!(f, "{}", t),
+            Template(t) => write!(f, "{}", t),
+            Enum { members, .. } => {
                 let entries = members
                     .iter()
                     .map(|m| m.id.clone())
@@ -429,6 +430,61 @@ pub enum Examples {
     ListOfStrings(Vec<Vec<String>>),
 }
 
+impl Examples {
+    /// Validation logic for the group.
+    pub(crate) fn validate(
+        &self,
+        attr_type: &AttributeType,
+        group_id: &str,
+        attr_id: &str,
+        path_or_url: &str,
+    ) -> Result<(), Error> {
+        match (self, attr_type) {
+            (Examples::Bool(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean))
+            | (Examples::Int(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int))
+            | (Examples::Double(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double))
+            | (Examples::String(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String))
+            | (Examples::Ints(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int))
+            | (Examples::Doubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double))
+            | (Examples::Bools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean))
+            | (Examples::Strings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String))
+            | (Examples::ListOfInts(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
+            | (Examples::ListOfDoubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
+            | (Examples::ListOfBools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
+            | (Examples::ListOfStrings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
+                Ok(())
+            }
+            (_, Enum { .. }) => {
+                // enum types are open so it's not possible to validate the examples
+                Ok(())
+            }
+            // Only if future mode is disabled, we allow to have examples following
+            // the conventions used in semconv 1.27.0 and earlier.
+            (Examples::Ints(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
+            | (Examples::Doubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
+            | (Examples::Bools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
+            | (Examples::Strings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
+                Err(Error::InvalidExampleWarning {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    attribute_id: attr_id.to_owned(),
+                    error: format!("All examples SHOULD be of type `{}`", attr_type),
+                })
+            }
+            (Examples::String(_), Template(TemplateTypeSpec::String))
+            | (Examples::Strings(_), Template(TemplateTypeSpec::String))
+            | (Examples::String(_), Template(TemplateTypeSpec::Strings))
+            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => Ok(()),
+            _ => Err(Error::InvalidExampleError {
+                path_or_url: path_or_url.to_owned(),
+                group_id: group_id.to_owned(),
+                attribute_id: attr_id.to_owned(),
+                error: format!("All examples MUST be of type `{}`", attr_type),
+            }),
+        }
+    }
+}
+
 /// The different requirement level specifications.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -581,97 +637,73 @@ mod tests {
     #[test]
     fn test_attribute_type_display() {
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean)),
             "boolean"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int)),
             "int"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double)),
             "double"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)),
             "string"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)),
             "string[]"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)),
             "int[]"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)),
             "double[]"
         );
         assert_eq!(
-            format!(
-                "{}",
-                AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)
-            ),
+            format!("{}", PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)),
             "boolean[]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Boolean)),
+            format!("{}", Template(TemplateTypeSpec::Boolean)),
             "template[boolean]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Int)),
+            format!("{}", Template(TemplateTypeSpec::Int)),
             "template[int]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Double)),
+            format!("{}", Template(TemplateTypeSpec::Double)),
             "template[double]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::String)),
+            format!("{}", Template(TemplateTypeSpec::String)),
             "template[string]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Strings)),
+            format!("{}", Template(TemplateTypeSpec::Strings)),
             "template[string[]]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Ints)),
+            format!("{}", Template(TemplateTypeSpec::Ints)),
             "template[int[]]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Doubles)),
+            format!("{}", Template(TemplateTypeSpec::Doubles)),
             "template[double[]]"
         );
         assert_eq!(
-            format!("{}", AttributeType::Template(TemplateTypeSpec::Booleans)),
+            format!("{}", Template(TemplateTypeSpec::Booleans)),
             "template[boolean[]]"
         );
         assert_eq!(
             format!(
                 "{}",
-                AttributeType::Enum {
+                Enum {
                     allow_custom_values: true,
                     members: vec![EnumEntriesSpec {
                         id: "id".to_owned(),
@@ -759,7 +791,7 @@ mod tests {
     fn test_attribute() {
         let attr = AttributeSpec::Id {
             id: "id".to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
             brief: Some("brief".to_owned()),
             examples: Some(Examples::Int(42)),
             tag: Some("tag".to_owned()),
@@ -940,6 +972,105 @@ mod tests {
                 vec!["baz".to_owned(), "qux".to_owned()]
             ])
         );
+    }
+
+    #[test]
+    fn test_examples_validate() {
+        let attr_int = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int);
+        let attr_ints = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints);
+        let attr_double = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double);
+        let attr_doubles = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles);
+        let attr_str = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String);
+        let attr_strs = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings);
+        let attr_bool = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean);
+        let attr_bools = PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans);
+
+        // === Test int-like examples ===
+        let examples = Examples::Int(42);
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_err());
+
+        let examples = Examples::Ints(vec![42, 43]);
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples.validate(&attr_ints, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfStrings(vec![
+            vec!["42".to_owned(), "43".to_owned()],
+            vec!["44".to_owned(), "45".to_owned()],
+        ]);
+        assert!(examples.validate(&attr_ints, "grp", "attr", "url").is_err());
+
+        // === Test string-like examples ===
+        let examples = Examples::String("foo".to_owned());
+        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()]);
+        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfStrings(vec![
+            vec!["foo".to_owned(), "bar".to_owned()],
+            vec!["baz".to_owned(), "qux".to_owned()],
+        ]);
+        assert!(examples.validate(&attr_strs, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_ints, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_err());
+
+        // Non-strict validation
+        let examples = Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()]);
+        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_ok());
+
+        // === Test bool-like examples ===
+        let examples = Examples::Bool(true);
+        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::Bools(vec![true, false]);
+        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfBools(vec![vec![true, false], vec![false, true]]);
+        assert!(examples.validate(&attr_bools, "grp", "attr", "url").is_ok());
+        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_err());
+
+        // === Test double-like examples ===
+        let examples = Examples::Double(OrderedFloat(42.0));
+        assert!(examples
+            .validate(&attr_double, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)]);
+        assert!(examples
+            .validate(&attr_double, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+
+        let examples = Examples::ListOfDoubles(vec![
+            vec![OrderedFloat(42.0), OrderedFloat(43.0)],
+            vec![OrderedFloat(44.0), OrderedFloat(45.0)],
+        ]);
+        assert!(examples
+            .validate(&attr_doubles, "grp", "attr", "url")
+            .is_ok());
+        assert!(examples
+            .validate(&attr_double, "grp", "attr", "url")
+            .is_err());
+
+        let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
+        assert!(examples
+            .validate(&attr_double, "grp", "attr", "url")
+            .is_err());
     }
 }
 

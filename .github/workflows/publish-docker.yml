@@ -11,44 +11,44 @@ on:
       - .github/workflows/publish-docker.yml
       - 'src/**'
       - 'crates/**'
-
+      - Dockerfile
+env:
+  TEST_WEAVER_TAG: otel/weaver:test
 jobs:
-  tests:
+  make-docker-image:
+    name: Docker Image
     runs-on: ubuntu-latest
-    steps:
+    steps:      
     - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . -t weaver && docker run --rm weaver --help
-
-  build-and-publish-docker:
-    runs-on: ubuntu-latest
-    needs: tests
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . -t weaver
-    - name: Push the Docker image
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5.5.1
+      with:
+        images: otel/weaver
+    - name: Build test image
+      uses: docker/build-push-action@v6.6.1
+      with:
+          push: false
+          load: true
+          tags: ${{ env.TEST_WEAVER_TAG }}
+          labels: ${{ steps.meta.outputs.labels }}
+    - name: Test
+      run: |
+          docker run --rm ${{ env.TEST_WEAVER_TAG }} --help
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3.3.0
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
-      run: |
-        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-        function tag_and_push {
-          docker tag weaver "otel/weaver:${1}" && docker push "otel/weaver:${1}"
-        }
-        if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-          tag_and_push "latest"
-        elif [[ "${GITHUB_REF}" =~ refs/tags/v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            TAG="${GITHUB_REF#"refs/tags/v"}"
-            tag_and_push "${TAG}"
-        else
-          tag_and_push "${GITHUB_REF#"refs/tags/"}"
-        fi
-    - name: Push the Dev Docker image
-      if: startsWith(github.ref, 'refs/heads/feature/')
-      run: |
-        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-        function tag_and_push {
-          docker tag weaver "otel/weaver:${1}" && docker push "otel/weaver:${1}"
-        }
-        TAG="${GITHUB_REF#"refs/heads/"}"
-        TAG="${TAG/"/"/"-"}"
-        tag_and_push "${TAG}"
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Build and push
+      uses: docker/build-push-action@v6.6.1
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+      with:
+        push: true
+        provenance: mode=max
+        sbom: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
