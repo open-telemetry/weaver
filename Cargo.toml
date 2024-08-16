@@ -36,9 +36,9 @@ publish = false
 rust-version = "1.76"
 
 [workspace.dependencies]
-serde = { version = "1.0.207", features = ["derive"] }
+serde = { version = "1.0.208", features = ["derive"] }
 serde_yaml = "0.9.32"
-serde_json = { version = "1.0.122"}
+serde_json = { version = "1.0.125"}
 thiserror = "1.0.63"
 url = "2.5.2"
 ureq = "2.10.0"
@@ -78,7 +78,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.14", features = ["derive"] }
+clap = { version = "4.5.16", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.28.0", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
