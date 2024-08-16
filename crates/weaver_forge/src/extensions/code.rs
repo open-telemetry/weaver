@@ -304,27 +304,29 @@ it's RECOMMENDED to:
             .unwrap();
         assert_eq!(
             observed_comment,
-            r##"  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
-  * <p>
-  * When {@code error.type} is set to a type (e.g., an exception type), its
-  * canonical class name identifying the type within the artifact SHOULD be used.
-  * <p>
-  * Instrumentations SHOULD document the list of errors they report.
-  * <p>
-  * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
-  * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
-  * should be prepared for {@code error.type} to have high cardinality at query time when no
-  * additional filters are applied.
-  * <p>
-  * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
-  * <p>
-  * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
-  * it's RECOMMENDED to:
-  * <p>
-  * <ul>
-  *   <li>Use a domain-specific attribute
-  *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
-  * </ul>"##
+            r##"/**
+   * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+   * <p>
+   * When {@code error.type} is set to a type (e.g., an exception type), its
+   * canonical class name identifying the type within the artifact SHOULD be used.
+   * <p>
+   * Instrumentations SHOULD document the list of errors they report.
+   * <p>
+   * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+   * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+   * should be prepared for {@code error.type} to have high cardinality at query time when no
+   * additional filters are applied.
+   * <p>
+   * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+   * <p>
+   * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+   * it's RECOMMENDED to:
+   * <p>
+   * <ul>
+   *   <li>Use a domain-specific attribute
+   *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+   * </ul>
+   */"##
         );
 
         // Test without the parameter `format='java'`
@@ -333,27 +335,29 @@ it's RECOMMENDED to:
             .unwrap();
         assert_eq!(
             observed_comment,
-            r##"  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
-  * <p>
-  * When {@code error.type} is set to a type (e.g., an exception type), its
-  * canonical class name identifying the type within the artifact SHOULD be used.
-  * <p>
-  * Instrumentations SHOULD document the list of errors they report.
-  * <p>
-  * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
-  * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
-  * should be prepared for {@code error.type} to have high cardinality at query time when no
-  * additional filters are applied.
-  * <p>
-  * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
-  * <p>
-  * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
-  * it's RECOMMENDED to:
-  * <p>
-  * <ul>
-  *   <li>Use a domain-specific attribute
-  *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
-  * </ul>"##
+            r##"/**
+   * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+   * <p>
+   * When {@code error.type} is set to a type (e.g., an exception type), its
+   * canonical class name identifying the type within the artifact SHOULD be used.
+   * <p>
+   * Instrumentations SHOULD document the list of errors they report.
+   * <p>
+   * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+   * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+   * should be prepared for {@code error.type} to have high cardinality at query time when no
+   * additional filters are applied.
+   * <p>
+   * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+   * <p>
+   * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+   * it's RECOMMENDED to:
+   * <p>
+   * <ul>
+   *   <li>Use a domain-specific attribute
+   *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+   * </ul>
+   */"##
         );
 
         // Test with an undefined field in the context
@@ -376,9 +380,11 @@ it's RECOMMENDED to:
             .unwrap();
         assert_eq!(
             observed_comment,
-            r##"  * This is a brief description.
-  * Note:
-  * This is a note"##
+            r##"/**
+   * This is a brief description.
+   * Note:
+   * This is a note
+   */"##
         );
 
         Ok(())

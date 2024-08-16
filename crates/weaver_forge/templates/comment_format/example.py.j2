@@ -1,7 +1,7 @@
 {% for attributes_root_namespace in ctx %}
     {% for attr in attributes_root_namespace.attributes %}
   {{ attr.name | screaming_snake_case }}: Final = ""
-  {{ [attr.brief, "Notes: ", attr.note] | comment(comment_format="python", indent=2) }}
+  {{ [attr.brief, "\n", attr.note] | comment(comment_format="python", indent=2) }}
 
     {% endfor %}
 {% endfor %}

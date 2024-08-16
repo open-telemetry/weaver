@@ -131,11 +131,11 @@ impl MarkdownRenderer {
         Self::write_markdown_to(&mut render_context, "", &md_node, render_options)?;
 
         if !render_context.shortcut_reference_links.is_empty() {
-            render_context.markdown.push('\n');
             for link in &render_context.shortcut_reference_links {
+                render_context.markdown.push('\n');
                 render_context
                     .markdown
-                    .push_str(&format!("[{}]: {}\n", link.label, link.url));
+                    .push_str(&format!("[{}]: {}", link.label, link.url));
             }
         }
 
@@ -360,8 +360,7 @@ An example can be found in
 
 [OCI Image Manifest Specification]: https://github.com/opencontainers/image-spec/blob/main/manifest.md
 [Digest property]: https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests
-[Example Image Manifest]: https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest
-"## // ToDo why a new line at the end?
+[Example Image Manifest]: https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest"##
         );
 
         let markdown = r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
@@ -397,9 +396,9 @@ additional filters are applied.
 If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
 If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
 it's RECOMMENDED to:
-- Use a domain-specific attribute
-- Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not.
-"## // ToDo why a new line at the end?
+
+  - Use a domain-specific attribute
+  - Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##
         );
         Ok(())
     }
