@@ -1,6 +1,6 @@
 
 # The build image
-FROM rust:1.76.0-alpine3.18 as weaver-build
+FROM rust:1.78.0-alpine3.18 AS weaver-build
 RUN apk add musl-dev
 WORKDIR /build
 
@@ -17,7 +17,7 @@ COPY defaults /build/defaults
 RUN cargo build --release
 
 # The runtime image
-FROM alpine:3.18.3
+FROM alpine:3.20.2
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \
