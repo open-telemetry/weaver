@@ -72,7 +72,7 @@ impl MarkdownRenderer {
                 .clone()
                 .unwrap_or_default()
                 .into_iter()
-                .filter_map(|(name, format)| match format.render_options.format {
+                .filter_map(|(name, format)| match format.format {
                     RenderFormat::Html(..) => None,
                     RenderFormat::Markdown(markdown_options) => Some((name, markdown_options)),
                 })
@@ -292,9 +292,7 @@ impl MarkdownRenderer {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{
-        CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig,
-    };
+    use crate::config::{CommentFormat, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::markdown::{MarkdownRenderOptions, MarkdownRenderer};
 
@@ -305,22 +303,18 @@ mod tests {
                 vec![(
                     "go".to_owned(),
                     CommentFormat {
-                        render_options: RenderOptions {
-                            header: None,
-                            prefix: Some("// ".to_owned()),
-                            footer: None,
-                            format: RenderFormat::Markdown(MarkdownRenderOptions {
-                                escape_backslashes: false,
-                                indent_first_level_list_items: true,
-                                shortcut_reference_link: true,
-                            }),
-                        },
-                        transform_options: TransformOptions {
-                            trim: true,
-                            remove_trailing_dots: true,
-                            strong_words: vec![],
-                            strong_word_style: None,
-                        },
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        strong_words: vec![],
+                        strong_word_style: None,
                     },
                 )]
                 .into_iter()

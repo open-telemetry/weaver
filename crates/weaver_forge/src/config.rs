@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Weaver Configuration Definition.
+//! Weaver Configuration Definition (i.e. structure of the `weaver.yaml` files).
 
 #![allow(rustdoc::invalid_html_tags)]
 
@@ -23,39 +23,6 @@ use crate::file_loader::{FileContent, FileLoader};
 use crate::formats::html::HtmlRenderOptions;
 use crate::formats::markdown::MarkdownRenderOptions;
 use crate::WEAVER_YAML;
-
-/// Case convention for naming of functions and structs.
-#[derive(Deserialize, Clone, Debug)]
-#[allow(clippy::enum_variant_names)]
-pub enum CaseConvention {
-    /// Lower case convention (e.g. lowercase).
-    #[serde(rename = "lowercase")]
-    LowerCase,
-    /// Upper case convention (e.g. UPPERCASE).
-    #[serde(rename = "UPPERCASE")]
-    UpperCase,
-    /// Title case convention (e.g. Title Case).
-    #[serde(rename = "TitleCase")]
-    TitleCase,
-    /// Pascal case convention (e.g. PascalCase).
-    #[serde(rename = "PascalCase")]
-    PascalCase,
-    /// Camel case convention (e.g. camelCase).
-    #[serde(rename = "camelCase")]
-    CamelCase,
-    /// Snake case convention (e.g. snake_case).
-    #[serde(rename = "snake_case")]
-    SnakeCase,
-    /// Screaming snake case convention (e.g. SCREAMING_SNAKE_CASE).
-    #[serde(rename = "SCREAMING_SNAKE_CASE")]
-    ScreamingSnakeCase,
-    /// Kebab case convention (e.g. kebab-case).
-    #[serde(rename = "kebab-case")]
-    KebabCase,
-    /// Screaming kebab case convention (e.g. SCREAMING-KEBAB-CASE).
-    #[serde(rename = "SCREAMING-KEBAB-CASE")]
-    ScreamingKebabCase,
-}
 
 /// Weaver configuration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -90,6 +57,39 @@ pub struct WeaverConfig {
     /// List of acronyms to be considered as unmodifiable words in the case
     /// conversion.
     pub(crate) acronyms: Option<Vec<String>>,
+}
+
+/// Case convention for naming of functions and structs.
+#[derive(Deserialize, Clone, Debug)]
+#[allow(clippy::enum_variant_names)]
+pub enum CaseConvention {
+    /// Lower case convention (e.g. lowercase).
+    #[serde(rename = "lowercase")]
+    LowerCase,
+    /// Upper case convention (e.g. UPPERCASE).
+    #[serde(rename = "UPPERCASE")]
+    UpperCase,
+    /// Title case convention (e.g. Title Case).
+    #[serde(rename = "TitleCase")]
+    TitleCase,
+    /// Pascal case convention (e.g. PascalCase).
+    #[serde(rename = "PascalCase")]
+    PascalCase,
+    /// Camel case convention (e.g. camelCase).
+    #[serde(rename = "camelCase")]
+    CamelCase,
+    /// Snake case convention (e.g. snake_case).
+    #[serde(rename = "snake_case")]
+    SnakeCase,
+    /// Screaming snake case convention (e.g. SCREAMING_SNAKE_CASE).
+    #[serde(rename = "SCREAMING_SNAKE_CASE")]
+    ScreamingSnakeCase,
+    /// Kebab case convention (e.g. kebab-case).
+    #[serde(rename = "kebab-case")]
+    KebabCase,
+    /// Screaming kebab case convention (e.g. SCREAMING-KEBAB-CASE).
+    #[serde(rename = "SCREAMING-KEBAB-CASE")]
+    ScreamingKebabCase,
 }
 
 /// Parameters defined in the command line via the `--params` argument.
@@ -250,21 +250,6 @@ impl WhitespaceControl {
     }
 }
 
-/// Supported comment formats.
-#[derive(Default, Deserialize, Serialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
-pub struct RenderOptions {
-    /// A comment header (e.g. in Java `/**`).
-    pub(crate) header: Option<String>,
-    /// A comment prefix (e.g. in Java ` * `).
-    pub(crate) prefix: Option<String>,
-    /// A comment footer (e.g. in Java ` */`).
-    pub(crate) footer: Option<String>,
-    /// Options for a specific format
-    #[serde(flatten)]
-    pub(crate) format: RenderFormat,
-}
-
 /// The different supported formats for rendering comments.
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(tag = "format")]
@@ -282,10 +267,28 @@ impl Default for RenderFormat {
     }
 }
 
-/// Transform options for the comment filter.
-#[derive(Deserialize, Serialize, Debug, Clone)]
+/// Used to set a default value for a boolean field in a struct.
+#[must_use]
+pub const fn default_bool<const V: bool>() -> bool {
+    V
+}
+
+/// Configuration for the comment format. This configuration is used
+/// by the comment filter to format comments.
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "snake_case")]
-pub struct TransformOptions {
+pub struct CommentFormat {
+    /// Options for a specific format
+    #[serde(flatten)]
+    pub(crate) format: RenderFormat,
+
+    /// A comment header (e.g. in Java `/**`).
+    pub(crate) header: Option<String>,
+    /// A comment prefix (e.g. in Java ` * `).
+    pub(crate) prefix: Option<String>,
+    /// A comment footer (e.g. in Java ` */`).
+    pub(crate) footer: Option<String>,
+
     /// Flag to trim the comment content.
     #[serde(default = "default_bool::<true>")]
     pub trim: bool,
@@ -298,35 +301,6 @@ pub struct TransformOptions {
     pub strong_words: Vec<String>,
     /// Jinja expression to specify the style of the strong words.
     pub strong_word_style: Option<String>,
-}
-
-impl Default for TransformOptions {
-    fn default() -> Self {
-        TransformOptions {
-            trim: true,
-            remove_trailing_dots: false,
-            strong_words: Vec::default(),
-            strong_word_style: None,
-        }
-    }
-}
-
-/// Used to set a default value for a boolean field in a struct.
-#[must_use]
-pub const fn default_bool<const V: bool>() -> bool {
-    V
-}
-
-/// Configuration for the comment format. This configuration is used
-/// by the comment filter to format comments.
-#[derive(Deserialize, Serialize, Debug, Clone, Default)]
-pub struct CommentFormat {
-    /// The low-level comment syntax.
-    #[serde(default)]
-    pub render_options: RenderOptions,
-    /// Transform options for the comment filter.
-    #[serde(default)]
-    pub transform_options: TransformOptions,
 }
 
 impl Default for CaseConvention {

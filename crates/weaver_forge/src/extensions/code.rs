@@ -98,13 +98,13 @@ pub(crate) fn comment(
                 input.to_string()
             };
 
-            if comment_format.transform_options.trim {
+            if comment_format.trim {
                 comment = comment.trim().to_owned();
             }
-            if comment_format.transform_options.remove_trailing_dots {
+            if comment_format.remove_trailing_dots {
                 comment = comment.trim_end_matches('.').to_owned();
             }
-            comment = match &comment_format.render_options.format {
+            comment = match &comment_format.format {
                 RenderFormat::Markdown(..) => markdown_snippet_renderer
                     .render(&comment, &comment_format_name)
                     .map_err(|e| {
@@ -130,27 +130,18 @@ pub(crate) fn comment(
             };
             let indent = " ".repeat(args.get("indent").map(|v: usize| v).unwrap_or(0));
 
-            let header = args.get("header").map(|v: String| v).unwrap_or_else(|_| {
-                comment_format
-                    .render_options
-                    .header
-                    .clone()
-                    .unwrap_or("".to_owned())
-            });
-            let prefix = args.get("prefix").map(|v: String| v).unwrap_or_else(|_| {
-                comment_format
-                    .render_options
-                    .prefix
-                    .clone()
-                    .unwrap_or("".to_owned())
-            });
-            let footer = args.get("footer").map(|v: String| v).unwrap_or_else(|_| {
-                comment_format
-                    .render_options
-                    .footer
-                    .clone()
-                    .unwrap_or("".to_owned())
-            });
+            let header = args
+                .get("header")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.header.clone().unwrap_or("".to_owned()));
+            let prefix = args
+                .get("prefix")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.prefix.clone().unwrap_or("".to_owned()));
+            let footer = args
+                .get("footer")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.footer.clone().unwrap_or("".to_owned()));
 
             let mut new_comment = String::new();
             for line in comment.lines() {
@@ -236,7 +227,7 @@ pub(crate) fn map_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{CommentFormat, RenderOptions, TransformOptions};
+    use crate::config::CommentFormat;
     use crate::extensions::code;
     use crate::formats::html::HtmlRenderOptions;
 
@@ -248,23 +239,19 @@ mod tests {
                 vec![(
                     "java".to_owned(),
                     CommentFormat {
-                        render_options: RenderOptions {
-                            header: Some("/**".to_owned()),
-                            prefix: Some(" * ".to_owned()),
-                            footer: Some(" */".to_owned()),
-                            format: RenderFormat::Html(HtmlRenderOptions {
-                                old_style_paragraph: true,
-                                omit_closing_li: true,
-                                inline_code_snippet: "{@code {{code}}}".to_owned(),
-                                block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
-                            }),
-                        },
-                        transform_options: TransformOptions {
-                            trim: true,
-                            remove_trailing_dots: true,
-                            strong_words: vec![],
-                            strong_word_style: None,
-                        },
+                        header: Some("/**".to_owned()),
+                        prefix: Some(" * ".to_owned()),
+                        footer: Some(" */".to_owned()),
+                        format: RenderFormat::Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        strong_words: vec![],
+                        strong_word_style: None,
                     },
                 )]
                 .into_iter()

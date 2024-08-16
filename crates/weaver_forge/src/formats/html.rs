@@ -90,7 +90,7 @@ impl<'source> HtmlRenderer<'source> {
                 .clone()
                 .unwrap_or_default()
                 .into_iter()
-                .filter_map(|(name, format)| match format.render_options.format {
+                .filter_map(|(name, format)| match format.format {
                     RenderFormat::Html(html_options) => Some((name, html_options)),
                     RenderFormat::Markdown(..) => None,
                 })
@@ -333,9 +333,7 @@ impl<'source> HtmlRenderer<'source> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{
-        CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig,
-    };
+    use crate::config::{CommentFormat, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::html::{HtmlRenderOptions, HtmlRenderer};
 
@@ -346,23 +344,19 @@ mod tests {
                 vec![(
                     "java".to_owned(),
                     CommentFormat {
-                        render_options: RenderOptions {
-                            header: Some("/**".to_owned()),
-                            prefix: Some(" * ".to_owned()),
-                            footer: Some(" */".to_owned()),
-                            format: RenderFormat::Html(HtmlRenderOptions {
-                                old_style_paragraph: true,
-                                omit_closing_li: true,
-                                inline_code_snippet: "{@code {{code}}}".to_owned(),
-                                block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
-                            }),
-                        },
-                        transform_options: TransformOptions {
-                            trim: true,
-                            remove_trailing_dots: true,
-                            strong_words: vec![],
-                            strong_word_style: None,
-                        },
+                        header: Some("/**".to_owned()),
+                        prefix: Some(" * ".to_owned()),
+                        footer: Some(" */".to_owned()),
+                        format: RenderFormat::Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        strong_words: vec![],
+                        strong_word_style: None,
                     },
                 )]
                 .into_iter()

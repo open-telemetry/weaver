@@ -5,54 +5,44 @@ whitespace_control:
 
 comment_formats:
   rust:
-    render_options:
-      format: markdown
-      prefix: "/// "
-    transform_options:
-      trim: true
-      remove_trailing_dots: true
+    format: markdown
+    prefix: "/// "
+    trim: true
+    remove_trailing_dots: true
   javadoc:
-    render_options:
-      format: html
-      header: "/**"
-      prefix: " * "
-      footer: " */"
-      old_style_paragraph: true
-      omit_closing_li: true
-      inline_code_snippet: "{@code {{code}}}"
-      block_code_snippet: "<pre>{@code {{code}}}</pre>"
-    transform_options:
-      trim: true
-      remove_trailing_dots: true
+    format: html
+    header: "/**"
+    prefix: " * "
+    footer: " */"
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
   java:
-    render_options:
-      format: html
-      prefix: "// "
-      old_style_paragraph: true
-      omit_closing_li: true
-      inline_code_snippet: "{@code {{code}}}"
-      block_code_snippet: "<pre>{@code {{code}}}</pre>"
-    transform_options:
-      trim: true
-      remove_trailing_dots: true
+    format: html
+    prefix: "// "
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
   go:
-    render_options:
-      format: markdown
-      prefix: "// "
-      indent_first_level_list_items: true
-      shortcut_reference_link: true
-    transform_options:
-      trim: true
-      remove_trailing_dots: true
+    format: markdown
+    prefix: "// "
+    indent_first_level_list_items: true
+    shortcut_reference_link: true
+    trim: true
+    remove_trailing_dots: true
   python:
-    render_options:
-      format: markdown
-      header: '"""'
-      footer: '"""'
-      escape_backslashes: true
-    transform_options:
-      trim: true
-      remove_trailing_dots: true
+    format: markdown
+    header: '"""'
+    footer: '"""'
+    escape_backslashes: true
+    trim: true
+    remove_trailing_dots: true
 
 templates:
   - template: "example.java.j2"
