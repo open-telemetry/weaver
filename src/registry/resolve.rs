@@ -140,6 +140,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
@@ -166,6 +167,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {

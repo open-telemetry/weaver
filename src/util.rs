@@ -21,8 +21,7 @@ use weaver_semconv::semconv::SemConvSpec;
 ///
 /// # Arguments
 ///
-/// * `registry_path` - The path to the semantic convention registry.
-/// * `cache` - The cache for loading the registry.
+/// * `registry_repo` - The registry repository.
 /// * `log` - The logger for logging messages.
 ///
 /// # Returns

@@ -64,6 +64,11 @@ pub struct RegistryGenerateArgs {
     #[arg(long, default_value = "false")]
     pub skip_policies: bool,
 
+    /// Enable the most recent validation rules for the semconv registry. It is recommended
+    /// to enable this flag when checking a new registry.
+    #[arg(long, default_value = "false")]
+    pub future: bool,
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -197,6 +202,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: "rust".to_owned(),
@@ -213,6 +219,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: true,
+                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -267,6 +274,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: "rust".to_owned(),
@@ -283,6 +291,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: false,
+                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),
@@ -302,6 +311,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Generate(RegistryGenerateArgs {
                     target: "rust".to_owned(),
@@ -325,6 +335,7 @@ mod tests {
                     },
                     policies: vec![],
                     skip_policies: true,
+                    future: false,
                     diagnostic: Default::default(),
                 }),
             })),

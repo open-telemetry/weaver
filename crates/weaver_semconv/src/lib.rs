@@ -77,6 +77,37 @@ pub enum Error {
         error: String,
     },
 
+    /// This error occurs when a semantic convention asset contains an invalid example.
+    /// This is treated as a critical error in the current context.
+    #[error("The attribute `{attribute_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Error))]
+    InvalidExampleError {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
+    /// This warning indicates that a semantic convention asset contains an invalid example.
+    /// It is treated as a non-critical warning unless the `--future` flag is enabled.
+    /// With the `--future` flag, this warning is elevated to an error.
+    #[error("The attribute `{attribute_id}` in the group `{group_id}` contains an example that will be considered invalid in the future. {error}.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    InvalidExampleWarning {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
@@ -90,7 +121,7 @@ pub enum Error {
 
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
-    CompoundError(Vec<Error>),
+    CompoundError(#[related] Vec<Error>),
 }
 
 impl WeaverError<Error> for Error {

@@ -132,6 +132,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: "data/update_markdown/markdown".to_owned(),

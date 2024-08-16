@@ -97,6 +97,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Diagnostic(DiagnosticCommand {
                 command: DiagnosticSubCommand::Init(DiagnosticInitArgs {
                     target: "".to_owned(),
@@ -121,6 +122,7 @@ mod tests {
         let cli = Cli {
             debug: 0,
             quiet: false,
+            future: false,
             command: Some(Commands::Diagnostic(DiagnosticCommand {
                 command: DiagnosticSubCommand::Init(DiagnosticInitArgs {
                     target: "json".to_owned(),
