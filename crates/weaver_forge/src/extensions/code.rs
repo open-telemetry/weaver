@@ -76,7 +76,7 @@ pub(crate) fn comment(
             // Get the comment format from the arguments or use the default format
             // defined in the configuration.
             let comment_format_name = args
-                .get("comment_format")
+                .get("format")
                 .map(|v: String| v)
                 .unwrap_or(default_comment_format.clone());
             let comment_format = config
