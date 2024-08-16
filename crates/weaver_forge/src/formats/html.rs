@@ -306,8 +306,20 @@ impl<'source> HtmlRenderer<'source> {
                 ctx.html.push_str("</a>");
             }
             Node::LinkReference(_) => {}
-            Node::Strong(_) => {}
-            Node::Heading(_) => {}
+            Node::Strong(strong) => {
+                ctx.html.push_str("<strong>");
+                for child in &strong.children {
+                    self.write_html_to(ctx, indent, child, format, options)?;
+                }
+                ctx.html.push_str("</strong>");
+            }
+            Node::Heading(heading) => {
+                ctx.html.push_str(&format!("<h{}>", heading.depth));
+                for child in &heading.children {
+                    self.write_html_to(ctx, indent, child, format, options)?;
+                }
+                ctx.html.push_str(&format!("</h{}>\n", heading.depth));
+            }
             Node::Table(_) => {}
             Node::ThematicBreak(_) => {}
             Node::TableRow(_) => {}
@@ -321,7 +333,9 @@ impl<'source> HtmlRenderer<'source> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig};
+    use crate::config::{
+        CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig,
+    };
     use crate::error::Error;
     use crate::formats::html::{HtmlRenderOptions, HtmlRenderer};
 
@@ -341,7 +355,7 @@ mod tests {
                                 omit_closing_li: true,
                                 inline_code_snippet: "{@code {{code}}}".to_owned(),
                                 block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
-                            })
+                            }),
                         },
                         transform_options: TransformOptions {
                             trim: true,
@@ -351,8 +365,8 @@ mod tests {
                         },
                     },
                 )]
-                    .into_iter()
-                    .collect(),
+                .into_iter()
+                .collect(),
             ),
             default_comment_format: Some("java".to_owned()),
             ..WeaverConfig::default()

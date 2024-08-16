@@ -2,7 +2,7 @@
 {{ ("Examples of comments for group " ~ attributes_root_namespace.root_namespace) | comment(comment_format="java") }}
 
     {% for attr in attributes_root_namespace.attributes %}
-  {{ [attr.brief, attr.note] | comment(comment_format="javadoc", indent=2) }}
+  {{ [attr.brief, "Notes: ", attr.note] | comment(comment_format="javadoc", indent=2) }}
   static {{ attr.name | screaming_snake_case }} = "";
 
     {% endfor %}

@@ -13,6 +13,14 @@ use std::collections::HashMap;
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct MarkdownRenderOptions {
+    /// Whether to escape backslashes in the markdown.
+    /// Default is false.
+    #[serde(default)]
+    pub(crate) escape_backslashes: bool,
+    /// Whether to indent the first level of list items in the markdown.
+    /// Default is false.
+    #[serde(default)]
+    pub(crate) indent_first_level_list_items: bool,
     /// A shortcut reference link consists of a link label that matches a link reference
     /// definition elsewhere in the document and is not followed by [] or a link label.
     /// Default is false.
@@ -33,8 +41,18 @@ pub(crate) struct MarkdownRenderer {
 struct RenderContext {
     // The rendered markdown.
     markdown: String,
+    // List level
+    list_level: usize,
+    // List item number
+    list_item_number: usize,
     // The shortcut reference links.
     shortcut_reference_links: Vec<ShortcutReferenceLink>,
+    // The rendering process traverses the AST tree in a depth-first manner.
+    // In certain circumstances, a newline should only be rendered if there is a
+    // node following the current one in the AST traversal. This field contains
+    // such a newline left by the previous node, which must be added by the current
+    // node during rendering, if it exists.
+    leftover_newline: Option<bool>,
 }
 
 impl MarkdownRenderer {
@@ -110,18 +128,14 @@ impl MarkdownRenderer {
                 error: e.to_string(),
             })?;
         let mut render_context = RenderContext::default();
-        self.write_markdown_to(
-            &mut render_context,
-            "",
-            &md_node,
-            format,
-            render_options,
-        )?;
+        Self::write_markdown_to(&mut render_context, "", &md_node, render_options)?;
 
         if !render_context.shortcut_reference_links.is_empty() {
-            render_context.markdown.push_str("\n");
+            render_context.markdown.push('\n');
             for link in &render_context.shortcut_reference_links {
-                render_context.markdown.push_str(&format!("[{}]: {}\n", link.label, link.url));
+                render_context
+                    .markdown
+                    .push_str(&format!("[{}]: {}\n", link.label, link.url));
             }
         }
 
@@ -130,46 +144,72 @@ impl MarkdownRenderer {
 
     /// Render custom markdown from a markdown AST tree into a buffer.
     fn write_markdown_to(
-        &self,
         ctx: &mut RenderContext,
         indent: &str,
         md_node: &Node,
-        format: &str,
         options: &MarkdownRenderOptions,
     ) -> Result<(), Error> {
+        if let Some(true) = ctx.leftover_newline.take() {
+            // Add the newline left by the previous node only if the current node
+            // is not a list.
+            if !matches!(md_node, Node::List(..)) {
+                ctx.markdown.push('\n');
+            }
+        }
         match md_node {
             Node::Root(root) => {
                 for child in &root.children {
-                    self.write_markdown_to(ctx, indent, child, format, options)?;
+                    Self::write_markdown_to(ctx, indent, child, options)?;
                 }
             }
             Node::Text(text) => {
-                ctx.markdown.push_str(&text.value);
+                if options.escape_backslashes {
+                    ctx.markdown.push_str(&text.value.replace("\\", "\\\\"));
+                } else {
+                    ctx.markdown.push_str(&text.value);
+                }
             }
             Node::Paragraph(p) => {
                 for child in &p.children {
-                    self.write_markdown_to(ctx, indent, child, format, options)?;
+                    Self::write_markdown_to(ctx, indent, child, options)?;
                 }
                 ctx.markdown.push('\n');
             }
             Node::List(list) => {
-                let list_prefix = if list.ordered { "1. " } else { "- " };
+                ctx.list_level += 1;
+                let indent = if !options.indent_first_level_list_items && ctx.list_level == 1 {
+                    indent.to_owned()
+                } else {
+                    format!("{}  ", indent)
+                };
+                ctx.markdown.push('\n');
                 for item in &list.children {
-                    ctx.markdown.push_str(&format!("{}{}", indent, list_prefix));
-                    self.write_markdown_to(ctx, indent, item, format, options)?;
-                    ctx.markdown.push('\n');
+                    if let Some(true) = ctx.leftover_newline.take() {
+                        ctx.markdown.push('\n');
+                    }
+                    ctx.list_item_number += 1;
+                    if list.ordered {
+                        ctx.markdown
+                            .push_str(&format!("{}{}. ", indent, ctx.list_item_number));
+                    } else {
+                        ctx.markdown.push_str(&format!("{}- ", indent));
+                    }
+                    Self::write_markdown_to(ctx, &indent, item, options)?;
+                    ctx.leftover_newline = Some(true);
                 }
+                ctx.list_level -= 1;
+                ctx.list_item_number = 0;
             }
             Node::ListItem(item) => {
                 for child in &item.children {
                     match child {
                         Node::Paragraph(paragraph) => {
                             for child in &paragraph.children {
-                                self.write_markdown_to(ctx, indent, child, format, options)?;
+                                Self::write_markdown_to(ctx, indent, child, options)?;
                             }
                         }
                         _ => {
-                            self.write_markdown_to(ctx, indent, child, format, options)?;
+                            Self::write_markdown_to(ctx, indent, child, options)?;
                         }
                     }
                 }
@@ -180,20 +220,21 @@ impl MarkdownRenderer {
             Node::InlineCode(code) => {
                 ctx.markdown.push_str(&format!("`{}`", code.value));
             }
-            Node::Code(code) => {
-                match &code.lang {
-                    Some(lang) => {
-                        ctx.markdown.push_str(&format!("```{}\n{}\n```\n", lang, code.value));
-                    }
-                    None => {
-                        ctx.markdown.push_str(&format!("```\n{}\n```\n", code.value));
-                    }
+            Node::Code(code) => match &code.lang {
+                Some(lang) => {
+                    ctx.markdown
+                        .push_str(&format!("```{}\n{}\n```\n", lang, code.value));
                 }
-            }
+                None => {
+                    ctx.markdown
+                        .push_str(&format!("```\n{}\n```\n", code.value));
+                }
+            },
             Node::BlockQuote(block_quote) => {
-                let indent = format!("{}> ", indent);
+                ctx.markdown.push('\n');
                 for child in &block_quote.children {
-                    self.write_markdown_to(ctx, &indent, child, format, options)?;
+                    ctx.markdown.push_str(&format!("{}> ", indent));
+                    Self::write_markdown_to(ctx, indent, child, options)?;
                 }
             }
             Node::Toml(_) => {}
@@ -207,20 +248,37 @@ impl MarkdownRenderer {
                 ctx.markdown.push('[');
                 let start = ctx.markdown.len();
                 for child in &link.children {
-                    self.write_markdown_to(ctx, indent, child, format, options)?;
+                    Self::write_markdown_to(ctx, indent, child, options)?;
                 }
                 let label = ctx.markdown[start..].to_string();
                 ctx.markdown.push(']');
                 if options.shortcut_reference_link && !link.url.is_empty() {
                     let url = link.url.clone();
-                    ctx.shortcut_reference_links.push(ShortcutReferenceLink { label, url });
+                    ctx.shortcut_reference_links
+                        .push(ShortcutReferenceLink { label, url });
                 } else {
                     ctx.markdown.push_str(&format!("({})", link.url));
                 }
             }
             Node::LinkReference(_) => {}
-            Node::Strong(_) => {}
-            Node::Heading(_) => {}
+            Node::Strong(strong) => {
+                ctx.markdown.push_str("**");
+                for child in &strong.children {
+                    Self::write_markdown_to(ctx, indent, child, options)?;
+                }
+                ctx.markdown.push_str("**");
+            }
+            Node::Heading(heading) => {
+                ctx.markdown.push('\n');
+                ctx.markdown.push_str(&format!(
+                    "{}{} ",
+                    indent,
+                    "#".repeat(heading.depth as usize),
+                ));
+                for child in &heading.children {
+                    Self::write_markdown_to(ctx, indent, child, options)?;
+                }
+            }
             Node::Table(_) => {}
             Node::ThematicBreak(_) => {}
             Node::TableRow(_) => {}
@@ -234,7 +292,9 @@ impl MarkdownRenderer {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig};
+    use crate::config::{
+        CommentFormat, RenderFormat, RenderOptions, TransformOptions, WeaverConfig,
+    };
     use crate::error::Error;
     use crate::formats::markdown::{MarkdownRenderOptions, MarkdownRenderer};
 
@@ -250,8 +310,10 @@ mod tests {
                             prefix: Some("// ".to_owned()),
                             footer: None,
                             format: RenderFormat::Markdown(MarkdownRenderOptions {
-                                shortcut_reference_link: true
-                            })
+                                escape_backslashes: false,
+                                indent_first_level_list_items: true,
+                                shortcut_reference_link: true,
+                            }),
                         },
                         transform_options: TransformOptions {
                             trim: true,
@@ -261,8 +323,8 @@ mod tests {
                         },
                     },
                 )]
-                    .into_iter()
-                    .collect(),
+                .into_iter()
+                .collect(),
             ),
             default_comment_format: Some("go".to_owned()),
             ..WeaverConfig::default()
@@ -276,7 +338,7 @@ mod tests {
             html,
             r##"In some cases a URL may refer to an IP and/or port directly,
 The file extension extracted from the `url.full`, excluding the leading dot.
-"##     // ToDo why a new line at the end?
+"## // ToDo why a new line at the end?
         );
 
         let markdown = r##"Follows

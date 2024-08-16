@@ -1,0 +1,38 @@
+groups:
+  - id: registry.with_complex_comments
+    type: attribute_group
+    display_name: With complex comments
+    brief: >
+      This is a brief description of the attribute `group` + a short link [OTEL](https://www.opentelemetry.com).
+    attributes:
+      - id: attr
+        stability: stable
+        brief: >
+          This is a brief description of the attribute + a short link [OTEL](https://www.opentelemetry.com).
+        type: int
+        note: |
+          This is a note about the attribute `attr`. It can be multiline.
+          
+          It can contain a list:
+          * item **1**,
+          * item 2.
+          
+          And an **inline code snippet**: `Attr.attr`.
+          
+          # Summary
+          
+          ## Examples:
+          1. Example 1
+          2. Example 2
+          3. Example 3      
+          
+          ## Appendix
+            * [Link 1](https://www.link1.com)
+            * [Link 2](https://www.link2.com)
+            * A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+              tempor incididunt ut labore et dolore magna aliqua.
+          
+          > This is a blockquote.
+          > It can contain multiple lines.
+          
+          > [!NOTE] Something very important here

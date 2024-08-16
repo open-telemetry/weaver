@@ -39,6 +39,7 @@ comment_formats:
     render_options:
       format: markdown
       prefix: "// "
+      indent_first_level_list_items: true
       shortcut_reference_link: true
     transform_options:
       trim: true
@@ -46,7 +47,9 @@ comment_formats:
   python:
     render_options:
       format: markdown
-      prefix: "// "
+      header: '"""'
+      footer: '"""'
+      escape_backslashes: true
     transform_options:
       trim: true
       remove_trailing_dots: true

@@ -781,12 +781,12 @@ mod tests {
             schema.registry(registry_id).expect("registry not found"),
             schema.catalog(),
         )
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to create the context for the template evaluation: {:?}",
-                    e
-                )
-            });
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to create the context for the template evaluation: {:?}",
+                e
+            )
+        });
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
@@ -1079,8 +1079,11 @@ mod tests {
     #[test]
     fn test_comment_format() {
         let registry_id = "default";
-        let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/mini_registry_for_comments/*.yaml")
-            .expect("Failed to load registry");
+        let registry = SemConvRegistry::try_from_path_pattern(
+            registry_id,
+            "data/mini_registry_for_comments/*.yaml",
+        )
+        .expect("Failed to load registry");
         let (logger, engine, template_registry, observed_output, expected_output) =
             prepare_test_with_registry("comment_format", Params::default(), registry_id, registry);
 

@@ -1,8 +1,7 @@
 {% for attributes_root_namespace in ctx %}
-{{ ("Examples of comments for group " ~ attributes_root_namespace.root_namespace) | comment(comment_format=params.format) }}
-
     {% for attr in attributes_root_namespace.attributes %}
-{{ [attr.brief, attr.note] | comment(comment_format=params.format, indent=2) }}
-    {% endfor %}
+  {{ attr.name | screaming_snake_case }}: Final = ""
+  {{ [attr.brief, "Notes: ", attr.note] | comment(comment_format="python", indent=2) }}
 
+    {% endfor %}
 {% endfor %}

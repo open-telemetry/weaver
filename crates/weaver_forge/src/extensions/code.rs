@@ -5,6 +5,7 @@
 use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::formats::html::HtmlRenderer;
+use crate::formats::markdown::MarkdownRenderer;
 use minijinja::value::{Kwargs, ValueKind};
 use minijinja::{Environment, ErrorKind, Value};
 use std::collections::HashMap;
@@ -59,6 +60,7 @@ pub(crate) fn comment(
         .default_comment_format
         .clone()
         .unwrap_or("default".to_owned());
+    let markdown_snippet_renderer = MarkdownRenderer::try_new(config)?;
     let html_snippet_renderer = HtmlRenderer::try_new(config)?;
     let config = config.clone();
 
@@ -70,6 +72,8 @@ pub(crate) fn comment(
                 return Ok("".to_owned());
             }
 
+            // Get the comment format from the arguments or use the default format
+            // defined in the configuration.
             let comment_format_name = args
                 .get("comment_format")
                 .map(|v: String| v)
@@ -83,7 +87,10 @@ pub(crate) fn comment(
             // If the input is an iterable (i.e. an array), join the values with a newline.
             let mut comment = if input.kind() == ValueKind::Seq {
                 if let Ok(input_values) = input.try_iter() {
-                    input_values.map(|v| v.to_string()).collect::<Vec<String>>().join("\n")
+                    input_values
+                        .map(|v| v.to_string())
+                        .collect::<Vec<String>>()
+                        .join("\n")
                 } else {
                     input.to_string()
                 }
@@ -98,7 +105,17 @@ pub(crate) fn comment(
                 comment = comment.trim_end_matches('.').to_owned();
             }
             comment = match &comment_format.render_options.format {
-                RenderFormat::Markdown { .. } => comment,
+                RenderFormat::Markdown(..) => markdown_snippet_renderer
+                    .render(&comment, &comment_format_name)
+                    .map_err(|e| {
+                        minijinja::Error::new(
+                            ErrorKind::InvalidOperation,
+                            format!(
+                                "Comment Markdown rendering failed for format '{}': {}",
+                                default_comment_format, e
+                            ),
+                        )
+                    })?,
                 RenderFormat::Html(..) => html_snippet_renderer
                     .render(&comment, &comment_format_name)
                     .map_err(|e| {
@@ -111,40 +128,43 @@ pub(crate) fn comment(
                         )
                     })?,
             };
-            let indent = " ".repeat(args.get("indent")
-                .map(|v: usize| v)
-                .unwrap_or(0));
+            let indent = " ".repeat(args.get("indent").map(|v: usize| v).unwrap_or(0));
 
-            let header = args.get("header")
-                .map(|v: String| v)
-                .unwrap_or_else(|_|
-                    comment_format.render_options.header
-                        .clone().unwrap_or("".to_owned()));
-            let prefix = args.get("prefix")
-                .map(|v: String| v)
-                .unwrap_or_else(|_| comment_format.render_options.prefix
-                    .clone().unwrap_or("".to_owned()));
-            let footer = args.get("footer")
-                .map(|v: String| v)
-                .unwrap_or_else(|_|
-                    comment_format.render_options.footer
-                        .clone().unwrap_or("".to_owned()));
+            let header = args.get("header").map(|v: String| v).unwrap_or_else(|_| {
+                comment_format
+                    .render_options
+                    .header
+                    .clone()
+                    .unwrap_or("".to_owned())
+            });
+            let prefix = args.get("prefix").map(|v: String| v).unwrap_or_else(|_| {
+                comment_format
+                    .render_options
+                    .prefix
+                    .clone()
+                    .unwrap_or("".to_owned())
+            });
+            let footer = args.get("footer").map(|v: String| v).unwrap_or_else(|_| {
+                comment_format
+                    .render_options
+                    .footer
+                    .clone()
+                    .unwrap_or("".to_owned())
+            });
 
-            if !prefix.is_empty() {
-                let mut new_comment = String::new();
-                for line in comment.lines() {
-                    if !new_comment.is_empty() {
-                        new_comment.push('\n');
-                    }
-                    if header.is_empty() && new_comment.is_empty() {
-                        // For the first line we don't add the indentation
-                        new_comment.push_str(&format!("{}{}", prefix, line));
-                    } else {
-                        new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
-                    }
+            let mut new_comment = String::new();
+            for line in comment.lines() {
+                if !new_comment.is_empty() {
+                    new_comment.push('\n');
                 }
-                comment = new_comment;
+                if header.is_empty() && new_comment.is_empty() {
+                    // For the first line we don't add the indentation
+                    new_comment.push_str(&format!("{}{}", prefix, line));
+                } else {
+                    new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                }
             }
+            comment = new_comment;
 
             if !header.is_empty() {
                 comment = format!("{}\n{}", header, comment);
@@ -153,6 +173,9 @@ pub(crate) fn comment(
             if !footer.is_empty() {
                 comment = format!("{}\n{}{}", comment, indent, footer);
             }
+
+            // Remove all trailing spaces from the comment
+            comment = comment.trim_end().to_owned();
 
             Ok(comment)
         },
@@ -234,7 +257,7 @@ mod tests {
                                 omit_closing_li: true,
                                 inline_code_snippet: "{@code {{code}}}".to_owned(),
                                 block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
-                            })
+                            }),
                         },
                         transform_options: TransformOptions {
                             trim: true,
@@ -244,8 +267,8 @@ mod tests {
                         },
                     },
                 )]
-                    .into_iter()
-                    .collect(),
+                .into_iter()
+                .collect(),
             ),
             default_comment_format: Some("java".to_owned()),
             ..Default::default()
@@ -277,10 +300,7 @@ it's RECOMMENDED to:
 
         // Test with the optional parameter `format='java'`
         let observed_comment = env
-            .render_str(
-                "{{ note | comment(format='java', indent=2) }}",
-                &ctx,
-            )
+            .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
             .unwrap();
         assert_eq!(
             observed_comment,
@@ -309,10 +329,7 @@ it's RECOMMENDED to:
 
         // Test without the parameter `format='java'`
         let observed_comment = env
-            .render_str(
-                "{{ note | comment(indent=2) }}",
-                &ctx,
-            )
+            .render_str("{{ note | comment(indent=2) }}", &ctx)
             .unwrap();
         assert_eq!(
             observed_comment,
@@ -342,10 +359,7 @@ it's RECOMMENDED to:
         // Test with an undefined field in the context
         let ctx = serde_json::json!({});
         let observed_comment = env
-            .render_str(
-                "{{ note | comment(format='java', indent=2) }}",
-                &ctx,
-            )
+            .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
             .unwrap();
         assert_eq!(observed_comment, "");
 
@@ -360,9 +374,12 @@ it's RECOMMENDED to:
                 &ctx,
             )
             .unwrap();
-        assert_eq!(observed_comment, r##"  * This is a brief description.
+        assert_eq!(
+            observed_comment,
+            r##"  * This is a brief description.
   * Note:
-  * This is a note"##);
+  * This is a note"##
+        );
 
         Ok(())
     }
@@ -464,8 +481,8 @@ This also covers UDP network interactions where one side initiates the interacti
                     .collect::<HashMap<String, String>>(),
             ),
         ]
-            .into_iter()
-            .collect();
+        .into_iter()
+        .collect();
 
         env.add_filter("map_text", map_text(text_maps));
 
