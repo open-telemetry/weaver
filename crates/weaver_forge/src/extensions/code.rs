@@ -251,8 +251,6 @@ mod tests {
                         }),
                         trim: true,
                         remove_trailing_dots: true,
-                        strong_words: vec![],
-                        strong_word_style: None,
                     },
                 )]
                 .into_iter()

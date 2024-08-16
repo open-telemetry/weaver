@@ -5,49 +5,72 @@
 The following options can be configured in the `weaver.yaml` file:
 
 ```yaml
-# Uncomment this section to specify the configuration of the `text_map` filter.
-#text_maps:
-#  java_types:
-#    int: int
-#    double: double
-#    boolean: boolean
-#    string: String
-#  java_keys:
-#    int: intKey
-#    double: doubleKey
-#    boolean: booleanKey
-#    string: stringKey
+# Specify the configuration of the `text_map` filter.
+text_maps:                 # optional
+  <text_map_name_1>:
+    <input_text>: <output_text>
+    # ...
+  <text_map_name_2>:
+    <input_text>: <output_text>
+    # ...
 
-# Uncomment this section to specify the configuration of the Jinja template syntax
-# and control whitespace behavior.
+# Specify the configuration of the Jinja template syntax and control whitespace behavior.
 # Note: The default syntax is strongly recommended.
-#template_syntax:
-#  block_start: "{%"
-#  block_end: "%}"
-#  variable_start: "{{"
-#  variable_end: "}}"
-#  comment_start: "{#"
-#  comment_end: "#}"
+template_syntax:           # optional
+  block_start: <string>    # default: "{%"
+  block_end: <string>      # default: "%}"
+  variable_start: <string> # default: "{{"
+  variable_end: <string>   # default: "}}"
+  comment_start: <string>  # default: "{#"
+  comment_end: <string>    # default: "#}"
 
-# Uncomment this section to specify the whitespace behavior of the Jinja template engine.
+# Specify the whitespace behavior of the Jinja template engine.
 # For more info, see: https://docs.rs/minijinja/latest/minijinja/syntax/index.html#whitespace-control
-# whitespace_control:
-#   trim_blocks: true
-#   lstrip_blocks: true
-#   keep_trailing_newline: true
+whitespace_control:
+  trim_blocks: <bool>           # default: false
+  lstrip_blocks: <bool>         # default: false
+  keep_trailing_newline: <bool> # default: false
 
-# Uncomment the following section to specify a list of acronyms that
-# will be interpreted by the acronym filter. This is optional.
-# acronyms: ["iOS", "HTTP", "API", "SDK", "CLI", "URL", "JSON", "XML", "HTML"]
+# Specify a list of acronyms that will be interpreted by the acronym filter. 
+acronyms:                  # optional
+  - <string>
+  - <string>
+  - ...
 
-# Uncomment the following section to specify the configuration of parameters.
-# This is optional.
-# params:
-#  param1: val1
-#  param2: val2
+# Specify the configuration of the comment formats.
+comment_formats:           # optional
+  <format-name>:
+    format: markdown|html
 
-# Uncomment the following templates to override the default template
-# mapping. Each template mapping specifies a jaq filter (compatible with jq)
+    # The following fields are enabled for both markdown and html formats
+    # All these fields are optional.
+    header: <string>                  # The comment header line (e.g., `/**`)
+    prefix: <string>                  # The comment line prefix (e.g., ` * `)
+    footer: <string>                  # The comment line footer (e.g., ` */`)
+    trim: <bool>                      # Flag to trim the comment content (default: true). 
+    remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
+
+    # The following fields are enabled only when format is set to 'markdown'
+    escape_backslashes: <bool>            # Whether to escape backslashes in the markdown (default: false).
+    shortcut_reference_links: <bool>      # Use this to convert inlined links into shortcut reference links, similar to those in Go documentation (default: false).
+    indent_first_level_list_items: <bool> # Whether to indent the first level of list items in the markdown (default: false).
+  
+    # The following fields are enabled only when format is set to 'html'
+    old_style_paragraph: <bool>       # Use old-style HTML paragraphs, i.e. single <p> tag (default: false)
+    omit_closing_li: <bool>           # Omit closing </li> tags in lists (default: false)
+    inline_code_snippet: <jinja-expr> # Jinja expression to render inline code (default: "<c>{{code}}</c>").
+    block_code_snippet: <jinja-expr>  # Jinja expression to render block code (default: "<pre>\n{{code}}\n</pre>").
+  <other-format-name>:
+    # ...
+default_comment_format: <format-name>
+
+# Specify the configuration of parameters.
+params:                    # optional
+  <param_1>: <any_simple_type>
+  <param_2>: <any_simple_type>
+  # ...
+
+# Each template mapping specifies a jaq filter (compatible with jq)
 # to apply to every file matching the template pattern. The application_mode specifies
 # how the template should be applied. The application_mode can be `each` or
 # `single`. The `each` mode will evaluate the template for each object selected
@@ -56,22 +79,80 @@ The following options can be configured in the `weaver.yaml` file:
 #
 # Note: jaq is a Rust reimplementation of jq. Most of the jq filters are
 # supported. For more information, see https://github.com/01mf02/jaq
-#
-# templates:
-#  - template: "**/registry.md"
-#    filter: "."
-#    application_mode: single
-#  - template: "**/attribute_group.md"
-#    filter: ".groups[] | select(.type == \"attribute_group\")"
-#    application_mode: each
-#    params:
-#      param1: val1_bis
-#    file_path: "{{ctx.root_namespace}}.md"
-#  - template: "**/attribute_groups.md"
-#    filter: ".groups[] | select(.type == \"attribute_group\")"
-#    application_mode: single
+templates:
+  - template: <file_path or glob>
+    filter: <jq_filter>
+    application_mode: single|each
+    params:                          # optional
+      <param_1>: <any_simple_type>
+      <param_2>: <any_simple_type>
+      # ...
+    file_name: <relative_file_path>  # optional
+  - ...
 ```
 
+Below a concrete example of a `weaver.yaml` file that could be used to generate Java code
+from a semconv specification (incomplete):
+
+```yaml
+# This `text_maps` section specifies 2 mappings:
+# - `java_types` maps the semconv types to Java types.
+# - `java_keys` maps the semconv keys to Java keys.
+text_maps:
+  java_types:
+    int: int
+    double: double
+    boolean: boolean
+    string: String
+  java_keys:
+    int: intKey
+    double: doubleKey
+    boolean: booleanKey
+    string: stringKey
+
+# A whitespace control configuration compatible with the PHP whitespace control behavior (recommended).
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+# A list of acronyms that will be interpreted by the acronym filter.
+acronyms: ["iOS", "HTTP", "API", "SDK", "CLI", "URL", "JSON", "XML", "HTML"]
+
+# An example of advanced configuration for the comment formats supporting both
+# - JavaDoc comment in front of method, function, attribute, and class.
+# - and Java end of line comments.
+comment_formats:
+  javadoc:
+    format: html
+    header: "/**"
+    prefix: " * "
+    footer: " */"
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+  java:
+    format: html
+    prefix: "// "
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+
+templates:
+  - template: "attributes.java.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "metrics.java.j2"
+    filter: semconv_grouped_metrics
+    application_mode: single
+```
+ 
 > [!IMPORTANT]
 > **Backward compatibility note**: The field `pattern` has been renamed to `template` in the
 > `templates` section. The `pattern` field is still supported for backward compatibility.

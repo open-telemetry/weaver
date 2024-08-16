@@ -14,11 +14,11 @@ const BLOCK_CODE_SNIPPET_MODE: &str = "block_code";
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct HtmlRenderOptions {
-    /// Use old-style HTML paragraphs (i.e. single <p> tag).
+    /// Use old-style HTML paragraphs (i.e. single \<p\> tag).
     /// Default is false.
     #[serde(default)]
     pub(crate) old_style_paragraph: bool,
-    /// Omit closing </li> tags in lists.
+    /// Omit closing \</li\> tags in lists.
     /// Default is false.
     #[serde(default)]
     pub(crate) omit_closing_li: bool,
@@ -349,8 +349,6 @@ mod tests {
                         }),
                         trim: true,
                         remove_trailing_dots: true,
-                        strong_words: vec![],
-                        strong_word_style: None,
                     },
                 )]
                 .into_iter()

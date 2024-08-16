@@ -315,12 +315,6 @@ pub struct CommentFormat {
     /// Flag to remove trailing dots from the comment content.
     #[serde(default = "default_bool::<false>")]
     pub remove_trailing_dots: bool,
-    /// List of strong words to highlight in the comment.
-    /// e.g. ["MUST", "SHOULD", "TODO", "FIXME"]
-    #[serde(default = "Vec::default")]
-    pub strong_words: Vec<String>,
-    /// Jinja expression to specify the style of the strong words.
-    pub strong_word_style: Option<String>,
 }
 
 impl Default for CaseConvention {
