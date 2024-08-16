@@ -39,6 +39,7 @@ pub(crate) fn add_filters(
 }
 
 /// Converts the input string into a string comment with a prefix.
+/// Note: This filter is deprecated, please use the `comment` filter instead.
 #[must_use]
 pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
     let mut comment = String::new();

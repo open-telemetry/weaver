@@ -15,16 +15,24 @@ groups:
           
           It can contain a list:
           * item **1**,
-          * item 2.
+          * lorem ipsum dolor sit amet, consectetur
+            adipiscing elit sed do eiusmod tempor
+            [incididunt](https://www.loremipsum.com) ut labore et dolore magna aliqua.
+          * item 2
+          * lorem ipsum dolor sit amet, consectetur
+            adipiscing elit sed do eiusmod tempor
+          incididunt ut labore et dolore magna aliqua.
           
           And an **inline code snippet**: `Attr.attr`.
           
           # Summary
           
-          ## Examples:
+          ## Examples
           1. Example 1
-          2. Example 2
-          3. Example 3      
+          1. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+             [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+          [labore](https://loremipsum.com) et dolore magna aliqua.
+          1. Example 3      
           
           ## Appendix
             * [Link 1](https://www.link1.com)
@@ -33,6 +41,8 @@ groups:
               tempor incididunt ut labore et dolore magna aliqua.
           
           > This is a blockquote.
-          > It can contain multiple lines.
+          It can contain multiple lines.
+          > Lorem ipsum dolor sit amet, consectetur adipiscing 
+          > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
           
           > [!NOTE] Something very important here

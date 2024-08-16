@@ -2,8 +2,7 @@ use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::error::Error::InvalidCodeSnippet;
 use crate::install_weaver_extensions;
-use markdown::mdast::Node;
-use markdown::Constructs;
+use markdown::mdast::{Delete, Emphasis, Node, Strong};
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -115,33 +114,7 @@ impl<'source> HtmlRenderer<'source> {
             });
         };
 
-        let md_options = markdown::ParseOptions {
-            constructs: Constructs {
-                attention: true,
-                autolink: true,
-                block_quote: true,
-                character_escape: true,
-                character_reference: true,
-                code_indented: true,
-                code_fenced: true,
-                code_text: true,
-                definition: true,
-                frontmatter: false,
-                hard_break_escape: true,
-                hard_break_trailing: true,
-                heading_atx: true,
-                heading_setext: true,
-                html_flow: true,
-                html_text: true,
-                label_start_image: true,
-                label_start_link: true,
-                label_end: true,
-                list_item: true,
-                thematic_break: true,
-                ..Constructs::default()
-            },
-            ..markdown::ParseOptions::default()
-        };
+        let md_options = markdown::ParseOptions::default();
         let md_node =
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
@@ -291,13 +264,6 @@ impl<'source> HtmlRenderer<'source> {
                 }
                 ctx.html.push_str("</blockquote>\n");
             }
-            Node::Toml(_) => {}
-            Node::Yaml(_) => {}
-            Node::Break(_) => {}
-            Node::Delete(_) => {}
-            Node::Emphasis(_) => {}
-            Node::Image(_) => {}
-            Node::ImageReference(_) => {}
             Node::Link(link) => {
                 ctx.html.push_str(&format!("<a href=\"{}\">", link.url));
                 for child in &link.children {
@@ -305,13 +271,26 @@ impl<'source> HtmlRenderer<'source> {
                 }
                 ctx.html.push_str("</a>");
             }
-            Node::LinkReference(_) => {}
-            Node::Strong(strong) => {
+            Node::Strong(Strong { children, .. }) => {
                 ctx.html.push_str("<strong>");
-                for child in &strong.children {
+                for child in children {
                     self.write_html_to(ctx, indent, child, format, options)?;
                 }
                 ctx.html.push_str("</strong>");
+            }
+            Node::Emphasis(Emphasis { children, .. }) => {
+                ctx.html.push_str("<em>");
+                for child in children {
+                    self.write_html_to(ctx, indent, child, format, options)?;
+                }
+                ctx.html.push_str("</em>");
+            }
+            Node::Delete(Delete { children, .. }) => {
+                ctx.html.push_str("<s>");
+                for child in children {
+                    self.write_html_to(ctx, indent, child, format, options)?;
+                }
+                ctx.html.push_str("</s>");
             }
             Node::Heading(heading) => {
                 ctx.html.push_str(&format!("<h{}>", heading.depth));
@@ -320,12 +299,27 @@ impl<'source> HtmlRenderer<'source> {
                 }
                 ctx.html.push_str(&format!("</h{}>\n", heading.depth));
             }
+            // Not supported markdown node types.
+            Node::Toml(_) => {}
+            Node::Yaml(_) => {}
+            Node::Break(_) => {}
+            Node::Image(_) => {}
+            Node::ImageReference(_) => {}
+            Node::LinkReference(_) => {}
             Node::Table(_) => {}
             Node::ThematicBreak(_) => {}
             Node::TableRow(_) => {}
             Node::TableCell(_) => {}
             Node::Definition(_) => {}
-            _ => { /* Unhandled node */ }
+            Node::FootnoteDefinition(_) => {}
+            Node::MdxJsxFlowElement(_) => {}
+            Node::MdxjsEsm(_) => {}
+            Node::InlineMath(_) => {}
+            Node::MdxTextExpression(_) => {}
+            Node::FootnoteReference(_) => {}
+            Node::MdxJsxTextElement(_) => {}
+            Node::Math(_) => {}
+            Node::MdxFlowExpression(_) => {}
         }
         Ok(())
     }

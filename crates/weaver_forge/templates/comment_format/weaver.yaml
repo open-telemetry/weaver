@@ -49,14 +49,14 @@ templates:
     filter: semconv_grouped_attributes
     application_mode: single
 
-  - template: "example.rs.j2"
-    filter: semconv_grouped_attributes
-    application_mode: single
-
   - template: "example.go.j2"
     filter: semconv_grouped_attributes
     application_mode: single
 
   - template: "example.py.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.rs.j2"
     filter: semconv_grouped_attributes
     application_mode: single

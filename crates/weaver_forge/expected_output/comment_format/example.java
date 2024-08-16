@@ -80,15 +80,23 @@
    * <p>
    * <ul>
    *   <li>item <strong>1</strong>,
-   *   <li>item 2.
+   *   <li>lorem ipsum dolor sit amet, consectetur
+   * adipiscing elit sed do eiusmod tempor
+   * <a href="https://www.loremipsum.com">incididunt</a> ut labore et dolore magna aliqua.
+   *   <li>item 2
+   *   <li>lorem ipsum dolor sit amet, consectetur
+   * adipiscing elit sed do eiusmod tempor
+   * incididunt ut labore et dolore magna aliqua.
    * </ul>
    * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
    * <p>
    * <h1>Summary</h1>
-   * <h2>Examples:</h2>
+   * <h2>Examples</h2>
    * <ol>
    *   <li>Example 1
-   *   <li>Example 2
+   *   <li><a href="https://loremipsum.com">Example</a> with lorem ipsum dolor sit amet, consectetur adipiscing elit
+   * <a href="https://loremipsum.com">sed</a> do eiusmod tempor incididunt ut
+   * <a href="https://loremipsum.com">labore</a> et dolore magna aliqua.
    *   <li>Example 3
    * </ol>
    * <h2>Appendix</h2>
@@ -100,7 +108,9 @@
    * </ul>
    * <blockquote>
    * This is a blockquote.
-   * It can contain multiple lines.</blockquote>
+   * It can contain multiple lines.
+   * Lorem ipsum dolor sit amet, consectetur adipiscing
+   * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
    * 
    * <p>
    * <blockquote>

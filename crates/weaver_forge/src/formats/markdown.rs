@@ -3,8 +3,7 @@
 use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::install_weaver_extensions;
-use markdown::mdast::Node;
-use markdown::Constructs;
+use markdown::mdast::{Delete, Emphasis, Node, Strong};
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -48,11 +47,67 @@ struct RenderContext {
     // The shortcut reference links.
     shortcut_reference_links: Vec<ShortcutReferenceLink>,
     // The rendering process traverses the AST tree in a depth-first manner.
-    // In certain circumstances, a newline should only be rendered if there is a
+    // In certain circumstances, newlines should only be rendered if there is a
     // node following the current one in the AST traversal. This field contains
-    // such a newline left by the previous node, which must be added by the current
-    // node during rendering, if it exists.
-    leftover_newline: Option<bool>,
+    // the number of such newlines left by the previous node, which must be added
+    // by the current node during rendering, if it exists.
+    leftover_newlines: usize,
+    // A line prefix to add in front of each new line.
+    line_prefix: String,
+    // Whether to skip the line prefix on the first line.
+    skip_line_prefix_on_first_line: bool,
+}
+
+impl RenderContext {
+    /// Return the number of leftover newlines and reset the count.
+    fn take_leftover_newlines(&mut self) -> usize {
+        let leftover_newlines = self.leftover_newlines;
+        self.leftover_newlines = 0;
+        leftover_newlines
+    }
+
+    /// Add the number of leftover newlines.
+    fn add_leftover_newlines(&mut self, count: usize) {
+        self.leftover_newlines += count;
+    }
+
+    /// Add a blank line if the current markdown buffer
+    /// does not end already with a double newline.
+    fn add_cond_blank_line(&mut self) {
+        if !self.markdown.ends_with("\n\n") && !self.markdown.is_empty() {
+            self.markdown.push('\n');
+        }
+    }
+
+    /// Set the line prefix to add in front of each new line.
+    fn set_line_prefix(&mut self, prefix: &str) {
+        self.line_prefix = prefix.to_owned();
+    }
+
+    /// Skip the line prefix on the first line.
+    fn skip_line_prefix_on_first_line(&mut self) {
+        self.skip_line_prefix_on_first_line = true;
+    }
+
+    /// Reset the line prefix.
+    fn reset_line_prefix(&mut self) {
+        self.line_prefix = "".to_owned();
+        self.skip_line_prefix_on_first_line = false;
+    }
+
+    /// Add text to the markdown buffer.
+    fn add_text(&mut self, text: &str) {
+        let lines = text.split('\n');
+        for (i, line) in lines.enumerate() {
+            if i > 0 {
+                self.markdown.push('\n');
+            }
+            if !self.line_prefix.is_empty() && (!self.skip_line_prefix_on_first_line || i > 0) {
+                self.markdown.push_str(self.line_prefix.as_str());
+            }
+            self.markdown.push_str(line);
+        }
+    }
 }
 
 impl MarkdownRenderer {
@@ -96,33 +151,7 @@ impl MarkdownRenderer {
             });
         };
 
-        let md_options = markdown::ParseOptions {
-            constructs: Constructs {
-                attention: true,
-                autolink: true,
-                block_quote: true,
-                character_escape: true,
-                character_reference: true,
-                code_indented: true,
-                code_fenced: true,
-                code_text: true,
-                definition: true,
-                frontmatter: false,
-                hard_break_escape: true,
-                hard_break_trailing: true,
-                heading_atx: true,
-                heading_setext: true,
-                html_flow: true,
-                html_text: true,
-                label_start_image: true,
-                label_start_link: true,
-                label_end: true,
-                list_item: true,
-                thematic_break: true,
-                ..Constructs::default()
-            },
-            ..markdown::ParseOptions::default()
-        };
+        let md_options = markdown::ParseOptions::default();
         let md_node =
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
@@ -149,11 +178,12 @@ impl MarkdownRenderer {
         md_node: &Node,
         options: &MarkdownRenderOptions,
     ) -> Result<(), Error> {
-        if let Some(true) = ctx.leftover_newline.take() {
-            // Add the newline left by the previous node only if the current node
+        let leftover_newlines = ctx.take_leftover_newlines();
+        if leftover_newlines > 0 {
+            // Add the newlines left by the previous node only if the current node
             // is not a list.
             if !matches!(md_node, Node::List(..)) {
-                ctx.markdown.push('\n');
+                ctx.markdown.push_str(&"\n".repeat(leftover_newlines));
             }
         }
         match md_node {
@@ -164,12 +194,13 @@ impl MarkdownRenderer {
             }
             Node::Text(text) => {
                 if options.escape_backslashes {
-                    ctx.markdown.push_str(&text.value.replace("\\", "\\\\"));
+                    ctx.add_text(&text.value.replace("\\", "\\\\"));
                 } else {
-                    ctx.markdown.push_str(&text.value);
+                    ctx.add_text(&text.value);
                 }
             }
             Node::Paragraph(p) => {
+                ctx.add_cond_blank_line();
                 for child in &p.children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
@@ -184,21 +215,26 @@ impl MarkdownRenderer {
                 };
                 ctx.markdown.push('\n');
                 for item in &list.children {
-                    if let Some(true) = ctx.leftover_newline.take() {
-                        ctx.markdown.push('\n');
+                    let leftover_newlines = ctx.take_leftover_newlines();
+                    if leftover_newlines > 0 {
+                        ctx.markdown.push_str(&"\n".repeat(leftover_newlines));
                     }
                     ctx.list_item_number += 1;
-                    if list.ordered {
-                        ctx.markdown
-                            .push_str(&format!("{}{}. ", indent, ctx.list_item_number));
+                    let line_prefix = if list.ordered {
+                        format!("{}{}. ", indent, ctx.list_item_number)
                     } else {
-                        ctx.markdown.push_str(&format!("{}- ", indent));
-                    }
+                        format!("{}- ", indent)
+                    };
+                    ctx.skip_line_prefix_on_first_line();
+                    ctx.set_line_prefix(" ".repeat(line_prefix.len()).as_str());
+                    ctx.markdown.push_str(&line_prefix);
                     Self::write_markdown_to(ctx, &indent, item, options)?;
-                    ctx.leftover_newline = Some(true);
+                    ctx.add_leftover_newlines(1);
                 }
                 ctx.list_level -= 1;
                 ctx.list_item_number = 0;
+                ctx.reset_line_prefix();
+                ctx.add_leftover_newlines(1);
             }
             Node::ListItem(item) => {
                 for child in &item.children {
@@ -231,19 +267,13 @@ impl MarkdownRenderer {
                 }
             },
             Node::BlockQuote(block_quote) => {
-                ctx.markdown.push('\n');
+                ctx.add_cond_blank_line();
+                ctx.set_line_prefix("> ");
                 for child in &block_quote.children {
-                    ctx.markdown.push_str(&format!("{}> ", indent));
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
+                ctx.reset_line_prefix();
             }
-            Node::Toml(_) => {}
-            Node::Yaml(_) => {}
-            Node::Break(_) => {}
-            Node::Delete(_) => {}
-            Node::Emphasis(_) => {}
-            Node::Image(_) => {}
-            Node::ImageReference(_) => {}
             Node::Link(link) => {
                 ctx.markdown.push('[');
                 let start = ctx.markdown.len();
@@ -260,16 +290,30 @@ impl MarkdownRenderer {
                     ctx.markdown.push_str(&format!("({})", link.url));
                 }
             }
-            Node::LinkReference(_) => {}
-            Node::Strong(strong) => {
+            Node::Strong(Strong { children, .. }) => {
                 ctx.markdown.push_str("**");
-                for child in &strong.children {
+                for child in children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
                 ctx.markdown.push_str("**");
             }
+            Node::Emphasis(Emphasis { children, .. }) => {
+                ctx.markdown.push('*');
+                for child in children {
+                    Self::write_markdown_to(ctx, indent, child, options)?;
+                }
+                ctx.markdown.push('*');
+            }
+            Node::Delete(Delete { children, .. }) => {
+                ctx.markdown.push_str("~~");
+                for child in children {
+                    Self::write_markdown_to(ctx, indent, child, options)?;
+                }
+                ctx.markdown.push_str("~~");
+            }
             Node::Heading(heading) => {
-                ctx.markdown.push('\n');
+                // Heading nodes must surrounded by newlines.
+                ctx.add_cond_blank_line();
                 ctx.markdown.push_str(&format!(
                     "{}{} ",
                     indent,
@@ -278,13 +322,30 @@ impl MarkdownRenderer {
                 for child in &heading.children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
+                ctx.markdown.push('\n');
+                ctx.add_leftover_newlines(1);
             }
+            // Not supported markdown node types.
+            Node::Toml(_) => {}
+            Node::Yaml(_) => {}
+            Node::Break(_) => {}
+            Node::Image(_) => {}
+            Node::ImageReference(_) => {}
+            Node::LinkReference(_) => {}
             Node::Table(_) => {}
             Node::ThematicBreak(_) => {}
             Node::TableRow(_) => {}
             Node::TableCell(_) => {}
             Node::Definition(_) => {}
-            _ => { /* Unhandled node */ }
+            Node::FootnoteDefinition(_) => {}
+            Node::MdxJsxFlowElement(_) => {}
+            Node::MdxjsEsm(_) => {}
+            Node::InlineMath(_) => {}
+            Node::MdxTextExpression(_) => {}
+            Node::FootnoteReference(_) => {}
+            Node::MdxJsxTextElement(_) => {}
+            Node::Math(_) => {}
+            Node::MdxFlowExpression(_) => {}
         }
         Ok(())
     }
@@ -297,7 +358,7 @@ mod tests {
     use crate::formats::markdown::{MarkdownRenderOptions, MarkdownRenderer};
 
     #[test]
-    fn test_html_renderer() -> Result<(), Error> {
+    fn test_markdown_renderer() -> Result<(), Error> {
         let config = WeaverConfig {
             comment_formats: Some(
                 vec![(
@@ -349,6 +410,7 @@ An example can be found in
 [OCI Image Manifest Specification],
 and specifically the
 [Digest property].
+
 An example can be found in
 [Example Image Manifest].
 
@@ -380,14 +442,19 @@ it's RECOMMENDED to:
         assert_eq!(
             html,
             r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
+
 When `error.type` is set to a type (e.g., an exception type), its
 canonical class name identifying the type within the artifact SHOULD be used.
+
 Instrumentations SHOULD document the list of errors they report.
+
 The cardinality of `error.type` within one instrumentation library SHOULD be low.
 Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
 should be prepared for `error.type` to have high cardinality at query time when no
 additional filters are applied.
+
 If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
 If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
 it's RECOMMENDED to:
 

@@ -1,6 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Weaver Configuration Definition (i.e. structure of the `weaver.yaml` files).
+//! # Weaver Configuration (weaver.yaml)
+//!
+//! This module defines the `WeaverConfig` structure, which is used to represent and manage the
+//! configuration for the Weaver CLI. The configuration is primarily sourced from `weaver.yaml`
+//! files, which can be found in various directories, including the user's home directory. This
+//! structure supports loading, merging, and overriding configurations from multiple files. The
+//! configuration options include text mappings, template settings, whitespace control, comment
+//! settings, and more.
+//!
+//! ## Configuration Resolution
+//!
+//! Configurations are loaded and merged in the following order of precedence:
+//!
+//! 1. The `<path>/weaver.yaml` file
+//! 2. Any `weaver.yaml` files found in parent directories of the specified path
+//! 3. The `$HOME/.weaver/weaver.yaml` file
+//!
+//! Note: (1) overrides (2), which overrides (3)
 
 #![allow(rustdoc::invalid_html_tags)]
 
@@ -30,19 +47,22 @@ pub struct WeaverConfig {
     /// Type mapping for target specific types (OTel types -> Target language types).
     /// Deprecated: Use `text_maps` instead.
     pub(crate) type_mapping: Option<HashMap<String, String>>,
-    /// Configuration of the `text_map` filter.
+    /// Configuration of the `text_map` filter. This maps specific terms or phrases
+    /// from one context to another, typically used in code generation.
     pub(crate) text_maps: Option<HashMap<String, HashMap<String, String>>>,
-    /// Configuration for the template syntax.
+    /// Configuration for the template syntax, allowing for the
+    /// definition of custom block and variable delimiters.
     #[serde(default)]
     pub(crate) template_syntax: TemplateSyntax,
-    /// Configuration for the whitespace behavior on the template engine.
+    /// Configuration controlling whitespace behavior in template rendering.
     #[serde(default)]
     pub(crate) whitespace_control: WhitespaceControl,
 
-    /// Configuration for the comment formats.
+    /// Configuration for comment formatting across various languages or styles.
     #[serde(default)]
     pub(crate) comment_formats: Option<HashMap<String, CommentFormat>>,
-    /// Default comment format used by the comment filter.
+    /// The default format to use for comments if none is specified in the `comment`
+    /// filter.
     pub(crate) default_comment_format: Option<String>,
 
     /// Parameters for the templates.
@@ -438,11 +458,12 @@ impl WeaverConfig {
     /// This method can fail if any of the configuration content is not a valid YAML file or if the
     /// configuration content can't be deserialized into a `WeaverConfig` struct.
     fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
-        // The default configuration is used as a base for the resolution.
-        let mut config = WeaverConfig::default();
         if configs.is_empty() {
             return Ok(WeaverConfig::default());
         }
+
+        // The default configuration is used as a base for the resolution.
+        let mut config = WeaverConfig::default();
 
         // Each configuration is loaded and merged into the current configuration.
         for conf in configs {
