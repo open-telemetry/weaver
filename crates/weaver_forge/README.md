@@ -838,7 +838,7 @@ The `comment` filter accepts the following optional parameters:
 - **`footer`**: A custom footer for the comment block.
 - **`indent`**: Number of spaces to add before each comment line for indentation purposes.
 
-> [!NOTE] Please open an issue if you have any suggestions for new formats or features.
+> Please open an issue if you have any suggestions for new formats or features.
 
 ### Jinja Functions Reference
 
