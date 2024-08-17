@@ -639,9 +639,9 @@ The input of the `comment` filter can also be a sequence.
 {{ [attr.brief, "\n", attr.note] | comment(indent=2) }}
 ```
 
-This will produce a formatted comment with the `brief` and `note` attributes separated
+This will produce a formatted comment with the `brief` and `note` fields separated
 by a newline. If the `note` field is not defined, the comment will contain only the
-formatted `brief` attribute.
+formatted `brief` field.
 
 Given the following semconv attribute definition:
 
@@ -838,9 +838,7 @@ The `comment` filter accepts the following optional parameters:
 - **`footer`**: A custom footer for the comment block.
 - **`indent`**: Number of spaces to add before each comment line for indentation purposes.
 
-This configuration and filter are designed to be easily extendable, allowing support
-for additional formats and languages as needed. Please open an issue if you have any
-suggestions for new formats or features.
+> [!NOTE] Please open an issue if you have any suggestions for new formats or features.
 
 ### Jinja Functions Reference
 
