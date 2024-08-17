@@ -13,6 +13,14 @@ whitespace_control:
   trim_blocks: true
   lstrip_blocks: true
 
+comment_formats:
+  rust:
+    format: markdown
+    prefix: "/// "
+    trim: true
+    remove_trailing_dots: true
+default_comment_format: rust
+
 templates:
   - template: README.md
     filter: .

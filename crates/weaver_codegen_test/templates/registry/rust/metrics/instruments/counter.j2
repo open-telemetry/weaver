@@ -1,7 +1,5 @@
 {% import 'attribute_macros.j2' as attribute_macros %}
-{% if metric.brief %}
-{{ metric.brief | comment_with_prefix("/// ") }}
-{% endif %}
+{{ metric.brief | comment }}
 {% if metric is experimental %}
 #[cfg(feature = "semconv_experimental")]
 {% endif %}
@@ -26,7 +24,8 @@ pub struct {{ metric.metric_name | pascal_case }}<T>(opentelemetry::metrics::Cou
 #[derive(Debug, Clone)]
 pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
     {% for attribute in required_attributes | attribute_sort %}
-    {{- attribute_macros.comments(attribute, "    ///") }}
+    {{ [attribute.brief, "\n", attribute.note] | comment(indent=4) }}
+    {{- attribute_macros.comment_examples(attribute, "    ///") }}
         {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }},
         {%- else %}
@@ -41,7 +40,8 @@ pub struct {{ metric.metric_name | pascal_case }}ReqAttributes {
 #[derive(Debug, Clone, Default)]
 pub struct {{ metric.metric_name | pascal_case }}OptAttributes {
     {% for attribute in not_required_attributes | attribute_sort %}
-{{ attribute_macros.comments(attribute, "    ///") }}
+    {{ [attribute.brief, "\n", attribute.note] | comment(indent=4) }}
+{{ attribute_macros.comment_examples(attribute, "    ///") }}
         {%- if attribute.type.members is defined %}
     pub {{ attribute.name | snake_case }}: Option<crate::attributes::{{ attribute.name | attribute_namespace }}::{{ attribute.name | pascal_case }}>,
         {%- else %}
