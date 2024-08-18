@@ -54,7 +54,8 @@ comment_formats:           # optional
     escape_backslashes: <bool>            # Whether to escape backslashes in the markdown (default: false).
     shortcut_reference_links: <bool>      # Use this to convert inlined links into shortcut reference links, similar to those in Go documentation (default: false).
     indent_first_level_list_items: <bool> # Whether to indent the first level of list items in the markdown (default: false).
-  
+    default_block_code_language: <string> # The default language for block code snippets (default: "").
+    
     # The following fields are enabled only when format is set to 'html'
     old_style_paragraph: <bool>       # Use old-style HTML paragraphs, i.e. single <p> tag (default: false)
     omit_closing_li: <bool>           # Omit closing </li> tags in lists (default: false)

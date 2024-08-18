@@ -9,6 +9,7 @@ comment_formats:
     prefix: "/// "
     trim: true
     remove_trailing_dots: true
+    default_block_code_language: "ignore"
   javadoc:
     format: html
     header: "/**"

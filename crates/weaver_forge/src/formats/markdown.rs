@@ -25,6 +25,9 @@ pub struct MarkdownRenderOptions {
     /// Default is false.
     #[serde(default)]
     pub(crate) shortcut_reference_link: bool,
+    /// The default language for code blocks.
+    /// Default is None.
+    pub(crate) default_block_code_language: Option<String>,
 }
 
 pub(crate) struct ShortcutReferenceLink {
@@ -256,16 +259,18 @@ impl MarkdownRenderer {
             Node::InlineCode(code) => {
                 ctx.markdown.push_str(&format!("`{}`", code.value));
             }
-            Node::Code(code) => match &code.lang {
-                Some(lang) => {
-                    ctx.markdown
-                        .push_str(&format!("```{}\n{}\n```\n", lang, code.value));
-                }
-                None => {
-                    ctx.markdown
-                        .push_str(&format!("```\n{}\n```\n", code.value));
-                }
-            },
+            Node::Code(code) => {
+                // If the language is not specified, use the default language and if no default
+                // language is specified, use an empty string.
+                let lang = code
+                    .lang
+                    .as_deref()
+                    .or(options.default_block_code_language.as_deref())
+                    .unwrap_or("");
+
+                ctx.markdown
+                    .push_str(&format!("```{}\n{}\n```\n", lang, code.value));
+            }
             Node::BlockQuote(block_quote) => {
                 ctx.add_cond_blank_line();
                 ctx.set_line_prefix("> ");
@@ -371,6 +376,7 @@ mod tests {
                             escape_backslashes: false,
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
+                            default_block_code_language: None,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
