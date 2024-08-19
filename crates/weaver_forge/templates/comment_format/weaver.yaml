@@ -1,0 +1,63 @@
+# Whitespace control settings to simplify the definition of templates
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+comment_formats:
+  rust:
+    format: markdown
+    prefix: "/// "
+    trim: true
+    remove_trailing_dots: true
+    default_block_code_language: "ignore"
+  javadoc:
+    format: html
+    header: "/**"
+    prefix: " * "
+    footer: " */"
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+  java:
+    format: html
+    prefix: "// "
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+  go:
+    format: markdown
+    prefix: "// "
+    indent_first_level_list_items: true
+    shortcut_reference_link: true
+    trim: true
+    remove_trailing_dots: true
+  python:
+    format: markdown
+    header: '"""'
+    footer: '"""'
+    escape_backslashes: true
+    trim: true
+    remove_trailing_dots: true
+
+templates:
+  - template: "example.java.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.go.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.py.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single
+
+  - template: "example.rs.j2"
+    filter: semconv_grouped_attributes
+    application_mode: single

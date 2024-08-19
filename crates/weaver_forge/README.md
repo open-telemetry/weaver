@@ -486,7 +486,8 @@ The following filters are available:
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the
   `weaver.yaml` configuration file.
 - `split_id`: Splits a string by '.' creating a list of nested ids.
-- `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix.
+- `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix. This filter is deprecated, please use the more general `comment` filter.
+- `comment`: A generic comment formatter that uses the `comment_formats` section of the `weaver.yaml` configuration file (more details [here](#comment-filter)).
 - `flatten`: Converts a List of Lists into a single list with all elements.  
   e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_sort`: Sorts a list of `Attribute`s by requirement level, then name.
@@ -550,13 +551,312 @@ The following filters are available:
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
+### Comment Filter
+
+The `comment` filter is a flexible and powerful tool designed to format comments in a
+consistent way across various templates. It leverages the `comment_formats` section in
+the `weaver.yaml` configuration file to define the formatting rules. Currently, the
+filter supports two primary formats: `markdown` and `html`, each with specific
+configuration options.
+
+The `comment_formats` section in `weaver.yaml` allows you to define the behavior of
+the `comment` filter. This section is optional and highly customizable. Below is a
+general configuration template:
+
+```yaml
+# weaver.yaml
+...
+comment_formats:           # optional
+  <format-name>:
+    format: markdown|html
+
+    # Common fields for both markdown and html formats
+    header: <string>                  # The comment header line (e.g., `/**`)
+    prefix: <string>                  # The comment line prefix (e.g., ` * `)
+    footer: <string>                  # The comment line footer (e.g., ` */`)
+    trim: <bool>                      # Flag to trim the comment content (default: true). 
+    remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
+
+    # Fields specific to 'markdown' format
+    escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).
+    shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
+    indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
+    default_block_code_language: <string> # Default language for block code snippets (default: "").
+    
+    # Fields specific to 'html' format
+    old_style_paragraph: <bool>       # Use old-style HTML paragraphs (default: false).
+    omit_closing_li: <bool>           # Omit closing </li> tags in lists (default: false).
+    inline_code_snippet: <jinja-expr> # Jinja expression to render inline code (default: "<c>{{code}}</c>").
+    block_code_snippet: <jinja-expr>  # Jinja expression to render block code (default: "<pre>\n{{code}}\n</pre>").
+  <other-format-name>:
+    ...
+default_comment_format: <format-name>
+...
+```
+
+Here’s an example configuration for generating comments in Java:
+
+```yaml
+# Example of configuration for Java
+comment_formats:
+  javadoc:
+    format: html
+    header: "/**"
+    prefix: " * "
+    footer: " */"
+    old_style_paragraph: true
+    omit_closing_li: false
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+  java:
+    format: html
+    prefix: "// "
+    old_style_paragraph: true
+    omit_closing_li: false
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+default_comment_format: javadoc
+```
+
+To generate a comment using the `comment` filter, simply pass the content through the
+filter with the desired configuration. For example:
+
+```jinja
+{{ attr.note | comment(indent=2) }}
+```
+
+This will produce a formatted comment based on the `javadoc` configuration from the
+example above.
+
+> Note: If the input is undefined, the filter will not fail and will produce no output.
+
+The input of the `comment` filter can also be a sequence.
+
+```jinja
+{{ [attr.brief, "\n", attr.note] | comment(indent=2) }}
+```
+
+This will produce a formatted comment with the `brief` and `note` fields separated
+by a newline. If the `note` field is not defined, the comment will contain only the
+formatted `brief` field.
+
+Given the following semconv attribute definition:
+
+```yaml
+id: attr
+stability: stable
+brief: >
+  This is a brief description of the attribute + a short link [OTEL](https://www.opentelemetry.com).
+type: int
+note: |
+  This is a note about the attribute `attr`. It can be multiline.
+  
+  It can contain a list:
+  * item **1**,
+  * lorem ipsum dolor sit amet, consectetur
+    adipiscing elit sed do eiusmod tempor
+    [incididunt](https://www.loremipsum.com) ut labore et dolore magna aliqua.
+  * item 2
+  * lorem ipsum dolor sit amet, consectetur
+    adipiscing elit sed do eiusmod tempor
+  incididunt ut labore et dolore magna aliqua.
+  
+  And an **inline code snippet**: `Attr.attr`.
+  
+  # Summary
+  
+  ## Examples
+  1. Example 1
+  1. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+     [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+  [labore](https://loremipsum.com) et dolore magna aliqua.
+  1. Example 3      
+  
+  ## Appendix
+    * [Link 1](https://www.link1.com)
+    * [Link 2](https://www.link2.com)
+    * A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+      tempor incididunt ut labore et dolore magna aliqua.
+  
+  > This is a blockquote.
+  It can contain multiple lines.
+  > Lorem ipsum dolor sit amet, consectetur adipiscing 
+  > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+  
+  > [!NOTE] Something very important here
+```
+
+The following `weaver.yaml` configuration:
+
+```yaml
+comment_formats:
+  javadoc:
+    format: html
+    header: "/**"
+    prefix: " * "
+    footer: " */"
+    old_style_paragraph: true
+    omit_closing_li: true
+    inline_code_snippet: "{@code {{code}}}"
+    block_code_snippet: "<pre>{@code {{code}}}</pre>"
+    trim: true
+    remove_trailing_dots: true
+  go:
+    format: markdown
+    prefix: "// "
+    indent_first_level_list_items: true
+    shortcut_reference_link: true
+    trim: true
+    remove_trailing_dots: true
+default_comment_format: javadoc
+```
+
+The following Jinja template:
+
+```jinja
+{{ [attr.brief], "\n", [attr.note] | comment(indent=2) }}
+```
+
+The resulting comment in JavaDoc format would be:
+
+```java
+  /**
+   * This is a brief description of the attribute + a short link <a href="https://www.opentelemetry.com">OTEL</a>.
+   * <p>
+   * This is a note about the attribute {@code attr}. It can be multiline.
+   * <p>
+   * It can contain a list:
+   * <p>
+   * <ul>
+   *   <li>item <strong>1</strong>,
+   *   <li>lorem ipsum dolor sit amet, consectetur
+   * adipiscing elit sed do eiusmod tempor
+   * <a href="https://www.loremipsum.com">incididunt</a> ut labore et dolore magna aliqua.
+   *   <li>item 2
+   *   <li>lorem ipsum dolor sit amet, consectetur
+   * adipiscing elit sed do eiusmod tempor
+   * incididunt ut labore et dolore magna aliqua.
+   * </ul>
+   * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
+   * <p>
+   * <h1>Summary</h1>
+   * <h2>Examples</h2>
+   * <ol>
+   *   <li>Example 1
+   *   <li><a href="https://loremipsum.com">Example</a> with lorem ipsum dolor sit amet, consectetur adipiscing elit
+   * <a href="https://loremipsum.com">sed</a> do eiusmod tempor incididunt ut
+   * <a href="https://loremipsum.com">labore</a> et dolore magna aliqua.
+   *   <li>Example 3
+   * </ol>
+   * <h2>Appendix</h2>
+   * <ul>
+   *   <li><a href="https://www.link1.com">Link 1</a>
+   *   <li><a href="https://www.link2.com">Link 2</a>
+   *   <li>A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+   * tempor incididunt ut labore et dolore magna aliqua.
+   * </ul>
+   * <blockquote>
+   * This is a blockquote.
+   * It can contain multiple lines.
+   * Lorem ipsum dolor sit amet, consectetur adipiscing
+   * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
+   * 
+   * <p>
+   * <blockquote>
+   * [!NOTE] Something very important here</blockquote>
+   */
+```
+
+And if you specifies the `go` format in the `comment` filter:
+
+```jinja
+{{ [attr.name | screaming_snake_case, attr.brief, "\n", attr.note] | comment(format="go", indent=2) }}
+```
+
+The generated Go documentation would be:
+
+```go
+  // ATTR
+  // This is a brief description of the attribute + a short link [OTEL].
+  // 
+  // This is a note about the attribute `attr`. It can be multiline.
+  // 
+  // It can contain a list:
+  // 
+  //   - item **1**,
+  //   - lorem ipsum dolor sit amet, consectetur
+  //     adipiscing elit sed do eiusmod tempor
+  //     [incididunt] ut labore et dolore magna aliqua.
+  //   - item 2
+  //   - lorem ipsum dolor sit amet, consectetur
+  //     adipiscing elit sed do eiusmod tempor
+  //     incididunt ut labore et dolore magna aliqua.
+  // 
+  // And an **inline code snippet**: `Attr.attr`.
+  // 
+  // # Summary
+  // 
+  // ## Examples
+  // 
+  //   1. Example 1
+  //   2. [Example] with lorem ipsum dolor sit amet, consectetur adipiscing elit
+  //      [sed] do eiusmod tempor incididunt ut
+  //      [labore] et dolore magna aliqua.
+  //   3. Example 3
+  // 
+  // ## Appendix
+  // 
+  //   - [Link 1]
+  //   - [Link 2]
+  //   - A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+  //     tempor incididunt ut labore et dolore magna aliqua.
+  // 
+  // > This is a blockquote.
+  // > It can contain multiple lines.
+  // > Lorem ipsum dolor sit amet, consectetur adipiscing
+  // > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+  // 
+  // > [!NOTE] Something very important here
+  // 
+  // [OTEL]: https://www.opentelemetry.com
+  // [incididunt]: https://www.loremipsum.com
+  // [Example]: https://loremipsum.com
+  // [sed]: https://loremipsum.com
+  // [labore]: https://loremipsum.com
+  // [Link 1]: https://www.link1.com
+  // [Link 2]: https://www.link2.com
+```
+
+The `comment` filter accepts the following optional parameters:
+
+- **`format`**: A valid ID from the `comment_formats` configuration map.
+- **`header`**: A custom header for the comment block.
+- **`prefix`**: A custom prefix for each comment line.
+- **`footer`**: A custom footer for the comment block.
+- **`indent`**: Number of spaces to add before each comment line for indentation purposes.
+
+> Please open an issue if you have any suggestions for new formats or features.
+
 ### Jinja Functions Reference
 
 All the functions available in the MiniJinja template engine are available (see  
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
-Right now, OTel Weaver does not provide any custom functions but feel free to  
-open an issue if you have any suggestions. They are easy to implement.
+In addition, OTel Weaver provides the following custom function:
+
+- `concat_if`: Concatenates two or more values (after converting them to strings)
+  if all these values are defined. If any of the values are undefined, the function
+  returns an "undefined" value. This function can be used, for example, to define
+  complex multi-section comments. It can accept any number of arguments. The following
+  Jinja expression creates a comment with a brief description and an optional note
+  prefixed with "Notes: ". If the attribute note is not defined then the comment will
+  only contain the brief description without the prefix "Notes: ".
+
+  `{{ [attr.brief, concat_if("\n\nNotes: ", attr.note) | comment }}`
 
 ### Jinja Tests Reference
 

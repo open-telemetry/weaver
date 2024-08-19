@@ -1,0 +1,10 @@
+{% for attributes_root_namespace in ctx %}
+{{ ("Examples of comments for group " ~ attributes_root_namespace.root_namespace) | comment(format="java") }}
+
+    {% for attr in attributes_root_namespace.attributes %}
+  {{ [attr.brief, "\n", attr.note] | comment(format="javadoc", indent=2) }}
+  static {{ attr.name | screaming_snake_case }} = "";
+
+    {% endfor %}
+
+{% endfor %}

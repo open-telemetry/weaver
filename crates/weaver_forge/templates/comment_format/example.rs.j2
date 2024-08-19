@@ -1,0 +1,10 @@
+{% for attributes_root_namespace in ctx %}
+{{ ("Examples of comments for group " ~ attributes_root_namespace.root_namespace) | comment(format="rust", prefix="//! ") }}
+
+    {% for attr in attributes_root_namespace.attributes %}
+  {{ [attr.brief, concat_if("\n\nNotes: ", attr.note), concat_if("\n\nUnknown: ", attr.unknown)] | comment(format="rust", indent=2) }}
+  const {{ attr.name | screaming_snake_case }}: &str = "";
+
+    {% endfor %}
+
+{% endfor %}

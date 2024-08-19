@@ -40,6 +40,7 @@ pub mod error;
 pub mod extensions;
 pub mod file_loader;
 mod filter;
+mod formats;
 pub mod registry;
 
 /// Name of the Weaver configuration file.
@@ -669,11 +670,7 @@ impl TemplateEngine {
         env.set_lstrip_blocks(whitespace_control.lstrip_blocks.unwrap_or_default());
         env.set_keep_trailing_newline(whitespace_control.keep_trailing_newline.unwrap_or_default());
 
-        code::add_filters(&mut env, &self.target_config);
-        ansi::add_filters(&mut env);
-        case::add_filters(&mut env, &self.target_config);
-        otel::add_tests_and_filters(&mut env);
-        util::add_filters(&mut env, &self.target_config);
+        install_weaver_extensions(&mut env, &self.target_config, true)?;
 
         Ok(env)
     }
@@ -707,6 +704,23 @@ impl TemplateEngine {
     }
 }
 
+/// Install all the Weaver extensions into the Jinja environment.
+/// This includes the filters, functions, and tests.
+pub(crate) fn install_weaver_extensions(
+    env: &mut Environment<'_>,
+    config: &WeaverConfig,
+    comment_flag: bool,
+) -> Result<(), Error> {
+    code::add_filters(env, config, comment_flag)?;
+    ansi::add_filters(env);
+    case::add_filters(env);
+    otel::add_filters(env);
+    util::add_filters(env, config);
+    util::add_functions(env);
+    otel::add_tests(env);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -737,15 +751,30 @@ mod tests {
         PathBuf,
         PathBuf,
     ) {
+        let registry_id = "default";
+        let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .expect("Failed to load registry");
+        prepare_test_with_registry(target, cli_params, registry_id, registry)
+    }
+
+    fn prepare_test_with_registry(
+        target: &str,
+        cli_params: Params,
+        registry_id: &str,
+        mut registry: SemConvRegistry,
+    ) -> (
+        TestLogger,
+        TemplateEngine,
+        ResolvedRegistry,
+        PathBuf,
+        PathBuf,
+    ) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
         let mut engine = TemplateEngine::new(config, loader, cli_params);
         engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
-        let registry_id = "default";
-        let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
-            .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
@@ -1032,6 +1061,32 @@ mod tests {
         ]);
         let (logger, engine, template_registry, observed_output, expected_output) =
             prepare_test("template_params", cli_params);
+
+        engine
+            .generate(
+                logger.clone(),
+                &template_registry,
+                observed_output.as_path(),
+                &OutputDirective::File,
+            )
+            .inspect_err(|e| {
+                print_dedup_errors(logger.clone(), e.clone());
+            })
+            .expect("Failed to generate registry assets");
+
+        assert!(diff_dir(expected_output, observed_output).unwrap());
+    }
+
+    #[test]
+    fn test_comment_format() {
+        let registry_id = "default";
+        let registry = SemConvRegistry::try_from_path_pattern(
+            registry_id,
+            "data/mini_registry_for_comments/*.yaml",
+        )
+        .expect("Failed to load registry");
+        let (logger, engine, template_registry, observed_output, expected_output) =
+            prepare_test_with_registry("comment_format", Params::default(), registry_id, registry);
 
         engine
             .generate(

@@ -3,6 +3,7 @@
 //! Set of utility filters and tests used by the Weaver project.
 
 use crate::config::WeaverConfig;
+use minijinja::value::Rest;
 use minijinja::{Environment, ErrorKind, Value};
 use regex::Regex;
 use std::collections::HashMap;
@@ -16,6 +17,24 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
     );
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
+}
+
+/// Add utility functions to the environment.
+pub(crate) fn add_functions(env: &mut Environment<'_>) {
+    env.add_function("concat_if", concat_if);
+}
+
+/// Concatenate a list of values into a single string IF all values are defined.
+/// If any value is undefined, the filter will return an undefined value.
+fn concat_if(args: Rest<Value>) -> Value {
+    let mut result = String::new();
+    for arg in args.iter() {
+        if arg.is_undefined() {
+            return Value::default();
+        }
+        result.push_str(arg.to_string().as_str());
+    }
+    Value::from(result)
 }
 
 // Helper filter to work around lack of `list.append()` support in minijinja.

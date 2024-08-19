@@ -15,8 +15,8 @@ use crate::extensions::case::{
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
 
-/// Add OpenTelemetry specific tests and filters to the environment.
-pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
+/// Add OpenTelemetry specific filters to the environment.
+pub(crate) fn add_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("attribute_namespace", attribute_namespace);
     env.add_filter("attribute_registry_namespace", attribute_registry_namespace);
     env.add_filter("attribute_registry_title", attribute_registry_title);
@@ -33,7 +33,10 @@ pub(crate) fn add_tests_and_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("snake_case_const", snake_case_const);
     env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
     env.add_filter("print_member_value", print_member_value);
+}
 
+/// Add OpenTelemetry specific tests to the environment.
+pub(crate) fn add_tests(env: &mut minijinja::Environment<'_>) {
     env.add_test("stable", is_stable);
     env.add_test("experimental", is_experimental);
     env.add_test("deprecated", is_deprecated);
@@ -459,17 +462,17 @@ mod tests {
     use minijinja::{Environment, Value};
     use serde::Serialize;
 
+    use crate::extensions::otel;
+    use crate::extensions::otel::{
+        attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
+        attribute_sort, is_deprecated, is_experimental, is_stable, metric_namespace,
+        print_member_value,
+    };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
     use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
-
-    use crate::extensions::otel::{
-        add_tests_and_filters, attribute_registry_file, attribute_registry_namespace,
-        attribute_registry_title, attribute_sort, is_deprecated, is_experimental, is_stable,
-        metric_namespace, print_member_value,
-    };
 
     #[derive(Debug)]
     struct DynAttr {
@@ -946,7 +949,8 @@ mod tests {
 
         let mut env = Environment::new();
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             eval(
@@ -1123,7 +1127,8 @@ mod tests {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             env.render_str(
@@ -1156,7 +1161,8 @@ mod tests {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             env.render_str(
@@ -1208,7 +1214,8 @@ mod tests {
             prefix: false,
         };
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             env.render_str(
@@ -1235,7 +1242,8 @@ mod tests {
             prefix: false,
         };
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             env.render_str(
@@ -1273,7 +1281,8 @@ mod tests {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             env.render_str(
@@ -1355,7 +1364,8 @@ mod tests {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
 
-        add_tests_and_filters(&mut env);
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
         assert_eq!(
             env.render_str("{{ 1 | print_member_value }}", &ctx)

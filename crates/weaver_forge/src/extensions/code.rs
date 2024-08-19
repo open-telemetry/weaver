@@ -2,13 +2,25 @@
 
 //! Set of filters used to facilitate the generation of code.
 
+use crate::config::{RenderFormat, WeaverConfig};
+use crate::error::Error;
+use crate::formats::html::HtmlRenderer;
+use crate::formats::markdown::MarkdownRenderer;
+use minijinja::value::{Kwargs, ValueKind};
+use minijinja::{Environment, ErrorKind, Value};
 use std::collections::HashMap;
 
-use crate::config::WeaverConfig;
-use minijinja::{Environment, Value};
-
 /// Add code-oriented filters to the environment.
-pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) {
+///
+/// Arguments:
+/// * `env` - The environment to add the filters to.
+/// * `config` - The configuration to use for the filters.
+/// * `comment_flag` - Whether to add comment filters.
+pub(crate) fn add_filters(
+    env: &mut Environment<'_>,
+    config: &WeaverConfig,
+    comment_flag: bool,
+) -> Result<(), Error> {
     env.add_filter(
         "type_mapping",
         type_mapping(config.type_mapping.clone().unwrap_or_default()),
@@ -17,11 +29,17 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, config: &WeaverConfig) {
         "map_text",
         map_text(config.text_maps.clone().unwrap_or_default()),
     );
+    if comment_flag {
+        env.add_filter("comment", comment(config)?);
+    }
+    // This filter is deprecated
     env.add_filter("comment_with_prefix", comment_with_prefix);
     env.add_filter("markdown_to_html", markdown_to_html);
+    Ok(())
 }
 
 /// Converts the input string into a string comment with a prefix.
+/// Note: This filter is deprecated, please use the `comment` filter instead.
 #[must_use]
 pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
     let mut comment = String::new();
@@ -33,6 +51,127 @@ pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
         comment.push_str(&format!("{}{}", prefix, line));
     }
     comment
+}
+
+/// Generic comment filter reading its configuration from the `weaver.yaml` file.
+pub(crate) fn comment(
+    config: &WeaverConfig,
+) -> Result<impl Fn(&Value, Kwargs) -> Result<String, minijinja::Error>, Error> {
+    let default_comment_format = config
+        .default_comment_format
+        .clone()
+        .unwrap_or("default".to_owned());
+    let markdown_snippet_renderer = MarkdownRenderer::try_new(config)?;
+    let html_snippet_renderer = HtmlRenderer::try_new(config)?;
+    let config = config.clone();
+
+    Ok(
+        move |input: &Value, args: Kwargs| -> Result<String, minijinja::Error> {
+            // The `comment` filter doesn't fail on undefined inputs.
+            // This eliminates the need to check for undefined values in the templates.
+            if input.kind() == ValueKind::Undefined {
+                return Ok("".to_owned());
+            }
+
+            // Get the comment format from the arguments or use the default format
+            // defined in the configuration.
+            let comment_format_name = args
+                .get("format")
+                .map(|v: String| v)
+                .unwrap_or(default_comment_format.clone());
+            let comment_format = config
+                .comment_formats
+                .as_ref()
+                .and_then(|comment_formats| comment_formats.get(&comment_format_name).cloned())
+                .unwrap_or_default();
+
+            // If the input is an iterable (i.e. an array), join the values with a newline.
+            let mut comment = if input.kind() == ValueKind::Seq {
+                if let Ok(input_values) = input.try_iter() {
+                    input_values
+                        .map(|v| v.to_string())
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                } else {
+                    input.to_string()
+                }
+            } else {
+                input.to_string()
+            };
+
+            if comment_format.trim {
+                comment = comment.trim().to_owned();
+            }
+            if comment_format.remove_trailing_dots {
+                comment = comment.trim_end_matches('.').to_owned();
+            }
+            comment = match &comment_format.format {
+                RenderFormat::Markdown(..) => markdown_snippet_renderer
+                    .render(&comment, &comment_format_name)
+                    .map_err(|e| {
+                        minijinja::Error::new(
+                            ErrorKind::InvalidOperation,
+                            format!(
+                                "Comment Markdown rendering failed for format '{}': {}",
+                                default_comment_format, e
+                            ),
+                        )
+                    })?,
+                RenderFormat::Html(..) => html_snippet_renderer
+                    .render(&comment, &comment_format_name)
+                    .map_err(|e| {
+                        minijinja::Error::new(
+                            ErrorKind::InvalidOperation,
+                            format!(
+                                "Comment HTML rendering failed for format '{}': {}",
+                                default_comment_format, e
+                            ),
+                        )
+                    })?,
+            };
+            let indent = " ".repeat(args.get("indent").map(|v: usize| v).unwrap_or(0));
+
+            let header = args
+                .get("header")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.header.clone().unwrap_or("".to_owned()));
+            let prefix = args
+                .get("prefix")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.prefix.clone().unwrap_or("".to_owned()));
+            let footer = args
+                .get("footer")
+                .map(|v: String| v)
+                .unwrap_or_else(|_| comment_format.footer.clone().unwrap_or("".to_owned()));
+
+            let mut new_comment = String::new();
+            for line in comment.lines() {
+                if !new_comment.is_empty() {
+                    new_comment.push('\n');
+                }
+                if header.is_empty() && new_comment.is_empty() {
+                    // For the first line we don't add the indentation
+                    new_comment.push_str(&format!("{}{}", prefix, line));
+                } else {
+                    new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                }
+            }
+            comment = new_comment;
+
+            if !header.is_empty() {
+                comment = format!("{}\n{}", header, comment);
+            }
+
+            if !footer.is_empty() {
+                comment = format!("{}\n{}{}", comment, indent, footer);
+            }
+
+            // Remove all trailing spaces from the comment
+            comment = comment.trim_end().to_owned();
+
+            Ok(comment)
+        },
+    )
 }
 
 /// Create a filter that uses the type mapping defined in `weaver.yaml` to replace
@@ -89,10 +228,156 @@ pub(crate) fn map_text(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::CommentFormat;
     use crate::extensions::code;
+    use crate::formats::html::HtmlRenderOptions;
 
     #[test]
-    fn test_comment() {
+    fn test_comment() -> Result<(), Error> {
+        let mut env = Environment::new();
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "java".to_owned(),
+                    CommentFormat {
+                        header: Some("/**".to_owned()),
+                        prefix: Some(" * ".to_owned()),
+                        footer: Some(" */".to_owned()),
+                        format: RenderFormat::Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("java".to_owned()),
+            ..Default::default()
+        };
+        let note = r#" The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
+
+When `error.type` is set to a type (e.g., an exception type), its
+canonical class name identifying the type within the artifact SHOULD be used.
+
+Instrumentations SHOULD document the list of errors they report.
+
+The cardinality of `error.type` within one instrumentation library SHOULD be low.
+Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+should be prepared for `error.type` to have high cardinality at query time when no
+additional filters are applied.
+
+If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
+If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+it's RECOMMENDED to:
+
+* Use a domain-specific attribute
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not..  "#;
+        let ctx = serde_json::json!({
+            "note": note
+        });
+
+        add_filters(&mut env, &config, true)?;
+
+        // Test with the optional parameter `format='java'`
+        let observed_comment = env
+            .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+   * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+   * <p>
+   * When {@code error.type} is set to a type (e.g., an exception type), its
+   * canonical class name identifying the type within the artifact SHOULD be used.
+   * <p>
+   * Instrumentations SHOULD document the list of errors they report.
+   * <p>
+   * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+   * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+   * should be prepared for {@code error.type} to have high cardinality at query time when no
+   * additional filters are applied.
+   * <p>
+   * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+   * <p>
+   * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+   * it's RECOMMENDED to:
+   * <p>
+   * <ul>
+   *   <li>Use a domain-specific attribute
+   *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+   * </ul>
+   */"##
+        );
+
+        // Test without the parameter `format='java'`
+        let observed_comment = env
+            .render_str("{{ note | comment(indent=2) }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+   * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+   * <p>
+   * When {@code error.type} is set to a type (e.g., an exception type), its
+   * canonical class name identifying the type within the artifact SHOULD be used.
+   * <p>
+   * Instrumentations SHOULD document the list of errors they report.
+   * <p>
+   * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+   * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+   * should be prepared for {@code error.type} to have high cardinality at query time when no
+   * additional filters are applied.
+   * <p>
+   * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+   * <p>
+   * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+   * it's RECOMMENDED to:
+   * <p>
+   * <ul>
+   *   <li>Use a domain-specific attribute
+   *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+   * </ul>
+   */"##
+        );
+
+        // Test with an undefined field in the context
+        let ctx = serde_json::json!({});
+        let observed_comment = env
+            .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
+            .unwrap();
+        assert_eq!(observed_comment, "");
+
+        // Test a multi-input comment
+        let ctx = serde_json::json!({
+            "brief": "This is a brief description.",
+            "note": "This is a note."
+        });
+        let observed_comment = env
+            .render_str(
+                "{{ [brief,'Note: ', note, something_not_in_ctx] | comment(indent=2) }}",
+                &ctx,
+            )
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+   * This is a brief description.
+   * Note:
+   * This is a note
+   */"##
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_comment_with_prefix() {
         assert_eq!(comment_with_prefix(&Value::from("test"), "// "), "// test");
         assert_eq!(comment_with_prefix(&Value::from(12), "// "), "// 12");
 

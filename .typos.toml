@@ -3,3 +3,4 @@ extend-exclude = ["*.cast", "**/*.yaml", "**/*.svg", "**/allowed-external-types.
 
 [default.extend-words]
 ratatui = "ratatui"
+flate = "flate"

@@ -1,6 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Weaver Configuration Definition.
+//! # Weaver Configuration (weaver.yaml)
+//!
+//! This module defines the `WeaverConfig` structure, which is used to represent and manage the
+//! configuration for the Weaver CLI. The configuration is primarily sourced from `weaver.yaml`
+//! files, which can be found in various directories, including the user's home directory. This
+//! structure supports loading, merging, and overriding configurations from multiple files. The
+//! configuration options include text mappings, template settings, whitespace control, comment
+//! settings, and more.
+//!
+//! ## Configuration Resolution
+//!
+//! Configurations are loaded and merged in the following order of precedence:
+//!
+//! 1. The `<path>/weaver.yaml` file
+//! 2. Any `weaver.yaml` files found in parent directories of the specified path
+//! 3. The `$HOME/.weaver/weaver.yaml` file
+//!
+//! Note: (1) overrides (2), which overrides (3)
 
 #![allow(rustdoc::invalid_html_tags)]
 
@@ -14,13 +31,53 @@ use convert_case::Boundary::{
 use convert_case::{Converter, Pattern};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
 use crate::error::Error;
 use crate::error::Error::InvalidConfigFile;
 use crate::file_loader::{FileContent, FileLoader};
+use crate::formats::html::HtmlRenderOptions;
+use crate::formats::markdown::MarkdownRenderOptions;
 use crate::WEAVER_YAML;
+
+/// Weaver configuration.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WeaverConfig {
+    /// Type mapping for target specific types (OTel types -> Target language types).
+    /// Deprecated: Use `text_maps` instead.
+    pub(crate) type_mapping: Option<HashMap<String, String>>,
+    /// Configuration of the `text_map` filter. This maps specific terms or phrases
+    /// from one context to another, typically used in code generation.
+    pub(crate) text_maps: Option<HashMap<String, HashMap<String, String>>>,
+    /// Configuration for the template syntax, allowing for the
+    /// definition of custom block and variable delimiters.
+    #[serde(default)]
+    pub(crate) template_syntax: TemplateSyntax,
+    /// Configuration controlling whitespace behavior in template rendering.
+    #[serde(default)]
+    pub(crate) whitespace_control: WhitespaceControl,
+
+    /// Configuration for comment formatting across various languages or styles.
+    #[serde(default)]
+    pub(crate) comment_formats: Option<HashMap<String, CommentFormat>>,
+    /// The default format to use for comments if none is specified in the `comment`
+    /// filter.
+    pub(crate) default_comment_format: Option<String>,
+
+    /// Parameters for the templates.
+    /// These parameters can be overridden by parameters passed to the CLI.
+    /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
+    /// when serialized to YAML. This is useful for testing purposes.
+    pub(crate) params: Option<BTreeMap<String, Value>>,
+
+    /// Configuration for the templates.
+    pub(crate) templates: Option<Vec<TemplateConfig>>,
+
+    /// List of acronyms to be considered as unmodifiable words in the case
+    /// conversion.
+    pub(crate) acronyms: Option<Vec<String>>,
+}
 
 /// Case convention for naming of functions and structs.
 #[derive(Deserialize, Clone, Debug)]
@@ -55,35 +112,6 @@ pub enum CaseConvention {
     ScreamingKebabCase,
 }
 
-/// Weaver configuration.
-#[derive(Deserialize, Debug)]
-pub struct WeaverConfig {
-    /// Type mapping for target specific types (OTel types -> Target language types).
-    /// Deprecated: Use `text_maps` instead.
-    pub(crate) type_mapping: Option<HashMap<String, String>>,
-    /// Configuration of the `text_map` filter.
-    pub(crate) text_maps: Option<HashMap<String, HashMap<String, String>>>,
-    /// Configuration for the template syntax.
-    #[serde(default)]
-    pub(crate) template_syntax: TemplateSyntax,
-    /// Configuration for the whitespace behavior on the template engine.
-    #[serde(default)]
-    pub(crate) whitespace_control: WhitespaceControl,
-
-    /// Parameters for the templates.
-    /// These parameters can be overridden by parameters passed to the CLI.
-    /// Note: We use a `BTreeMap` to ensure that the parameters are sorted by key
-    /// when serialized to YAML. This is useful for testing purposes.
-    pub(crate) params: Option<BTreeMap<String, Value>>,
-
-    /// Configuration for the templates.
-    pub(crate) templates: Option<Vec<TemplateConfig>>,
-
-    /// List of acronyms to be considered as unmodifiable words in the case
-    /// conversion.
-    pub(crate) acronyms: Option<Vec<String>>,
-}
-
 /// Parameters defined in the command line via the `--params` argument.
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct Params {
@@ -107,7 +135,7 @@ impl Params {
 
 /// Application mode defining how to apply a template on the result of a
 /// filter applied on a registry.
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationMode {
     /// Apply the template to the output of the filter as a whole.
@@ -117,7 +145,7 @@ pub enum ApplicationMode {
 }
 
 /// A template configuration.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 pub(crate) struct TemplateConfig {
     /// The template pattern used to identify when this template configuration
@@ -169,7 +197,7 @@ impl<'a> TemplateMatcher<'a> {
 }
 
 /// Syntax configuration for the template engine.
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TemplateSyntax {
     /// The start of a block.
     pub block_start: Option<String>,
@@ -212,7 +240,7 @@ impl TemplateSyntax {
 }
 
 /// Whitespace control configuration for the template engine.
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct WhitespaceControl {
     /// Configures the behavior of the first newline after a block.
     /// See <https://docs.rs/minijinja/latest/minijinja/struct.Environment.html#method.set_trim_blocks>
@@ -240,6 +268,53 @@ impl WhitespaceControl {
             self.keep_trailing_newline = other.keep_trailing_newline;
         }
     }
+}
+
+/// The different supported formats for rendering comments.
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(tag = "format")]
+#[serde(rename_all = "snake_case")]
+pub enum RenderFormat {
+    /// Markdown format.
+    Markdown(MarkdownRenderOptions),
+    /// HTML format.
+    Html(HtmlRenderOptions),
+}
+
+impl Default for RenderFormat {
+    fn default() -> Self {
+        RenderFormat::Markdown(MarkdownRenderOptions::default())
+    }
+}
+
+/// Used to set a default value for a boolean field in a struct.
+#[must_use]
+pub const fn default_bool<const V: bool>() -> bool {
+    V
+}
+
+/// Configuration for the comment format. This configuration is used
+/// by the comment filter to format comments.
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct CommentFormat {
+    /// Options for a specific format
+    #[serde(flatten)]
+    pub(crate) format: RenderFormat,
+
+    /// A comment header (e.g. in Java `/**`).
+    pub(crate) header: Option<String>,
+    /// A comment prefix (e.g. in Java ` * `).
+    pub(crate) prefix: Option<String>,
+    /// A comment footer (e.g. in Java ` */`).
+    pub(crate) footer: Option<String>,
+
+    /// Flag to trim the comment content.
+    #[serde(default = "default_bool::<true>")]
+    pub trim: bool,
+    /// Flag to remove trailing dots from the comment content.
+    #[serde(default = "default_bool::<false>")]
+    pub remove_trailing_dots: bool,
 }
 
 impl Default for CaseConvention {
@@ -323,6 +398,8 @@ impl Default for WeaverConfig {
                 comment_end: Some("#}".to_owned()),
             },
             whitespace_control: Default::default(),
+            comment_formats: None,
+            default_comment_format: None,
             params: None,
             templates: None,
             acronyms: None,
@@ -375,11 +452,12 @@ impl WeaverConfig {
     /// This method can fail if any of the configuration content is not a valid YAML file or if the
     /// configuration content can't be deserialized into a `WeaverConfig` struct.
     fn resolve_from(configs: &[FileContent]) -> Result<WeaverConfig, Error> {
-        // The default configuration is used as a base for the resolution.
-        let mut config = WeaverConfig::default();
         if configs.is_empty() {
             return Ok(WeaverConfig::default());
         }
+
+        // The default configuration is used as a base for the resolution.
+        let mut config = WeaverConfig::default();
 
         // Each configuration is loaded and merged into the current configuration.
         for conf in configs {
@@ -453,17 +531,27 @@ impl WeaverConfig {
     /// Override the current `WeaverConfig` with the `WeaverConfig` passed as argument.
     /// The merge is done in place. The `WeaverConfig` passed as argument will be consumed and used
     /// to override the current `WeaverConfig`.
-    pub fn override_with(&mut self, other: WeaverConfig) {
-        if other.type_mapping.is_some() {
-            self.type_mapping = other.type_mapping;
+    pub fn override_with(&mut self, child: WeaverConfig) {
+        if child.type_mapping.is_some() {
+            self.type_mapping = child.type_mapping;
         }
-        if other.text_maps.is_some() {
-            self.text_maps = other.text_maps;
+        if child.text_maps.is_some() {
+            self.text_maps = child.text_maps;
         }
-        self.template_syntax.override_with(other.template_syntax);
+        self.template_syntax.override_with(child.template_syntax);
         self.whitespace_control
-            .override_with(other.whitespace_control);
-        if let Some(other_params) = other.params {
+            .override_with(child.whitespace_control);
+
+        // If the `comment_formats` are defined in the child configuration, they override the
+        // parent configuration.
+        if child.comment_formats.is_some() {
+            self.comment_formats = child.comment_formats;
+        }
+        if child.default_comment_format.is_some() {
+            self.default_comment_format = child.default_comment_format;
+        }
+
+        if let Some(other_params) = child.params {
             // `params` are merged in an additive way. For example, if a parameter is defined in
             // the `params` section of a template, then the final `params` section for this template
             // will include both the `params` inherited from the file-level configuration and the
@@ -488,11 +576,11 @@ impl WeaverConfig {
                 }
             }
         }
-        if other.templates.is_some() {
-            self.templates = other.templates;
+        if child.templates.is_some() {
+            self.templates = child.templates;
         }
-        if other.acronyms.is_some() {
-            self.acronyms = other.acronyms;
+        if child.acronyms.is_some() {
+            self.acronyms = child.acronyms;
         }
     }
 }
