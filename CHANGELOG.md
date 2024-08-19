@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2024-08-19
+
+What's Changed
+
+* ([#309](https://github.com/open-telemetry/weaver/pull/309) by lquerel) Configurable Comment Filter to Support Multiple Programming Language Comment Formats.
+  More details in [Weaver Force Doc](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/README.md)
+  and [Weaver Configuration Doc](https://github.com/open-telemetry/weaver/blob/main/docs/weaver-config.md).
+* ([#300](https://github.com/open-telemetry/weaver/pull/300) by lquerel) Validation for the examples attribute field.
+* ([#322](https://github.com/open-telemetry/weaver/pull/322), [#312](https://github.com/open-telemetry/weaver/pull/312),
+  [#319](https://github.com/open-telemetry/weaver/pull/319), [#318](https://github.com/open-telemetry/weaver/pull/318),
+  [#312](https://github.com/open-telemetry/weaver/pull/312), [#304](https://github.com/open-telemetry/weaver/pull/304)
+  by jsuereth) Many improvements have been made to the creation of the Weaver Docker image,
+  which is now scoring an A on the Scout Docker image score.
+    * Add Weaver docker image to dependabot tracking,
+    * Add build attestations,
+    * Stop using root user the docker image,
+    * Use official docker action to build docker image,
+    * Update docker to use release build.
+* ([#311](https://github.com/open-telemetry/weaver/pull/311) by MSNev) Fix `unknown.com` test reference issue.
+* ([#307](https://github.com/open-telemetry/weaver/pull/307) by lmolkova) Move semconv schema definition from build tools.
+* ([#305](https://github.com/open-telemetry/weaver/pull/305) by lquerel) Detect root attribute name duplicates during the resolution process.
+* ([#294](https://github.com/open-telemetry/weaver/pull/294) by lquerel) Add template-level parameters and file_name per template config.
+* (#327) Bump Regorus from 0.2.2 to 0.2.3.
+* (#326, #317, #302) Bump clap from 4.5.13 to 4.5.16.
+* (#325, #313) Bump serde from 1.0.205 to 1.0.208.
+* (#324) Bump alpine from 3.18.3 to 3.20.2.
+* (#323) Bump rust from 1.76.0-alpine3.18 to 1.78.0-alpine3.18.
+* (#320, #315, #287) Bump serde_json from 1.0.122 to 1.0.125.
+* (#316) Bump indexmap from 2.3.0 to 2.4.0.
+* (#314, #308) Bump markdown from 1.0.0-alpha.18 to 1.0.0-alpha.20.
+* (#310) Bump ratatui, textarea and crossterm version in lock-step.
+* (#303, #299, #293) Bump tui-textarea from 0.5.2 to 0.6.1.
+* (#298) Bump ratatui from 0.27.0 to 0.28.0.
+* (#292) Bump flate2 from 1.0.30 to 1.0.31.
+* (#290) Bump regex from 1.10.5 to 1.10.6.
+* (#286) Bump crossterm from 0.27.0 to 0.28.1.
+
 ## [0.8.0] - 2024-08-01
 
 What's Changed
