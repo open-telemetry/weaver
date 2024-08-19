@@ -716,6 +716,7 @@ pub(crate) fn install_weaver_extensions(
     case::add_filters(env);
     otel::add_filters(env);
     util::add_filters(env, config);
+    util::add_functions(env);
     otel::add_tests(env);
     Ok(())
 }

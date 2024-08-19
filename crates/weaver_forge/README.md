@@ -846,8 +846,17 @@ The `comment` filter accepts the following optional parameters:
 All the functions available in the MiniJinja template engine are available (see  
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
-Right now, OTel Weaver does not provide any custom functions but feel free to  
-open an issue if you have any suggestions. They are easy to implement.
+In addition, OTel Weaver provides the following custom function:
+
+- `concat_if`: Concatenates two or more values (after converting them to strings)
+  if all these values are defined. If any of the values are undefined, the function
+  returns an "undefined" value. This function can be used, for example, to define
+  complex multi-section comments. It can accept any number of arguments. The following
+  Jinja expression creates a comment with a brief description and an optional note
+  prefixed with "Notes: ". If the attribute note is not defined then the comment will
+  only contain the brief description without the prefix "Notes: ".
+
+  `{{ [attr.brief, concat_if("\n\nNotes: ", attr.note) | comment }}`
 
 ### Jinja Tests Reference
 
