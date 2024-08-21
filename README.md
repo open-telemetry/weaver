@@ -85,8 +85,28 @@ robustness, reliability, and cross-platform compatibility.
 
 ## Getting started
 
-Currently, there is no binary distribution available. To install the tool, you
-must build it from source. To do so, you need to have Rust installed on your
+Currently, weaver can be consumed in one of three ways:
+
+- [Pre-built Binaries](#pre-built-binaries)
+- [Docker Image](#docker-image)
+- [Building from source](#building-from-source)
+
+### Pre-built Binaries
+
+Weaver release attach pre-built binaries for supported platforms with every release.
+Instructions for installing are included in these release notes.
+
+See: [Weaver Releases](https://github.com/open-telemetry/weaver/releases)
+
+### Docker Image
+
+Weaver deploys a docker image for development to [docker hub](https://hub.docker.com/r/otel/weaver).
+
+Instructions for using the docker image can be found [here](docs/docker-guide.md).
+
+### Building from source
+
+To install the tool from source. you need to have Rust installed on your
 system (see [Install Rust](https://www.rust-lang.org/tools/install)).
 
 To build the tool:
@@ -148,6 +168,7 @@ Telemetry Schemas.
   2023 [here](https://docs.google.com/presentation/d/1nxt5VFlC1mUjZ8eecUYK4e4SxThpIVj1IRnIcodMsNI/edit?usp=sharing).
 
 ## Experimental
+
 - [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)
 - [Resolved Telemetry Schema](docs/resolved-telemetry-schema.md) (proposal)
 - OpenTelemetry Telemetry Schema
@@ -155,6 +176,7 @@ Telemetry Schemas.
   not yet ready).
 
 ## Links
+
 - [OpenTelemetry Semantic Convention File Format](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 - [OpenTelemetry Schema File Format v1.1.0](https://opentelemetry.io/docs/specs/otel/schemas/file_format_v1.1.0/)
 - Meta/Facebook's [positional paper](https://research.facebook.com/publications/positional-paper-schema-first-application-telemetry/)
