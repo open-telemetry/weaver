@@ -22,10 +22,10 @@ LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \
   --ingroup weaver \
-  --no-create-home \
   --disabled-password \
   weaver
-WORKDIR /weaver
+WORKDIR /home/weaver
 COPY --from=weaver-build /build/target/release/weaver /weaver/weaver
 USER weaver
+RUN mkdir /home/weaver/target
 ENTRYPOINT ["/weaver/weaver"]
