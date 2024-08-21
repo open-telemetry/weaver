@@ -80,10 +80,19 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())?;
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())
+        .capture_warnings(&mut diag_msgs)
+        .into_result()?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
-        .map(|repo| load_semconv_specs(repo, logger.clone()))
+        .map(|repo| {
+            // Baseline registry resolution should allow non-future features
+            // and warnings against it should be suppressed when evaluating
+            // against it as a "baseline".
+            load_semconv_specs(repo, logger.clone())
+                .ignore_warnings()
+                .into_result()
+        })
         .transpose()?;
 
     let mut policy_engine = if !args.skip_policies {

@@ -6,6 +6,7 @@ pub mod diagnostic;
 pub mod error;
 pub mod in_memory;
 pub mod quiet;
+pub mod result;
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

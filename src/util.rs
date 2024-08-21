@@ -11,6 +11,7 @@ use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::error::handle_errors;
+use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -31,15 +32,15 @@ use weaver_semconv::semconv::SemConvSpec;
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
     log: impl Logger + Sync + Clone,
-) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
-    log.success(&format!(
-        "`{}` semconv registry `{}` loaded ({} files)",
-        registry_repo.id(),
-        registry_repo.registry_path_repr(),
-        semconv_specs.len()
-    ));
-    Ok(semconv_specs)
+) -> WResult<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
+    SchemaResolver::load_semconv_specs(registry_repo).inspect(|semconv_specs, _| {
+        log.success(&format!(
+            "`{}` semconv registry `{}` loaded ({} files)",
+            registry_repo.id(),
+            registry_repo.registry_path_repr(),
+            semconv_specs.len()
+        ));
+    })
 }
 
 /// Initializes the policy engine with policies from the registry and command line.

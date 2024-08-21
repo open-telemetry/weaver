@@ -9,6 +9,9 @@ import rego.v1
 # It builds upon the data structures and rules defined in the
 # semconv package.
 
+
+blalbla
+
 # Import the set of baseline attributes from the semconv package
 baseline_attributes := data.semconv.registry_baseline_attributes
 

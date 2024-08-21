@@ -13,7 +13,8 @@ use walkdir::DirEntry;
 
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_common::error::{format_errors, handle_errors, WeaverError};
+use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
@@ -253,7 +254,7 @@ impl SchemaResolver {
     /// * `registry_repo` - The registry repository containing the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
-    ) -> Result<Vec<(String, SemConvSpec)>, Error> {
+    ) -> WResult<Vec<(String, SemConvSpec)>, Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
@@ -270,7 +271,7 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
-    ) -> Result<Vec<(String, SemConvSpec)>, Error> {
+    ) -> WResult<Vec<(String, SemConvSpec)>, Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()
@@ -336,20 +337,18 @@ impl SchemaResolver {
             })
             .collect::<Vec<_>>();
 
-        let mut error = vec![];
+        let mut errors = vec![];
         let result = result
             .into_iter()
             .filter_map(|r| match r {
                 Ok(r) => Some(r),
                 Err(e) => {
-                    error.push(e);
+                    errors.push(e);
                     None
                 }
             })
             .collect::<Vec<_>>();
 
-        handle_errors(error)?;
-
-        Ok(result)
+        WResult::with_non_fatal_errors(result, errors)
     }
 }

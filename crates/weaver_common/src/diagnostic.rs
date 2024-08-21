@@ -116,6 +116,12 @@ impl DiagnosticMessage {
             diagnostic,
         }
     }
+
+    /// Returns true if the diagnostic message is a warning
+    #[must_use]
+    pub fn is_warning(&self) -> bool {
+        self.diagnostic.severity == Some(Severity::Warning)
+    }
 }
 
 impl DiagnosticMessages {
@@ -135,6 +141,12 @@ impl DiagnosticMessages {
     /// `DiagnosticMessages`.
     pub fn extend(&mut self, diag_msgs: DiagnosticMessages) {
         self.0.extend(diag_msgs.0);
+    }
+
+    /// Extends the current `DiagnosticMessages` with the provided
+    /// `Vec<DiagnosticMessage>`.
+    pub fn extend_from_vec(&mut self, diag_msgs: Vec<DiagnosticMessage>) {
+        self.0.extend(diag_msgs);
     }
 
     /// Logs all the diagnostic messages
@@ -166,6 +178,11 @@ impl DiagnosticMessages {
     /// Creates a new list of diagnostic messages from a single error
     pub fn from_error<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(error: M) -> Self {
         Self(vec![DiagnosticMessage::new(error)])
+    }
+
+    /// Adds a list of diagnostic messages
+    pub fn add(&mut self, diag_messages: Vec<DiagnosticMessage>) {
+        self.0.extend(diag_messages);
     }
 
     /// Returns true if all the diagnostic messages are explicitly marked as
