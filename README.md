@@ -88,7 +88,7 @@ robustness, reliability, and cross-platform compatibility.
 Currently, weaver can be consumed in one of three ways:
 
 - [Pre-built Binaries](#pre-built-binaries)
-- [Docker Image](#building-from-source)
+- [Docker Image](#docker-image)
 - [Building from source](#building-from-source)
 
 ### Pre-built Binaries
