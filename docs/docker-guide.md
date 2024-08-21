@@ -12,14 +12,14 @@ When generating code against the latest OpenTelemetry semantic conventions, we r
 
 ```sh
 docker run --rm \
-		-u $(id -u ${USER}):$(id -g ${USER}) \
-		--mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly' \
+        -u $(id -u ${USER}):$(id -g ${USER}) \
+        --mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly' \
         --mount 'type=bind,source=$(PWD)/src,target=/home/weaver/target' \
-		otel/weaver:latest \
+        otel/weaver:latest \
         registry generate \
-		--templates=/home/weaver/templates \
+        --templates=/home/weaver/templates \
         --target=markdown \
-		/home/weaver/target
+        /home/weaver/target
 ```
 
 This has three key components:
@@ -44,27 +44,27 @@ When enforcing policies or verifying up-to-date documentation with `weaver regis
 
 ```sh
 	docker run --rm \
-		-u $(id -u ${USER}):$(id -g ${USER}) \
-		--mount 'type=bind,source=$(PWD)/my-policy-directory,target=/home/weaver/policies,readonly' \
-		--mount 'type=bind,source=$(PWD)/my-schema-yaml-directory,target=/home/weaver/source,readonly' \
-		otel/weaver:latest registry check \
-		--registry=/home/weaver/source \
-		--policy=/home/weaver/policies
+        -u $(id -u ${USER}):$(id -g ${USER}) \
+        --mount 'type=bind,source=$(PWD)/my-policy-directory,target=/home/weaver/policies,readonly' \
+        --mount 'type=bind,source=$(PWD)/my-schema-yaml-directory,target=/home/weaver/source,readonly' \
+        otel/weaver:latest registry check \
+        --registry=/home/weaver/source \
+        --policy=/home/weaver/policies
 ```
 
 or for checking markdown output:
 
 ```sh
 docker run --rm \
-		-u $(id -u ${USER}):$(id -g ${USER}) \
-		--mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly' \
+        -u $(id -u ${USER}):$(id -g ${USER}) \
+        --mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly' \
         --mount 'type=bind,source=$(PWD)/my-doc-output,target=/home/weaver/target,readonly' \
-		otel/weaver:latest \
+        otel/weaver:latest \
         registry generate \
-		--templates=/home/weaver/templates \
+        --templates=/home/weaver/templates \
         --target=markdown \
         --dry-run \
-		/home/weaver/target
+        /home/weaver/target
 ```
 
 Notice in both cases, the docker image is mounting local directories as readonly.
