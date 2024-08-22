@@ -180,11 +180,6 @@ impl DiagnosticMessages {
         Self(vec![DiagnosticMessage::new(error)])
     }
 
-    /// Adds a list of diagnostic messages
-    pub fn add(&mut self, diag_messages: Vec<DiagnosticMessage>) {
-        self.0.extend(diag_messages);
-    }
-
     /// Returns true if all the diagnostic messages are explicitly marked as
     /// warnings or advices.
     #[must_use]
