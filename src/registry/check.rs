@@ -82,7 +82,7 @@ pub(crate) fn command(
     // No parsing errors should be observed.
     let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())
         .capture_warnings(&mut diag_msgs)
-        .into_result()?;
+        .into_result_failing_non_fatal()?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
         .map(|repo| {
@@ -90,8 +90,8 @@ pub(crate) fn command(
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
             load_semconv_specs(repo, logger.clone())
-                .ignore_warnings()
-                .into_result()
+                .ignore_severity_warnings()
+                .into_result_failing_non_fatal()
         })
         .transpose()?;
 

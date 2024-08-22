@@ -45,8 +45,8 @@ fn main() {
     let registry_repo =
         RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
     let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo)
-        .ignore_warnings()
-        .into_result()
+        .ignore_severity_warnings()
+        .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
     let mut registry = SemConvRegistry::from_semconv_specs(REGISTRY_ID, semconv_specs);
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)

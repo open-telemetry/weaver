@@ -67,8 +67,8 @@ where
         }
     }
 
-    /// Return a [`WResult`] without the warnings.
-    pub fn ignore_warnings(self) -> WResult<T, E> {
+    /// Return a [`WResult`] without the non-fatal errors with severity=warning.
+    pub fn ignore_severity_warnings(self) -> WResult<T, E> {
         match self {
             WResult::OkWithNFEs(result, non_fatal_errors) => {
                 // Remove warnings from the non-fatal errors.
@@ -101,7 +101,7 @@ where
 
     /// Converts a [`WResult`] into a standard [`Result`], potentially
     /// aggregating non-fatal errors into a single error.
-    pub fn into_result(self) -> Result<T, E> {
+    pub fn into_result_failing_non_fatal(self) -> Result<T, E> {
         match self {
             WResult::Ok(result) => Ok(result),
             WResult::OkWithNFEs(result, errors) => {
@@ -117,7 +117,7 @@ where
 
     /// Converts a [`WResult`] into a standard [`Result`], returning the result
     /// alongside any non-fatal errors.
-    pub fn into_result_with_nfes(self) -> Result<(T, Vec<E>), E> {
+    pub fn into_result_with_non_fatal(self) -> Result<(T, Vec<E>), E> {
         match self {
             WResult::Ok(result) => Ok((result, Vec::new())),
             WResult::OkWithNFEs(result, errors) => Ok((result, errors)),
@@ -128,13 +128,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use miette::Diagnostic;
-    use serde::Serialize;
     use crate::diagnostic::DiagnosticMessages;
     use crate::error::WeaverError;
     use crate::result::WResult;
+    use miette::Diagnostic;
+    use serde::Serialize;
 
-    #[derive(thiserror::Error,Debug,PartialEq,Serialize, Diagnostic)]
+    #[derive(thiserror::Error, Debug, PartialEq, Serialize, Diagnostic)]
     enum TestError {
         #[error("Warning")]
         #[diagnostic(severity(Warning))]
@@ -157,7 +157,7 @@ mod tests {
         let result: Result<i32, TestError> = WResult::Ok(42)
             .inspect(|r, _| assert_eq!(*r, 42))
             .capture_warnings(&mut diag_msgs)
-            .into_result();
+            .into_result_failing_non_fatal();
 
         assert_eq!(result, Ok(42));
         assert_eq!(diag_msgs.len(), 0);
@@ -166,15 +166,19 @@ mod tests {
     #[test]
     pub fn test_non_fatal_errors() {
         let mut diag_msgs = DiagnosticMessages::empty();
-        let result: Result<i32, TestError> = WResult::OkWithNFEs(42, vec![TestError::Warning, TestError::Error])
-            .inspect(|r, nfes| {
-                assert_eq!(*r, 42);
-                assert_eq!(nfes.unwrap().len(), 2);
-            })
-            .capture_warnings(&mut diag_msgs)
-            .into_result();
+        let result: Result<i32, TestError> =
+            WResult::OkWithNFEs(42, vec![TestError::Warning, TestError::Error])
+                .inspect(|r, nfes| {
+                    assert_eq!(*r, 42);
+                    assert_eq!(nfes.unwrap().len(), 2);
+                })
+                .capture_warnings(&mut diag_msgs)
+                .into_result_failing_non_fatal();
 
-        assert_eq!(result, Err(TestError::CompoundError(vec![TestError::Error])));
+        assert_eq!(
+            result,
+            Err(TestError::CompoundError(vec![TestError::Error]))
+        );
         assert_eq!(diag_msgs.len(), 1);
     }
 }

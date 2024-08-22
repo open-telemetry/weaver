@@ -113,8 +113,8 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
-        .ignore_warnings()
-        .into_result()?;
+        .ignore_severity_warnings()
+        .into_result_failing_non_fatal()?;
 
     if !args.skip_policies {
         let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;

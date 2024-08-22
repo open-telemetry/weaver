@@ -40,8 +40,8 @@ fn test_cli_interface() {
         panic!("Failed to create the registry repo, error: {e}");
     });
     let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo)
-        .ignore_warnings()
-        .into_result()
+        .ignore_severity_warnings()
+        .into_result_failing_non_fatal()
         .unwrap_or_else(|e| {
             panic!("Failed to load the semantic convention specs, error: {e}");
         });
