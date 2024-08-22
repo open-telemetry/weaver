@@ -349,6 +349,6 @@ impl SchemaResolver {
             })
             .collect::<Vec<_>>();
 
-        WResult::with_non_fatal_errors(result, errors)
+        WResult::OkWithNFEs(result, errors)
     }
 }
