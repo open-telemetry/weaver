@@ -40,6 +40,15 @@ pub enum Error {
         error: String,
     },
 
+    /// A generic error related to a semantic convention spec.
+    #[error(
+        "The following error occurred during the processing of semantic convention file: {error}"
+    )]
+    SemConvSpecError {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// The semantic convention spec is invalid.
     #[error("The semantic convention spec is invalid (path_or_url: {path_or_url:?}). {error}")]
     InvalidSemConvSpec {
@@ -193,7 +202,9 @@ mod tests {
 
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = registry.add_semconv_spec_from_file(yaml);
+            let result = registry
+                .add_semconv_spec_from_file(yaml)
+                .into_result_failing_non_fatal();
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
     }
@@ -204,7 +215,9 @@ mod tests {
 
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
-            let result = registry.add_semconv_spec_from_file(yaml);
+            let result = registry
+                .add_semconv_spec_from_file(yaml)
+                .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
                 let output = format!("{}", err);

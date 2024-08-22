@@ -48,22 +48,6 @@ pub enum Error {
         error: String,
     },
 
-    /// A semantic convention error.
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    SemConvError {
-        /// The semconv error that occurred.
-        #[from]
-        error: weaver_semconv::Error,
-    },
-
-    /// Failed to walk dir.
-    #[error("Failed walk dir: {error}")]
-    FailToWalkDir {
-        /// The error that occurred.
-        error: String,
-    },
-
     /// Failed to resolve a set of attributes.
     #[error("Failed to resolve a set of attributes {ids:?}: {error}")]
     FailToResolveAttributes {
@@ -254,7 +238,7 @@ impl SchemaResolver {
     /// * `registry_repo` - The registry repository containing the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
-    ) -> WResult<Vec<(String, SemConvSpec)>, Error> {
+    ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
@@ -271,7 +255,7 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
-    ) -> WResult<Vec<(String, SemConvSpec)>, Error> {
+    ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()
@@ -302,8 +286,8 @@ impl SchemaResolver {
                             return vec![].into_par_iter();
                         }
 
-                        match SemConvRegistry::semconv_spec_from_file(entry.path()) {
-                            Ok((path, spec)) => {
+                        vec![SemConvRegistry::semconv_spec_from_file(entry.path()).map(
+                            |(path, spec)| {
                                 // Replace the local path with the git URL combined with the relative path
                                 // of the semantic convention file.
                                 let prefix = local_path
@@ -317,19 +301,12 @@ impl SchemaResolver {
                                     let relative_path = &path[prefix.len() + 1..];
                                     format!("{}/{}", registry_path_repr, relative_path)
                                 };
-                                vec![Ok((path, spec))].into_par_iter()
-                            }
-                            Err(e) => match e {
-                                weaver_semconv::Error::CompoundError(errors) => errors
-                                    .into_iter()
-                                    .map(|e| Err(Error::SemConvError { error: e }))
-                                    .collect::<Vec<_>>()
-                                    .into_par_iter(),
-                                _ => vec![Err(Error::SemConvError { error: e })].into_par_iter(),
+                                (path, spec)
                             },
-                        }
+                        )]
+                        .into_par_iter()
                     }
-                    Err(e) => vec![Err(Error::FailToWalkDir {
+                    Err(e) => vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
                         error: e.to_string(),
                     })]
                     .into_par_iter(),
@@ -337,18 +314,23 @@ impl SchemaResolver {
             })
             .collect::<Vec<_>>();
 
-        let mut errors = vec![];
-        let result = result
-            .into_iter()
-            .filter_map(|r| match r {
-                Ok(r) => Some(r),
-                Err(e) => {
-                    errors.push(e);
-                    None
+        // Process all the results of the previous parallel processing.
+        // The first fatal error will stop the processing and return the error.
+        // Otherwise, all non-fatal errors will be collected and returned along
+        // with the result.
+        let mut non_fatal_errors = vec![];
+        let mut specs = vec![];
+        for r in result {
+            match r {
+                WResult::Ok(t) => specs.push(t),
+                WResult::OkWithNFEs(t, nfes) => {
+                    specs.push(t);
+                    non_fatal_errors.extend(nfes);
                 }
-            })
-            .collect::<Vec<_>>();
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
 
-        WResult::OkWithNFEs(result, errors)
+        WResult::OkWithNFEs(specs, non_fatal_errors)
     }
 }

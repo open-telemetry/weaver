@@ -31,17 +31,22 @@ impl<T, E> WResult<T, E>
 where
     E: WeaverError<E> + Error + Diagnostic + Serialize + Send + Sync + 'static,
 {
+    /// Creates a new [`WResult`] with a successful result.
+    pub fn with_non_fatal_errors(result: T, non_fatal_errors: Vec<E>) -> Self {
+        if non_fatal_errors.is_empty() {
+            WResult::Ok(result)
+        } else {
+            WResult::OkWithNFEs(result, non_fatal_errors)
+        }
+    }
+
     /// Converts a [`WResult`] into a standard [`Result`], optionally capturing non-fatal errors.
-    pub fn capture_non_fatal_errors(
-        self,
-        non_fatal_errors: &mut Vec<DiagnosticMessage>,
-    ) -> Result<T, E> {
+    pub fn capture_non_fatal_errors(self, diag_msgs: &mut DiagnosticMessages) -> Result<T, E> {
         match self {
             WResult::Ok(result) => Ok(result),
             WResult::OkWithNFEs(result, nfes) => {
-                for non_fatal_error in nfes {
-                    non_fatal_errors.push(DiagnosticMessage::new(non_fatal_error));
-                }
+                let msgs = nfes.into_iter().map(DiagnosticMessage::new).collect();
+                diag_msgs.extend_from_vec(msgs);
                 Ok(result)
             }
             WResult::FatalErr(fatal_err) => Err(fatal_err),
@@ -107,8 +112,14 @@ where
             WResult::OkWithNFEs(result, errors) => {
                 if errors.is_empty() {
                     Ok(result)
+                } else if errors.len() == 1 {
+                    Err(errors
+                        .into_iter()
+                        .next()
+                        .expect("should never happen as we checked the length"))
                 } else {
-                    Err(E::compound(errors))
+                    let compound_error = E::compound(errors);
+                    Err(compound_error)
                 }
             }
             WResult::FatalErr(e) => Err(e),
@@ -122,6 +133,16 @@ where
             WResult::Ok(result) => Ok((result, Vec::new())),
             WResult::OkWithNFEs(result, errors) => Ok((result, errors)),
             WResult::FatalErr(e) => Err(e),
+        }
+    }
+
+    /// Maps a [`WResult<T, E>`] to [`WResult<U, E>`] by applying a function to a
+    /// contained [`Ok`] value, leaving an [`Err`] value untouched.
+    pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> WResult<U, E> {
+        match self {
+            WResult::Ok(t) => WResult::Ok(op(t)),
+            WResult::OkWithNFEs(t, nfes) => WResult::OkWithNFEs(op(t), nfes),
+            WResult::FatalErr(err) => WResult::FatalErr(err),
         }
     }
 }
@@ -152,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_werror_ok() {
+    fn test_werror() -> Result<(), TestError> {
         let mut diag_msgs = DiagnosticMessages::empty();
         let result: Result<i32, TestError> = WResult::Ok(42)
             .inspect(|r, _| assert_eq!(*r, 42))
@@ -161,10 +182,16 @@ mod tests {
 
         assert_eq!(result, Ok(42));
         assert_eq!(diag_msgs.len(), 0);
-    }
 
-    #[test]
-    pub fn test_non_fatal_errors() {
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let result: Result<i32, TestError> = WResult::Ok(42)
+            .inspect(|r, _| assert_eq!(*r, 42))
+            .capture_warnings(&mut diag_msgs)
+            .into_result_failing_non_fatal();
+
+        assert_eq!(result, Ok(42));
+        assert_eq!(diag_msgs.len(), 0);
+
         let mut diag_msgs = DiagnosticMessages::empty();
         let result: Result<i32, TestError> =
             WResult::OkWithNFEs(42, vec![TestError::Warning, TestError::Error])
@@ -175,10 +202,29 @@ mod tests {
                 .capture_warnings(&mut diag_msgs)
                 .into_result_failing_non_fatal();
 
-        assert_eq!(
-            result,
-            Err(TestError::CompoundError(vec![TestError::Error]))
-        );
+        assert_eq!(result, Err(TestError::Error));
         assert_eq!(diag_msgs.len(), 1);
+
+        let mut diag_msgs = DiagnosticMessages::empty();
+        let result = WResult::OkWithNFEs(42, vec![TestError::Warning, TestError::Error])
+            .inspect(|r, nfes| {
+                assert_eq!(*r, 42);
+                assert_eq!(nfes.unwrap().len(), 2);
+            })
+            .capture_non_fatal_errors(&mut diag_msgs)?;
+
+        assert_eq!(result, 42);
+        assert_eq!(diag_msgs.len(), 2);
+
+        let (result, nfes) = WResult::OkWithNFEs(42, vec![TestError::Warning, TestError::Error])
+            .inspect(|r, nfes| {
+                assert_eq!(*r, 42);
+                assert_eq!(nfes.unwrap().len(), 2);
+            })
+            .into_result_with_non_fatal()?;
+        assert_eq!(result, 42);
+        assert_eq!(nfes.len(), 2);
+
+        Ok(())
     }
 }

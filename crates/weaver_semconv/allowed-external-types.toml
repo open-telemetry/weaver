@@ -5,7 +5,7 @@
 allowed_external_types = [
     "serde::ser::Serialize",
     "serde::de::Deserialize",
-    "weaver_common::error::WeaverError",
+    "weaver_common::*",
     "ordered_float::OrderedFloat",      # ToDo: Remove this dependency before version 1.0
     "miette::protocol::Diagnostic",
     "schemars::JsonSchema",

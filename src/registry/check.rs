@@ -2,22 +2,19 @@
 
 //! Check a semantic convention registry.
 
-use std::path::PathBuf;
-
 use clap::Args;
+use std::path::PathBuf;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
-use weaver_common::error::handle_errors;
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::RegistryArgs;
 use crate::util::{
-    check_policies, check_policy_stage, init_policy_engine, load_semconv_specs,
-    resolve_semconv_specs,
+    check_policy, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -81,8 +78,7 @@ pub(crate) fn command(
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
     let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())
-        .capture_warnings(&mut diag_msgs)
-        .into_result_failing_non_fatal()?;
+        .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
         .map(|repo| {
@@ -91,7 +87,7 @@ pub(crate) fn command(
             // against it as a "baseline".
             load_semconv_specs(repo, logger.clone())
                 .ignore_severity_warnings()
-                .into_result_failing_non_fatal()
+                .capture_non_fatal_errors(&mut diag_msgs)
         })
         .transpose()?;
 
@@ -109,13 +105,18 @@ pub(crate) fn command(
         // Check the policies against the semantic convention specifications before resolution.
         // All violations should be captured into an ongoing list of diagnostic messages which
         // will be combined with the final result of future stages.
-        // `check_policies` either returns `()` or diagnostic messages, and `capture_diag_msgs_into` updates the
-        // provided parameters with any diagnostic messages produced by `check_policies`.
-        // In this specific case, `capture_diag_msgs_into` returns either `Some(())` or `None`
-        // if diagnostic messages have been captured. Therefore, it is acceptable to ignore the result in this
-        // particular case.
-        _ = check_policies(policy_engine, &main_semconv_specs, logger.clone())
-            .capture_diag_msgs_into(&mut diag_msgs);
+        check_policy(policy_engine, &main_semconv_specs)
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    logger.success(&format!(
+                        "All `before_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    logger.success("No `before_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(&mut diag_msgs)?;
     }
 
     let mut main_registry =
@@ -141,23 +142,24 @@ pub(crate) fn command(
         .combine_diag_msgs_with(&diag_msgs)?;
 
         // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-        let errs = check_policy_stage::<ResolvedRegistry, ()>(
+        check_policy_stage::<ResolvedRegistry, ()>(
             policy_engine,
             PolicyStage::AfterResolution,
             &registry_path.to_string(),
             &main_resolved_registry,
             &[],
-        );
-        logger.success(&format!(
-            "All `after_resolution` policies checked ({} violations found)",
-            errs.len()
-        ));
-
-        // Append the policy errors to the ongoing list of diagnostic messages and if there are
-        // any errors, return them immediately.
-        if let Err(err) = handle_errors(errs) {
-            diag_msgs.extend(err.into());
-        }
+        )
+        .inspect(|_, violations| {
+            if let Some(violations) = violations {
+                logger.success(&format!(
+                    "All `after_resolution` policies checked ({} violations found)",
+                    violations.len()
+                ));
+            } else {
+                logger.success("No `after_resolution` policy violation");
+            }
+        })
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
         if let (Some(baseline_registry_repo), Some(baseline_semconv_specs)) =
             (baseline_registry_repo, baseline_semconv_specs)
@@ -178,23 +180,24 @@ pub(crate) fn command(
             .combine_diag_msgs_with(&diag_msgs)?;
 
             // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-            let errs = check_policy_stage(
+            check_policy_stage(
                 policy_engine,
                 PolicyStage::ComparisonAfterResolution,
                 &registry_path.to_string(),
                 &main_resolved_registry,
                 &[baseline_resolved_registry],
-            );
-            logger.success(&format!(
-                "All `comparison_after_resolution` policies checked ({} violations found)",
-                errs.len()
-            ));
-
-            // Append the policy errors to the ongoing list of diagnostic messages and if there are
-            // any errors, return them immediately.
-            if let Err(err) = handle_errors(errs) {
-                diag_msgs.extend(err.into());
-            }
+            )
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    logger.success(&format!(
+                        "All `comparison_after_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    logger.success("No `comparison_after_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(&mut diag_msgs)?;
         }
 
         if !diag_msgs.is_empty() {

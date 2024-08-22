@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use weaver_common::error::handle_errors;
+use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
@@ -38,26 +38,33 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<SemConvSpec, Error> {
-        let provenance = path.as_ref().display().to_string();
-
-        // Load and deserialize the semantic convention registry
-        let semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
-            path_or_url: provenance.clone(),
-            error: e.to_string(),
-        })?;
-        let semconv_spec: SemConvSpec = serde_yaml::from_reader(BufReader::new(semconv_file))
-            .map_err(|e| Error::InvalidSemConvSpec {
-                path_or_url: provenance.clone(),
-                line: e.location().map(|loc| loc.line()),
-                column: e.location().map(|loc| loc.column()),
+    pub fn from_file<P: AsRef<Path>>(path: P) -> WResult<SemConvSpec, Error> {
+        fn from_file_or_fatal(path: &Path, provenance: &str) -> Result<SemConvSpec, Error> {
+            // Load and deserialize the semantic convention registry
+            let semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
+                path_or_url: provenance.to_owned(),
                 error: e.to_string(),
             })?;
+            serde_yaml::from_reader(BufReader::new(semconv_file)).map_err(|e| {
+                Error::InvalidSemConvSpec {
+                    path_or_url: provenance.to_owned(),
+                    line: e.location().map(|loc| loc.line()),
+                    column: e.location().map(|loc| loc.column()),
+                    error: e.to_string(),
+                }
+            })
+        }
 
-        // Important note: the resolution process expects this step of validation to be done for
-        // each semantic convention spec.
-        semconv_spec.validate(&provenance)?;
-        Ok(semconv_spec)
+        let provenance = path.as_ref().display().to_string();
+
+        match from_file_or_fatal(path.as_ref(), &provenance) {
+            Ok(semconv_spec) => {
+                // Important note: the resolution process expects this step of validation to be done for
+                // each semantic convention spec.
+                semconv_spec.validate(&provenance)
+            }
+            Err(e) => WResult::FatalErr(e),
+        }
     }
 
     /// Create a new semantic convention spec from a string.
@@ -69,19 +76,20 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_string(spec: &str) -> Result<SemConvSpec, Error> {
-        let semconv_spec: SemConvSpec =
-            serde_yaml::from_str(spec).map_err(|e| Error::InvalidSemConvSpec {
-                path_or_url: "<str>".to_owned(),
-                line: None,
-                column: None,
-                error: e.to_string(),
-            })?;
-
-        // Important note: the resolution process expects this step of validation to be done for
-        // each semantic convention spec.
-        semconv_spec.validate("<str>")?;
-        Ok(semconv_spec)
+    pub fn from_string(spec: &str) -> WResult<SemConvSpec, Error> {
+        match serde_yaml::from_str::<SemConvSpec>(spec).map_err(|e| Error::InvalidSemConvSpec {
+            path_or_url: "<str>".to_owned(),
+            line: None,
+            column: None,
+            error: e.to_string(),
+        }) {
+            Ok(semconv_spec) => {
+                // Important note: the resolution process expects this step of validation to be done for
+                // each semantic convention spec.
+                semconv_spec.validate("<str>")
+            }
+            Err(e) => WResult::FatalErr(e),
+        }
     }
 
     /// Create a new semantic convention spec from a URL.
@@ -93,40 +101,48 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_url(semconv_url: &str) -> Result<SemConvSpec, Error> {
-        // Create a content reader from the semantic convention URL
-        let reader = ureq::get(semconv_url)
-            .call()
-            .map_err(|e| Error::RegistryNotFound {
-                path_or_url: semconv_url.to_owned(),
-                error: e.to_string(),
-            })?
-            .into_reader();
+    pub fn from_url(semconv_url: &str) -> WResult<SemConvSpec, Error> {
+        fn from_url_or_fatal(semconv_url: &str) -> Result<SemConvSpec, Error> {
+            // Create a content reader from the semantic convention URL
+            let reader = ureq::get(semconv_url)
+                .call()
+                .map_err(|e| Error::RegistryNotFound {
+                    path_or_url: semconv_url.to_owned(),
+                    error: e.to_string(),
+                })?
+                .into_reader();
 
-        // Deserialize the telemetry schema from the content reader
-        let semconv_spec: SemConvSpec =
+            // Deserialize the telemetry schema from the content reader
             serde_yaml::from_reader(reader).map_err(|e| Error::InvalidSemConvSpec {
                 path_or_url: semconv_url.to_owned(),
                 line: e.location().map(|loc| loc.line()),
                 column: e.location().map(|loc| loc.column()),
                 error: e.to_string(),
-            })?;
+            })
+        }
 
-        // Important note: the resolution process expects this step of validation to be done for
-        // each semantic convention spec.
-        semconv_spec.validate(semconv_url)?;
-        Ok(semconv_spec)
+        match from_url_or_fatal(semconv_url) {
+            Ok(semconv_spec) => {
+                // Important note: the resolution process expects this step of validation to be done for
+                // each semantic convention spec.
+                semconv_spec.validate(semconv_url)
+            }
+            Err(e) => WResult::FatalErr(e),
+        }
     }
 
-    fn validate(&self, provenance: &str) -> Result<(), Error> {
-        let errors: Vec<Error> = self
-            .groups
-            .iter()
-            .filter_map(|group| group.validate(provenance).err())
-            .collect();
+    fn validate(self, provenance: &str) -> WResult<Self, Error> {
+        let mut errors: Vec<Error> = vec![];
 
-        handle_errors(errors)?;
-        Ok(())
+        for group in &self.groups {
+            match group.validate(provenance) {
+                WResult::Ok(_) => {}
+                WResult::OkWithNFEs(_, errs) => errors.extend(errs),
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
+        WResult::with_non_fatal_errors(self, errors)
     }
 }
 
@@ -141,10 +157,9 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<SemConvSpecWithProvenance, Error> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> WResult<SemConvSpecWithProvenance, Error> {
         let provenance = path.as_ref().display().to_string();
-        let spec = SemConvSpec::from_file(path)?;
-        Ok(SemConvSpecWithProvenance { spec, provenance })
+        SemConvSpec::from_file(path).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 
     /// Creates a semantic convention spec with provenance from a string.
@@ -158,9 +173,8 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub fn from_string(provenance: &str, spec: &str) -> Result<SemConvSpecWithProvenance, Error> {
-        let spec = SemConvSpec::from_string(spec)?;
-        Ok(SemConvSpecWithProvenance {
+    pub fn from_string(provenance: &str, spec: &str) -> WResult<SemConvSpecWithProvenance, Error> {
+        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance {
             spec,
             provenance: provenance.to_owned(),
         })
@@ -170,25 +184,29 @@ impl SemConvSpecWithProvenance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Error::{InvalidAttribute, InvalidSemConvSpec, RegistryNotFound};
+    use crate::Error::{
+        InvalidAttribute, InvalidExampleWarning, InvalidSemConvSpec, RegistryNotFound,
+    };
     use std::path::PathBuf;
 
     #[test]
     fn test_semconv_spec_from_file() {
         // Existing file
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpec::from_file(path).unwrap();
+        let semconv_spec = SemConvSpec::from_file(path)
+            .into_result_failing_non_fatal()
+            .unwrap();
         assert_eq!(semconv_spec.groups.len(), 11);
 
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
-        let semconv_spec = SemConvSpec::from_file(path);
+        let semconv_spec = SemConvSpec::from_file(path).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
 
         // Invalid file structure
         let path = PathBuf::from("data/invalid-semconv.yaml");
-        let semconv_spec = SemConvSpec::from_file(path);
+        let semconv_spec = SemConvSpec::from_file(path).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
@@ -215,7 +233,9 @@ mod tests {
                 brief: "description2"
                 type: "int"
         "#;
-        let semconv_spec = SemConvSpec::from_string(spec).unwrap();
+        let semconv_spec = SemConvSpec::from_string(spec)
+            .into_result_failing_non_fatal()
+            .unwrap();
         assert_eq!(semconv_spec.groups.len(), 2);
 
         // Invalid yaml
@@ -224,7 +244,7 @@ mod tests {
           -
           -
         "#;
-        let semconv_spec = SemConvSpec::from_string(spec);
+        let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
@@ -245,7 +265,7 @@ mod tests {
               - id: "attr2"
                 type: "int"
         "#;
-        let semconv_spec = SemConvSpec::from_string(spec);
+        let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
             assert_eq!(errors.len(), 3);
             assert_eq!(
@@ -259,7 +279,7 @@ mod tests {
                             "This attribute is not deprecated and does not contain a brief field."
                                 .to_owned(),
                     },
-                    InvalidAttribute {
+                    InvalidExampleWarning {
                         path_or_url: "<str>".to_owned(),
                         group_id: "group1".to_owned(),
                         attribute_id: "attr1".to_owned(),
@@ -286,12 +306,14 @@ mod tests {
         // Existing URL. The URL is a raw file from the semantic conventions repository.
         // This file is expected to be available.
         let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
-        let semconv_spec = SemConvSpec::from_url(semconv_url).unwrap();
+        let semconv_spec = SemConvSpec::from_url(semconv_url)
+            .into_result_failing_non_fatal()
+            .unwrap();
         assert!(!semconv_spec.groups.is_empty());
 
         // Invalid semconv file
         let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/README.md";
-        let semconv_spec = SemConvSpec::from_url(semconv_url);
+        let semconv_spec = SemConvSpec::from_url(semconv_url).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
@@ -300,7 +322,7 @@ mod tests {
 
         // Non-existing URL (including both a leading underscore (which is not a valid domain) and a non-existing domain)
         let semconv_url = "http://_unknown.com.invalid/unknown-semconv.yaml";
-        let semconv_spec = SemConvSpec::from_url(semconv_url);
+        let semconv_spec = SemConvSpec::from_url(semconv_url).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
     }
@@ -308,7 +330,9 @@ mod tests {
     #[test]
     fn test_semconv_spec_with_provenance_from_file() {
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file(&path).unwrap();
+        let semconv_spec = SemConvSpecWithProvenance::from_file(&path)
+            .into_result_failing_non_fatal()
+            .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 11);
         assert_eq!(semconv_spec.provenance, path.display().to_string());
     }
@@ -333,7 +357,9 @@ mod tests {
                 type: "int"
         "#;
 
-        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance, spec).unwrap();
+        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance, spec)
+            .into_result_failing_non_fatal()
+            .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 2);
         assert_eq!(semconv_spec.provenance, provenance);
     }
