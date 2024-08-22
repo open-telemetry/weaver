@@ -2,7 +2,10 @@
 
 //! Weaver Result type supporting both non-fatal errors (NFEs) and fatal errors.
 //!
-//! NFEs do not prevent the next operations from completing successfully.
+//! NFEs do not prevent the next operations from completing successfully. For example,
+//! if a semconv file is invalid, we generate a non-fatal error and continue processing
+//! the other files.
+//!
 //! NFEs in Weaver are standard Rust errors.
 
 use crate::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -15,9 +18,10 @@ use std::error::Error;
 #[must_use]
 pub enum WResult<T, E> {
     /// The operation was successful, the result T is returned along with
-    /// non-fatal errors.
+    /// 0 or more non-fatal errors.
     Ok(T, Vec<E>),
-    /// The operation failed with a fatal errors.
+    /// The operation failed with a fatal error. By definition, we can only have
+    /// one fatal error.
     Err(E),
 }
 
@@ -35,7 +39,7 @@ where
         WResult::Err(error)
     }
 
-    /// Converts a `[WResult]` into a standard `[Result]`, optionally capturing non-fatal errors.
+    /// Converts a [`WResult`] into a standard [`Result`], optionally capturing non-fatal errors.
     pub fn capture_non_fatal_errors(
         self,
         non_fatal_errors: &mut Vec<DiagnosticMessage>,
@@ -51,7 +55,7 @@ where
         }
     }
 
-    /// Capture the warnings into the provided vector and return a `[WResult]`
+    /// Capture the warnings into the provided vector and return a [`WResult`]
     /// without the warnings.
     pub fn capture_warnings(self, diag_msgs: &mut DiagnosticMessages) -> WResult<T, E> {
         if let WResult::Ok(result, nfes) = self {
@@ -92,7 +96,7 @@ where
         self
     }
 
-    /// Converts a `[WResult]` into a standard `[Result]`, potentially
+    /// Converts a [`WResult`] into a standard [`Result`], potentially
     /// aggregating non-fatal errors into a single error.
     pub fn into_result(self) -> Result<T, E> {
         match self {
@@ -107,7 +111,7 @@ where
         }
     }
 
-    /// Converts a `[WResult]` into a standard `[Result]`, returning the result
+    /// Converts a [`WResult`] into a standard [`Result`], returning the result
     /// alongside any non-fatal errors.
     pub fn into_result_with_nfes(self) -> Result<(T, Vec<E>), E> {
         match self {
