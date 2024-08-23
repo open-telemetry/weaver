@@ -150,6 +150,9 @@
 				"name": {
 					"type": "string",
 					"description": "The name of the event."
+				},
+				"body": {
+					"$ref": "#/$defs/BodySemanticConvention"
 				}
 			},
 			"anyOf": [
@@ -159,6 +162,113 @@
 					]
 				}
 			]
+		},
+		"BodySemanticConvention": {
+			"type": "object",
+			"required": [
+				"fields"
+			],
+			"properties": {
+				"fields": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/BodyFieldSemanticContention"
+					}
+				}
+			}
+		},
+		"BodyFieldSemanticContention": {
+			"type": "object",
+			"required": [
+				"id",
+				"type",
+				"brief",
+				"stability"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "unique string"
+				},
+				"type": {
+					"$ref": "#/$defs/AttributeType"
+				},
+				"brief": {
+					"type": "string",
+					"description": "a brief description of the field."
+				},
+				"note": {
+					"type": "string",
+					"description": "a more elaborate description of the field. It defaults to an empty string."
+				},
+				"deprecated": {
+					"type": "string",
+					"description": "specifies if the field is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+				},
+				"stability": {
+					"allOf": [
+						{
+							"$ref": "#/$defs/StabilityLevel"
+						}
+					]
+				},
+				"requirement_level": {
+					"description": "specifies the field requirement level. Can be 'required', 'conditionally_required', 'recommended', or 'opt_in'. When omitted, the field is 'recommended'. When set to 'conditionally_required', the string provided MUST specify the conditions under which the field is required.",
+					"oneOf": [
+						{
+							"const": "required"
+						},
+						{
+							"type": "object",
+							"additionalProperties": false,
+							"required": [
+								"conditionally_required"
+							],
+							"properties": {
+								"conditionally_required": {
+									"type": "string"
+								}
+							}
+						},
+						{
+							"oneOf": [
+								{
+									"const": "recommended"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"required": [
+										"recommended"
+									],
+									"properties": {
+										"recommended": {
+											"type": "string"
+										}
+									}
+								}
+							]
+						},
+						{
+							"const": "opt_in"
+						}
+					]
+				},
+				"examples": {
+					"anyOf": [
+						{
+							"$ref": "#/$defs/ValueType"
+						},
+						{
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/ValueType"
+							}
+						}
+					],
+					"description": "sequence/dictionary of example values for the field. They are optional for boolean, int, double, and enum attributes. Example values must be of the same type of the field. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary."
+				}
+			}
 		},
 		"MetricSemanticConvention": {
 			"allOf": [
@@ -280,34 +390,8 @@
 					"description": "unique string"
 				},
 				"type": {
-					"oneOf": [
-						{
-							"type": "string",
-							"enum": [
-								"string",
-								"int",
-								"double",
-								"boolean",
-								"string[]",
-								"int[]",
-								"double[]",
-								"boolean[]",
-								"template[string]",
-								"template[int]",
-								"template[double]",
-								"template[boolean]",
-								"template[string[]]",
-								"template[int[]]",
-								"template[double[]]",
-								"template[boolean[]]"
-							],
-							"description": "literal denoting the type"
-						},
-						{
-							"$ref": "#/$defs/AttributeEnumType"
-						}
-					]
-				}
+					"$ref": "#/$defs/AttributeType"
+				}					
 			}
 		},
 		"AttributeReference": {
@@ -440,6 +524,36 @@
 							"$ref": "#/$defs/AttributeReference"
 						}
 					]
+				}
+			]
+		},
+		"AttributeType": {
+			"description": "specifies the supported attribute types.",
+			"oneOf": [
+				{
+					"type": "string",
+					"enum": [
+						"string",
+						"int",
+						"double",
+						"boolean",
+						"string[]",
+						"int[]",
+						"double[]",
+						"boolean[]",
+						"template[string]",
+						"template[int]",
+						"template[double]",
+						"template[boolean]",
+						"template[string[]]",
+						"template[int[]]",
+						"template[double[]]",
+						"template[boolean[]]"
+					],
+					"description": "literal denoting the type"
+				},
+				{
+					"$ref": "#/$defs/AttributeEnumType"
 				}
 			]
 		}

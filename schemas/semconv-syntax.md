@@ -15,6 +15,9 @@ Then, the semantic of each field is described.
     - [Semantic Convention](#semantic-convention)
       - [Span semantic convention](#span-semantic-convention)
       - [Event semantic convention](#event-semantic-convention)
+      - [Event Body semantic convention](#event-body-semantic-convention)
+      - [Event Body Field semantic convention](#event-body-field-semantic-convention)
+      - [Event semantic convention example](#event-semantic-convention-example)
       - [Metric Group semantic convention](#metric-group-semantic-convention)
       - [Metric semantic convention](#metric-semantic-convention)
       - [Attribute group semantic convention](#attribute-group-semantic-convention)
@@ -45,8 +48,8 @@ semconv ::= id [convtype] brief [note] [extends] stability [deprecated] [display
 id    ::= string
 
 convtype ::= "span" # Default if not specified
-         |   "resource" # see spanspecificfields
-         |   "event"    # see eventspecificfields
+         |   "resource" # see spansfields
+         |   "event"    # see eventfields
          |   "metric"   # see metricfields
          |   "attribute_group" # no specific fields defined
 
@@ -62,7 +65,7 @@ deprecated ::= <description>
 
 display_name ::= string
 
-attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [required] [sampling_relevant] [note]
+attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [requirement_level] [sampling_relevant] [note]
 
 # ref MUST point to an existing attribute id
 ref ::= id
@@ -102,7 +105,12 @@ specificfields ::= spanfields
                |   metricfields
 
 spanfields ::= [events] [span_kind]
-eventfields ::= [name]
+
+eventfields ::= [name] [body]
+
+body ::= body_fields
+
+body_fields ::= id type brief [examples] stability [deprecated] [requirement_level] [note]
 
 span_kind ::= "client"
           |   "server"
@@ -159,6 +167,77 @@ The following is only valid if `type` is `span` (the default):
 The following is only valid if `type` is `event`:
 
 - `name`, required, string. The name of the event.
+- `body`, optional, object. Describes the body of the event.
+
+#### Event Body semantic convention
+
+The following is only valid if `type` is `event` and `body` is present:
+
+- `fields`, required, list of fields that describe the event body.
+
+#### Event Body Field semantic convention
+
+The following is only valid if `type` is `event` and `body` is present and `fields` is present:
+
+- `id`, required, string. The name of the field.
+- `type`, either a string literal denoting the type as a primitive or an array type, a template type or an enum definition (See later).  Required.
+   The accepted string literals are:
+  * _primitive and array types as string literals:_
+    * `"string"`: String attributes.
+    * `"int"`: Integer attributes.
+    * `"double"`: Double attributes.
+    * `"boolean"`: Boolean attributes.
+    * `"string[]"`: Array of strings attributes.
+    * `"int[]"`: Array of integer attributes.
+    * `"double[]"`: Array of double attributes.
+    * `"boolean[]"`: Array of boolean attributes.
+  * _template type as string literal:_ `"template[<PRIMITIVE_OR_ARRAY_TYPE>]"` (See [below](#template-type))
+  See the [specification of Attributes](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute) for the definition of the value types.
+- `stability`, required, enum. The stability of the field.
+- `requirement_level`, optional. Specifies if the field is mandatory.
+   Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended".
+    When set to "conditionally_required", the string provided as `<condition>` MUST specify
+    the conditions under which the field is required.
+- `brief`, `note`, `deprecated`, same meaning as for the whole
+  [semantic convention](#semantic-convention), but per field.
+- `examples`, sequence of example values for the field or single example value.
+   They are required only for string and string array fields.
+   Example values must be of the same type of the field.
+   If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
+
+#### Event semantic convention example
+  
+  ```yaml
+  - id: event.some_event
+    name: the.event.name
+    type: event
+    brief: "Describes the event."
+    stability: experimental
+    attributes:                                        # Optional
+      - id: registry.attribute.id
+        type: string
+        requirement_level: required
+        brief: Adds a standard attribute to the global registry.
+        examples: ["some_value"]
+      - ref: registry.some.attribute.id                # Reference to an existing global attribute
+    body:                                              # Optional
+      fields:
+        - id: method
+          type: string
+          stability: experimental
+          brief: "The HTTP method used in the request."
+          examples: ['GET', 'POST']
+        - id: url
+          type: string
+          stability: experimental
+          brief: "The URL of the request."
+          examples: ['http://example.com']
+        - id: status_code
+          type: int
+          stability: experimental
+          brief: "The status code of the response."
+          examples: [200, 404]
+  ```
 
 #### Metric Group semantic convention
 
