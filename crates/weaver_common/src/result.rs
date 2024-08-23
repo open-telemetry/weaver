@@ -73,13 +73,16 @@ where
     }
 
     /// Return a [`WResult`] without the non-fatal errors with severity=warning.
-    pub fn ignore_severity_warnings(self) -> WResult<T, E> {
+    pub fn ignore<F>(self, ignore: F) -> WResult<T, E>
+    where
+        F: Fn(&E) -> bool,
+    {
         match self {
             WResult::OkWithNFEs(result, non_fatal_errors) => {
                 // Remove warnings from the non-fatal errors.
                 let errors: Vec<_> = non_fatal_errors
                     .into_iter()
-                    .filter(|e| !matches!(e.severity(), Some(miette::Severity::Warning)))
+                    .filter(|e| !ignore(e))
                     .collect();
                 if errors.is_empty() {
                     WResult::Ok(result)

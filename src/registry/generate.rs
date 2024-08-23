@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use miette::Diagnostic;
 use serde_yaml::Value;
 
 use weaver_cache::RegistryRepo;
@@ -114,7 +115,7 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
-        .ignore_severity_warnings()
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()?;
 
     if !args.skip_policies {

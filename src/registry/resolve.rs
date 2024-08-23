@@ -16,6 +16,7 @@ use crate::format::{apply_format, Format};
 use crate::registry::RegistryArgs;
 use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
 use crate::{registry, DiagnosticArgs, ExitDirectives};
+use miette::Diagnostic;
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
@@ -82,7 +83,7 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
-        .ignore_severity_warnings()
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()?;
 
     if !args.skip_policies {

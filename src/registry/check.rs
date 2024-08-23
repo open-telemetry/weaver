@@ -3,6 +3,7 @@
 //! Check a semantic convention registry.
 
 use clap::Args;
+use miette::Diagnostic;
 use std::path::PathBuf;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
@@ -86,7 +87,7 @@ pub(crate) fn command(
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
             load_semconv_specs(repo, logger.clone())
-                .ignore_severity_warnings()
+                .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
                 .capture_non_fatal_errors(&mut diag_msgs)
         })
         .transpose()?;
