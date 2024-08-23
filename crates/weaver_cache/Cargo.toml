@@ -23,9 +23,9 @@ gix = { version = "0.64.0", default-features = false, features = [
     "worktree-mutation",
     "blocking-http-transport-reqwest-rust-tls",
 ] }
-flate2 = "1.0.31"
+flate2 = "1.0.32"
 tar = "0.4.41"
-zip = "2.1.5"
+zip = "2.2.0"
 
 thiserror.workspace = true
 serde.workspace = true
