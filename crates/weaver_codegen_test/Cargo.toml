@@ -1,6 +1,6 @@
 [package]
 name = "weaver_codegen_test"
-version = "0.9.0"
+version = "0.9.1"
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -22,6 +22,7 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_semconv = { path = "../weaver_semconv" }
 walkdir.workspace = true
 dirs.workspace = true
+miette.workspace =  true
 
 [dependencies]
 opentelemetry.workspace = true

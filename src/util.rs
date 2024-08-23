@@ -10,7 +10,7 @@ use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::error::handle_errors;
+use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -31,15 +31,15 @@ use weaver_semconv::semconv::SemConvSpec;
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
     log: impl Logger + Sync + Clone,
-) -> Result<Vec<(String, SemConvSpec)>, weaver_resolver::Error> {
-    let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)?;
-    log.success(&format!(
-        "`{}` semconv registry `{}` loaded ({} files)",
-        registry_repo.id(),
-        registry_repo.registry_path_repr(),
-        semconv_specs.len()
-    ));
-    Ok(semconv_specs)
+) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
+    SchemaResolver::load_semconv_specs(registry_repo).inspect(|semconv_specs, _| {
+        log.success(&format!(
+            "`{}` semconv registry `{}` loaded ({} files)",
+            registry_repo.id(),
+            registry_repo.registry_path_repr(),
+            semconv_specs.len()
+        ));
+    })
 }
 
 /// Initializes the policy engine with policies from the registry and command line.
@@ -91,17 +91,13 @@ pub(crate) fn init_policy_engine(
 /// * `policy_stage` - The policy stage to check.
 /// * `policy_file` - The policy file to check.
 /// * `input` - The input to check.
-///
-/// # Returns
-///
-/// A list of policy violations represented as errors.
 pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
     policy_engine: &mut Engine,
     policy_stage: PolicyStage,
     policy_file: &str,
     input: &T,
     data: &[U],
-) -> Vec<Error> {
+) -> WResult<(), Error> {
     let mut errors = vec![];
 
     for d in data {
@@ -133,7 +129,7 @@ pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
             error: e.to_string(),
         }),
     }
-    errors
+    WResult::with_non_fatal_errors((), errors)
 }
 
 /// Checks the policies of a semantic convention registry.
@@ -150,11 +146,11 @@ pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
 pub(crate) fn check_policy(
     policy_engine: &Engine,
     semconv_specs: &[(String, SemConvSpec)],
-) -> Result<(), Error> {
+) -> WResult<(), Error> {
     // Check policies in parallel
-    let policy_errors = semconv_specs
+    let results = semconv_specs
         .par_iter()
-        .flat_map(|(path, semconv)| {
+        .map(|(path, semconv)| {
             // Create a local policy engine inheriting the policies
             // from the global policy engine
             let mut policy_engine = policy_engine.clone();
@@ -166,42 +162,19 @@ pub(crate) fn check_policy(
                 &[],
             )
         })
-        .collect::<Vec<Error>>();
+        .collect::<Vec<WResult<(), Error>>>();
 
-    handle_errors(policy_errors)?;
-    Ok(())
-}
-
-/// Checks the policies of a semantic convention registry.
-///
-/// # Arguments
-///
-/// * `policy_engine` - The policy engine.
-/// * `semconv_specs` - The semantic convention specifications to check.
-/// * `logger` - The logger for logging messages.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` if all policies are checked successfully,
-/// or `DiagnosticMessages` if any policy violations occur.
-pub(crate) fn check_policies(
-    policy_engine: &Engine,
-    semconv_specs: &[(String, SemConvSpec)],
-    logger: impl Logger + Sync + Clone,
-) -> Result<(), DiagnosticMessages> {
-    if policy_engine.policy_package_count() > 0 {
-        check_policy(policy_engine, semconv_specs).map_err(|e| {
-            if let Error::CompoundError(errors) = e {
-                DiagnosticMessages::from_errors(errors)
-            } else {
-                DiagnosticMessages::from_error(e)
+    let mut nfes = vec![];
+    for result in results {
+        match result {
+            WResult::Ok(_) => {}
+            WResult::OkWithNFEs(_, errors) => {
+                nfes.extend(errors);
             }
-        })?;
-        logger.success("All `before_resolution` policies checked");
-    } else {
-        logger.success("No `before_resolution` policy found");
+            WResult::FatalErr(e) => return WResult::FatalErr(e),
+        }
     }
-    Ok(())
+    WResult::with_non_fatal_errors((), nfes)
 }
 
 /// Resolves the semantic convention specifications and returns the resolved schema.

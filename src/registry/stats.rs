@@ -6,6 +6,7 @@ use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
 use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use miette::Diagnostic;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
@@ -47,7 +48,9 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
 
     display_semconv_registry_stats(&registry);

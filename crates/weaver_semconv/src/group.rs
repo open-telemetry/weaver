@@ -13,7 +13,7 @@ use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
 use crate::Error;
-use weaver_common::error::handle_errors;
+use weaver_common::result::WResult;
 
 /// Group Spec contain the list of semantic conventions for attributes,
 /// metrics, events, spans, etc.
@@ -90,7 +90,7 @@ pub struct GroupSpec {
 
 impl GroupSpec {
     /// Validation logic for the group.
-    pub(crate) fn validate(&self, path_or_url: &str) -> Result<(), Error> {
+    pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
 
         // Fields span_kind and events are only valid if type is span (the default).
@@ -179,37 +179,44 @@ impl GroupSpec {
             } = attribute
             {
                 if let Some(examples) = examples {
-                    if let Err(err) = examples.validate(r#type, &self.id, id, path_or_url) {
-                        errors.push(err);
+                    match examples.validate(r#type, &self.id, id, path_or_url) {
+                        WResult::Ok(_) => {}
+                        WResult::OkWithNFEs(_, errs) => errors.extend(errs),
+                        WResult::FatalErr(err) => return WResult::FatalErr(err),
                     }
-                    continue;
-                }
+                } else {
+                    // No examples are set.
 
-                if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String) {
-                    errors.push(Error::InvalidAttribute {
-                        path_or_url: path_or_url.to_owned(),
-                        group_id: self.id.clone(),
-                        attribute_id: attribute.id(),
-                        error: "This attribute is a string but it does not contain any examples."
-                            .to_owned(),
-                    });
-                }
-                if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings) {
-                    errors.push(Error::InvalidAttribute {
-                        path_or_url: path_or_url.to_owned(),
-                        group_id: self.id.clone(),
-                        attribute_id: attribute.id(),
-                        error:
+                    // string attributes must have examples.
+                    if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String)
+                    {
+                        errors.push(Error::InvalidExampleWarning {
+                            path_or_url: path_or_url.to_owned(),
+                            group_id: self.id.clone(),
+                            attribute_id: attribute.id(),
+                            error:
+                                "This attribute is a string but it does not contain any examples."
+                                    .to_owned(),
+                        });
+                    }
+
+                    // string array attributes must have examples.
+                    if *r#type == AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
+                    {
+                        errors.push(Error::InvalidExampleWarning {
+                            path_or_url: path_or_url.to_owned(),
+                            group_id: self.id.clone(),
+                            attribute_id: attribute.id(),
+                            error:
                             "This attribute is a string array but it does not contain any examples."
                                 .to_owned(),
-                    });
+                        });
+                    }
                 }
             }
         }
 
-        handle_errors(errors)?;
-
-        Ok(())
+        WResult::with_non_fatal_errors((), errors)
     }
 }
 
@@ -306,7 +313,7 @@ impl Display for InstrumentSpec {
 #[cfg(test)]
 mod tests {
     use crate::attribute::Examples;
-    use crate::Error::{CompoundError, InvalidAttribute, InvalidGroup, InvalidMetric};
+    use crate::Error::{CompoundError, InvalidExampleWarning, InvalidGroup, InvalidMetric};
 
     use super::*;
 
@@ -342,11 +349,14 @@ mod tests {
             name: None,
             display_name: None,
         };
-        assert!(group.validate("<test>").is_ok());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
 
         // Span kind is set but the type is not span.
         group.r#type = GroupType::Metric;
-        let result = group.validate("<test>");
+        let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(CompoundError(vec![
                 InvalidGroup {
@@ -386,7 +396,7 @@ mod tests {
         group.r#type = GroupType::Event;
         "".clone_into(&mut group.prefix);
         group.name = None;
-        let result = group.validate("<test>");
+        let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(Err(
             CompoundError(
                 vec![
@@ -442,7 +452,10 @@ mod tests {
             name: None,
             display_name: None,
         };
-        assert!(group.validate("<test>").is_ok());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
 
         // Examples are mandatory for string attributes.
         group.attributes = vec![AttributeSpec::Id {
@@ -457,9 +470,9 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
         }];
-        let result = group.validate("<test>");
+        let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
-            Err(InvalidAttribute {
+            Err(InvalidExampleWarning {
                 path_or_url: "<test>".to_owned(),
                 group_id: "test".to_owned(),
                 attribute_id: "test".to_owned(),
@@ -482,9 +495,9 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
         }];
-        let result = group.validate("<test>");
+        let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
-            Err(InvalidAttribute {
+            Err(InvalidExampleWarning {
                 path_or_url: "<test>".to_owned(),
                 group_id: "test".to_owned(),
                 attribute_id: "test".to_owned(),

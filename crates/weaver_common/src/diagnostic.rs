@@ -116,6 +116,12 @@ impl DiagnosticMessage {
             diagnostic,
         }
     }
+
+    /// Returns true if the diagnostic message is a warning
+    #[must_use]
+    pub fn is_warning(&self) -> bool {
+        self.diagnostic.severity == Some(Severity::Warning)
+    }
 }
 
 impl DiagnosticMessages {
@@ -135,6 +141,12 @@ impl DiagnosticMessages {
     /// `DiagnosticMessages`.
     pub fn extend(&mut self, diag_msgs: DiagnosticMessages) {
         self.0.extend(diag_msgs.0);
+    }
+
+    /// Extends the current `DiagnosticMessages` with the provided
+    /// `Vec<DiagnosticMessage>`.
+    pub fn extend_from_vec(&mut self, diag_msgs: Vec<DiagnosticMessage>) {
+        self.0.extend(diag_msgs);
     }
 
     /// Logs all the diagnostic messages

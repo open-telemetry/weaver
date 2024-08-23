@@ -11,6 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
+use weaver_common::result::WResult;
 use AttributeType::{Enum, PrimitiveOrArray, Template};
 
 /// An attribute specification.
@@ -438,7 +439,7 @@ impl Examples {
         group_id: &str,
         attr_id: &str,
         path_or_url: &str,
-    ) -> Result<(), Error> {
+    ) -> WResult<(), Error> {
         match (self, attr_type) {
             (Examples::Bool(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean))
             | (Examples::Int(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int))
@@ -452,11 +453,11 @@ impl Examples {
             | (Examples::ListOfDoubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
             | (Examples::ListOfBools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
             | (Examples::ListOfStrings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
-                Ok(())
+                WResult::Ok(())
             }
             (_, Enum { .. }) => {
                 // enum types are open so it's not possible to validate the examples
-                Ok(())
+                WResult::Ok(())
             }
             // Only if future mode is disabled, we allow to have examples following
             // the conventions used in semconv 1.27.0 and earlier.
@@ -464,23 +465,29 @@ impl Examples {
             | (Examples::Doubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
             | (Examples::Bools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
             | (Examples::Strings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
-                Err(Error::InvalidExampleWarning {
-                    path_or_url: path_or_url.to_owned(),
-                    group_id: group_id.to_owned(),
-                    attribute_id: attr_id.to_owned(),
-                    error: format!("All examples SHOULD be of type `{}`", attr_type),
-                })
+                WResult::OkWithNFEs(
+                    (),
+                    vec![Error::InvalidExampleWarning {
+                        path_or_url: path_or_url.to_owned(),
+                        group_id: group_id.to_owned(),
+                        attribute_id: attr_id.to_owned(),
+                        error: format!("All examples SHOULD be of type `{}`", attr_type),
+                    }],
+                )
             }
             (Examples::String(_), Template(TemplateTypeSpec::String))
             | (Examples::Strings(_), Template(TemplateTypeSpec::String))
             | (Examples::String(_), Template(TemplateTypeSpec::Strings))
-            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => Ok(()),
-            _ => Err(Error::InvalidExampleError {
-                path_or_url: path_or_url.to_owned(),
-                group_id: group_id.to_owned(),
-                attribute_id: attr_id.to_owned(),
-                error: format!("All examples MUST be of type `{}`", attr_type),
-            }),
+            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::Ok(()),
+            _ => WResult::OkWithNFEs(
+                (),
+                vec![Error::InvalidExampleError {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    attribute_id: attr_id.to_owned(),
+                    error: format!("All examples MUST be of type `{}`", attr_type),
+                }],
+            ),
         }
     }
 }
@@ -987,74 +994,148 @@ mod tests {
 
         // === Test int-like examples ===
         let examples = Examples::Int(42);
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_str, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::Ints(vec![42, 43]);
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_str, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
-        assert!(examples.validate(&attr_ints, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_ints, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfStrings(vec![
             vec!["42".to_owned(), "43".to_owned()],
             vec!["44".to_owned(), "45".to_owned()],
         ]);
-        assert!(examples.validate(&attr_ints, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_ints, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         // === Test string-like examples ===
         let examples = Examples::String("foo".to_owned());
-        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_str, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()]);
-        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_str, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfStrings(vec![
             vec!["foo".to_owned(), "bar".to_owned()],
             vec!["baz".to_owned(), "qux".to_owned()],
         ]);
-        assert!(examples.validate(&attr_strs, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_ints, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_strs, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_ints, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
-        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_str, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         // Non-strict validation
         let examples = Examples::Strings(vec!["foo".to_owned(), "bar".to_owned()]);
-        assert!(examples.validate(&attr_str, "grp", "attr", "url").is_ok());
+        assert!(examples
+            .validate(&attr_str, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
 
         // === Test bool-like examples ===
         let examples = Examples::Bool(true);
-        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_bool, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::Bools(vec![true, false]);
-        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_bool, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfBools(vec![vec![true, false], vec![false, true]]);
-        assert!(examples.validate(&attr_bools, "grp", "attr", "url").is_ok());
-        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_bools, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        assert!(examples
+            .validate(&attr_bool, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
-        assert!(examples.validate(&attr_bool, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_bool, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         // === Test double-like examples ===
         let examples = Examples::Double(OrderedFloat(42.0));
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
             .is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::Doubles(vec![OrderedFloat(42.0), OrderedFloat(43.0)]);
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
             .is_ok());
-        assert!(examples.validate(&attr_int, "grp", "attr", "url").is_err());
+        assert!(examples
+            .validate(&attr_int, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
+            .is_err());
 
         let examples = Examples::ListOfDoubles(vec![
             vec![OrderedFloat(42.0), OrderedFloat(43.0)],
@@ -1062,14 +1143,17 @@ mod tests {
         ]);
         assert!(examples
             .validate(&attr_doubles, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
             .is_ok());
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
             .is_err());
 
         let examples = Examples::ListOfInts(vec![vec![42, 43], vec![44, 45]]);
         assert!(examples
             .validate(&attr_double, "grp", "attr", "url")
+            .into_result_failing_non_fatal()
             .is_err());
     }
 }

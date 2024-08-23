@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use miette::Diagnostic;
 use serde_yaml::Value;
 
 use weaver_cache::RegistryRepo;
@@ -17,7 +18,7 @@ use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::registry::{Error, RegistryArgs};
-use crate::util::{check_policies, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
+use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
 use crate::{registry, DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry generate` sub-command
@@ -100,6 +101,7 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
+    let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params(args)?;
     let mut registry_path = args.registry.registry.clone();
     // Support for --registry-git-sub-dir (should be removed in the future)
@@ -112,11 +114,24 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
 
     if !args.skip_policies {
         let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
-        check_policies(&policy_engine, &semconv_specs, logger.clone())?;
+        check_policy(&policy_engine, &semconv_specs)
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    logger.success(&format!(
+                        "All `before_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    logger.success("No `before_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(&mut diag_msgs)?;
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
@@ -143,6 +158,10 @@ pub(crate) fn command(
         args.output.as_path(),
         &OutputDirective::File,
     )?;
+
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
 
     logger.success("Artifacts generated successfully");
     Ok(ExitDirectives {

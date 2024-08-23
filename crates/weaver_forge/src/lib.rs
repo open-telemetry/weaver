@@ -753,6 +753,7 @@ mod tests {
     ) {
         let registry_id = "default";
         let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .into_result_failing_non_fatal()
             .expect("Failed to load registry");
         prepare_test_with_registry(target, cli_params, registry_id, registry)
     }
@@ -949,6 +950,7 @@ mod tests {
 
         let registry_id = "default";
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
+            .into_result_failing_non_fatal()
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
@@ -1084,6 +1086,7 @@ mod tests {
             registry_id,
             "data/mini_registry_for_comments/*.yaml",
         )
+        .into_result_failing_non_fatal()
         .expect("Failed to load registry");
         let (logger, engine, template_registry, observed_output, expected_output) =
             prepare_test_with_registry("comment_format", Params::default(), registry_id, registry);

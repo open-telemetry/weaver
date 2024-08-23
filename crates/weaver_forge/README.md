@@ -856,7 +856,7 @@ In addition, OTel Weaver provides the following custom function:
   prefixed with "Notes: ". If the attribute note is not defined then the comment will
   only contain the brief description without the prefix "Notes: ".
 
-  `{{ [attr.brief, concat_if("\n\nNotes: ", attr.note) | comment }}`
+  `{{ [attr.brief, concat_if("\n\nNotes: ", attr.note)] | comment }}`
 
 ### Jinja Tests Reference
 

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2024-08-22
+
+Fixes
+
+* Warnings detected in the baseline registry are now ignored and non-fatal errors will not
+  interrupt any command before it completes
+  ([#337](https://github.com/open-telemetry/weaver/pull/337) by lquerel).
+
 ## [0.9.0] - 2024-08-19
 
 What's Changed

@@ -388,7 +388,9 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 

@@ -14,8 +14,9 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::format::{apply_format, Format};
 use crate::registry::RegistryArgs;
-use crate::util::{check_policies, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
+use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
 use crate::{registry, DiagnosticArgs, ExitDirectives};
+use miette::Diagnostic;
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
@@ -68,6 +69,7 @@ pub(crate) fn command(
     }
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
+    let mut diag_msgs = DiagnosticMessages::empty();
     let mut registry_path = args.registry.registry.clone();
     // Support for --registry-git-sub-dir (should be removed in the future)
     if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
@@ -80,11 +82,24 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())?;
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
 
     if !args.skip_policies {
         let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
-        check_policies(&policy_engine, &semconv_specs, logger.clone())?;
+        check_policy(&policy_engine, &semconv_specs)
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    logger.success(&format!(
+                        "All `before_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    logger.success("No `before_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(&mut diag_msgs)?;
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
@@ -117,6 +132,10 @@ pub(crate) fn command(
             // Capture all the errors
             panic!("{}", e);
         });
+
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
 
     Ok(ExitDirectives {
         exit_code: 0,
