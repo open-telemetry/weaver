@@ -4,23 +4,27 @@
 
 use weaver_resolved_schema::{
     body::{Body, BodyField},
-    error::{handle_errors, Error},
+    error::Error,
 };
-use weaver_semconv::body::{BodyFieldSpec, BodySpec};
+use weaver_semconv::body::BodySpec;
 
 /// Resolve a `Body` specification into a resolved `Body`.
 pub fn resolve_body_spec(body: &BodySpec) -> Result<Option<Body>, Error> {
     match body {
         BodySpec::Fields { fields } => {
-            let mut errors = vec![];
             let mut body_fields = Vec::new();
             for field in fields.iter() {
-                match resolve_body_field_spec(field) {
-                    Ok(r) => body_fields.push(r),
-                    Err(e) => errors.push(e),
-                }
+                body_fields.push(BodyField {
+                    name: field.id.clone(),
+                    r#type: field.r#type.clone(),
+                    brief: field.brief.clone().unwrap_or_else(|| "".to_owned()),
+                    examples: field.examples.clone(),
+                    requirement_level: field.requirement_level.clone(),
+                    note: field.note.clone(),
+                    stability: field.stability.clone(),
+                    deprecated: field.deprecated.clone(),
+                });
             }
-            handle_errors(errors)?;
             Ok(Some(Body {
                 fields: Some(body_fields),
                 // value: None,             // Not yet implemented
@@ -33,18 +37,4 @@ pub fn resolve_body_spec(body: &BodySpec) -> Result<Option<Body>, Error> {
             })
         }
     }
-}
-
-/// Resolve a `BodyField`` specification into a resolved `BodyField``.
-pub fn resolve_body_field_spec(field: &BodyFieldSpec) -> Result<BodyField, Error> {
-    Ok(BodyField {
-        name: field.id.clone(),
-        r#type: field.r#type.clone(),
-        brief: field.brief.clone().unwrap_or_else(|| "".to_owned()),
-        examples: field.examples.clone(),
-        requirement_level: field.requirement_level.clone(),
-        note: field.note.clone(),
-        stability: field.stability.clone(),
-        deprecated: field.deprecated.clone(),
-    })
 }
