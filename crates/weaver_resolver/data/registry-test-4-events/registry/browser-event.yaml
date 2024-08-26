@@ -1,6 +1,6 @@
 groups:
-  - id: registry.browser
-    name: browser.test.event
+  - id: browser.test.event_with_fields
+    name: browser.test.event_with_fields
     prefix: browser
     type: event
     brief: >
@@ -20,15 +20,7 @@ groups:
         note: >
           This value is intended to be taken from the
           [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
-          (`navigator.userAgentData.platform`). If unavailable, the legacy
-          `navigator.platform` API SHOULD NOT be used instead and this attribute
-          SHOULD be left unset in order for the values to be consistent.
-          The list of possible values is defined in the
-          [W3C User-Agent Client Hints specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform).
-          Note that some (but not all) of these values can overlap with values
-          in the [`os.type` and `os.name` attributes](./os.md).
-          However, for consistency, the values in the `browser.platform` attribute
-          should capture the exact value that the user agent provides.
+          (`navigator.userAgentData.platform`). 
         examples: [ "Windows", "macOS", "Android", "iOS", "Linux" ]
       - id: mobile
         type: boolean
@@ -46,6 +38,25 @@ groups:
           `navigator.language`.
         examples: [ "en", "en-US", "en-AU", "fr", "fr-FR" ]
     body:
+      type: map
+      fields:
+        - id: some.field
+          type: string
+          brief: 'A field that is not referenced in the attributes'
+          note: 'This field is not referenced in the attributes'
+          examples: [ "some value", "another value" ]
+
+  - id: browser.test.event_with_body_details
+    name: browser.test.event_with_body_details
+    type: event
+    brief: >
+      An event that adds global attributes for reuse.
+    body:
+      type: map
+      brief: A map of fields that are not referenced in the attributes
+      note: This map is not referenced in the attributes
+      stability: experimental
+      examples: [ '{ "some.field": "some value" }' ]
       fields:
         - id: some.field
           type: string

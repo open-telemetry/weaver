@@ -4,11 +4,11 @@
 
 //! Body Field specification.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
-use crate::attribute::{
-    AttributeType, BasicRequirementLevelSpec, Examples, RequirementLevel, ValueSpec,
-};
+use crate::attribute::{AttributeType, BasicRequirementLevelSpec, Examples, RequirementLevel};
 use crate::stability::Stability;
 
 /// A body specification
@@ -19,14 +19,54 @@ use crate::stability::Stability;
 pub enum BodySpec {
     /// The collection of body fields associated with a body definition
     Fields {
-        /// The collection of body fields associated with a body definition
+        /// Identifies that the type of the body is a map of fields or a string.
+        r#type: BodyType,
+        /// A brief description of the body.
+        #[serde(skip_serializing_if = "String::is_empty")]
+        #[serde(default)]
+        brief: String,
+        /// A more elaborate description of the body.
+        /// It defaults to an empty string.
+        #[serde(skip_serializing_if = "String::is_empty")]
+        #[serde(default)]
+        note: String,
+        /// Specifies the stability of the body.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stability: Option<Stability>,
+        /// Sequence of example values for the body or single example
+        /// value. They are required only for string types. Example values
+        /// must be of the same type of the body. If only a single example is
+        /// provided, it can directly be reported without encapsulating it
+        /// into a sequence/dictionary.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        examples: Option<Examples>,
+        /// Identifies the definition of the "fields" of the body when the body type is "map".
         #[serde(skip_serializing_if = "Vec::is_empty")]
         fields: Vec<BodyFieldSpec>,
     },
-    /// The body field value.
-    Value {
-        /// The body field value.
-        value: ValueSpec,
+    /// The body will just be a string.
+    String {
+        /// Identifies that the type of the body is a string.
+        r#type: BodyType,
+        /// A brief description of the body.
+        #[serde(skip_serializing_if = "String::is_empty")]
+        #[serde(default)]
+        brief: String,
+        /// A more elaborate description of the body.
+        /// It defaults to an empty string.
+        #[serde(skip_serializing_if = "String::is_empty")]
+        #[serde(default)]
+        note: String,
+        /// Specifies the stability of the body.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        stability: Option<Stability>,
+        /// Sequence of example values for the body or single example
+        /// value. They are required only for string types. Example values
+        /// must be of the same type of the body. If only a single example is
+        /// provided, it can directly be reported without encapsulating it
+        /// into a sequence/dictionary.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        examples: Option<Examples>,
     },
 }
 
@@ -35,8 +75,28 @@ impl BodySpec {
     #[must_use]
     pub fn has_fields(&self) -> bool {
         match self {
-            BodySpec::Fields { fields } => !fields.is_empty(),
-            BodySpec::Value { value: _ } => false,
+            BodySpec::Fields { fields, .. } => !fields.is_empty(),
+            BodySpec::String { .. } => false,
+        }
+    }
+}
+
+/// Identifies the different types of body (specification).
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BodyType {
+    /// A map body type.
+    Map,
+    /// A string body type.
+    String,
+}
+
+/// Implements a human readable display for PrimitiveOrArrayType.
+impl Display for BodyType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BodyType::String => write!(f, "string"),
+            BodyType::Map => write!(f, "map"),
         }
     }
 }
@@ -52,7 +112,7 @@ pub struct BodyFieldSpec {
     /// array type, a template type or an enum definition.
     pub r#type: AttributeType,
     /// A brief description of the body field.
-    pub brief: Option<String>,
+    pub brief: String,
     /// Sequence of example values for the body field or single example
     /// value. They are required only for string and string array
     /// fields. Example values must be of the same type of the
@@ -216,11 +276,68 @@ mod tests {
     }
 
     #[test]
+    fn test_field_body() {
+        let body = BodySpec::Fields {
+            r#type: BodyType::Map,
+            brief: "brief".to_owned(),
+            note: "note".to_owned(),
+            stability: Some(Stability::Stable),
+            examples: Some(Examples::Int(42)),
+            fields: vec![BodyFieldSpec {
+                id: "id".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+                brief: "brief".to_owned(),
+                examples: Some(Examples::Int(42)),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                note: "note".to_owned(),
+                stability: Some(Stability::Stable),
+                deprecated: Some("deprecated".to_owned()),
+            }],
+        };
+
+        assert!(matches!(body, BodySpec::Fields { .. }));
+        assert!(!matches!(body, BodySpec::String { .. }));
+        assert!(body.has_fields());
+
+        if let BodySpec::Fields {
+            brief,
+            note,
+            fields,
+            ..
+        } = body
+        {
+            assert_eq!(brief, "brief");
+            assert_eq!(note, "note");
+            assert!(fields.len() == 1);
+        }
+    }
+
+    #[test]
+    fn test_string_body() {
+        let body = BodySpec::String {
+            r#type: BodyType::String,
+            brief: "brief".to_owned(),
+            note: "note".to_owned(),
+            stability: Some(Stability::Stable),
+            examples: Some(Examples::String("{key: value}".to_owned())),
+        };
+
+        assert!(matches!(body, BodySpec::String { .. }));
+        assert!(!matches!(body, BodySpec::Fields { .. }));
+        assert!(!body.has_fields());
+
+        if let BodySpec::String { brief, note, .. } = body {
+            assert_eq!(brief, "brief");
+            assert_eq!(note, "note");
+        }
+    }
+
+    #[test]
     fn test_body_field() {
         let field = BodyFieldSpec {
             id: "id".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
-            brief: Some("brief".to_owned()),
+            brief: "brief".to_owned(),
             examples: Some(Examples::Int(42)),
             requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
             note: "note".to_owned(),
@@ -228,7 +345,7 @@ mod tests {
             deprecated: Some("deprecated".to_owned()),
         };
         assert_eq!(field.id, "id");
-        assert_eq!(field.brief.to_owned(), Some("brief".to_owned()));
+        assert_eq!(field.brief.to_owned(), "brief".to_owned());
         assert_eq!(field.note, "note");
         assert!(field.is_required());
     }

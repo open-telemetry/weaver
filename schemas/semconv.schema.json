@@ -166,9 +166,41 @@
 		"BodySemanticConvention": {
 			"type": "object",
 			"required": [
-				"fields"
+				"type"
 			],
 			"properties": {
+				"type": {
+					"$ref": "#/$defs/BodyType"
+				},
+				"brief": {
+					"type": "string",
+					"description": "a brief description of the field."
+				},
+				"note": {
+					"type": "string",
+					"description": "a more elaborate description of the field. It defaults to an empty string."
+				},
+				"stability": {
+					"allOf": [
+						{
+							"$ref": "#/$defs/StabilityLevel"
+						}
+					]
+				},
+				"examples": {
+					"anyOf": [
+						{
+							"$ref": "#/$defs/ValueType"
+						},
+						{
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/ValueType"
+							}
+						}
+					],
+					"description": "sequence/dictionary of example values for the field. They are optional for boolean, int, double, and enum attributes. Example values must be of the same type of the field. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary."
+				},
 				"fields": {
 					"type": "array",
 					"items": {
@@ -554,6 +586,19 @@
 				},
 				{
 					"$ref": "#/$defs/AttributeEnumType"
+				}
+			]
+		},
+		"BodyType": {
+			"description": "specifies the supported body types.",
+			"oneOf": [
+				{
+					"type": "string",
+					"enum": [
+						"string",
+						"map"
+					],
+					"description": "literal denoting the type"
 				}
 			]
 		}

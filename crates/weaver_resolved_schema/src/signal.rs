@@ -49,7 +49,7 @@ pub struct MultivariateMetric {
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
-    /// The name of the event.
+    /// The name of the event
     name: String,
     /// References to attributes defined in the catalog.
     #[serde(skip_serializing_if = "Vec::is_empty")]

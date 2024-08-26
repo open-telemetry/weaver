@@ -106,9 +106,12 @@ specificfields ::= spanfields
 
 spanfields ::= [events] [span_kind]
 
-eventfields ::= [name] [body]
+eventfields ::= name [body]
 
-body ::= body_fields
+body ::= body_type [brief] [examples] [stability] [note] [body_fields]
+
+body_type ::= "map"
+         |   "string"
 
 body_fields ::= id type brief [examples] stability [deprecated] [requirement_level] [note]
 
@@ -214,13 +217,10 @@ The following is only valid if `type` is `event` and `body` is present and `fiel
     brief: "Describes the event."
     stability: experimental
     attributes:                                        # Optional
-      - id: registry.attribute.id
-        type: string
-        requirement_level: required
-        brief: Adds a standard attribute to the global registry.
-        examples: ["some_value"]
-      - ref: registry.some.attribute.id                # Reference to an existing global attribute
+      - ref: registry.attribute.id
+      - ref: registry.some_other.attribute.id          # Reference to an existing global attribute
     body:                                              # Optional
+      type: map
       fields:
         - id: method
           type: string

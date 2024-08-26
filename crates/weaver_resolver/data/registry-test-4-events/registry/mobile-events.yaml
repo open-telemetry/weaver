@@ -10,6 +10,7 @@ groups:
       the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are
       mutually exclusive.
     body:
+      type: map
       fields:
         - id: ios.state
           stability: experimental

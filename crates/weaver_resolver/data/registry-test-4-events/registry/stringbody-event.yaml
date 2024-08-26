@@ -1,0 +1,31 @@
+groups:
+  - id: some.string.body.event
+    stability: experimental
+    type: event
+    name: string.body.event
+    brief: >
+      This event represents an occurrence of a something.
+    note: >
+      This event transmits the body as a JSON encoded string.
+    body:
+      type: string
+      brief: >
+        This is the body of the event which is a JSON encoded string.
+      examples: ['{"key1":"value1","key2":"value2"}']
+
+  - id: some.string.body.detailed.event
+    stability: experimental
+    type: event
+    name: string.body.event
+    brief: >
+      This event represents an occurrence of a something.
+    note: >
+      This event transmits the body as a JSON encoded string.
+    body:
+      type: string
+      brief: >
+        This is the body of the event which is a JSON encoded string.
+      note: >
+        This is a detailed note about the body.
+      stability: experimental
+      examples: ['{"key1":"value1","key2":"value2"}']      

@@ -2,7 +2,7 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "registry.browser",
+      "id": "browser.test.event_with_fields",
       "type": "event",
       "brief": "An event that adds global attributes for reuse.\n",
       "prefix": "browser",
@@ -12,11 +12,44 @@
         2,
         3
       ],
-      "name": "browser.test.event",
+      "name": "browser.test.event_with_fields",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/browser-event.yaml"
       },
       "body": {
+        "type": "map",
+        "fields": [
+          {
+            "name": "some.field",
+            "type": "string",
+            "brief": "A field that is not referenced in the attributes",
+            "examples": [
+              "some value",
+              "another value"
+            ],
+            "requirement_level": "recommended",
+            "note": "This field is not referenced in the attributes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "browser.test.event_with_body_details",
+      "type": "event",
+      "brief": "An event that adds global attributes for reuse.\n",
+      "attributes": [],
+      "name": "browser.test.event_with_body_details",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/browser-event.yaml"
+      },
+      "body": {
+        "type": "map",
+        "brief": "A map of fields that are not referenced in the attributes",
+        "note": "This map is not referenced in the attributes",
+        "stability": "experimental",
+        "examples": [
+          "{ \"some.field\": \"some value\" }"
+        ],
         "fields": [
           {
             "name": "some.field",
@@ -79,7 +112,8 @@
             "requirement_level": "recommended",
             "note": "An exception is considered to have escaped."
           }
-        ]
+        ],
+        "type": "map"
       }
     },
     {
@@ -254,7 +288,8 @@
             "note": "The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.\n",
             "stability": "experimental"
           }
-        ]
+        ],
+        "type": "map"
       }
     },
     {
@@ -403,6 +438,46 @@
       ],
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/referenced-server.yaml"
+      }
+    },
+    {
+      "id": "some.string.body.event",
+      "type": "event",
+      "brief": "This event represents an occurrence of a something.\n",
+      "note": "This event transmits the body as a JSON encoded string.\n",
+      "stability": "experimental",
+      "attributes": [],
+      "name": "string.body.event",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/stringbody-event.yaml"
+      },
+      "body": {
+        "type": "string",
+        "brief": "This is the body of the event which is a JSON encoded string.\n",
+        "examples": [
+          "{\"key1\":\"value1\",\"key2\":\"value2\"}"
+        ]      
+      }
+    },
+    {
+      "id": "some.string.body.detailed.event",
+      "type": "event",
+      "brief": "This event represents an occurrence of a something.\n",
+      "note": "This event transmits the body as a JSON encoded string.\n",
+      "stability": "experimental",
+      "attributes": [],
+      "name": "string.body.event",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/stringbody-event.yaml"
+      },
+      "body": {
+        "type": "string",
+        "brief": "This is the body of the event which is a JSON encoded string.\n",
+        "note": "This is a detailed note about the body.\n",
+        "stability": "experimental",
+        "examples": [
+          "{\"key1\":\"value1\",\"key2\":\"value2\"}"
+        ]
       }
     },
     {

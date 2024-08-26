@@ -7,20 +7,37 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::{AttributeType, Examples, RequirementLevel};
-use weaver_semconv::body::{BodyFieldSpec, BodySpec};
+use weaver_semconv::body::{BodyFieldSpec, BodySpec, BodyType};
 use weaver_semconv::stability::Stability;
 
 /// A `Body` definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Body {
-    /// The body specification.
+    /// Identifies the type of the body. It can be "map", "string".
+    pub r#type: BodyType,
+    /// A brief description of the body.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default)]
+    pub brief: String,
+    /// A more elaborate description of the body.
+    /// It defaults to an empty string.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    #[serde(default)]
+    pub note: String,
+    /// Specifies the stability of the body.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stability: Option<Stability>,
+    /// Sequence of example values for the body or single example
+    /// value. They are required only for string types. Example values
+    /// must be of the same type of the body. If only a single example is
+    /// provided, it can directly be reported without encapsulating it
+    /// into a sequence/dictionary.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub examples: Option<Examples>,
+    /// Identifies the definition of the "fields" of the body when the body type is "map".
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<Vec<BodyField>>,
-    // Not yet defined in the spec or implemented in the resolver
-    // The body value when there are no fields
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub value: Option<Value>
 }
 
 /// A `BodyField` definition.

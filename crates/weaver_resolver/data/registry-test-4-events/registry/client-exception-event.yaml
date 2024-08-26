@@ -6,6 +6,7 @@ groups:
       This document defines the log event used to
       report a client exception.
     body:
+      type: map
       fields:
         - id: type
           type: string

@@ -95,7 +95,8 @@
                         ]
                     }
                 }
-            ]
+            ],
+            "type": "map"
         },
         "brief": "This event represents an occurrence of a lifecycle transition on Android or iOS platform.\n",
         "event_namespace": "device.app",

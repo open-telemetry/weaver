@@ -10,6 +10,7 @@ groups:
       the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are
       mutually exclusive.
     body:
+      type: map
       fields:
         - id: ios.state
           stability: experimental
@@ -134,6 +135,7 @@ groups:
           requirement_level:
             conditionally_required: Required if `attribute1` is not set, recommended otherwise.
     body:
+      type: map
       fields:
         - id: field1
           type: string
@@ -147,3 +149,27 @@ groups:
           examples: ['value1', 'value2']
           requirement_level:
             conditionally_required: Required if `field1` is not set, recommended otherwise.
+
+  - id: test.event.with_string_body
+    name: test.event.with_string_body
+    stability: experimental
+    type: event
+    brief: >
+      This event represents an occurrence of a test event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+    body:
+      type: string
+      brief: 'The body of the event'
+      examples: ['{ name: "thename", content: ... }', '{ name: "thename", content: ... }']

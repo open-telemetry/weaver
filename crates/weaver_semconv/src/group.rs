@@ -89,6 +89,7 @@ pub struct GroupSpec {
     pub display_name: Option<String>,
     /// The event body definition
     /// Note: only valid if type is event
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<BodySpec>,
 }
 
