@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:      
     - uses: actions/checkout@v4
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     - name: Extract metadata (tags, labels) for Docker
@@ -31,6 +33,7 @@ jobs:
       uses: docker/build-push-action@v6.6.1
       with:
           push: false
+          platforms: linux/amd64,linux/arm64
           load: true
           tags: ${{ env.TEST_WEAVER_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -48,6 +51,7 @@ jobs:
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       with:
         push: true
+        platforms: linux/amd64,linux/arm64
         provenance: mode=max
         sbom: true
         tags: ${{ steps.meta.outputs.tags }}
