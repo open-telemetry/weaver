@@ -33,7 +33,7 @@ jobs:
       uses: docker/build-push-action@v6.6.1
       with:
           push: false
-          platforms: linux/amd64,linux/arm64
+          load: true
           tags: ${{ env.TEST_WEAVER_TAG }}
           labels: ${{ steps.meta.outputs.labels }}
     - name: Test
