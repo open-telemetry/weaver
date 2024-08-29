@@ -1,0 +1,44 @@
+# New optional section to define external registries to import in the current registry.
+# Note: Unused imports will be detected by Weaver and reported as warnings by default.
+imports:
+  # Importing an external registry involves specifying the schema URL associated with that registry.
+  # The current schema file structure needs to be updated, either by adding a reference to a
+  # self-contained and fully resolved semantic convention or by directly integrating its content into the schema.
+  # This approach is also well aligned with the OpenTelemetry Protocol specification,
+  # which already specifies a schema URL at the resource and scope levels.
+  - schema_url: https://opentelemetry.io/schemas/1.27.0
+    # A short and local name used to reference signals and attributes from the imported registry.
+    name: otel
+
+groups:
+  # The following declaration overrides the definition of the `otel:trace.http.server` span group and changes
+  # the requirement level of few attributes to `required`.
+  # This override does not affect the original definition in the imported registry.
+  # Note: Similar to attribute references, group references cannot change the group type.
+  - ref: otel:trace.http.server
+    attributes:
+      # References to attributes from the imported registry must always be prefixed with the imported name and a colon.
+      # Local references do not require any prefix.
+      - ref: otel:http.request.method
+        requirement_level: required
+      - ref: otel:client.address
+        requirement_level: required
+      - ref: otel:client.port
+        requirement_level: required
+      # Locally defined attributes can be added to the imported group.
+      - ref: waf.action.type
+        requirement_level: required
+
+  # Locally defined metric group can both extend a locally defined attribute group and
+  # reference imported individual attributes.
+  - id: metric.waf.action.hit.count
+    type: metric
+    metric_name: waf.action.hit.count
+    brief: "The number of times the action was hit."
+    instrument: counter
+    unit: "{count}"
+    stability: stable
+    extends: registry.waf
+    attributes:
+      - ref: otel:http.request.method
+        requirement_level: required
