@@ -6,43 +6,56 @@ Status: Work in Progress
 
 A series of changes are proposed to support multiple semantic convention registries in OpenTelemetry.
 
-Note: This proposal tries to describe the overall changes needed to support the vision but that does not mean that we
-can't introduce the changes incrementally. For example, we could start by only supporting attributes and then
-progressively add support for metrics, events, spans, etc.
+> Note: This proposal aims to describe the overall changes needed to realize this vision. However,
+> this does not mean that we cannot introduce the changes incrementally. For example, we could start
+> by supporting attributes only and then progressively add support for metrics, events, spans, etc.
 
 ## Use Case Example
 
-The following use case doesn't pretend to be exhaustive but it should give a good idea of the kind of multi-registry
-use cases we'd like to support.
+The following use case is not intended to be exhaustive, but it should provide a good idea of the
+types of multi-registry scenarios we aim to support.
 
-The following diagram shows a small but concrete example of how multiple semantic convention registries could be used
-together. 
+The diagram below illustrates a small but concrete example of how multiple semantic convention
+registries could be used together.
 
 ![Multi-Registry Use Case](images/multi_registry_use_case.svg)
 
-The color-coding within the signal descriptions represents where the corresponding definition comes from.
+The color-coding within the signal descriptions indicates the provenance of the corresponding definition.
 
-Actors:
-- OTEL: The OpenTelemetry project that publishes the OTEL semantic convention registry. So the community can discover
-  and use the signals defined by OTEL.
-- WAF Vendor: A vendor of a Web Application Firewall (WAF) that wants to publish a semantic convention registry for
-  their product. So their customers can discover and use their signals.
-- OSS lib author: An author of an OSS library that wants to publish a semantic convention registry for his library.
-- Enterprise App: An enterprise that wants to use the concept of semantic convention registry for their internal use.
+**Actors and Their Benefits** 
 
-Benefits/Value Proposition per actor [TODO]:
-- OTEL: 
-  - Can focus on the core signals and delegate the definition of more specific signals to the community.
-  - Can leverage the community to define more specific signals.
-  - Can leverage the community to define signals for specific domains.
-  - Can leverage the community to define signals for specific vendors.
-- WAF Vendor:
-  - Reuse common signals defined by OTEL. So overall their customer experiences will be more consistent across
-    different vendors.
-  - Make it easier for their customers to discover and use their custom signals.
-- OSS lib author:
-- App Developer:
-- App SRE:
+1. **OpenTelemetry:**
+  - **Value Proposition:**
+    - OTEL can focus on defining core signals while delegating the creation of more specific signals
+      to the community at scale.
+    - OTEL establishes the foundation for developing new uses and tools in the observability ecosystem. 
+
+2. **Vendor:**
+  - **Value Proposition:**
+    - By publishing their own semantic convention registry, vendors make it easier for their customers
+      to discover and effectively use custom signals specific to their products.
+    - Vendors can reuse common signals defined by OTEL, ensuring consistency in customer experiences. This
+      strategy enhances the interoperability of their products within the larger observability ecosystem.
+
+3. **OSS Library Author:**
+  - **Value Proposition:**
+    - The OSS library author can reuse OTEL-defined attributes and signals, integrating them with custom
+      signals tailored to their library.
+    - Publishing a semantic convention registry for the library simplifies the integration process for
+      developers, making it easier to adopt and use the library in a consistent and standardized way.
+    - This approach also increases the attractiveness, visibility and usability of the library within
+      the community.
+
+4. **Enterprise Application:**
+  - **Value Proposition:**
+    - Enterprises can leverage the concept of semantic convention registries to import external registries
+      and simplify their observability integration.
+    - By creating internal registries, enterprises can define custom signals that align with their specific
+      needs and share these across teams and products, fostering internal consistency.
+    - This capability enhances collaboration and streamlines the observability practices within the organization.
+
+By supporting these actors and their specific use cases, the multi-registry approach enables a flexible,
+community-driven model for defining and using semantic conventions across diverse domains and applications.
 
 ## Design Principles
 
