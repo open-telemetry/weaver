@@ -27,17 +27,10 @@ Actors:
   and use the signals defined by OTEL.
 - WAF Vendor: A vendor of a Web Application Firewall (WAF) that wants to publish a semantic convention registry for
   their product. So their customers can discover and use their signals.
-- Cloud Vendor: A cloud provider that wants to publish a semantic convention registry for their services.
 - OSS lib author: An author of an OSS library that wants to publish a semantic convention registry for his library.
 - Enterprise App: An enterprise that wants to use the concept of semantic convention registry for their internal use.
 
-ToDo
-- Actors
-- Diagram
-- Narrative
-- Value Proposition for the different actors
-
-Benefits/Value Proposition per actor:
+Benefits/Value Proposition per actor [TODO]:
 - OTEL: 
   - Can focus on the core signals and delegate the definition of more specific signals to the community.
   - Can leverage the community to define more specific signals.
@@ -47,7 +40,6 @@ Benefits/Value Proposition per actor:
   - Reuse common signals defined by OTEL. So overall their customer experiences will be more consistent across
     different vendors.
   - Make it easier for their customers to discover and use their custom signals.
-- Cloud Vendor:
 - OSS lib author:
 - App Developer:
 - App SRE:
@@ -66,16 +58,6 @@ Benefits/Value Proposition per actor:
   facilitating interoperability and integration across various registries.
 - **Circular Reference Handling**: Circular references between semantic convention registries must be detected,
   reported, and rejected to prevent conflicts and maintain the integrity of the system.
-
-## Design Principles
-
-- Anyone should be able to own a semantic convention registry without any active coordination mechanism with OTEL.
-- A semantic convention registry can be private or public.
-- The OTEL project will maintain a tool to help the community to create, validate, resolve, and publish semantic
-  convention registries.
-- The OTEL project will maintain a set of core policies that must be enforced on any semantic convention registry.
-- References between semantic conventions registries should be supported.
-- Circular references between semantic conventions registries should be detected, reported, and rejected.
 
 ## Semantic Convention Registry Changes
 
