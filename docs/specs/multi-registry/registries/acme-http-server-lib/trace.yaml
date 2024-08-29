@@ -1,0 +1,12 @@
+imports:
+  - schema_url: https://opentelemetry.io/schemas/1.27.0
+    name: otel
+
+groups:
+  - ref: otel:trace.http.server
+    brief: 'Trace reported by ACME HTTP Server library.'
+    attributes:
+      - ref: otel:thread.id
+        requirement_level: required
+      - ref: route.name
+      - ref: rate_limiter.type

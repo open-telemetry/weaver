@@ -1,0 +1,10 @@
+imports:
+  - schema_url: https://opentelemetry.io/schemas/1.27.0
+    name: otel
+
+groups:
+  - ref: otel:http.server.request.duration
+    attributes:
+      - ref: otel:thread.id
+        requirement_level: required
+      - ref: route.name

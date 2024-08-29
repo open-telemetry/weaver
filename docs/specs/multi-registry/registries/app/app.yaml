@@ -1,0 +1,28 @@
+imports:
+  - schema_url: https://opentelemetry.io/schemas/1.27.0
+    name: otel
+  - schema_url: https://github.com/acme-http-server-lib/schema_v0.7.1.yaml
+    name: acme
+
+groups:
+  - id: metric.endpoint.request.count
+    type: metric
+    metric_name: endpoint.request.count
+    brief: "The number of requests received by the endpoint."
+    instrument: counter
+    unit: "{count}"
+    stability: stable
+    attributes:
+      - ref: otel:user.roles
+        requirement_level: required
+      - ref: otel:client.address
+        requirement_level: required
+      - ref: otel:client.port
+        requirement_level: required
+      - ref: otel:http.request.method
+        requirement_level: required
+      - ref: otel:thread.id
+        requirement_level: required
+      - ref: acme:route.name
+      - ref: tenant.id
+

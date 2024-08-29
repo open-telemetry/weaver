@@ -1,11 +1,59 @@
 # Multi-Registry Specification Proposal
 
+Status: Work in Progress
+
+## Introduction 
+
 A series of changes are proposed to support multiple semantic convention registries in OpenTelemetry.
+
+Note: This proposal tries to describe the overall changes needed to support the vision but that does not mean that we
+can't introduce the changes incrementally. For example, we could start by only supporting attributes and then
+progressively add support for metrics, events, spans, etc.
+
+## Use Case Example
+
+The following use case doesn't pretend to be exhaustive but it should give a good idea of the kind of multi-registry
+use cases we'd like to support.
+
+[Diagram](TBD)
+
+Actors:
+- OTEL: The OpenTelemetry project that publishes the OTEL semantic convention registry. So the community can discover
+  and use the signals defined by OTEL.
+- WAF Vendor: A vendor of a Web Application Firewall (WAF) that wants to publish a semantic convention registry for
+  their product. So their customers can discover and use their signals.
+- Cloud Vendor: A cloud provider that wants to publish a semantic convention registry for their services.
+- OSS lib author: An author of an OSS library that wants to publish a semantic convention registry for his library.
+- Enterprise App: An enterprise that wants to use the concept of semantic convention registry for their internal use.
+
+ToDo
+- Actors
+- Diagram
+- Narrative
+- Value Proposition for the different actors
+
+Benefits/Value Proposition per actor:
+- OTEL: 
+  - Can focus on the core signals and delegate the definition of more specific signals to the community.
+  - Can leverage the community to define more specific signals.
+  - Can leverage the community to define signals for specific domains.
+  - Can leverage the community to define signals for specific vendors.
+- WAF Vendor:
+  - Reuse common signals defined by OTEL. So overall their customer experiences will be more consistent across
+    different vendors.
+  - Make it easier for their customers to discover and use their custom signals.
+- Cloud Vendor:
+- OSS lib author:
+- App Developer:
 
 ## Semantic Convention Registry Changes
 
-- A semantic convention registry can be defined by anyone (e.g. a vendor, a community, an individual, an enterprise,
-  etc.).
+- A semantic convention registry can be defined by anyone. For all the following examples, registry authors can 
+  extend or amend the OTEL registry or create their own attributes and groups:
+  - A vendor publishes a semconv registry for their products, so their customers can discover and use their signals
+  - A community publishes a semconv registry for a specific domain that is too specific to be included in the OTEL registry
+  - An individual publishes a semconv registry for their own OSS library or project
+  - An enterprise creates internal semconv registries for their internal use
 - A semantic convention registry can import one or several semantic conventions from other published registries.
 - A new optional section called `imports` will be added to semantic convention file defining groups. 
 - The `imports` section is a list of imported semantic conventions with their schema URL and alias.
@@ -24,7 +72,8 @@ A series of changes are proposed to support multiple semantic convention registr
   - A registry can override the attributes of a group defined in another registry (e.g. `requirement_level`).
   - A registry can override a subset of group fields defined in another registry (list of fields TBD).
 - Overrides defined in a registry are not propagated to the imported semantic conventions.
-- Overrides defined in a registry are visible to registries importing the current registry.
+- Overrides defined in a registry are visible to registries importing the current registry. These attributes and groups
+  overrides are re-exported with some transformations by the local registry.
 - Group reference can't change the type of the group (similar to attribute reference).
 - References to an imported group or attribute are always prefixed with the alias of the imported semantic  convention
   (e.g. `ref: otel:client.address`). The colon is used as a separator between the alias and the group or attribute name.
@@ -121,6 +170,12 @@ The content of a resolved semantic convention registry depends on the:
 - The configuration specified during the resolution process.
   - Include all the entities of the imported registries
   - Include only the referenced entities of the imported registries.
+
+More specifically, a resolved semantic convention registry contains:
+- All the attributes registry specified locally in the semantic convention registry.
+- All the groups specified locally in the semantic convention registry.
+- All the attributes and groups imported but not re-exported locally are not included in the resolved registry. A
+  re-exported entity is an entity that is imported and referenced in the local registry with some overriding.
 
 Open Questions:
 

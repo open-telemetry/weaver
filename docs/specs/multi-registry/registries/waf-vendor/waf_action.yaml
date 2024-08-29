@@ -8,27 +8,11 @@ imports:
   # which already specifies a schema URL at the resource and scope levels.
   - schema_url: https://opentelemetry.io/schemas/1.27.0
     # A short and local name used to reference signals and attributes from the imported registry.
-    name: otel
+    # We use `my_otel` here just to show that it can be any name and that different aliases can be used for the same
+    # schema URL across different semconv files in the same registry.
+    name: my_otel
 
 groups:
-  # The following declaration overrides the definition of the `otel:trace.http.server` span group and changes
-  # the requirement level of few attributes to `required`.
-  # This override does not affect the original definition in the imported registry.
-  # Note: Similar to attribute references, group references cannot change the group type.
-  - ref: otel:trace.http.server
-    attributes:
-      # References to attributes from the imported registry must always be prefixed with the imported name and a colon.
-      # Local references do not require any prefix.
-      - ref: otel:http.request.method
-        requirement_level: required
-      - ref: otel:client.address
-        requirement_level: required
-      - ref: otel:client.port
-        requirement_level: required
-      # Locally defined attributes can be added to the imported group.
-      - ref: waf.action.type
-        requirement_level: required
-
   # Locally defined metric group can both extend a locally defined attribute group and
   # reference imported individual attributes.
   - id: metric.waf.action.hit.count
@@ -40,5 +24,5 @@ groups:
     stability: stable
     extends: registry.waf
     attributes:
-      - ref: otel:http.request.method
+      - ref: my_otel:http.request.method
         requirement_level: required
