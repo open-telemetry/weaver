@@ -1,4 +1,4 @@
-# Multi-Registry Specification Proposal
+# Multi-Registry - Draft Proposal
 
 Status: Work in Progress
 
@@ -15,7 +15,12 @@ progressively add support for metrics, events, spans, etc.
 The following use case doesn't pretend to be exhaustive but it should give a good idea of the kind of multi-registry
 use cases we'd like to support.
 
-[Diagram](TBD)
+The following diagram shows a small but concrete example of how multiple semantic convention registries could be used
+together. 
+
+![Multi-Registry Use Case](images/multi_registry_use_case.svg)
+
+The color-coding within the signal descriptions represents where the corresponding definition comes from.
 
 Actors:
 - OTEL: The OpenTelemetry project that publishes the OTEL semantic convention registry. So the community can discover
@@ -45,11 +50,37 @@ Benefits/Value Proposition per actor:
 - Cloud Vendor:
 - OSS lib author:
 - App Developer:
+- App SRE:
+
+## Design Principles
+
+- **Independent Ownership**: Any individual or organization should be able to create and maintain a semantic convention
+  registry independently, without requiring active coordination with the OTEL project.
+- **Registry Accessibility**: Semantic convention registries can be either private or public, allowing flexibility
+  based on the needs of the owner.
+- **Community Support Tools**: The OTEL project will provide and maintain tools to assist the community in creating, 
+  validating, resolving, and publishing semantic convention registries (i.e. Weaver tool).
+- **Core Policy Enforcement**: The OTEL project will establish and enforce a set of core policies that all semantic
+  convention registries must adhere to, ensuring consistency and reliability.
+- **Cross-Registry References**: References between different semantic convention registries should be supported,
+  facilitating interoperability and integration across various registries.
+- **Circular Reference Handling**: Circular references between semantic convention registries must be detected,
+  reported, and rejected to prevent conflicts and maintain the integrity of the system.
+
+## Design Principles
+
+- Anyone should be able to own a semantic convention registry without any active coordination mechanism with OTEL.
+- A semantic convention registry can be private or public.
+- The OTEL project will maintain a tool to help the community to create, validate, resolve, and publish semantic
+  convention registries.
+- The OTEL project will maintain a set of core policies that must be enforced on any semantic convention registry.
+- References between semantic conventions registries should be supported.
+- Circular references between semantic conventions registries should be detected, reported, and rejected.
 
 ## Semantic Convention Registry Changes
 
-- A semantic convention registry can be defined by anyone. For all the following examples, registry authors can 
-  extend or amend the OTEL registry or create their own attributes and groups:
+- A semantic convention registry can be defined by anyone and without any kind of coordination with OTEL. For all the
+  following examples, registry authors can extend or amend the OTEL registry or create their own attributes and groups:
   - A vendor publishes a semconv registry for their products, so their customers can discover and use their signals
   - A community publishes a semconv registry for a specific domain that is too specific to be included in the OTEL registry
   - An individual publishes a semconv registry for their own OSS library or project

@@ -5,12 +5,10 @@ imports:
     name: acme
 
 groups:
-  - id: metric.endpoint.request.count
-    type: metric
-    metric_name: endpoint.request.count
-    brief: "The number of requests received by the endpoint."
-    instrument: counter
-    unit: "{count}"
+  - id: endpoint.error
+    type: event
+    name: endpoint.error
+    brief: "An endpoint error event."
     stability: stable
     attributes:
       - ref: otel:user.roles
@@ -21,8 +19,11 @@ groups:
         requirement_level: required
       - ref: otel:http.request.method
         requirement_level: required
+      - ref: otel:error.type
+        requirement_level: required
       - ref: otel:thread.id
         requirement_level: required
       - ref: acme:route.name
       - ref: tenant.id
+
 

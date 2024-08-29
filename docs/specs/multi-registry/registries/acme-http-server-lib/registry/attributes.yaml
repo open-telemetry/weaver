@@ -4,6 +4,9 @@ groups:
     display_name: Custom attributes for ACME HTTP Server
     brief: 'A set of specific attributes for ACME HTTP Server.'
     attributes:
+      # The ACME HTTP server author does not use the standard `http.route` for an unknown reason.
+      # Unfortunately, we cannot avoid this. In the future, we could enhance Weaver to detect these
+      # types of similarities and report them as advice messages.
       - id: route.name
         brief: 'The name of the route.'
         stability: stable

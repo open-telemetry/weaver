@@ -5,6 +5,12 @@ imports:
 groups:
   - ref: otel:http.server.request.duration
     attributes:
+      - ref: otel:http.request.method
+        requirement_level: required
+      - ref: otel:client.address
+        requirement_level: required
+      - ref: otel:client.port
+        requirement_level: required
       - ref: otel:thread.id
         requirement_level: required
       - ref: route.name
