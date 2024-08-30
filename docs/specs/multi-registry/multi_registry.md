@@ -21,13 +21,13 @@ A series of changes are proposed to support multiple semantic convention registr
 The following use case is not intended to be exhaustive, but it should provide a good idea of the
 types of multi-registry scenarios we aim to support.
 
-The diagram below illustrates a small but concrete example of how multiple registries could be used together.
+The diagram below illustrates a small but realistic example of how multiple registries could be used together.
+For more details, the YAML semantic convention files corresponding to the diagram are available in this
+[folder](registries).
 
 ![Multi-Registry Use Case](images/multi_registry_use_case.svg)
 
 The color-coding within the signal descriptions indicates the provenance of the corresponding definition.
-
-The YAML semantic convention files corresponding to the diagram are available in this [folder](registries).
 
 **Actors and Their Benefits** 
 
@@ -35,7 +35,9 @@ The YAML semantic convention files corresponding to the diagram are available in
   - **Value Proposition:**
     - OTEL can focus on defining core signals while delegating the creation of more specific signals
       to the community at scale.
-    - OTEL establishes the foundation for developing new uses and tools in the observability ecosystem. 
+    - OTEL establishes the foundation for developing new uses and tools in the observability ecosystem (e.g. data
+      catalog integration, dashboard generation, database schema generation, metadata to improve AI assisted Query
+      engines, etc.). 
 
 2. **Vendor:**
   - **Value Proposition:**
@@ -56,10 +58,10 @@ The YAML semantic convention files corresponding to the diagram are available in
 4. **Enterprise Application:**
   - **Value Proposition:**
     - Enterprises can leverage the concept of registries to import external registries and simplify their observability
-      integration.
+      integration for complex systems.
     - By creating internal registries, enterprises can define custom signals that align with their specific
-      needs and share these across teams and products, fostering internal consistency.
-    - This capability enhances collaboration and streamlines the observability practices within the organization.
+      needs and share these across teams and products, fostering internal consistency. This capability enhances
+      collaboration and streamlines the observability practices within the organization.
 
 By supporting these actors and their specific use cases, the multi-registry approach enables a flexible,
 community-driven model for defining and using semantic conventions across diverse domains and applications.
@@ -68,28 +70,29 @@ community-driven model for defining and using semantic conventions across divers
 
 - **Independent Ownership**: Any individual or organization should be able to create and maintain a registry
   independently, without requiring human coordination with the OTEL project.
-- **Registry Accessibility**: Semantic convention registries can be either private or public, allowing flexibility
-  based on the needs of the owner.
-- **Community Support Tools**: The OTEL project will provide and maintain tools to assist the community in creating, 
-  validating, resolving, and publishing registries (i.e. Weaver tool).
+- **Registry Accessibility**: Registries can be either private or public, allowing flexibility based on the needs
+  of the owner.
+- **Common Format**: Published registries will adhere to a common format, making them easy to consume and integrate
+  with other registries. This format is known as "resolved registry format". 
+- **Community Support Tools**: The OTEL project will provide and maintain an extensible tool (Weaver) to assist the
+  community in creating, validating, resolving, and publishing registries. Weaver will also support documentation
+  generation and code generation for any registry.
 - **Core Policy Enforcement**: The OTEL project will establish and enforce a set of core policies (e.g. backward
-  compatibility policies) that all registries must adhere to, ensuring consistency and reliability.
+  compatibility policies) that all registries must adhere to, ensuring consistency and reliability. These policies
+  will be enforced by Weaver.
 - **Cross-Registry References**: References between different registries should be supported, facilitating
   interoperability and integration across various registries.
 - **Conflict Avoidance through Scoping**: Without a scoping mechanism, we can't ensure that a signal or an attribute
-  name will never conflict with a future declaration in another registry.
+  name will never conflict with a future declaration in another registry. Every imported registry will be scoped with
+  a unique alias to avoid conflicts.
 - **Circular Reference Handling**: Circular references between registries must be detected, reported, and rejected to
   prevent conflicts and maintain the integrity of the system.
 
 ## Semantic Convention Registry Changes
 
-With the following changes, a registry can be defined by anyone, without requiring any active coordination with OTEL.
-For all the following examples, registry authors can extend or amend the OTEL registry or create their own attributes
-and groups (non-exhaustive list):
-  - A vendor publishes a registry for their products, allowing their customers to discover and use their signals.
-  - A community publishes a registry for a specific domain that is too specialized to be included in the OTEL registry.
-  - An individual publishes a registry for their own OSS library or project.
-  - An enterprise creates internal registries for internal use.
+With the following changes, a registry can be defined by anyone, without requiring any human coordination with OTEL.
+Registry authors can extend or amend entities defined in other registries or create their own attributes
+and groups.
 
 Changes:
 - A registry can import one or several semantic conventions from other published registries.
@@ -330,3 +333,10 @@ Open Questions:
 ## Priorities
 
 TBD
+
+## General Open Questions
+
+- What about introducing a new type of semconv file that will let end-users define global overrides and global redact
+  directives? For example, the requirement level of attributes such as `client.address` or `server.address` will be
+  better defined by the end-user than by the library author, or a vendor. A similar approach could be used for redact
+  directives in order to address privacy concerns.
