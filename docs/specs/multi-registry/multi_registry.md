@@ -71,20 +71,24 @@ community-driven model for defining and using semantic conventions across divers
   compatibility policies) that all semantic convention registries must adhere to, ensuring consistency and reliability.
 - **Cross-Registry References**: References between different semantic convention registries should be supported,
   facilitating interoperability and integration across various registries.
+- **Conflict Avoidance through Scoping**: Without a scoping mechanism, we can't ensure that a signal or an attribute
+  name will never conflict with a future declaration in another registry.
 - **Circular Reference Handling**: Circular references between semantic convention registries must be detected,
   reported, and rejected to prevent conflicts and maintain the integrity of the system.
 
 ## Semantic Convention Registry Changes
 
-- A semantic convention registry can be defined by anyone, without requiring any active coordination with OTEL.
-  For all the following examples, registry authors can extend or amend the OTEL registry or create their own
-  attributes and groups (non exhaustive list):
+With the following changes, a semantic convention registry can be defined by anyone, without requiring any active
+coordination with OTEL. For all the following examples, registry authors can extend or amend the OTEL registry or
+create their own attributes and groups (non exhaustive list):
   - A vendor publishes a semantic convention registry for their products, allowing their customers to discover
     and use their signals.
   - A community publishes a semantic convention registry for a specific domain that is too specialized to be
     included in the OTEL registry.
   - An individual publishes a semantic convention registry for their own OSS library or project.
   - An enterprise creates internal semantic convention registries for internal use.
+
+Changes:
 - A semantic convention registry can import one or several semantic conventions from other published registries.
 - A new optional section called `imports` will be added to the semantic convention file defining groups.
 - The `imports` section is a list of imported semantic conventions with their schema URLs and aliases.
@@ -103,12 +107,13 @@ community-driven model for defining and using semantic conventions across divers
   -	A registry can override the attributes of a group defined in another registry (e.g., `requirement_level`).
   - A registry can only override a subset of group fields defined in another registry (list of fields TBD).
 - Overrides defined in a registry are not propagated to the imported semantic conventions.
-- Overrides defined in a registry are visible to registries importing the current registry. These attribute
-  and group overrides are re-exported with some transformations by the local registry.
+- Overrides defined in registry 'A' are visible to registries that import 'A'. These attribute and group overrides
+  are said to be exported and thus reusable by the registries that import 'A'.
 - A group reference cannot change the type of the imported group (similar to attribute references).
 - References to an imported group or attribute are always prefixed with the alias of the imported semantic
   convention (e.g., `ref: otel:client.address`). The colon is used as a separator between the alias and the
-  group or attribute name.
+  group or attribute name. If preferred, there is an alternative to make the alias optional, see the alternatives
+  section below.
 - References to entities (groups or attributes) defined in the local registry are never prefixed.
 - A locally defined group can reference an imported group in its `extends` section.
 - A locally defined group can reference an imported attribute in its `attributes` section.
