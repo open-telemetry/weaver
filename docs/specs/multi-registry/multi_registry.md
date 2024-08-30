@@ -65,8 +65,8 @@ community-driven model for defining and using semantic conventions across divers
   based on the needs of the owner.
 - **Community Support Tools**: The OTEL project will provide and maintain tools to assist the community in creating, 
   validating, resolving, and publishing semantic convention registries (i.e. Weaver tool).
-- **Core Policy Enforcement**: The OTEL project will establish and enforce a set of core policies that all semantic
-  convention registries must adhere to, ensuring consistency and reliability.
+- **Core Policy Enforcement**: The OTEL project will establish and enforce a set of core policies (e.g. backward
+  compatibility policies) that all semantic convention registries must adhere to, ensuring consistency and reliability.
 - **Cross-Registry References**: References between different semantic convention registries should be supported,
   facilitating interoperability and integration across various registries.
 - **Circular Reference Handling**: Circular references between semantic convention registries must be detected,
@@ -74,64 +74,70 @@ community-driven model for defining and using semantic conventions across divers
 
 ## Semantic Convention Registry Changes
 
-- A semantic convention registry can be defined by anyone and without any kind of coordination with OTEL. For all the
-  following examples, registry authors can extend or amend the OTEL registry or create their own attributes and groups:
-  - A vendor publishes a semconv registry for their products, so their customers can discover and use their signals
-  - A community publishes a semconv registry for a specific domain that is too specific to be included in the OTEL registry
-  - An individual publishes a semconv registry for their own OSS library or project
-  - An enterprise creates internal semconv registries for their internal use
+- A semantic convention registry can be defined by anyone, without requiring any active coordination with OTEL.
+  For all the following examples, registry authors can extend or amend the OTEL registry or create their own
+  attributes and groups (non exhaustive list):
+  - A vendor publishes a semantic convention registry for their products, allowing their customers to discover
+    and use their signals.
+  - A community publishes a semantic convention registry for a specific domain that is too specialized to be
+    included in the OTEL registry.
+  - An individual publishes a semantic convention registry for their own OSS library or project.
+  - An enterprise creates internal semantic convention registries for internal use.
 - A semantic convention registry can import one or several semantic conventions from other published registries.
-- A new optional section called `imports` will be added to semantic convention file defining groups. 
-- The `imports` section is a list of imported semantic conventions with their schema URL and alias.
-- Aliases are only visible inside the file where they are defined.
-- Aliases must be unique inside the file where they are defined.
-- Schema URLs are used to fetch both OTEL schema and self-contained/resolved semantic convention registries. The way a
-  resolved registry is linked to an OTEL schema is TBD (could be a new URL pointing to the resolved registry or an
-  integration inside the schema file itself). 
+- A new optional section called `imports` will be added to the semantic convention file defining groups.
+- The `imports` section is a list of imported semantic conventions with their schema URLs and aliases.
+- Aliases are only visible within the file where they are defined.
+- Aliases must be unique within the file where they are defined.
+- Schema URLs are used to fetch both OTEL schema and self-contained/resolved semantic convention registries.
+  The way a resolved registry is linked to an OTEL schema is TBD (it could be a new URL pointing to the resolved
+  registry or an integration within the schema file itself).
 - Unused imported registries will be detected by Weaver and reported as warnings.
 - A registry can only be imported as a self-contained/resolved semantic convention registry.
-- A set of core policies will be enforced by Weaver for any registry OTEL or non-OTEL in order to ensure backward
+- A set of core policies will be enforced by Weaver for any registry, OTEL or non-OTEL, to ensure backward
   compatibility and consistency across registries (list of core policies TBD).
-- Any attribute or group of a registry is a referencable entity when the registry is imported. 
-- Group references are now supported to support the following use cases  
+- Any attribute or group in a registry is a referencable entity when the registry is imported.
+- Group references are now supported to address the following use cases:
   - A registry can add new attributes to a group defined in another registry.
-  - A registry can override the attributes of a group defined in another registry (e.g. `requirement_level`).
-  - A registry can override a subset of group fields defined in another registry (list of fields TBD).
+  -	A registry can override the attributes of a group defined in another registry (e.g., `requirement_level`).
+  - A registry can only override a subset of group fields defined in another registry (list of fields TBD).
 - Overrides defined in a registry are not propagated to the imported semantic conventions.
-- Overrides defined in a registry are visible to registries importing the current registry. These attributes and groups
-  overrides are re-exported with some transformations by the local registry.
-- Group reference can't change the type of the group (similar to attribute reference).
-- References to an imported group or attribute are always prefixed with the alias of the imported semantic  convention
-  (e.g. `ref: otel:client.address`). The colon is used as a separator between the alias and the group or attribute name.
+- Overrides defined in a registry are visible to registries importing the current registry. These attribute
+  and group overrides are re-exported with some transformations by the local registry.
+- A group reference cannot change the type of the imported group (similar to attribute references).
+- References to an imported group or attribute are always prefixed with the alias of the imported semantic
+  convention (e.g., `ref: otel:client.address`). The colon is used as a separator between the alias and the
+  group or attribute name.
 - References to entities (groups or attributes) defined in the local registry are never prefixed.
 - A locally defined group can reference an imported group in its `extends` section.
 - A locally defined group can reference an imported attribute in its `attributes` section.
 
-Note: A resolved semantic convention registry is self-contained and does not contain any complex constructs like
-`imports`, `ref`, `extends`, etc. Their structure are less subject to change, making them good candidate for
-publication, and making them easier to consume.
+> Note: The JSON Schema for the semantic convention registry must be updated to reflect these changes.
+
+> Note: A resolved semantic convention registry is self-contained and does not include any complex constructs
+> like `imports`, `ref`, `extends`, etc. Their **structure is less subject to change**, making them good
+> candidates for publication and easier to consume.
 
 Wonkiness to remove from the existing semantic convention schema:
 
-- Rename `metric_name` to `name` in the `metric` group for consistency with the other groups.
+- Rename `metric_name` to `name` in the `metric` group for consistency with other groups.
 - Probably more TBD.
 
-Things we should avoid/minimize:
+Things to avoid/minimize:
 
-- Name squatting: By relying on local aliases and URL schema, we are not relying on a naming convention approach based
-  on company names, etc. This should minimize the risk of name squatting.
-- Name inconsistency: By enforcing core policies, we should minimize the risk of name inconsistency across registries.
+- **Name squatting**: By relying on local aliases and URL schema, we reduce the risk of name squatting, as
+  the naming convention is not based on company names that are not necessarily unique and are complex to control.
+- **Name inconsistency**: By enforcing core policies, we minimize the risk of name inconsistency across registries.
 
 Alternatives:
 
-- We could make alias optional in the `imports` section. To do so, we would need to rely on Weaver to automatically
-  detect entity IDs which are defined both in the local semconv file and the imported registry. When a such conflict is
-  detected, Weaver will report an error and asl the user to define an alias for the imported registry. This approach
-  could be supported in the future if we see a need for it.
+- We could make aliases optional in the imports section. To do so, we would need to rely on Weaver to automatically
+  detect entity IDs that are defined both in the local semantic convention file and the imported registry. When such
+  a conflict is detected, Weaver will report an error and ask the user to define an alias for the imported registry.
+  This approach could be supported in the future if the need arises.
 
 Open Questions:
-- Do we allow different versions of the same registry to be imported into different semantic convention files of the
-  same registry?
+- Do we allow different versions of the same registry to be imported into different semantic convention files of
+  the same registry?
 - Is there a relationship to define between the instrumentation scope name and version and the semantic convention
   registry?
 
