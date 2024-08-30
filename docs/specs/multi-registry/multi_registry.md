@@ -22,6 +22,8 @@ registries could be used together.
 
 The color-coding within the signal descriptions indicates the provenance of the corresponding definition.
 
+The YAML semantic convention files corresponding to the diagram are available in this [folder](registries).
+
 **Actors and Their Benefits** 
 
 1. **OpenTelemetry:**
@@ -136,6 +138,8 @@ Alternatives:
   This approach could be supported in the future if the need arises.
 
 Open Questions:
+- How do we handle experimental entities in the context of multi-registry? Do we allow reference of experimental
+  entities across registries?
 - Do we allow different versions of the same registry to be imported into different semantic convention files of
   the same registry?
 - Is there a relationship to define between the instrumentation scope name and version and the semantic convention
@@ -162,6 +166,7 @@ The following changes are proposed to Weaver:
   corresponding resolved registries and create a mapping url to resolved registry that will be used during the
   resolution process to resolve the references to the imported registries (and to detect clashes between local and
   imported IDs if aliases are not used).
+- Weaver must be able to detect newer versions of imported registries and report them as warnings.
 - More TBD.
 
 Open Questions: 
