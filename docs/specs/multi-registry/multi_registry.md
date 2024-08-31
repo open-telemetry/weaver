@@ -71,7 +71,7 @@ community-driven model for defining and using semantic conventions across divers
 - **Independent Ownership**: Any individual or organization should be able to create and maintain a registry
   independently, without requiring human coordination with the OTEL project.
 - **Registry Accessibility**: Registries can be either private or public, allowing flexibility based on the needs
-  of the owner.
+  of the owner. Registries are accessible via a URL.
 - **Common Format**: Published registries will adhere to a common format, making them easy to consume and integrate
   with other registries. This format is known as "resolved registry format". 
 - **Community Support Tools**: The OTEL project will provide and maintain an extensible tool (Weaver) to assist the
