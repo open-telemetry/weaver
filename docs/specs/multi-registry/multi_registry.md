@@ -96,30 +96,31 @@ and groups.
 
 Changes:
 - A registry can import one or several semantic conventions from other published registries.
-- A new optional section called `imports` will be added to the semantic convention file defining groups.
-- The `imports` section is a list of imported semantic conventions with their schema URLs and aliases.
-- Aliases defined in a file with one `imports` section and no `groups` are global aliases and are visible in all the
+- A published registry is a resolved registry (see resolved registry format below) accessible via a URL.
+- A new optional section called `imports` will be added to the semantic convention file defining groups. The `imports`
+  section is a list of imported semantic conventions with their schema URLs and aliases.
+- Aliases defined in a file with `global_imports` section are global aliases and are visible in all the
   files of the registry otherwise aliases are local to a file (see discussion
-  [here](#do-we-allow-an-alias-defined-in-one-semconv-file-to-be-visible-in-another-semconv-file)).
-- Only one alias is allowed for a specific `schema_url` across all the files of the registry (see discussion 
+  [here](#do-we-allow-an-alias-defined-in-one-semconv-file-to-be-visible-in-another-semconv-file)). Note that these
+  files can not contain any group definitions.
+- Only one alias is allowed for a specific `schema_url` across all the files of a registry (see discussion 
   [here](#do-we-allow-importing-the-same-external-registry-with-different-aliases-within-the-scope-of-a-registry-)).
-- Only one version of a specific imported registry is allowed across all the files of the registry (see discussion
+- Only one version of a specific imported registry is allowed across all the files of a registry (see discussion
   [here](#do-we-allow-importing-the-same-registry-with-different-versions)). 
 - Schema URLs are used to fetch both OTEL schema and self-contained/resolved registries.
   The way a resolved registry is linked to an OTEL schema is TBD (it could be a new URL pointing to the resolved
   registry or an integration within the schema file itself).
-- Unused imported registries will be detected by Weaver and reported as errors.
+- Import a registry and not using it is considered an error.
 - A registry can only be imported as a self-contained/resolved registry.
-- A set of core policies will be enforced by Weaver for any registry, OTEL or non-OTEL, to ensure backward
-  compatibility and consistency across registries (see section [Core Policies](#core-policies)).
+- Any registry must comply with the OTEL core policies to ensure backward compatibility and consistency across
+  registries (see section [Core Policies](#core-policies)).
 - Any stable attribute or group in a registry is a referencable entity when the registry is imported.
 - Experimental entities in a registry can not be referenced into other registries (see discussion
   [here](#do-we-allow-reference-of-experimental-entities-across-registries)).
 - Group references are now supported to extend or overrides group fields and attributes of an imported group. (see
   discussion [here](#do-we-allow-references-to-groups-or-attributes-defined-in-an-imported-registry)).
-- Overrides defined in a registry are not propagated to the imported semantic conventions.
-- Overrides defined in registry 'A' are visible to registries that import 'A'. These attribute and group overrides
-  are said to be exported and thus reusable by the registries that import 'A'.
+- A registry 'A' can import semantic conventions from a registry 'B'. 'A' can override some entities of 'B'. These
+  overrides are not propagates to 'B'. 'B' can not import the registry 'A' (circular dependencies are not allowed).
 - A group reference cannot change the type of the imported group (similar to attribute references).
 - References to an imported group or attribute are always prefixed with the alias of the imported semantic
   convention (e.g., `ref: otel:client.address`). The colon is used as a separator between the alias and the
@@ -129,16 +130,10 @@ Changes:
 - A locally defined group can reference an imported group in its `extends` section.
 - A locally defined group can reference an imported attribute in its `attributes` section.
 
-> Note: The JSON Schema for the registry must be updated to reflect these changes.
-
-> Note: A resolved registry is self-contained and does not include any complex constructs
-> like `imports`, `ref`, `extends`, etc. Their **structure is less subject to change**, making them good
-> candidates for publication and easier to consume.
-
-Wonkiness to remove from the existing semantic convention schema:
-
-- Rename `metric_name` to `name` in the `metric` group for consistency with other groups.
-- Probably more TBD.
+> Wonkiness to remove from the existing semantic convention schema:
+> 
+> - Rename `metric_name` to `name` in the `metric` group for consistency with other groups.
+> - Probably more TBD.
 
 Things to avoid/minimize:
 
@@ -174,7 +169,7 @@ Alternatives:
 #### Do we allow importing the same registry with different versions?
 - Short answer: No for consistency.
 - Long answer: Although technically it is possible to support multiple versions of an imported registry, it is a
-  good practice to use align the versions inside the same registry. This practice make the overall registry more
+  good practice to align the versions inside the same registry. This practice make the overall registry more
   consistent and easy to reason about. Weaver will report an error if different versions are used for the same
   registry in the scope of a single registry.
 
@@ -197,8 +192,8 @@ Alternatives:
   error if a reference is made to an entity that is not defined in the imported registry.
 
 ### Open Questions:
-- Can we override any field of a group defined in an imported registry? No for `type` and `attributes` fields, what
-  about the other fields?
+- Can we override any field of a group defined in an imported registry? No for `type` field, what about the other
+  fields?
 - Is there a relationship to define between the instrumentation scope name and version and the registry?
 
 
@@ -250,6 +245,10 @@ These core policies aim to ensure consistency and backward compatibility across 
 - The set of required/recommended attributes must remain the same
 - Span names must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
 
+## OTEL Semantic Convention JSON Schema Changes
+
+[TODO] The JSON Schema for the registry must be updated to reflect these changes.
+
 ## OTEL Schema Changes
 
 The OTEL schema file structure must be updated to either include the URL to a self-contained/resolved
@@ -296,6 +295,10 @@ Open Questions:
 
 ## Resolved Semantic Convention Registry Format
 
+> Note: A resolved registry is self-contained and does not include any complex constructs
+> like `imports`, `ref`, `extends`, etc. Their **structure is less subject to change**, making them good
+> candidates for publication and easier to consume.
+
 The following properties are proposed for a resolved registry:
 
 - Resolved registry must be easy to consume and to publish
@@ -304,6 +307,11 @@ The following properties are proposed for a resolved registry:
   - No `ref`, no `extends`, no `imports`, no alias, no other complex constructs.
   - Yaml or JSON format so resolved registries can be easily consumed by any tool.
 - Optional lineage section.
+
+The structure of resolved registries is less subject to change. We can always add advanced support for embedding,
+more complex inheritance mechanisms, etc. The resolved registry format will not change because all these complex
+constructs will be removed during the resolution process. This property makes resolved registries good candidates
+for publication and easier to consume.
 
 The content of a resolved registry depends on the:
 - The semantic convention files composing the registry to resolve.
