@@ -159,7 +159,7 @@ Alternatives:
 
 #### Do we allow an alias defined in one semconv file to be visible in another semconv file?
 - Short answer: Yes, under certain conditions.
-- Long answer: An alias defined in a file containing only an imports section is visible in all the files of the
+- Long answer: An alias defined in a file containing `global_imports` section is visible in all the files of the
   registry. Such an alias is called a global alias. A global alias is useful when the same imported registry is
   used in multiple files within the same registry. In this situation, defining a global alias simplifies the
   management of dependencies, as updating to a new registry version will only require a single change in the
