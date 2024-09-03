@@ -4,7 +4,20 @@ Status: Work in Progress
 
 ## Introduction 
 
-A series of changes are proposed to support multiple semantic convention registries in OpenTelemetry.
+This document outlines the proposal for supporting multiple semantic convention registries in OpenTelemetry. The goal is
+to enable the community to define and publish their own semantic conventions, which can be used independently of the
+core OpenTelemetry Semantic Conventions. This approach allows the community to define custom signals and attributes
+specific to their domain or use case while still leveraging the core signals and attributes defined by OpenTelemetry.
+
+Multi-registries have the potential to significantly to develop the OpenTelemetry ecosystem and enhance the flexibility
+and extensibility of OpenTelemetry, enabling a wide range of use cases and scenarios. For example, vendors can publish
+their own registries containing signals and attributes specific to their products, while open-source library authors can
+define custom signals tailored to their libraries. Enterprises can also create internal registries to define custom
+signals that align with their specific needs and share these across teams and products.
+
+The proposal outlines the changes needed to support multiple semantic convention registries in OpenTelemetry, including
+the core policies that all registries must adhere to, the format of resolved registries, and the modifications required
+in Weaver to support the creation, validation, generation, packaging, and publication of registries.
 
 > Note 1: This proposal aims to describe the overall changes needed to realize the multi-registry long term vision.
 > However, this does not mean that we cannot introduce the changes incrementally. For example, we could start
