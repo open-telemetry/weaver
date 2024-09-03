@@ -85,20 +85,22 @@ community-driven model for defining and using semantic conventions across divers
   independently, without requiring coordination with the OTEL project.
 - **Registry Accessibility**: Registries should be either private or public, allowing flexibility based on
   the needs of the owner. Registries should be accessible via a URL.
-- **Common Format**: A published registry should adhere to a common format, making it easy to consume and
-  integrate with other registries.
+- **Common Format**: A published registry should adhere to a common packaging and format, making it easy to
+  consume and integrate with other registries.
 - **Self-Contained**: A published registry should be self-contained and stored in a single file.
+- **Version Discoverability**: The various versions of a registry should be discoverable and accessible via a
+  URL.
 - **Community Support Tools**: The OTEL project should provide and maintain an extensible tool, Weaver, to
-  assist the community in creating, validating, resolving, and publishing registries. Weaver should also
-  support documentation generation and code generation for any registry.
+  assist the community in creating, validating, resolving, packaging, and publishing registries. Weaver should
+  also support documentation generation and code generation for any registry.
 - **Core Policy Enforcement**: The OTEL project should establish and enforce a set of core policies (e.g.,
   backward compatibility policies) that all registries must adhere to, ensuring consistency and reliability.
   These policies should be enforced by Weaver.
 - **Cross-Registry References**: References between different registries should be supported, facilitating
   interoperability and integration across various registries.
 - **Conflict Avoidance through Scoping**: A scoping mechanism should be implemented to ensure that a signal
-  or an attribute name does not conflict with future declarations in other registries. Every imported
-  registry should be scoped with a unique alias to avoid conflicts.
+  or attribute name does not conflict with future declarations in other registries. Every imported registry
+  should be scoped with a unique name or alias to avoid conflicts.
 - **Circular Reference Handling**: Circular references between registries should be detected, reported, and
   rejected to prevent conflicts and maintain the integrity of the system.
 
