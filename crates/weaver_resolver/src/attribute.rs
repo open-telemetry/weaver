@@ -82,18 +82,22 @@ impl AttributeCatalog {
                 stability,
                 deprecated,
                 prefix,
+                rename,
             } => {
                 let name;
                 let root_attr = self.root_attributes.get(r#ref);
                 if let Some(root_attr) = root_attr {
                     let mut attr_lineage = AttributeLineage::new(&root_attr.group_id);
 
-                    if *prefix {
+                    if let Some(rename) = rename {
+                        // if there is a rename we need to update the name
+                        name = rename.clone();
+                    } else if *prefix {
                         // depending on the prefix we either create embedded attribute or normal reference
                         name = format!("{}.{}", group_prefix, r#ref);
                     } else {
                         name = r#ref.clone();
-                    }
+                    }                  
 
                     // Create a fully resolved attribute from an attribute spec
                     // (ref) and override the root attribute with the new
