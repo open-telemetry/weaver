@@ -84,7 +84,7 @@ impl RenderContext {
 
     /// Set the line prefix to add in front of each new line.
     fn set_line_prefix(&mut self, prefix: &str) {
-        self.line_prefix = prefix.to_owned();
+        prefix.clone_into(&mut self.line_prefix);
     }
 
     /// Skip the line prefix on the first line.
@@ -94,7 +94,7 @@ impl RenderContext {
 
     /// Reset the line prefix.
     fn reset_line_prefix(&mut self) {
-        self.line_prefix = "".to_owned();
+        "".clone_into(&mut self.line_prefix);
         self.skip_line_prefix_on_first_line = false;
     }
 
@@ -197,7 +197,7 @@ impl MarkdownRenderer {
             }
             Node::Text(text) => {
                 if options.escape_backslashes {
-                    ctx.add_text(&text.value.replace("\\", "\\\\"));
+                    ctx.add_text(&text.value.replace('\\', "\\\\"));
                 } else {
                     ctx.add_text(&text.value);
                 }
