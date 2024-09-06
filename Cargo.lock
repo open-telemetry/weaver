@@ -3038,9 +3038,9 @@ checksum = "7a66a03ae7c801facd77a29370b4faec201768915ac14a721ba36f20bc9c209b"
 
 [[package]]
 name = "regorus"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "533358c7cc06582feea97495abbc22df542477769c0e0d392b1fa3ad3a19d0a2"
+checksum = "ea3290b562d352fd86f9486f7e7578f3387de9b5b2b3d0bfe32b046d86117be3"
 dependencies = [
  "anyhow",
  "chrono",
