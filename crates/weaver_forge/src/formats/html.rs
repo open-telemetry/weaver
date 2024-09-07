@@ -146,7 +146,7 @@ impl<'source> HtmlRenderer<'source> {
             code: code.to_owned(),
         };
         self.env
-            .render_str(&options.inline_code_snippet, &ctx)
+            .render_str(&options.inline_code_snippet, ctx)
             .map_err(|e| InvalidCodeSnippet {
                 format: format.to_owned(),
                 mode: INLINE_CODE_SNIPPET_MODE.to_owned(),
@@ -170,7 +170,7 @@ impl<'source> HtmlRenderer<'source> {
             code: code.to_owned(),
         };
         self.env
-            .render_str(&options.block_code_snippet, &ctx)
+            .render_str(&options.block_code_snippet, ctx)
             .map_err(|e| InvalidCodeSnippet {
                 format: format.to_owned(),
                 mode: BLOCK_CODE_SNIPPET_MODE.to_owned(),
