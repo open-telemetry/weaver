@@ -1,38 +1,41 @@
-# Multi-Registry - Proposal
+# OpenTelemetry Semantic Convention Multi-Registry - Proposal
 
 Status: Work in Progress
 
 ## Introduction 
 
-This document outlines the proposal for supporting multiple semantic convention registries in OpenTelemetry. The goal is
+This document outlines the proposal to support multiple semantic convention registries in OpenTelemetry. The goal is
 to enable the community to define and publish their own semantic conventions, which can be used independently of the
 core OpenTelemetry Semantic Conventions. This approach allows the community to define custom signals and attributes
-specific to their domain or use case while still leveraging the core signals and attributes defined by OpenTelemetry.
+specific to their domains or use cases while still leveraging the core signals and attributes defined by OpenTelemetry.
 
-Multi-registries have the potential to significantly to develop the OpenTelemetry ecosystem and enhance the flexibility
-and extensibility of OpenTelemetry, enabling a wide range of use cases and scenarios. For example, vendors can publish
-their own registries containing signals and attributes specific to their products, while open-source library authors can
-define custom signals tailored to their libraries. Enterprises can also create internal registries to define custom
+Multi-registries have the potential to significantly expand the OpenTelemetry ecosystem, enhancing flexibility
+and extensibility. This will enable a wide range of use cases and scenarios. For example, vendors could publish
+their own registries containing signals and attributes specific to their products, while open-source library authors could
+define custom signals tailored to their libraries. Enterprises could also create internal registries to define custom
 signals that align with their specific needs and share these across teams and products.
 
-The proposal outlines the changes needed to support multiple semantic convention registries in OpenTelemetry, including
-the core policies that all registries must adhere to, the format of resolved registries, and the modifications required
+![Semantic Convention Registries + Weaver = Open Ecosystem](images/otel-semconv-open-ecosystem.svg)
+
+This proposal outlines the changes required to support multiple semantic convention registries in OpenTelemetry, including
+the core policies that all registries must adhere to, the format of published registries, and the modifications needed
 in Weaver to support the creation, validation, generation, packaging, and publication of registries.
 
-> Note 1: This proposal aims to describe the overall changes needed to realize the multi-registry long term vision.
-> However, this does not mean that we cannot introduce the changes incrementally. For example, we could start
-> by supporting attributes only and then progressively add support for metrics, events, spans, etc.
+> [!NOTE]
+> This proposal describes the overall changes required to achieve the multi-registry vision long term. However, these
+> changes can be introduced incrementally. For example, we could start by supporting attributes only and gradually add
+> support for metrics, events, spans, etc.
 
-> Note 2: In this document, the term "semantic convention registry" refers to the collection of semantic
-> conventions (attributes, groups, etc.) that define the semantics of the data model used in OpenTelemetry.
-> The term "registry" is used interchangeably with "semantic convention registry".
-
-> Note 3: In this document, the term "OTEL" refers to the OpenTelemetry project.
+> [!NOTE]
+> In this document, “semantic convention registry” refers to a collection of semantic convention entities (attributes,
+> groups, signals, etc.) that define the semantics of the data model used in OpenTelemetry. The terms “registry” and
+> “semantic convention registry” are used interchangeably. The term “entity” refers to any semantic convention
+> attribute, group, or signal. The abbreviation “OTEL” refers to the OpenTelemetry project.
 
 ## Use Case Example
 
-The following use case is not intended to be exhaustive, but it should provide a good idea of the
-types of multi-registry scenarios we aim to support.
+The following use case is not exhaustive but provides an example of the types of multi-registry scenarios we aim to
+support.
 
 The diagram below illustrates a small but realistic example of how multiple registries could be used together.
 For more details, the YAML semantic convention files corresponding to the diagram are available in this
@@ -44,12 +47,14 @@ The color-coding within the signal descriptions indicates the provenance of the 
 
 **Actors and Their Benefits** 
 
+The multi-registry approach supports various actors, each benefiting differently from its flexibility and scalability.
+
 1. **OTEL:**
   - **Value Proposition:**
     - OTEL can focus on defining core signals while delegating the creation of more specific signals
       to the community at scale.
     - OTEL establishes the foundation for developing new uses and tools in the observability ecosystem (e.g. data
-      catalog integration, dashboard generation, database schema generation, metadata to improve AI assisted Query
+      catalog integration, dashboard generation, database schema generation, metadata to improve AI assisted query
       engines, etc.). 
 
 2. **Vendor:**
@@ -61,7 +66,7 @@ The color-coding within the signal descriptions indicates the provenance of the 
 
 3. **OSS Library Author:**
   - **Value Proposition:**
-    - The OSS library author can reuse OTEL-defined attributes and signals, integrating them with custom
+    - OSS library authors can reuse OTEL-defined attributes and signals, integrating them with custom
       signals tailored to their library.
     - Publishing a registry for the library simplifies the integration process for
       developers, making it easier to adopt and use the library in a consistent and standardized way.
@@ -81,143 +86,359 @@ community-driven model for defining and using semantic conventions across divers
 
 ## Design Principles
 
+- **Complexity on the system, not the user**: The system should handle the complexity of managing multiple registries,
+  ensuring that users can easily create, validate, and publish registries without needing to understand the
+  intricacies of the resolution process.
 - **Independent Ownership**: Individuals or organizations should be able to create and maintain a registry
   independently, without requiring coordination with the OTEL project.
-- **Registry Accessibility**: Registries should be either private or public, allowing flexibility based on
-  the needs of the owner. Registries should be accessible via a URL.
-- **Common Format**: A published registry should adhere to a common packaging and format, making it easy to
-  consume and integrate with other registries.
-- **Self-Contained**: A published registry should be self-contained and stored in a single file.
-- **Version Discoverability**: The various versions of a registry should be discoverable and accessible via a
-  URL.
+- **Core Policy Enforcement**: The OTEL project should establish and enforce core policies (e.g., backward
+  compatibility) that all published registries must adhere to, ensuring consistency and reliability.
+- **Registry Accessibility**: Registries should be either private or public, depending on the owner’s needs, 
+  and accessible via a URL.
+- **Cross-Registry References**: References between different registries should be supported to facilitate
+  interoperability and integration across various registries.
+- **Clear Rules to Avoid Conflicts**: A well-defined set of rules should be established and enforced to prevent
+  conflicts among imported attributes and signals. Users are responsible for resolving any conflicts that cannot
+  be automatically resolved by the tooling.
+- **Circular Reference Handling**: Circular references between registries should be automatically detected,
+  reported, and rejected to maintain system integrity and prevent conflicts.
+- **Publication Format**: A published registry must adhere to a format and packaging designed to ensure stability,
+  ease of exchange, and consumption by other registries or tools.
+- **Self-Contained**: A published registry should be self-contained.
+- **Version Discoverability**: Versions of a published registry should be easily discoverable and accessible via a URL.
+- **Transparency for Telemetry Consumers**: Downstream consumers of telemetry data (e.g., backends and dashboards)
+  should never be exposed to conflicts within or between registries. They should see attributes and signals as
+  defined, without scope or conflict resolution directives, ensuring a consistent and reliable data experience.
 - **Community Support Tools**: The OTEL project should provide and maintain an extensible tool, Weaver, to
   assist the community in creating, validating, resolving, packaging, and publishing registries. Weaver should
-  also support documentation generation and code generation for any registry.
-- **Core Policy Enforcement**: The OTEL project should establish and enforce a set of core policies (e.g.,
-  backward compatibility policies) that all registries must adhere to, ensuring consistency and reliability.
-  These policies should be enforced by Weaver.
-- **Cross-Registry References**: References between different registries should be supported, facilitating
-  interoperability and integration across various registries.
-- **Conflict Avoidance through Scoping**: A scoping mechanism should be implemented to ensure that a signal
-  or attribute name does not conflict with future declarations in other registries. Every imported registry
-  should be scoped with a unique name or alias to avoid conflicts.
-- **Circular Reference Handling**: Circular references between registries should be detected, reported, and
-  rejected to prevent conflicts and maintain the integrity of the system.
+  also support documentation and code generation for any published registry.
+- **Clear, Actionable, and Educational Error Messages**: Weaver should detect and report any errors or inconsistencies
+  in a registry, providing users with clear and actionable feedback.
 
 ## Semantic Convention Registry Changes
 
-With the following changes, a registry can be defined by anyone, without requiring any human coordination with OTEL.
-Registry authors can extend or amend entities defined in other registries or create their own attributes
-and groups.
+The following sections describe the changes needed in the semantic convention registry to support multiple registries.
 
-Changes:
-- A registry can import one or several semantic conventions from other published registries.
-- A published registry is a resolved registry (see resolved registry format below) accessible via a URL.
-- A new optional section called `imports` will be added to the semantic convention file defining groups. The `imports`
-  section is a list of imported semantic conventions with their schema URLs and aliases.
-- Aliases defined in a file with `global_imports` section are global aliases and are visible in all the
-  files of the registry otherwise aliases are local to a file (see discussion
-  [here](#do-we-allow-an-alias-defined-in-one-semconv-file-to-be-visible-in-another-semconv-file)). Note that these
-  files can not contain any group definitions.
-- Only one alias is allowed for a specific `schema_url` across all the files of a registry (see discussion 
-  [here](#do-we-allow-importing-the-same-external-registry-with-different-aliases-within-the-scope-of-a-registry-)).
-- Only one version of a specific imported registry is allowed across all the files of a registry (see discussion
-  [here](#do-we-allow-importing-the-same-registry-with-different-versions)). 
-- Schema URLs are used to fetch both OTEL schema and self-contained/resolved registries.
-  The way a resolved registry is linked to an OTEL schema is TBD (it could be a new URL pointing to the resolved
-  registry or an integration within the schema file itself).
-- Import a registry and not using it is considered an error.
-- A registry can only be imported as a self-contained/resolved registry.
-- Any registry must comply with the OTEL core policies to ensure backward compatibility and consistency across
-  registries (see section [Core Policies](#core-policies)).
-- Any stable attribute or group in a registry is a referencable entity when the registry is imported.
-- Experimental entities in a registry can not be referenced into other registries (see discussion
-  [here](#do-we-allow-reference-of-experimental-entities-across-registries)).
-- Group references are now supported to extend or overrides group fields and attributes of an imported group. (see
-  discussion [here](#do-we-allow-references-to-groups-or-attributes-defined-in-an-imported-registry)).
-- A registry 'A' can import semantic conventions from a registry 'B'. 'A' can override some entities of 'B'. These
-  overrides are not propagates to 'B'. 'B' can not import the registry 'A' (circular dependencies are not allowed).
-- A group reference cannot change the type of the imported group (similar to attribute references).
-- References to an imported group or attribute are always prefixed with the alias of the imported semantic
-  convention (e.g., `ref: otel:client.address`). The colon is used as a separator between the alias and the
-  group or attribute name. If preferred, there is an alternative to make the alias optional, see the alternatives
-  section below.
-- References to entities (groups or attributes) defined in the local registry are never prefixed.
-- A locally defined group can reference an imported group in its `extends` section.
-- A locally defined group can reference an imported attribute in its `attributes` section.
+### Directory Structure
 
-> Wonkiness to remove from the existing semantic convention schema:
-> 
-> - Rename `metric_name` to `name` in the `metric` group for consistency with other groups.
-> - Probably more TBD.
+The directory structure of a registry remains mostly unchanged, with the addition of a new file called
+`weaver_registry.yaml`. This file contains the registry metadata, such as the name, version, and description.
+It is required for published registries or registries with dependencies on other registries.
 
-Things to avoid/minimize:
+```plaintext
+registry_root/
+  domain_1
+  domain_2
+  ...
+  registry
+  weaver_registry.yaml
+```
 
-- **Name squatting**: By relying on local aliases and URL schema, we reduce the risk of name squatting, as
-  the naming convention is not based on company names that are not necessarily unique and are complex to control.
-- **Name inconsistency**: By enforcing core policies, we minimize the risk of name inconsistency across registries.
+### New `weaver_registry.yaml` File
 
-Alternatives:
+This file is used to describe the registry and its dependencies. It is optional for standalone registries
+but required for published registries or registries with dependencies on other registries.
 
-- We could make aliases optional in the imports section. To do so, we would need to rely on Weaver to automatically
-  detect entity IDs that are defined both in the local semantic convention file and the imported registry. When such
-  a conflict is detected, Weaver will report an error and ask the user to define an alias for the imported registry.
-  This approach could be supported in the future if the need arises.
+```yaml
+name: <registry_name>
+description: <registry_description>
+version: <registry_version>
+schema_url: <url_of_the_otel_schema_file_published_with_this_registry>
+owner:
+  name: <company_name_or_person_name>
+  url: <optional_url_representing_the_owner>
+maintainers:
+  - name: <name>
+    email: <optional email>
+    url: <optional url>
+dependencies:
+  - name: <registry_name>
+    version: <registry_version>
+    repository: <url_of_repository_where_registry_versions_are_published>
+    alias: <optional alias>
+configuration:
+  allow_experimental_ref: <true|false>  # default value to be discussed
+```
 
-### Discussions
+A registry can import one or more semantic conventions from other published registries. These dependencies
+are declared in the `dependencies` section. The `alias` field is optional but must be specified
+if multiple imported registries share the same `name`. This design allows Weaver to automatically update
+dependencies to the latest version when a new version becomes available (see the [Registry Update](#registry-update) 
+section). It also allows registry authors to use registry names as preferred, without concerns about
+conflicts.
 
-#### Do we allow importing the same external registry with different aliases within the scope of a registry?
-- Short answer: No for consistency and readability.
-- Long answer: Although technically it is not a problem, it is a good practice to use the same alias for the same
-  registry inside the same file or across different files of the same registry. This practice makes the overall
-  registry more readable and maintainable. Weaver will report an error if different aliases are used for the same
-  registry in the scope of a single registry.
+Sections such as [Registry Resolution](#registry-resolution), [Registry Packaging](#registry-packaging), and 
+[Registry Publication](#registry-publication) provide more details on how the `weaver_registry.yaml` file
+is used in these processes.
 
-#### Do we allow an alias defined in one semconv file to be visible in another semconv file?
-- Short answer: Yes, under certain conditions.
-- Long answer: An alias defined in a file containing `global_imports` section is visible in all the files of the
-  registry. Such an alias is called a global alias. A global alias is useful when the same imported registry is
-  used in multiple files within the same registry. In this situation, defining a global alias simplifies the
-  management of dependencies, as updating to a new registry version will only require a single change in the
-  registry file containing the global aliases. Weaver will report an error if an alias not defined locally or as
-  a global alias is used in a semconv file.
+Open Questions:
+- Should we follow SemVer 2 for registry versions? It seems advisable, as Weaver can detect breaking changes.
+- How do we retrieve a published registry URL from a schema URL? Perhaps a new field in the schema URL file could
+  point to the published registry URL, possibly named `registry_url`.
 
-#### Do we allow importing the same registry with different versions?
-- Short answer: No for consistency.
-- Long answer: Although technically it is possible to support multiple versions of an imported registry, it is a
-  good practice to align the versions inside the same registry. This practice make the overall registry more
-  consistent and easy to reason about. Weaver will report an error if different versions are used for the same
-  registry in the scope of a single registry.
+### Semantic Convention File Structure
 
-#### Do we allow reference of experimental entities across registries?
-- Short answer: No for backward compatibility.
-- Long answer: Experimental entities are not meant to be used in production. Experimental entities are subject to
-  change or removal without any notice in the next version of the registry. The type of an experimental entity can
-  be changed. Weaver will detect and report an error if an experimental entity is referenced across registries.
+The current [JSON Schema](https://github.com/open-telemetry/weaver/blob/main/schemas/semconv.schema.json) that
+describes the files of the semantic convention registry remains mostly unchanged. However, a few minor updates are
+required:
 
-#### Do we allow circular references between registries?
-- Short answer: No.
-- Long answer: Circular references are already prohibited inside a registry, so circular references between
-  registries can lead to the kind of problems (e.g. unresolvable references). Weaver will detect and report
-  an error if a circular reference is detected between registries.
+- The ability to reference a group must be supported, allowing a registry to extend or override fields of an
+  imported group.
+- The structure of a reference must be enhanced to disambiguate attribute or signal references from other registries
+  when necessary (more details in the [Registry Resolution](#registry-resolution) section).
 
-#### Do we allow references to groups or attributes defined in an imported registry?
-- Short answer: Yes.
-- Long answer: References to groups or attributes defined in an imported registry are allowed. This feature
-  allows a registry to extend or override the attributes of an imported group. Weaver will detect and report an
-  error if a reference is made to an entity that is not defined in the imported registry.
+Currently, a reference follows dot notation (e.g., `ref: client.address`). When there is no ambiguity or conflict
+detected by Weaver, this notation is sufficient. However, when a conflict occurs, the user must disambiguate the
+reference by prefixing it with the registry name (e.g., `ref: otel:client.address`). The prefix corresponds
+to the registry name as defined in the `weaver_registry.yaml` file under the `dependencies` section. A colon is used
+as a separator between the name and the attribute or group name. References to groups or attributes defined in the
+local registry are never prefixed.
 
-### Open Questions:
-- Can we override any field of a group defined in an imported registry? No for `type` field, what about the other
-  fields?
-- Is there a relationship to define between the instrumentation scope name and version and the registry?
+In a group, the `extends` section can now reference an imported group using this new reference syntax. Similarly, the
+`attributes` section of a group can reference an imported attribute.
 
+Referencing a group is currently unsupported. There are several options for implementing this feature, depending on
+the uniqueness of the group ID agreed upon:
 
-## Core Policies
+- If a group ID is unique per group type, the following syntax could reference a group:
+
+```yaml
+groups:
+  - metric_ref: <reference_to_a_metric_group>
+  - event_ref: <reference_to_an_event_group>
+  - span_ref: <reference_to_a_span_group>
+  - ...
+```
+
+- If a group ID is unique across group types, the following syntax could reference a group:
+
+```yaml
+groups:
+  ref: <reference_to_a_group>
+```
+
+> [!IMPORTANT]
+> A decision on the uniqueness of group IDs across group types is required to determine the appropriate referencing
+> syntax.
+
+Similar to attribute references, group references cannot override the type, stability, or deprecation status of the
+imported group.
+
+References to experimental entities across registries are allowed under certain conditions:
+
+- An entity referencing an experimental entity must also be marked as experimental.
+- The flag `allow_experimental_ref` in the `weaver_registry.yaml` file must be set to `true`.
+
+### Registry Resolution
+
+The registry resolution process needs to handle more complex scenarios, especially when dealing with multiple
+registries. It begins by parsing the `weaver_registry.yaml` file of the registry being resolved. All registries listed
+under `dependencies` are loaded, parsed, and passed to the conflict resolution stage (assuming that any published
+registries have already completed their resolution process). The dependencies of registries form a directed acyclic
+graph. Each registry may be maintained by different owners and have different release schedules, which can introduce
+conflicts, particularly when dependencies import different versions of a common ancestor or independently override
+entities defined in the same ancestor registry.
+
+The resolution process is designed to automatically detect and resolve most conflicts without user intervention.
+However, when a conflict cannot be resolved consistently and predictably, the user must disambiguate by explicitly
+choosing the imported registry to resolve the conflict.
+
+The process hinges on the concept of mergeable entities (attributes or groups). For two entities to be considered
+mergeable, they must meet the following basic criteria:
+1. Both entities must be of the same type (e.g., attribute, metric, event, span, etc.).
+2. They must share the same ID.
+3. They must have a common ancestor (i.e., both were originally defined in the same registry).
+
+Since entities are complex objects consisting of multiple fields, and override mechanisms are allowed, one of the
+following additional conditions must be met:
+- **Structural equivalence**: If the two entities have identical fields (i.e., both field names and values match), they
+  are considered structurally equivalent and will be automatically deduplicated.
+- **Version compatibility**: If the two entities have not been overridden in any intermediate registry but come from
+  different versions of the same registry, the entity from the most recent version is used.
+- **Disjoint overrides**: If the two entities have been overridden in intermediate registries but only in disjoint
+  fields (i.e., no overlapping fields are overridden), the entities are automatically merged.
+
+If none of these conditions are met, the user must resolve the conflict by explicitly prefixing the reference with the
+appropriate registry name.
+
+A formal definition of this resolution process is being developed, possibly based on Quint.
+
+Two entities with the same type (e.g., attribute) and ID, defined in separate dependencies,
+are not considered mergeable even if they are structurally equivalent. This is because these entities originate from
+different registries without coordination, meaning their similarity is likely coincidental. While it would be
+technically possible to merge them automatically, this is not currently allowed for safety.
+If automatic merging becomes a common request, a specific configuration option in the
+`weaver_registry.yaml` file could enable this behavior.
+
+The detection mechanism for circular dependencies must be expanded to identify circular dependencies
+between registries.
+
+Finally, the resolution process must be capable of generating an OTEL schema file that includes the URL of the published
+registry, along with all transformation rules, both local and derived from imported registries. This allows consumers of
+the published registry to navigate across different versions of the registry, accommodating components of the
+observability stack that may not be aligned in terms of versioning.
+
+> [!NOTE]
+> The resolution process outlined above relies on specific requirements for published registries. The self-contained
+> format of these registries must include the necessary provenance information to determine: 1) the common ancestor of
+> two entities, and 2) versioning details.
+
+> [!IMPORTANT]
+> Telemetry consumers (i.e., anyone or anything downstream from signal production, such as backends, dashboards, users, etc.) 
+> will observe the signals and attributes by their name, not by their optional prefix used for disambiguation. Other
+> metadata and provenance information can also be consulted.
+
+### Registry Check
+
+The Weaver registry check command will be extended to apply the following mandatory policies when used in the context
+of registry packaging:
+
+- Having a dependency on a published registry and not using it is considered an error at the time of packaging.
+- Any packaged registry must comply with the OTEL core policies to ensure backward compatibility and consistency
+  across registries (see [Core Policies](#core-policies)).
+
+[Probably more TBD here]
+
+### Registry Packaging
+
+Before publication, a registry must be packaged into a self-contained file that is easy to reference, download, and
+consume. The packaging process is responsible for:
+- Running the resolution process to ensure the registry is resolvable.
+- Running OTEL core policies to ensure compatibility and consistency.
+- Running user-defined policies to ensure compliance with custom rules.
+- Serializing the resolved registry into a single file (exact format TBD). This file is self-contained and does not
+  contain complex constructs like `ref`, `extends`, etc. However, the provenance of the entities/fields is included
+  to support the multi-registry resolution process described earlier.
+- Creating a compressed file containing the resolved registry and the `weaver_registry.yaml` file. The registry package
+  is named `<name>-<version>.gz`.
+
+The provenance information must include the name, version, and URL of the registry where the entity is
+defined.
+
+Open Questions:
+- Should the OTEL Schema URL corresponding to the packaged registry be included in the package?
+
+### Registry Publication
+
+A published registry is a self-contained, resolved registry accessible via a URL. The URL of a published registry is
+`<repository>/<name>-<version>.gz`. The repository is the URL where registry versions are published. The latest version
+of a registry is also accessible via `<repository>/<name>-latest.gz`.
+
+Weaver can maintain a directory containing all published versions of a registry. In that case, the `<name>-<version>.gz`
+file and the `<name>-latest.gz` file are automatically stored in the directory.
+
+### Registry Update
+
+For any published registry, Weaver can discover the latest version by fetching the file located at
+`<repository>/<name>-latest.gz` and parsing the `weaver_registry.yaml` file. This mechanism allows Weaver to
+automatically suggest the latest version of dependencies.
+
+## Resolved Semantic Convention Registry Format
+
+The purpose of the resolved registry format is to provide a self-contained, easy-to-consume file containing all the
+entities of a registry. This format excludes complex constructs such as `ref` or `extends` and is defined in a single
+file. These properties make it easy for any tool — not just Weaver — to publish and consume it. This shift is key
+to fostering a rich ecosystem around Semantic Conventions and OpenTelemetry. By removing complex constructs,
+the format becomes more stable and less prone to changes. Any new mechanisms introduced in the semantic convention
+format (e.g., embedding or more complex inheritance) will not affect the resolved registry format as long as the
+resolution process can transform the unresolved registry into a resolved one.
+
+The file format for the resolved registry is still under discussion but will likely be in YAML or JSON to
+ensure compatibility with a wide range of tools.
+
+A resolved registry consists of the following components:
+- An internal, self-contained catalog of deduplicated attribute definitions, ensuring attributes are not defined
+  multiple times in the registry.
+- An internal catalog of registry identifiers, represented as triples (registry name, version, URL).
+- A list of resolved groups with their attributes, using internal references to the attribute catalog.
+- Provenance information for each entity, linking it to the corresponding entry in the registry identifier catalog,
+  where the entity is either defined or overridden.
+
+This format is optimized to minimize the in-memory size of the resolved registry, as many attributes are expected to be
+shared across multiple entities and registries.
+
+Weaver provides an additional mechanism to transform the resolved registry format into a materialized version. This
+materialized format is less optimized for size (i.e., no internal catalogs, with all attribute definitions fully
+materialized in each entity) but more optimized for consumption by other tools. Weaver currently uses this process
+before invoking the jq, template, and policy engines.
+
+### Weaver Changes
+
+Weaver currently supports the following workflows:
+
+- **check**: Check or validate a registry for consistency and compliance with the core policies.
+- **resolve**: Resolve a registry and generate a resolved registry YAML file.
+- **generate**: Generate code or documentation from a registry.
+
+To support multiple registries, the following new workflows are proposed:
+
+- **search**: Search for a specific entity (attribute, group, etc.) in a registry or across multiple registries.
+- **update**: Detect and update the latest versions of a registry’s dependencies.
+- **package**: Package a registry or a set of registries into a single file.
+- **publish**: Publish a registry to a folder.
+
+The command `weaver registry generate` must allow the generation of referenced entities from
+imported registries and optionally generate entities defined in these registries but not referenced in the
+local registry. The `--templates` parameter must support git URLs so community-based templates (including the official
+OTEL templates) can be reused for any registry.
+
+Similarly, the `--policies` parameter must support git URLs so community-based policies (including those defined by
+OTEL) can be applied to any registry.
+
+### OTEL Semantic Convention JSON Schema Changes
+
+The JSON Schema for specifying semantic convention groups must be updated to support group references. Additionally, 
+the reference format should be extended to optionally allow a reference to be prefixed by a registry name (e.g.,
+`otel:client.address`).
+
+### OTEL Schema Changes
+
+The OTEL schema file structure must be updated to either include the URL to a published registry or to include the
+published registry itself. ([Decision TBD] I have a reference for the first option).
+
+## Protocol Changes
+
+No impact on OTLP and OTAP.
+
+A `schema_url` field is already present at the resource and scope levels.
+
+Ideally, any component of the observability pipeline should be able to fetch the published registry just by knowing the
+schema URL of any resource or instrumentation scope.
+
+## OTEL SDKs Changes
+
+To leverage the multi-registry feature, users should be able to generate code from their custom registry and use it as a
+replacement for the default OTEL registry.
+
+A more advanced feature would be generating type-safe client SDKs exposing all the entities defined in the custom
+registry. A proof of concept is available in Weaver for the Rust language.
+
+Open Questions:
+
+- Can we enforce the presence of the schema URL at the resource and instrumentation scope levels?
+- How do we convey the schema URL to the SDKs? Could this be part of the codegen done by Weaver?
+
+## Future Work
+
+In addition to implementing the multi-registry feature in Weaver, the following future work is planned:
+
+- Efforts to formalize the resolution process are ongoing, with the aim of ensuring the process is consistent and fully
+  addresses all targeted use cases.
+- Privacy and security concerns have not been fully addressed in this proposal. The fact that certain sensitive
+  attributes are not imported into your application’s registry does not guarantee they won’t appear in your
+  application’s telemetry, as they could be defined and generated by linked libraries. Additionally, the override
+  process only affects downstream instrumentation. Introducing a new type of semantic convention file that allows
+  end-users to define global overrides and redact directives could help address these concerns. This new file format
+  could be used by client SDKs or intermediary proxies to filter or redact sensitive attributes.
+
+# Appendices
+
+## Appendix A - Core Policies
 
 These core policies aim to ensure consistency and backward compatibility across registries.
 
 ### Group Policies
+
 - No group ID collisions
 - Only attribute groups are allowed in the attribute registry
 - Ref attributes are not allowed in the attribute registry
@@ -261,106 +482,15 @@ These core policies aim to ensure consistency and backward compatibility across 
 - The set of required/recommended attributes must remain the same
 - Span names must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
 
-## OTEL Semantic Convention JSON Schema Changes
+Liudmila's feedback on the core policies (need to be discussed):
+```
+I think we need to come up with more nuanced rules. E.g.
+- it's ok to change recommended attribute to required.
+- it's ok to remove recommended (if you have good reasons not to populate recommended, this is your way to tell that
+  you don't populate it)
+- it's ok to change conditionally required to recommended or required (if condition is always true)
+- it might be ok to promote opt-in to recommended or even required
 
-[TODO] The JSON Schema for the registry must be updated to reflect these changes.
-
-## OTEL Schema Changes
-
-The OTEL schema file structure must be updated to either include the URL to a self-contained/resolved
-registry or to include the resolved registry itself. 
-
-## Weaver Changes
-
-The following changes are proposed to Weaver:
-
-- Weaver must be able to support any operation on any registry (check, resolve, generate, search,
-  ...).
-- The command `weaver registry generate` must allow the generation of the referenced entities that belong to the
-  imported registries or optionally the generation of all the entities of the imported registries.
-- Extend the `--templates` parameter to allow git URL so OTEL templates (or community-based templates) can be reused
-  for any registry.
-- Extend the `--policies` parameter to allow git URL so OTEL policies (or community-based policies) can be reused for
-  any registry.
-- Maintain a list of global and local aliases and detect any conflict between them. Detect when the same schema URL
-  is imported with different aliases. Detect when an alias (global or local) is not used in the registry.
-- More TBD.
-
-Open Questions: 
-- Is a resolved registry contain any trace of the imported registries?
-- It will be nice to detect when a new registry version is available. How can we detect the presence of a new registry
-  version? A file containing of the schema URL per version for a registry? Some kind of naming conventions for the URL? 
-
-## Protocol Changes
-
-No impact on OTLP and OTAP. 
-
-A `schema_url` field is already present at the resource and scope levels. 
-
-Ideally any component of the observability pipeline should be able to fetch the resolved registry just by knowing the
-schema URL of any resource or instrumentation scope. 
-
-## OTEL SDKs Changes
-
-TBD
-
-Open Questions:
-
-- Can we enforce the presence of the schema URL in the resource and instrumentation scope?
-- How do we convey the schema URL to the SDKs? Could that be part of the codegen done by Weaver?
-
-## Resolved Semantic Convention Registry Format
-
-> Note: A resolved registry is self-contained and does not include any complex constructs
-> like `imports`, `ref`, `extends`, etc. Their **structure is less subject to change**, making them good
-> candidates for publication and easier to consume.
-
-The following properties are proposed for a resolved registry:
-
-- Resolved registry must be easy to consume and to publish
-  - Accessible via a URL.
-  - Self-contained, i.e. a single file.
-  - No `ref`, no `extends`, no `imports`, no alias, no other complex constructs.
-  - Yaml or JSON format so resolved registries can be easily consumed by any tool.
-- Optional lineage section.
-
-The structure of resolved registries is less subject to change. We can always add advanced support for embedding,
-more complex inheritance mechanisms, etc. The resolved registry format will not change because all these complex
-constructs will be removed during the resolution process. This property makes resolved registries good candidates
-for publication and easier to consume.
-
-The content of a resolved registry depends on the:
-- The semantic convention files composing the registry to resolve.
-- The registries imported.
-- The configuration specified during the resolution process.
-  - Include all the entities of the imported registries
-  - Include only the referenced entities of the imported registries.
-
-More specifically, a resolved registry contains:
-- All the attributes registry specified locally in the registry.
-- All the groups specified locally in the registry.
-- All the attributes and groups imported but not re-exported locally are not included in the resolved registry. A
-  re-exported entity is an entity that is imported and referenced in the local registry with some overriding.
-
-Open Questions:
-
-- Do we keep track of the imported registries in the resolved registry? If yes, how? Lineage?
-- Can we leverage the attribute deduplication mechanism to simplify the merging of imported registries? ToDo -> Explain
-  attribute deduplication mechanism.
-- Can we extend the deduplication mechanism to the signals? 
-- Materialized resolved registry (what see the jq, template and policy engines) vs Published resolved registry.
-  - Materialized Resolved Registry: This is what the jq, template and policy engines see. In this format there are
-  no deduplication of declaration. This format is not meant to be published.
-  - Published Resolved Registry: In this format, the deduplication of declaration is automatically done by Weaver. 
-  This format is meant to be published.
-
-## Priorities
-
-TBD
-
-## General Open Questions
-
-- What about introducing a new type of semconv file that will let end-users define global overrides and global redact
-  directives? For example, the requirement level of attributes such as `client.address` or `server.address` will be
-  better defined by the end-user than by the library author, or a vendor. A similar approach could be used for redact
-  directives in order to address privacy concerns.
+maybe those rules are complex enough that we just want to start with a simple one that all required attributes should
+stay required
+```
