@@ -792,7 +792,7 @@ mod tests {
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
-        fs::remove_dir_all(&format!("observed_output/{}", target)).unwrap_or_default();
+        fs::remove_dir_all(format!("observed_output/{}", target)).unwrap_or_default();
 
         (
             TestLogger::default(),

@@ -54,6 +54,7 @@ pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
 }
 
 /// Generic comment filter reading its configuration from the `weaver.yaml` file.
+#[allow(clippy::assigning_clones)]
 pub(crate) fn comment(
     config: &WeaverConfig,
 ) -> Result<impl Fn(&Value, Kwargs) -> Result<String, minijinja::Error>, Error> {
@@ -98,7 +99,6 @@ pub(crate) fn comment(
             } else {
                 input.to_string()
             };
-
             if comment_format.trim {
                 comment = comment.trim().to_owned();
             }
@@ -349,7 +349,7 @@ it's RECOMMENDED to:
         // Test with an undefined field in the context
         let ctx = serde_json::json!({});
         let observed_comment = env
-            .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
+            .render_str("{{ note | comment(format='java', indent=2) }}", ctx)
             .unwrap();
         assert_eq!(observed_comment, "");
 
@@ -361,7 +361,7 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str(
                 "{{ [brief,'Note: ', note, something_not_in_ctx] | comment(indent=2) }}",
-                &ctx,
+                ctx,
             )
             .unwrap();
         assert_eq!(
