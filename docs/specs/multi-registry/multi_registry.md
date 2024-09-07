@@ -1,11 +1,11 @@
-# OpenTelemetry Semantic Convention Multi-Registry - Proposal
+# OpenTelemetry Semantic Convention - Multi-Registry Proposal
 
 Status: Work in Progress
 
 ## Introduction 
 
 This document outlines the proposal to support multiple semantic convention registries in OpenTelemetry. The goal is
-to enable the community to define and publish their own semantic conventions, which can be used independently of the
+to enable the community to define and publish their own semantic conventions, which can be operated independently of the
 core OpenTelemetry Semantic Conventions. This approach allows the community to define custom signals and attributes
 specific to their domains or use cases while still leveraging the core signals and attributes defined by OpenTelemetry.
 
@@ -14,6 +14,8 @@ and extensibility. This will enable a wide range of use cases and scenarios. For
 their own registries containing signals and attributes specific to their products, while open-source library authors could
 define custom signals tailored to their libraries. Enterprises could also create internal registries to define custom
 signals that align with their specific needs and share these across teams and products.
+
+The effect of combining semantic conventions, multiple registries, and Weaver is illustrated in the diagram below.
 
 ![Semantic Convention Registries + Weaver = Open Ecosystem](images/otel-semconv-open-ecosystem.svg)
 
@@ -31,6 +33,10 @@ in Weaver to support the creation, validation, generation, packaging, and public
 > groups, signals, etc.) that define the semantics of the data model used in OpenTelemetry. The terms “registry” and
 > “semantic convention registry” are used interchangeably. The term “entity” refers to any semantic convention
 > attribute, group, or signal. The abbreviation “OTEL” refers to the OpenTelemetry project.
+
+> [!NOTE]
+> A very close concept to the multi-registry proposal was discussed in the past under the name of "Application
+> Telemetry Schema". See the [Application Telemetry Schema Proposal](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md).
 
 ## Use Case Example
 
@@ -102,10 +108,11 @@ community-driven model for defining and using semantic conventions across divers
   be automatically resolved by the tooling.
 - **Circular Reference Handling**: Circular references between registries should be automatically detected,
   reported, and rejected to maintain system integrity and prevent conflicts.
-- **Publication Format**: A published registry must adhere to a format and packaging designed to ensure stability,
-  ease of exchange, and consumption by other registries or tools.
-- **Self-Contained**: A published registry should be self-contained.
-- **Version Discoverability**: Versions of a published registry should be easily discoverable and accessible via a URL.
+- **Open Publication Format**: A published registry must adhere to a open format and packaging designed to ensure
+  stability, ease of exchange, and consumption by other registries or tools.
+- **Self-Contained**: A published registry should be self-contained to make the overall system more robust and
+  resilient to changes in dependencies.
+- **Version Discoverability**: Available versions of a published registry should be easily discoverable.
 - **Transparency for Telemetry Consumers**: Downstream consumers of telemetry data (e.g., backends and dashboards)
   should never be exposed to conflicts within or between registries. They should see attributes and signals as
   defined, without scope or conflict resolution directives, ensuring a consistent and reliable data experience.
@@ -127,14 +134,14 @@ It is required for published registries or registries with dependencies on other
 
 ```plaintext
 registry_root/
-  domain_1
-  domain_2
+  domain_1/
+  domain_2/
   ...
-  registry
+  resources/
   weaver_registry.yaml
 ```
 
-### New `weaver_registry.yaml` File
+### `weaver_registry.yaml` File
 
 This file is used to describe the registry and its dependencies. It is optional for standalone registries
 but required for published registries or registries with dependencies on other registries.
@@ -162,17 +169,19 @@ configuration:
 
 A registry can import one or more semantic conventions from other published registries. These dependencies
 are declared in the `dependencies` section. The `alias` field is optional but must be specified
-if multiple imported registries share the same `name`. This design allows Weaver to automatically update
-dependencies to the latest version when a new version becomes available (see the [Registry Update](#registry-update) 
-section). It also allows registry authors to use registry names as preferred, without concerns about
-conflicts.
+if multiple imported registries share the same `name`. 
+
+Based on the `dependencies` section, Weaver can automatically update dependencies to the latest version when a new
+version becomes available (see the [Registry Update](#registry-update) section). It also allows registry authors to use
+registry names as preferred, without concerns about conflicts.
 
 Sections such as [Registry Resolution](#registry-resolution), [Registry Packaging](#registry-packaging), and 
 [Registry Publication](#registry-publication) provide more details on how the `weaver_registry.yaml` file
 is used in these processes.
 
 Open Questions:
-- Should we follow SemVer 2 for registry versions? It seems advisable, as Weaver can detect breaking changes.
+- Should we follow SemVer 2 for registry versions? It seems advisable, as Weaver can detect breaking changes. However,
+  the resolution process doesn't rely on SemVer 2 in an important way.
 - How do we retrieve a published registry URL from a schema URL? Perhaps a new field in the schema URL file could
   point to the published registry URL, possibly named `registry_url`.
 
@@ -197,10 +206,10 @@ local registry are never prefixed.
 In a group, the `extends` section can now reference an imported group using this new reference syntax. Similarly, the
 `attributes` section of a group can reference an imported attribute.
 
-Referencing a group is currently unsupported. There are several options for implementing this feature, depending on
-the uniqueness of the group ID agreed upon:
+In the current semantic conventions specification, referencing a group is currently unsupported. There are several
+options for implementing this feature, depending on the uniqueness of the group ID agreed upon:
 
-- If a group ID is unique per group type, the following syntax could reference a group:
+- If a group ID is unique per group type, the following syntax could reference a group without ambiguity:
 
 ```yaml
 groups:
@@ -244,7 +253,7 @@ However, when a conflict cannot be resolved consistently and predictably, the us
 choosing the imported registry to resolve the conflict.
 
 The process hinges on the concept of mergeable entities (attributes or groups). For two entities to be considered
-mergeable, they must meet the following basic criteria:
+mergeable, they must, at least, meet the following basic criteria:
 1. Both entities must be of the same type (e.g., attribute, metric, event, span, etc.).
 2. They must share the same ID.
 3. They must have a common ancestor (i.e., both were originally defined in the same registry).
