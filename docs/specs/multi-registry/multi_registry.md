@@ -206,10 +206,9 @@ local registry are never prefixed.
 In a group, the `extends` section can now reference an imported group using this new reference syntax. Similarly, the
 `attributes` section of a group can reference an imported attribute.
 
-In the current semantic conventions specification, referencing a group is currently unsupported. There are several
-options for implementing this feature, depending on the uniqueness of the group ID agreed upon:
-
-- If a group ID is unique per group type, the following syntax could reference a group without ambiguity:
+In the current semantic conventions specification, referencing a group is currently unsupported. Uniqueness within
+groups is scoped by the type of group. It is entirely possible to have an event and a metric identified by the same ID.
+Therefore, the following approach is proposed to reference a group:
 
 ```yaml
 groups:
@@ -218,17 +217,6 @@ groups:
   - span_ref: <reference_to_a_span_group>
   - ...
 ```
-
-- If a group ID is unique across group types, the following syntax could reference a group:
-
-```yaml
-groups:
-  ref: <reference_to_a_group>
-```
-
-> [!IMPORTANT]
-> A decision on the uniqueness of group IDs across group types is required to determine the appropriate referencing
-> syntax.
 
 Similar to attribute references, group references cannot override the type, stability, or deprecation status of the
 imported group.
