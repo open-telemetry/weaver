@@ -160,7 +160,7 @@ maintainers:
     url: <optional url>
 dependencies:
   - name: <registry_name>
-    version: <registry_version>
+    version: <registry_version | latest>
     repository: <url_of_repository_where_registry_versions_are_published>
     alias: <optional alias>
 configuration:
