@@ -13,6 +13,8 @@ When generating code against the latest OpenTelemetry semantic conventions, we r
 ```sh
 docker run --rm \
         -u $(id -u ${USER}):$(id -g ${USER}) \
+        --env HOME=/tmp/weaver \
+        --mount 'type=bind,source=$(HOME)/.weaver,target=/tmp/weaver/.weaver' \
         --mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly' \
         --mount 'type=bind,source=$(PWD)/src,target=/home/weaver/target' \
         otel/weaver:latest \
@@ -22,11 +24,12 @@ docker run --rm \
         /home/weaver/target
 ```
 
-This has three key components:
+This has four key components:
 
 - Using your local user as the docker container user (`-u $(id -u ${USER}):$(id -g ${USER})`)
 - Binding your local codegen templates as readonly (`--mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly'`)
 - Binding the directory where code will be generated to the `/home/weaver/target` directory in the container: (` --mount 'type=bind,source=$(PWD)/src,target=/home/weaver/target'`)
+- Granting weaver usage of your `~/.weaver` directory: (`--env HOME=/tmp/weaver --mount 'type=bind,source=$(HOME)/.weaver,target=/tmp/weaver/.weaver'`)
 
 ## Advanced Usage - Interactive Shell
 
