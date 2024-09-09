@@ -118,7 +118,7 @@ mod tests {
         add_filters(&mut env);
 
         assert_eq!(
-            env.render_str("{{ 'Hello World' | kebab_case }}", &ctx)
+            env.render_str("{{ 'Hello World' | kebab_case }}", ctx)
                 .unwrap(),
             "hello-world"
         );
@@ -132,7 +132,7 @@ mod tests {
         add_filters(&mut env);
 
         assert_eq!(
-            env.render_str("{{ 'Hello World' | lower_case }}", &ctx)
+            env.render_str("{{ 'Hello World' | lower_case }}", ctx)
                 .unwrap(),
             "hello world"
         );
@@ -190,7 +190,7 @@ mod tests {
         add_filters(&mut env);
 
         assert_eq!(
-            env.render_str("{{ 'Hello World' | title_case }}", &ctx)
+            env.render_str("{{ 'Hello World' | title_case }}", ctx)
                 .unwrap(),
             "Hello World"
         );
