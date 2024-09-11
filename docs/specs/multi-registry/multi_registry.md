@@ -270,6 +270,14 @@ If automatic merging becomes a common request, a specific configuration option i
 The detection mechanism for circular dependencies must be expanded to identify circular dependencies
 between registries.
 
+Weaver must be able to detect and report conflicts, circular dependencies, and other related issues with clear and
+actionable error messages. These messages will heavily rely on the provenance information maintained by Weaver
+throughout the resolution process of each registry. This ensures the user gains a clear understanding of the origin of
+the conflict and the steps needed to resolve it.
+
+Additionally, Weaver must support a flag to enable, on-demand, a verbose mode that explains the resolution process. This
+will allow users to understand when and why entities are deduplicated, merged, or overridden.
+
 Finally, the resolution process must be capable of generating an OTEL schema file that includes the URL of the published
 registry, along with all transformation rules, both local and derived from imported registries. This allows consumers of
 the published registry to navigate across different versions of the registry, accommodating components of the
