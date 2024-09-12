@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
+use crate::any_value::AnyValue;
 use crate::attribute::{Attribute, AttributeRef};
-use crate::body::Body;
 use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
@@ -130,7 +130,7 @@ pub struct Group {
     /// The body of the event.
     /// This fields is only used for event groups.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<Body>,
+    pub body: Option<AnyValue>,
 }
 
 /// Common statistics for a group.

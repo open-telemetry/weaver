@@ -38,13 +38,16 @@ groups:
           `navigator.language`.
         examples: [ "en", "en-US", "en-AU", "fr", "fr-FR" ]
     body:
+      id: browser.test.event_with_body.fields
       type: map
+      requirement_level: required
       fields:
         - id: some.field
           type: string
           brief: 'A field that is not referenced in the attributes'
           note: 'This field is not referenced in the attributes'
           examples: [ "some value", "another value" ]
+          requirement_level: required
 
   - id: browser.test.event_with_body_details
     name: browser.test.event_with_body_details
@@ -52,14 +55,17 @@ groups:
     brief: >
       An event that adds global attributes for reuse.
     body:
+      id: browser.test.event_with_body_details.fields
       type: map
       brief: A map of fields that are not referenced in the attributes
       note: This map is not referenced in the attributes
       stability: experimental
       examples: [ '{ "some.field": "some value" }' ]
+      requirement_level: required
       fields:
         - id: some.field
           type: string
           brief: 'A field that is not referenced in the attributes'
           note: 'This field is not referenced in the attributes'
           examples: [ "some value", "another value" ]
+          requirement_level: optional

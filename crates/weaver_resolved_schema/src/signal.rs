@@ -5,8 +5,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::any_value::AnyValue;
 use crate::attribute::AttributeRef;
-use crate::body::Body;
 use crate::metric::MetricRef;
 use crate::tags::Tags;
 
@@ -64,7 +64,7 @@ pub struct Event {
     tags: Option<Tags>,
     /// The body of the event, not used for Span events.
     #[serde(skip_serializing_if = "Option::is_none")]
-    body: Option<Body>,
+    body: Option<AnyValue>,
 }
 
 /// A span signal.

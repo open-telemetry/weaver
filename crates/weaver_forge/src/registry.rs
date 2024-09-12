@@ -7,8 +7,8 @@
 use crate::error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_resolved_schema::any_value::AnyValue;
 use weaver_resolved_schema::attribute::Attribute;
-use weaver_resolved_schema::body::Body;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
@@ -107,7 +107,7 @@ pub struct ResolvedGroup {
     pub display_name: Option<String>,
     /// The body specification used for event semantic conventions.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<Body>,
+    pub body: Option<AnyValue>,
 }
 
 impl ResolvedGroup {

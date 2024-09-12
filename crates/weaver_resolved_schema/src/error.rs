@@ -3,10 +3,9 @@
 //! Error types and utilities.
 
 use serde::{Deserialize, Serialize};
-use weaver_semconv::body::BodySpec;
 
 use crate::attribute::AttributeRef;
-use crate::error::Error::{AttributeNotFound, CompoundError, InvalidBody};
+use crate::error::Error::{AttributeNotFound, CompoundError};
 
 /// Errors emitted by this crate.
 #[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
@@ -23,13 +22,6 @@ pub enum Error {
     /// A generic container for multiple errors.
     #[error("Errors:\n{0:#?}")]
     CompoundError(Vec<Error>),
-
-    /// A generic error identifying a feature that has not yet been implemented.
-    #[error("Unsupported BodySpec")]
-    InvalidBody {
-        /// The body specification that is not supported.
-        body: BodySpec,
-    },
 }
 
 /// Handles a list of errors and returns a compound error if the list is not
@@ -53,7 +45,6 @@ impl Error {
                 .flat_map(|e| match e {
                     CompoundError(errors) => errors,
                     e @ AttributeNotFound { .. } => vec![e],
-                    e @ InvalidBody { .. } => vec![e],
                 })
                 .collect(),
         )

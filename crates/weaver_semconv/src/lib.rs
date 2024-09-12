@@ -8,8 +8,8 @@ use serde::Serialize;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
+pub mod any_value;
 pub mod attribute;
-pub mod body;
 pub mod group;
 pub mod metric;
 pub mod registry;

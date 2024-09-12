@@ -8,7 +8,9 @@ groups:
     note: >
       This event transmits the body as a JSON encoded string.
     body:
+      id: some.string.body.event.fields
       type: string
+      requirement_level: required
       brief: >
         This is the body of the event which is a JSON encoded string.
       examples: ['{"key1":"value1","key2":"value2"}']
@@ -22,7 +24,9 @@ groups:
     note: >
       This event transmits the body as a JSON encoded string.
     body:
+      id: some.string.body.event.fields
       type: string
+      requirement_level: required
       brief: >
         This is the body of the event which is a JSON encoded string.
       note: >

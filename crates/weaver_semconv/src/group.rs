@@ -9,8 +9,8 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
+use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
-use crate::body::BodySpec;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
 use crate::Error;
@@ -90,7 +90,7 @@ pub struct GroupSpec {
     /// The event body definition
     /// Note: only valid if type is event
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<BodySpec>,
+    pub body: Option<AnyValueSpec>,
 }
 
 impl GroupSpec {

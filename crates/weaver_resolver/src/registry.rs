@@ -8,15 +8,14 @@ use serde::Deserialize;
 
 use weaver_common::error::handle_errors;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
-use weaver_resolved_schema::body::UnresolvedBody;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::GroupSpecWithProvenance;
 use weaver_semconv::registry::SemConvRegistry;
 
+use crate::any_value::resolve_any_value_spec;
 use crate::attribute::AttributeCatalog;
-use crate::body::resolve_body_spec;
 use crate::constraint::resolve_constraints;
 use crate::{Error, UnsatisfiedAnyOfConstraint};
 
@@ -43,9 +42,6 @@ pub struct UnresolvedGroup {
     /// The resolution process will progressively move the unresolved attributes,
     /// and other signals, into the group field once they are resolved.
     pub attributes: Vec<UnresolvedAttribute>,
-
-    /// The unresolved body that belongs to this group
-    pub body: Option<UnresolvedBody>,
 
     /// The provenance of the group (URL or path).
     pub provenance: String,
@@ -86,8 +82,6 @@ pub fn resolve_semconv_registry(
     resolve_attribute_references(&mut ureg, attr_catalog)?;
 
     resolve_include_constraints(&mut ureg)?;
-
-    resolve_body(&mut ureg)?;
 
     // Sort the attribute internal references in each group.
     // This is needed to ensure that the resolved registry is easy to compare
@@ -337,10 +331,9 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             name: group.spec.name,
             lineage: Some(GroupLineage::new(&group.provenance)),
             display_name: group.spec.display_name,
-            body: None, // The body is resolved and populated later.
+            body: group.spec.body.map(|body| resolve_any_value_spec(&body)),
         },
         attributes: attrs,
-        body: { group.spec.body.map(|body| UnresolvedBody { spec: body }) },
         provenance: group.provenance,
     }
 }
@@ -764,30 +757,6 @@ fn resolve_inheritance_attr(
         }
         AttributeSpec::Id { .. } => attr.clone(),
     }
-}
-
-fn resolve_body(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
-    let mut errors = vec![];
-
-    for unresolved_group in ureg.groups.iter_mut() {
-        if let Some(body) = &unresolved_group.body {
-            match resolve_body_spec(&body.spec) {
-                Ok(resolved_body) => {
-                    unresolved_group.group.body = resolved_body;
-                }
-                Err(e) => {
-                    errors.push(Error::UnresolvedBody {
-                        group_id: unresolved_group.group.id.clone(),
-                        provenance: unresolved_group.provenance.clone(),
-                        error: e,
-                    });
-                }
-            }
-        }
-    }
-
-    handle_errors(errors)?;
-    Ok(())
 }
 
 #[cfg(test)]
