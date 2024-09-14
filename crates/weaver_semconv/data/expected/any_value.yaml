@@ -3,70 +3,100 @@ body:
   id: id
   brief: brief
   note: note
+  requirement_level: optional
   fields:
+  - type: enum
+    id: id_enum
+    brief: brief
+    note: note
+    requirement_level: optional
+    allow_custom_values: true
+    members:
+    - id: id
+      value: 42
+      brief: brief
+      note: note
+      stability: null
+      deprecated: null
   - type: map
     id: id_map
     brief: brief
     note: note
+    requirement_level: optional
     fields:
     - type: int
       id: id_int
       brief: brief
       note: note
+      requirement_level: required
     - type: bytes
       id: id_bytes
       brief: brief
       note: note
+      requirement_level: required
     - type: string
       id: id_string
       brief: brief
       note: note
+      requirement_level: optional
     - type: boolean
       id: id_bool
       brief: brief
       note: note
+      requirement_level: optional
     - type: map
       id: id_nested_map
       brief: brief
       note: note
+      requirement_level: optional
       fields:
       - type: int[]
         id: id_nested_int
         brief: brief
         note: note
+        requirement_level: optional
       - type: double[]
         id: id_nested_bytes
         brief: brief
         note: note
+        requirement_level: optional
       - type: string[]
         id: id_nested_string
         brief: brief
         note: note
+        requirement_level: optional
       - type: boolean[]
         id: id_nested_bool
         brief: brief
         note: note
+        requirement_level: optional
   - type: int
     id: id_int
     brief: brief
     note: note
+    requirement_level: optional
   - type: bytes
     id: id_bytes
     brief: brief
     note: note
+    requirement_level: optional
   - type: string
     id: id_string
     brief: brief
     note: note
+    requirement_level: recommended
   - type: boolean
     id: id_bool
     brief: brief
     note: note
+    requirement_level: optional
   - type: double
     id: id_double
     brief: brief
     note: note
+    requirement_level: optional
   - type: double[]
     id: id_doubles
     brief: brief
     note: note
+    requirement_level: optional

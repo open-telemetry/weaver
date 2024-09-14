@@ -86,6 +86,10 @@ pub struct GroupSpec {
     pub name: Option<String>,
     /// The readable name for attribute groups used when generating registry tables.
     pub display_name: Option<String>,
+    // /// The event body definition
+    // /// Note: only valid if type is event
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub body: Option<AnyValueSpec>,   <-- This is from my Event PR (Just showing what the change is going to be here)
 }
 
 impl GroupSpec {

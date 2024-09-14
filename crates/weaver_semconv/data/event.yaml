@@ -1,0 +1,181 @@
+groups:
+  - id: device.app.lifecycle
+    stability: experimental
+    type: event
+    name: device.app.lifecycle
+    brief: >
+      This event represents an occurrence of a lifecycle transition on Android or iOS platform.
+    note: >
+      This event identifies the fields that are common to all lifecycle events for android and iOS using
+      the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are
+      mutually exclusive.
+    body:
+      id: device_lifecycle
+      type: map
+      requirement_level: optional
+      fields:
+        - id: ios.state
+          stability: experimental
+          requirement_level:
+            conditionally_required: if and only if `os.name` is `ios`
+          note: >
+            The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902),
+            and from which the `OS terminology` column values are derived.
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          type: enum
+          allow_custom_values: false
+          members:
+            - id: active
+              value: 'active'
+              brief: >
+                The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.
+            - id: inactive
+              value: 'inactive'
+              brief: >
+                The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.
+            - id: background
+              value: 'background'
+              brief: >
+                The app is now in the background.
+                This value is associated with UIKit notification `applicationDidEnterBackground`.
+            - id: foreground
+              value: 'foreground'
+              brief: >
+                The app is now in the foreground.
+                This value is associated with UIKit notification `applicationWillEnterForeground`.
+            - id: terminate
+              value: 'terminate'
+              brief: >
+                The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
+        - id: android.state
+          stability: experimental
+          requirement_level:
+            conditionally_required: if and only if `os.name` is `android`
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          note: >
+            The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc),
+            and from which the `OS identifiers` are derived.
+          type: enum
+          allow_custom_values: false
+          members:
+            - id: created
+              value: 'created'
+              brief: >
+                Any time before Activity.onResume() or, if the app has no Activity, Context.startService()
+                has been called in the app for the first time.
+            - id: background
+              value: 'background'
+              brief: >
+                Any time after Activity.onPause() or, if the app has no Activity,
+                Context.stopService() has been called when the app was in the foreground state.
+            - id: foreground
+              value: 'foreground'
+              brief: >
+                Any time after Activity.onResume() or, if the app has no Activity,
+                Context.startService() has been called when the app was in either the created or background states.
+
+  - id: span.event.test.no_name
+    stability: experimental
+    type: event
+    prefix: span.event.test
+    brief: >
+      This event represents an occurrence of a span event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+
+  - id: span.event.test.with_name
+    name: span.event.test.with_name
+    stability: experimental
+    type: event
+    prefix: span.event.test.with_name
+    brief: >
+      This event represents an occurrence of a span event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+
+  - id: test.event.with_attributes
+    name: test.event.with_attributes
+    stability: experimental
+    type: event
+    brief: >
+      This event represents an occurrence of a test event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+    body:
+      id: body_name
+      type: map
+      requirement_level: required
+      fields:
+        - id: field1
+          type: string
+          brief: 'The field1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `field2` is not set, recommended otherwise.
+        - id: field2
+          type: string
+          brief: 'The field2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `field1` is not set, recommended otherwise.
+
+  - id: test.event.with_string_body
+    name: test.event.with_string_body
+    stability: experimental
+    type: event
+    brief: >
+      This event represents an occurrence of a test event.
+    attributes:
+        - id: attribute1
+          type: string
+          brief: 'The attribute1'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute2` is not set, recommended otherwise.
+        - id: attribute2
+          type: string
+          brief: 'The attribute2'
+          examples: ['value1', 'value2']
+          requirement_level:
+            conditionally_required: Required if `attribute1` is not set, recommended otherwise.
+    body:
+      id: body_name
+      type: string
+      brief: 'The body of the event'
+      requirement_level: required
+      examples: ['{ name: "thename", content: ... }', '{ name: "thename", content: ... }']
