@@ -126,6 +126,10 @@ pub struct Group {
     /// The readable name for attribute groups used when generating registry tables.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    // /// The body of the event.
+    // /// This fields is only used for event groups.
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub body: Option<AnyValue>,
 }
 
 /// Common statistics for a group.

@@ -157,7 +157,7 @@ pub struct AnyValueCommonSpec {
     pub deprecated: Option<String>,
 }
 
-/// Implements a human readable display for AnyValueType.
+/// Implements a human readable display for AnyValueType, used to populate the type_display field.
 impl Display for AnyValueSpec {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -168,7 +168,7 @@ impl Display for AnyValueSpec {
                     .collect::<Vec<String>>()
                     .join(", ");
                 write!(f, "map<{}>{{ {} }}", self.id(), entries)
-            }
+            },
             AnyValueSpec::Boolean { .. } => write!(f, "boolean"),
             AnyValueSpec::Int { .. } => write!(f, "int"),
             AnyValueSpec::Double { .. } => write!(f, "double"),
@@ -179,7 +179,14 @@ impl Display for AnyValueSpec {
             AnyValueSpec::Booleans { .. } => write!(f, "boolean[]"),
             AnyValueSpec::Bytes { .. } => write!(f, "byte[]"),
             AnyValueSpec::Undefined { .. } => write!(f, "undefined"),
-            AnyValueSpec::Enum { .. } => write!(f, "enum<{}>", self.id()),
+            AnyValueSpec::Enum { members, .. } => {
+                let entries = members
+                    .iter()
+                    .map(|m| m.id.clone())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                write!(f, "enum<{}> {{{}}}", self.id(), entries)
+            }
         }
     }
 }
@@ -233,6 +240,31 @@ impl AnyValueSpec {
         let AnyValueCommonSpec { note, .. } = self.common();
         note.clone()
     }
+
+    /// Provides a string representation of the type of the value, with the id for
+    /// enum and map types.
+    #[must_use]
+    pub fn type_name(&self) -> String {
+        match self {
+            AnyValueSpec::Map { .. } => "map".to_owned(),
+            AnyValueSpec::Boolean { .. } => "boolean".to_owned(),
+            AnyValueSpec::Int { .. } => "int".to_owned(),
+            AnyValueSpec::Double { .. } => "double".to_owned(),
+            AnyValueSpec::String { .. } => "string".to_owned(),
+            AnyValueSpec::Strings { .. } => "string[]".to_owned(),
+            AnyValueSpec::Ints { .. } => "int[]".to_owned(),
+            AnyValueSpec::Doubles { .. } => "double[]".to_owned(),
+            AnyValueSpec::Booleans { .. } => "boolean[]".to_owned(),
+            AnyValueSpec::Bytes { .. } => "byte[]".to_owned(),
+            AnyValueSpec::Undefined { .. } => "undefined".to_owned(),
+            AnyValueSpec::Enum { .. } => "enum".to_owned(),
+        }
+    }
+}
+
+/// Specifies the default value for allow_custom_values.
+fn default_as_true() -> bool {
+    true
 }
 
 #[cfg(test)]
@@ -478,9 +510,17 @@ mod tests {
         assert_eq!(
             format!(
                 "{}",
+                map.type_name()
+            ),
+            "map",
+        );
+
+        assert_eq!(
+            format!(
+                "{}",
                 map
             ),
-            "map<id>{ enum<id_enum>, map<id_map>{ int, byte[], string, boolean, map<id_nested_map>{ int[], double[], string[], boolean[] } }, int, byte[], string, boolean, double, double[] }"
+            "map<id>{ enum<id_enum> {id}, map<id_map>{ int, byte[], string, boolean, map<id_nested_map>{ int[], double[], string[], boolean[] } }, int, byte[], string, boolean, double, double[] }",
         );
 
         assert_eq!(
@@ -677,14 +717,38 @@ mod tests {
                             deprecated: None,
                         }
                     ]
+                }.type_name()
+            ),
+            "enum"
+        );
+
+        assert_eq!(
+            format!(
+                "{}",
+                AnyValueSpec::Enum {
+                    common: AnyValueCommonSpec {
+                        id: "id".to_owned(),
+                        brief: "brief".to_owned(),
+                        note: "note".to_owned(),
+                        stability: None,
+                        examples: None,
+                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        deprecated: None,
+                    },
+                    allow_custom_values: true,
+                    members: vec![
+                        EnumEntriesSpec {
+                            id: "entry1".to_owned(),
+                            value: ValueSpec::Int(42),
+                            brief: Some("brief".to_owned()),
+                            note: Some("note".to_owned()),
+                            stability: None,
+                            deprecated: None,
+                        }
+                    ]
                 }
             ),
-            "enum<id>"
+            "enum<id> {entry1}"
         );
     }
-}
-
-/// Specifies the default value for allow_custom_values.
-fn default_as_true() -> bool {
-    true
 }
