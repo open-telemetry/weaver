@@ -10,15 +10,21 @@ use weaver_semconv::{any_value::AnyValueSpec, attribute::EnumEntriesSpec};
 pub fn resolve_any_value_spec(value: &AnyValueSpec) -> AnyValue {
     match value {
         AnyValueSpec::Map { fields, .. } => {
-            let resolved_fields: Vec<AnyValue> = fields.iter()
-                .map(resolve_any_value_spec)
-                .collect();
+            let resolved_fields: Vec<AnyValue> =
+                fields.iter().map(resolve_any_value_spec).collect();
 
             construct_any_value_common(value, Some(resolved_fields), None, None)
-        },
-        AnyValueSpec::Enum { allow_custom_values, members, .. } => {
-            construct_any_value_common(value, None, Some(*allow_custom_values), Some(members.to_vec()))
-        },
+        }
+        AnyValueSpec::Enum {
+            allow_custom_values,
+            members,
+            ..
+        } => construct_any_value_common(
+            value,
+            None,
+            Some(*allow_custom_values),
+            Some(members.to_vec()),
+        ),
         _ => construct_any_value_common(value, None, None, None),
     }
 }
@@ -28,7 +34,8 @@ fn construct_any_value_common(
     value: &AnyValueSpec,
     resolved_fields: Option<Vec<AnyValue>>,
     allow_custom_values: Option<bool>,
-    members: Option<Vec<EnumEntriesSpec>>) -> AnyValue {
+    members: Option<Vec<EnumEntriesSpec>>,
+) -> AnyValue {
     let common = value.common();
 
     AnyValue {

@@ -18,7 +18,7 @@ pub struct AnyValue {
     /// Either a string literal denoting the type as a primitive or an
     /// array type, a template type or an enum definition.
     pub r#type: String,
-    /// A description of the type of the AnyValue 
+    /// A description of the type of the AnyValue
     /// e.g. "string", "string[]", "int", "enum<enum_id>", "map<id>{ int, string }"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub type_display: Option<String>,

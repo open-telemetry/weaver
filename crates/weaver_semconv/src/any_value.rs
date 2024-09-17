@@ -90,14 +90,14 @@ pub enum AnyValueSpec {
     Bytes {
         /// The common value specification
         #[serde(flatten)]
-        common: AnyValueCommonSpec
+        common: AnyValueCommonSpec,
     },
 
     /// The value type is not specified.
     Undefined {
         /// The common value specification
         #[serde(flatten)]
-        common: AnyValueCommonSpec
+        common: AnyValueCommonSpec,
     },
 
     /// An enum definition type.
@@ -112,7 +112,7 @@ pub enum AnyValueSpec {
         allow_custom_values: bool,
         /// List of enum entries.
         members: Vec<EnumEntriesSpec>,
-    }    
+    },
 }
 
 /// The Common Value specification for properties associated with an "AnyValue", this
@@ -168,7 +168,7 @@ impl Display for AnyValueSpec {
                     .collect::<Vec<String>>()
                     .join(", ");
                 write!(f, "map<{}>{{ {} }}", self.id(), entries)
-            },
+            }
             AnyValueSpec::Boolean { .. } => write!(f, "boolean"),
             AnyValueSpec::Int { .. } => write!(f, "int"),
             AnyValueSpec::Double { .. } => write!(f, "double"),
@@ -216,7 +216,10 @@ impl AnyValueSpec {
     pub fn is_required(&self) -> bool {
         matches!(
             self.common(),
-            AnyValueCommonSpec { requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required), .. }
+            AnyValueCommonSpec {
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                ..
+            }
         )
     }
 
@@ -300,20 +303,20 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
                     },
                     allow_custom_values: true,
-                    members: vec![
-                        EnumEntriesSpec {
-                            id: "id".to_owned(),
-                            value: ValueSpec::Int(42),
-                            brief: Some("brief".to_owned()),
-                            note: Some("note".to_owned()),
-                            stability: None,
-                            deprecated: None,
-                        }
-                    ]
+                    members: vec![EnumEntriesSpec {
+                        id: "id".to_owned(),
+                        value: ValueSpec::Int(42),
+                        brief: Some("brief".to_owned()),
+                        note: Some("note".to_owned()),
+                        stability: None,
+                        deprecated: None,
+                    }],
                 },
                 AnyValueSpec::Map {
                     common: AnyValueCommonSpec {
@@ -322,7 +325,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
                     },
                     fields: vec![
@@ -333,9 +338,11 @@ mod tests {
                                 note: "note".to_owned(),
                                 stability: None,
                                 examples: None,
-                                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Required,
+                                ),
                                 deprecated: None,
-                            }
+                            },
                         },
                         AnyValueSpec::Bytes {
                             common: AnyValueCommonSpec {
@@ -344,9 +351,11 @@ mod tests {
                                 note: "note".to_owned(),
                                 stability: None,
                                 examples: None,
-                                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Required,
+                                ),
                                 deprecated: None,
-                            }
+                            },
                         },
                         AnyValueSpec::String {
                             common: AnyValueCommonSpec {
@@ -355,9 +364,11 @@ mod tests {
                                 note: "note".to_owned(),
                                 stability: None,
                                 examples: None,
-                                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Optional,
+                                ),
                                 deprecated: None,
-                            }
+                            },
                         },
                         AnyValueSpec::Boolean {
                             common: AnyValueCommonSpec {
@@ -366,9 +377,11 @@ mod tests {
                                 note: "note".to_owned(),
                                 stability: None,
                                 examples: None,
-                                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Optional,
+                                ),
                                 deprecated: None,
-                            }
+                            },
                         },
                         AnyValueSpec::Map {
                             common: AnyValueCommonSpec {
@@ -377,7 +390,9 @@ mod tests {
                                 note: "note".to_owned(),
                                 stability: None,
                                 examples: None,
-                                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Optional,
+                                ),
                                 deprecated: None,
                             },
                             fields: vec![
@@ -388,9 +403,11 @@ mod tests {
                                         note: "note".to_owned(),
                                         stability: None,
                                         examples: None,
-                                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
                                         deprecated: None,
-                                    }
+                                    },
                                 },
                                 AnyValueSpec::Doubles {
                                     common: AnyValueCommonSpec {
@@ -399,9 +416,11 @@ mod tests {
                                         note: "note".to_owned(),
                                         stability: None,
                                         examples: None,
-                                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
                                         deprecated: None,
-                                    }
+                                    },
                                 },
                                 AnyValueSpec::Strings {
                                     common: AnyValueCommonSpec {
@@ -410,9 +429,11 @@ mod tests {
                                         note: "note".to_owned(),
                                         stability: None,
                                         examples: None,
-                                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
                                         deprecated: None,
-                                    }
+                                    },
                                 },
                                 AnyValueSpec::Booleans {
                                     common: AnyValueCommonSpec {
@@ -421,12 +442,14 @@ mod tests {
                                         note: "note".to_owned(),
                                         stability: None,
                                         examples: None,
-                                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
                                         deprecated: None,
-                                    }
+                                    },
                                 },
                             ],
-                        }
+                        },
                     ],
                 },
                 AnyValueSpec::Int {
@@ -436,9 +459,11 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
-                    }
+                    },
                 },
                 AnyValueSpec::Bytes {
                     common: AnyValueCommonSpec {
@@ -447,9 +472,11 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
-                    }
+                    },
                 },
                 AnyValueSpec::String {
                     common: AnyValueCommonSpec {
@@ -458,9 +485,11 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Recommended,
+                        ),
                         deprecated: None,
-                    }
+                    },
                 },
                 AnyValueSpec::Boolean {
                     common: AnyValueCommonSpec {
@@ -469,9 +498,11 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
-                    }
+                    },
                 },
                 AnyValueSpec::Double {
                     common: AnyValueCommonSpec {
@@ -480,9 +511,11 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
-                    }
+                    },
                 },
                 AnyValueSpec::Doubles {
                     common: AnyValueCommonSpec {
@@ -491,29 +524,37 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional,
+                        ),
                         deprecated: None,
-                    }
+                    },
                 },
             ],
         };
-        let body = BodySpec {
-            body: map.clone(),
-        };
+        let body = BodySpec { body: map.clone() };
 
-        let expected_yaml = fs::read_to_string("data/expected/any_value.yaml").unwrap().replace("\r\n", "\n");
-        assert_eq!(expected_yaml, format!("{}", serde_yaml::to_string(&body).unwrap()), "{}", expected_yaml);
-
-        let expected_json = fs::read_to_string("data/expected/any_value.json").unwrap().replace("\r\n", "\n");
-        assert_eq!(expected_json, format!("{}", serde_json::to_string(&body).unwrap()), "{}", expected_json);
-
+        let expected_yaml = fs::read_to_string("data/expected/any_value.yaml")
+            .unwrap()
+            .replace("\r\n", "\n");
         assert_eq!(
-            format!(
-                "{}",
-                map.type_name()
-            ),
-            "map",
+            expected_yaml,
+            format!("{}", serde_yaml::to_string(&body).unwrap()),
+            "{}",
+            expected_yaml
         );
+
+        let expected_json = fs::read_to_string("data/expected/any_value.json")
+            .unwrap()
+            .replace("\r\n", "\n");
+        assert_eq!(
+            expected_json,
+            format!("{}", serde_json::to_string(&body).unwrap()),
+            "{}",
+            expected_json
+        );
+
+        assert_eq!(format!("{}", map.type_name()), "map",);
 
         assert_eq!(
             format!(
@@ -533,7 +574,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -550,7 +593,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -567,7 +612,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -584,7 +631,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -601,7 +650,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -618,7 +669,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -635,7 +688,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -652,7 +707,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -669,7 +726,9 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
@@ -686,13 +745,15 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     }
                 }
             ),
             "undefined"
-        );        
+        );
         assert_eq!(
             format!(
                 "{}",
@@ -703,21 +764,22 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     },
                     allow_custom_values: true,
-                    members: vec![
-                        EnumEntriesSpec {
-                            id: "id".to_owned(),
-                            value: ValueSpec::Int(42),
-                            brief: Some("brief".to_owned()),
-                            note: Some("note".to_owned()),
-                            stability: None,
-                            deprecated: None,
-                        }
-                    ]
-                }.type_name()
+                    members: vec![EnumEntriesSpec {
+                        id: "id".to_owned(),
+                        value: ValueSpec::Int(42),
+                        brief: Some("brief".to_owned()),
+                        note: Some("note".to_owned()),
+                        stability: None,
+                        deprecated: None,
+                    }]
+                }
+                .type_name()
             ),
             "enum"
         );
@@ -732,20 +794,20 @@ mod tests {
                         note: "note".to_owned(),
                         stability: None,
                         examples: None,
-                        requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
                         deprecated: None,
                     },
                     allow_custom_values: true,
-                    members: vec![
-                        EnumEntriesSpec {
-                            id: "entry1".to_owned(),
-                            value: ValueSpec::Int(42),
-                            brief: Some("brief".to_owned()),
-                            note: Some("note".to_owned()),
-                            stability: None,
-                            deprecated: None,
-                        }
-                    ]
+                    members: vec![EnumEntriesSpec {
+                        id: "entry1".to_owned(),
+                        value: ValueSpec::Int(42),
+                        brief: Some("brief".to_owned()),
+                        note: Some("note".to_owned()),
+                        stability: None,
+                        deprecated: None,
+                    }]
                 }
             ),
             "enum<id> {entry1}"
