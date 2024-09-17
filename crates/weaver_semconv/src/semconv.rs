@@ -305,7 +305,7 @@ mod tests {
     fn test_semconv_spec_from_url() {
         // Existing URL. The URL is a raw file from the semantic conventions repository.
         // This file is expected to be available.
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
+        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url/common.yaml";
         let semconv_spec = SemConvSpec::from_url(semconv_url)
             .into_result_failing_non_fatal()
             .unwrap();

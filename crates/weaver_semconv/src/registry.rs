@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_url() {
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url.yaml";
+        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url/common.yaml";
         let result =
             SemConvRegistry::semconv_spec_from_url(semconv_url).into_result_failing_non_fatal();
         assert!(result.is_ok());
