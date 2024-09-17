@@ -16,7 +16,6 @@
                         "members": [
                             {
                                 "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
-                                "deprecated": null,
                                 "id": "active",
                                 "note": null,
                                 "stability": null,
@@ -24,7 +23,6 @@
                             },
                             {
                                 "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n",
-                                "deprecated": null,
                                 "id": "inactive",
                                 "note": null,
                                 "stability": null,
@@ -32,7 +30,6 @@
                             },
                             {
                                 "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n",
-                                "deprecated": null,
                                 "id": "background",
                                 "note": null,
                                 "stability": null,
@@ -40,7 +37,6 @@
                             },
                             {
                                 "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n",
-                                "deprecated": null,
                                 "id": "foreground",
                                 "note": null,
                                 "stability": null,
@@ -48,7 +44,6 @@
                             },
                             {
                                 "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n",
-                                "deprecated": null,
                                 "id": "terminate",
                                 "note": null,
                                 "stability": null,
@@ -70,7 +65,6 @@
                         "members": [
                             {
                                 "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",
-                                "deprecated": null,
                                 "id": "created",
                                 "note": null,
                                 "stability": null,
@@ -78,7 +72,6 @@
                             },
                             {
                                 "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n",
-                                "deprecated": null,
                                 "id": "background",
                                 "note": null,
                                 "stability": null,
@@ -86,7 +79,6 @@
                             },
                             {
                                 "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.",
-                                "deprecated": null,
                                 "id": "foreground",
                                 "note": null,
                                 "stability": null,

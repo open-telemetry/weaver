@@ -129,6 +129,20 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates that a semantic convention asset contains an invalid example.
+    #[error("The value `{value_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Error))]
+    InvalidAnyValueExampleError {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the any_value
+        value_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),

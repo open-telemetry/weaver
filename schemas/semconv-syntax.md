@@ -15,12 +15,11 @@ Then, the semantic of each field is described.
     - [Semantic Convention](#semantic-convention)
       - [Span semantic convention](#span-semantic-convention)
       - [Event semantic convention](#event-semantic-convention)
-      - [Event Body semantic convention](#event-body-semantic-convention)
-      - [Event Body Field semantic convention](#event-body-field-semantic-convention)
       - [Event semantic convention example](#event-semantic-convention-example)
       - [Metric Group semantic convention](#metric-group-semantic-convention)
       - [Metric semantic convention](#metric-semantic-convention)
       - [Attribute group semantic convention](#attribute-group-semantic-convention)
+      - [Any Value semantic convention](#any-value-semantic-convention)
     - [Attributes](#attributes)
       - [Examples (for examples)](#examples-for-examples)
       - [Ref](#ref)
@@ -108,12 +107,24 @@ spanfields ::= [events] [span_kind]
 
 eventfields ::= name [body]
 
-body ::= body_type [brief] [examples] [stability] [note] [body_fields]
+body ::= any_value
 
-body_type ::= "map"
+any_value_type ::= "map"
          |   "string"
+         |    "int"
+         |    "double"
+         |    "boolean"
+         |    "string[]"
+         |    "int[]"
+         |    "double[]"
+         |    "boolean[]"
+         |    "byte[]"
+         |    "enum"
+         |    "undefined"
 
-body_fields ::= id type brief [examples] stability [deprecated] [requirement_level] [note]
+any_value ::= id any_value_type brief [examples] stability [deprecated] requirement_level [note] [fields] [members]
+
+fields ::= any_value {any_value}
 
 span_kind ::= "client"
           |   "server"
@@ -170,45 +181,9 @@ The following is only valid if `type` is `span` (the default):
 The following is only valid if `type` is `event`:
 
 - `name`, required, string. The name of the event.
-- `body`, optional, object. Describes the body of the event.
+- `body`, optional, [`any value`](#any-value-semantic-convention). Describes the body of the event as an any_value type.
 
-#### Event Body semantic convention
-
-The following is only valid if `type` is `event` and `body` is present:
-
-- `fields`, required, list of fields that describe the event body.
-
-#### Event Body Field semantic convention
-
-The following is only valid if `type` is `event` and `body` is present and `fields` is present:
-
-- `id`, required, string. The name of the field.
-- `type`, either a string literal denoting the type as a primitive or an array type, a template type or an enum definition (See later).  Required.
-   The accepted string literals are:
-  * _primitive and array types as string literals:_
-    * `"string"`: String attributes.
-    * `"int"`: Integer attributes.
-    * `"double"`: Double attributes.
-    * `"boolean"`: Boolean attributes.
-    * `"string[]"`: Array of strings attributes.
-    * `"int[]"`: Array of integer attributes.
-    * `"double[]"`: Array of double attributes.
-    * `"boolean[]"`: Array of boolean attributes.
-  * _template type as string literal:_ `"template[<PRIMITIVE_OR_ARRAY_TYPE>]"` (See [below](#template-type))
-  See the [specification of Attributes](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute) for the definition of the value types.
-- `stability`, required, enum. The stability of the field.
-- `requirement_level`, optional. Specifies if the field is mandatory.
-   Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended".
-    When set to "conditionally_required", the string provided as `<condition>` MUST specify
-    the conditions under which the field is required.
-- `brief`, `note`, `deprecated`, same meaning as for the whole
-  [semantic convention](#semantic-convention), but per field.
-- `examples`, sequence of example values for the field or single example value.
-   They are required only for string and string array fields.
-   Example values must be of the same type of the field.
-   If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
-
-#### Event semantic convention example
+##### Event semantic convention example
   
   ```yaml
   - id: event.some_event
@@ -216,28 +191,58 @@ The following is only valid if `type` is `event` and `body` is present and `fiel
     type: event
     brief: "Describes the event."
     stability: experimental
-    attributes:                                        # Optional
+    attributes:                                  # Optional
       - ref: registry.attribute.id
-      - ref: registry.some_other.attribute.id          # Reference to an existing global attribute
-    body:                                              # Optional
+      - ref: registry.some_other.attribute.id    # Reference to an existing global attribute
+    body:                                        # Optional, follows the any_value conventions
+      id: event_body.some_event.fields
       type: map
-      fields:
+      requirement_level: required
+      fields:                                    # Unique to this event definition only
         - id: method
           type: string
           stability: experimental
           brief: "The HTTP method used in the request."
           examples: ['GET', 'POST']
+          requirement_level: required
         - id: url
           type: string
           stability: experimental
           brief: "The URL of the request."
           examples: ['http://example.com']
+          requirement_level: required
         - id: status_code
           type: int
           stability: experimental
           brief: "The status code of the response."
           examples: [200, 404]
-  ```
+          requirement_level: required
+        - id: nested_map
+          type: map
+          stability: experimental
+          requirement_level: required
+          fields:
+            - id: nested_field
+              type: string    # May be any supported any_value type
+              stability: experimental
+              requirement_level: required
+              brief: "A nested field."
+              examples: ['nested_value']
+        - id: nested_enum_state
+          type: enum
+          stability: experimental
+          requirement_level: required
+          members:
+            - id: active
+              value: 'active'
+              brief: The state became active.
+            - id: inactive
+              value: 'inactive'
+              brief: The state became inactive.
+            - id: background
+              value: 'background'
+              brief: The state is now in the background.
+```
 
 #### Metric Group semantic convention
 
@@ -264,6 +269,40 @@ The following is only valid if `type` is `metric`:
 Attribute group (`attribute_group` type) defines a set of attributes that can be
 declared once and referenced by semantic conventions for different signals, for example spans and logs.
 Attribute groups don't have any specific fields and follow the general `semconv` semantics.
+
+#### Any Value semantic convention
+
+Describes the type of the value of an extended (log) attribute or the body of an event.
+
+- `id`, required, string. The name of the field / any value.
+- `type`, either a string literal denoting the type as a primitive or an array type, [an enum definition](#enumeration) or a map of fields.  Required.
+   The accepted string literals are:
+  * `"string"`: String value.
+  * `"int"`: Integer value.
+  * `"double"`: Double value.
+  * `"boolean"`: Boolean value.
+  * `"string[]"`: Array of strings value.
+  * `"int[]"`: Array of integer value.
+  * `"double[]"`: Array of double value.
+  * `"boolean[]"`: Array of boolean value.
+  * `"byte[]"`: Array of bytes value.
+  * `"map"`: Map of any_value types.
+    * The `fields` field is required and contains a list of any_value entries that describe each field of the map.
+  * `"enum"`: Enumerated value.
+    * The `members` field is required and contains a list of enum entries.
+  * `"undefined"`: The actually format of the value is not defined.
+- `brief`, `note`, `deprecated`, `stability`, same meaning as for the whole
+  [semantic convention](#semantic-convention), but per field.
+- `requirement_level`, required. Specifies if the field is mandatory.
+   Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended".
+    When set to "conditionally_required", the string provided as `<condition>` MUST specify
+    the conditions under which the field is required.
+- `examples`, sequence of example values for the field or single example value.
+   They are required only for string and string array fields.
+   Example values must be of the same type of the field or for a map of fields, the type can be of a string type.
+   If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
+- `fields`, required only when the type is `map`, list of any value entries that describe each field of the map.
+- `members`, required only when the type is `enum`, list of enum entries. See [below](#enumeration).
 
 ### Attributes
 
@@ -435,3 +474,4 @@ An enum entry has the following fields:
 - `note`, optional string, longer description. It defaults to an empty string.
 - `stability`, required stability level. Attributes marked as experimental cannot have stable members.
 - `deprecated`, optional string, similarly to semantic convention and attribute deprecation, marks specific member as deprecated.
+

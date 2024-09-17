@@ -19,13 +19,11 @@
       "body": {
         "name": "browser.test.event_with_body.fields",
         "type": "map",
-        "type_display": "map<browser.test.event_with_body.fields>{ string }",
         "requirement_level": "required",
         "fields": [
           {
             "name": "some.field",
             "type": "string",
-            "type_display": "string",
             "brief": "A field that is not referenced in the attributes",
             "examples": [
               "some value",
@@ -49,7 +47,6 @@
       "body": {
         "name": "browser.test.event_with_body_details.fields",
         "type": "map",
-        "type_display": "map<browser.test.event_with_body_details.fields>{ string }",
         "brief": "A map of fields that are not referenced in the attributes",
         "note": "This map is not referenced in the attributes",
         "stability": "experimental",
@@ -61,7 +58,6 @@
           {
             "name": "some.field",
             "type": "string",
-            "type_display": "string",
             "brief": "A field that is not referenced in the attributes",
             "examples": [
               "some value",
@@ -87,13 +83,11 @@
       "body": {
         "name": "client.exception.event.fields",
         "type": "map",
-        "type_display": "map<client.exception.event.fields>{ string, string, string, boolean }",
         "requirement_level": "optional",
         "fields": [
           {
             "name": "type",
             "type": "string",
-            "type_display": "string",
             "brief": "The type of the exception.\n",
             "examples": [
               "java.net.ConnectException",
@@ -104,7 +98,6 @@
           {
             "name": "message",
             "type": "string",
-            "type_display": "string",
             "brief": "The exception message.",
             "examples": [
               "Division by zero",
@@ -115,7 +108,6 @@
           {
             "name": "stacktrace",
             "type": "string",
-            "type_display": "string",
             "brief": "A stacktrace.\n",
             "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
             "requirement_level": "optional"
@@ -123,7 +115,6 @@
           {
             "name": "escaped",
             "type": "boolean",
-            "type_display": "boolean",
             "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
             "requirement_level": "optional",
             "note": "An exception is considered to have escaped."
@@ -212,54 +203,46 @@
       "body": {
         "name": "device.app.lifecycle.fields",
         "type": "map",
-        "type_display": "map<device.app.lifecycle.fields>{ enum<ios.state> {active, inactive, background, foreground, terminate}, enum<android.state> {created, background, foreground} }",
         "requirement_level": "required",
         "fields": [
           {
             "name": "ios.state",
-            "type": "enum",
-            "type_display": "enum<ios.state> {active, inactive, background, foreground, terminate}",
-            "allow_custom_values": false,
+            "type": "enum {active, inactive, background, foreground, terminate}",
             "members": [
               {
                 "id": "active",
                 "value": "active",
                 "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               },
               {
                 "id": "inactive",
                 "value": "inactive",
                 "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               },
               {
                 "id": "background",
                 "value": "background",
                 "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               },
               {
                 "id": "foreground",
                 "value": "foreground",
                 "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               },
               {
                 "id": "terminate",
                 "value": "terminate",
                 "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               }
             ],
             "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
@@ -271,33 +254,28 @@
           },
           {
             "name": "android.state",
-            "type": "enum",
-            "type_display": "enum<android.state> {created, background, foreground}",
-            "allow_custom_values": false,
+            "type": "enum {created, background, foreground}",
             "members": [
               {
                 "id": "created",
                 "value": "created",
                 "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               },
               {
                 "id": "background",
                 "value": "background",
                 "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               },
               {
                 "id": "foreground",
                 "value": "foreground",
                 "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.",
                 "note": null,
-                "stability": null,
-                "deprecated": null
+                "stability": null
               }
             ],
             "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
@@ -472,7 +450,6 @@
       "body": {
         "name": "some.string.body.event.fields",
         "type": "string",
-        "type_display": "string",
         "brief": "This is the body of the event which is a JSON encoded string.\n",
         "examples": [
           "{\"key1\":\"value1\",\"key2\":\"value2\"}"
@@ -494,7 +471,6 @@
       "body": {
         "name": "some.string.body.event.fields",
         "type": "string",
-        "type_display": "string",
         "brief": "This is the body of the event which is a JSON encoded string.\n",
         "note": "This is a detailed note about the body.\n",
         "stability": "experimental",

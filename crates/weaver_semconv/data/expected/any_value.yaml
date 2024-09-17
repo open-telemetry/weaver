@@ -10,7 +10,6 @@ body:
     brief: brief
     note: note
     requirement_level: optional
-    allow_custom_values: true
     members:
     - id: id
       value: 42
