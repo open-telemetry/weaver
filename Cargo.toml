@@ -46,7 +46,7 @@ regex = "1.10.6"
 rayon = "1.10.0"
 ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
-anyhow = "1.0.87"
+anyhow = "1.0.88"
 itertools = "0.13.0"
 globset = { version = "0.4.14", features = ["serde1"] }
 miette = { version = "7.2.0", features = ["fancy", "serde"] }
