@@ -6,9 +6,9 @@ schema_url: https://mycompany.com/schemas/1.21.0
 
 # Semantic Convention Imports
 semantic_conventions:
-  - url: https://github.com/open-telemetry/semantic-conventions/blob/main/model/http-common.yaml
-  - url: https://github.com/open-telemetry/semantic-conventions/blob/main/model/server.yaml
-  - url: https://github.com/open-telemetry/semantic-conventions/blob/main/model/network.yaml
+  - url: https://github.com/open-telemetry/semantic-conventions/blob/main/model/http/common.yaml
+  - url: https://github.com/open-telemetry/semantic-conventions/blob/main/model/server/common.yaml
+  - url: https://github.com/open-telemetry/semantic-conventions/blob/main/model/network/common.yaml
 
 schema:
   # Attributes inherited by all resource types
