@@ -106,10 +106,6 @@ pub enum AnyValueSpec {
         #[serde(flatten)]
         common: AnyValueCommonSpec,
 
-        /// Set to false to not accept values other than the specified members.
-        /// It defaults to true.
-        #[serde(default = "default_as_true")]
-        allow_custom_values: bool,
         /// List of enum entries.
         members: Vec<EnumEntriesSpec>,
     },
@@ -150,25 +146,13 @@ pub struct AnyValueCommonSpec {
     /// "conditionally_required", the string provided as <condition> MUST
     /// specify the conditions under which the field is required.
     pub requirement_level: RequirementLevel,
-    /// Specifies if the body field is deprecated. The string
-    /// provided as <description> MUST specify why it's deprecated and/or what
-    /// to use instead. See also stability.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
 }
 
-/// Implements a human readable display for AnyValueType, used to populate the type_display field.
+/// Implements a human readable display for AnyValueType.
 impl Display for AnyValueSpec {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AnyValueSpec::Map { fields, .. } => {
-                let entries = fields
-                    .iter()
-                    .map(|v| format!("{}", v))
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                write!(f, "map<{}>{{ {} }}", self.id(), entries)
-            }
+            AnyValueSpec::Map { .. } => write!(f, "map"),
             AnyValueSpec::Boolean { .. } => write!(f, "boolean"),
             AnyValueSpec::Int { .. } => write!(f, "int"),
             AnyValueSpec::Double { .. } => write!(f, "double"),
@@ -185,7 +169,7 @@ impl Display for AnyValueSpec {
                     .map(|m| m.id.clone())
                     .collect::<Vec<String>>()
                     .join(", ");
-                write!(f, "enum<{}> {{{}}}", self.id(), entries)
+                write!(f, "enum {{{}}}", entries)
             }
         }
     }
@@ -243,31 +227,6 @@ impl AnyValueSpec {
         let AnyValueCommonSpec { note, .. } = self.common();
         note.clone()
     }
-
-    /// Provides a string representation of the type of the value, with the id for
-    /// enum and map types.
-    #[must_use]
-    pub fn type_name(&self) -> String {
-        match self {
-            AnyValueSpec::Map { .. } => "map".to_owned(),
-            AnyValueSpec::Boolean { .. } => "boolean".to_owned(),
-            AnyValueSpec::Int { .. } => "int".to_owned(),
-            AnyValueSpec::Double { .. } => "double".to_owned(),
-            AnyValueSpec::String { .. } => "string".to_owned(),
-            AnyValueSpec::Strings { .. } => "string[]".to_owned(),
-            AnyValueSpec::Ints { .. } => "int[]".to_owned(),
-            AnyValueSpec::Doubles { .. } => "double[]".to_owned(),
-            AnyValueSpec::Booleans { .. } => "boolean[]".to_owned(),
-            AnyValueSpec::Bytes { .. } => "byte[]".to_owned(),
-            AnyValueSpec::Undefined { .. } => "undefined".to_owned(),
-            AnyValueSpec::Enum { .. } => "enum".to_owned(),
-        }
-    }
-}
-
-/// Specifies the default value for allow_custom_values.
-fn default_as_true() -> bool {
-    true
 }
 
 #[cfg(test)]
@@ -279,7 +238,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_anyvalue_field_type_display() {
+    fn test_anyvalue_field_format_type() {
         #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
         pub struct BodySpec {
             pub body: AnyValueSpec,
@@ -293,7 +252,6 @@ mod tests {
                 stability: None,
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
-                deprecated: None,
             },
             fields: vec![
                 AnyValueSpec::Enum {
@@ -306,9 +264,7 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
-                    allow_custom_values: true,
                     members: vec![EnumEntriesSpec {
                         id: "id".to_owned(),
                         value: ValueSpec::Int(42),
@@ -328,7 +284,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
                     fields: vec![
                         AnyValueSpec::Int {
@@ -341,7 +296,6 @@ mod tests {
                                 requirement_level: RequirementLevel::Basic(
                                     BasicRequirementLevelSpec::Required,
                                 ),
-                                deprecated: None,
                             },
                         },
                         AnyValueSpec::Bytes {
@@ -354,7 +308,6 @@ mod tests {
                                 requirement_level: RequirementLevel::Basic(
                                     BasicRequirementLevelSpec::Required,
                                 ),
-                                deprecated: None,
                             },
                         },
                         AnyValueSpec::String {
@@ -367,7 +320,6 @@ mod tests {
                                 requirement_level: RequirementLevel::Basic(
                                     BasicRequirementLevelSpec::Optional,
                                 ),
-                                deprecated: None,
                             },
                         },
                         AnyValueSpec::Boolean {
@@ -380,7 +332,6 @@ mod tests {
                                 requirement_level: RequirementLevel::Basic(
                                     BasicRequirementLevelSpec::Optional,
                                 ),
-                                deprecated: None,
                             },
                         },
                         AnyValueSpec::Map {
@@ -393,7 +344,6 @@ mod tests {
                                 requirement_level: RequirementLevel::Basic(
                                     BasicRequirementLevelSpec::Optional,
                                 ),
-                                deprecated: None,
                             },
                             fields: vec![
                                 AnyValueSpec::Ints {
@@ -406,7 +356,6 @@ mod tests {
                                         requirement_level: RequirementLevel::Basic(
                                             BasicRequirementLevelSpec::Optional,
                                         ),
-                                        deprecated: None,
                                     },
                                 },
                                 AnyValueSpec::Doubles {
@@ -419,7 +368,6 @@ mod tests {
                                         requirement_level: RequirementLevel::Basic(
                                             BasicRequirementLevelSpec::Optional,
                                         ),
-                                        deprecated: None,
                                     },
                                 },
                                 AnyValueSpec::Strings {
@@ -432,7 +380,6 @@ mod tests {
                                         requirement_level: RequirementLevel::Basic(
                                             BasicRequirementLevelSpec::Optional,
                                         ),
-                                        deprecated: None,
                                     },
                                 },
                                 AnyValueSpec::Booleans {
@@ -445,7 +392,6 @@ mod tests {
                                         requirement_level: RequirementLevel::Basic(
                                             BasicRequirementLevelSpec::Optional,
                                         ),
-                                        deprecated: None,
                                     },
                                 },
                             ],
@@ -462,7 +408,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
                 },
                 AnyValueSpec::Bytes {
@@ -475,7 +420,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
                 },
                 AnyValueSpec::String {
@@ -488,7 +432,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Recommended,
                         ),
-                        deprecated: None,
                     },
                 },
                 AnyValueSpec::Boolean {
@@ -501,7 +444,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
                 },
                 AnyValueSpec::Double {
@@ -514,7 +456,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
                 },
                 AnyValueSpec::Doubles {
@@ -527,7 +468,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional,
                         ),
-                        deprecated: None,
                     },
                 },
             ],
@@ -537,6 +477,7 @@ mod tests {
         let expected_yaml = fs::read_to_string("data/expected/any_value.yaml")
             .unwrap()
             .replace("\r\n", "\n");
+
         assert_eq!(
             expected_yaml,
             format!("{}", serde_yaml::to_string(&body).unwrap()),
@@ -554,15 +495,7 @@ mod tests {
             expected_json
         );
 
-        assert_eq!(format!("{}", map.type_name()), "map",);
-
-        assert_eq!(
-            format!(
-                "{}",
-                map
-            ),
-            "map<id>{ enum<id_enum> {id}, map<id_map>{ int, byte[], string, boolean, map<id_nested_map>{ int[], double[], string[], boolean[] } }, int, byte[], string, boolean, double, double[] }",
-        );
+        assert_eq!(format!("{}", map), "map",);
 
         assert_eq!(
             format!(
@@ -577,7 +510,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -596,7 +528,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -615,7 +546,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -634,7 +564,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -653,7 +582,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -672,7 +600,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -691,7 +618,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -710,7 +636,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -729,7 +654,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -748,7 +672,6 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     }
                 }
             ),
@@ -767,9 +690,7 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     },
-                    allow_custom_values: true,
                     members: vec![EnumEntriesSpec {
                         id: "id".to_owned(),
                         value: ValueSpec::Int(42),
@@ -779,9 +700,8 @@ mod tests {
                         deprecated: None,
                     }]
                 }
-                .type_name()
             ),
-            "enum"
+            "enum {id}"
         );
 
         assert_eq!(
@@ -797,9 +717,7 @@ mod tests {
                         requirement_level: RequirementLevel::Basic(
                             BasicRequirementLevelSpec::Optional
                         ),
-                        deprecated: None,
                     },
-                    allow_custom_values: true,
                     members: vec![EnumEntriesSpec {
                         id: "entry1".to_owned(),
                         value: ValueSpec::Int(42),
@@ -810,7 +728,7 @@ mod tests {
                     }]
                 }
             ),
-            "enum<id> {entry1}"
+            "enum {entry1}"
         );
     }
 }
