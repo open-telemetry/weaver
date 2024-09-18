@@ -358,7 +358,7 @@ impl MarkdownRenderer {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{CommentFormat, RenderFormat, WeaverConfig};
+    use crate::config::{CommentFormat, IndentType, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::markdown::{MarkdownRenderOptions, MarkdownRenderer};
 
@@ -372,6 +372,7 @@ mod tests {
                         header: None,
                         prefix: Some("// ".to_owned()),
                         footer: None,
+                        indent_type: IndentType::Space,
                         format: RenderFormat::Markdown(MarkdownRenderOptions {
                             escape_backslashes: false,
                             indent_first_level_list_items: true,

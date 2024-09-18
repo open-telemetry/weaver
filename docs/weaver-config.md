@@ -47,6 +47,7 @@ comment_formats:           # optional
     header: <string>                  # The comment header line (e.g., `/**`)
     prefix: <string>                  # The comment line prefix (e.g., ` * `)
     footer: <string>                  # The comment line footer (e.g., ` */`)
+    indent_type: space|tab            # The type of indentation (default: space)
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
 

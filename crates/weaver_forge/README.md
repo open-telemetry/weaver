@@ -574,6 +574,7 @@ comment_formats:           # optional
     header: <string>                  # The comment header line (e.g., `/**`)
     prefix: <string>                  # The comment line prefix (e.g., ` * `)
     footer: <string>                  # The comment line footer (e.g., ` */`)
+    indent_type: space | tab          # The type of indentation (default: space)
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
 
@@ -838,6 +839,7 @@ The `comment` filter accepts the following optional parameters:
 - **`prefix`**: A custom prefix for each comment line.
 - **`footer`**: A custom footer for the comment block.
 - **`indent`**: Number of spaces to add before each comment line for indentation purposes.
+- **`indent_type`**: The type of indentation to use. Supported values are `space` (default) and `tab`.
 
 > Please open an issue if you have any suggestions for new formats or features.
 
