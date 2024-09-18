@@ -380,6 +380,7 @@ mod tests {
                         }),
                         trim: true,
                         remove_trailing_dots: true,
+                        enforce_trailing_dots: false,
                     },
                 )]
                 .into_iter()

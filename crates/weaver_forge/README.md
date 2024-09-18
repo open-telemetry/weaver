@@ -576,6 +576,7 @@ comment_formats:           # optional
     footer: <string>                  # The comment line footer (e.g., ` */`)
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
+    enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
 
     # Fields specific to 'markdown' format
     escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).

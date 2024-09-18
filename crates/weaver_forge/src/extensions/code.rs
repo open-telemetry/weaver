@@ -102,9 +102,27 @@ pub(crate) fn comment(
             if comment_format.trim {
                 comment = comment.trim().to_owned();
             }
+
+            // Process `remove_trailing_dots` and `enforce_trailing_dots`
+            if comment_format.remove_trailing_dots && comment_format.enforce_trailing_dots {
+                return Err(minijinja::Error::new(
+                    ErrorKind::InvalidOperation,
+                    format!(
+                        "'remove_trailing_dots' and 'enforce_trailing_dots' can't be both set to true at the same time for format '{}'",
+                        comment_format_name
+                    ),
+                ));
+            }
             if comment_format.remove_trailing_dots {
                 comment = comment.trim_end_matches('.').to_owned();
             }
+            if comment_format.enforce_trailing_dots
+                && !comment.is_empty()
+                && !comment.ends_with('.')
+            {
+                comment.push('.');
+            }
+
             comment = match &comment_format.format {
                 RenderFormat::Markdown(..) => markdown_snippet_renderer
                     .render(&comment, &comment_format_name)
@@ -251,6 +269,7 @@ mod tests {
                         }),
                         trim: true,
                         remove_trailing_dots: true,
+                        enforce_trailing_dots: false,
                     },
                 )]
                 .into_iter()
@@ -371,6 +390,136 @@ it's RECOMMENDED to:
    * Note:
    * This is a note
    */"##
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_comment_remove_trailing_dots() -> Result<(), Error> {
+        let mut env = Environment::new();
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "java".to_owned(),
+                    CommentFormat {
+                        header: Some("/**".to_owned()),
+                        prefix: Some(" * ".to_owned()),
+                        footer: Some(" */".to_owned()),
+                        format: RenderFormat::Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        enforce_trailing_dots: false,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("java".to_owned()),
+            ..Default::default()
+        };
+        add_filters(&mut env, &config, true)?;
+
+        let note = "The `error.type` SHOULD be predictable, and SHOULD have low cardinality.";
+        let ctx = serde_json::json!({
+            "note": note
+        });
+
+        // Test with the optional parameter `format='java'`
+        let observed_comment = env
+            .render_str("{{ note | comment(format='java') }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+ * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality
+ */"##
+        );
+
+        let note = "The `error.type` SHOULD be predictable, and SHOULD have low cardinality";
+        let ctx = serde_json::json!({
+            "note": note
+        });
+
+        // Test with the optional parameter `format='java'`
+        let observed_comment = env
+            .render_str("{{ note | comment(format='java') }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+ * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality
+ */"##
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_comment_enforce_trailing_dots() -> Result<(), Error> {
+        let mut env = Environment::new();
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "java".to_owned(),
+                    CommentFormat {
+                        header: Some("/**".to_owned()),
+                        prefix: Some(" * ".to_owned()),
+                        footer: Some(" */".to_owned()),
+                        format: RenderFormat::Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                        }),
+                        trim: true,
+                        remove_trailing_dots: false,
+                        enforce_trailing_dots: true,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("java".to_owned()),
+            ..Default::default()
+        };
+        add_filters(&mut env, &config, true)?;
+
+        let note = "The `error.type` SHOULD be predictable, and SHOULD have low cardinality.";
+        let ctx = serde_json::json!({
+            "note": note
+        });
+
+        // Test with the optional parameter `format='java'`
+        let observed_comment = env
+            .render_str("{{ note | comment(format='java') }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+ * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+ */"##
+        );
+
+        let note = "The `error.type` SHOULD be predictable, and SHOULD have low cardinality";
+        let ctx = serde_json::json!({
+            "note": note
+        });
+
+        // Test with the optional parameter `format='java'`
+        let observed_comment = env
+            .render_str("{{ note | comment(format='java') }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+ * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+ */"##
         );
 
         Ok(())
