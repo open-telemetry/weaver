@@ -50,6 +50,7 @@ comment_formats:           # optional
     indent_type: space|tab            # The type of indentation (default: space)
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
+    enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
 
     # The following fields are enabled only when format is set to 'markdown'
     escape_backslashes: <bool>            # Whether to escape backslashes in the markdown (default: false).
@@ -92,6 +93,8 @@ templates:
     file_name: <relative_file_path>  # optional
   - ...
 ```
+
+Note: Both `remove_trailing_dots` and `enforce_trailing_dots` cannot be set to `true` at the same time.
 
 Below a concrete example of a `weaver.yaml` file that could be used to generate Java code
 from a semconv specification (incomplete):

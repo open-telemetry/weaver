@@ -319,6 +319,9 @@ pub struct CommentFormat {
     /// Flag to remove trailing dots from the comment content.
     #[serde(default = "default_bool::<false>")]
     pub remove_trailing_dots: bool,
+    /// Flag to enforce trailing dots on the comment content.
+    #[serde(default = "default_bool::<false>")]
+    pub enforce_trailing_dots: bool,
 }
 
 /// The type of indentation to use for the comment.
