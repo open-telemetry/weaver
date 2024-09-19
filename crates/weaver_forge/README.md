@@ -579,6 +579,7 @@ comment_formats:           # optional
 
     # Fields specific to 'markdown' format
     escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).
+    escape_square_brackets: <bool>        # Whether to escape square brackets in markdown (default: false).
     shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").

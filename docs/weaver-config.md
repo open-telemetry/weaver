@@ -52,6 +52,7 @@ comment_formats:           # optional
 
     # The following fields are enabled only when format is set to 'markdown'
     escape_backslashes: <bool>            # Whether to escape backslashes in the markdown (default: false).
+    escape_square_brackets: <bool>        # Whether to escape square brackets in markdown (default: false).
     shortcut_reference_links: <bool>      # Use this to convert inlined links into shortcut reference links, similar to those in Go documentation (default: false).
     indent_first_level_list_items: <bool> # Whether to indent the first level of list items in the markdown (default: false).
     default_block_code_language: <string> # The default language for block code snippets (default: "").
