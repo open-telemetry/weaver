@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
+* Add `enforce_trailing_dots` into the `comment_formats` configuration. ([#XXX](...) by lquerel).
 * Add support for `indent_type` in both the comment filter and the `comment_formats` configuration. ([#XXX](...) by lquerel).
 
 ## [0.9.2] - 2024-09-09
