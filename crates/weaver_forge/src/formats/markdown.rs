@@ -17,8 +17,8 @@ pub struct MarkdownRenderOptions {
     #[serde(default)]
     pub(crate) escape_backslashes: bool,
     /// Whether to escape square brackets in the Markdown text. Valid links are not affected.
-    /// Default is false.
-    #[serde(default)]
+    /// Default is true.
+    #[serde(default = "default_bool::<true>")]
     pub(crate) escape_square_brackets: bool,
     /// Whether to indent the first level of list items in the markdown.
     /// Default is false.
@@ -32,6 +32,12 @@ pub struct MarkdownRenderOptions {
     /// The default language for code blocks.
     /// Default is None.
     pub(crate) default_block_code_language: Option<String>,
+}
+
+/// Used to set a default value for a boolean field in a struct.
+#[must_use]
+pub const fn default_bool<const V: bool>() -> bool {
+    V
 }
 
 pub(crate) struct ShortcutReferenceLink {
@@ -515,6 +521,8 @@ it's RECOMMENDED to:
                         }),
                         trim: true,
                         remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
                     },
                 )]
                 .into_iter()
@@ -553,6 +561,8 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
                         }),
                         trim: true,
                         remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
                     },
                 )]
                 .into_iter()
