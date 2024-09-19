@@ -105,6 +105,7 @@ pub fn resolve_semconv_registry(
     }
 
     // Other complementary checks.
+    check_group_id_uniqueness(&ureg.registry)?;
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index)?;
 
     Ok(ureg.registry)
@@ -200,6 +201,40 @@ fn check_group_any_of_constraints(
             .collect();
         return Err(Error::CompoundError(errors));
     }
+    Ok(())
+}
+
+/// Checks for duplicate group IDs in the given registry.
+pub fn check_group_id_uniqueness(registry: &Registry) -> Result<(), Error> {
+    // Map to track group IDs and their provenances.
+    // More than one provenance for a group ID indicates a duplicate group ID.
+    // The list of provenances is used to provide more context in the error message.
+    let mut group_ids = HashMap::new();
+
+    for group in registry.groups.iter() {
+        let provenances = group_ids
+            .entry(group.id.as_str())
+            .or_insert_with(Vec::new);
+        provenances.push(group.provenance().to_owned());
+    }
+
+    let mut errors = vec![];
+    for (group_id, provenances) in group_ids {
+        if provenances.len() > 1 {
+            // Deduplicate the provenances.
+            let provenances: HashSet<String> = provenances.into_iter().collect();
+            // Sort the provenances to make tests easier to write.
+            let mut provenances: Vec<String> = provenances.into_iter().collect();
+            provenances.sort();
+            
+            errors.push(Error::DuplicateGroupId {
+                group_id: group_id.to_owned(),
+                provenances,
+            });
+        }
+    }
+    
+    handle_errors(errors)?;
     Ok(())
 }
 
@@ -622,9 +657,9 @@ fn resolve_inheritance_attrs(
         match &attr.spec {
             AttributeSpec::Ref { r#ref, .. } => {
                 if let Some(AttrWithLineage {
-                    spec: parent_attr,
-                    lineage,
-                }) = inherited_attrs.get_mut(r#ref)
+                                spec: parent_attr,
+                                lineage,
+                            }) = inherited_attrs.get_mut(r#ref)
                 {
                     *parent_attr = resolve_inheritance_attr(&attr.spec, parent_attr, lineage);
                 } else {
@@ -814,8 +849,8 @@ mod tests {
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
             )
-            .into_result_failing_non_fatal()
-            .expect("Failed to load semconv specs");
+                .into_result_failing_non_fatal()
+                .expect("Failed to load semconv specs");
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
@@ -824,12 +859,19 @@ mod tests {
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
 
-            // If the expected attr catalog is not defined in the test directory, then it means
-            // that the normal behavior of this test is to fail.
-            let expected_attr_catalog_file =
-                format!("{}/expected-attribute-catalog.json", test_dir);
-            if !PathBuf::from(&expected_attr_catalog_file).exists() {
+            // Check presence of an `expected-errors.json` file.
+            // If the file is present, the test is expected to fail with the errors in the file.
+            let expected_errors_file = format!("{}/expected-errors.json", test_dir);
+            if PathBuf::from(&expected_errors_file).exists() {
                 assert!(observed_registry.is_err(), "This test is expected to fail");
+                let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
+                    .expect("Failed to read expected errors file");
+                let observed_errors = serde_json::to_string(&observed_registry).unwrap();
+                assert_eq!(
+                    observed_errors, expected_errors,
+                    "Observed and expected errors don't match for `{}`.\n{}",
+                    test_dir, weaver_diff::diff_output(&expected_errors, &observed_errors)
+                );
                 continue;
             }
 
@@ -837,11 +879,13 @@ mod tests {
             let observed_registry = observed_registry.expect("Failed to resolve the registry");
 
             // Load the expected registry and attribute catalog.
+            let expected_attr_catalog_file =
+                format!("{}/expected-attribute-catalog.json", test_dir);
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
                 std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
             )
-            .expect("Failed to deserialize expected attribute catalog");
+                .expect("Failed to deserialize expected attribute catalog");
 
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
@@ -858,7 +902,7 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
-            .expect("Failed to deserialize expected registry");
+                .expect("Failed to deserialize expected registry");
 
             assert_eq!(
                 observed_registry, expected_registry,
@@ -1020,7 +1064,7 @@ groups:
             registry_id,
             "data/registry-test-7-spans/registry/*.yaml",
         )
-        .into_result_failing_non_fatal()?;
+            .into_result_failing_non_fatal()?;
 
         // Resolve the semantic convention registry.
         let resolved_schema =

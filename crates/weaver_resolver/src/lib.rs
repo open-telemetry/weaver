@@ -133,6 +133,15 @@ pub enum Error {
         path: PathBuf,
     },
 
+    /// A duplicate group id error.
+    #[error("The group id `{group_id}` is declared multiple times in the following locations:\n{provenances:?}")]
+    DuplicateGroupId {
+        /// The group id.
+        group_id: String,
+        /// The provenances where this group is duplicated.
+        provenances: Vec<String>,
+    },
+    
     /// A duplicate attribute id error.
     #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
     DuplicateAttributeId {
