@@ -6,6 +6,7 @@ use crate::config::WeaverConfig;
 use minijinja::value::Rest;
 use minijinja::{Environment, ErrorKind, Value};
 use regex::Regex;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -17,6 +18,7 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
     );
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
+    env.add_filter("regex_replace", regex_replace);
 }
 
 /// Add utility functions to the environment.
@@ -66,6 +68,24 @@ fn split_id(value: Value) -> Result<Vec<Value>, minijinja::Error> {
     }
 }
 
+/// Replace all occurrences of a regex pattern (1st parameter) in the input string with the
+/// replacement string (2nd parameter).
+fn regex_replace(
+    input: Cow<'_, str>,
+    pattern: Cow<'_, str>,
+    replacement: Cow<'_, str>,
+) -> Result<String, minijinja::Error> {
+    let re = Regex::new(pattern.as_ref()).map_err(|e| {
+        minijinja::Error::new(
+            ErrorKind::InvalidOperation,
+            format!("Invalid regex pattern: {}", e),
+        )
+    })?;
+    Ok(re
+        .replace_all(input.as_ref(), replacement.as_ref())
+        .to_string())
+}
+
 /// Create a filter that replaces acronyms in the input string with the full
 /// name defined in the `acronyms` list.
 ///
@@ -108,5 +128,35 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
                 None => mat.as_str().to_owned(),
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::extensions::util::add_filters;
+    use minijinja::Environment;
+
+    #[test]
+    fn test_regex_replace() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+        let config = crate::config::WeaverConfig::default();
+
+        add_filters(&mut env, &config);
+
+        assert_eq!(
+            env.render_str("{{ 'Hello World!' | regex_replace('!','?') }}", &ctx)
+                .unwrap(),
+            "Hello World?"
+        );
+
+        assert_eq!(
+            env.render_str(
+                "{{ \"This a test with multiple a's\" | regex_replace('a','A') }}",
+                &ctx
+            )
+            .unwrap(),
+            "This A test with multiple A's"
+        );
     }
 }
