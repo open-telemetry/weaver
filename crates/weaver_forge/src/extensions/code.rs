@@ -147,7 +147,21 @@ pub(crate) fn comment(
                         )
                     })?,
             };
-            let indent = " ".repeat(args.get("indent").map(|v: usize| v).unwrap_or(0));
+            let indent_arg = args.get("indent").map(|v: usize| v).unwrap_or(0);
+            let indent_type_arg = args
+                .get("indent_type")
+                .map(|v: String| v)
+                .unwrap_or(comment_format.indent_type.to_string());
+            let indent = match indent_type_arg.as_str() {
+                "space" => " ".repeat(indent_arg),
+                "tab" => "\t".repeat(indent_arg),
+                _ => {
+                    return Err(minijinja::Error::new(
+                        ErrorKind::InvalidOperation,
+                        "Invalid indent type, must be 'space' or 'tab'",
+                    ))
+                }
+            };
 
             let header = args
                 .get("header")
@@ -246,7 +260,7 @@ pub(crate) fn map_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::CommentFormat;
+    use crate::config::{CommentFormat, IndentType};
     use crate::extensions::code;
     use crate::formats::html::HtmlRenderOptions;
 
@@ -261,6 +275,7 @@ mod tests {
                         header: Some("/**".to_owned()),
                         prefix: Some(" * ".to_owned()),
                         footer: Some(" */".to_owned()),
+                        indent_type: IndentType::Space,
                         format: RenderFormat::Html(HtmlRenderOptions {
                             old_style_paragraph: true,
                             omit_closing_li: true,
@@ -365,6 +380,97 @@ it's RECOMMENDED to:
    */"##
         );
 
+        // Test with indent_type=`space`
+        let observed_comment = env
+            .render_str("{{ note | comment(indent=2, indent_type='space') }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+   * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+   * <p>
+   * When {@code error.type} is set to a type (e.g., an exception type), its
+   * canonical class name identifying the type within the artifact SHOULD be used.
+   * <p>
+   * Instrumentations SHOULD document the list of errors they report.
+   * <p>
+   * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+   * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+   * should be prepared for {@code error.type} to have high cardinality at query time when no
+   * additional filters are applied.
+   * <p>
+   * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+   * <p>
+   * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+   * it's RECOMMENDED to:
+   * <p>
+   * <ul>
+   *   <li>Use a domain-specific attribute
+   *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+   * </ul>
+   */"##
+        );
+
+        // Test with indent_type=`tab`
+        let observed_comment = env
+            .render_str("{{ note | comment(indent=2, indent_type='tab') }}", &ctx)
+            .unwrap();
+        assert_eq!(
+            observed_comment,
+            r##"/**
+		 * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
+		 * <p>
+		 * When {@code error.type} is set to a type (e.g., an exception type), its
+		 * canonical class name identifying the type within the artifact SHOULD be used.
+		 * <p>
+		 * Instrumentations SHOULD document the list of errors they report.
+		 * <p>
+		 * The cardinality of {@code error.type} within one instrumentation library SHOULD be low.
+		 * Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+		 * should be prepared for {@code error.type} to have high cardinality at query time when no
+		 * additional filters are applied.
+		 * <p>
+		 * If the operation has completed successfully, instrumentations SHOULD NOT set {@code error.type}.
+		 * <p>
+		 * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+		 * it's RECOMMENDED to:
+		 * <p>
+		 * <ul>
+		 *   <li>Use a domain-specific attribute
+		 *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
+		 * </ul>
+		 */"##
+        );
+
+        // New configuration with `indent_type='tab'`
+        let mut env = Environment::new();
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "java".to_owned(),
+                    CommentFormat {
+                        header: Some("/**".to_owned()),
+                        prefix: Some(" * ".to_owned()),
+                        footer: Some(" */".to_owned()),
+                        indent_type: IndentType::Tab,
+                        format: RenderFormat::Html(HtmlRenderOptions {
+                            old_style_paragraph: true,
+                            omit_closing_li: true,
+                            inline_code_snippet: "{@code {{code}}}".to_owned(),
+                            block_code_snippet: "<pre>{@code {{code}}}</pre>".to_owned(),
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("java".to_owned()),
+            ..Default::default()
+        };
+        add_filters(&mut env, &config, true)?;
+
         // Test with an undefined field in the context
         let ctx = serde_json::json!({});
         let observed_comment = env
@@ -380,16 +486,16 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str(
                 "{{ [brief,'Note: ', note, something_not_in_ctx] | comment(indent=2) }}",
-                ctx,
+                &ctx,
             )
             .unwrap();
         assert_eq!(
             observed_comment,
             r##"/**
-   * This is a brief description.
-   * Note:
-   * This is a note
-   */"##
+		 * This is a brief description.
+		 * Note:
+		 * This is a note
+		 */"##
         );
 
         Ok(())
