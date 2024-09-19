@@ -12,10 +12,14 @@ use std::collections::HashMap;
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct MarkdownRenderOptions {
-    /// Whether to escape backslashes in the markdown.
+    /// Whether to escape backslashes in the Markdown.
     /// Default is false.
     #[serde(default)]
     pub(crate) escape_backslashes: bool,
+    /// Whether to escape square brackets in the Markdown text. Valid links are not affected.
+    /// Default is true.
+    #[serde(default = "default_bool::<true>")]
+    pub(crate) escape_square_brackets: bool,
     /// Whether to indent the first level of list items in the markdown.
     /// Default is false.
     #[serde(default)]
@@ -28,6 +32,12 @@ pub struct MarkdownRenderOptions {
     /// The default language for code blocks.
     /// Default is None.
     pub(crate) default_block_code_language: Option<String>,
+}
+
+/// Used to set a default value for a boolean field in a struct.
+#[must_use]
+pub const fn default_bool<const V: bool>() -> bool {
+    V
 }
 
 pub(crate) struct ShortcutReferenceLink {
@@ -196,11 +206,36 @@ impl MarkdownRenderer {
                 }
             }
             Node::Text(text) => {
-                if options.escape_backslashes {
-                    ctx.add_text(&text.value.replace('\\', "\\\\"));
-                } else {
-                    ctx.add_text(&text.value);
+                fn escape_unescaped_chars(s: &str, chars_to_escape: &[char]) -> String {
+                    let mut result = String::with_capacity(s.len());
+                    let mut backslash_count = 0;
+
+                    for c in s.chars() {
+                        if c == '\\' {
+                            backslash_count += 1;
+                            result.push(c);
+                        } else {
+                            if chars_to_escape.contains(&c) && backslash_count % 2 == 0 {
+                                // Even number of backslashes means the character is unescaped
+                                result.push('\\');
+                            }
+                            result.push(c);
+                            // Reset the backslash count after a non-backslash character
+                            backslash_count = 0;
+                        }
+                    }
+
+                    result
                 }
+
+                let mut text = text.value.clone();
+                if options.escape_backslashes {
+                    text = text.replace('\\', "\\\\");
+                }
+                if options.escape_square_brackets {
+                    text = escape_unescaped_chars(&text, &['[', ']']);
+                }
+                ctx.add_text(&text);
             }
             Node::Paragraph(p) => {
                 ctx.add_cond_blank_line();
@@ -375,6 +410,7 @@ mod tests {
                         indent_type: IndentType::Space,
                         format: RenderFormat::Markdown(MarkdownRenderOptions {
                             escape_backslashes: false,
+                            escape_square_brackets: false,
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
@@ -467,6 +503,87 @@ it's RECOMMENDED to:
   - Use a domain-specific attribute
   - Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##
         );
+
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: false,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
+          The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
+        let html = renderer.render(markdown, "go")?;
+        assert_eq!(
+            html,
+            r##"In some cases a [URL] may refer to an [IP] and/or port directly,
+The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot.
+
+[IP]: http://ip.com"##
+        );
+
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: true,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
+          The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
+        let html = renderer.render(markdown, "go")?;
+        assert_eq!(
+            html,
+            r##"In some cases a \[URL\] may refer to an [IP] and/or port directly,
+The file \[extension\] extracted \[from\] the `url.full`, excluding the leading dot.
+
+[IP]: http://ip.com"##
+        );
+
         Ok(())
     }
 }

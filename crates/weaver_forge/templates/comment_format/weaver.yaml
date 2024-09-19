@@ -37,6 +37,7 @@ comment_formats:
     shortcut_reference_link: true
     trim: true
     remove_trailing_dots: true
+    escape_square_brackets: false
   python:
     format: markdown
     header: '"""'
@@ -44,6 +45,7 @@ comment_formats:
     escape_backslashes: true
     trim: true
     remove_trailing_dots: true
+    escape_square_brackets: false
 
 templates:
   - template: "example.java.j2"
