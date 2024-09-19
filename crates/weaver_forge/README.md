@@ -486,6 +486,9 @@ The following filters are available:
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the
   `weaver.yaml` configuration file.
 - `split_id`: Splits a string by '.' creating a list of nested ids.
+- `regex_replace`: Replace all occurrences of a regex pattern (1st parameter) in the input string with the replacement
+  string (2nd parameter). Under the hood, this filter uses the `regex` crate (see
+  [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details) 
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix. This filter is deprecated, please use the more general `comment` filter.
 - `comment`: A generic comment formatter that uses the `comment_formats` section of the `weaver.yaml` configuration file (more details [here](#comment-filter)).
 - `flatten`: Converts a List of Lists into a single list with all elements.  
