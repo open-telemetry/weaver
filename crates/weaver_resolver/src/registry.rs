@@ -800,7 +800,7 @@ mod tests {
 
     use glob::glob;
     use serde::Serialize;
-
+    use weaver_diff::canonicalize_json_string;
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::{Constraint, Registry};
     use weaver_semconv::group::GroupType;
@@ -868,7 +868,8 @@ mod tests {
                     .expect("Failed to read expected errors file");
                 let observed_errors = serde_json::to_string(&observed_registry).unwrap();
                 assert_eq!(
-                    observed_errors, expected_errors,
+                    canonicalize_json_string(&observed_errors).unwrap(), 
+                    canonicalize_json_string(&expected_errors).unwrap(),
                     "Observed and expected errors don't match for `{}`.\n{}",
                     test_dir, weaver_diff::diff_output(&expected_errors, &observed_errors)
                 );
