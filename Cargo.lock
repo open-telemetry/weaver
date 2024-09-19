@@ -2543,16 +2543,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "opentelemetry-stdout"
-version = "0.5.0"
+name = "opentelemetry"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d408d4345b8be6129a77c46c3bfc75f0d3476f3091909c7dd99c1f3d78582287"
+checksum = "803801d3d3b71cd026851a53f974ea03df3d179cb758b260136a6c9e22e196af"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+ "js-sys",
+ "once_cell",
+ "pin-project-lite",
+ "thiserror",
+]
+
+[[package]]
+name = "opentelemetry-stdout"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f76e2ded3f6e5d8b51e7aefc267022e7586975c00763aab70f807ad2cc156e94"
 dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
- "opentelemetry 0.24.0",
- "opentelemetry_sdk",
+ "opentelemetry 0.25.0",
+ "opentelemetry_sdk 0.25.0",
  "ordered-float",
  "serde",
  "serde_json",
@@ -2572,6 +2586,25 @@ dependencies = [
  "glob",
  "once_cell",
  "opentelemetry 0.24.0",
+ "percent-encoding",
+ "rand 0.8.5",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "opentelemetry_sdk"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0da0d6b47a3dbc6e9c9e36a0520e25cf943e046843818faaa3f87365a548c82"
+dependencies = [
+ "async-trait",
+ "futures-channel",
+ "futures-executor",
+ "futures-util",
+ "glob",
+ "once_cell",
+ "opentelemetry 0.25.0",
  "percent-encoding",
  "rand 0.8.5",
  "serde_json",
@@ -4279,7 +4312,7 @@ dependencies = [
  "minijinja-contrib",
  "opentelemetry 0.23.0",
  "opentelemetry-stdout",
- "opentelemetry_sdk",
+ "opentelemetry_sdk 0.24.1",
  "rayon",
  "regex",
  "schemars",
