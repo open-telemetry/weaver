@@ -6,10 +6,17 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* Add `escape_square_brackets` into `comment_formats` markdown configuration. ([#XXX](...) by lquerel).
-* Add `enforce_trailing_dots` into the `comment_formats` configuration. ([#XXX](...) by lquerel).
-* Add support for `indent_type` in both the comment filter and the `comment_formats` configuration. ([#XXX](...) by lquerel).
-* Add `regex_replace` filter to support replacing text using regex. ([#XXX](...) by lquerel).
+* Add `escape_square_brackets` into `comment_formats` markdown configuration. ([#379](https://github.com/open-telemetry/weaver/pull/379) by lquerel).
+* Add `enforce_trailing_dots` into the `comment_formats` configuration. ([#378](https://github.com/open-telemetry/weaver/pull/378) by lquerel).
+* Add support for `indent_type` in both the comment filter and the `comment_formats` configuration. ([#377](https://github.com/open-telemetry/weaver/pull/377) by lquerel).
+* Add `regex_replace` filter to support replacing text using regex. ([#380](https://github.com/open-telemetry/weaver/pull/380) by lquerel).
+* Bump opentelemetry_sdk from 0.24.1 to 0.25.0 (#369)
+* Bump opentelemetry-stdout from 0.5.0 to 0.25.0 (#368)
+* Bump anyhow from 1.0.88 to 1.0.89 (#370)
+* Bump regorus from 0.2.4 to 0.2.5 (#375)
+* Bump minijinja-contrib from 2.2.0 to 2.3.1 (#376)
+* Bump minijinja from 2.2.0 to 2.3.1 (#371)
+* Bump globset from 0.4.14 to 0.4.15 (#366)
 
 ## [0.9.2] - 2024-09-09
 
