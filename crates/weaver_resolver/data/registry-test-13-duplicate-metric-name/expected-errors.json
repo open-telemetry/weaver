@@ -1,0 +1,66 @@
+{
+  "Err": {
+    "CompoundError": [
+      {
+        "DuplicateGroup": {
+          "id_type": "group id",
+          "id": "metric.faas.init_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroup": {
+          "id_type": "group id",
+          "id": "metric.faas.invoke_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroup": {
+          "id_type": "group id",
+          "id": "metric.faas.coldstarts",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroup": {
+          "id_type": "metric name",
+          "id": "faas.coldstarts",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroup": {
+          "id_type": "metric name",
+          "id": "faas.invoke_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroup": {
+          "id_type": "metric name",
+          "id": "faas.init_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      }
+    ]
+  }
+}

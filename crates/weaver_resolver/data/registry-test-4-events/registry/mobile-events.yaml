@@ -2,7 +2,7 @@ groups:
   - id: ios.lifecycle.events
     type: event
     prefix: ios
-    name: device.app.lifecycle
+    name: ios.device.app.lifecycle
     brief: >
       This event represents an occurrence of a lifecycle transition on the iOS platform.
     attributes:
@@ -41,7 +41,7 @@ groups:
   - id: android.lifecycle.events
     type: event
     prefix: android
-    name: device.app.lifecycle
+    name: android.device.app.lifecycle
     brief: >
       This event represents an occurrence of a lifecycle transition on the Android platform.
     attributes:
