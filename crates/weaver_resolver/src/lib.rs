@@ -145,17 +145,6 @@ pub enum Error {
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
-
-    /// An error indicating that the Body references are not resolved.
-    #[error("The following body reference is not resolved.\nBody reference: {group_id}\nProvenance: {provenance}\nError: {error}")]
-    UnresolvedBody {
-        /// The unresolved body reference.
-        group_id: String,
-        /// The provenance of the reference (URL or path).
-        provenance: String,
-        /// The errors that occurred.
-        error: weaver_resolved_schema::error::Error,
-    },
 }
 
 impl WeaverError<Error> for Error {
