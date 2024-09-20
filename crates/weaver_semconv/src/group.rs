@@ -263,41 +263,33 @@ fn validate_any_value_examples(
     path_or_url: &str,
 ) -> WResult<(), Error> {
     if let Some(value) = any_value {
-        let common_examples = &value.common().examples;
-        if let Some(examples) = common_examples {
+        if let Some(examples) = &value.common().examples {
             match examples.validate_any_value(value, group_id, path_or_url) {
                 WResult::Ok(_) => {}
                 WResult::OkWithNFEs(_, errs) => errors.extend(errs),
                 WResult::FatalErr(err) => return WResult::FatalErr(err),
             }
         } else {
-            // No examples are set.
             match value {
-                AnyValueSpec::String { .. } => {
-                    // string values must have examples.
+                AnyValueSpec::String { .. } | AnyValueSpec::Strings { .. } => {
                     errors.push(Error::InvalidAnyValueExampleError {
                         path_or_url: path_or_url.to_owned(),
                         group_id: group_id.to_owned(),
                         value_id: value.id(),
-                        error: "This value is a string but it does not contain any examples."
-                            .to_owned(),
-                    });
-                }
-                AnyValueSpec::Strings { .. } => {
-                    // string array attributes must have examples.
-                    errors.push(Error::InvalidAnyValueExampleError {
-                        path_or_url: path_or_url.to_owned(),
-                        group_id: group_id.to_owned(),
-                        value_id: value.id(),
-                        error: "This value is a string array but it does not contain any examples."
-                            .to_owned(),
+                        error: format!(
+                            "This value is a {} but it does not contain any examples.",
+                            if let AnyValueSpec::String { .. } = value {
+                                "string"
+                            } else {
+                                "string array"
+                            }
+                        ),
                     });
                 }
                 _ => {}
             }
         }
 
-        // Recursively validate the examples for the fields.
         if let AnyValueSpec::Map { fields, .. } = value {
             for field in fields {
                 if let WResult::FatalErr(err) =

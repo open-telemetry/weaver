@@ -1,5 +1,0 @@
-groups:
-  - id: log_event_empty
-    name: ping.event
-    type: event
-    brief: brief

@@ -6,13 +6,13 @@
 
 use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use weaver_semconv::any_value::AnyValueSpec;
 
 use serde::{Deserialize, Serialize};
 
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
-use crate::any_value::AnyValue;
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
@@ -130,7 +130,7 @@ pub struct Group {
     /// The body of the event.
     /// This fields is only used for event groups.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<AnyValue>,
+    pub body: Option<AnyValueSpec>,
 }
 
 /// Common statistics for a group.

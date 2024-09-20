@@ -1,7 +1,0 @@
-groups:
-  - id: log_event_attributes_only
-    name: some.event
-    type: event
-    brief: brief
-    attributes:
-      - ref: log.event.attr

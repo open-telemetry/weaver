@@ -7,11 +7,11 @@
 use crate::error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use weaver_resolved_schema::any_value::AnyValue;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
+use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
@@ -107,7 +107,7 @@ pub struct ResolvedGroup {
     pub display_name: Option<String>,
     /// The body specification used for event semantic conventions.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<AnyValue>,
+    pub body: Option<AnyValueSpec>,
 }
 
 impl ResolvedGroup {

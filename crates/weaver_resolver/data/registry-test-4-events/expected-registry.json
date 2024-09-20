@@ -2,127 +2,6 @@
   "registry_url": "https://127.0.0.1",
   "groups": [
     {
-      "id": "browser.test.event_with_fields",
-      "type": "event",
-      "brief": "An event that adds global attributes for reuse.\n",
-      "prefix": "browser",
-      "attributes": [
-        0,
-        1,
-        2,
-        3
-      ],
-      "name": "browser.test.event_with_fields",
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/browser-event.yaml"
-      },
-      "body": {
-        "name": "browser.test.event_with_body.fields",
-        "type": "map",
-        "requirement_level": "required",
-        "fields": [
-          {
-            "name": "some.field",
-            "type": "string",
-            "brief": "A field that is not referenced in the attributes",
-            "examples": [
-              "some value",
-              "another value"
-            ],
-            "requirement_level": "required",
-            "note": "This field is not referenced in the attributes"
-          }
-        ]
-      }
-    },
-    {
-      "id": "browser.test.event_with_body_details",
-      "type": "event",
-      "brief": "An event that adds global attributes for reuse.\n",
-      "attributes": [],
-      "name": "browser.test.event_with_body_details",
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/browser-event.yaml"
-      },
-      "body": {
-        "name": "browser.test.event_with_body_details.fields",
-        "type": "map",
-        "brief": "A map of fields that are not referenced in the attributes",
-        "note": "This map is not referenced in the attributes",
-        "stability": "experimental",
-        "examples": [
-          "{ \"some.field\": \"some value\" }"
-        ],
-        "requirement_level": "required",
-        "fields": [
-          {
-            "name": "some.field",
-            "type": "string",
-            "brief": "A field that is not referenced in the attributes",
-            "examples": [
-              "some value",
-              "another value"
-            ],
-            "requirement_level": "optional",
-            "note": "This field is not referenced in the attributes"
-          }
-        ]
-      }
-    },
-    {
-      "id": "client.exception.event",
-      "type": "event",
-      "brief": "This document defines the log event used to report a client exception.\n",
-      "attributes": [
-        4
-      ],
-      "name": "client.exception.event",
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/client-exception-event.yaml"
-      },
-      "body": {
-        "name": "client.exception.event.fields",
-        "type": "map",
-        "requirement_level": "optional",
-        "fields": [
-          {
-            "name": "type",
-            "type": "string",
-            "brief": "The type of the exception.\n",
-            "examples": [
-              "java.net.ConnectException",
-              "OSError"
-            ],
-            "requirement_level": "optional"
-          },
-          {
-            "name": "message",
-            "type": "string",
-            "brief": "The exception message.",
-            "examples": [
-              "Division by zero",
-              "Can't convert 'int' object to str implicitly"
-            ],
-            "requirement_level": "optional"
-          },
-          {
-            "name": "stacktrace",
-            "type": "string",
-            "brief": "A stacktrace.\n",
-            "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
-            "requirement_level": "optional"
-          },
-          {
-            "name": "escaped",
-            "type": "boolean",
-            "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
-            "requirement_level": "optional",
-            "note": "An exception is considered to have escaped."
-          }
-        ]
-      }
-    },
-    {
       "id": "log_event_attributes_only",
       "type": "event",
       "brief": "brief",
@@ -131,9 +10,9 @@
       ],
       "name": "some.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-event.yaml",
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml",
         "attributes": {
-          "log.event.attr": {
+          "test_attr.event.attr": {
             "source_group": "referenced.attributes",
             "inherited_fields": [
               "brief",
@@ -147,17 +26,27 @@
       }
     },
     {
+      "id": "log_event_empty",
+      "type": "event",
+      "brief": "brief",
+      "attributes": [],
+      "name": "empty.event",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+      }
+    },
+    {
       "id": "log-feature_flag",
       "type": "event",
       "brief": "This document defines attributes for feature flag evaluations represented using Log Records.\n",
       "prefix": "feature_flag",
       "attributes": [
-        69,
-        70,
-        71
+        17,
+        18,
+        19
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-feature_flag.yaml",
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml",
         "attributes": {
           "feature_flag.key": {
             "source_group": "feature_flag",
@@ -190,6 +79,50 @@
       }
     },
     {
+      "id": "some.string.body.event",
+      "type": "event",
+      "brief": "This event represents an occurrence of a something.\n",
+      "note": "This event transmits the body as a JSON encoded string.\n",
+      "stability": "experimental",
+      "attributes": [],
+      "name": "string.body.event",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+      },
+      "body": {
+        "id": "some.string.body.event.fields",
+        "type": "string",
+        "brief": "This is the body of the event which is a JSON encoded string.\n",
+        "examples": [
+          "{\"key1\":\"value1\",\"key2\":\"value2\"}"
+        ],
+        "requirement_level": "required"
+      }
+    },
+    {
+      "id": "some.string.body.detailed.event",
+      "type": "event",
+      "brief": "This event represents an occurrence of a something.\n",
+      "note": "This event transmits the body as a JSON encoded string.\n",
+      "stability": "experimental",
+      "attributes": [],
+      "name": "string.body.event",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+      },
+      "body": {
+        "id": "some.string.body.event.fields",
+        "type": "string",
+        "brief": "This is the body of the event which is a JSON encoded string.\n",
+        "note": "This is a detailed note about the body.\n",
+        "stability": "experimental",
+        "examples": [
+          "{\"key1\":\"value1\",\"key2\":\"value2\"}"
+        ],
+        "requirement_level": "required"
+      }
+    },
+    {
       "id": "device.app.lifecycle",
       "type": "event",
       "brief": "This event represents an occurrence of a lifecycle transition on Android or iOS platform.\n",
@@ -198,16 +131,16 @@
       "attributes": [],
       "name": "device.app.lifecycle",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "name": "device.app.lifecycle.fields",
+        "id": "device.app.lifecycle.fields",
         "type": "map",
         "requirement_level": "required",
         "fields": [
           {
-            "name": "ios.state",
-            "type": "enum {active, inactive, background, foreground, terminate}",
+            "id": "ios.state",
+            "type": "enum",
             "members": [
               {
                 "id": "active",
@@ -253,8 +186,8 @@
             "stability": "experimental"
           },
           {
-            "name": "android.state",
-            "type": "enum {created, background, foreground}",
+            "id": "android.state",
+            "type": "enum",
             "members": [
               {
                 "id": "created",
@@ -273,7 +206,7 @@
               {
                 "id": "foreground",
                 "value": "foreground",
-                "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.",
+                "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.\n",
                 "note": null,
                 "stability": null
               }
@@ -289,13 +222,124 @@
       }
     },
     {
-      "id": "log_event_empty",
+      "id": "client.exception.event",
       "type": "event",
-      "brief": "brief",
-      "attributes": [],
-      "name": "ping.event",
+      "brief": "This document defines the log event used to report a client exception.\n",
+      "attributes": [
+        0
+      ],
+      "name": "client.exception.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/ping-event.yaml"
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+      },
+      "body": {
+        "id": "client.exception.event.fields",
+        "type": "map",
+        "requirement_level": "optional",
+        "fields": [
+          {
+            "id": "type",
+            "type": "string",
+            "brief": "The type of the exception.\n",
+            "examples": [
+              "java.net.ConnectException",
+              "OSError"
+            ],
+            "requirement_level": "optional"
+          },
+          {
+            "id": "message",
+            "type": "string",
+            "brief": "The exception message.",
+            "examples": [
+              "Division by zero",
+              "Can't convert 'int' object to str implicitly"
+            ],
+            "requirement_level": "optional"
+          },
+          {
+            "id": "stacktrace",
+            "type": "string",
+            "brief": "A stacktrace.\n",
+            "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
+            "requirement_level": "optional"
+          },
+          {
+            "id": "escaped",
+            "type": "boolean",
+            "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
+            "requirement_level": "optional",
+            "note": "An exception is considered to have escaped."
+          }
+        ]
+      }
+    },
+    {
+      "id": "browser.test.event_with_fields",
+      "type": "event",
+      "brief": "An event that adds global attributes for reuse.\n",
+      "prefix": "browser",
+      "attributes": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "name": "browser.test.event_with_fields",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+      },
+      "body": {
+        "id": "browser.test.event_with_body.fields",
+        "type": "map",
+        "requirement_level": "required",
+        "fields": [
+          {
+            "id": "some.field",
+            "type": "string",
+            "brief": "A field that is not referenced in the attributes",
+            "examples": [
+              "some value",
+              "another value"
+            ],
+            "requirement_level": "required",
+            "note": "This field is not referenced in the attributes"
+          }
+        ]
+      }
+    },
+    {
+      "id": "browser.test.event_with_body_details",
+      "type": "event",
+      "brief": "An event that adds global attributes for reuse.\n",
+      "attributes": [],
+      "name": "browser.test.event_with_body_details",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+      },
+      "body": {
+        "id": "browser.test.event_with_body_details.fields",
+        "type": "map",
+        "brief": "A map of fields that are not referenced in the attributes",
+        "note": "This map is not referenced in the attributes",
+        "stability": "experimental",
+        "examples": [
+          "{ \"some.field\": \"some value\" }"
+        ],
+        "requirement_level": "required",
+        "fields": [
+          {
+            "id": "some.field",
+            "type": "string",
+            "brief": "A field that is not referenced in the attributes",
+            "examples": [
+              "some value",
+              "another value"
+            ],
+            "requirement_level": "optional",
+            "note": "This field is not referenced in the attributes"
+          }
+        ]
       }
     },
     {
@@ -315,14 +359,14 @@
     {
       "id": "registry.client",
       "type": "attribute_group",
-      "brief": "These attributes may be used to describe the client in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
+      "brief": "Client test attributes",
       "prefix": "client",
       "attributes": [
         9,
         10
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-client.yaml"
+        "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
       }
     },
     {
@@ -337,147 +381,7 @@
         14
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-exception.yaml"
-      }
-    },
-    {
-      "id": "registry.gen_ai",
-      "type": "attribute_group",
-      "brief": "This document defines the attributes used to describe telemetry in the context of Generative Artificial Intelligence (GenAI) Models requests and responses.\n",
-      "prefix": "gen_ai",
-      "attributes": [
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-gen_ai.yaml"
-      }
-    },
-    {
-      "id": "registry.network",
-      "type": "attribute_group",
-      "brief": "These attributes may be used for any network related operation.\n",
-      "prefix": "network",
-      "attributes": [
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-        39,
-        40,
-        41,
-        42,
-        43,
-        44,
-        45,
-        46,
-        47
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-network.yaml"
-      }
-    },
-    {
-      "id": "registry.rpc",
-      "type": "attribute_group",
-      "brief": "This document defines attributes for remote procedure calls.",
-      "prefix": "rpc",
-      "attributes": [
-        48,
-        49,
-        50,
-        51,
-        52,
-        53,
-        54,
-        55,
-        56,
-        57,
-        58,
-        59,
-        60,
-        61,
-        62,
-        63,
-        64
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-rpc.yaml"
-      }
-    },
-    {
-      "id": "registry.server",
-      "type": "attribute_group",
-      "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
-      "prefix": "server",
-      "attributes": [
-        65,
-        66
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-server.yaml"
-      }
-    },
-    {
-      "id": "some.string.body.event",
-      "type": "event",
-      "brief": "This event represents an occurrence of a something.\n",
-      "note": "This event transmits the body as a JSON encoded string.\n",
-      "stability": "experimental",
-      "attributes": [],
-      "name": "string.body.event",
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/stringbody-event.yaml"
-      },
-      "body": {
-        "name": "some.string.body.event.fields",
-        "type": "string",
-        "brief": "This is the body of the event which is a JSON encoded string.\n",
-        "examples": [
-          "{\"key1\":\"value1\",\"key2\":\"value2\"}"
-        ],
-        "requirement_level": "required"
-      }
-    },
-    {
-      "id": "some.string.body.detailed.event",
-      "type": "event",
-      "brief": "This event represents an occurrence of a something.\n",
-      "note": "This event transmits the body as a JSON encoded string.\n",
-      "stability": "experimental",
-      "attributes": [],
-      "name": "string.body.event",
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/stringbody-event.yaml"
-      },
-      "body": {
-        "name": "some.string.body.event.fields",
-        "type": "string",
-        "brief": "This is the body of the event which is a JSON encoded string.\n",
-        "note": "This is a detailed note about the body.\n",
-        "stability": "experimental",
-        "examples": [
-          "{\"key1\":\"value1\",\"key2\":\"value2\"}"
-        ],
-        "requirement_level": "required"
+        "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
       }
     },
     {
@@ -488,11 +392,11 @@
       "attributes": [
         13,
         14,
-        67,
-        68
+        15,
+        16
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-exception.yaml",
+        "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
         "attributes": {
           "exception.escaped": {
             "source_group": "registry.exception",
@@ -546,238 +450,27 @@
       "brief": "This semantic convention defines the attributes used to represent a feature flag evaluation as an event.\n",
       "prefix": "feature_flag",
       "attributes": [
-        69,
-        70,
-        71
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-feature-flag.yaml"
-      }
-    },
-    {
-      "id": "trace.gen_ai.client",
-      "type": "span",
-      "brief": "Describes GenAI operation span.\n",
-      "attributes": [
         17,
         18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        26,
-        27,
-        28,
-        72,
-        73,
-        74,
-        75
-      ],
-      "events": [
-        "gen_ai.content.prompt",
-        "gen_ai.content.completion"
+        19
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-gen-ai.yaml",
-        "attributes": {
-          "gen_ai.operation.name": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.frequency_penalty": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.max_tokens": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.model": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.presence_penalty": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.stop_sequences": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.temperature": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.top_k": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.request.top_p": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability",
-              "tag"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.response.finish_reasons": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.response.id": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.response.model": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level"
-            ]
-          },
-          "gen_ai.system": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.usage.input_tokens": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "gen_ai.usage.output_tokens": {
-            "source_group": "registry.gen_ai",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
+        "source_file": "data/registry-test-4-events/registry/trace-events.yaml"
       }
     },
     {
-      "id": "gen_ai.content.prompt",
+      "id": "test_evt.with_attr",
       "type": "event",
-      "brief": "In the lifetime of an GenAI span, events for prompts sent and completions received may be created, depending on the configuration of the instrumentation.\n",
+      "brief": "Simple example span event with an attribute\n",
       "attributes": [
-        76
+        20
       ],
-      "name": "gen_ai.content.prompt",
+      "name": "test_evt.with_attr",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-gen-ai.yaml",
+        "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
         "attributes": {
-          "gen_ai.prompt": {
-            "source_group": "registry.gen_ai",
+          "test_attr.event.attr": {
+            "source_group": "referenced.attributes",
             "inherited_fields": [
               "brief",
               "examples",
@@ -792,18 +485,18 @@
       }
     },
     {
-      "id": "gen_ai.content.completion",
+      "id": "test_evt.session",
       "type": "event",
-      "brief": "In the lifetime of an GenAI span, events for prompts sent and completions received may be created, depending on the configuration of the instrumentation.\n",
+      "brief": "Another simple span event with another attribute\n",
       "attributes": [
-        77
+        21
       ],
-      "name": "gen_ai.content.completion",
+      "name": "test_evt.session",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-gen-ai.yaml",
+        "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
         "attributes": {
-          "gen_ai.completion": {
-            "source_group": "registry.gen_ai",
+          "test_attr.session.id": {
+            "source_group": "referenced.attributes",
             "inherited_fields": [
               "brief",
               "examples",
@@ -816,902 +509,6 @@
           }
         }
       }
-    },
-    {
-      "id": "rpc",
-      "type": "span",
-      "brief": "This document defines semantic conventions for remote procedure calls.",
-      "prefix": "rpc",
-      "attributes": [
-        45,
-        46,
-        58,
-        59,
-        78,
-        79,
-        80
-      ],
-      "events": [
-        "rpc.message"
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "network.transport": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.type": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.method": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.service": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.system": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "server.address": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "rpc.client",
-      "type": "span",
-      "brief": "This document defines semantic conventions for remote procedure call client spans.",
-      "attributes": [
-        41,
-        45,
-        46,
-        58,
-        59,
-        78,
-        79,
-        80,
-        81
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "network.peer.address": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.peer.port": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.transport": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.type": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.method": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.service": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.system": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "server.address": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "rpc.server",
-      "type": "span",
-      "brief": "Semantic Convention for RPC server spans",
-      "attributes": [
-        9,
-        10,
-        41,
-        45,
-        46,
-        58,
-        59,
-        78,
-        79,
-        80,
-        81
-      ],
-      "span_kind": "server",
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "client.address": {
-            "source_group": "registry.client",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "client.port": {
-            "source_group": "registry.client",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.peer.address": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.peer.port": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.transport": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.type": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.method": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.service": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.system": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "server.address": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "rpc.grpc",
-      "type": "span",
-      "brief": "Tech-specific attributes for gRPC.",
-      "attributes": [
-        45,
-        46,
-        58,
-        59,
-        78,
-        79,
-        80,
-        82,
-        83,
-        84
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "network.transport": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.type": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.grpc.request.metadata": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.grpc.response.metadata": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.grpc.status_code": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.method": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.service": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.system": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "server.address": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "rpc.jsonrpc",
-      "type": "span",
-      "brief": "Tech-specific attributes for [JSON RPC](https://www.jsonrpc.org/).",
-      "prefix": "rpc.jsonrpc",
-      "attributes": [
-        45,
-        46,
-        59,
-        78,
-        79,
-        80,
-        85,
-        86,
-        87,
-        88,
-        89
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "network.transport": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.type": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.jsonrpc.error_code": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.jsonrpc.error_message": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.jsonrpc.request_id": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.jsonrpc.version": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.method": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "note",
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.service": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.system": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "server.address": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "rpc.message",
-      "type": "event",
-      "brief": "RPC received/sent message.",
-      "prefix": "rpc.message",
-      "attributes": [
-        61,
-        62,
-        63,
-        64
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "rpc.message.compressed_size": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.message.id": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.message.type": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.message.uncompressed_size": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "rpc.connect_rpc",
-      "type": "span",
-      "brief": "Tech-specific attributes for Connect RPC.",
-      "attributes": [
-        45,
-        46,
-        58,
-        59,
-        78,
-        79,
-        80,
-        90,
-        91,
-        92
-      ],
-      "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-rpc.yaml",
-        "attributes": {
-          "network.transport": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "network.type": {
-            "source_group": "registry.network",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.connect_rpc.error_code": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.connect_rpc.request.metadata": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.connect_rpc.response.metadata": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level",
-              "tag"
-            ]
-          },
-          "rpc.method": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.service": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "rpc.system": {
-            "source_group": "registry.rpc",
-            "inherited_fields": [
-              "brief",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          },
-          "server.address": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "examples",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "brief",
-              "note",
-              "requirement_level"
-            ]
-          },
-          "server.port": {
-            "source_group": "registry.server",
-            "inherited_fields": [
-              "brief",
-              "examples",
-              "note",
-              "stability"
-            ],
-            "locally_overridden_fields": [
-              "requirement_level"
-            ]
-          }
-        }
-      }
-    }
+   }
   ]
 }

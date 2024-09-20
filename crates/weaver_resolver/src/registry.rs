@@ -14,7 +14,6 @@ use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::GroupSpecWithProvenance;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::any_value::resolve_any_value_spec;
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
 use crate::{Error, UnsatisfiedAnyOfConstraint};
@@ -331,7 +330,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             name: group.spec.name,
             lineage: Some(GroupLineage::new(&group.provenance)),
             display_name: group.spec.display_name,
-            body: group.spec.body.map(|body| resolve_any_value_spec(&body)),
+            body: group.spec.body,
         },
         attributes: attrs,
         provenance: group.provenance,
