@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Next] - YYYY-MM-DD
+## [0.10.0] - 2024-09-23
 
 What's changed
 

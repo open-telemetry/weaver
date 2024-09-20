@@ -17,8 +17,8 @@ pub struct MarkdownRenderOptions {
     #[serde(default)]
     pub(crate) escape_backslashes: bool,
     /// Whether to escape square brackets in the Markdown text. Valid links are not affected.
-    /// Default is true.
-    #[serde(default = "default_bool::<true>")]
+    /// Default is false.
+    #[serde(default)]
     pub(crate) escape_square_brackets: bool,
     /// Whether to indent the first level of list items in the markdown.
     /// Default is false.
