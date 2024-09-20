@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use weaver_version::Versions;
 
-pub mod any_value;
 pub mod attribute;
 pub mod catalog;
 mod error;

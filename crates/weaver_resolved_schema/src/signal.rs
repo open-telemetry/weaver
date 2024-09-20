@@ -63,6 +63,9 @@ pub struct Event {
     /// A set of tags for the event.
     #[serde(skip_serializing_if = "Option::is_none")]
     tags: Option<Tags>,
+    // /// The body of the event, not used for Span events.
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // body: Option<AnyValueSpec>,
 }
 
 /// A span signal.

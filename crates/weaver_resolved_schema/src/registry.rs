@@ -129,7 +129,7 @@ pub struct Group {
     // /// The body of the event.
     // /// This fields is only used for event groups.
     // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub body: Option<AnyValue>,
+    // pub body: Option<AnyValueSpec>,
 }
 
 /// Common statistics for a group.

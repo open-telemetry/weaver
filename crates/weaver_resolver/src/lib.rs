@@ -25,7 +25,6 @@ use weaver_semconv::semconv::SemConvSpec;
 use crate::attribute::AttributeCatalog;
 use crate::registry::resolve_semconv_registry;
 
-pub mod any_value;
 pub mod attribute;
 mod constraint;
 pub mod registry;

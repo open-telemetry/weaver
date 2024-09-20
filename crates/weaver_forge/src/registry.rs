@@ -104,6 +104,9 @@ pub struct ResolvedGroup {
     /// The readable name for attribute groups used when generating registry tables.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    // /// The body specification used for event semantic conventions.
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub body: Option<AnyValueSpec>,
 }
 
 impl ResolvedGroup {
@@ -134,6 +137,7 @@ impl ResolvedGroup {
             })
             .collect();
         let lineage = group.lineage.clone();
+
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
         }
