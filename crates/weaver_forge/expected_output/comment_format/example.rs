@@ -96,7 +96,7 @@
   /// > Lorem ipsum dolor sit amet, consectetur adipiscing
   /// > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
   /// 
-  /// > \[!NOTE\] Something very important here
+  /// > [!NOTE] Something very important here
   const ATTR: &str = "";
 
 

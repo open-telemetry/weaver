@@ -34,12 +34,6 @@ pub struct MarkdownRenderOptions {
     pub(crate) default_block_code_language: Option<String>,
 }
 
-/// Used to set a default value for a boolean field in a struct.
-#[must_use]
-pub const fn default_bool<const V: bool>() -> bool {
-    V
-}
-
 pub(crate) struct ShortcutReferenceLink {
     pub(crate) label: String,
     pub(crate) url: String,
