@@ -2,9 +2,10 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
-
 use serde::Deserialize;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt::Display;
+use std::hash::Hash;
 
 use weaver_common::error::handle_errors;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
@@ -16,6 +17,7 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
+use crate::Error::DuplicateGroup;
 use crate::{Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
@@ -105,8 +107,32 @@ pub fn resolve_semconv_registry(
     }
 
     // Other complementary checks.
-    check_group_id_uniqueness(&ureg.registry)?;
-    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index)?;
+    let mut errors = vec![];
+    // Check for duplicate group IDs.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| Some(group.id.clone()),
+        "group id",
+    );
+    // Check for duplicate metric names.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| group.metric_name.clone(),
+        "metric name",
+    );
+    // Check for duplicate group names.
+    // ToDo - Re-enable this check once the registry is updated to deduplicate group names.
+    // check_uniqueness(
+    //     &ureg.registry,
+    //     &mut errors,
+    //     |group| group.name.clone(),
+    //     "group name",
+    // );
+    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
+
+    handle_errors(errors)?;
 
     Ok(ureg.registry)
 }
@@ -204,38 +230,36 @@ fn check_group_any_of_constraints(
     Ok(())
 }
 
-/// Checks for duplicate group IDs in the given registry.
-pub fn check_group_id_uniqueness(registry: &Registry) -> Result<(), Error> {
-    // Map to track group IDs and their provenances.
-    // More than one provenance for a group ID indicates a duplicate group ID.
-    // The list of provenances is used to provide more context in the error message.
-    let mut group_ids = HashMap::new();
+/// Generic function to check for duplicate keys in the given registry.
+///
+/// A key can be a group ID, a metric name, an event name, or any other key that is used
+/// to identify a group.
+fn check_uniqueness<K, F>(registry: &Registry, errors: &mut Vec<Error>, key_fn: F, id_type: &str)
+where
+    K: Eq + Display + Hash,
+    F: Fn(&Group) -> Option<K>,
+{
+    let mut keys: HashMap<K, Vec<String>> = HashMap::new();
 
     for group in registry.groups.iter() {
-        let provenances = group_ids
-            .entry(group.id.as_str())
-            .or_insert_with(Vec::new);
-        provenances.push(group.provenance().to_owned());
+        if let Some(key) = key_fn(group) {
+            let provenances = keys.entry(key).or_default();
+            provenances.push(group.provenance().to_owned());
+        }
     }
 
-    let mut errors = vec![];
-    for (group_id, provenances) in group_ids {
+    for (key, provenances) in keys {
         if provenances.len() > 1 {
             // Deduplicate the provenances.
             let provenances: HashSet<String> = provenances.into_iter().collect();
-            // Sort the provenances to make tests easier to write.
-            let mut provenances: Vec<String> = provenances.into_iter().collect();
-            provenances.sort();
-            
-            errors.push(Error::DuplicateGroupId {
-                group_id: group_id.to_owned(),
-                provenances,
+
+            errors.push(DuplicateGroup {
+                id_type: id_type.to_owned(),
+                id: key.to_string(),
+                provenances: provenances.into_iter().collect(),
             });
         }
     }
-    
-    handle_errors(errors)?;
-    Ok(())
 }
 
 /// Checks for duplicate attribute IDs in the given registry.
@@ -250,6 +274,7 @@ pub fn check_group_id_uniqueness(registry: &Registry) -> Result<(), Error> {
 ///
 /// * `registry` - The registry to check for duplicate attribute IDs.
 /// * `attr_name_index` - The index of attribute names (catalog).
+/// * `errors` - The list of errors to append the duplicate attribute ID errors to.
 ///
 /// # Returns
 ///
@@ -258,7 +283,8 @@ pub fn check_group_id_uniqueness(registry: &Registry) -> Result<(), Error> {
 pub fn check_root_attribute_id_duplicates(
     registry: &Registry,
     attr_name_index: &[String],
-) -> Result<(), Error> {
+    errors: &mut Vec<Error>,
+) {
     // Map to track groups by their root attribute ID.
     let mut groups_by_root_attr_id = HashMap::new();
 
@@ -286,7 +312,7 @@ pub fn check_root_attribute_id_duplicates(
         });
 
     // Collect errors for attribute IDs that are found in multiple groups.
-    let errors = groups_by_root_attr_id
+    let local_errors: Vec<_> = groups_by_root_attr_id
         .into_iter()
         .filter(|(_, group_ids)| group_ids.len() > 1)
         .map(|(attr_id, group_ids)| Error::DuplicateAttributeId {
@@ -295,9 +321,7 @@ pub fn check_root_attribute_id_duplicates(
         })
         .collect();
 
-    // Handle any errors that were found.
-    handle_errors(errors)?;
-    Ok(())
+    errors.extend(local_errors);
 }
 
 /// Creates a semantic convention registry from a set of semantic convention
@@ -657,9 +681,9 @@ fn resolve_inheritance_attrs(
         match &attr.spec {
             AttributeSpec::Ref { r#ref, .. } => {
                 if let Some(AttrWithLineage {
-                                spec: parent_attr,
-                                lineage,
-                            }) = inherited_attrs.get_mut(r#ref)
+                    spec: parent_attr,
+                    lineage,
+                }) = inherited_attrs.get_mut(r#ref)
                 {
                     *parent_attr = resolve_inheritance_attr(&attr.spec, parent_attr, lineage);
                 } else {
@@ -849,8 +873,8 @@ mod tests {
                 registry_id,
                 &format!("{}/registry/*.yaml", test_dir),
             )
-                .into_result_failing_non_fatal()
-                .expect("Failed to load semconv specs");
+            .into_result_failing_non_fatal()
+            .expect("Failed to load semconv specs");
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
@@ -868,10 +892,11 @@ mod tests {
                     .expect("Failed to read expected errors file");
                 let observed_errors = serde_json::to_string(&observed_registry).unwrap();
                 assert_eq!(
-                    canonicalize_json_string(&observed_errors).unwrap(), 
+                    canonicalize_json_string(&observed_errors).unwrap(),
                     canonicalize_json_string(&expected_errors).unwrap(),
                     "Observed and expected errors don't match for `{}`.\n{}",
-                    test_dir, weaver_diff::diff_output(&expected_errors, &observed_errors)
+                    test_dir,
+                    weaver_diff::diff_output(&expected_errors, &observed_errors)
                 );
                 continue;
             }
@@ -886,7 +911,7 @@ mod tests {
                 std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
             )
-                .expect("Failed to deserialize expected attribute catalog");
+            .expect("Failed to deserialize expected attribute catalog");
 
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
@@ -903,7 +928,7 @@ mod tests {
                 std::fs::File::open(format!("{}/expected-registry.json", test_dir))
                     .expect("Failed to open expected registry"),
             )
-                .expect("Failed to deserialize expected registry");
+            .expect("Failed to deserialize expected registry");
 
             assert_eq!(
                 observed_registry, expected_registry,
@@ -1065,7 +1090,7 @@ groups:
             registry_id,
             "data/registry-test-7-spans/registry/*.yaml",
         )
-            .into_result_failing_non_fatal()?;
+        .into_result_failing_non_fatal()?;
 
         // Resolve the semantic convention registry.
         let resolved_schema =

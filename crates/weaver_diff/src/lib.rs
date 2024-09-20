@@ -2,12 +2,12 @@
 
 //! This crate provides bare minimum support for colorized string differencing.
 
-use std::cmp::Ordering;
+use serde_json::Value;
 use similar::TextDiff;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use serde_json::Value;
 use walkdir::WalkDir;
 
 const GREEN: &str = "\x1b[32m";
@@ -120,7 +120,7 @@ pub fn diff_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Re
 }
 
 /// Canonicalizes a JSON string by parsing it into a `serde_json::Value` and then canonicalizing it.
-/// 
+///
 /// # Returns
 /// - The canonicalized and prettyfied JSON string.
 pub fn canonicalize_json_string(value: &str) -> Result<String, serde_json::error::Error> {
@@ -187,7 +187,7 @@ fn compare_values(a: &Value, b: &Value) -> Ordering {
         (Value::Number(a_num), Value::Number(b_num)) => a_num
             .as_f64()
             .partial_cmp(&b_num.as_f64())
-            .unwrap_or(Ordering::Equal),    // Handle NaN cases gracefully.
+            .unwrap_or(Ordering::Equal), // Handle NaN cases gracefully.
         // `Number` is less than `String`, `Array`, and `Object`.
         (Value::Number(_), _) => Ordering::Less,
         (_, Value::Number(_)) => Ordering::Greater,
@@ -216,7 +216,7 @@ fn compare_values(a: &Value, b: &Value) -> Ordering {
 ///
 /// # Returns
 /// - An `Ordering` indicating the relative order of `a` and `b`.
-fn compare_arrays(a: &Vec<Value>, b: &Vec<Value>) -> Ordering {
+fn compare_arrays(a: &[Value], b: &[Value]) -> Ordering {
     // Compare lengths first.
     let len_cmp = a.len().cmp(&b.len());
     if len_cmp != Ordering::Equal {
@@ -230,7 +230,7 @@ fn compare_arrays(a: &Vec<Value>, b: &Vec<Value>) -> Ordering {
             return ord;
         }
     }
-    
+
     // All elements are equal.
     Ordering::Equal
 }
@@ -242,7 +242,10 @@ fn compare_arrays(a: &Vec<Value>, b: &Vec<Value>) -> Ordering {
 ///
 /// # Returns
 /// - An `Ordering` indicating the relative order of `a` and `b`.
-fn compare_objects(a: &serde_json::Map<String, Value>, b: &serde_json::Map<String, Value>) -> Ordering {
+fn compare_objects(
+    a: &serde_json::Map<String, Value>,
+    b: &serde_json::Map<String, Value>,
+) -> Ordering {
     // Compare number of key-value pairs.
     let len_cmp = a.len().cmp(&b.len());
     if len_cmp != Ordering::Equal {
@@ -280,8 +283,8 @@ fn compare_objects(a: &serde_json::Map<String, Value>, b: &serde_json::Map<Strin
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_diff_output() {

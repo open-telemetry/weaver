@@ -1,1 +1,35 @@
-{"Err":{"CompoundError":[{"DuplicateGroupId":{"group_id":"metric.messaging.attributes","provenances":["data/registry-test-12-duplicate-group-id/registry/metrics-messaging.yaml","data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"]}},{"DuplicateGroupId":{"group_id":"registry.messaging_bis","provenances":["data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"]}}]}}
+{
+  "Err": {
+    "CompoundError": [
+      {
+        "DuplicateGroup": {
+          "id_type": "group id",
+          "id": "metric.messaging.attributes",
+          "provenances": [
+            "data/registry-test-12-duplicate-group-id/registry/metrics-messaging.yaml",
+            "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroup": {
+          "id_type": "group id",
+          "id": "registry.messaging_bis",
+          "provenances": [
+            "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateAttributeId": {
+          "group_ids": [
+            "registry.messaging_bis",
+            "registry.messaging",
+            "registry.messaging_bis"
+          ],
+          "attribute_id": "messaging.batch.message_count"
+        }
+      }
+    ]
+  }
+}

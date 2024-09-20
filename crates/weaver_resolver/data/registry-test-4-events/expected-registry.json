@@ -52,7 +52,7 @@
       "attributes": [
         0
       ],
-      "name": "device.app.lifecycle",
+      "name": "ios.device.app.lifecycle",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
       }
@@ -65,7 +65,7 @@
       "attributes": [
         1
       ],
-      "name": "device.app.lifecycle",
+      "name": "android.device.app.lifecycle",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
       }

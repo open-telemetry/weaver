@@ -141,7 +141,28 @@ pub enum Error {
         /// The provenances where this group is duplicated.
         provenances: Vec<String>,
     },
-    
+
+    /// A duplicate group id error.
+    #[error("The metric name `{metric_name}` is declared multiple times in the following locations:\n{provenances:?}")]
+    DuplicateMetricName {
+        /// The metric name.
+        metric_name: String,
+        /// The provenances where this metric name is duplicated.
+        provenances: Vec<String>,
+    },
+
+    /// A generic duplicate group error.
+    #[error("The {id_type} `{id}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
+    DuplicateGroup {
+        /// The id type.
+        id_type: String,
+        /// The duplicated id.
+        id: String,
+        /// The provenances where this metric name is duplicated.
+        provenances: Vec<String>,
+    },
+
     /// A duplicate attribute id error.
     #[error("The attribute id `{attribute_id}` is declared multiple times in the following groups:\n{group_ids:?}")]
     DuplicateAttributeId {
