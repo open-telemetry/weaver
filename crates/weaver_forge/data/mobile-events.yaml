@@ -1,21 +1,29 @@
 groups:
-  - id: ios.lifecycle.events
+  - id: device.app.lifecycle
+    stability: experimental
     type: event
-    prefix: ios
     name: device.app.lifecycle
     brief: >
-      This event represents an occurrence of a lifecycle transition on the iOS platform.
-    attributes:
-      - id: state
-        stability: experimental
-        requirement_level: "required"
-        note: >
-          The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902),
-          and from which the `OS terminology` column values are derived.
-        brief: >
-          This attribute represents the state the application has transitioned into at the occurrence of the event.
-        type:
-          allow_custom_values: false
+      This event represents an occurrence of a lifecycle transition on Android or iOS platform.
+    note: >
+      This event identifies the fields that are common to all lifecycle events for android and iOS using
+      the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are
+      mutually exclusive.
+    body:
+      type: map
+      id: device.app.lifecycle.fields
+      requirement_level: required
+      fields:
+        - id: ios.state
+          stability: experimental
+          requirement_level:
+            conditionally_required: if and only if `os.name` is `ios`
+          note: >
+            The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902),
+            and from which the `OS terminology` column values are derived.
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          type: enum
           members:
             - id: active
               value: 'active'
@@ -39,23 +47,16 @@ groups:
               value: 'terminate'
               brief: >
                 The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
-  - id: android.lifecycle.events
-    type: event
-    prefix: android
-    name: device.app.lifecycle
-    brief: >
-      This event represents an occurrence of a lifecycle transition on the Android platform.
-    attributes:
-      - id: state
-        stability: experimental
-        requirement_level: required
-        brief: >
-          This attribute represents the state the application has transitioned into at the occurrence of the event.
-        note: >
-          The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc),
-          and from which the `OS identifiers` are derived.
-        type:
-          allow_custom_values: false
+        - id: android.state
+          stability: experimental
+          requirement_level:
+            conditionally_required: if and only if `os.name` is `android`
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          note: >
+            The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc),
+            and from which the `OS identifiers` are derived.
+          type: enum
           members:
             - id: created
               value: 'created'

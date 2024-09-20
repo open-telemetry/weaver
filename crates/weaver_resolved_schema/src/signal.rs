@@ -4,6 +4,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_semconv::any_value::AnyValueSpec;
 
 use crate::attribute::AttributeRef;
 use crate::metric::MetricRef;
@@ -44,17 +45,15 @@ pub struct MultivariateMetric {
     tags: Option<Tags>,
 }
 
-/// An event signal.
+/// An event specification, used for both Span and Log events.
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Event {
-    /// The name of the event.
+    /// The name of the event
     name: String,
     /// References to attributes defined in the catalog.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     attributes: Vec<AttributeRef>,
-    /// The domain of the event.
-    domain: String,
     /// Brief description of the event.
     brief: Option<String>,
     /// Longer description.
@@ -63,6 +62,9 @@ pub struct Event {
     /// A set of tags for the event.
     #[serde(skip_serializing_if = "Option::is_none")]
     tags: Option<Tags>,
+    /// The body of the event, not used for Span events.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body: Option<AnyValueSpec>,
 }
 
 /// A span signal.
@@ -79,7 +81,7 @@ pub struct Span {
     kind: Option<SpanKind>,
     /// The events of the span.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    events: Vec<SpanEvent>,
+    events: Vec<Event>,
     /// The links of the span.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     links: Vec<SpanLink>,
@@ -106,25 +108,6 @@ pub enum SpanKind {
     Producer,
     /// A consumer span.
     Consumer,
-}
-
-/// A span event specification.
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct SpanEvent {
-    /// The name of the span event.
-    pub event_name: String,
-    /// The attributes of the span event.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeRef>,
-    /// Brief description of the span event.
-    pub brief: Option<String>,
-    /// Longer description.
-    /// It defaults to an empty string.
-    pub note: Option<String>,
-    /// A set of tags for the span event.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Tags>,
 }
 
 /// A span link specification.

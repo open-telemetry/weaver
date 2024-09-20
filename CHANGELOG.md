@@ -6,10 +6,11 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* Add `escape_square_brackets` into `comment_formats` markdown configuration. ([#379](https://github.com/open-telemetry/weaver/pull/379) by lquerel).
-* Add `enforce_trailing_dots` into the `comment_formats` configuration. ([#378](https://github.com/open-telemetry/weaver/pull/378) by lquerel).
-* Add support for `indent_type` in both the comment filter and the `comment_formats` configuration. ([#377](https://github.com/open-telemetry/weaver/pull/377) by lquerel).
-* Add `regex_replace` filter to support replacing text using regex. ([#380](https://github.com/open-telemetry/weaver/pull/380) by lquerel).
+* Add support log based `event` definitions with a `body` of new `AnyValue` type. ([#297](https://github.com/open-telemetry/weaver/pull/297) by @MSNev).
+* Add `escape_square_brackets` into `comment_formats` markdown configuration. ([#379](https://github.com/open-telemetry/weaver/pull/379) by @lquerel).
+* Add `enforce_trailing_dots` into the `comment_formats` configuration. ([#378](https://github.com/open-telemetry/weaver/pull/378) by @lquerel).
+* Add support for `indent_type` in both the comment filter and the `comment_formats` configuration. ([#377](https://github.com/open-telemetry/weaver/pull/377) by @lquerel).
+* Add `regex_replace` filter to support replacing text using regex. ([#380](https://github.com/open-telemetry/weaver/pull/380) by @lquerel).
 * Bump opentelemetry_sdk from 0.24.1 to 0.25.0 (#369)
 * Bump opentelemetry-stdout from 0.5.0 to 0.25.0 (#368)
 * Bump anyhow from 1.0.88 to 1.0.89 (#370)
