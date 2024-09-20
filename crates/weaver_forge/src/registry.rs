@@ -11,6 +11,7 @@ use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
+use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
@@ -104,6 +105,9 @@ pub struct ResolvedGroup {
     /// The readable name for attribute groups used when generating registry tables.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
+    /// The body specification used for event semantic conventions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<AnyValueSpec>,
 }
 
 impl ResolvedGroup {
@@ -134,6 +138,7 @@ impl ResolvedGroup {
             })
             .collect();
         let lineage = group.lineage.clone();
+
         if !errors.is_empty() {
             return Err(Error::CompoundError(errors));
         }
@@ -156,6 +161,7 @@ impl ResolvedGroup {
             name: group.name.clone(),
             lineage,
             display_name: group.display_name.clone(),
+            body: group.body.clone(),
         })
     }
 }
@@ -196,6 +202,7 @@ impl ResolvedRegistry {
                     })
                     .collect();
                 let lineage = group.lineage.clone();
+
                 ResolvedGroup {
                     id,
                     r#type: group_type,
@@ -215,6 +222,7 @@ impl ResolvedRegistry {
                     name: group.name.clone(),
                     lineage,
                     display_name: group.display_name.clone(),
+                    body: group.body.clone(),
                 }
             })
             .collect();

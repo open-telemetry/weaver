@@ -2,11 +2,13 @@
 
 //! Error types and utilities.
 
+use serde::{Deserialize, Serialize};
+
 use crate::attribute::AttributeRef;
 use crate::error::Error::{AttributeNotFound, CompoundError};
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
 pub enum Error {
     /// Attribute reference not found in the catalog.
     #[error("Attribute reference {attr_ref} (group: {group_id}) not found in the catalog")]
@@ -35,6 +37,7 @@ pub fn handle_errors(errors: Vec<Error>) -> Result<(), Error> {
 impl Error {
     /// Creates a compound error from a list of errors.
     /// Note: All compound errors are flattened.
+    #[must_use]
     pub fn compound_error(errors: Vec<Self>) -> Self {
         CompoundError(
             errors

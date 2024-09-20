@@ -8,6 +8,7 @@ use serde::Serialize;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
+pub mod any_value;
 pub mod attribute;
 pub mod group;
 pub mod metric;
@@ -128,6 +129,20 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates that a semantic convention asset contains an invalid example.
+    #[error("The value `{value_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Error))]
+    InvalidAnyValueExampleError {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the any_value
+        value_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -178,6 +193,7 @@ mod tests {
             "data/cloudevents.yaml",
             "data/database.yaml",
             "data/database-metrics.yaml",
+            "data/event.yaml",
             "data/exception.yaml",
             "data/faas.yaml",
             "data/faas-common.yaml",
