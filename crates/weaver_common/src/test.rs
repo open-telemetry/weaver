@@ -45,9 +45,9 @@ impl ServeStaticFiles {
             ("zip", "application/zip"),
             ("gz", "application/gzip"),
         ]
-            .iter()
-            .cloned()
-            .collect();
+        .iter()
+        .cloned()
+        .collect();
 
         let static_path = static_path.into();
         let server = Arc::new(server);
