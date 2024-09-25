@@ -24,7 +24,7 @@ gix = { version = "0.66.0", default-features = false, features = [
     "blocking-http-transport-reqwest-rust-tls",
 ] }
 flate2 = "1.0.33"
-tar = "0.4.41"
+tar = "0.4.42"
 zip = "2.2.0"
 
 thiserror.workspace = true
