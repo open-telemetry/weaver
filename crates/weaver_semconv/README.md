@@ -12,7 +12,7 @@ documentation.
 
 For a formal definition of the allowed syntax, see the [build-tools JSON schema](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/semconv.schema.json).
 
-# Design Principles
+## Design Principles
 
 - Collect as many warnings and errors as possible. Do not stop at the first error; this approach helps the user fix
   multiple issues at once.
