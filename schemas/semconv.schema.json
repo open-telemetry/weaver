@@ -231,7 +231,23 @@
 							]
 						},
 						{
-							"const": "opt_in"
+							"oneOf": [
+								{
+									"const": "opt_in"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"required": [
+										"opt_in"
+									],
+									"properties": {
+										"opt_in": {
+											"type": "string"
+										}
+									}
+								}
+							]
 						}
 					]
 				},
@@ -428,7 +444,7 @@
 				},
 				"type": {
 					"$ref": "#/$defs/AttributeType"
-				}					
+				}
 			}
 		},
 		"AttributeReference": {

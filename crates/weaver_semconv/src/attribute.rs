@@ -579,6 +579,12 @@ pub enum RequirementLevel {
         #[serde(rename = "recommended")]
         text: String,
     },
+    /// An opt in requirement level.
+    OptIn {
+        /// The description of the recommendation.
+        #[serde(rename = "opt_in")]
+        text: String,
+    },
 }
 
 /// Implements a human readable display for RequirementLevel.
@@ -590,6 +596,7 @@ impl Display for RequirementLevel {
                 write!(f, "conditionally required (condition: {})", text)
             }
             RequirementLevel::Recommended { text } => write!(f, "recommended ({})", text),
+            RequirementLevel::OptIn { text } => write!(f, "opt in ({})", text),
         }
     }
 }
@@ -693,6 +700,15 @@ mod tests {
                 }
             ),
             "recommended (recommendation)"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::OptIn {
+                    text: "recommendation".to_owned()
+                }
+            ),
+            "opt in (recommendation)"
         );
     }
 
