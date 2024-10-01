@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2024-09-23
+
+What's changed
+
+* Add support log based `event` definitions with a `body` of new `AnyValue` type. ([#297](https://github.com/open-telemetry/weaver/pull/297) by @MSNev).
+* Add `escape_square_brackets` into `comment_formats` markdown configuration. ([#379](https://github.com/open-telemetry/weaver/pull/379) by @lquerel).
+* Add `enforce_trailing_dots` into the `comment_formats` configuration. ([#378](https://github.com/open-telemetry/weaver/pull/378) by @lquerel).
+* Add support for `indent_type` in both the comment filter and the `comment_formats` configuration. ([#377](https://github.com/open-telemetry/weaver/pull/377) by @lquerel).
+* Add `regex_replace` filter to support replacing text using regex. ([#380](https://github.com/open-telemetry/weaver/pull/380) by @lquerel).
+* Bump opentelemetry_sdk from 0.24.1 to 0.25.0 (#369)
+* Bump opentelemetry-stdout from 0.5.0 to 0.25.0 (#368)
+* Bump anyhow from 1.0.88 to 1.0.89 (#370)
+* Bump regorus from 0.2.4 to 0.2.5 (#375)
+* Bump minijinja-contrib from 2.2.0 to 2.3.1 (#376)
+* Bump minijinja from 2.2.0 to 2.3.1 (#371)
+* Bump globset from 0.4.14 to 0.4.15 (#366)
+
+## [0.9.2] - 2024-09-09
+
+What's Changed
+
+* Build X86 + ARM64 image ([#346](https://github.com/open-telemetry/weaver/pull/346) by jsuereth). The parameter
+  `--platform=linux/x86_64` is no longer needed to run this image on MacOS.
+* Update docker guide for home directory ([#356](https://github.com/open-telemetry/weaver/pull/356) by jsuereth).
+* Fix clippy issues. ([#357](https://github.com/open-telemetry/weaver/pull/357) by jsuereth).
+* Bump alpine from 3.20.2 to 3.20.3 (#360)
+* Bump anyhow from 1.0.86 to 1.0.87 (#359)
+* Bump serde from 1.0.209 to 1.0.210 (#358)
+* Bump serde_json from 1.0.127 to 1.0.128 (#354)
+* Bump clap from 4.5.16 to 4.5.17 (#351)
+* Bump regorus from 0.2.3 to 0.2.4 (#350)
+* Bump indexmap from 2.4.0 to 2.5.0 (#349)
+* Bump minijinja-contrib from 2.1.2 to 2.2.0 (#347)
+* Bump ratatui from 0.28.0 to 0.28.1 (#341)
+* Bump flate2 from 1.0.32 to 1.0.33 (#342)
+* Bump minijinja from 2.1.2 to 2.2.0 (#343)
+* Bump serde from 1.0.208 to 1.0.209 (#344)
+* Bump serde_json from 1.0.125 to 1.0.127 (#340)
+
 ## [0.9.1] - 2024-08-22
 
 Fixes

@@ -330,6 +330,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             name: group.spec.name,
             lineage: Some(GroupLineage::new(&group.provenance)),
             display_name: group.spec.display_name,
+            body: group.spec.body,
         },
         attributes: attrs,
         provenance: group.provenance,

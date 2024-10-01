@@ -1,6 +1,6 @@
 [package]
 name = "weaver"
-version = "0.9.1"
+version = "0.10.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -39,16 +39,16 @@ rust-version = "1.76"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.128"}
-thiserror = "1.0.63"
+thiserror = "1.0.64"
 url = "2.5.2"
 ureq = "2.10.0"
 regex = "1.10.6"
 rayon = "1.10.0"
-ordered-float = { version = "4.2.0", features = ["serde", "schemars"] }
+ordered-float = { version = "4.3.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
-anyhow = "1.0.87"
+anyhow = "1.0.89"
 itertools = "0.13.0"
-globset = { version = "0.4.14", features = ["serde1"] }
+globset = { version = "0.4.15", features = ["serde1"] }
 miette = { version = "7.2.0", features = ["fancy", "serde"] }
 include_dir = "0.7.4"
 tempdir = "0.3.7"
@@ -78,7 +78,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.17", features = ["derive"] }
+clap = { version = "4.5.18", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.28.1", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }

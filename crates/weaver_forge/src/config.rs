@@ -22,6 +22,7 @@
 #![allow(rustdoc::invalid_html_tags)]
 
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -308,6 +309,9 @@ pub struct CommentFormat {
     pub(crate) prefix: Option<String>,
     /// A comment footer (e.g. in Java ` */`).
     pub(crate) footer: Option<String>,
+    /// The type of indentation to use for the comment (space by default).
+    #[serde(default)]
+    pub(crate) indent_type: IndentType,
 
     /// Flag to trim the comment content.
     #[serde(default = "default_bool::<true>")]
@@ -315,6 +319,28 @@ pub struct CommentFormat {
     /// Flag to remove trailing dots from the comment content.
     #[serde(default = "default_bool::<false>")]
     pub remove_trailing_dots: bool,
+    /// Flag to enforce trailing dots on the comment content.
+    #[serde(default = "default_bool::<false>")]
+    pub enforce_trailing_dots: bool,
+}
+
+/// The type of indentation to use for the comment.
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+pub enum IndentType {
+    /// Use spaces for indentation.
+    #[default]
+    Space,
+    /// Use tabs for indentation.
+    Tab,
+}
+
+impl Display for IndentType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndentType::Space => write!(f, "space"),
+            IndentType::Tab => write!(f, "tab"),
+        }
+    }
 }
 
 impl Default for CaseConvention {

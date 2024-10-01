@@ -23,12 +23,21 @@ pub struct AttributeCatalog {
 }
 
 #[derive(Debug, PartialEq)]
-struct AttributeWithGroupId {
+/// The Attribute with its group ID.
+pub struct AttributeWithGroupId {
+    /// The attribute.
     pub attribute: attribute::Attribute,
+    /// The group ID.
     pub group_id: String,
 }
 
 impl AttributeCatalog {
+    /// Returns the given attribute from the catalog.
+    #[must_use]
+    pub fn get_attribute(&self, name: &str) -> Option<&AttributeWithGroupId> {
+        self.root_attributes.get(name)
+    }
+
     /// Returns the reference of the given attribute or creates a new reference if the attribute
     /// does not exist in the catalog.
     pub fn attribute_ref(&mut self, attr: attribute::Attribute) -> AttributeRef {

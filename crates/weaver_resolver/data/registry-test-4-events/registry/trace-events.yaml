@@ -1,4 +1,20 @@
 groups:
+  - id: trace-exception
+    prefix: exception
+    type: event
+    brief: >
+      This document defines the attributes used to
+      report a single exception associated with a span.
+    attributes:
+      - ref: exception.type
+        requirement_level:
+          conditionally_required: Required if `exception.message` is not set, recommended otherwise.
+      - ref: exception.message
+        requirement_level:
+          conditionally_required: Required if `exception.type` is not set, recommended otherwise.
+      - ref: exception.stacktrace
+      - ref: exception.escaped
+
   - id: feature_flag
     prefix: feature_flag
     type: event
@@ -32,3 +48,27 @@ groups:
           A stringified version of the value can be used in situations where a
           semantic identifier is unavailable. String representation of the value
           should be determined by the implementer.
+
+  - id: test_evt.with_attr
+    name: test_evt.with_attr
+    type: event
+    brief: >
+      Simple example span event with an attribute
+    attributes:
+      - ref: test_attr.event.attr
+        requirement_level:
+          conditionally_required: if and only if corresponding event is enabled
+        note: >
+          test attribute
+
+  - id: test_evt.session
+    name: test_evt.session
+    type: event
+    brief: >
+      Another simple span event with another attribute
+    attributes:
+      - ref: test_attr.session.id
+        requirement_level:
+          conditionally_required: if and only if corresponding event is enabled
+        note: >
+          Another test attribute

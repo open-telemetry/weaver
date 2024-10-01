@@ -1,6 +1,6 @@
 [package]
 name = "weaver_semconv"
-version = "0.9.1"
+version = "0.10.0"
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -10,6 +10,9 @@ rust-version.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [dependencies]
 weaver_common = { path = "../weaver_common" }

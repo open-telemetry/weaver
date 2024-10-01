@@ -17,7 +17,7 @@ COPY defaults /build/defaults
 RUN cargo build --release
 
 # The runtime image
-FROM alpine:3.20.2
+FROM alpine:3.20.3
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \

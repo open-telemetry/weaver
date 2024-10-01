@@ -327,7 +327,7 @@ impl<'source> HtmlRenderer<'source> {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{CommentFormat, RenderFormat, WeaverConfig};
+    use crate::config::{CommentFormat, IndentType, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::html::{HtmlRenderOptions, HtmlRenderer};
 
@@ -341,6 +341,7 @@ mod tests {
                         header: Some("/**".to_owned()),
                         prefix: Some(" * ".to_owned()),
                         footer: Some(" */".to_owned()),
+                        indent_type: IndentType::Space,
                         format: RenderFormat::Html(HtmlRenderOptions {
                             old_style_paragraph: true,
                             omit_closing_li: true,
@@ -349,6 +350,7 @@ mod tests {
                         }),
                         trim: true,
                         remove_trailing_dots: true,
+                        enforce_trailing_dots: false,
                     },
                 )]
                 .into_iter()

@@ -486,6 +486,9 @@ The following filters are available:
 - `acronym`: Replaces acronyms in the input string with the full name defined in the `acronyms` section of the
   `weaver.yaml` configuration file.
 - `split_id`: Splits a string by '.' creating a list of nested ids.
+- `regex_replace`: Replace all occurrences of a regex pattern (1st parameter) in the input string with the replacement
+  string (2nd parameter). Under the hood, this filter uses the `regex` crate (see
+  [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details) 
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix. This filter is deprecated, please use the more general `comment` filter.
 - `comment`: A generic comment formatter that uses the `comment_formats` section of the `weaver.yaml` configuration file (more details [here](#comment-filter)).
 - `flatten`: Converts a List of Lists into a single list with all elements.  
@@ -574,11 +577,14 @@ comment_formats:           # optional
     header: <string>                  # The comment header line (e.g., `/**`)
     prefix: <string>                  # The comment line prefix (e.g., ` * `)
     footer: <string>                  # The comment line footer (e.g., ` */`)
+    indent_type: space | tab          # The type of indentation (default: space)
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
+    enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
 
     # Fields specific to 'markdown' format
     escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).
+    escape_square_brackets: <bool>        # Whether to escape square brackets in markdown (default: false).
     shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").
@@ -838,6 +844,7 @@ The `comment` filter accepts the following optional parameters:
 - **`prefix`**: A custom prefix for each comment line.
 - **`footer`**: A custom footer for the comment block.
 - **`indent`**: Number of spaces to add before each comment line for indentation purposes.
+- **`indent_type`**: The type of indentation to use. Supported values are `space` (default) and `tab`.
 
 > Please open an issue if you have any suggestions for new formats or features.
 

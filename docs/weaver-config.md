@@ -47,11 +47,14 @@ comment_formats:           # optional
     header: <string>                  # The comment header line (e.g., `/**`)
     prefix: <string>                  # The comment line prefix (e.g., ` * `)
     footer: <string>                  # The comment line footer (e.g., ` */`)
+    indent_type: space|tab            # The type of indentation (default: space)
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
+    enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
 
     # The following fields are enabled only when format is set to 'markdown'
     escape_backslashes: <bool>            # Whether to escape backslashes in the markdown (default: false).
+    escape_square_brackets: <bool>        # Whether to escape square brackets in markdown (default: false).
     shortcut_reference_links: <bool>      # Use this to convert inlined links into shortcut reference links, similar to those in Go documentation (default: false).
     indent_first_level_list_items: <bool> # Whether to indent the first level of list items in the markdown (default: false).
     default_block_code_language: <string> # The default language for block code snippets (default: "").
@@ -91,6 +94,8 @@ templates:
     file_name: <relative_file_path>  # optional
   - ...
 ```
+
+Note: Both `remove_trailing_dots` and `enforce_trailing_dots` cannot be set to `true` at the same time.
 
 Below a concrete example of a `weaver.yaml` file that could be used to generate Java code
 from a semconv specification (incomplete):

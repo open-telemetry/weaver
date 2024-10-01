@@ -4,6 +4,7 @@
 
 //! Attribute specification.
 
+use crate::any_value::AnyValueSpec;
 use crate::stability::Stability;
 use crate::Error;
 use ordered_float::OrderedFloat;
@@ -490,6 +491,73 @@ impl Examples {
             ),
         }
     }
+
+    /// Validation logic for the any_value.
+    pub(crate) fn validate_any_value(
+        &self,
+        any_value: &AnyValueSpec,
+        group_id: &str,
+        path_or_url: &str,
+    ) -> WResult<(), Error> {
+        match (self, any_value) {
+            (Examples::Bool(_), AnyValueSpec::Boolean { .. })
+            | (Examples::Int(_), AnyValueSpec::Int { .. })
+            | (Examples::Double(_), AnyValueSpec::Double { .. })
+            | (Examples::String(_), AnyValueSpec::String { .. })
+            | (Examples::String(_), AnyValueSpec::Map { .. })
+            | (Examples::Ints(_), AnyValueSpec::Int { .. })
+            | (Examples::Doubles(_), AnyValueSpec::Double { .. })
+            | (Examples::Bools(_), AnyValueSpec::Boolean { .. })
+            | (Examples::Strings(_), AnyValueSpec::String { .. })
+            | (Examples::Strings(_), AnyValueSpec::Map { .. })
+            | (Examples::ListOfInts(_), AnyValueSpec::Ints { .. })
+            | (Examples::ListOfDoubles(_), AnyValueSpec::Doubles { .. })
+            | (Examples::ListOfBools(_), AnyValueSpec::Booleans { .. })
+            | (Examples::ListOfStrings(_), AnyValueSpec::Strings { .. })
+            | (Examples::ListOfStrings(_), AnyValueSpec::Map { .. }) => WResult::Ok(()),
+            (_, AnyValueSpec::Enum { .. })
+            | (_, AnyValueSpec::Bytes { .. })
+            | (_, AnyValueSpec::Undefined { .. }) => {
+                // enum, bytes, and undefined types are open so it's not possible to validate the examples
+                WResult::Ok(())
+            }
+            // Only if future mode is disabled, we allow to have examples following
+            // the conventions used in semconv 1.27.0 and earlier.
+            (Examples::Ints(_), AnyValueSpec::Ints { .. })
+            | (Examples::Doubles(_), AnyValueSpec::Doubles { .. })
+            | (Examples::Bools(_), AnyValueSpec::Booleans { .. })
+            | (Examples::Strings(_), AnyValueSpec::Strings { .. }) => WResult::OkWithNFEs(
+                (),
+                vec![Error::InvalidAnyValueExampleError {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    value_id: any_value.id(),
+                    error: format!("All examples SHOULD be of type `{}`", any_value),
+                }],
+            ),
+            (_, AnyValueSpec::Map { .. }) => WResult::OkWithNFEs(
+                (),
+                vec![Error::InvalidAnyValueExampleError {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    value_id: any_value.id(),
+                    error: format!(
+                        "Examples for `{}` values MUST be a supported string type",
+                        any_value
+                    ),
+                }],
+            ),
+            _ => WResult::OkWithNFEs(
+                (),
+                vec![Error::InvalidAnyValueExampleError {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    value_id: any_value.id(),
+                    error: format!("All examples MUST be of type `{}`", any_value),
+                }],
+            ),
+        }
+    }
 }
 
 /// The different requirement level specifications.
@@ -511,6 +579,12 @@ pub enum RequirementLevel {
         #[serde(rename = "recommended")]
         text: String,
     },
+    /// An opt in requirement level.
+    OptIn {
+        /// The description of the recommendation.
+        #[serde(rename = "opt_in")]
+        text: String,
+    },
 }
 
 /// Implements a human readable display for RequirementLevel.
@@ -522,6 +596,7 @@ impl Display for RequirementLevel {
                 write!(f, "conditionally required (condition: {})", text)
             }
             RequirementLevel::Recommended { text } => write!(f, "recommended ({})", text),
+            RequirementLevel::OptIn { text } => write!(f, "opt in ({})", text),
         }
     }
 }
@@ -625,6 +700,15 @@ mod tests {
                 }
             ),
             "recommended (recommendation)"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::OptIn {
+                    text: "recommendation".to_owned()
+                }
+            ),
+            "opt in (recommendation)"
         );
     }
 
