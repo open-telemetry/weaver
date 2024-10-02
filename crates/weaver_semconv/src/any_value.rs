@@ -86,6 +86,16 @@ pub enum AnyValueSpec {
         fields: Vec<AnyValueSpec>,
     },
 
+    /// The value type is a map of key, value pairs
+    #[serde(rename = "map[]")]
+    Maps {
+        /// The common value specification
+        #[serde(flatten)]
+        common: AnyValueCommonSpec,
+        /// The collection of key, values where the value is an `AnyValueSpec`
+        fields: Vec<AnyValueSpec>,
+    },
+
     /// The value type will just be a bytes.
     Bytes {
         /// The common value specification
@@ -161,6 +171,7 @@ impl Display for AnyValueSpec {
             AnyValueSpec::Ints { .. } => write!(f, "int[]"),
             AnyValueSpec::Doubles { .. } => write!(f, "double[]"),
             AnyValueSpec::Booleans { .. } => write!(f, "boolean[]"),
+            AnyValueSpec::Maps { .. } => write!(f, "map[]"),
             AnyValueSpec::Bytes { .. } => write!(f, "byte[]"),
             AnyValueSpec::Undefined { .. } => write!(f, "undefined"),
             AnyValueSpec::Enum { members, .. } => {
@@ -189,6 +200,7 @@ impl AnyValueSpec {
             AnyValueSpec::Doubles { common, .. } => common,
             AnyValueSpec::Booleans { common, .. } => common,
             AnyValueSpec::Map { common, .. } => common,
+            AnyValueSpec::Maps { common, .. } => common,
             AnyValueSpec::Bytes { common, .. } => common,
             AnyValueSpec::Undefined { common, .. } => common,
             AnyValueSpec::Enum { common, .. } => common,
@@ -337,6 +349,68 @@ mod tests {
                         AnyValueSpec::Map {
                             common: AnyValueCommonSpec {
                                 id: "id_nested_map".to_owned(),
+                                brief: "brief".to_owned(),
+                                note: "note".to_owned(),
+                                stability: None,
+                                examples: None,
+                                requirement_level: RequirementLevel::Basic(
+                                    BasicRequirementLevelSpec::Optional,
+                                ),
+                            },
+                            fields: vec![
+                                AnyValueSpec::Ints {
+                                    common: AnyValueCommonSpec {
+                                        id: "id_nested_int".to_owned(),
+                                        brief: "brief".to_owned(),
+                                        note: "note".to_owned(),
+                                        stability: None,
+                                        examples: None,
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
+                                    },
+                                },
+                                AnyValueSpec::Doubles {
+                                    common: AnyValueCommonSpec {
+                                        id: "id_nested_bytes".to_owned(),
+                                        brief: "brief".to_owned(),
+                                        note: "note".to_owned(),
+                                        stability: None,
+                                        examples: None,
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
+                                    },
+                                },
+                                AnyValueSpec::Strings {
+                                    common: AnyValueCommonSpec {
+                                        id: "id_nested_string".to_owned(),
+                                        brief: "brief".to_owned(),
+                                        note: "note".to_owned(),
+                                        stability: None,
+                                        examples: None,
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
+                                    },
+                                },
+                                AnyValueSpec::Booleans {
+                                    common: AnyValueCommonSpec {
+                                        id: "id_nested_bool".to_owned(),
+                                        brief: "brief".to_owned(),
+                                        note: "note".to_owned(),
+                                        stability: None,
+                                        examples: None,
+                                        requirement_level: RequirementLevel::Basic(
+                                            BasicRequirementLevelSpec::Optional,
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                        AnyValueSpec::Maps {
+                            common: AnyValueCommonSpec {
+                                id: "id_nested_map_array".to_owned(),
                                 brief: "brief".to_owned(),
                                 note: "note".to_owned(),
                                 stability: None,
@@ -658,6 +732,25 @@ mod tests {
                 }
             ),
             "byte[]"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                AnyValueSpec::Maps {
+                    common: AnyValueCommonSpec {
+                        id: "id".to_owned(),
+                        brief: "brief".to_owned(),
+                        note: "note".to_owned(),
+                        stability: None,
+                        examples: None,
+                        requirement_level: RequirementLevel::Basic(
+                            BasicRequirementLevelSpec::Optional
+                        ),
+                    },
+                    fields: vec![]
+                }
+            ),
+            "map[]"
         );
         assert_eq!(
             format!(

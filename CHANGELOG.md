@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Next] - YYYY-MM-DD
+
+What's changed
+
+* Add support for Maps `map[]` to the definition of an `AnyValue`. ([#396](https://github.com/open-telemetry/weaver/pull/396) by @MSNev).
+
 ## [0.10.0] - 2024-09-23
 
 What's changed
