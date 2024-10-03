@@ -300,7 +300,7 @@ impl MarkdownRenderer {
                 ctx.markdown
                     .push_str(&format!("```{}\n{}\n```\n", lang, code.value));
             }
-            Node::BlockQuote(block_quote) => {
+            Node::Blockquote(block_quote) => {
                 ctx.add_cond_blank_line();
                 ctx.set_line_prefix("> ");
                 for child in &block_quote.children {

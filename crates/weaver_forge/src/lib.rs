@@ -927,6 +927,10 @@ mod tests {
 
     #[test]
     fn test_template_engine() {
+        // we need to first clean "observed_output/test" of previous runs
+        // We ignore failures because the directory may not exist yet.
+        let _ = fs::remove_dir_all("observed_output/test");
+
         let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "test")
             .expect("Failed to create file system loader");

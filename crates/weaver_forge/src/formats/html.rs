@@ -257,7 +257,7 @@ impl<'source> HtmlRenderer<'source> {
                         .as_str(),
                 );
             }
-            Node::BlockQuote(block_quote) => {
+            Node::Blockquote(block_quote) => {
                 ctx.html.push_str("<blockquote>\n");
                 for child in &block_quote.children {
                     self.write_html_to(ctx, indent, child, format, options)?;
