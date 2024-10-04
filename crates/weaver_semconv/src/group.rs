@@ -677,8 +677,35 @@ mod tests {
             result
         );
 
-        // Examples are not required for Maps.
+        // Examples are not required for Map.
         group.body = Some(AnyValueSpec::Map {
+            common: AnyValueCommonSpec {
+                id: "map_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+            fields: vec![AnyValueSpec::String {
+                common: AnyValueCommonSpec {
+                    id: "string_id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: Some(Examples::String("test".to_owned())),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }],
+        });
+
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Examples are not required for Map[].
+        group.body = Some(AnyValueSpec::Maps {
             common: AnyValueCommonSpec {
                 id: "map_id".to_owned(),
                 brief: "brief".to_owned(),
