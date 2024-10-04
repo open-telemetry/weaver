@@ -15,7 +15,7 @@ use weaver_semconv::registry::SemConvRegistry;
 use crate::format::{apply_format, Format};
 use crate::registry::RegistryArgs;
 use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, DiagnosticArgs, ExitDirectives};
+use crate::{DiagnosticArgs, ExitDirectives};
 use miette::Diagnostic;
 
 /// Parameters for the `registry resolve` sub-command
@@ -70,14 +70,7 @@ pub(crate) fn command(
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir (should be removed in the future)
-    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
-
+    let registry_path = args.registry.registry.clone();
     let registry_id = "default";
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
@@ -166,7 +159,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     lineage: true,
                     output: None,
@@ -193,7 +185,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     lineage: true,
                     output: None,
