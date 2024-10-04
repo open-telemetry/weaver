@@ -59,14 +59,7 @@ pub(crate) fn command(
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
     // Initialize the main registry.
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir
-    // ToDo: This parameter is now deprecated and should be removed in the future
-    if let RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
+    let registry_path = args.registry.registry.clone();
     let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Initialize the baseline registry if provided.
@@ -236,7 +229,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     baseline_registry: None,
                     policies: vec![],
@@ -262,7 +254,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     baseline_registry: None,
                     policies: vec![],
@@ -288,7 +279,6 @@ mod tests {
                     registry: RegistryPath::LocalFolder {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                     },
-                    registry_git_sub_dir: None,
                 },
                 baseline_registry: None,
                 policies: vec![],

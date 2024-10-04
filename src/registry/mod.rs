@@ -8,6 +8,7 @@ use clap::{Args, Subcommand};
 use miette::Diagnostic;
 use serde::Serialize;
 
+use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::resolve::RegistryResolveArgs;
@@ -21,6 +22,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
 mod check;
+mod diff;
 mod generate;
 mod json_schema;
 mod resolve;
@@ -101,6 +103,15 @@ pub enum RegistrySubCommand {
     /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
+    /// Generate a diff between two versions of a semantic convention registry.
+    ///
+    /// This diff can then be rendered in multiple formats:
+    /// - a new version of an OTEL schema,
+    /// - a migration guide,
+    /// - a structured document in JSON or YAML format,
+    /// - ...
+    #[clap(verbatim_doc_comment)]
+    Diff(RegistryDiffArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -115,13 +126,6 @@ pub struct RegistryArgs {
         default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
     )]
     pub registry: RegistryPath,
-
-    /// Optional path in the Git repository where the semantic convention
-    /// registry is located. This parameter is deprecated and should be
-    /// removed in the future. Please use the `[sub-folder]` syntax after the
-    /// URL in the `--registry` or `--baseline-registry` parameters instead.
-    #[arg(short = 'd', long, default_value = "model")]
-    pub registry_git_sub_dir: Option<String>,
 }
 
 /// Manage a semantic convention registry and return the exit code.
@@ -153,6 +157,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
             json_schema::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Diff(args) => CmdResult::new(
+            diff::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }
