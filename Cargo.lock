@@ -4305,6 +4305,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_otel_schema"
+version = "0.10.0"
+dependencies = [
+ "serde",
+ "serde_yaml",
+ "thiserror",
+ "weaver_version",
+]
+
+[[package]]
 name = "weaver_resolved_schema"
 version = "0.10.0"
 dependencies = [

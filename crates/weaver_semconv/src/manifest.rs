@@ -41,6 +41,7 @@ impl RegistryManifest {
     /// Attempts to load a registry manifest from a file.
     ///
     /// The expected file format is YAML.
+    #[allow(dead_code)] // ToDo LQ - Remove this line after the function is used.
     pub fn try_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
         let manifest_path_buf = path.as_ref().to_path_buf();
 

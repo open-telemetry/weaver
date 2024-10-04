@@ -8,25 +8,22 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
+use crate::all_changes::AllChanges;
+use crate::logs_changes::LogsChanges;
+use crate::metrics_changes::MetricsChanges;
+use crate::resource_changes::ResourceChanges;
+use crate::spans_changes::SpansChanges;
+use logs_changes::LogsChange;
+use metrics_changes::MetricsChange;
+use resource_changes::ResourceChange;
 use serde::{Deserialize, Serialize};
+use spans_changes::SpansChange;
 
-use crate::logs_change::LogsChange;
-use crate::logs_version::LogsVersion;
-use crate::metrics_change::MetricsChange;
-use crate::metrics_version::MetricsVersion;
-use crate::resource_change::ResourceChange;
-use crate::resource_version::ResourceVersion;
-use crate::spans_change::SpansChange;
-use crate::spans_version::SpansVersion;
-
-pub mod logs_change;
-pub mod logs_version;
-pub mod metrics_change;
-pub mod metrics_version;
-pub mod resource_change;
-pub mod resource_version;
-pub mod spans_change;
-pub mod spans_version;
+mod all_changes;
+pub mod logs_changes;
+pub mod metrics_changes;
+pub mod resource_changes;
+pub mod spans_changes;
 
 /// An error that can occur while loading or resolving version changes.
 #[derive(thiserror::Error, Debug)]
@@ -70,14 +67,17 @@ pub struct Versions {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct VersionSpec {
+    /// The changes to apply to the following telemetry data: resource attributes,
+    /// span attributes, span event attributes, log attributes, metric attributes.
+    pub all: Option<AllChanges>,
     /// The changes to apply to the metrics specification for a specific version.
-    pub metrics: Option<MetricsVersion>,
+    pub metrics: Option<MetricsChanges>,
     /// The changes to apply to the logs specification for a specific version.
-    pub logs: Option<LogsVersion>,
+    pub logs: Option<LogsChanges>,
     /// The changes to apply to the spans specification for a specific version.
-    pub spans: Option<SpansVersion>,
+    pub spans: Option<SpansChanges>,
     /// The changes to apply to the resource specification for a specific version.
-    pub resources: Option<ResourceVersion>,
+    pub resources: Option<ResourceChanges>,
 }
 
 /// The changes to apply to rename attributes and metrics for
@@ -312,7 +312,7 @@ impl VersionSpec {
                 'next_parent_renaming: for (old, new) in change.rename_attributes.attribute_map {
                     for local_change in self
                         .resources
-                        .get_or_insert_with(ResourceVersion::default)
+                        .get_or_insert_with(ResourceChanges::default)
                         .changes
                         .iter()
                     {
@@ -335,17 +335,17 @@ impl VersionSpec {
             if !resource_change.rename_attributes.attribute_map.is_empty() {
                 if self
                     .resources
-                    .get_or_insert_with(ResourceVersion::default)
+                    .get_or_insert_with(ResourceChanges::default)
                     .changes
                     .is_empty()
                 {
                     self.resources
-                        .get_or_insert_with(ResourceVersion::default)
+                        .get_or_insert_with(ResourceChanges::default)
                         .changes
                         .push(resource_change);
                 } else {
                     self.resources
-                        .get_or_insert_with(ResourceVersion::default)
+                        .get_or_insert_with(ResourceChanges::default)
                         .changes[0]
                         .rename_attributes
                         .attribute_map
@@ -361,7 +361,7 @@ impl VersionSpec {
                 'next_parent_renaming: for (old, new) in change.rename_metrics {
                     for local_change in self
                         .metrics
-                        .get_or_insert_with(MetricsVersion::default)
+                        .get_or_insert_with(MetricsChanges::default)
                         .changes
                         .iter()
                     {
@@ -377,17 +377,17 @@ impl VersionSpec {
             if !metrics_change.rename_metrics.is_empty() {
                 if self
                     .metrics
-                    .get_or_insert_with(MetricsVersion::default)
+                    .get_or_insert_with(MetricsChanges::default)
                     .changes
                     .is_empty()
                 {
                     self.metrics
-                        .get_or_insert_with(MetricsVersion::default)
+                        .get_or_insert_with(MetricsChanges::default)
                         .changes
                         .push(metrics_change);
                 } else {
                     self.metrics
-                        .get_or_insert_with(MetricsVersion::default)
+                        .get_or_insert_with(MetricsChanges::default)
                         .changes[0]
                         .rename_metrics
                         .extend(metrics_change.rename_metrics);
@@ -402,7 +402,7 @@ impl VersionSpec {
                 'next_parent_renaming: for (old, new) in change.rename_attributes.attribute_map {
                     for local_change in self
                         .logs
-                        .get_or_insert_with(LogsVersion::default)
+                        .get_or_insert_with(LogsChanges::default)
                         .changes
                         .iter()
                     {
@@ -422,16 +422,16 @@ impl VersionSpec {
             if !logs_change.rename_attributes.attribute_map.is_empty() {
                 if self
                     .logs
-                    .get_or_insert_with(LogsVersion::default)
+                    .get_or_insert_with(LogsChanges::default)
                     .changes
                     .is_empty()
                 {
                     self.logs
-                        .get_or_insert_with(LogsVersion::default)
+                        .get_or_insert_with(LogsChanges::default)
                         .changes
                         .push(logs_change);
                 } else {
-                    self.logs.get_or_insert_with(LogsVersion::default).changes[0]
+                    self.logs.get_or_insert_with(LogsChanges::default).changes[0]
                         .rename_attributes
                         .attribute_map
                         .extend(logs_change.rename_attributes.attribute_map);
@@ -446,7 +446,7 @@ impl VersionSpec {
                 'next_parent_renaming: for (old, new) in change.rename_attributes.attribute_map {
                     for local_change in self
                         .spans
-                        .get_or_insert_with(SpansVersion::default)
+                        .get_or_insert_with(SpansChanges::default)
                         .changes
                         .iter()
                     {
@@ -469,16 +469,16 @@ impl VersionSpec {
             if !spans_change.rename_attributes.attribute_map.is_empty() {
                 if self
                     .spans
-                    .get_or_insert_with(SpansVersion::default)
+                    .get_or_insert_with(SpansChanges::default)
                     .changes
                     .is_empty()
                 {
                     self.spans
-                        .get_or_insert_with(SpansVersion::default)
+                        .get_or_insert_with(SpansChanges::default)
                         .changes
                         .push(spans_change);
                 } else {
-                    self.spans.get_or_insert_with(SpansVersion::default).changes[0]
+                    self.spans.get_or_insert_with(SpansChanges::default).changes[0]
                         .rename_attributes
                         .attribute_map
                         .extend(spans_change.rename_attributes.attribute_map);
