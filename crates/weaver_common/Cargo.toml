@@ -16,7 +16,9 @@ paris = { version = "1.5.15", features = ["macros"] }
 serde.workspace = true
 serde_json.workspace = true
 miette.workspace = true
+thiserror.workspace = true
+tiny_http.workspace = true
 
 [dev-dependencies]
-thiserror.workspace = true
+ureq.workspace = true
 
