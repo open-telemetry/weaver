@@ -45,6 +45,6 @@ dirs.workspace = true
 
 [dev-dependencies]
 opentelemetry.workspace = true
-opentelemetry_sdk = { version = "0.25.0", features = ["trace", "metrics", "logs"] }
+opentelemetry_sdk = { version = "0.26.0", features = ["trace", "metrics", "logs"] }
 opentelemetry-stdout = { version = "0.26.0", features = ["trace", "metrics", "logs"] }
 
