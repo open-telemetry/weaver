@@ -78,7 +78,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.19", features = ["derive"] }
+clap = { version = "4.5.20", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.28.1", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
