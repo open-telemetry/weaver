@@ -98,6 +98,10 @@ impl GroupSpec {
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
 
+        if !self.prefix.is_empty() {
+            errors.push(Error::InvalidGroupUsesPrefix { path_or_url: path_or_url.to_owned(), group_id: self.id.clone() });
+        }
+
         // Fields span_kind and events are only valid if type is span (the default).
         if self.r#type != GroupType::Span {
             if self.span_kind.is_some() {
