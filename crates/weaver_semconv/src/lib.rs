@@ -129,7 +129,6 @@ pub enum Error {
         group_id: String,
     },
 
-    
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {

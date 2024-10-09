@@ -99,7 +99,10 @@ impl GroupSpec {
         let mut errors = vec![];
 
         if !self.prefix.is_empty() {
-            errors.push(Error::InvalidGroupUsesPrefix { path_or_url: path_or_url.to_owned(), group_id: self.id.clone() });
+            errors.push(Error::InvalidGroupUsesPrefix {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+            });
         }
 
         // Fields span_kind and events are only valid if type is span (the default).
@@ -402,7 +405,9 @@ impl Display for InstrumentSpec {
 mod tests {
     use crate::any_value::AnyValueCommonSpec;
     use crate::attribute::{BasicRequirementLevelSpec, Examples, RequirementLevel};
-    use crate::Error::{CompoundError, InvalidExampleWarning, InvalidGroup, InvalidMetric};
+    use crate::Error::{
+        CompoundError, InvalidExampleWarning, InvalidGroup, InvalidGroupUsesPrefix, InvalidMetric,
+    };
 
     use super::*;
 
@@ -413,7 +418,7 @@ mod tests {
             r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -444,7 +449,19 @@ mod tests {
             .into_result_failing_non_fatal()
             .is_ok());
 
+        // group has a prefix.
+        group.prefix = "test".to_owned();
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupUsesPrefix {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned()
+            }),
+            result
+        );
+
         // Span kind is set but the type is not span.
+        group.prefix = "".to_owned();
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -517,7 +534,7 @@ mod tests {
             r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -607,7 +624,7 @@ mod tests {
             name: Some("test_event".to_owned()),
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
