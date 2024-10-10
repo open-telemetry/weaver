@@ -1,10 +1,9 @@
 groups:
   - id: registry.user_agent
-    prefix: user_agent
     type: attribute_group
     brief: "Describes user-agent attributes."
     attributes:
-      - id: original
+      - id: user_agent.original
         stability: stable
         type: string
         brief: >

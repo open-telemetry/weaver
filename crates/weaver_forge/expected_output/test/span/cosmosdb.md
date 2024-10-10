@@ -5,7 +5,7 @@
 
 Call-level attributes for Cosmos DB.
 
-Prefix: db.cosmosdb
+Prefix: 
 Kind: none
 
 ### Attributes

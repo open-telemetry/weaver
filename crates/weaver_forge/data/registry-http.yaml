@@ -1,10 +1,9 @@
 groups:
   - id: registry.http
-    prefix: http
     type: attribute_group
     brief: 'This document defines semantic convention attributes in the HTTP namespace.'
     attributes:
-      - id: request.body.size
+      - id: http.request.body.size
         type: int
         brief: >
           The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and
@@ -12,7 +11,7 @@ groups:
           header. For requests using transport encoding, this should be the compressed size.
         examples: 3495
         stability: experimental  # this should not be marked stable with other HTTP attributes
-      - id: request.header
+      - id: http.request.header
         stability: stable
         type: template[string[]]
         brief: >
@@ -28,7 +27,7 @@ groups:
           or a single-item array containing a possibly comma-concatenated string, depending on the way
           the HTTP library provides access to headers.
         examples: ['http.request.header.content-type=["application/json"]', 'http.request.header.x-forwarded-for=["1.2.3.4", "1.2.3.5"]']
-      - id: request.method
+      - id: http.request.method
         stability: stable
         type:
           allow_custom_values: true
@@ -80,12 +79,12 @@ groups:
           HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
           Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
           Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
-      - id: request.method_original
+      - id: http.request.method_original
         stability: stable
         type: string
         brief: Original HTTP method sent by the client in the request line.
         examples: ["GeT", "ACL", "foo"]
-      - id: request.resend_count
+      - id: http.request.resend_count
         stability: stable
         type: int
         brief: >
@@ -95,7 +94,7 @@ groups:
           was the cause of the resending (e.g. redirection, authorization failure, 503 Server Unavailable, network issues,
           or any other).
         examples: 3
-      - id: response.body.size
+      - id: http.response.body.size
         type: int
         brief: >
           The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and
@@ -103,7 +102,7 @@ groups:
           header. For requests using transport encoding, this should be the compressed size.
         examples: 3495
         stability: experimental  # this should not be marked stable with other HTTP attributes
-      - id: response.header
+      - id: http.response.header
         stability: stable
         type: template[string[]]
         brief: >
@@ -118,12 +117,12 @@ groups:
           or a single-item array containing a possibly comma-concatenated string, depending on the way
           the HTTP library provides access to headers.
         examples: ['http.response.header.content-type=["application/json"]', 'http.response.header.my-custom-header=["abc", "def"]']
-      - id: response.status_code
+      - id: http.response.status_code
         stability: stable
         type: int
         brief: '[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).'
         examples: [200]
-      - id: route
+      - id: http.route
         stability: stable
         type: string
         brief: >

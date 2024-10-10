@@ -811,12 +811,22 @@ mod tests {
             println!("Testing `{}`", test_dir);
 
             let registry_id = "default";
-            let sc_specs = SemConvRegistry::try_from_path_pattern(
-                registry_id,
-                &format!("{}/registry/*.yaml", test_dir),
-            )
-            .into_result_failing_non_fatal()
-            .expect("Failed to load semconv specs");
+            let result = 
+                SemConvRegistry::try_from_path_pattern(
+                    registry_id,
+                    &format!("{}/registry/*.yaml", test_dir),
+                );
+            let sc_specs =
+                result
+                .ignore(|e| {
+                    // Ignore prefix errors on tests of prefix.
+                    test_dir.contains("prefix") && matches!(e, weaver_semconv::Error::InvalidGroupUsesPrefix { 
+                        path_or_url: _, group_id: _
+                    })
+                })
+                .into_result_failing_non_fatal()
+                .expect("Failed to load semconv specs");
+            
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =

@@ -1,23 +1,22 @@
 groups:
   - id: registry.db
-    prefix: db
     type: attribute_group
     brief: >
       This document defines the attributes used to describe telemetry in the context of databases.
     attributes:
-      - id: cassandra.coordinator.dc
+      - id: db.cassandra.coordinator.dc
         type: string
         brief: >
           The data center of the coordinating node for a query.
         examples: 'us-west-2'
         tag: tech-specific-cassandra
-      - id: cassandra.coordinator.id
+      - id: db.cassandra.coordinator.id
         type: string
         brief: >
           The ID of the coordinating node for a query.
         examples: 'be13faa2-8574-4d71-926d-27f16cf8a7af'
         tag: tech-specific-cassandra
-      - id: cassandra.consistency_level
+      - id: db.cassandra.consistency_level
         brief: >
           The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
         type:
@@ -45,24 +44,24 @@ groups:
             - id: local_serial
               value: 'local_serial'
         tag: tech-specific-cassandra
-      - id: cassandra.idempotence
+      - id: db.cassandra.idempotence
         type: boolean
         brief: >
           Whether or not the query is idempotent.
         tag: tech-specific-cassandra
-      - id: cassandra.page_size
+      - id: db.cassandra.page_size
         type: int
         brief: >
           The fetch size used for paging, i.e. how many rows will be returned at once.
         examples: [5000]
         tag: tech-specific-cassandra
-      - id: cassandra.speculative_execution_count
+      - id: db.cassandra.speculative_execution_count
         type: int
         brief: >
           The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
         examples: [0, 2]
         tag: tech-specific-cassandra
-      - id: cassandra.table
+      - id: db.cassandra.table
         type: string
         brief: The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
         note: >
@@ -74,19 +73,19 @@ groups:
           value MUST NOT be set.
         examples: 'mytable'
         tag: tech-specific-cassandra
-      - id: connection_string
+      - id: db.connection_string
         type: string
         brief: >
           The connection string used to connect to the database.
           It is recommended to remove embedded credentials.
         examples: 'Server=(localdb)\v11.0;Integrated Security=true;'
         tag: db-generic
-      - id: cosmosdb.client_id
+      - id: db.cosmosdb.client_id
         type: string
         brief: Unique Cosmos client instance id.
         examples: '3ba4827d-4422-483f-b59f-85b74211c11d'
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.connection_mode
+      - id: db.cosmosdb.connection_mode
         type:
           allow_custom_values: false
           members:
@@ -98,12 +97,12 @@ groups:
               brief: Direct connection.
         brief: Cosmos client connection mode.
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.container
+      - id: db.cosmosdb.container
         type: string
         brief: Cosmos DB container name.
         examples: 'anystring'
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.operation_type
+      - id: db.cosmosdb.operation_type
         type:
           allow_custom_values: true
           members:
@@ -139,38 +138,38 @@ groups:
               value: 'ExecuteJavaScript'
         brief: CosmosDB Operation Type.
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.request_charge
+      - id: db.cosmosdb.request_charge
         type: double
         brief: RU consumed for that operation
         examples: [46.18, 1.0]
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.request_content_length
+      - id: db.cosmosdb.request_content_length
         type: int
         brief: Request payload size in bytes
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.status_code
+      - id: db.cosmosdb.status_code
         type: int
         brief: Cosmos DB status code.
         examples: [200, 201]
         tag: tech-specific-cosmosdb
-      - id: cosmosdb.sub_status_code
+      - id: db.cosmosdb.sub_status_code
         type: int
         brief: Cosmos DB sub status code.
         examples: [1000, 1002]
         tag: tech-specific-cosmosdb
-      - id: elasticsearch.cluster.name
+      - id: db.elasticsearch.cluster.name
         type: string
         brief: >
           Represents the identifier of an Elasticsearch cluster.
         examples: ["e9106fc68e3044f0b1475b04bf4ffd5f"]
         tag: tech-specific-elasticsearch
-      - id: elasticsearch.node.name
+      - id: db.elasticsearch.node.name
         type: string
         brief: >
           Represents the human-readable identifier of the node/instance to which a request was routed.
         examples: ["instance-0000000001"]
         tag: tech-specific-elasticsearch
-      - id: elasticsearch.path_parts
+      - id: db.elasticsearch.path_parts
         type: template[string]
         brief: >
           A dynamic value in the url path.
@@ -181,19 +180,19 @@ groups:
           in order to map the path part values to their names.
         examples: ['db.elasticsearch.path_parts.index=test-index', 'db.elasticsearch.path_parts.doc_id=123']
         tag: tech-specific-elasticsearch
-      - id: jdbc.driver_classname
+      - id: db.jdbc.driver_classname
         type: string
         brief: >
           The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
         examples: ['org.postgresql.Driver', 'com.microsoft.sqlserver.jdbc.SQLServerDriver']
         tag: tech-specific-jdbc
-      - id: mongodb.collection
+      - id: db.mongodb.collection
         type: string
         brief: >
           The MongoDB collection being accessed within the database stated in `db.name`.
         examples: [ 'customers', 'products' ]
         tag: tech-specific-mongodb
-      - id: mssql.instance_name
+      - id: db.mssql.instance_name
         type: string
         note: >
           If setting a `db.mssql.instance_name`, `server.port` is no longer
@@ -203,7 +202,7 @@ groups:
           connecting to. This name is used to determine the port of a named instance.
         examples: 'MSSQLSERVER'
         tag: tech-specific-mssql
-      - id: name
+      - id: db.name
         type: string
         brief: >
           This attribute is used to report the name of the database being accessed.
@@ -216,7 +215,7 @@ groups:
           the database name to be used is the more specific layer (e.g. Oracle schema name).
         examples: [ 'customers', 'main' ]
         tag: db-generic
-      - id: operation
+      - id: db.operation
         type: string
         brief: >
           The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations)
@@ -230,14 +229,14 @@ groups:
           than one operation, this value may be omitted.
         examples: ['findAndModify', 'HMSET', 'SELECT']
         tag: db-generic
-      - id: redis.database_index
+      - id: db.redis.database_index
         type: int
         brief: >
           The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer.
           To be used instead of the generic `db.name` attribute.
         examples: [0, 1, 15]
         tag: tech-specific-redis
-      - id: sql.table
+      - id: db.sql.table
         type: string
         brief: The name of the primary table that the operation is acting upon, including the database name (if applicable).
         note: >
@@ -248,13 +247,13 @@ groups:
           value MUST NOT be set.
         examples: ['public.users', 'customers']
         tag: tech-specific-sql
-      - id: statement
+      - id: db.statement
         type: string
         brief: >
           The database statement being executed.
         examples: ['SELECT * FROM wuser_table', 'SET mykey "WuValue"']
         tag: db-generic
-      - id: system
+      - id: db.system
         brief: An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
         type:
           allow_custom_values: true
@@ -416,13 +415,13 @@ groups:
               value: 'trino'
               brief: 'Trino'
         tag: db-generic
-      - id: user
+      - id: db.user
         type: string
         brief: >
           Username for accessing the database.
         examples: ['readonly_user', 'reporting_user']
         tag: db-generic
-      - id: instance.id
+      - id: db.instance.id
         tag: db-generic
         type: string
         brief: >

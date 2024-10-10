@@ -1,10 +1,9 @@
 groups:
   - id: registry.messaging
-    prefix: messaging
     type: attribute_group
     brief: 'Attributes describing telemetry around messaging systems and messaging activities.'
     attributes:
-      - id: destination.name
+      - id: messaging.destination.name
         type: string
         brief: 'The message destination name'
         note: |

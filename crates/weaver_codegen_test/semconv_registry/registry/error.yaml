@@ -1,11 +1,10 @@
 groups:
   - id: registry.error
     type: attribute_group
-    prefix: error
     brief: >
       This document defines the shared attributes used to report an error.
     attributes:
-      - id: type
+      - id: error.type
         stability: stable
         brief: >
           Describes a class of error the operation ended with.
