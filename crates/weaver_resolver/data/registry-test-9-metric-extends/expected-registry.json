@@ -5,7 +5,6 @@
         "id": "attributes.jvm.memory",
         "type": "attribute_group",
         "brief": "Describes JVM memory metric attributes.",
-        "prefix": "jvm.memory",
         "attributes": [
           0,
           1
