@@ -856,8 +856,8 @@ mod tests {
 
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
-                "Observed and expected attribute catalogs don't match for `{}`.\nExpected catalog:\n{}\nObserved catalog:\n{}\nDiff from expected:\n{}",
-                test_dir, to_json(&expected_attr_catalog), to_json(&observed_attr_catalog), weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
+                "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
+                test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
             );
 
             // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
@@ -873,8 +873,8 @@ mod tests {
 
             assert_eq!(
                 observed_registry, expected_registry,
-                "Expected and observed registry don't match for `{}`.\nObserved registry:\n{}\nExpected registry:\n{}\nDiff from expected:\n{}",
-                test_dir, to_json(&observed_registry), to_json(&expected_registry), weaver_diff::diff_output(&to_json(&expected_registry), &to_json(&observed_registry))
+                "Expected and observed registry don't match for `{}`.\nDiff from expected:\n{}",
+                test_dir, weaver_diff::diff_output(&to_json(&expected_registry), &to_json(&observed_registry))
             );
 
             // let yaml = serde_yaml::to_string(&observed_registry).unwrap();

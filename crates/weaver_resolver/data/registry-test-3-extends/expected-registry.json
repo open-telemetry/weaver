@@ -327,7 +327,6 @@
       "id": "messaging.attributes.common",
       "type": "attribute_group",
       "brief": "Common messaging attributes.",
-      "prefix": "messaging",
       "attributes": [
         56,
         74,
@@ -1218,7 +1217,6 @@
       "id": "registry.error",
       "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report an error.\n",
-      "prefix": "error",
       "attributes": [
         0
       ],
@@ -1230,7 +1228,6 @@
       "id": "registry.http",
       "type": "attribute_group",
       "brief": "This document defines semantic convention attributes in the HTTP namespace.",
-      "prefix": "http",
       "attributes": [
         1,
         2,
@@ -1250,7 +1247,6 @@
       "id": "registry.messaging",
       "type": "attribute_group",
       "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
-      "prefix": "messaging",
       "attributes": [
         10,
         11,
@@ -1291,7 +1287,6 @@
       "id": "registry.network",
       "type": "attribute_group",
       "brief": "These attributes may be used for any network related operation.\n",
-      "prefix": "network",
       "attributes": [
         40,
         41,
@@ -1317,7 +1312,6 @@
       "id": "server",
       "type": "attribute_group",
       "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
-      "prefix": "server",
       "attributes": [
         55,
         56
@@ -1330,7 +1324,6 @@
       "id": "registry.url",
       "type": "attribute_group",
       "brief": "Attributes describing URL.",
-      "prefix": "url",
       "attributes": [
         57,
         58,
