@@ -1,23 +1,22 @@
 groups:
   - id: exception
     type: span
-    prefix: exception
     brief: >
       This document defines the shared attributes used to
       report a single exception associated with a span or log.
     attributes:
-      - id: type
+      - id: exception.type
         type: string
         brief: >
           The type of the exception (its fully-qualified class name, if applicable).
           The dynamic type of the exception should be preferred over the static type
           in languages that support it.
         examples: ["java.net.ConnectException", "OSError"]
-      - id: message
+      - id: exception.message
         type: string
         brief: The exception message.
         examples: ["Division by zero", "Can't convert 'int' object to str implicitly"]
-      - id: stacktrace
+      - id: exception.stacktrace
         type: string
         brief: >
           A stacktrace as a string in the natural representation for the language runtime.
