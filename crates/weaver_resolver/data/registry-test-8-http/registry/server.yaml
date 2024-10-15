@@ -1,6 +1,5 @@
 groups:
   - id: server
-    prefix: server
     type: attribute_group
     brief: >
       These attributes may be used to describe the server in a connection-based network interaction
@@ -10,7 +9,7 @@ groups:
       protocol / API doesn't expose a clear notion of client and server).
       This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.
     attributes:
-      - id: port
+      - id: server.port
         stability: stable
         type: int
         brief: Server port number.

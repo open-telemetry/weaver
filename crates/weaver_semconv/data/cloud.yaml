@@ -1,11 +1,10 @@
 groups:
   - id: cloud
-    prefix: cloud
     type: resource
     brief: >
       A cloud environment (e.g. GCP, Azure, AWS)
     attributes:
-      - id: provider
+      - id: cloud.provider
         type:
           allow_custom_values: true
           members:
@@ -33,12 +32,12 @@ groups:
 
         brief: >
           Name of the cloud provider.
-      - id: account.id
+      - id: cloud.account.id
         type: string
         brief: >
           The cloud account ID the resource is assigned to.
         examples: ['111111111111', 'opentelemetry']
-      - id: region
+      - id: cloud.region
         type: string
         brief: >
           The geographical region the resource is running.
@@ -50,7 +49,7 @@ groups:
           [Google Cloud regions](https://cloud.google.com/about/locations),
           or [Tencent Cloud regions](https://www.tencentcloud.com/document/product/213/6091).
         examples: ['us-central1', 'us-east-1']
-      - id: resource_id
+      - id: cloud.resource_id
         type: string
         brief: >
           Cloud provider-specific native identifier of the monitored cloud resource
@@ -79,7 +78,7 @@ groups:
           - 'arn:aws:lambda:REGION:ACCOUNT_ID:function:my-function'
           - '//run.googleapis.com/projects/PROJECT_ID/locations/LOCATION_ID/services/SERVICE_ID'
           - '/subscriptions/<SUBSCIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>'
-      - id: availability_zone
+      - id: cloud.availability_zone
         type: string
         brief: >
           Cloud regions often have multiple, isolated locations known as zones
@@ -88,7 +87,7 @@ groups:
         note: >
           Availability zones are called "zones" on Alibaba Cloud and Google Cloud.
         examples: ['us-east-1c']
-      - id: platform
+      - id: cloud.platform
         type:
           allow_custom_values: true
           members:

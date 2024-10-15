@@ -2,9 +2,8 @@ groups:
   - id: attributes.http.common
     type: attribute_group
     brief: "Describes HTTP attributes."
-    prefix: http
     attributes:
-      - id: request.method
+      - id: http.request.method
         type:
           allow_custom_values: true
           members:
@@ -56,7 +55,7 @@ groups:
           HTTP method names are case-sensitive and `http.request.method` attribute value MUST match a known HTTP method name exactly.
           Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
           Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
-      - id: response.status_code
+      - id: http.response.status_code
         type: int
         requirement_level:
           conditionally_required: If and only if one was received/sent.
@@ -70,7 +69,6 @@ groups:
         examples: ['1.0', '1.1', '2', '3']
 
   - id: attributes.http.client
-    prefix: http
     type: attribute_group
     brief: 'HTTP Client attributes'
     attributes:
@@ -96,11 +94,10 @@ groups:
           URI port identifier, otherwise it MUST match `Host` header port identifier.
 
   - id: attributes.http.server
-    prefix: http
     type: attribute_group
     brief: 'HTTP Server attributes'
     attributes:
-      - id: route
+      - id: http.route
         type: string
         requirement_level:
           conditionally_required: If and only if it's available
