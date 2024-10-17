@@ -4,7 +4,7 @@
 
 use crate::registry::RegistryArgs;
 use crate::util::{
-    check_policy, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
+    load_semconv_specs, resolve_semconv_specs,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -13,11 +13,11 @@ use serde::Serialize;
 use std::path::PathBuf;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
-use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::semconv::SemConvSpec;
 
 /// Parameters for the `registry diff` sub-command
 #[derive(Debug, Args)]
@@ -29,13 +29,7 @@ pub struct RegistryDiffArgs {
     /// Parameters to specify the baseline semantic convention registry
     #[arg(long)]
     baseline_registry: RegistryPath,
-
-    /// Optional list of policy files or directories to check against the files of the semantic
-    /// convention registry.  If a directory is provided all `.rego` files in the directory will be
-    /// loaded.
-    #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<PathBuf>,
-
+    
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
@@ -71,40 +65,30 @@ pub(crate) fn command(
     logger.log("Weaver Registry Diff");
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
-    // Initialize the main registry.
     let registry_path = args.registry.registry.clone();
     let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-
-    // Initialize the baseline registry.
     let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
-
-    // Load the semantic convention registry into a local registry repo.
-    // No parsing errors should be observed.
     let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())
         .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = load_semconv_specs(&baseline_registry_repo, logger.clone())
         .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_resolved_registry = resolve_registry(main_registry_repo, main_semconv_specs, logger.clone(), &mut diag_msgs)?;
+    let baseline_resolved_registry = resolve_registry(baseline_registry_repo, baseline_semconv_specs, logger.clone(), &mut diag_msgs)?;
 
-    let mut policy_engine = init_policy_engine(&main_registry_repo, &args.policies, false)?;
 
-    // Check the policies against the semantic convention specifications before resolution.
-    // All violations should be captured into an ongoing list of diagnostic messages which
-    // will be combined with the final result of future stages.
-    check_policy(&policy_engine, &main_semconv_specs)
-        .inspect(|_, violations| {
-            if let Some(violations) = violations {
-                logger.success(&format!(
-                    "All `before_resolution` policies checked ({} violations found)",
-                    violations.len()
-                ));
-            } else {
-                logger.success("No `before_resolution` policy violation");
-            }
-        })
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
 
+    Ok(ExitDirectives {
+        exit_code: 0,
+        quiet_mode: false,
+    })
+}
+
+fn resolve_registry(registry_repo: RegistryRepo, main_semconv_specs: Vec<(String, SemConvSpec)>, logger: impl Logger + Sync + Clone, diag_msgs: &mut DiagnosticMessages) -> Result<ResolvedRegistry, DiagnosticMessages> {
     let mut main_registry =
-        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
+        SemConvRegistry::from_semconv_specs(registry_repo.id(), main_semconv_specs);
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
@@ -118,72 +102,12 @@ pub(crate) fn command(
     // as the registry resolution is a prerequisite for the next stages.
     let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
         main_resolved_schema
-            .registry(main_registry_repo.id())
+            .registry(registry_repo.id())
             .expect("Failed to get the registry from the resolved schema"),
         main_resolved_schema.catalog(),
     )
-    .combine_diag_msgs_with(&diag_msgs)?;
-
-    // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-    check_policy_stage::<ResolvedRegistry, ()>(
-        &mut policy_engine,
-        PolicyStage::AfterResolution,
-        &registry_path.to_string(),
-        &main_resolved_registry,
-        &[],
-    )
-    .inspect(|_, violations| {
-        if let Some(violations) = violations {
-            logger.success(&format!(
-                "All `after_resolution` policies checked ({} violations found)",
-                violations.len()
-            ));
-        } else {
-            logger.success("No `after_resolution` policy violation");
-        }
-    })
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-
-    let mut baseline_registry =
-        SemConvRegistry::from_semconv_specs(baseline_registry_repo.id(), baseline_semconv_specs);
-    let baseline_resolved_schema = resolve_semconv_specs(&mut baseline_registry, logger.clone())
         .combine_diag_msgs_with(&diag_msgs)?;
-    let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-        baseline_resolved_schema
-            .registry(baseline_registry_repo.id())
-            .expect("Failed to get the registry from the baseline resolved schema"),
-        baseline_resolved_schema.catalog(),
-    )
-    .combine_diag_msgs_with(&diag_msgs)?;
-
-    // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-    check_policy_stage(
-        &mut policy_engine,
-        PolicyStage::ComparisonAfterResolution,
-        &registry_path.to_string(),
-        &main_resolved_registry,
-        &[baseline_resolved_registry],
-    )
-    .inspect(|_, violations| {
-        if let Some(violations) = violations {
-            logger.success(&format!(
-                "All `comparison_after_resolution` policies checked ({} violations found)",
-                violations.len()
-            ));
-        } else {
-            logger.success("No `comparison_after_resolution` policy violation");
-        }
-    })
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-
-    if !diag_msgs.is_empty() {
-        return Err(diag_msgs);
-    }
-
-    Ok(ExitDirectives {
-        exit_code: 0,
-        quiet_mode: false,
-    })
+    Ok(main_resolved_registry)
 }
 
 #[cfg(test)]

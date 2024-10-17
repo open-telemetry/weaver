@@ -398,6 +398,7 @@ impl Display for InstrumentSpec {
 mod tests {
     use crate::any_value::AnyValueCommonSpec;
     use crate::attribute::{BasicRequirementLevelSpec, Examples, RequirementLevel};
+    use crate::deprecated::Deprecated;
     use crate::Error::{CompoundError, InvalidExampleWarning, InvalidGroup, InvalidMetric};
 
     use super::*;
@@ -418,7 +419,7 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some("true".to_owned()),
+                deprecated: Some(Deprecated::Removed { note: None }),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -522,7 +523,7 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some("true".to_owned()),
+                deprecated: Some(Deprecated::Removed { note: None }),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -550,7 +551,7 @@ mod tests {
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some("true".to_owned()),
+            deprecated: Some(Deprecated::Removed { note: None }),
             examples: None,
             tag: None,
             requirement_level: Default::default(),
@@ -575,7 +576,7 @@ mod tests {
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some("true".to_owned()),
+            deprecated: Some(Deprecated::Removed { note: None }),
             examples: None,
             tag: None,
             requirement_level: Default::default(),

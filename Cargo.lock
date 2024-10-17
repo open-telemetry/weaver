@@ -4391,6 +4391,7 @@ dependencies = [
  "glob",
  "miette",
  "ordered-float",
+ "regex",
  "schemars",
  "serde",
  "serde_json",

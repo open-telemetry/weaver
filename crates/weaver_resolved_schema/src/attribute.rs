@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::ops::Not;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::stability::Stability;
 
 /// An attribute definition.
@@ -60,11 +61,9 @@ pub struct Attribute {
     /// error.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
-    /// Specifies if the attribute is deprecated. The string
-    /// provided as <description> MUST specify why it's deprecated and/or what
-    /// to use instead. See also stability.
+    /// Specifies if the attribute is deprecated. 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Specifies the prefix of the attribute.
     /// If this parameter is set, the resolved id of the referenced attribute will
     /// have group prefix added to it.
