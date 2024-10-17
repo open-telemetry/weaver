@@ -481,7 +481,7 @@ pub(crate) fn body_fields(
         if v.is_undefined() || v.is_none() {
             return Ok(());
         }
-        
+
         let fields = v
             .get_attr("fields")
             .map_err(|_| minijinja::Error::custom("Invalid body field"))?;
@@ -1515,7 +1515,6 @@ mod tests {
             "id_undefined:0"
         );
 
-
         let body = AnyValueSpec::String {
             common: AnyValueCommonSpec {
                 id: "id_string".to_owned(),
@@ -1526,13 +1525,13 @@ mod tests {
                 requirement_level: Default::default(),
             },
         };
-        
+
         assert_eq!(
             env.render_str("{% for path, field, depth in body|body_fields %}{{field.id}}:{{depth}}{% endfor %}", Event { body: Some(body) })
                 .unwrap(),
             "id_string:0"
         );
-        
+
         let body = AnyValueSpec::Int {
             common: AnyValueCommonSpec {
                 id: "id_int".to_owned(),
@@ -1543,13 +1542,13 @@ mod tests {
                 requirement_level: Default::default(),
             },
         };
-        
+
         assert_eq!(
             env.render_str("{% for path, field, depth in body|body_fields %}{{field.id}}:{{depth}}{% endfor %}", Event { body: Some(body) })
                 .unwrap(),
             "id_int:0"
         );
-        
+
         let body = AnyValueSpec::Map {
             common: AnyValueCommonSpec {
                 id: "id_map".to_owned(),
