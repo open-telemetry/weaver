@@ -2,15 +2,15 @@
 
 //! Set of filters, tests, and functions that are specific to the OpenTelemetry project.
 
-use itertools::Itertools;
-use minijinja::value::ValueKind;
-use minijinja::{ErrorKind, Value};
-use serde::de::Error;
-
 use crate::config::CaseConvention;
 use crate::extensions::case::{
     camel_case, kebab_case, pascal_case, screaming_snake_case, snake_case,
 };
+use itertools::Itertools;
+use minijinja::filters::sort;
+use minijinja::value::{Kwargs, ValueKind};
+use minijinja::{ErrorKind, State, Value};
+use serde::de::Error;
 
 const TEMPLATE_PREFIX: &str = "template[";
 const TEMPLATE_SUFFIX: &str = "]";
@@ -33,6 +33,7 @@ pub(crate) fn add_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("snake_case_const", snake_case_const);
     env.add_filter("screaming_snake_case_const", screaming_snake_case_const);
     env.add_filter("print_member_value", print_member_value);
+    env.add_filter("body_fields", body_fields);
 }
 
 /// Add OpenTelemetry specific tests to the environment.
@@ -453,14 +454,78 @@ pub(crate) fn is_enum(attr: &Value) -> bool {
     false
 }
 
+/// Returns a list of pairs {field, depth} from a body field in depth-first order
+/// by default.
+///
+/// This can be used to iterate over a tree of fields composing an
+/// event body.
+///
+/// ```jinja
+/// {% for path, field, depth in body|body_fields %}
+/// Do something with {{ field }} at depth {{ depth }} with path {{ path }}
+/// {% endfor %}
+/// ```
+pub(crate) fn body_fields(
+    state: &State<'_, '_>,
+    body: Value,
+    kwargs: Kwargs,
+) -> Result<Value, minijinja::Error> {
+    fn traverse_body_fields(
+        state: &State<'_, '_>,
+        v: Value,
+        rv: &mut Vec<Value>,
+        path: String,
+        depth: i64,
+        sort_by: &str,
+    ) -> Result<(), minijinja::Error> {
+        if v.is_undefined() || v.is_none() {
+            return Ok(());
+        }
+
+        let fields = v
+            .get_attr("fields")
+            .map_err(|_| minijinja::Error::custom("Invalid body field"))?;
+        let id = v
+            .get_attr("id")
+            .map_err(|_| minijinja::Error::custom("Invalid body field"))?;
+        let path = if path.is_empty() {
+            id.to_string()
+        } else {
+            format!("{path}.{id}")
+        };
+
+        if fields.is_undefined() {
+            rv.push(Value::from(vec![Value::from(path), v, Value::from(depth)]));
+        } else {
+            rv.push(Value::from(vec![
+                Value::from(path.clone()),
+                v,
+                Value::from(depth),
+            ]));
+            let kwargs = Kwargs::from_iter([("attribute", Value::from(sort_by))]);
+            for field in sort(state, fields, kwargs)?.try_iter()? {
+                traverse_body_fields(state, field, rv, path.clone(), depth + 1, sort_by)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    let mut rv = Vec::new();
+    let sort_by = kwargs.get::<Option<&str>>("sort_by")?.unwrap_or("id");
+
+    traverse_body_fields(state, body, &mut rv, "".to_owned(), 0, sort_by)?;
+
+    Ok(Value::from(rv))
+}
+
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
-    use std::sync::Arc;
-
     use minijinja::value::Object;
     use minijinja::{Environment, Value};
     use serde::Serialize;
+    use std::fmt::Debug;
+    use std::sync::Arc;
 
     use crate::extensions::otel;
     use crate::extensions::otel::{
@@ -469,6 +534,7 @@ mod tests {
         print_member_value,
     };
     use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
     use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
@@ -1412,5 +1478,163 @@ mod tests {
             print_member_value(&Value::from(r#"This is a test
         on multiple lines with characters like ',   , \, and /"#)).unwrap(),
             "\"This is a test\\n        on multiple lines with characters like ',   , \\\\, and /\"");
+    }
+
+    #[test]
+    fn test_body_fields() {
+        #[derive(Serialize)]
+        struct Event {
+            body: Option<AnyValueSpec>,
+        }
+
+        let mut env = Environment::new();
+
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
+
+        assert_eq!(
+            env.render_str("{% for path, field, depth in body|body_fields %}{{field.id}}:{{depth}}{% endfor %}", Event { body: None })
+                .unwrap(),
+            ""
+        );
+
+        let body = AnyValueSpec::Undefined {
+            common: AnyValueCommonSpec {
+                id: "id_undefined".to_owned(),
+                brief: "a brief".to_owned(),
+                note: "a note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: Default::default(),
+            },
+        };
+
+        assert_eq!(
+            env.render_str("{% for path, field, depth in body|body_fields %}{{field.id}}:{{depth}}{% endfor %}", Event { body: Some(body) })
+                .unwrap(),
+            "id_undefined:0"
+        );
+
+        let body = AnyValueSpec::String {
+            common: AnyValueCommonSpec {
+                id: "id_string".to_owned(),
+                brief: "a brief".to_owned(),
+                note: "a note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: Default::default(),
+            },
+        };
+
+        assert_eq!(
+            env.render_str("{% for path, field, depth in body|body_fields %}{{field.id}}:{{depth}}{% endfor %}", Event { body: Some(body) })
+                .unwrap(),
+            "id_string:0"
+        );
+
+        let body = AnyValueSpec::Int {
+            common: AnyValueCommonSpec {
+                id: "id_int".to_owned(),
+                brief: "a brief".to_owned(),
+                note: "a note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: Default::default(),
+            },
+        };
+
+        assert_eq!(
+            env.render_str("{% for path, field, depth in body|body_fields %}{{field.id}}:{{depth}}{% endfor %}", Event { body: Some(body) })
+                .unwrap(),
+            "id_int:0"
+        );
+
+        let body = AnyValueSpec::Map {
+            common: AnyValueCommonSpec {
+                id: "id_map".to_owned(),
+                brief: "0".to_owned(),
+                note: Default::default(),
+                stability: None,
+                examples: None,
+                requirement_level: Default::default(),
+            },
+            fields: vec![
+                AnyValueSpec::String {
+                    common: AnyValueCommonSpec {
+                        id: "id_string".to_owned(),
+                        brief: "0".to_owned(),
+                        note: Default::default(),
+                        stability: None,
+                        examples: None,
+                        requirement_level: Default::default(),
+                    },
+                },
+                AnyValueSpec::Int {
+                    common: AnyValueCommonSpec {
+                        id: "id_int".to_owned(),
+                        brief: "1".to_owned(),
+                        note: Default::default(),
+                        stability: None,
+                        examples: None,
+                        requirement_level: Default::default(),
+                    },
+                },
+                AnyValueSpec::Ints {
+                    common: AnyValueCommonSpec {
+                        id: "id_ints".to_owned(),
+                        brief: "2".to_owned(),
+                        note: Default::default(),
+                        stability: None,
+                        examples: None,
+                        requirement_level: Default::default(),
+                    },
+                },
+                AnyValueSpec::Maps {
+                    common: AnyValueCommonSpec {
+                        id: "id_maps".to_owned(),
+                        brief: "3".to_owned(),
+                        note: Default::default(),
+                        stability: None,
+                        examples: None,
+                        requirement_level: Default::default(),
+                    },
+                    fields: vec![
+                        AnyValueSpec::Boolean {
+                            common: AnyValueCommonSpec {
+                                id: "id_boolean".to_owned(),
+                                brief: "0".to_owned(),
+                                note: Default::default(),
+                                stability: None,
+                                examples: None,
+                                requirement_level: Default::default(),
+                            },
+                        },
+                        AnyValueSpec::Enum {
+                            common: AnyValueCommonSpec {
+                                id: "id_enum".to_owned(),
+                                brief: "1".to_owned(),
+                                note: Default::default(),
+                                stability: None,
+                                examples: None,
+                                requirement_level: Default::default(),
+                            },
+                            members: vec![],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        assert_eq!(
+            env.render_str("{% for path, field, depth in body|body_fields %}{{path}}:{{field.type}}:{{depth}}|{% endfor %}", Event { body: Some(body.clone()) })
+                .unwrap(),
+            "id_map:map:0|id_map.id_int:int:1|id_map.id_ints:int[]:1|id_map.id_maps:map[]:1|id_map.id_maps.id_boolean:boolean:2|id_map.id_maps.id_enum:enum:2|id_map.id_string:string:1|"
+        );
+
+        assert_eq!(
+            env.render_str("{% for path, field, depth in body|body_fields(sort_by='brief') %}{{path}}:{{field.type}}:{{depth}}|{% endfor %}", Event { body: Some(body) })
+                .unwrap(),
+            "id_map:map:0|id_map.id_string:string:1|id_map.id_int:int:1|id_map.id_ints:int[]:1|id_map.id_maps:map[]:1|id_map.id_maps.id_boolean:boolean:2|id_map.id_maps.id_enum:enum:2|"
+        );
     }
 }
