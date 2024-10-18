@@ -551,6 +551,23 @@ The following filters are available:
 - `print_value`: Filter returning a quoted and escaped string representation of the input
   if the input is of type string (JSON escape rules are used). Numbers and booleans are
   stringified without the quotes, and an empty string is returned for other types.
+- `body_fields`: A filter that returns a list of triples (`path`, `field`, `depth`) from a
+  body field in depth-first order. This filter can be used to iterate over a tree of fields
+  in a body. The parameter `sort_by` can be used to sort the fields by the given key (by
+  default, the fields at each level are sorted by their IDs).
+
+  Example of usage:
+
+  ```jinja
+  {% for path, field, depth in body|body_fields %}
+  Do something with {{ field }} at depth {{ depth }} with path {{ path }}
+  {% endfor %}
+  
+  {% for path, field, depth in body|body_fields(sort_by=`type`) %}
+  Do something with {{ field }} at depth {{ depth }} with path {{ path }}
+  {% endfor %}
+  ```
+
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
