@@ -1,7 +1,7 @@
-<!-- semconv registry.user_agent -->
-attribute_table: registry.user_agent
+<!-- semconv test.common -->
+attribute_table: test.common
 <!-- endsemconv -->
 
-<!-- semconv metric.http.server.request.duration(metric_table) -->
-metric_table: metric.http.server.request.duration
+<!-- semconv metric.test(metric_table) -->
+metric_table: metric.test
 <!-- endsemconv -->

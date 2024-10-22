@@ -13,7 +13,7 @@ groups:
 
   - id: log-feature_flag
     type: event
-    prefix: feature_flag
+    name: feature_flag
     brief: >
       This document defines attributes for feature flag evaluations
       represented using Log Records.
@@ -178,12 +178,11 @@ groups:
         examples: ["myclient"]
   - id: browser.test.event_with_fields
     name: browser.test.event_with_fields
-    prefix: browser
     type: event
     brief: >
       An event that adds global attributes for reuse.
     attributes:
-      - id: brands
+      - id: browser.brands
         type: string[]
         brief: 'Array of brand name and version separated by a space'
         note: >
@@ -191,7 +190,7 @@ groups:
           [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
           (`navigator.userAgentData.brands`).
         examples: [ [ " Not A;Brand 99", "Chromium 99", "Chrome 99" ] ]
-      - id: platform
+      - id: browser.platform
         type: string
         brief: 'The platform on which the browser is running'
         note: >
@@ -199,7 +198,7 @@ groups:
           [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
           (`navigator.userAgentData.platform`). 
         examples: [ "Windows", "macOS", "Android", "iOS", "Linux" ]
-      - id: mobile
+      - id: browser.mobile
         type: boolean
         brief: 'A boolean that is true if the browser is running on a mobile device'
         note: >
@@ -207,7 +206,7 @@ groups:
           [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
           (`navigator.userAgentData.mobile`). If unavailable, this attribute
           SHOULD be left unset.
-      - id: language
+      - id: browser.language
         type: string
         brief: 'Preferred language of the user using the browser'
         note: >

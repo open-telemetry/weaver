@@ -505,16 +505,19 @@ impl Examples {
             | (Examples::Double(_), AnyValueSpec::Double { .. })
             | (Examples::String(_), AnyValueSpec::String { .. })
             | (Examples::String(_), AnyValueSpec::Map { .. })
+            | (Examples::String(_), AnyValueSpec::Maps { .. })
             | (Examples::Ints(_), AnyValueSpec::Int { .. })
             | (Examples::Doubles(_), AnyValueSpec::Double { .. })
             | (Examples::Bools(_), AnyValueSpec::Boolean { .. })
             | (Examples::Strings(_), AnyValueSpec::String { .. })
             | (Examples::Strings(_), AnyValueSpec::Map { .. })
+            | (Examples::Strings(_), AnyValueSpec::Maps { .. })
             | (Examples::ListOfInts(_), AnyValueSpec::Ints { .. })
             | (Examples::ListOfDoubles(_), AnyValueSpec::Doubles { .. })
             | (Examples::ListOfBools(_), AnyValueSpec::Booleans { .. })
             | (Examples::ListOfStrings(_), AnyValueSpec::Strings { .. })
             | (Examples::ListOfStrings(_), AnyValueSpec::Map { .. }) => WResult::Ok(()),
+            (Examples::ListOfStrings(_), AnyValueSpec::Maps { .. }) => WResult::Ok(()),
             (_, AnyValueSpec::Enum { .. })
             | (_, AnyValueSpec::Bytes { .. })
             | (_, AnyValueSpec::Undefined { .. }) => {
@@ -535,7 +538,7 @@ impl Examples {
                     error: format!("All examples SHOULD be of type `{}`", any_value),
                 }],
             ),
-            (_, AnyValueSpec::Map { .. }) => WResult::OkWithNFEs(
+            (_, AnyValueSpec::Maps { .. }) | (_, AnyValueSpec::Map { .. }) => WResult::OkWithNFEs(
                 (),
                 vec![Error::InvalidAnyValueExampleError {
                     path_or_url: path_or_url.to_owned(),
@@ -579,6 +582,12 @@ pub enum RequirementLevel {
         #[serde(rename = "recommended")]
         text: String,
     },
+    /// An opt in requirement level.
+    OptIn {
+        /// The description of the recommendation.
+        #[serde(rename = "opt_in")]
+        text: String,
+    },
 }
 
 /// Implements a human readable display for RequirementLevel.
@@ -590,6 +599,7 @@ impl Display for RequirementLevel {
                 write!(f, "conditionally required (condition: {})", text)
             }
             RequirementLevel::Recommended { text } => write!(f, "recommended ({})", text),
+            RequirementLevel::OptIn { text } => write!(f, "opt in ({})", text),
         }
     }
 }
@@ -693,6 +703,15 @@ mod tests {
                 }
             ),
             "recommended (recommendation)"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                RequirementLevel::OptIn {
+                    text: "recommendation".to_owned()
+                }
+            ),
+            "opt in (recommendation)"
         );
     }
 

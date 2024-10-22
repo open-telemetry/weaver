@@ -69,6 +69,32 @@ body:
         brief: brief
         note: note
         requirement_level: optional
+    - type: map[]
+      id: id_nested_map_array
+      brief: brief
+      note: note
+      requirement_level: optional
+      fields:
+      - type: int[]
+        id: id_nested_int
+        brief: brief
+        note: note
+        requirement_level: optional
+      - type: double[]
+        id: id_nested_bytes
+        brief: brief
+        note: note
+        requirement_level: optional
+      - type: string[]
+        id: id_nested_string
+        brief: brief
+        note: note
+        requirement_level: optional
+      - type: boolean[]
+        id: id_nested_bool
+        brief: brief
+        note: note
+        requirement_level: optional
   - type: int
     id: id_int
     brief: brief

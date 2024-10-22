@@ -39,12 +39,12 @@
       "id": "log-feature_flag",
       "type": "event",
       "brief": "This document defines attributes for feature flag evaluations represented using Log Records.\n",
-      "prefix": "feature_flag",
       "attributes": [
         17,
         18,
         19
       ],
+      "name": "feature_flag",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/log-events.yaml",
         "attributes": {
@@ -278,7 +278,6 @@
       "id": "browser.test.event_with_fields",
       "type": "event",
       "brief": "An event that adds global attributes for reuse.\n",
-      "prefix": "browser",
       "attributes": [
         1,
         2,
@@ -360,7 +359,6 @@
       "id": "registry.client",
       "type": "attribute_group",
       "brief": "Client test attributes",
-      "prefix": "client",
       "attributes": [
         9,
         10
@@ -373,7 +371,6 @@
       "id": "registry.exception",
       "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report a single exception associated with a span or log.\n",
-      "prefix": "exception",
       "attributes": [
         11,
         12,
@@ -388,13 +385,13 @@
       "id": "trace-exception",
       "type": "event",
       "brief": "This document defines the attributes used to report a single exception associated with a span.\n",
-      "prefix": "exception",
       "attributes": [
         13,
         14,
         15,
         16
       ],
+      "name": "exception",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
         "attributes": {
@@ -448,12 +445,12 @@
       "id": "feature_flag",
       "type": "event",
       "brief": "This semantic convention defines the attributes used to represent a feature flag evaluation as an event.\n",
-      "prefix": "feature_flag",
       "attributes": [
         17,
         18,
         19
       ],
+      "name": "feature_flag",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/trace-events.yaml"
       }
