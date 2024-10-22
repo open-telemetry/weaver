@@ -38,6 +38,7 @@ pub struct Cli {
 
 /// Supported commands.
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Manage Semantic Convention Registry
     Registry(RegistryCommand),
