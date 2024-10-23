@@ -2,7 +2,6 @@ groups:
   - id: messaging.attributes.common
     type: attribute_group
     brief: "Common messaging attributes."
-    prefix: messaging
     attributes:
       - ref: messaging.system
         requirement_level: required

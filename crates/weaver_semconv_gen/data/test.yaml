@@ -1,0 +1,17 @@
+groups:
+  - id: metric.test
+    type: metric
+    metric_name: test.metric
+    brief: "Test."
+    instrument: histogram
+    unit: "s"
+    stability: stable
+  - id: trace.test
+    type: span
+    span_kind: client
+    brief: 'Test span'
+  - id: test.common
+    type: attribute_group
+    brief: 'This tests attribute gorups.'
+    note: >
+        These conventions have a note.

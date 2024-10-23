@@ -377,7 +377,7 @@ For Cassandra the `db.name` should be set to the Cassandra keyspace name.
 
 Call-level attributes for Cosmos DB.
 
-Prefix: db.cosmosdb
+Prefix: 
 Kind: none
 
 ### Attributes
