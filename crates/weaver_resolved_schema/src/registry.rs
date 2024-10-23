@@ -247,7 +247,7 @@ impl Registry {
             .iter()
             .filter(move |group| group_type == group.r#type)
     }
-
+    
     /// Statistics on a registry.
     pub fn stats(&self) -> Stats {
         Stats {

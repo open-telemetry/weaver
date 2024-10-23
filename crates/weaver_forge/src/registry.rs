@@ -236,20 +236,6 @@ impl ResolvedRegistry {
             groups,
         })
     }
-    
-    /// Generate a diff between the current registry and the provided registry.
-    pub fn diff(&self, registry: &ResolvedRegistry) {
-        self.groups.iter().for_each(|group| {
-            let other_group = registry.groups.iter().find(|g| g.id == group.id);
-            if let Some(other_group) = other_group {
-                if group != other_group {
-                    println!("Group {} has changed", group.id);
-                }
-            } else {
-                println!("Group {} has been removed", group.id);
-            }
-        });
-    }
 }
 
 #[cfg(test)]

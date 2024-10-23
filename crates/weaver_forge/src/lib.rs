@@ -780,7 +780,7 @@ mod tests {
             .expect("Failed to resolve registry");
 
         let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            schema.registry(registry_id).expect("registry not found"),
+            &schema.registry,
             schema.catalog(),
         )
         .unwrap_or_else(|e| {
@@ -960,7 +960,7 @@ mod tests {
             .expect("Failed to resolve registry");
 
         let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            schema.registry(registry_id).expect("registry not found"),
+            &schema.registry,
             schema.catalog(),
         )
         .unwrap_or_else(|e| {

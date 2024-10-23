@@ -106,12 +106,7 @@ impl<'a> SearchApp<'a> {
             .title_alignment(ratatui::layout::Alignment::Center)
             .title_style(Style::default().fg(Color::Green))
             .title("Weaver Search");
-        let group_count: usize = self
-            .schema
-            .registries
-            .values()
-            .map(|r| r.stats().group_count)
-            .sum();
+        let group_count: usize = self.schema.registry.stats().group_count;
         let title_contents = Line::from(vec![Span::styled(
             format!(
                 "Loaded {0:?} groups w/ {1} attributes",

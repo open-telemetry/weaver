@@ -1045,7 +1045,7 @@ groups:
             SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry)?;
 
         // Get the resolved registry by its ID.
-        let resolved_registry = resolved_schema.registry(registry_id).unwrap();
+        let resolved_registry = &resolved_schema.registry;
 
         // Get the catalog of the resolved telemetry schema.
         let catalog = resolved_schema.catalog();

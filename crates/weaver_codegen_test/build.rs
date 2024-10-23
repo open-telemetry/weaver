@@ -62,9 +62,7 @@ fn main() {
         .import_jq_package(SEMCONV_JQ)
         .unwrap_or_else(|e| process_error(&logger, e));
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
-        schema
-            .registry(REGISTRY_ID)
-            .expect("Failed to get the registry from the resolved schema"),
+        &schema.registry,
         schema.catalog(),
     )
     .unwrap_or_else(|e| process_error(&logger, e));

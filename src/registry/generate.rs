@@ -140,9 +140,7 @@ pub(crate) fn command(
     engine.import_jq_package(SEMCONV_JQ)?;
 
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
-        schema
-            .registry(registry_id)
-            .expect("Failed to get the registry from the resolved schema"),
+        &schema.registry,
         schema.catalog(),
     )?;
 

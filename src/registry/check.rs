@@ -128,9 +128,7 @@ pub(crate) fn command(
         // diagnostic messages and returned immediately because there is no point in continuing
         // as the registry resolution is a prerequisite for the next stages.
         let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-            main_resolved_schema
-                .registry(main_registry_repo.id())
-                .expect("Failed to get the registry from the resolved schema"),
+            &main_resolved_schema.registry,
             main_resolved_schema.catalog(),
         )
         .combine_diag_msgs_with(&diag_msgs)?;
@@ -166,9 +164,7 @@ pub(crate) fn command(
                 resolve_semconv_specs(&mut baseline_registry, logger.clone())
                     .combine_diag_msgs_with(&diag_msgs)?;
             let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-                baseline_resolved_schema
-                    .registry(baseline_registry_repo.id())
-                    .expect("Failed to get the registry from the baseline resolved schema"),
+                &baseline_resolved_schema.registry,
                 baseline_resolved_schema.catalog(),
             )
             .combine_diag_msgs_with(&diag_msgs)?;

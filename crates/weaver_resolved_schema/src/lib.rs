@@ -4,14 +4,16 @@
 //! A Resolved Telemetry Schema is self-contained and doesn't contain any
 //! external references to other schemas or semantic conventions.
 
+use std::collections::HashMap;
 use crate::catalog::Catalog;
 use crate::instrumentation_library::InstrumentationLibrary;
 use crate::registry::Registry;
 use crate::resource::Resource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use weaver_semconv::group::GroupType;
 use weaver_version::Versions;
+use crate::attribute::Attribute;
 
 pub mod attribute;
 pub mod catalog;
@@ -39,10 +41,10 @@ pub struct ResolvedTelemetrySchema {
     pub file_format: String,
     /// Schema URL that this file is published at.
     pub schema_url: String,
-    /// A map of named semantic convention registries that can be used in this schema
-    /// and its descendants.
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub registries: HashMap<String, Registry>,
+    /// The ID of the registry that this schema belongs to.
+    pub registry_id: String,
+    /// The registry that this schema belongs to.
+    pub registry: Registry,
     /// Catalog of unique items that are shared across multiple registries
     /// and signals.
     pub catalog: Catalog,
@@ -70,8 +72,6 @@ pub struct ResolvedTelemetrySchema {
 #[derive(Debug, Serialize)]
 #[must_use]
 pub struct Stats {
-    /// Total number of registries.
-    pub registry_count: usize,
     /// Statistics on each registry.
     pub registry_stats: Vec<registry::Stats>,
     /// Statistics on the catalog.
@@ -79,12 +79,6 @@ pub struct Stats {
 }
 
 impl ResolvedTelemetrySchema {
-    /// Get a registry by its ID.
-    #[must_use]
-    pub fn registry(&self, registry_id: &str) -> Option<&Registry> {
-        self.registries.get(registry_id)
-    }
-
     /// Get the catalog of the resolved telemetry schema.
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
@@ -93,13 +87,51 @@ impl ResolvedTelemetrySchema {
     /// Compute statistics on the resolved telemetry schema.
     pub fn stats(&self) -> Stats {
         let mut registry_stats = Vec::new();
-        for registry in self.registries.values() {
-            registry_stats.push(registry.stats());
-        }
+        registry_stats.push(self.registry.stats());
         Stats {
-            registry_count: self.registries.len(),
             registry_stats,
             catalog_stats: self.catalog.stats(),
+        }
+    }
+
+    /// Get the attributes of the resolved telemetry schema.
+    pub fn attribute_map(&self) -> HashMap<&str, &Attribute> {
+        self.registry.groups.iter()
+            .filter(|group| group.r#type == GroupType::AttributeGroup)
+            .flat_map(|group| group.attributes.iter()
+                .map(|attr_ref| {
+                    let attr = self.catalog.attribute(attr_ref).unwrap();
+                    (attr.name.as_str(), attr)
+                }))
+            .collect()
+    }
+
+    /// Generate a diff between the current schema and a baseline schema.
+    pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) {
+        let attributes = self.attribute_map();
+        let baseline_attributes = baseline_schema.attribute_map();
+        
+        // Detect new attributes
+        for (name, attr) in attributes.iter() {
+            if !baseline_attributes.contains_key(name) {
+                println!("New attribute: {}", attr.name);
+            }
+        }
+        
+        // Detect removed attributes
+        for (name, attr) in baseline_attributes.iter() {
+            if !attributes.contains_key(name) {
+                println!("Removed attribute: {}", attr.name);
+            }
+        }
+        
+        // Detect changed attributes
+        for (name, attr) in attributes.iter() {
+            if let Some(baseline_attr) = baseline_attributes.get(name) {
+                if attr != baseline_attr {
+                    println!("Changed attribute: {}", attr.name);
+                }
+            }
         }
     }
 }

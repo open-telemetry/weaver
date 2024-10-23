@@ -15,7 +15,7 @@ use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 
@@ -72,10 +72,11 @@ pub(crate) fn command(
         .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = load_semconv_specs(&baseline_registry_repo, logger.clone())
         .capture_non_fatal_errors(&mut diag_msgs)?;
-    let main_resolved_registry = resolve_registry(main_registry_repo, main_semconv_specs, logger.clone(), &mut diag_msgs)?;
-    let baseline_resolved_registry = resolve_registry(baseline_registry_repo, baseline_semconv_specs, logger.clone(), &mut diag_msgs)?;
+    let main_resolved_schema = resolve_telemetry_schema(main_registry_repo, main_semconv_specs, logger.clone(), &mut diag_msgs)?;
+    let baseline_resolved_schema = resolve_telemetry_schema(baseline_registry_repo, baseline_semconv_specs, logger.clone(), &mut diag_msgs)?;
 
-
+    main_resolved_schema.diff(&baseline_resolved_schema);
+    
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
     }
@@ -86,28 +87,17 @@ pub(crate) fn command(
     })
 }
 
-fn resolve_registry(registry_repo: RegistryRepo, main_semconv_specs: Vec<(String, SemConvSpec)>, logger: impl Logger + Sync + Clone, diag_msgs: &mut DiagnosticMessages) -> Result<ResolvedRegistry, DiagnosticMessages> {
-    let mut main_registry =
-        SemConvRegistry::from_semconv_specs(registry_repo.id(), main_semconv_specs);
+fn resolve_telemetry_schema(registry_repo: RegistryRepo, semconv_specs: Vec<(String, SemConvSpec)>, logger: impl Logger + Sync + Clone, diag_msgs: &mut DiagnosticMessages) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
+    let mut registry =
+        SemConvRegistry::from_semconv_specs(registry_repo.id(), semconv_specs);
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
+    let resolved_schema = resolve_semconv_specs(&mut registry, logger.clone())
         .combine_diag_msgs_with(&diag_msgs)?;
-
-    // Convert the resolved schemas into a resolved registry.
-    // If there are any policy violations, they should be captured into the ongoing list of
-    // diagnostic messages and returned immediately because there is no point in continuing
-    // as the registry resolution is a prerequisite for the next stages.
-    let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-        main_resolved_schema
-            .registry(registry_repo.id())
-            .expect("Failed to get the registry from the resolved schema"),
-        main_resolved_schema.catalog(),
-    )
-        .combine_diag_msgs_with(&diag_msgs)?;
-    Ok(main_resolved_registry)
+    
+    Ok(resolved_schema)
 }
 
 #[cfg(test)]
