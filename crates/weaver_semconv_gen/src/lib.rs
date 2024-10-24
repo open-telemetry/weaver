@@ -5,8 +5,8 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use miette::Diagnostic;
-use std::{fmt, fs};
 use serde::Serialize;
+use std::{fmt, fs};
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
@@ -329,9 +329,7 @@ impl ResolvedSemconvRegistry {
             SchemaResolver::load_semconv_specs(registry_repo).into_result_failing_non_fatal()?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
-        let lookup = ResolvedSemconvRegistry {
-            schema,
-        };
+        let lookup = ResolvedSemconvRegistry { schema };
         Ok(lookup)
     }
 

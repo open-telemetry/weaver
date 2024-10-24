@@ -12,6 +12,7 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
@@ -63,7 +64,7 @@ pub struct ResolvedGroup {
     /// provided as `description` MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Additional constraints.
     /// Allow to define additional requirements on the semantic convention.
     /// It defaults to an empty list.

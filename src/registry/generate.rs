@@ -139,10 +139,8 @@ pub(crate) fn command(
     let mut engine = TemplateEngine::new(config, loader, params);
     engine.import_jq_package(SEMCONV_JQ)?;
 
-    let template_registry = ResolvedRegistry::try_from_resolved_registry(
-        &schema.registry,
-        schema.catalog(),
-    )?;
+    let template_registry =
+        ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())?;
 
     engine.generate(
         logger.clone(),

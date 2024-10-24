@@ -61,7 +61,7 @@ pub struct Attribute {
     /// error.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
-    /// Specifies if the attribute is deprecated. 
+    /// Specifies if the attribute is deprecated.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Specifies the prefix of the attribute.

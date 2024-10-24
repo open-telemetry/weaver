@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
 
 use serde::{Deserialize, Serialize};
-
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
@@ -80,7 +80,7 @@ pub struct Group {
     /// provided as <description> MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Additional constraints.
     /// Allow to define additional requirements on the semantic convention.
     /// It defaults to an empty list.
@@ -247,7 +247,7 @@ impl Registry {
             .iter()
             .filter(move |group| group_type == group.r#type)
     }
-    
+
     /// Statistics on a registry.
     pub fn stats(&self) -> Stats {
         Stats {

@@ -779,16 +779,14 @@ mod tests {
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
-        let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            &schema.registry,
-            schema.catalog(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+        let template_registry =
+            ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to create the context for the template evaluation: {:?}",
+                        e
+                    )
+                });
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
@@ -959,16 +957,14 @@ mod tests {
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
-        let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            &schema.registry,
-            schema.catalog(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+        let template_registry =
+            ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to create the context for the template evaluation: {:?}",
+                        e
+                    )
+                });
 
         engine
             .generate(

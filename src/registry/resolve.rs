@@ -100,11 +100,8 @@ pub(crate) fn command(
 
     // Serialize the resolved schema and write it
     // to a file or print it to stdout.
-    let registry = ResolvedRegistry::try_from_resolved_registry(
-        &schema.registry,
-        schema.catalog(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
+    let registry = ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
+        .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
 
     apply_format(&args.format, &registry)
         .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
