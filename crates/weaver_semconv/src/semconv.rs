@@ -188,6 +188,7 @@ mod tests {
         InvalidAttribute, InvalidExampleWarning, InvalidSemConvSpec, RegistryNotFound,
     };
     use std::path::PathBuf;
+    use weaver_common::test::ServeStaticFiles;
 
     #[test]
     fn test_semconv_spec_from_file() {
@@ -303,26 +304,27 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_url() {
+        let server = ServeStaticFiles::from("tests/test_data").unwrap();
         // Existing URL. The URL is a raw file from the semantic conventions repository.
         // This file is expected to be available.
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url/common.yaml";
-        let semconv_spec = SemConvSpec::from_url(semconv_url)
+        let semconv_url = server.relative_path_to_url("url/common.yaml");
+        let semconv_spec = SemConvSpec::from_url(&semconv_url)
             .into_result_failing_non_fatal()
             .unwrap();
         assert!(!semconv_spec.groups.is_empty());
 
         // Invalid semconv file
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/README.md";
-        let semconv_spec = SemConvSpec::from_url(semconv_url).into_result_failing_non_fatal();
+        let semconv_url = server.relative_path_to_url("README.md");
+        let semconv_spec = SemConvSpec::from_url(&semconv_url).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
             InvalidSemConvSpec { .. }
         ));
 
-        // Non-existing URL (including both a leading underscore (which is not a valid domain) and a non-existing domain)
-        let semconv_url = "http://_unknown.com.invalid/unknown-semconv.yaml";
-        let semconv_spec = SemConvSpec::from_url(semconv_url).into_result_failing_non_fatal();
+        // Non-existing URL
+        let semconv_url = server.relative_path_to_url("unknown-semconv.yaml");
+        let semconv_spec = SemConvSpec::from_url(&semconv_url).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
     }
