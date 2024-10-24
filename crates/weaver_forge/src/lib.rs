@@ -755,13 +755,12 @@ mod tests {
         let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
             .into_result_failing_non_fatal()
             .expect("Failed to load registry");
-        prepare_test_with_registry(target, cli_params, registry_id, registry)
+        prepare_test_with_registry(target, cli_params, registry)
     }
 
     fn prepare_test_with_registry(
         target: &str,
         cli_params: Params,
-        registry_id: &str,
         mut registry: SemConvRegistry,
     ) -> (
         TestLogger,
@@ -1089,7 +1088,7 @@ mod tests {
         .into_result_failing_non_fatal()
         .expect("Failed to load registry");
         let (logger, engine, template_registry, observed_output, expected_output) =
-            prepare_test_with_registry("comment_format", Params::default(), registry_id, registry);
+            prepare_test_with_registry("comment_format", Params::default(), registry);
 
         engine
             .generate(

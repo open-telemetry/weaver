@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Define the concept of Resolved Telemetry Schema.
+//!
 //! A Resolved Telemetry Schema is self-contained and doesn't contain any
 //! external references to other schemas or semantic conventions.
 
@@ -14,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
+use weaver_version::schema_changes::{SchemaChanges, SchemaItemChange, SchemaItemType};
 use weaver_version::Versions;
 
 pub mod attribute;
@@ -79,78 +81,6 @@ pub struct Stats {
     pub catalog_stats: catalog::Stats,
 }
 
-/// The set of possible change types that can be observed between
-/// two versions of a schema.
-/// ToDo Is it the right place to specify this enum
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(tag = "type")]
-pub enum SchemaChange {
-    /// An attribute has been added.
-    AddedAttribute {
-        /// The name of the added attribute.
-        name: String,
-    },
-    /// One or more attributes have been renamed into a new attribute.
-    RenamedToNewAttribute {
-        /// The old names of the attributes that have been renamed.
-        old_names: HashSet<String>,
-        /// The new name of the attributes that have been renamed.
-        new_name: String,
-    },
-    /// One or more attributes have been renamed into an existing attribute.
-    RenamedToExistingAttribute {
-        /// The old names of the attributes that have been renamed.
-        old_names: HashSet<String>,
-        /// The current name of the attributes that have been renamed.
-        current_name: String,
-    },
-    /// Deprecated attribute.
-    DeprecatedAttribute {
-        /// The name of the deprecated attribute.
-        name: String,
-        /// The deprecation note.
-        note: String,
-    },
-    /// An attribute has been removed.
-    RemovedAttribute {
-        /// The name of the removed attribute.
-        name: String,
-    },
-
-    /// A metric has been added.
-    AddedMetric {
-        /// The name of the added metric.
-        name: String,
-    },
-    /// One or more metrics have been renamed into a new metric.
-    RenamedToNewMetric {
-        /// The old names of the metrics that have been renamed.
-        old_names: HashSet<String>,
-        /// The new name of the metrics that have been renamed.
-        new_name: String,
-    },
-    /// One or more metrics have been renamed into an existing metric.
-    RenamedToExistingMetric {
-        /// The old names of the metrics that have been renamed.
-        old_names: HashSet<String>,
-        /// The current name of the metrics that have been renamed.
-        current_name: String,
-    },
-    /// Deprecated metric.
-    DeprecatedMetric {
-        /// The name of the deprecated metric.
-        name: String,
-        /// The deprecation note.
-        note: String,
-    },
-    /// A metric has been removed.
-    RemovedMetric {
-        /// The name of the removed metric.
-        name: String,
-    },
-}
-
 impl ResolvedTelemetrySchema {
     /// Get the catalog of the resolved telemetry schema.
     pub fn catalog(&self) -> &Catalog {
@@ -159,9 +89,7 @@ impl ResolvedTelemetrySchema {
 
     /// Compute statistics on the resolved telemetry schema.
     pub fn stats(&self) -> Stats {
-        let registry_stats = vec![
-            self.registry.stats()
-        ];
+        let registry_stats = vec![self.registry.stats()];
         Stats {
             registry_stats,
             catalog_stats: self.catalog.stats(),
@@ -192,22 +120,65 @@ impl ResolvedTelemetrySchema {
 
     /// Get the metrics of the resolved telemetry schema.
     #[must_use]
-    pub fn metric_map(&self) -> HashMap<String, &Group> {
+    pub fn groups(&self, group_type: GroupType) -> HashMap<String, &Group> {
         self.registry
             .groups
             .iter()
-            .filter(|group| group.r#type == GroupType::Metric)
-            .map(|group| (group.metric_name.clone().unwrap_or_default(), group))
+            .filter(|group| group.r#type == group_type)
+            .map(|group| match group_type {
+                GroupType::AttributeGroup
+                | GroupType::Event
+                | GroupType::Span
+                | GroupType::Resource
+                | GroupType::MetricGroup
+                | GroupType::Scope => (group.name.clone().unwrap_or_default(), group),
+                GroupType::Metric => (group.metric_name.clone().unwrap_or_default(), group),
+            })
             .collect()
     }
 
-    /// Generate a diff between the current schema and a baseline schema.
+    /// Generate a diff between the current schema (must be the most recent one)
+    /// and a baseline schema.
     #[must_use]
-    pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> Vec<SchemaChange> {
-        let mut changes = Vec::new();
+    pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
+        let mut changes = SchemaChanges::new();
 
+        // Attributes in the registry
         self.diff_attributes(baseline_schema, &mut changes);
-        self.diff_metrics(baseline_schema, &mut changes);
+
+        // Signals
+        let latest_signals = self.groups(GroupType::Metric);
+        let baseline_signals = baseline_schema.groups(GroupType::Metric);
+        self.diff_signals(
+            SchemaItemType::Metrics,
+            &latest_signals,
+            &baseline_signals,
+            &mut changes,
+        );
+        let latest_signals = self.groups(GroupType::Event);
+        let baseline_signals = baseline_schema.groups(GroupType::Event);
+        self.diff_signals(
+            SchemaItemType::Events,
+            &latest_signals,
+            &baseline_signals,
+            &mut changes,
+        );
+        let latest_signals = self.groups(GroupType::Span);
+        let baseline_signals = baseline_schema.groups(GroupType::Span);
+        self.diff_signals(
+            SchemaItemType::Spans,
+            &latest_signals,
+            &baseline_signals,
+            &mut changes,
+        );
+        let latest_signals = self.groups(GroupType::Resource);
+        let baseline_signals = baseline_schema.groups(GroupType::Resource);
+        self.diff_signals(
+            SchemaItemType::Resources,
+            &latest_signals,
+            &baseline_signals,
+            &mut changes,
+        );
 
         changes
     }
@@ -215,7 +186,7 @@ impl ResolvedTelemetrySchema {
     fn diff_attributes(
         &self,
         baseline_schema: &ResolvedTelemetrySchema,
-        changes: &mut Vec<SchemaChange>,
+        changes: &mut SchemaChanges,
     ) {
         let latest_attributes = self.attribute_map();
         let baseline_attributes = baseline_schema.attribute_map();
@@ -227,15 +198,11 @@ impl ResolvedTelemetrySchema {
         let mut renamed_attributes = HashMap::new();
 
         // ToDo process differences at the field level ?
-        // ToDo create a struct SchemaChanges containing all the changes and exposing a stats method
 
         // Collect all the information related to the attributes that have been
         // deprecated in the latest schema.
         for (attr_name, attr) in latest_attributes.iter() {
             if let Some(deprecated) = attr.deprecated.as_ref() {
-                if !baseline_attributes.contains_key(attr_name) {
-                    println!("We should never see a new attribute with a deprecated field! Attribute: {}", attr_name);
-                }
                 match deprecated {
                     Deprecated::Renamed {
                         new_name: rename_to,
@@ -249,10 +216,13 @@ impl ResolvedTelemetrySchema {
                             .insert(*attr_name);
                     }
                     Deprecated::Deprecated { .. } => {
-                        changes.push(SchemaChange::DeprecatedAttribute {
-                            name: attr.name.clone(),
-                            note: deprecated.to_string(),
-                        });
+                        changes.add_change(
+                            SchemaItemType::Attributes,
+                            SchemaItemChange::Deprecated {
+                                name: attr.name.clone(),
+                                note: deprecated.to_string(),
+                            },
+                        );
                     }
                 }
             }
@@ -274,16 +244,22 @@ impl ResolvedTelemetrySchema {
                 if let Some(old_names) = renamed_attributes.remove(attr_name) {
                     // The new attribute is identified as a replacement attribute based
                     // on the deprecated metadata.
-                    changes.push(SchemaChange::RenamedToNewAttribute {
-                        old_names: old_names.iter().map(|n| (*n).to_owned()).collect(),
-                        new_name: attr.name.clone(),
-                    });
+                    changes.add_change(
+                        SchemaItemType::Attributes,
+                        SchemaItemChange::RenamedToNew {
+                            old_names: old_names.iter().map(|n| (*n).to_owned()).collect(),
+                            new_name: attr.name.clone(),
+                        },
+                    );
                 } else {
                     // The new attribute is identified as a new attribute not related to
                     // any previous attributes in the baseline schema.
-                    changes.push(SchemaChange::AddedAttribute {
-                        name: attr.name.clone(),
-                    });
+                    changes.add_change(
+                        SchemaItemType::Attributes,
+                        SchemaItemChange::Added {
+                            name: attr.name.clone(),
+                        },
+                    );
                 }
             }
         }
@@ -294,9 +270,12 @@ impl ResolvedTelemetrySchema {
         // However, detecting this case is useful for identifying a violation of the process.
         for (attr_name, attr) in baseline_attributes.iter() {
             if !latest_attributes.contains_key(attr_name) {
-                changes.push(SchemaChange::RemovedAttribute {
-                    name: attr.name.clone(),
-                });
+                changes.add_change(
+                    SchemaItemType::Attributes,
+                    SchemaItemChange::Removed {
+                        name: attr.name.clone(),
+                    },
+                );
             }
         }
 
@@ -304,89 +283,137 @@ impl ResolvedTelemetrySchema {
         // present in both versions of the same schema. They represent cases where
         // attributes have been renamed to an already existing attribute.
         for (new_name, old_names) in renamed_attributes.iter() {
-            changes.push(SchemaChange::RenamedToExistingAttribute {
-                old_names: old_names.iter().map(|n| (*n).to_owned()).collect(),
-                current_name: (*new_name).to_owned(),
-            });
+            changes.add_change(
+                SchemaItemType::Attributes,
+                SchemaItemChange::RenamedToExisting {
+                    old_names: old_names.iter().map(|n| (*n).to_owned()).collect(),
+                    current_name: (*new_name).to_owned(),
+                },
+            );
         }
     }
 
-    fn diff_metrics(
+    fn diff_signals(
         &self,
-        baseline_schema: &ResolvedTelemetrySchema,
-        changes: &mut Vec<SchemaChange>,
+        schema_item_type: SchemaItemType,
+        latest_signals: &HashMap<String, &Group>,
+        baseline_signals: &HashMap<String, &Group>,
+        changes: &mut SchemaChanges,
     ) {
-        let metrics = self.metric_map();
-        let baseline_metrics = baseline_schema.metric_map();
+        /// Get the name of the provided group based on the given schema item type.
+        fn group_name(schema_item_type: SchemaItemType, group: &Group) -> String {
+            match schema_item_type {
+                SchemaItemType::Attributes
+                | SchemaItemType::Events
+                | SchemaItemType::Spans
+                | SchemaItemType::Resources => group.name.clone().unwrap_or_default(),
+                SchemaItemType::Metrics => group.metric_name.clone().unwrap_or_default(),
+            }
+        }
 
-        // Detect changed metrics and, based on the deprecated field,
-        // build maps of metrics that have been renamed or deprecated.
-        let mut renamed_metrics: HashMap<String, Vec<&Group>> = HashMap::new();
-        for (name, metric) in metrics.iter() {
-            if let Some(baseline_metric) = baseline_metrics.get(name) {
-                if metric != baseline_metric {
-                    if let Some(deprecated) = metric.deprecated.as_ref() {
-                        match deprecated {
-                            Deprecated::Renamed {
-                                new_name: rename_to,
-                                ..
-                            } => {
-                                // Insert the old name into the vec of old names
-                                // for the new name (rename_to).
-                                renamed_metrics
-                                    .entry(rename_to.clone())
-                                    .or_default()
-                                    .push(metric);
-                            }
-                            Deprecated::Deprecated { .. } => {
-                                changes.push(SchemaChange::DeprecatedMetric {
-                                    name: name.clone(),
-                                    note: deprecated.to_string(),
-                                });
-                            }
-                        }
+        // A map of signal groups that have been renamed to a new signal of same type.
+        // The key is the new name of the signal, and the value is a set of old names.
+        // The key may refer to an existing signal in the baseline schema or
+        // a new signal in the latest schema.
+        let mut renamed_signals: HashMap<String, Vec<&Group>> = HashMap::new();
+
+        // Collect all the information related to the signals that have been
+        // deprecated in the latest schema.
+        for (signal_name, group) in latest_signals.iter() {
+            if let Some(deprecated) = group.deprecated.as_ref() {
+                match deprecated {
+                    Deprecated::Renamed {
+                        new_name: rename_to,
+                        ..
+                    } => {
+                        // Insert the deprecated signal into the set of renamed/deprecated signals
+                        // for the new name (rename_to).
+                        renamed_signals
+                            .entry(rename_to.clone())
+                            .or_default()
+                            .push(group);
+                    }
+                    Deprecated::Deprecated { .. } => {
+                        changes.add_change(
+                            schema_item_type,
+                            SchemaItemChange::Deprecated {
+                                name: signal_name.clone(),
+                                note: deprecated.to_string(),
+                            },
+                        );
                     }
                 }
             }
         }
 
-        // Detect new or renamed metrics
-        for (name, _) in metrics.iter() {
-            if !baseline_metrics.contains_key(name) {
-                // The metric in the ref_schema is identified as a new metric.
-                // A metric is considered new for the following reasons:
-                // - It is an entirely new metric that did not exist before.
-                // - It is a replacement metric intended to rename one or more existing metrics.
-                if let Some(old_groups) = renamed_metrics.remove(name) {
-                    changes.push(SchemaChange::RenamedToNewMetric {
-                        old_names: old_groups
-                            .iter()
-                            .map(|n| n.metric_name.clone().unwrap_or_default())
-                            .collect(),
-                        new_name: name.clone(),
-                    });
+        // Based on the analysis of deprecated fields conducted earlier, we can
+        // now distinguish between:
+        // - a signal created to give a new name to an existing signal or
+        //   to unify several signals into a single one,
+        // - a signal created to represent something new.
+        for (signal_name, _) in latest_signals.iter() {
+            if !baseline_signals.contains_key(signal_name) {
+                // The signal in the latest schema does not exist in the baseline schema.
+                // This signal may be referenced in the deprecated field of another
+                // signal, indicating that it is a replacement signal intended to rename
+                // one or more existing signals.
+                // If it is not referenced in the deprecated field of another signal, then
+                // it is an entirely new signal that did not previously exist.
+                if let Some(old_groups) = renamed_signals.remove(signal_name) {
+                    // The new signal is identified as a replacement signal based
+                    // on the deprecated metadata.
+                    changes.add_change(
+                        schema_item_type,
+                        SchemaItemChange::RenamedToNew {
+                            old_names: old_groups
+                                .iter()
+                                .map(|n| group_name(schema_item_type, n))
+                                .collect(),
+                            new_name: signal_name.clone(),
+                        },
+                    );
                 } else {
-                    changes.push(SchemaChange::AddedMetric { name: name.clone() });
+                    // The new signal is identified as a new signal not related to
+                    // any previous signals in the baseline schema.
+                    changes.add_change(
+                        schema_item_type,
+                        SchemaItemChange::Added {
+                            name: signal_name.clone(),
+                        },
+                    );
                 }
             }
         }
 
-        // Detect removed metrics
-        for (name, _) in baseline_metrics.iter() {
-            if !metrics.contains_key(name) {
-                changes.push(SchemaChange::RemovedMetric { name: name.clone() });
+        // Any signal in the baseline schema that is not present in the latest schema
+        // is considered removed.
+        // Note: This should never occur if the registry evolution process is followed.
+        // However, detecting this case is useful for identifying a violation of the process.
+        for (signal_name, _) in baseline_signals.iter() {
+            if !latest_signals.contains_key(signal_name) {
+                changes.add_change(
+                    schema_item_type,
+                    SchemaItemChange::Removed {
+                        name: signal_name.clone(),
+                    },
+                );
             }
         }
 
-        // All remaining metrics in renamed_metrics are renamed to an existing attribute
-        for (new_name, old_groups) in renamed_metrics.iter() {
-            changes.push(SchemaChange::RenamedToExistingMetric {
-                old_names: old_groups
-                    .iter()
-                    .map(|n| n.metric_name.clone().unwrap_or_default())
-                    .collect(),
-                current_name: (*new_name).to_owned(),
-            });
+        // The signal names that remain in the list `renamed_signals` are those
+        // present in both versions of the same schema. They represent cases where
+        // signals have been renamed to an already existing signal.
+        for (new_name, old_groups) in renamed_signals.iter() {
+            changes.add_change(
+                schema_item_type,
+                SchemaItemChange::RenamedToExisting {
+                    old_names: old_groups
+                        .iter()
+                        .map(|n| group_name(schema_item_type, n))
+                        .collect(),
+                    current_name: (*new_name).to_owned(),
+                },
+            );
         }
     }
 }

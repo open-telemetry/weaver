@@ -13,7 +13,7 @@ use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
-use weaver_resolved_schema::{ResolvedTelemetrySchema, SchemaChange};
+use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 
@@ -84,69 +84,10 @@ pub(crate) fn command(
     )?;
 
     let changes = main_resolved_schema.diff(&baseline_resolved_schema);
-    //dbg!(&changes);
     let yaml_changes = serde_json::to_string_pretty(&changes).expect("Failed to serialize changes");
     println!("{}", yaml_changes);
 
-    let mut added_attributes = 0;
-    let mut renamed_to_new_attributes = 0;
-    let mut renamed_to_existing_attributes = 0;
-    let mut removed_attributes = 0;
-    let mut deprecated_attributes = 0;
-    let mut added_metrics = 0;
-    let mut renamed_to_new_metrics = 0;
-    let mut renamed_to_existing_metrics = 0;
-    let mut removed_metrics = 0;
-    let mut deprecated_metrics = 0;
-
-    for change in changes {
-        match change {
-            SchemaChange::AddedAttribute { .. } => {
-                added_attributes += 1;
-            }
-            SchemaChange::RenamedToNewAttribute { .. } => {
-                renamed_to_new_attributes += 1;
-            }
-            SchemaChange::RemovedAttribute { .. } => {
-                removed_attributes += 1;
-            }
-            SchemaChange::RenamedToExistingAttribute { .. } => {
-                renamed_to_existing_attributes += 1;
-            }
-            SchemaChange::DeprecatedAttribute { .. } => {
-                deprecated_attributes += 1;
-            }
-            SchemaChange::AddedMetric { .. } => {
-                added_metrics += 1;
-            }
-            SchemaChange::RenamedToNewMetric { .. } => {
-                renamed_to_new_metrics += 1;
-            }
-            SchemaChange::RenamedToExistingMetric { .. } => {
-                renamed_to_existing_metrics += 1;
-            }
-            SchemaChange::DeprecatedMetric { .. } => {
-                deprecated_metrics += 1;
-            }
-            SchemaChange::RemovedMetric { .. } => {
-                removed_metrics += 1;
-            }
-        }
-    }
-    dbg!(
-        added_attributes,
-        renamed_to_new_attributes,
-        renamed_to_existing_attributes,
-        removed_attributes,
-        deprecated_attributes
-    );
-    dbg!(
-        added_metrics,
-        renamed_to_new_metrics,
-        renamed_to_existing_metrics,
-        removed_metrics,
-        deprecated_metrics
-    );
+    println!("{}", changes.dump_stats());
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
@@ -170,7 +111,7 @@ fn resolve_telemetry_schema(
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
     let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(&diag_msgs)?;
+        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(diag_msgs)?;
 
     Ok(resolved_schema)
 }

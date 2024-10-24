@@ -23,6 +23,7 @@ mod all_changes;
 pub mod logs_changes;
 pub mod metrics_changes;
 pub mod resource_changes;
+pub mod schema_changes;
 pub mod spans_changes;
 
 /// An error that can occur while loading or resolving version changes.
