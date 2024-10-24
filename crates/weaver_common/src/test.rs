@@ -3,7 +3,7 @@
 //! HTTP server for testing purposes.
 
 use paris::error;
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::JoinHandle};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::PathBuf;
@@ -22,12 +22,22 @@ pub struct HttpServerError {
 pub struct ServeStaticFiles {
     server: Arc<Server>,
     port: u16,
+    request_handler: JoinHandle<()>,
 }
 
 impl Drop for ServeStaticFiles {
     /// Stops the HTTP server.
     fn drop(&mut self) {
-        self.server.unblock();
+        println!("DEBUG - Dropping ServeStaticFiles");
+        // Test to see if we can force tiny_http to kill our thread, dropping the Arc
+        // before we continue to try to ensure `server` is dropped, cleaning
+        // open threads.
+        let mut attempts = 0;
+        while !self.request_handler.is_finished() && attempts < 10 {
+            self.server.unblock();
+            std::thread::yield_now();
+            attempts += 1;
+        }
     }
 }
 
@@ -58,7 +68,7 @@ impl ServeStaticFiles {
             .map(|ip| ip.port())
             .unwrap_or(0);
 
-        let _ = std::thread::spawn(move || {
+        let request_handler = std::thread::spawn(move || {
             for request in server_clone.incoming_requests() {
                 let mut file_path = static_path.clone();
                 if request.url().len() > 1 {
@@ -91,9 +101,10 @@ impl ServeStaticFiles {
                         .expect("Failed to respond");
                 }
             }
+            println!("DEBUG - Done handling ServeStaticFiles requests");
         });
 
-        Ok(Self { server, port })
+        Ok(Self { server, port, request_handler })
     }
 
     /// Returns the port of the server.
