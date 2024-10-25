@@ -4,7 +4,7 @@
 //! update the specified sections.
 
 use crate::registry::RegistryArgs;
-use crate::{registry, DiagnosticArgs, ExitDirectives};
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
@@ -73,13 +73,7 @@ pub(crate) fn command(
         engine
     };
 
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir (should be removed in the future)
-    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
+    let registry_path = args.registry.registry.clone();
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
     log.success("Registry resolved successfully");
@@ -140,7 +134,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "data/update_markdown/registry".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),

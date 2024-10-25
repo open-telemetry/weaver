@@ -5,9 +5,8 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use miette::Diagnostic;
-use std::{fmt, fs};
-
 use serde::Serialize;
+use std::{fmt, fs};
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
@@ -15,7 +14,7 @@ use weaver_diff::diff_output;
 use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::TemplateEngine;
 use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
@@ -318,7 +317,6 @@ impl SnippetGenerator {
 /// The resolved Semantic Convention repository that is used to drive snipper generation.
 struct ResolvedSemconvRegistry {
     schema: ResolvedTelemetrySchema,
-    registry_id: String,
 }
 
 impl ResolvedSemconvRegistry {
@@ -331,15 +329,8 @@ impl ResolvedSemconvRegistry {
             SchemaResolver::load_semconv_specs(registry_repo).into_result_failing_non_fatal()?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
-        let lookup = ResolvedSemconvRegistry {
-            schema,
-            registry_id: registry_id.into(),
-        };
+        let lookup = ResolvedSemconvRegistry { schema };
         Ok(lookup)
-    }
-
-    fn my_registry(&self) -> Option<&Registry> {
-        self.schema.registry(self.registry_id.as_str())
     }
 
     fn catalog(&self) -> &Catalog {
@@ -347,8 +338,7 @@ impl ResolvedSemconvRegistry {
     }
 
     fn find_group(&self, id: &str) -> Option<&Group> {
-        self.my_registry()
-            .and_then(|r| r.groups.iter().find(|g| g.id == id))
+        self.schema.registry.groups.iter().find(|g| g.id == id)
     }
 }
 

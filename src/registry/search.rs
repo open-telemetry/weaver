@@ -12,7 +12,6 @@ use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
-    registry,
     registry::RegistryArgs,
     util::{load_semconv_specs, resolve_semconv_specs},
     DiagnosticArgs, ExitDirectives,
@@ -107,12 +106,7 @@ impl<'a> SearchApp<'a> {
             .title_alignment(ratatui::layout::Alignment::Center)
             .title_style(Style::default().fg(Color::Green))
             .title("Weaver Search");
-        let group_count: usize = self
-            .schema
-            .registries
-            .values()
-            .map(|r| r.stats().group_count)
-            .sum();
+        let group_count: usize = self.schema.registry.stats().group_count;
         let title_contents = Line::from(vec![Span::styled(
             format!(
                 "Loaded {0:?} groups w/ {1} attributes",
@@ -378,13 +372,7 @@ pub(crate) fn command(
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let registry_id = "default";
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir (should be removed in the future)
-    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
+    let registry_path = args.registry.registry.clone();
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.

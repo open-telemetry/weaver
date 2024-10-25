@@ -180,8 +180,7 @@ impl DiagnosticMessages {
         Self(vec![DiagnosticMessage::new(error)])
     }
 
-    /// Returns true if all the diagnostic messages are explicitly marked as
-    /// warnings or advices.
+    /// Returns true if at least one diagnostic message has an error severity.
     #[must_use]
     pub fn has_error(&self) -> bool {
         let non_error_count = self
