@@ -41,6 +41,10 @@ pub enum Error {
     /// Invalid params file passed to the command line
     #[error("The params file `{params_file}` is invalid. {error}")]
     InvalidParams { params_file: PathBuf, error: String },
+    
+    /// Failed to render the registry diff
+    #[error("Failed to render the registry diff: {error}")]
+    DiffRenderError { error: String },
 }
 
 impl From<Error> for DiagnosticMessages {

@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 /// The type of schema item.
 #[derive(Debug, Serialize, Hash, Eq, PartialEq, Copy, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum SchemaItemType {
     /// Attributes
     Attributes,

@@ -1,0 +1,46 @@
+{%- set item_types = ["attributes", "metrics", "events", "spans", "resources"] -%}
+{% for item_type in item_types %}
+{% if ctx.changes[item_type] %}
+{{ ("List of changes to " ~ item_type) | ansi_cyan }}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | sort(attribute='name') -%}
+{% if attributes -%}    
+{{ ("New " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for added in attributes %}
+  - Add {{ added.name | ansi_bright_white }}
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_new') | sort(attribute='name') -%}
+{% if attributes -%}    
+{{ ("Rename to new " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for renamed in attributes %}
+  - Rename {{ renamed.old_names | map('ansi_bright_white') | join(', ') }} to {{ renamed.new_name | ansi_bright_white }}
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_existing') | sort(attribute='name') -%}
+{% if attributes -%}    
+{{ ("Rename to existing " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for renamed in attributes %}
+  - Rename {{ renamed.old_names | map('ansi_bright_white') | join(', ') }} to {{ renamed.current_name | ansi_bright_white }}
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'deprecated') | sort(attribute='name') -%}
+{% if attributes -%}    
+{{ ("Deprecated " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for deprecated in attributes %}
+  - {{ deprecated.name | ansi_bright_white }} (Note: {{ deprecated.note }})
+    {% endfor %}
+    
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | sort(attribute='name') -%}
+{% if attributes -%}    
+{{ ("Removed " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for added in attributes %}
+  - Deprecate {{ added.name | ansi_bright_white }}
+    {% endfor %}
+    
+{% endif %}
+{% endif %}
+{% endfor %}

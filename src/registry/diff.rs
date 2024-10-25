@@ -9,13 +9,22 @@ use clap::Args;
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
+use include_dir::{include_dir, Dir};
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
+use weaver_forge::config::{Params, WeaverConfig};
+use weaver_forge::file_loader::EmbeddedFileLoader;
+use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
+use crate::registry::Error::DiffRenderError;
+
+/// Embedded default schema changes templates
+pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> =
+    include_dir!("defaults/diff_templates");
 
 /// Parameters for the `registry diff` sub-command
 #[derive(Debug, Args)]
@@ -27,6 +36,15 @@ pub struct RegistryDiffArgs {
     /// Parameters to specify the baseline semantic convention registry
     #[arg(long)]
     baseline_registry: RegistryPath,
+
+    /// Format used to render the schema changes. Predefined formats are: ansi, json,
+    /// yaml, and markdown.
+    #[arg(long, default_value = "ansi")]
+    pub(crate) diff_format: String,
+
+    /// Path to the directory where the schema changes templates are located.
+    #[arg(long, default_value = "diff_templates")]
+    pub(crate) diff_template: PathBuf,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -84,15 +102,32 @@ pub(crate) fn command(
     )?;
 
     let changes = main_resolved_schema.diff(&baseline_resolved_schema);
-    let yaml_changes = serde_json::to_string_pretty(&changes).expect("Failed to serialize changes");
-    println!("{}", yaml_changes);
-
-    println!("{}", changes.dump_stats());
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
+    let loader = EmbeddedFileLoader::try_new(
+        &DEFAULT_DIFF_TEMPLATES,
+        args.diff_template.clone(),
+        &args.diff_format,
+    )
+        .expect("Failed to create the embedded file loader for the diff templates");
+    let config = WeaverConfig::try_from_loader(&loader)
+        .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
+    let engine = TemplateEngine::new(config, loader, Params::default());
+    match engine.generate(
+        logger.clone(),
+        &changes,
+        PathBuf::new().as_path(),
+        &OutputDirective::Stdout,
+    ) {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(DiagnosticMessages::from(DiffRenderError { error: e.to_string() }));
+        }
+    }
+    
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
