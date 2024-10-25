@@ -3,12 +3,12 @@
 //! HTTP server for testing purposes.
 
 use paris::error;
-use std::{collections::HashMap, thread::JoinHandle};
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::{collections::HashMap, thread::JoinHandle};
 use tiny_http::{Header, Response, Server, StatusCode};
 
 /// An error that can occur while starting the HTTP server.
@@ -28,7 +28,6 @@ pub struct ServeStaticFiles {
 impl Drop for ServeStaticFiles {
     /// Stops the HTTP server.
     fn drop(&mut self) {
-        println!("DEBUG - Dropping ServeStaticFiles");
         // Test to see if we can force tiny_http to kill our thread, dropping the Arc
         // before we continue to try to ensure `server` is dropped, cleaning
         // open threads.
@@ -101,10 +100,13 @@ impl ServeStaticFiles {
                         .expect("Failed to respond");
                 }
             }
-            println!("DEBUG - Done handling ServeStaticFiles requests");
         });
 
-        Ok(Self { server, port, request_handler })
+        Ok(Self {
+            server,
+            port,
+            request_handler,
+        })
     }
 
     /// Returns the port of the server.
