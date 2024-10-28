@@ -2,14 +2,15 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
+use crate::registry::Error::DiffRender;
 use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use include_dir::{include_dir, Dir};
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
-use include_dir::{include_dir, Dir};
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
@@ -20,11 +21,9 @@ use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
-use crate::registry::Error::DiffRenderError;
 
 /// Embedded default schema changes templates
-pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> =
-    include_dir!("defaults/diff_templates");
+pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
 
 /// Parameters for the `registry diff` sub-command
 #[derive(Debug, Args)]
@@ -40,15 +39,20 @@ pub struct RegistryDiffArgs {
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
     /// yaml, and markdown.
     #[arg(long, default_value = "ansi")]
-    pub(crate) diff_format: String,
+    diff_format: String,
 
     /// Path to the directory where the schema changes templates are located.
     #[arg(long, default_value = "diff_templates")]
-    pub(crate) diff_template: PathBuf,
+    diff_template: PathBuf,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// Default is the `output` directory.
+    #[arg(default_value = "output")]
+    output: PathBuf,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
+    pub(crate) diagnostic: DiagnosticArgs,
 }
 
 /// An error that can occur while generating the diff between two versions of the same
@@ -101,6 +105,7 @@ pub(crate) fn command(
         &mut diag_msgs,
     )?;
 
+    // Generate the diff between the two versions of the registries.
     let changes = main_resolved_schema.diff(&baseline_resolved_schema);
 
     if diag_msgs.has_error() {
@@ -112,22 +117,30 @@ pub(crate) fn command(
         args.diff_template.clone(),
         &args.diff_format,
     )
-        .expect("Failed to create the embedded file loader for the diff templates");
+    .expect("Failed to create the embedded file loader for the diff templates");
     let config = WeaverConfig::try_from_loader(&loader)
         .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
     let engine = TemplateEngine::new(config, loader, Params::default());
+    let output_directive = if args.diff_format == "ansi" || args.diff_format == "ansi-stats" {
+        OutputDirective::Stdout
+    } else {
+        OutputDirective::File
+    };
+
     match engine.generate(
         logger.clone(),
         &changes,
-        PathBuf::new().as_path(),
-        &OutputDirective::Stdout,
+        args.output.as_path(),
+        &output_directive,
     ) {
         Ok(_) => {}
         Err(e) => {
-            return Err(DiagnosticMessages::from(DiffRenderError { error: e.to_string() }));
+            return Err(DiagnosticMessages::from(DiffRender {
+                error: e.to_string(),
+            }));
         }
     }
-    
+
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,

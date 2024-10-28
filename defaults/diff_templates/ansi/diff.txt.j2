@@ -33,14 +33,4 @@
   - {{ deprecated.name | ansi_bright_white }} (Note: {{ deprecated.note }})
     {% endfor %}
     
-{% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | sort(attribute='name') -%}
-{% if attributes -%}    
-{{ ("Removed " ~ item_type ~ ":") | ansi_bold | ansi_green }}
-    {% for added in attributes %}
-  - Deprecate {{ added.name | ansi_bright_white }}
-    {% endfor %}
-    
-{% endif %}
-{% endif %}
 {% endfor %}

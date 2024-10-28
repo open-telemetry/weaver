@@ -19,6 +19,7 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
     env.add_filter("regex_replace", regex_replace);
+    env.add_filter("toyaml", to_yaml);
 }
 
 /// Add utility functions to the environment.
@@ -84,6 +85,32 @@ fn regex_replace(
     Ok(re
         .replace_all(input.as_ref(), replacement.as_ref())
         .to_string())
+}
+
+/// Convert a value to a YAML string.
+fn to_yaml(value: Value) -> Result<Value, minijinja::Error> {
+    serde_yaml::to_string(&value)
+        .map_err(|e| {
+            minijinja::Error::new(
+                ErrorKind::InvalidOperation,
+                format!("Failed to convert to YAML: {}", e),
+            )
+        })
+        .map(|s| {
+            // When this filter is used the return value is safe for both HTML and YAML
+            // Note: this code is a copy of the `tojson` filter with the JSON-specific parts removed
+            let mut rv = String::with_capacity(s.len());
+            for c in s.chars() {
+                match c {
+                    '<' => rv.push_str("\\u003c"),
+                    '>' => rv.push_str("\\u003e"),
+                    '&' => rv.push_str("\\u0026"),
+                    '\'' => rv.push_str("\\u0027"),
+                    _ => rv.push(c),
+                }
+            }
+            Value::from_safe_string(rv)
+        })
 }
 
 /// Create a filter that replaces acronyms in the input string with the full
@@ -157,6 +184,20 @@ mod tests {
             )
             .unwrap(),
             "This A test with multiple A's"
+        );
+    }
+
+    #[test]
+    fn test_to_yaml() {
+        let mut env = Environment::new();
+        let ctx = serde_json::json!({"ctx": {"key": "value", "nested": {"key": "value"}}});
+        let config = crate::config::WeaverConfig::default();
+
+        add_filters(&mut env, &config);
+
+        assert_eq!(
+            env.render_str("{{ ctx | toyaml }}", &ctx).unwrap(),
+            "key: value\nnested:\n  key: value\n"
         );
     }
 }
