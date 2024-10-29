@@ -4356,6 +4356,7 @@ dependencies = [
  "serde_yaml",
  "thiserror",
  "ureq",
+ "weaver_cache",
  "weaver_common",
 ]
 

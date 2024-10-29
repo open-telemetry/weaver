@@ -33,7 +33,7 @@ edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
 license = "Apache-2.0"
 publish = false
-rust-version = "1.76"
+rust-version = "1.80"
 
 [workspace.dependencies]
 serde = { version = "1.0.210", features = ["derive"] }

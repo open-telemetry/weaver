@@ -25,10 +25,27 @@ pub enum SchemaItemType {
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SchemaChanges {
+    /// Information on the registry manifest for the most recent version of the schema.
+    head: RegistryManifest,
+
+    /// Information of the registry manifest for the baseline version of the schema.
+    baseline: RegistryManifest,
+
     /// A map where the key is the type of schema item (e.g., "attributes", "metrics",
     /// "events, "spans", "resources"), and the value is a list of changes associated
     /// with that item type.
     changes: HashMap<SchemaItemType, Vec<SchemaItemChange>>,
+}
+
+/// Represents the information of a semantic convention registry manifest.
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RegistryManifest {
+    /// The version of the registry which will be used to define the semconv package version.
+    pub semconv_version: String,
+
+    /// The base URL where the registry's schema files are hosted.
+    pub schema_base_url: String,
 }
 
 /// Represents the different types of changes that can occur between
@@ -77,6 +94,8 @@ impl SchemaChanges {
     #[must_use]
     pub fn new() -> Self {
         let mut schema_changes = SchemaChanges {
+            head: RegistryManifest::default(),
+            baseline: RegistryManifest::default(),
             changes: HashMap::new(),
         };
         let _ = schema_changes
@@ -104,6 +123,16 @@ impl SchemaChanges {
             .get_mut(&item_type)
             .expect("All the possible schema item types should be initialized.")
             .push(change);
+    }
+
+    /// Set the baseline manifest for the schema changes.
+    pub fn set_head_manifest(&mut self, head: RegistryManifest) {
+        self.head = head;
+    }
+
+    /// Set the baseline manifest for the schema changes.
+    pub fn set_baseline_manifest(&mut self, baseline: RegistryManifest) {
+        self.baseline = baseline;
     }
 
     /// Return a string representation of the statistics on the schema changes.

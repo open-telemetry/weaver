@@ -10,6 +10,7 @@
 
 use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use weaver_common::error::handle_errors;
@@ -18,7 +19,7 @@ use weaver_common::error::handle_errors;
 ///
 /// This information defines the registry's name, version, description, and schema
 /// base url.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct RegistryManifest {
     /// The name of the registry. This name is used to define the package name.
     pub name: String,
@@ -41,7 +42,6 @@ impl RegistryManifest {
     /// Attempts to load a registry manifest from a file.
     ///
     /// The expected file format is YAML.
-    #[allow(dead_code)] // ToDo LQ - Remove this line after the function is used.
     pub fn try_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
         let manifest_path_buf = path.as_ref().to_path_buf();
 

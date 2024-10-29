@@ -4,12 +4,16 @@
 
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::GroupSpecWithProvenance;
+use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
+use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::LazyLock;
+use weaver_cache::RegistryRepo;
 use weaver_common::result::WResult;
 
 /// A semantic convention registry is a collection of semantic convention
@@ -36,6 +40,9 @@ pub struct SemConvRegistry {
     ///
     /// This collection contains all the metrics defined in the semantic convention registry.
     metrics: HashMap<String, MetricSpecWithProvenance>,
+
+    /// The manifest of the semantic convention registry.
+    manifest: Option<RegistryManifest>,
 }
 
 impl SemConvRegistry {
@@ -103,26 +110,58 @@ impl SemConvRegistry {
     ///
     /// # Arguments
     ///
-    /// * `registry_id` - The id of the semantic convention registry.
+    /// * `registry_repo` - The semantic convention registry.
     /// * `semconv_specs` - The list of semantic convention specs to load.
     pub fn from_semconv_specs(
-        registry_id: &str,
+        registry_repo: &RegistryRepo,
         semconv_specs: Vec<(String, SemConvSpec)>,
-    ) -> SemConvRegistry {
+    ) -> Result<SemConvRegistry, Error> {
+        static VERSION_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
+
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_id);
+        let mut registry = SemConvRegistry::new(registry_repo.id());
 
         for (provenance, spec) in semconv_specs {
             registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance });
         }
 
-        registry
+        if let Some(manifest_path) = registry_repo.manifest_path() {
+            registry.set_manifest(RegistryManifest::try_from_file(manifest_path)?);
+        } else {
+            // No registry manifest found.
+            // Try to infer the manifest from the registry path by detecting the
+            // presence of the following pattern in the registry path: v\d+\.\d+\.\d+.
+            if let Some(captures) = VERSION_REGEX.captures(registry_repo.registry_path_repr()) {
+                if let Some(semconv_version) = captures.get(1) {
+                    registry.set_manifest(RegistryManifest {
+                        name: registry_repo.id().to_owned(),
+                        description: None,
+                        semconv_version: semconv_version.as_str().to_owned(),
+                        schema_base_url: "".to_owned(),
+                    });
+                }
+            }
+        }
+
+        Ok(registry)
     }
 
     /// Returns the id of the semantic convention registry.
     #[must_use]
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// Set the manifest of the semantic convention registry.
+    fn set_manifest(&mut self, manifest: RegistryManifest) {
+        self.manifest = Some(manifest);
+    }
+
+    /// Returns the manifest of the semantic convention registry.
+    #[must_use]
+    pub fn manifest(&self) -> Option<&RegistryManifest> {
+        self.manifest.as_ref()
     }
 
     /// Add a semantic convention spec to the semantic convention registry.
@@ -215,6 +254,8 @@ mod tests {
     use crate::group::{GroupSpec, GroupType};
     use crate::registry::SemConvRegistry;
     use crate::Error;
+    use weaver_cache::registry_path::RegistryPath;
+    use weaver_cache::RegistryRepo;
 
     #[test]
     fn test_try_from_path_pattern() {
@@ -310,7 +351,11 @@ mod tests {
                 },
             ),
         ];
-        let registry = SemConvRegistry::from_semconv_specs("test", semconv_specs);
+        let registry_path = RegistryPath::LocalFolder {
+            path: "data".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("test", &registry_path).unwrap();
+        let registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 2);
     }

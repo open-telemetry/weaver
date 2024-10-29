@@ -324,10 +324,9 @@ impl ResolvedSemconvRegistry {
     fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let registry_id = "semantic_conventions";
         let semconv_specs =
             SchemaResolver::load_semconv_specs(registry_repo).into_result_failing_non_fatal()?;
-        let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+        let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)?;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry { schema };
         Ok(lookup)

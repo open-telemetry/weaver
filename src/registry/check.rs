@@ -114,7 +114,7 @@ pub(crate) fn command(
     }
 
     let mut main_registry =
-        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
+        SemConvRegistry::from_semconv_specs(&main_registry_repo, main_semconv_specs)?;
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
@@ -157,9 +157,9 @@ pub(crate) fn command(
             (baseline_registry_repo, baseline_semconv_specs)
         {
             let mut baseline_registry = SemConvRegistry::from_semconv_specs(
-                baseline_registry_repo.id(),
+                &baseline_registry_repo,
                 baseline_semconv_specs,
-            );
+            )?;
             let baseline_resolved_schema =
                 resolve_semconv_specs(&mut baseline_registry, logger.clone())
                     .combine_diag_msgs_with(&diag_msgs)?;

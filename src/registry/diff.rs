@@ -93,13 +93,13 @@ pub(crate) fn command(
     let baseline_semconv_specs = load_semconv_specs(&baseline_registry_repo, logger.clone())
         .capture_non_fatal_errors(&mut diag_msgs)?;
     let main_resolved_schema = resolve_telemetry_schema(
-        main_registry_repo,
+        &main_registry_repo,
         main_semconv_specs,
         logger.clone(),
         &mut diag_msgs,
     )?;
     let baseline_resolved_schema = resolve_telemetry_schema(
-        baseline_registry_repo,
+        &baseline_registry_repo,
         baseline_semconv_specs,
         logger.clone(),
         &mut diag_msgs,
@@ -148,12 +148,13 @@ pub(crate) fn command(
 }
 
 fn resolve_telemetry_schema(
-    registry_repo: RegistryRepo,
+    registry_repo: &RegistryRepo,
     semconv_specs: Vec<(String, SemConvSpec)>,
     logger: impl Logger + Sync + Clone,
     diag_msgs: &mut DiagnosticMessages,
 ) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_repo.id(), semconv_specs);
+    let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
+        .combine_diag_msgs_with(diag_msgs)?;
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing

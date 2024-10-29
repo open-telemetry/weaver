@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::GroupType;
+use weaver_semconv::manifest::RegistryManifest;
 use weaver_version::schema_changes::{SchemaChanges, SchemaItemChange, SchemaItemType};
 use weaver_version::Versions;
 
@@ -69,6 +70,8 @@ pub struct ResolvedTelemetrySchema {
     /// <https://github.com/open-telemetry/oteps/blob/main/text/0152-telemetry-schemas.md>
     #[serde(skip_serializing_if = "Option::is_none")]
     pub versions: Option<Versions>,
+    /// The manifest of the registry.
+    pub registry_manifest: Option<RegistryManifest>,
 }
 
 /// Statistics on a resolved telemetry schema.
@@ -142,6 +145,20 @@ impl ResolvedTelemetrySchema {
     #[must_use]
     pub fn diff(&self, baseline_schema: &ResolvedTelemetrySchema) -> SchemaChanges {
         let mut changes = SchemaChanges::new();
+
+        if let Some(ref manifest) = self.registry_manifest {
+            changes.set_head_manifest(weaver_version::schema_changes::RegistryManifest {
+                semconv_version: manifest.semconv_version.clone(),
+                schema_base_url: manifest.schema_base_url.clone(),
+            });
+        }
+
+        if let Some(ref manifest) = baseline_schema.registry_manifest {
+            changes.set_baseline_manifest(weaver_version::schema_changes::RegistryManifest {
+                semconv_version: manifest.semconv_version.clone(),
+                schema_base_url: manifest.schema_base_url.clone(),
+            });
+        }
 
         // Attributes in the registry
         self.diff_attributes(baseline_schema, &mut changes);

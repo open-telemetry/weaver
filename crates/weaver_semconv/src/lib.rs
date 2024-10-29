@@ -13,7 +13,7 @@ pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
 pub mod group;
-mod manifest;
+pub mod manifest;
 pub mod metric;
 pub mod registry;
 pub mod semconv;

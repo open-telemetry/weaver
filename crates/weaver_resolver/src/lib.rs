@@ -222,6 +222,7 @@ impl SchemaResolver {
             instrumentation_library: None,
             dependencies: vec![],
             versions: None, // ToDo LQ: Implement this!
+            registry_manifest: registry.manifest().cloned(),
         };
 
         Ok(resolved_schema)

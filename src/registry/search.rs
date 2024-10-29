@@ -371,7 +371,6 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
-    let registry_id = "default";
     let registry_path = args.registry.registry.clone();
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
@@ -379,7 +378,7 @@ pub(crate) fn command(
     let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()?;
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
 
     // We should have two modes:

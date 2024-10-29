@@ -104,7 +104,6 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params(args)?;
     let registry_path = args.registry.registry.clone();
-    let registry_id = "default";
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
@@ -128,7 +127,7 @@ pub(crate) fn command(
             .capture_non_fatal_errors(&mut diag_msgs)?;
     }
 
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
     let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
     let config = if let Some(paths) = &args.config {
