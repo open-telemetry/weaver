@@ -1,7 +1,10 @@
-{%- set item_types = ["attributes", "metrics", "events", "spans", "resources"] -%}
+{%- set item_types = ["attributes", "metrics", "events", "spans", "resources"] %}
+
+{{ ("Schema Changes between " ~ ctx.head.semconv_version ~ " and " ~ ctx.baseline.semconv_version) | ansi_red | ansi_bold }}
+ 
 {% for item_type in item_types %}
 {% if ctx.changes[item_type] %}
-{{ ("List of changes to " ~ item_type) | ansi_cyan }}
+{{ ("List of Changes to " ~ (item_type | title_case)) | ansi_cyan | ansi_bold }}
 {% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | sort(attribute='name') -%}
 {% if attributes -%}    
 {{ ("New " ~ item_type ~ ":") | ansi_bold | ansi_green }}

@@ -1,5 +1,5 @@
 
-{{ "Summary of the registry changes" | ansi_cyan }}
+{{ ("Summary of Schema Changes between " ~ ctx.head.semconv_version ~ " and " ~ ctx.baseline.semconv_version) | ansi_red | ansi_bold }}
 
 {% set item_types = ["attributes", "metrics", "events", "spans", "resources"] %}
 {% for item_type in item_types %}
@@ -8,11 +8,11 @@
 {% set renamed_to_existing_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_existing') | count %}
 {% set deprecated_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'deprecated') | count %}
 {% set removed_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | count %}
-{{ ((item_type | title_case) ~ " changes") | ansi_green }}
-    Added: {{ added_count }}
-    Renamed to new: {{ renamed_to_new_count }}
+{{ ((item_type | title_case) ~ " Changes") | ansi_green }}
+    Added              : {{ added_count }}
+    Renamed to new     : {{ renamed_to_new_count }}
     Renamed to existing: {{ renamed_to_existing_count }}
-    Deprecated: {{ deprecated_count }}
-    Removed: {{ removed_count }}
+    Deprecated         : {{ deprecated_count }}
+    Removed            : {{ removed_count }}
     
 {% endfor %}

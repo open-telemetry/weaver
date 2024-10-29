@@ -43,9 +43,6 @@ pub struct SchemaChanges {
 pub struct RegistryManifest {
     /// The version of the registry which will be used to define the semconv package version.
     pub semconv_version: String,
-
-    /// The base URL where the registry's schema files are hosted.
-    pub schema_base_url: String,
 }
 
 /// Represents the different types of changes that can occur between
