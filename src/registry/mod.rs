@@ -15,12 +15,12 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
+use crate::registry::update_schema::RegistryUpdateSchemaArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
-use crate::registry::update_schema::RegistryUpdateSchemaArgs;
 
 mod check;
 mod diff;
@@ -117,7 +117,7 @@ pub enum RegistrySubCommand {
     /// - ...
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),
-    /// Update an OTEL Schema file with the latest changes observed between two versions of a semantic convention registry. 
+    /// Update an OTEL Schema file with the latest changes observed between two versions of a semantic convention registry.
     #[clap(verbatim_doc_comment)]
     UpdateSchema(RegistryUpdateSchemaArgs),
 }

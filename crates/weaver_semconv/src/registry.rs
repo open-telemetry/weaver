@@ -139,7 +139,7 @@ impl SemConvRegistry {
                     semconv_version = captured_text.as_str().to_owned();
                 }
             }
-            
+
             registry.set_manifest(RegistryManifest {
                 name: registry_repo.id().to_owned(),
                 description: None,

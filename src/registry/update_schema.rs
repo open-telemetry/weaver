@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Update an OTEL Schema file with the latest changes observed between two
-//! versions of a semantic convention registry. 
+//! versions of a semantic convention registry.
 
 use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
@@ -28,7 +28,7 @@ pub struct RegistryUpdateSchemaArgs {
     /// Parameters to specify the baseline semantic convention registry
     #[arg(long)]
     baseline_registry: RegistryPath,
-    
+
     /// Path to the directory where the generated artifacts will be saved.
     /// Default is the `output` directory.
     #[arg(default_value = "output")]
@@ -61,7 +61,7 @@ impl From<Error> for DiagnosticMessages {
 }
 
 /// Update an OTEL Schema file with the latest changes observed between two
-/// versions of a semantic convention registry. 
+/// versions of a semantic convention registry.
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &RegistryUpdateSchemaArgs,
@@ -96,7 +96,7 @@ pub(crate) fn command(
     if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
-    
+
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
