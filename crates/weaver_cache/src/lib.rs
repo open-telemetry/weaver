@@ -542,6 +542,7 @@ impl RegistryRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use weaver_common::test::ServeStaticFiles;
 
     fn count_yaml_files(repo_path: &Path) -> usize {
         let count = walkdir::WalkDir::new(repo_path)
@@ -619,15 +620,25 @@ mod tests {
 
     #[test]
     fn test_semconv_registry_remote_tar_gz_archive() {
-        let registry_path = "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.26.0.tar.gz[model]"
-            .parse::<RegistryPath>().unwrap();
+        let server = ServeStaticFiles::from("tests/test_data").unwrap();
+        let registry_path = format!(
+            "{}[model]",
+            server.relative_path_to_url("semconv_registry_v1.26.0.tar.gz")
+        )
+        .parse::<RegistryPath>()
+        .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 
     #[test]
     fn test_semconv_registry_remote_zip_archive() {
-        let registry_path = "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.26.0.zip[model]"
-            .parse::<RegistryPath>().unwrap();
+        let server = ServeStaticFiles::from("tests/test_data").unwrap();
+        let registry_path = format!(
+            "{}[model]",
+            server.relative_path_to_url("semconv_registry_v1.26.0.zip")
+        )
+        .parse::<RegistryPath>()
+        .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 }

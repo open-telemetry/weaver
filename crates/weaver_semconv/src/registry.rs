@@ -260,6 +260,7 @@ mod tests {
     use crate::Error;
     use weaver_cache::registry_path::RegistryPath;
     use weaver_cache::RegistryRepo;
+    use weaver_common::test::ServeStaticFiles;
 
     #[test]
     fn test_try_from_path_pattern() {
@@ -282,9 +283,10 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_url() {
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url/common.yaml";
+        let server = ServeStaticFiles::from("tests/test_data").unwrap();
+        let semconv_url = server.relative_path_to_url("url/common.yaml");
         let result =
-            SemConvRegistry::semconv_spec_from_url(semconv_url).into_result_failing_non_fatal();
+            SemConvRegistry::semconv_spec_from_url(&semconv_url).into_result_failing_non_fatal();
         assert!(result.is_ok());
     }
 
