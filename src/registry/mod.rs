@@ -20,6 +20,7 @@ use check::RegistryCheckArgs;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
+use crate::registry::update_schema::RegistryUpdateSchemaArgs;
 
 mod check;
 mod diff;
@@ -29,6 +30,7 @@ mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
+mod update_schema;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
@@ -110,12 +112,14 @@ pub enum RegistrySubCommand {
     /// Generate a diff between two versions of a semantic convention registry.
     ///
     /// This diff can then be rendered in multiple formats:
-    /// - a new version of an OTEL schema,
-    /// - a migration guide,
+    /// - a console-friendly format (default: ansi),
     /// - a structured document in JSON or YAML format,
     /// - ...
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),
+    /// Update an OTEL Schema file with the latest changes observed between two versions of a semantic convention registry. 
+    #[clap(verbatim_doc_comment)]
+    UpdateSchema(RegistryUpdateSchemaArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -165,6 +169,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::Diff(args) => CmdResult::new(
             diff::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::UpdateSchema(args) => CmdResult::new(
+            update_schema::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }

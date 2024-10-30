@@ -129,19 +129,23 @@ impl SemConvRegistry {
         if let Some(manifest_path) = registry_repo.manifest_path() {
             registry.set_manifest(RegistryManifest::try_from_file(manifest_path)?);
         } else {
+            let mut semconv_version = "unversioned".to_owned();
+
             // No registry manifest found.
             // Try to infer the manifest from the registry path by detecting the
             // presence of the following pattern in the registry path: v\d+\.\d+\.\d+.
             if let Some(captures) = VERSION_REGEX.captures(registry_repo.registry_path_repr()) {
-                if let Some(semconv_version) = captures.get(1) {
-                    registry.set_manifest(RegistryManifest {
-                        name: registry_repo.id().to_owned(),
-                        description: None,
-                        semconv_version: semconv_version.as_str().to_owned(),
-                        schema_base_url: "".to_owned(),
-                    });
+                if let Some(captured_text) = captures.get(1) {
+                    semconv_version = captured_text.as_str().to_owned();
                 }
             }
+            
+            registry.set_manifest(RegistryManifest {
+                name: registry_repo.id().to_owned(),
+                description: None,
+                semconv_version,
+                schema_base_url: "".to_owned(),
+            });
         }
 
         Ok(registry)

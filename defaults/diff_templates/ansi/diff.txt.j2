@@ -1,7 +1,7 @@
 {%- set item_types = ["attributes", "metrics", "events", "spans", "resources"] %}
 
-{{ ("Schema Changes between " ~ ctx.head.semconv_version ~ " and " ~ ctx.baseline.semconv_version) | ansi_red | ansi_bold }}
- 
+{{ ("Schema Changes between `" ~ ctx.head.semconv_version ~ "` and `" ~ ctx.baseline.semconv_version ~ "`") | ansi_red | ansi_bold }}
+
 {% for item_type in item_types %}
 {% if ctx.changes[item_type] %}
 {{ ("List of Changes to " ~ (item_type | title_case)) | ansi_cyan | ansi_bold }}
