@@ -61,6 +61,9 @@ pub(crate) fn command(
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
         path.is_file() && extension == "md"
     }
+
+    let mut diag_msgs = DiagnosticMessages::empty();
+
     // Construct a generator if we were given a `--target` argument.
     let generator = {
         let loader = FileSystemFileLoader::try_new(
@@ -81,7 +84,7 @@ pub(crate) fn command(
         }
     }
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
+    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs)?;
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -111,6 +114,10 @@ pub(crate) fn command(
         panic!("weaver registry update-markdown failed.");
     }
 
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
+    
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
