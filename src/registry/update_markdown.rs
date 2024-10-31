@@ -86,13 +86,13 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let generator =
         SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs)?;
-    
+
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
         // If we are in future mode and there are diagnostics, return them
         // without generating any snippets.
         return Err(diag_msgs);
     }
-    
+
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
