@@ -329,8 +329,8 @@ impl ResolvedSemconvRegistry {
         diag_msgs: &mut DiagnosticMessages,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let semconv_specs =
-            SchemaResolver::load_semconv_specs(registry_repo).capture_non_fatal_errors(diag_msgs)?;
+        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)
+            .capture_non_fatal_errors(diag_msgs)?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
@@ -382,7 +382,8 @@ mod tests {
         };
         let mut diag_msgs = DiagnosticMessages::empty();
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, template, &mut diag_msgs)?;
+        let generator =
+            SnippetGenerator::try_from_registry_repo(&registry_repo, template, &mut diag_msgs)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data/templates.md";

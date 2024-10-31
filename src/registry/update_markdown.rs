@@ -7,7 +7,7 @@ use crate::registry::RegistryArgs;
 use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::RegistryRepo;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
@@ -84,7 +84,15 @@ pub(crate) fn command(
         }
     }
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs)?;
+    let generator =
+        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs)?;
+    
+    if is_future_mode_enabled() && !diag_msgs.is_empty() {
+        // If we are in future mode and there are diagnostics, return them
+        // without generating any snippets.
+        return Err(diag_msgs);
+    }
+    
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -117,7 +125,7 @@ pub(crate) fn command(
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
     }
-    
+
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
