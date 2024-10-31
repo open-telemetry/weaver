@@ -25,6 +25,7 @@ pub enum Deprecated {
         /// The new name of the field.
         new_name: String,
         /// An optional note to explain why the field has been renamed.
+        #[serde(skip_serializing_if = "Option::is_none")]
         note: Option<String>,
     },
     /// The object containing the deprecated field has been deprecated

@@ -4,12 +4,14 @@
 //! Please refer to the [OpenTelemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0152-telemetry-schemas.md)
 //! for more information.
 
+use miette::Diagnostic;
 use crate::Error::{InvalidTelemetrySchema, TelemetrySchemaNotFound};
 use serde::{Deserialize, Serialize};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_version::Versions;
 
 /// Errors emitted by this crate.
-#[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize)]
+#[derive(thiserror::Error, Debug, Clone, Deserialize, Serialize, Diagnostic)]
 pub enum Error {
     /// OTel Telemetry schema not found.
     #[error("OTel telemetry schema not found (path_or_url: {path_or_url:?}).")]
@@ -26,6 +28,12 @@ pub enum Error {
         /// The error that occurred.
         error: String,
     },
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
+    }
 }
 
 /// An OpenTelemetry Telemetry Schema.

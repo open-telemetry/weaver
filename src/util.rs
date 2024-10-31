@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -196,5 +196,24 @@ pub(crate) fn resolve_semconv_specs(
     let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(registry)?;
 
     logger.success(&format!("`{}` semconv registry resolved", registry_id));
+    Ok(resolved_schema)
+}
+
+/// Resolves the telemetry schema from the given semantic convention specifications.
+pub(crate) fn resolve_telemetry_schema(
+    registry_repo: &RegistryRepo,
+    semconv_specs: Vec<(String, SemConvSpec)>,
+    logger: impl Logger + Sync + Clone,
+    diag_msgs: &mut DiagnosticMessages,
+) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
+    let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
+        .combine_diag_msgs_with(diag_msgs)?;
+    // Resolve the semantic convention specifications.
+    // If there are any resolution errors, they should be captured into the ongoing list of
+    // diagnostic messages and returned immediately because there is no point in continuing
+    // as the resolution is a prerequisite for the next stages.
+    let resolved_schema =
+        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(diag_msgs)?;
+
     Ok(resolved_schema)
 }

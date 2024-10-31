@@ -13,8 +13,9 @@ workspace = true
 
 [dependencies]
 weaver_version = { path = "../weaver_version" }
+weaver_common = { path = "../weaver_common" }
 
 thiserror.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
-
+miette.workspace = true

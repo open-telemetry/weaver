@@ -4,7 +4,7 @@
 
 use crate::registry::Error::DiffRender;
 use crate::registry::RegistryArgs;
-use crate::util::{load_semconv_specs, resolve_semconv_specs};
+use crate::util::{load_semconv_specs, resolve_telemetry_schema};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::{include_dir, Dir};
@@ -13,14 +13,11 @@ use serde::Serialize;
 use std::path::PathBuf;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
-use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::semconv::SemConvSpec;
 
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
@@ -145,24 +142,6 @@ pub(crate) fn command(
         exit_code: 0,
         quiet_mode: false,
     })
-}
-
-fn resolve_telemetry_schema(
-    registry_repo: &RegistryRepo,
-    semconv_specs: Vec<(String, SemConvSpec)>,
-    logger: impl Logger + Sync + Clone,
-    diag_msgs: &mut DiagnosticMessages,
-) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
-        .combine_diag_msgs_with(diag_msgs)?;
-    // Resolve the semantic convention specifications.
-    // If there are any resolution errors, they should be captured into the ongoing list of
-    // diagnostic messages and returned immediately because there is no point in continuing
-    // as the resolution is a prerequisite for the next stages.
-    let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(diag_msgs)?;
-
-    Ok(resolved_schema)
 }
 
 #[cfg(test)]

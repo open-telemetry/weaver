@@ -117,7 +117,7 @@ pub enum RegistrySubCommand {
     /// - ...
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),
-    /// Update an OTEL Schema file with the latest changes observed between two versions of a semantic convention registry.
+    /// Update an OpenTelemetry Schema file with the latest changes observed between two versions of a semantic convention registry.
     #[clap(verbatim_doc_comment)]
     UpdateSchema(RegistryUpdateSchemaArgs),
 }
