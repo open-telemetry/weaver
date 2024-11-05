@@ -119,7 +119,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           # cargo check-external-types is only available on this specific nightly
-          toolchain: nightly-2024-05-01
+          toolchain: nightly-2024-06-30
       - uses: Swatinem/rust-cache@v2
       - name: check-external-types
         run: |
