@@ -7,7 +7,7 @@ use crate::registry::RegistryArgs;
 use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::RegistryRepo;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
@@ -61,6 +61,9 @@ pub(crate) fn command(
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
         path.is_file() && extension == "md"
     }
+
+    let mut diag_msgs = DiagnosticMessages::empty();
+
     // Construct a generator if we were given a `--target` argument.
     let generator = {
         let loader = FileSystemFileLoader::try_new(
@@ -81,7 +84,15 @@ pub(crate) fn command(
         }
     }
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
+    let generator =
+        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs)?;
+
+    if is_future_mode_enabled() && !diag_msgs.is_empty() {
+        // If we are in future mode and there are diagnostics, return them
+        // without generating any snippets.
+        return Err(diag_msgs);
+    }
+
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -109,6 +120,10 @@ pub(crate) fn command(
     }
     if has_error {
         panic!("weaver registry update-markdown failed.");
+    }
+
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
     }
 
     Ok(ExitDirectives {
