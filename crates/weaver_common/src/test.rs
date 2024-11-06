@@ -35,7 +35,7 @@ impl ServeStaticFiles {
     pub fn from(static_path: impl Into<PathBuf>) -> Result<Self, HttpServerError> {
         let static_path = static_path.into();
         let server = Server::new("127.0.0.1:0", move |request| {
-            match_assets(&request, &static_path)
+            match_assets(request, &static_path)
         })
         .map_err(|e| HttpServerError {
             error: e.to_string(),
