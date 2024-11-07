@@ -1,11 +1,10 @@
 groups:
   - id: network-core
-    prefix: network
     type: attribute_group
     brief: >
       These attributes may be used for any network related operation.
     attributes:
-      - id: transport
+      - id: network.transport
         type:
           allow_custom_values: true
           members:
@@ -26,7 +25,7 @@ groups:
           [Inter-process Communication method](https://en.wikipedia.org/wiki/Inter-process_communication).
           The value SHOULD be normalized to lowercase.
         examples: ['tcp', 'udp']
-      - id: type
+      - id: network.type
         type:
           allow_custom_values: true
           members:
@@ -40,13 +39,13 @@ groups:
           [OSI Network Layer](https://osi-model.com/network-layer/) or non-OSI equivalent.
           The value SHOULD be normalized to lowercase.
         examples: ['ipv4', 'ipv6']
-      - id: protocol.name
+      - id: network.protocol.name
         type: string
         brief: >
           [OSI Application Layer](https://osi-model.com/application-layer/) or non-OSI equivalent.
           The value SHOULD be normalized to lowercase.
         examples: ['amqp', 'http', 'mqtt']
-      - id: protocol.version
+      - id: network.protocol.version
         type: string
         brief: 'Version of the application layer protocol used. See note below.'
         examples: '3.1.1'
@@ -56,12 +55,11 @@ groups:
           of `0.27.2`, but sends HTTP version `1.1`, this attribute should be set to `1.1`.
 
   - id: network-connection-and-carrier
-    prefix: network
     type: attribute_group
     brief: >
       These attributes may be used for any network related operation.
     attributes:
-      - id: connection.type
+      - id: network.connection.type
         type:
           allow_custom_values: true
           members:
@@ -77,7 +75,7 @@ groups:
               value: "unknown"
         brief: 'The internet connection type.'
         examples: 'wifi'
-      - id: connection.subtype
+      - id: network.connection.subtype
         type:
           allow_custom_values: true
           members:
@@ -146,28 +144,27 @@ groups:
               value: "lte_ca"
         brief: 'This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.'
         examples: 'LTE'
-      - id: carrier.name
+      - id: network.carrier.name
         type: string
         brief: "The name of the mobile carrier."
         examples: "sprint"
-      - id: carrier.mcc
+      - id: network.carrier.mcc
         type: string
         brief: "The mobile carrier country code."
         examples: "310"
-      - id: carrier.mnc
+      - id: network.carrier.mnc
         type: string
         brief: "The mobile carrier network code."
         examples: "001"
-      - id: carrier.icc
+      - id: network.carrier.icc
         type: string
         brief: "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network."
         examples: "DE"
   - id: peer
-    prefix: peer
     type: span
     brief: "Operations that access some remote service."
     attributes:
-      - id: service
+      - id: peer.service
         type: string
         brief: >
           The [`service.name`](/docs/resource/README.md#service)
@@ -175,23 +172,22 @@ groups:
           resource attribute of the remote service if any.
         examples: "AuthTokenCache"
   - id: identity
-    prefix: enduser
     type: span
     brief: >
       These attributes may be used for any operation with an authenticated and/or authorized enduser.
     attributes:
-      - id: id
+      - id: enduser.id
         type: string
         brief: >
           Username or client_id extracted from the access token or
           [Authorization](https://tools.ietf.org/html/rfc7235#section-4.2)
           header in the inbound request from outside the system.
         examples: 'username'
-      - id: role
+      - id: enduser.role
         type: string
         brief: 'Actual/assumed role the client is making the request under extracted from token or application security context.'
         examples: 'admin'
-      - id: scope
+      - id: enduser.scope
         type: string
         brief: >
           Scopes or granted authorities the client currently possesses extracted from token
@@ -200,52 +196,50 @@ groups:
           or an attribute value in a [SAML 2.0 Assertion](http://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html).
         examples: 'read:message, write:files'
   - id: thread
-    prefix: thread
     type: span
     brief: >
       These attributes may be used for any operation to store information about a thread that started a span.
     attributes:
-      - id: id
+      - id: thread.id
         type: int
         brief: >
           Current "managed" thread ID (as opposed to OS thread ID).
         examples: 42
-      - id: name
+      - id: thread.name
         type: string
         brief: >
           Current thread name.
         examples: main
-      - id: daemon
+      - id: thread.daemon
         brief: "Whether the thread is daemon or not."
         type: boolean
   - id: code
-    prefix: code
     type: span
     brief: >
       These attributes allow to report this unit of code and therefore to provide more context about the span.
     attributes:
-      - id: function
+      - id: code.function
         type: string
         brief: >
           The method or function name, or equivalent (usually rightmost part of the code unit's name).
         examples: serveRequest
-      - id: namespace
+      - id: code.namespace
         type: string
         brief: >
           The "namespace" within which `code.function` is defined. Usually the qualified class or module name,
           such that `code.namespace` + some separator + `code.function` form a unique identifier for the code unit.
         examples: com.example.MyHttpService
-      - id: filepath
+      - id: code.filepath
         type: string
         brief: >
           The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
         examples: /usr/local/MyApplication/content_root/app/index.php
-      - id: lineno
+      - id: code.lineno
         type: int
         brief: >
           The line number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
         examples: 42
-      - id: column
+      - id: code.column
         type: int
         brief: >
           The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.

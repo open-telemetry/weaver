@@ -1,11 +1,28 @@
 
-# Events Namespace `lifecycle`
+# Events Namespace `device.app`
 
 
 ## Event `device.app.lifecycle`
 
+Note: This event identifies the fields that are common to all lifecycle events for android and iOS using the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are mutually exclusive.
+
+Brief: This event represents an occurrence of a lifecycle transition on Android or iOS platform.
+
+Requirement level: 
+Stability: experimental
+
+### Attributes
+
+
+  
+  
+# Events Namespace `other`
+
+
+## Event `trace-exception`
+
 Note: 
-Brief: This event represents an occurrence of a lifecycle transition on the iOS platform.
+Brief: This document defines the attributes used to report a single exception associated with a span.
 
 Requirement level: 
 Stability: 
@@ -13,46 +30,81 @@ Stability:
 ### Attributes
 
 
-#### Attribute `ios.state`
+#### Attribute `exception.stacktrace`
 
-This attribute represents the state the application has transitioned into at the occurrence of the event.
+A stacktrace as a string in the natural representation for the language runtime. The representation is to be determined and documented by each language SIG.
 
 
 
-The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.
-
-- Requirement Level: Required
+- Requirement Level: Recommended
   
-- Type: Enum [active, inactive, background, foreground, terminate]
+- Type: string
+- Examples: Exception in thread "main" java.lang.RuntimeException: Test exception\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n at com.example.GenerateTrace.main(GenerateTrace.java:5)
   
-- Stability: Experimental
-  
+- Stability: Stable
   
   
-## Event `device.app.lifecycle`
+#### Attribute `exception.escaped`
 
-Note: 
-Brief: This event represents an occurrence of a lifecycle transition on the Android platform.
-
-Requirement level: 
-Stability: 
-
-### Attributes
-
-
-#### Attribute `android.state`
-
-This attribute represents the state the application has transitioned into at the occurrence of the event.
+SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.
 
 
 
-The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.
+An exception is considered to have escaped (or left) the scope of a span,
+if that span is ended while the exception is still logically "in flight".
+This may be actually "in flight" in some languages (e.g. if the exception
+is passed to a Context manager's `__exit__` method in Python) but will
+usually be caught at the point of recording the exception in most languages.
 
-- Requirement Level: Required
+It is usually not possible to determine at the point where an exception is thrown
+whether it will escape the scope of a span.
+However, it is trivial to know that an exception
+will escape, if one checks for an active exception just before ending the span,
+as done in the [example for recording span exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/#recording-an-exception).
+
+It follows that an exception may still escape the scope of the span
+even if the `exception.escaped` attribute was not set or set to false,
+since the event might have been recorded at a time where it was not
+clear whether the exception will escape.
+
+- Requirement Level: Recommended
   
-- Type: Enum [created, background, foreground]
+- Type: boolean
   
-- Stability: Experimental
+- Stability: Stable
+  
+  
+#### Attribute `exception.type`
+
+The type of the exception (its fully-qualified class name, if applicable). The dynamic type of the exception should be preferred over the static type in languages that support it.
+
+
+
+- Requirement Level: Conditionally Required - Required if `exception.message` is not set, recommended otherwise.
+  
+- Type: string
+- Examples: [
+    "java.net.ConnectException",
+    "OSError",
+]
+  
+- Stability: Stable
+  
+  
+#### Attribute `exception.message`
+
+The exception message.
+
+
+- Requirement Level: Conditionally Required - Required if `exception.type` is not set, recommended otherwise.
+  
+- Type: string
+- Examples: [
+    "Division by zero",
+    "Can't convert 'int' object to str implicitly",
+]
+  
+- Stability: Stable
   
   
   

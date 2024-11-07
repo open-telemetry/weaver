@@ -150,6 +150,9 @@
 				"name": {
 					"type": "string",
 					"description": "The name of the event."
+				},
+				"body": {
+					"$ref": "#/$defs/AnyValueSemanticConvention"
 				}
 			},
 			"anyOf": [
@@ -159,6 +162,166 @@
 					]
 				}
 			]
+		},
+		"AnyValueSemanticConvention": {
+			"type": "object",
+			"required": [
+				"type",
+				"id",
+				"requirement_level"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "unique string"
+				},
+				"type": {
+					"$ref": "#/$defs/AnyValueType"
+				},
+				"brief": {
+					"type": "string",
+					"description": "a brief description of the value."
+				},
+				"note": {
+					"type": "string",
+					"description": "a more elaborate description of the value. It defaults to an empty string."
+				},
+				"stability": {
+					"allOf": [
+						{
+							"$ref": "#/$defs/StabilityLevel"
+						}
+					]
+				},
+				"requirement_level": {
+					"description": "specifies the any value requirement level. Can be 'required', 'conditionally_required', 'recommended', or 'opt_in'. When omitted, the value is 'recommended'. When set to 'conditionally_required', the string provided MUST specify the conditions under which the value is required.",
+					"oneOf": [
+						{
+							"const": "required"
+						},
+						{
+							"type": "object",
+							"additionalProperties": false,
+							"required": [
+								"conditionally_required"
+							],
+							"properties": {
+								"conditionally_required": {
+									"type": "string"
+								}
+							}
+						},
+						{
+							"oneOf": [
+								{
+									"const": "recommended"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"required": [
+										"recommended"
+									],
+									"properties": {
+										"recommended": {
+											"type": "string"
+										}
+									}
+								}
+							]
+						},
+						{
+							"oneOf": [
+								{
+									"const": "opt_in"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"required": [
+										"opt_in"
+									],
+									"properties": {
+										"opt_in": {
+											"type": "string"
+										}
+									}
+								}
+							]
+						}
+					]
+				},
+				"examples": {
+					"anyOf": [
+						{
+							"$ref": "#/$defs/ValueType"
+						},
+						{
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/ValueType"
+							}
+						}
+					],
+					"description": "sequence/dictionary of example values. They are optional for boolean, int, double, and enum attributes. Example values must be of the same type as the value. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary."
+				},
+				"deprecated": {
+					"type": "string",
+					"description": "specifies if the value is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+				},
+				"fields": {
+					"type": "array",
+					"description": "when the type is map, this identifies the child (nested) any values associated with the map.",
+					"items": {
+						"$ref": "#/$defs/AnyValueSemanticConvention"
+					}
+				},
+				"members": {
+					"type": "array",
+					"description": "when the type is enum, this identifies the enum members.",
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": [
+							"id",
+							"value",
+							"stability"
+						],
+						"properties": {
+							"id": {
+								"type": "string",
+								"description": "string unique"
+							},
+							"value": {
+								"type": [
+									"string",
+									"number"
+								],
+								"description": "string or number, value of the enum entry."
+							},
+							"brief": {
+								"type": "string",
+								"description": "brief description of the enum entry value. It defaults to the value of ID."
+							},
+							"note": {
+								"type": "string",
+								"description": "longer description. It defaults to an empty string."
+							},
+							"deprecated": {
+								"type": "string",
+								"description": "specifies if the attribute is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+							},
+							"stability": {
+								"allOf": [
+									{
+										"$ref": "#/$defs/StabilityLevel"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
 		},
 		"MetricSemanticConvention": {
 			"allOf": [
@@ -280,33 +443,7 @@
 					"description": "unique string"
 				},
 				"type": {
-					"oneOf": [
-						{
-							"type": "string",
-							"enum": [
-								"string",
-								"int",
-								"double",
-								"boolean",
-								"string[]",
-								"int[]",
-								"double[]",
-								"boolean[]",
-								"template[string]",
-								"template[int]",
-								"template[double]",
-								"template[boolean]",
-								"template[string[]]",
-								"template[int[]]",
-								"template[double[]]",
-								"template[boolean[]]"
-							],
-							"description": "literal denoting the type"
-						},
-						{
-							"$ref": "#/$defs/AttributeEnumType"
-						}
-					]
+					"$ref": "#/$defs/AttributeType"
 				}
 			}
 		},
@@ -440,6 +577,59 @@
 							"$ref": "#/$defs/AttributeReference"
 						}
 					]
+				}
+			]
+		},
+		"AttributeType": {
+			"description": "specifies the supported attribute types.",
+			"oneOf": [
+				{
+					"type": "string",
+					"enum": [
+						"string",
+						"int",
+						"double",
+						"boolean",
+						"string[]",
+						"int[]",
+						"double[]",
+						"boolean[]",
+						"template[string]",
+						"template[int]",
+						"template[double]",
+						"template[boolean]",
+						"template[string[]]",
+						"template[int[]]",
+						"template[double[]]",
+						"template[boolean[]]"
+					],
+					"description": "literal denoting the type"
+				},
+				{
+					"$ref": "#/$defs/AttributeEnumType"
+				}
+			]
+		},
+		"AnyValueType": {
+			"description": "specifies the supported any value types.",
+			"oneOf": [
+				{
+					"type": "string",
+					"enum": [
+						"string",
+						"int",
+						"double",
+						"boolean",
+						"string[]",
+						"int[]",
+						"double[]",
+						"boolean[]",
+						"map",
+						"byte[]",
+						"enum",
+						"undefined"
+					],
+					"description": "literal denoting the type"
 				}
 			]
 		}

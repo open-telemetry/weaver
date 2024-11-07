@@ -5,7 +5,6 @@
       "id": "attributes.faas.common",
       "type": "attribute_group",
       "brief": "Describes FaaS attributes.",
-      "prefix": "faas",
       "attributes": [
         0,
         1,

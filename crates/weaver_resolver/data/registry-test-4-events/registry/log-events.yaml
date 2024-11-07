@@ -1,0 +1,247 @@
+groups:
+  - id: log_event_attributes_only
+    name: some.event
+    type: event
+    brief: brief
+    attributes:
+      - ref: test_attr.event.attr
+
+  - id: log_event_empty
+    name: empty.event
+    type: event
+    brief: brief
+
+  - id: log-feature_flag
+    type: event
+    name: feature_flag
+    brief: >
+      This document defines attributes for feature flag evaluations
+      represented using Log Records.
+    attributes:
+      - ref: feature_flag.key
+      - ref: feature_flag.provider_name
+      - ref: feature_flag.variant
+
+  - id: some.string.body.event
+    stability: experimental
+    type: event
+    name: string.body.event
+    brief: >
+      This event represents an occurrence of a something.
+    note: >
+      This event transmits the body as a JSON encoded string.
+    body:
+      id: some.string.body.event.fields
+      type: string
+      requirement_level: required
+      brief: >
+        This is the body of the event which is a JSON encoded string.
+      examples: ['{"key1":"value1","key2":"value2"}']
+
+  - id: some.string.body.detailed.event
+    stability: experimental
+    type: event
+    name: string.body.event
+    brief: >
+      This event represents an occurrence of a something.
+    note: >
+      This event transmits the body as a JSON encoded string.
+    body:
+      id: some.string.body.event.fields
+      type: string
+      requirement_level: required
+      brief: >
+        This is the body of the event which is a JSON encoded string.
+      note: >
+        This is a detailed note about the body.
+      stability: experimental
+      examples: ['{"key1":"value1","key2":"value2"}']
+
+  - id: device.app.lifecycle
+    stability: experimental
+    type: event
+    name: device.app.lifecycle
+    brief: >
+      This event represents an occurrence of a lifecycle transition on Android or iOS platform.
+    note: >
+      This event identifies the fields that are common to all lifecycle events for android and iOS using
+      the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are
+      mutually exclusive.
+    body:
+      id: device.app.lifecycle.fields
+      type: map
+      requirement_level: required
+      fields:
+        - id: ios.state
+          stability: experimental
+          requirement_level:
+            conditionally_required: if and only if `os.name` is `ios`
+          note: >
+            The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902),
+            and from which the `OS terminology` column values are derived.
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          type: enum
+          members:
+            - id: active
+              value: 'active'
+              brief: >
+                The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.
+            - id: inactive
+              value: 'inactive'
+              brief: >
+                The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.
+            - id: background
+              value: 'background'
+              brief: >
+                The app is now in the background.
+                This value is associated with UIKit notification `applicationDidEnterBackground`.
+            - id: foreground
+              value: 'foreground'
+              brief: >
+                The app is now in the foreground.
+                This value is associated with UIKit notification `applicationWillEnterForeground`.
+            - id: terminate
+              value: 'terminate'
+              brief: >
+                The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
+        - id: android.state
+          stability: experimental
+          requirement_level:
+            conditionally_required: if and only if `os.name` is `android`
+          brief: >
+            This attribute represents the state the application has transitioned into at the occurrence of the event.
+          note: >
+            The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc),
+            and from which the `OS identifiers` are derived.
+          type: enum
+          members:
+            - id: created
+              value: 'created'
+              brief: >
+                Any time before Activity.onResume() or, if the app has no Activity, Context.startService()
+                has been called in the app for the first time.
+            - id: background
+              value: 'background'
+              brief: >
+                Any time after Activity.onPause() or, if the app has no Activity,
+                Context.stopService() has been called when the app was in the foreground state.
+            - id: foreground
+              value: 'foreground'
+              brief: >
+                Any time after Activity.onResume() or, if the app has no Activity,
+                Context.startService() has been called when the app was in either the created or background states.
+  - id: client.exception.event
+    name: client.exception.event
+    type: event
+    brief: >
+      This document defines the log event used to
+      report a client exception.
+    body:
+      id: client.exception.event.fields
+      type: map
+      requirement_level: optional
+      fields:
+        - id: type
+          type: string
+          brief: >
+            The type of the exception.
+          examples: ["java.net.ConnectException","OSError"]
+          requirement_level: optional
+        - id: message
+          type: string
+          brief: The exception message.
+          examples: ["Division by zero","Can't convert 'int' object to str implicitly"]
+          requirement_level: optional
+        - id: stacktrace
+          type: string
+          brief: >
+            A stacktrace.
+          examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n
+            at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\n
+            at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\n
+            at com.example.GenerateTrace.main(GenerateTrace.java:5)'
+          requirement_level: optional
+        - id: escaped
+          type: boolean
+          brief: >
+            SHOULD be set to true if the exception event is recorded at a point where
+            it is known that the exception is escaping the scope of the span.
+          note: |-
+            An exception is considered to have escaped.
+          requirement_level: optional
+    attributes:
+      - id: client.name
+        type: string
+        brief: >
+          The name of the client that reported the exception.
+        examples: ["myclient"]
+  - id: browser.test.event_with_fields
+    name: browser.test.event_with_fields
+    type: event
+    brief: >
+      An event that adds global attributes for reuse.
+    attributes:
+      - id: browser.brands
+        type: string[]
+        brief: 'Array of brand name and version separated by a space'
+        note: >
+          This value is intended to be taken from the
+          [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
+          (`navigator.userAgentData.brands`).
+        examples: [ [ " Not A;Brand 99", "Chromium 99", "Chrome 99" ] ]
+      - id: browser.platform
+        type: string
+        brief: 'The platform on which the browser is running'
+        note: >
+          This value is intended to be taken from the
+          [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
+          (`navigator.userAgentData.platform`). 
+        examples: [ "Windows", "macOS", "Android", "iOS", "Linux" ]
+      - id: browser.mobile
+        type: boolean
+        brief: 'A boolean that is true if the browser is running on a mobile device'
+        note: >
+          This value is intended to be taken from the
+          [UA client hints API](https://wicg.github.io/ua-client-hints/#interface)
+          (`navigator.userAgentData.mobile`). If unavailable, this attribute
+          SHOULD be left unset.
+      - id: browser.language
+        type: string
+        brief: 'Preferred language of the user using the browser'
+        note: >
+          This value is intended to be taken from the Navigator API
+          `navigator.language`.
+        examples: [ "en", "en-US", "en-AU", "fr", "fr-FR" ]
+    body:
+      id: browser.test.event_with_body.fields
+      type: map
+      requirement_level: required
+      fields:
+        - id: some.field
+          type: string
+          brief: 'A field that is not referenced in the attributes'
+          note: 'This field is not referenced in the attributes'
+          examples: [ "some value", "another value" ]
+          requirement_level: required
+
+  - id: browser.test.event_with_body_details
+    name: browser.test.event_with_body_details
+    type: event
+    brief: >
+      An event that adds global attributes for reuse.
+    body:
+      id: browser.test.event_with_body_details.fields
+      type: map
+      brief: A map of fields that are not referenced in the attributes
+      note: This map is not referenced in the attributes
+      stability: experimental
+      examples: [ '{ "some.field": "some value" }' ]
+      requirement_level: required
+      fields:
+        - id: some.field
+          type: string
+          brief: 'A field that is not referenced in the attributes'
+          note: 'This field is not referenced in the attributes'
+          examples: [ "some value", "another value" ]
+          requirement_level: optional

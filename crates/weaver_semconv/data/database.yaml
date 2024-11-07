@@ -1,12 +1,11 @@
 groups:
   - id: db
-    prefix: db
     type: span
     brief: >
       This document defines the attributes used to perform database client calls.
     span_kind: client
     attributes:
-      - id: system
+      - id: db.system
         tag: connection-level
         brief: An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
         requirement_level: required
@@ -169,26 +168,26 @@ groups:
             - id: trino
               value: 'trino'
               brief: 'Trino'
-      - id: connection_string
+      - id: db.connection_string
         tag: connection-level
         type: string
         brief: >
           The connection string used to connect to the database.
           It is recommended to remove embedded credentials.
         examples: 'Server=(localdb)\v11.0;Integrated Security=true;'
-      - id: user
+      - id: db.user
         tag: connection-level
         type: string
         brief: >
           Username for accessing the database.
         examples: ['readonly_user', 'reporting_user']
-      - id: jdbc.driver_classname
+      - id: db.jdbc.driver_classname
         tag: connection-level-tech-specific
         type: string
         brief: >
           The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
         examples: ['org.postgresql.Driver', 'com.microsoft.sqlserver.jdbc.SQLServerDriver']
-      - id: name
+      - id: db.name
         tag: call-level
         type: string
         requirement_level:
@@ -203,7 +202,7 @@ groups:
           (e.g. Oracle instance name and schema name),
           the database name to be used is the more specific layer (e.g. Oracle schema name).
         examples: [ 'customers', 'main' ]
-      - id: statement
+      - id: db.statement
         tag: call-level
         type: string
         requirement_level:
@@ -212,7 +211,7 @@ groups:
         brief: >
           The database statement being executed.
         examples: ['SELECT * FROM wuser_table', 'SET mykey "WuValue"']
-      - id: operation
+      - id: db.operation
         tag: call-level
         type: string
         requirement_level:
@@ -255,13 +254,12 @@ groups:
           - 'server.socket.address'
 
   - id: db.mssql
-    prefix: db.mssql
     type: span
     extends: db
     brief: >
       Connection-level attributes for Microsoft SQL Server
     attributes:
-      - id: instance_name
+      - id: db.mssqlinstance_name
         tag: connection-level-tech-specific
         type: string
         note: >
@@ -273,7 +271,6 @@ groups:
         examples: 'MSSQLSERVER'
 
   - id: db.cassandra
-    prefix: db.cassandra
     type: span
     extends: db
     brief: >
@@ -285,13 +282,13 @@ groups:
           The keyspace name in Cassandra.
         examples: ["mykeyspace"]
         note: For Cassandra the `db.name` should be set to the Cassandra keyspace name.
-      - id: page_size
+      - id: db.cassandra.page_size
         type: int
         tag: call-level-tech-specific-cassandra
         brief: >
           The fetch size used for paging, i.e. how many rows will be returned at once.
         examples: [5000]
-      - id: consistency_level
+      - id: db.cassandra.consistency_level
         tag: call-level-tech-specific-cassandra
         brief: >
           The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
@@ -319,7 +316,7 @@ groups:
               value: 'serial'
             - id: local_serial
               value: 'local_serial'
-      - id: table
+      - id: db.cassandra.table
         type: string
         tag: call-level-tech-specific-cassandra
         requirement_level: recommended
@@ -332,24 +329,24 @@ groups:
           If the operation is acting upon an anonymous table, or more than one table, this
           value MUST NOT be set.
         examples: 'mytable'
-      - id: idempotence
+      - id: db.cassandra.idempotence
         type: boolean
         tag: call-level-tech-specific-cassandra
         brief: >
           Whether or not the query is idempotent.
-      - id: speculative_execution_count
+      - id: db.cassandra.speculative_execution_count
         type: int
         tag: call-level-tech-specific-cassandra
         brief: >
           The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
         examples: [0, 2]
-      - id: coordinator.id
+      - id: db.cassandra.coordinator.id
         type: string
         tag: call-level-tech-specific-cassandra
         brief: >
           The ID of the coordinating node for a query.
         examples: 'be13faa2-8574-4d71-926d-27f16cf8a7af'
-      - id: coordinator.dc
+      - id: db.cassandra.coordinator.dc
         type: string
         tag: call-level-tech-specific-cassandra
         brief: >
@@ -357,7 +354,6 @@ groups:
         examples: 'us-west-2'
 
   - id: db.hbase
-    prefix: db.hbase
     type: span
     extends: db
     brief: >
@@ -371,7 +367,6 @@ groups:
         note: For HBase the `db.name` should be set to the HBase namespace.
 
   - id: db.couchdb
-    prefix: db.couchdb
     type: span
     extends: db
     brief: >
@@ -390,13 +385,12 @@ groups:
           [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
 
   - id: db.redis
-    prefix: db.redis
     type: span
     extends: db
     brief: >
       Call-level attributes for Redis
     attributes:
-      - id: database_index
+      - id: db.redis.database_index
         type: int
         requirement_level:
           conditionally_required: If other than the default database (`0`).
@@ -414,13 +408,12 @@ groups:
           For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI.
           If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
   - id: db.mongodb
-    prefix: db.mongodb
     type: span
     extends: db
     brief: >
       Call-level attributes for MongoDB
     attributes:
-      - id: collection
+      - id: db.mongodb.collection
         type: string
         requirement_level: required
         tag: call-level-tech-specific
@@ -429,7 +422,6 @@ groups:
         examples: [ 'customers', 'products' ]
 
   - id: db.elasticsearch
-    prefix: db.elasticsearch
     type: span
     extends: db
     brief: >
@@ -455,13 +447,12 @@ groups:
       - ref: server.port
 
   - id: db.sql
-    prefix: 'db.sql'
     type: span
     extends: 'db'
     brief: >
       Call-level attributes for SQL databases
     attributes:
-      - id: table
+      - id: db.sql.table
         tag: call-level-tech-specific
         type: string
         requirement_level: recommended
@@ -477,15 +468,14 @@ groups:
   - id: db.cosmosdb
     type: span
     extends: db
-    prefix: db.cosmosdb
     brief: >
       Call-level attributes for Cosmos DB.
     attributes:
-      - id: client_id
+      - id: db.cosmosdb.client_id
         type: string
         brief: Unique Cosmos client instance id.
         examples: '3ba4827d-4422-483f-b59f-85b74211c11d'
-      - id: operation_type
+      - id: db.cosmosdb.operation_type
         type:
           allow_custom_values: true
           members:
@@ -536,7 +526,7 @@ groups:
              Format Reg-{D (Disabled discovery)}-S(application region)|L(List of preferred regions)|N(None, user did not configure it).
              Default value is "NS".
         examples: ['cosmos-netstandard-sdk/3.23.0\|3.23.1\|1\|X64\|Linux 5.4.0-1098-azure 104 18\|.NET Core 3.1.32\|S\|']
-      - id: connection_mode
+      - id: db.cosmosdb.connection_mode
         type:
           allow_custom_values: false
           members:
@@ -549,13 +539,13 @@ groups:
         brief: Cosmos client connection mode.
         requirement_level:
           conditionally_required: if not `direct` (or pick gw as default)
-      - id: container
+      - id: db.cosmosdb.container
         type: string
         brief: Cosmos DB container name.
         requirement_level:
           conditionally_required: if available
         examples: 'anystring'
-      - id: request_content_length
+      - id: db.cosmosdb.request_content_length
         type: int
         brief: Request payload size in bytes
       - id: status_code
@@ -564,13 +554,13 @@ groups:
         examples: [200, 201]
         requirement_level:
           conditionally_required: if response was received
-      - id: sub_status_code
+      - id: db.cosmosdb.sub_status_code
         type: int
         brief: Cosmos DB sub status code.
         examples: [1000, 1002]
         requirement_level:
           conditionally_required: when response was received and contained sub-code.
-      - id: request_charge
+      - id: db.cosmosdb.request_charge
         type: double
         brief: RU consumed for that operation
         examples: [46.18, 1.0]

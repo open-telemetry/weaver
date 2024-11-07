@@ -1,0 +1,74 @@
+groups:
+  - id: trace-exception
+    name: exception
+    type: event
+    brief: >
+      This document defines the attributes used to
+      report a single exception associated with a span.
+    attributes:
+      - ref: exception.type
+        requirement_level:
+          conditionally_required: Required if `exception.message` is not set, recommended otherwise.
+      - ref: exception.message
+        requirement_level:
+          conditionally_required: Required if `exception.type` is not set, recommended otherwise.
+      - ref: exception.stacktrace
+      - ref: exception.escaped
+
+  - id: feature_flag
+    name: feature_flag
+    type: event
+    brief: >
+      This semantic convention defines the attributes used to represent a
+      feature flag evaluation as an event.
+    attributes:
+      - id: feature_flag.key
+        type: string
+        requirement_level: required
+        brief: The unique identifier of the feature flag.
+        examples: ["logo-color"]
+      - id: feature_flag.provider_name
+        type: string
+        requirement_level: recommended
+        brief: The name of the service provider that performs the flag evaluation.
+        examples: ["Flag Manager"]
+      - id: feature_flag.variant
+        type: string
+        requirement_level: recommended
+        examples: ["red", "true", "on"]
+        brief: >
+          SHOULD be a semantic identifier for a value. If one is unavailable, a
+          stringified version of the value can be used.
+        note: |-
+          A semantic identifier, commonly referred to as a variant, provides a means
+          for referring to a value without including the value itself. This can
+          provide additional context for understanding the meaning behind a value.
+          For example, the variant `red` maybe be used for the value `#c05543`.
+
+          A stringified version of the value can be used in situations where a
+          semantic identifier is unavailable. String representation of the value
+          should be determined by the implementer.
+
+  - id: test_evt.with_attr
+    name: test_evt.with_attr
+    type: event
+    brief: >
+      Simple example span event with an attribute
+    attributes:
+      - ref: test_attr.event.attr
+        requirement_level:
+          conditionally_required: if and only if corresponding event is enabled
+        note: >
+          test attribute
+
+  - id: test_evt.session
+    name: test_evt.session
+    type: event
+    brief: >
+      Another simple span event with another attribute
+    attributes:
+      - ref: test_attr.session.id
+        requirement_level:
+          conditionally_required: if and only if corresponding event is enabled
+        note: >
+          Another test attribute

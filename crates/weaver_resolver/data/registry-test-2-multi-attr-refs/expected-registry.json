@@ -41,7 +41,6 @@
       "id": "registry.messaging",
       "type": "attribute_group",
       "brief": "Attributes describing telemetry around messaging systems and messaging activities.",
-      "prefix": "messaging",
       "attributes": [
         0,
         1,

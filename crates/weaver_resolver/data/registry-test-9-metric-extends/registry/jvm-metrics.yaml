@@ -2,9 +2,8 @@ groups:
   - id: attributes.jvm.memory
     type: attribute_group
     brief: "Describes JVM memory metric attributes."
-    prefix: jvm.memory
     attributes:
-      - id: type
+      - id: jvm.memory.type
         stability: stable
         type:
           allow_custom_values: false
@@ -20,7 +19,7 @@ groups:
         requirement_level: recommended
         brief: The type of memory.
         examples: ["heap", "non_heap"]
-      - id: pool.name
+      - id: jvm.memory.pool.name
         stability: stable
         type: string
         requirement_level: recommended

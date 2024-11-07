@@ -17,8 +17,8 @@ pub struct MarkdownRenderOptions {
     #[serde(default)]
     pub(crate) escape_backslashes: bool,
     /// Whether to escape square brackets in the Markdown text. Valid links are not affected.
-    /// Default is true.
-    #[serde(default = "default_bool::<true>")]
+    /// Default is false.
+    #[serde(default)]
     pub(crate) escape_square_brackets: bool,
     /// Whether to indent the first level of list items in the markdown.
     /// Default is false.
@@ -32,12 +32,6 @@ pub struct MarkdownRenderOptions {
     /// The default language for code blocks.
     /// Default is None.
     pub(crate) default_block_code_language: Option<String>,
-}
-
-/// Used to set a default value for a boolean field in a struct.
-#[must_use]
-pub const fn default_bool<const V: bool>() -> bool {
-    V
 }
 
 pub(crate) struct ShortcutReferenceLink {
@@ -306,7 +300,7 @@ impl MarkdownRenderer {
                 ctx.markdown
                     .push_str(&format!("```{}\n{}\n```\n", lang, code.value));
             }
-            Node::BlockQuote(block_quote) => {
+            Node::Blockquote(block_quote) => {
                 ctx.add_cond_blank_line();
                 ctx.set_line_prefix("> ");
                 for child in &block_quote.children {

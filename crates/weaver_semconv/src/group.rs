@@ -9,6 +9,7 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
+use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
@@ -86,12 +87,23 @@ pub struct GroupSpec {
     pub name: Option<String>,
     /// The readable name for attribute groups used when generating registry tables.
     pub display_name: Option<String>,
+    /// The event body definition
+    /// Note: only valid if type is event
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<AnyValueSpec>,
 }
 
 impl GroupSpec {
     /// Validation logic for the group.
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
+
+        if !self.prefix.is_empty() {
+            errors.push(Error::InvalidGroupUsesPrefix {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+            });
+        }
 
         // Fields span_kind and events are only valid if type is span (the default).
         if self.r#type != GroupType::Span {
@@ -114,11 +126,42 @@ impl GroupSpec {
         }
 
         // Field name is required if prefix is empty and if type is event.
-        if self.r#type == GroupType::Event && self.prefix.is_empty() && self.name.is_none() {
+        if self.r#type == GroupType::Event {
+            if self.body.is_some() && self.name.is_none() {
+                // Must have a name which is assigned to event.name for log based events
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains an event type with a body definition but the name is not set.".to_owned(),
+                });
+            }
+            if self.body.is_none() && self.name.is_none() && self.prefix.is_empty() {
+                // This is ONLY for backward compatibility of span based events.
+                // Must have a name (whether explicit or via a prefix which will derive the name)
+                errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: "This group contains an event type but the name is not set and no prefix is defined.".to_owned(),
+                });
+            }
+
+            match validate_any_value_examples(
+                &mut errors,
+                self.body.as_ref(),
+                &self.id,
+                path_or_url,
+            ) {
+                WResult::Ok(_) => {}
+                WResult::OkWithNFEs(_, errs) => errors.extend(errs),
+                WResult::FatalErr(err) => return WResult::FatalErr(err),
+            }
+        } else if self.body.is_some() {
+            // Make sure that body is only used for events
             errors.push(Error::InvalidGroup {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
-                error: "This group contains an event type but the prefix is empty and the name is not set.".to_owned(),
+                error: "This group contains a body field but the type is not set to event."
+                    .to_owned(),
             });
         }
 
@@ -220,6 +263,54 @@ impl GroupSpec {
     }
 }
 
+fn validate_any_value_examples(
+    errors: &mut Vec<Error>,
+    any_value: Option<&AnyValueSpec>,
+    group_id: &str,
+    path_or_url: &str,
+) -> WResult<(), Error> {
+    if let Some(value) = any_value {
+        if let Some(examples) = &value.common().examples {
+            match examples.validate_any_value(value, group_id, path_or_url) {
+                WResult::Ok(_) => {}
+                WResult::OkWithNFEs(_, errs) => errors.extend(errs),
+                WResult::FatalErr(err) => return WResult::FatalErr(err),
+            }
+        } else {
+            match value {
+                AnyValueSpec::String { .. } | AnyValueSpec::Strings { .. } => {
+                    errors.push(Error::InvalidAnyValueExampleError {
+                        path_or_url: path_or_url.to_owned(),
+                        group_id: group_id.to_owned(),
+                        value_id: value.id(),
+                        error: format!(
+                            "This value is a {} but it does not contain any examples.",
+                            if let AnyValueSpec::String { .. } = value {
+                                "string"
+                            } else {
+                                "string array"
+                            }
+                        ),
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        if let AnyValueSpec::Map { fields, .. } = value {
+            for field in fields {
+                if let WResult::FatalErr(err) =
+                    validate_any_value_examples(errors, Some(field), group_id, path_or_url)
+                {
+                    return WResult::FatalErr(err);
+                }
+            }
+        }
+    }
+
+    WResult::Ok(())
+}
+
 /// The different types of groups (specification).
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -312,8 +403,11 @@ impl Display for InstrumentSpec {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute::Examples;
-    use crate::Error::{CompoundError, InvalidExampleWarning, InvalidGroup, InvalidMetric};
+    use crate::any_value::AnyValueCommonSpec;
+    use crate::attribute::{BasicRequirementLevelSpec, Examples, RequirementLevel};
+    use crate::Error::{
+        CompoundError, InvalidExampleWarning, InvalidGroup, InvalidGroupUsesPrefix, InvalidMetric,
+    };
 
     use super::*;
 
@@ -324,7 +418,7 @@ mod tests {
             r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -348,13 +442,26 @@ mod tests {
             unit: None,
             name: None,
             display_name: None,
+            body: None,
         };
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
             .is_ok());
 
+        // group has a prefix.
+        group.prefix = "test".to_owned();
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupUsesPrefix {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned()
+            }),
+            result
+        );
+
         // Span kind is set but the type is not span.
+        group.prefix = "".to_owned();
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -413,7 +520,7 @@ mod tests {
                     InvalidGroup {
                         path_or_url: "<test>".to_owned(),
                         group_id: "test".to_owned(),
-                        error: "This group contains an event type but the prefix is empty and the name is not set.".to_owned(),
+                        error: "This group contains an event type but the name is not set and no prefix is defined.".to_owned(),
                     },
                 ],
             ),
@@ -427,7 +534,7 @@ mod tests {
             r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -451,6 +558,7 @@ mod tests {
             unit: None,
             name: None,
             display_name: None,
+            body: None,
         };
         assert!(group
             .validate("<test>")
@@ -502,6 +610,210 @@ mod tests {
                 group_id: "test".to_owned(),
                 attribute_id: "test".to_owned(),
                 error: "This attribute is a string array but it does not contain any examples."
+                    .to_owned(),
+            },),
+            result
+        );
+    }
+
+    #[test]
+    fn test_validate_event() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::Event,
+            name: Some("test_event".to_owned()),
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            constraints: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            display_name: None,
+            attributes: vec![],
+            body: Some(AnyValueSpec::String {
+                common: AnyValueCommonSpec {
+                    id: "id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: Some(Examples::String("test".to_owned())),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }),
+        };
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Examples are mandatory for string attributes.
+        group.body = Some(AnyValueSpec::String {
+            common: AnyValueCommonSpec {
+                id: "string_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+        });
+
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(Error::InvalidAnyValueExampleError {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                value_id: "string_id".to_owned(),
+                error: "This value is a string but it does not contain any examples.".to_owned(),
+            },),
+            result
+        );
+
+        // Examples are mandatory for strings attributes.
+        group.body = Some(AnyValueSpec::Strings {
+            common: AnyValueCommonSpec {
+                id: "string_array_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+        });
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(Error::InvalidAnyValueExampleError {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                value_id: "string_array_id".to_owned(),
+                error: "This value is a string array but it does not contain any examples."
+                    .to_owned(),
+            },),
+            result
+        );
+
+        // Examples are not required for Map.
+        group.body = Some(AnyValueSpec::Map {
+            common: AnyValueCommonSpec {
+                id: "map_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+            fields: vec![AnyValueSpec::String {
+                common: AnyValueCommonSpec {
+                    id: "string_id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: Some(Examples::String("test".to_owned())),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }],
+        });
+
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Examples are not required for Map[].
+        group.body = Some(AnyValueSpec::Maps {
+            common: AnyValueCommonSpec {
+                id: "map_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+            fields: vec![AnyValueSpec::String {
+                common: AnyValueCommonSpec {
+                    id: "string_id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: Some(Examples::String("test".to_owned())),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }],
+        });
+
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Examples are mandatory for string attributes even if nested
+        group.body = Some(AnyValueSpec::Map {
+            common: AnyValueCommonSpec {
+                id: "map_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+            fields: vec![AnyValueSpec::String {
+                common: AnyValueCommonSpec {
+                    id: "nested_string_id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: None,
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }],
+        });
+
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(Error::InvalidAnyValueExampleError {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                value_id: "nested_string_id".to_owned(),
+                error: "This value is a string but it does not contain any examples.".to_owned(),
+            },),
+            result
+        );
+
+        // Examples are mandatory for strings attributes even if nested
+        group.body = Some(AnyValueSpec::Map {
+            common: AnyValueCommonSpec {
+                id: "map_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+            fields: vec![AnyValueSpec::Strings {
+                common: AnyValueCommonSpec {
+                    id: "nested_strings_id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: None,
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }],
+        });
+
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(Error::InvalidAnyValueExampleError {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                value_id: "nested_strings_id".to_owned(),
+                error: "This value is a string array but it does not contain any examples."
                     .to_owned(),
             },),
             result

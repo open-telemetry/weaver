@@ -204,7 +204,6 @@ groups:
   - id: db.cosmosdb
     type: span
     extends: db
-    prefix: db.cosmosdb
     brief: >
       Call-level attributes for Cosmos DB.
     attributes:

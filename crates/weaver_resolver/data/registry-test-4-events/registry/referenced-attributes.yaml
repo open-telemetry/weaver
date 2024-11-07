@@ -1,0 +1,80 @@
+groups:
+
+  # As the tests are only loading a subset of files we need to define any referenced attributes before they can be resolved for body fields
+  - id: referenced.attributes
+    type: attribute_group
+    brief: >
+      These attributes are used as references for the test below
+    attributes:
+      - id: test_attr.platform
+        stability: stable
+        type: string
+        brief: 'The browser platform'
+        note: Test value.
+        examples: ['Windows', 'macOS', 'Android']
+      - id: test_attr.http.url
+        stability: stable
+        type: string
+        brief: 'The Url'
+        note: Test url value.
+        examples: ['https://example.com']
+      - id: test_attr.event.attr
+        stability: stable
+        type: string
+        brief: 'Just making sure the referenced attributes are defined'
+        note: Test value.
+        examples: some value
+      - id: test_attr.session.id
+        stability: stable
+        type: string
+        brief: 'The session id'
+        note: Test value.
+        examples: 127836abcdef98
+
+  - id: registry.client
+    type: attribute_group
+    brief: Client test attributes
+    attributes:
+      - id: client.address
+        stability: stable
+        type: string
+        brief: "Test Client address ...."
+        note: >
+          Test client address note
+        examples: ['client.example.com', '10.1.2.80', '/tmp/my.sock']
+      - id: client.port
+        stability: stable
+        type: int
+        brief: Client port number.
+        examples: [65123]
+        note: Test client port
+
+  - id: registry.exception
+    type: attribute_group
+    brief: >
+      This document defines the shared attributes used to
+      report a single exception associated with a span or log.
+    attributes:
+      - id: exception.type
+        type: string
+        stability: stable
+        brief: >
+          The type of the exception (its fully-qualified class name, if applicable).
+        examples: ["java.net.ConnectException", "OSError"]
+      - id: exception.message
+        type: string
+        stability: stable
+        brief: The exception message.
+        examples: ["Division by zero", "Can't convert 'int' object to str implicitly"]
+      - id: exception.stacktrace
+        type: string
+        stability: stable
+        brief: .
+        examples: 'Exception in thread "main" java.lang.RuntimeException: Test exception\n'
+      - id: exception.escaped
+        type: boolean
+        stability: stable
+        brief: >
+          SHOULD be set to true if the exception event is recorded at a point where
+          it is known that the exception is escaping the scope of the span.
+
