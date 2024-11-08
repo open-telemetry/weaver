@@ -186,10 +186,9 @@ pub(crate) fn comment(
                     // For the first line we don't add the indentation
                     if comment_format.trim {
                         new_comment.push_str(&format!("{}{}", prefix, line).trim_end());
-                    }   else {
+                    } else {
                         new_comment.push_str(&format!("{}{}", prefix, line));
                     }
-                    
                 } else {
                     if comment_format.trim {
                         new_comment.push_str(&format!("{}{}{}", indent, prefix, line).trim_end());
