@@ -184,12 +184,14 @@ pub(crate) fn comment(
             } else {
                 &subsequent_indent
             };
+            // TODO - if render format is html, we need a new word-separator that understands markdown.
             let wrap_options =
                 textwrap::Options::new(comment_format.line_length.unwrap_or(usize::MAX))
                     .initial_indent(initial_indent)
                     .subsequent_indent(&subsequent_indent)
                     .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit)
-                    .break_words(false);
+                    .break_words(false)
+                    .word_separator(textwrap::WordSeparator::AsciiSpace);
             // Wrap the comment as configured.
             comment = textwrap::fill(&comment, wrap_options);
 
