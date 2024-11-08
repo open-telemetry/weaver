@@ -185,16 +185,14 @@ pub(crate) fn comment(
                 if header.is_empty() && new_comment.is_empty() {
                     // For the first line we don't add the indentation
                     if comment_format.trim {
-                        new_comment.push_str(&format!("{}{}", prefix, line).trim_end());
+                        new_comment.push_str(format!("{}{}", prefix, line).trim_end());
                     } else {
                         new_comment.push_str(&format!("{}{}", prefix, line));
                     }
+                } else if comment_format.trim {
+                    new_comment.push_str(format!("{}{}{}", indent, prefix, line).trim_end());
                 } else {
-                    if comment_format.trim {
-                        new_comment.push_str(&format!("{}{}{}", indent, prefix, line).trim_end());
-                    } else {
-                        new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
-                    }
+                    new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
                 }
             }
             comment = new_comment;
