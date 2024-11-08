@@ -185,7 +185,7 @@ pub(crate) fn comment(
                 &subsequent_indent
             };
             let wrap_options =
-                textwrap::Options::new(comment_format.line_length.unwrap_or(std::usize::MAX))
+                textwrap::Options::new(comment_format.line_length.unwrap_or(usize::MAX))
                     .initial_indent(initial_indent)
                     .subsequent_indent(&subsequent_indent)
                     .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit)
