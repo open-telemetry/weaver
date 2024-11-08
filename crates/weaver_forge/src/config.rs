@@ -322,6 +322,8 @@ pub struct CommentFormat {
     /// Flag to enforce trailing dots on the comment content.
     #[serde(default = "default_bool::<false>")]
     pub enforce_trailing_dots: bool,
+    /// The maximum number of characters in a line.
+    pub(crate) line_length: Option<usize>,
 }
 
 /// The type of indentation to use for the comment.

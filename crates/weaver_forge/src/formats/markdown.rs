@@ -412,6 +412,7 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        line_length: None,
                     },
                 )]
                 .into_iter()
@@ -517,6 +518,7 @@ it's RECOMMENDED to:
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
+                        line_length: None,
                     },
                 )]
                 .into_iter()
@@ -557,6 +559,7 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
+                        line_length: None,
                     },
                 )]
                 .into_iter()

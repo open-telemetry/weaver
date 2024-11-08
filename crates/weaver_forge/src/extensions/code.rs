@@ -176,33 +176,49 @@ pub(crate) fn comment(
                 .map(|v: String| v)
                 .unwrap_or_else(|_| comment_format.footer.clone().unwrap_or("".to_owned()));
 
+            // Configure text-wrap algorithm to appropriately segment lines.
+            let subsequent_indent = format!("{indent}{prefix}");
+            // If there is a header, then we need to indent the first line.
+            let initial_indent = if header.is_empty() {
+                &prefix
+            } else {
+                &subsequent_indent
+            };
+            let wrap_options =
+                textwrap::Options::new(comment_format.line_length.unwrap_or(std::usize::MAX))
+                    .initial_indent(initial_indent)
+                    .subsequent_indent(&subsequent_indent)
+                    .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit)
+                    .break_words(false);
+            // Wrap the comment as configured.
+            comment = textwrap::fill(&comment, wrap_options);
+
+            // The textwrap will leave empty lines, which we want to fill with the prefix.
             let mut new_comment = String::new();
             for line in comment.lines() {
                 if !new_comment.is_empty() {
                     new_comment.push('\n');
                 }
-                // We apply "trim" to all split lines.
-                if header.is_empty() && new_comment.is_empty() {
-                    // For the first line we don't add the indentation
+                if line.is_empty() && !new_comment.is_empty() {
                     if comment_format.trim {
-                        new_comment.push_str(format!("{}{}", prefix, line).trim_end());
+                        new_comment.push_str(format!("{indent}{prefix}").trim_end());
                     } else {
-                        new_comment.push_str(&format!("{}{}", prefix, line));
+                        new_comment.push_str(&format!("{indent}{prefix}"));
                     }
                 } else if comment_format.trim {
-                    new_comment.push_str(format!("{}{}{}", indent, prefix, line).trim_end());
+                    new_comment.push_str(line.trim_end());
                 } else {
-                    new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                    new_comment.push_str(line);
                 }
             }
             comment = new_comment;
 
+            // Add header + footer to the comment.
             if !header.is_empty() {
                 comment = format!("{}\n{}", header, comment);
             }
-
             if !footer.is_empty() {
-                comment = format!("{}\n{}{}", comment, indent, footer);
+                comment = format!("{}\n{}{}", comment.trim_end(), indent, footer);
             }
 
             // Remove all trailing spaces from the comment
@@ -292,6 +308,7 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        line_length: None,
                     },
                 )]
                 .into_iter()
@@ -469,6 +486,7 @@ it's RECOMMENDED to:
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        line_length: None,
                     },
                 )]
                 .into_iter()
@@ -530,6 +548,7 @@ it's RECOMMENDED to:
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         indent_type: Default::default(),
+                        line_length: None,
                     },
                 )]
                 .into_iter()
@@ -596,6 +615,7 @@ it's RECOMMENDED to:
                         remove_trailing_dots: false,
                         enforce_trailing_dots: true,
                         indent_type: Default::default(),
+                        line_length: None,
                     },
                 )]
                 .into_iter()

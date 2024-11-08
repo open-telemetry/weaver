@@ -351,6 +351,7 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        line_length: None,
                     },
                 )]
                 .into_iter()

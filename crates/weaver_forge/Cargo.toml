@@ -29,6 +29,7 @@ jaq-syn = "1.1.0"
 indexmap = "2.6.0"
 regex = "1.11.1"
 markdown = "=1.0.0-alpha.21"
+textwrap = "0.16.1"
 
 itertools.workspace = true
 thiserror.workspace = true
