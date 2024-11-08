@@ -181,11 +181,21 @@ pub(crate) fn comment(
                 if !new_comment.is_empty() {
                     new_comment.push('\n');
                 }
+                // We apply "trim" to all split lines.
                 if header.is_empty() && new_comment.is_empty() {
                     // For the first line we don't add the indentation
-                    new_comment.push_str(&format!("{}{}", prefix, line));
+                    if comment_format.trim {
+                        new_comment.push_str(&format!("{}{}", prefix, line).trim_end());
+                    }   else {
+                        new_comment.push_str(&format!("{}{}", prefix, line));
+                    }
+                    
                 } else {
-                    new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                    if comment_format.trim {
+                        new_comment.push_str(&format!("{}{}{}", indent, prefix, line).trim_end());
+                    } else {
+                        new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                    }
                 }
             }
             comment = new_comment;
