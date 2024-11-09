@@ -194,7 +194,8 @@ pub(crate) fn comment(
                     .break_words(false)
                     .word_separator(textwrap::WordSeparator::Custom(
                         find_words_dont_split_markdown,
-                    ));
+                    ))
+                    .word_splitter(textwrap::WordSplitter::NoHyphenation);
             // Wrap the comment as configured.
             comment = textwrap::fill(&comment, wrap_options);
 
