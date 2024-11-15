@@ -1,6 +1,5 @@
 groups:
   - id: registry.messaging_bis
-    prefix: messaging
     type: attribute_group
     brief: "Attributes describing telemetry around messaging systems and messaging activities."
     attributes:
@@ -13,7 +12,6 @@ groups:
           use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.
         examples: [0, 1, 2]
   - id: registry.messaging
-    prefix: messaging
     type: attribute_group
     brief: "Attributes describing telemetry around messaging systems and messaging activities."
     attributes:
@@ -267,7 +265,6 @@ groups:
         requirement_level:
           conditionally_required: if available.              
   - id: registry.messaging_bis
-    prefix: messaging
     type: attribute_group
     brief: "Attributes describing telemetry around messaging systems and messaging activities."
     attributes:
