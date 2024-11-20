@@ -31,8 +31,9 @@ use weaver_semconv::semconv::SemConvSpec;
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
     log: impl Logger + Sync + Clone,
+    follow_symlinks: bool,
 ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
-    SchemaResolver::load_semconv_specs(registry_repo).inspect(|semconv_specs, _| {
+    SchemaResolver::load_semconv_specs(registry_repo,).inspect(|semconv_specs, _| {
         log.success(&format!(
             "`{}` semconv registry `{}` loaded ({} files)",
             registry_repo.id(),
