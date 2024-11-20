@@ -4,7 +4,7 @@
 //! update the specified sections.
 
 use crate::registry::RegistryArgs;
-use crate::{registry, DiagnosticArgs, ExitDirectives};
+use crate::{registry, DiagnosticArgs, ExitDirectives, WeaverArgs};
 use clap::Args;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
@@ -49,6 +49,10 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// Weaver parameters
+    #[command(flatten)]
+    pub weaver_args: WeaverArgs,
 }
 
 /// Update markdown files.
@@ -85,7 +89,7 @@ pub(crate) fn command(
     }
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let generator =
-        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs)?;
+        SnippetGenerator::try_from_registry_repo(&registry_repo, generator, &mut diag_msgs, args.weaver_args.follow_symlinks)?;
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
         // If we are in future mode and there are diagnostics, return them
@@ -139,7 +143,7 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
-    use crate::run_command;
+    use crate::{run_command, WeaverArgs};
 
     #[test]
     fn test_registry_update_markdown() {
@@ -162,6 +166,9 @@ mod tests {
                     templates: "data/update_markdown/templates".to_owned(),
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
+                    weaver_args: WeaverArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };

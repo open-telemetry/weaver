@@ -15,7 +15,7 @@ use crate::{
     registry,
     registry::RegistryArgs,
     util::{load_semconv_specs, resolve_semconv_specs},
-    DiagnosticArgs, ExitDirectives,
+    DiagnosticArgs, ExitDirectives, WeaverArgs
 };
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
@@ -52,6 +52,10 @@ pub struct RegistrySearchArgs {
     /// An (optional) search string to use.  If specified, will return matching values on the command line.
     /// Otherwise, runs an interactive terminal UI.
     pub search_string: Option<String>,
+
+    /// Weaver parameters
+    #[command(flatten)]
+    pub weaver_args: WeaverArgs,
 }
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -388,7 +392,7 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone(), args.weaver_args.follow_symlinks)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);

@@ -15,7 +15,7 @@ use weaver_semconv::registry::SemConvRegistry;
 use crate::format::{apply_format, Format};
 use crate::registry::RegistryArgs;
 use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, DiagnosticArgs, ExitDirectives};
+use crate::{registry, DiagnosticArgs, ExitDirectives, WeaverArgs};
 use miette::Diagnostic;
 
 /// Parameters for the `registry resolve` sub-command
@@ -56,6 +56,10 @@ pub struct RegistryResolveArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    // Weaver parameters
+    #[command(flatten)]
+    pub weaver_args: WeaverArgs,
 }
 
 /// Resolve a semantic convention registry and write the resolved schema to a
@@ -82,7 +86,7 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
+    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone(), args.weaver_args.follow_symlinks)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()?;
 
@@ -151,7 +155,7 @@ mod tests {
     use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
     use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
-    use crate::run_command;
+    use crate::{run_command, WeaverArgs};
 
     #[test]
     fn test_registry_resolve() {
@@ -174,6 +178,9 @@ mod tests {
                     policies: vec![],
                     skip_policies: true,
                     diagnostic: Default::default(),
+                    weaver_args: WeaverArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };
@@ -201,6 +208,9 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     diagnostic: Default::default(),
+                    weaver_args: WeaverArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };
