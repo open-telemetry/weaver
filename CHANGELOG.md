@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 What's changed
 
 * Add support for Maps `map[]` to the definition of an `AnyValue`. ([#396](https://github.com/open-telemetry/weaver/pull/396) by @MSNev).
-* Update semconv schema and syntax doc to correctly define `stability` as optional for attribute groups. ([#467](https://github.com/open-telemetry/weaver/pull/467) by @jerbly).
+* Update semconv schema, syntax doc and validity check to correctly define `stability` as optional for attribute groups. ([#467](https://github.com/open-telemetry/weaver/pull/467) by @jerbly).
 
 ## [0.10.0] - 2024-09-23
 
