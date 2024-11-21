@@ -306,8 +306,9 @@ impl SnippetGenerator {
     pub fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
         template_engine: TemplateEngine,
+        diag_msgs: &mut DiagnosticMessages,
     ) -> Result<SnippetGenerator, Error> {
-        let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo)?;
+        let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo, diag_msgs)?;
         Ok(SnippetGenerator {
             lookup: registry,
             template_engine,
@@ -325,10 +326,11 @@ impl ResolvedSemconvRegistry {
     /// Resolve semconv registry (possibly from git), and make it available for rendering.
     fn try_from_registry_repo(
         registry_repo: &RegistryRepo,
+        diag_msgs: &mut DiagnosticMessages,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let registry_id = "semantic_conventions";
-        let semconv_specs =
-            SchemaResolver::load_semconv_specs(registry_repo).into_result_failing_non_fatal()?;
+        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo)
+            .capture_non_fatal_errors(diag_msgs)?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry {
@@ -356,6 +358,7 @@ impl ResolvedSemconvRegistry {
 mod tests {
     use weaver_cache::registry_path::RegistryPath;
     use weaver_cache::RegistryRepo;
+    use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
@@ -377,8 +380,10 @@ mod tests {
         let registry_path = RegistryPath::LocalFolder {
             path: "data".to_owned(),
         };
+        let mut diag_msgs = DiagnosticMessages::empty();
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, template)?;
+        let generator =
+            SnippetGenerator::try_from_registry_repo(&registry_repo, template, &mut diag_msgs)?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data/templates.md";

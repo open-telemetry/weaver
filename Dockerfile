@@ -1,6 +1,6 @@
 
 # The build image
-FROM rust:1.78.0-alpine3.18 AS weaver-build
+FROM rust:1.82.0-alpine3.20 AS weaver-build
 RUN apk add musl-dev
 WORKDIR /build
 
