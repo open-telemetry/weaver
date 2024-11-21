@@ -94,9 +94,13 @@ pub(crate) fn command(
             // Baseline registry resolution should allow non-future features
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
-            load_semconv_specs(repo, logger.clone(), args.common_registry_args.follow_symlinks)
-                .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-                .capture_non_fatal_errors(&mut diag_msgs)
+            load_semconv_specs(
+                repo,
+                logger.clone(),
+                args.common_registry_args.follow_symlinks,
+            )
+            .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+            .capture_non_fatal_errors(&mut diag_msgs)
         })
         .transpose()?;
 

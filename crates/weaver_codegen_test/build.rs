@@ -22,7 +22,6 @@ use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 
-
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
 const TEMPLATES_PATH: &str = "./templates/registry/";
 const REGISTRY_ID: &str = "test";
@@ -47,7 +46,7 @@ fn main() {
     };
     let registry_repo =
         RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo,FOLLOW_SYMLINKS)
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, FOLLOW_SYMLINKS)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));

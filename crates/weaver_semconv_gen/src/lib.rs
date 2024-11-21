@@ -309,7 +309,11 @@ impl SnippetGenerator {
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
     ) -> Result<SnippetGenerator, Error> {
-        let registry = ResolvedSemconvRegistry::try_from_registry_repo(registry_repo, diag_msgs, follow_symlinks)?;
+        let registry = ResolvedSemconvRegistry::try_from_registry_repo(
+            registry_repo,
+            diag_msgs,
+            follow_symlinks,
+        )?;
         Ok(SnippetGenerator {
             lookup: registry,
             template_engine,
@@ -384,8 +388,12 @@ mod tests {
         };
         let mut diag_msgs = DiagnosticMessages::empty();
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-        let generator =
-            SnippetGenerator::try_from_registry_repo(&registry_repo, template, &mut diag_msgs, false)?;
+        let generator = SnippetGenerator::try_from_registry_repo(
+            &registry_repo,
+            template,
+            &mut diag_msgs,
+            false,
+        )?;
         let attribute_registry_url = "/docs/attributes-registry";
         // Now we should check a snippet.
         let test = "data/templates.md";

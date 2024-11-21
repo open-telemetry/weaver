@@ -33,14 +33,16 @@ pub(crate) fn load_semconv_specs(
     log: impl Logger + Sync + Clone,
     follow_symlinks: bool,
 ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
-    SchemaResolver::load_semconv_specs(registry_repo,follow_symlinks).inspect(|semconv_specs, _| {
-        log.success(&format!(
-            "`{}` semconv registry `{}` loaded ({} files)",
-            registry_repo.id(),
-            registry_repo.registry_path_repr(),
-            semconv_specs.len()
-        ));
-    })
+    SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks).inspect(
+        |semconv_specs, _| {
+            log.success(&format!(
+                "`{}` semconv registry `{}` loaded ({} files)",
+                registry_repo.id(),
+                registry_repo.registry_path_repr(),
+                semconv_specs.len()
+            ));
+        },
+    )
 }
 
 /// Initializes the policy engine with policies from the registry and command line.
