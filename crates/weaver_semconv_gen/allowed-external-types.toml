@@ -7,7 +7,7 @@ allowed_external_types = [
     "weaver_semconv::path::RegistryPath",
     "weaver_resolver::Error",
     "weaver_cache::*",
-    "weaver_common::error::WeaverError",
+    "weaver_common::*",
     "weaver_forge::error::Error",
     "weaver_forge::TemplateEngine",
     "miette::protocol::Diagnostic",

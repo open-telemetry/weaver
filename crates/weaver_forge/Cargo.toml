@@ -18,8 +18,8 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "2.4.0", features = ["loader", "custom_syntax", "debug", "json", "urlencode", "macros"] }
-minijinja-contrib = { version="2.3.1", features = ["pycompat"] }
+minijinja = { version = "2.5.0", features = ["loader", "custom_syntax", "debug", "json", "urlencode", "macros"] }
+minijinja-contrib = { version="2.5.0", features = ["pycompat"] }
 convert_case = "0.6.0"
 jaq-core = "1.5.1"
 jaq-std = "1.5.1"
@@ -45,6 +45,6 @@ dirs.workspace = true
 
 [dev-dependencies]
 opentelemetry.workspace = true
-opentelemetry_sdk = { version = "0.26.0", features = ["trace", "metrics", "logs"] }
-opentelemetry-stdout = { version = "0.26.0", features = ["trace", "metrics", "logs"] }
+opentelemetry_sdk = { version = "0.27.0", features = ["trace", "metrics", "logs"] }
+opentelemetry-stdout = { version = "0.27.0", features = ["trace", "metrics", "logs"] }
 

@@ -17,7 +17,7 @@ serde.workspace = true
 serde_json.workspace = true
 miette.workspace = true
 thiserror.workspace = true
-tiny_http.workspace = true
+rouille.workspace = true
 
 [dev-dependencies]
 ureq.workspace = true
