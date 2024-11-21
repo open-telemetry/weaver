@@ -123,13 +123,12 @@ pub fn resolve_semconv_registry(
         "metric name",
     );
     // Check for duplicate group names.
-    // ToDo - Re-enable this check once the registry is updated to deduplicate group names.
-    // check_uniqueness(
-    //     &ureg.registry,
-    //     &mut errors,
-    //     |group| group.name.clone(),
-    //     "group name",
-    // );
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| group.name.clone(),
+        "group name",
+    );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
     handle_errors(errors)?;
