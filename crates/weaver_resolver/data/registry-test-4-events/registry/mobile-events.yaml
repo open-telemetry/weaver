@@ -2,12 +2,11 @@
 groups:
   - id: ios.lifecycle.events
     type: event
-    prefix: ios
     name: ios.device.app.lifecycle
     brief: >
       This event represents an occurrence of a lifecycle transition on the iOS platform.
     attributes:
-      - id: state
+      - id: ios.state
         requirement_level: "required"
         note: >
           The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902),
@@ -41,12 +40,11 @@ groups:
                 The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
   - id: android.lifecycle.events
     type: event
-    prefix: android
     name: android.device.app.lifecycle
     brief: >
       This event represents an occurrence of a lifecycle transition on the Android platform.
     attributes:
-      - id: state
+      - id: android.state
         requirement_level: required
         brief: >
           This attribute represents the state the application has transitioned into at the occurrence of the event.

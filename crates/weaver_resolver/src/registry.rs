@@ -17,7 +17,7 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
-use crate::Error::DuplicateGroup;
+use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use crate::{Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
@@ -113,21 +113,30 @@ pub fn resolve_semconv_registry(
         &ureg.registry,
         &mut errors,
         |group| Some(group.id.clone()),
-        "group id",
+        |group_id, provenances| DuplicateGroupId {
+            group_id,
+            provenances,
+        },
     );
     // Check for duplicate metric names.
     check_uniqueness(
         &ureg.registry,
         &mut errors,
         |group| group.metric_name.clone(),
-        "metric name",
+        |metric_name, provenances| DuplicateMetricName {
+            metric_name,
+            provenances,
+        },
     );
     // Check for duplicate group names.
     check_uniqueness(
         &ureg.registry,
         &mut errors,
         |group| group.name.clone(),
-        "group name",
+        |group_name, provenances| DuplicateGroupName {
+            group_name,
+            provenances,
+        },
     );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
@@ -233,10 +242,15 @@ fn check_group_any_of_constraints(
 ///
 /// A key can be a group ID, a metric name, an event name, or any other key that is used
 /// to identify a group.
-fn check_uniqueness<K, F>(registry: &Registry, errors: &mut Vec<Error>, key_fn: F, id_type: &str)
-where
+fn check_uniqueness<K, KF, EF>(
+    registry: &Registry,
+    errors: &mut Vec<Error>,
+    key_fn: KF,
+    error_fn: EF,
+) where
     K: Eq + Display + Hash,
-    F: Fn(&Group) -> Option<K>,
+    KF: Fn(&Group) -> Option<K>,
+    EF: Fn(String, Vec<String>) -> Error,
 {
     let mut keys: HashMap<K, Vec<String>> = HashMap::new();
 
@@ -252,11 +266,7 @@ where
             // Deduplicate the provenances.
             let provenances: HashSet<String> = provenances.into_iter().collect();
 
-            errors.push(DuplicateGroup {
-                id_type: id_type.to_owned(),
-                id: key.to_string(),
-                provenances: provenances.into_iter().collect(),
-            });
+            errors.push(error_fn(key.to_string(), provenances.into_iter().collect()));
         }
     }
 }

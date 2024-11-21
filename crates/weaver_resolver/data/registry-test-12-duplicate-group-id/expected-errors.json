@@ -2,9 +2,8 @@
   "Err": {
     "CompoundError": [
       {
-        "DuplicateGroup": {
-          "id_type": "group id",
-          "id": "metric.messaging.attributes",
+        "DuplicateGroupId": {
+          "group_id": "metric.messaging.attributes",
           "provenances": [
             "data/registry-test-12-duplicate-group-id/registry/metrics-messaging.yaml",
             "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
@@ -12,9 +11,8 @@
         }
       },
       {
-        "DuplicateGroup": {
-          "id_type": "group id",
-          "id": "registry.messaging_bis",
+        "DuplicateGroupId": {
+          "group_id": "registry.messaging_bis",
           "provenances": [
             "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
           ]
@@ -27,7 +25,7 @@
             "registry.messaging",
             "registry.messaging_bis"
           ],
-          "attribute_id": "messaging.batch.message_count"
+          "attribute_id": "batch.message_count"
         }
       }
     ]

@@ -28,14 +28,14 @@ groups:
         brief: >
           A unique identifier for the client that consumes or produces a message.
         examples: ["client-5", "myhost@8742@s8083jm"]
-      - id: destination.name
+      - id: messaging.destination.name
         type: string
         brief: "The message destination name"
         note: |
           Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If
           the broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.
         examples: ["MyQueue", "MyTopic"]
-      - id: destination.template
+      - id: messaging.destination.template
         type: string
         brief: Low cardinality representation of the messaging destination name
         note: >
