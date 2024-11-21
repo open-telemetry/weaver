@@ -13,9 +13,9 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::format::{apply_format, Format};
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, CommonRegistryArgs, DiagnosticArgs, ExitDirectives};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 use miette::Diagnostic;
 
 /// Parameters for the `registry resolve` sub-command
@@ -158,8 +158,10 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
-    use crate::{run_command, CommonRegistryArgs};
+    use crate::registry::{
+        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
+    use crate::run_command;
 
     #[test]
     fn test_registry_resolve() {

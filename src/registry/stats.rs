@@ -2,9 +2,9 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, CommonRegistryArgs, DiagnosticArgs, ExitDirectives};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use miette::Diagnostic;
 use weaver_cache::RegistryRepo;

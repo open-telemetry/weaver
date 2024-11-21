@@ -17,9 +17,9 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{Error, RegistryArgs};
+use crate::registry::{CommonRegistryArgs, Error, RegistryArgs};
 use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, CommonRegistryArgs, DiagnosticArgs, ExitDirectives};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -217,8 +217,10 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::generate::RegistryGenerateArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
-    use crate::{run_command, CommonRegistryArgs};
+    use crate::registry::{
+        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
+    use crate::run_command;
 
     #[test]
     fn test_registry_generate() {

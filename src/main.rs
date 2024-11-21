@@ -45,17 +45,6 @@ impl Default for DiagnosticArgs {
     }
 }
 
-/// Set of Parameters used to specify the extra options for the `weaver` command.
-/// The CommonRegistryArgs will be shared across all commands. So only the general options should be
-/// included here.
-#[derive(Args, Debug)]
-pub struct CommonRegistryArgs {
-    /// Boolean flag to specify whether to follow symlinks when loading the registry.
-    /// Default is false.
-    #[arg(short, long)]
-    pub(crate) follow_symlinks: bool,
-}
-
 /// Result of a command execution.
 #[derive(Debug)]
 pub(crate) struct CmdResult {

@@ -13,9 +13,9 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
     registry,
-    registry::RegistryArgs,
+    registry::{CommonRegistryArgs, RegistryArgs},
     util::{load_semconv_specs, resolve_semconv_specs},
-    CommonRegistryArgs, DiagnosticArgs, ExitDirectives,
+    DiagnosticArgs, ExitDirectives,
 };
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},

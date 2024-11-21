@@ -3,8 +3,8 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::RegistryArgs;
-use crate::{registry, CommonRegistryArgs, DiagnosticArgs, ExitDirectives};
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
+use crate::{registry, DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
@@ -146,8 +146,10 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
-    use crate::{run_command, CommonRegistryArgs};
+    use crate::registry::{
+        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
+    use crate::run_command;
 
     #[test]
     fn test_registry_update_markdown() {

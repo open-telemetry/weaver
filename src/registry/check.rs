@@ -13,11 +13,11 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::util::{
     check_policy, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
 };
-use crate::{CommonRegistryArgs, DiagnosticArgs, ExitDirectives};
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -231,9 +231,10 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+        semconv_registry, CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath,
+        RegistrySubCommand,
     };
-    use crate::{run_command, CommonRegistryArgs};
+    use crate::run_command;
 
     #[test]
     fn test_registry_check_exit_code() {
