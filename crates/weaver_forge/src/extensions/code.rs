@@ -85,6 +85,11 @@ pub(crate) fn comment(
                 .as_ref()
                 .and_then(|comment_formats| comment_formats.get(&comment_format_name).cloned())
                 .unwrap_or_default();
+            // Grab line length limit.
+            let line_length_limit: usize = args
+                .get("line_length")
+                .map(|v: u32| v as usize)
+                .unwrap_or(comment_format.line_length.unwrap_or(usize::MAX));
 
             // If the input is an iterable (i.e. an array), join the values with a newline.
             let mut comment = if input.kind() == ValueKind::Seq {
@@ -186,16 +191,15 @@ pub(crate) fn comment(
             };
             // We use textwrap library with heavily customized algorithms to prevent bad
             // scenarios around breaking up markdown.
-            let wrap_options =
-                textwrap::Options::new(comment_format.line_length.unwrap_or(usize::MAX))
-                    .initial_indent(initial_indent)
-                    .subsequent_indent(&subsequent_indent)
-                    .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit)
-                    .break_words(false)
-                    .word_separator(textwrap::WordSeparator::Custom(
-                        find_words_dont_split_markdown,
-                    ))
-                    .word_splitter(textwrap::WordSplitter::NoHyphenation);
+            let wrap_options = textwrap::Options::new(line_length_limit)
+                .initial_indent(initial_indent)
+                .subsequent_indent(&subsequent_indent)
+                .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit)
+                .break_words(false)
+                .word_separator(textwrap::WordSeparator::Custom(
+                    find_words_dont_split_markdown,
+                ))
+                .word_splitter(textwrap::WordSplitter::NoHyphenation);
             // Wrap the comment as configured.
             comment = textwrap::fill(&comment, wrap_options);
 
@@ -364,6 +368,7 @@ fn find_words_dont_split_markdown<'a>(
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use weaver_diff::diff_output;
 
     use super::*;
     use crate::config::{CommentFormat, IndentType};
@@ -568,6 +573,72 @@ it's RECOMMENDED to:
 		 *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
 		 * </ul>
 		 */"##
+        );
+
+        // Test with the optional parameter `line_length=10`
+        let observed_comment = env
+            .render_str("{{ note | comment(line_length=30) }}", &ctx)
+            .unwrap();
+        let expected_comment = r##"/**
+ * The {@code error.type}
+ * SHOULD be predictable, and
+ * SHOULD have low
+ * cardinality.
+ * <p>
+ * When {@code error.type} is
+ * set to a type (e.g., an
+ * exception type), its
+ * canonical class name
+ * identifying the type within
+ * the artifact SHOULD be
+ * used.
+ * <p>
+ * Instrumentations SHOULD
+ * document the list of errors
+ * they report.
+ * <p>
+ * The cardinality of {@code
+ * error.type} within one
+ * instrumentation library
+ * SHOULD be low.
+ * Telemetry consumers that
+ * aggregate data from
+ * multiple instrumentation
+ * libraries and applications
+ * should be prepared for
+ * {@code error.type} to have
+ * high cardinality at query
+ * time when no
+ * additional filters are
+ * applied.
+ * <p>
+ * If the operation has
+ * completed successfully,
+ * instrumentations SHOULD NOT
+ * set {@code error.type}.
+ * <p>
+ * If a specific domain
+ * defines its own set of
+ * error identifiers (such as
+ * HTTP or gRPC status codes),
+ * it's RECOMMENDED to:
+ * <p>
+ * <ul>
+ *   <li>Use a domain-specific
+ * attribute
+ *   <li>Set {@code
+ * error.type} to capture all
+ * errors, regardless of
+ * whether they are defined
+ * within the domain-specific
+ * set or not
+ * </ul>
+ */"##;
+        assert_eq!(
+            &observed_comment,
+            expected_comment,
+            "Found differences: {}",
+            diff_output(expected_comment, &observed_comment)
         );
 
         // New configuration with `indent_type='tab'`

@@ -121,10 +121,8 @@ const ERROR_TYPE = ""
 //   - [Link 1]
 //   - [Link 2]
 //   - A very long item in the list with lorem ipsum dolor sit amet, consectetur
-//
-// adipiscing elit sed do eiusmod
-//
-//	tempor incididunt ut labore et dolore magna aliqua.
+//     adipiscing elit sed do eiusmod
+//     tempor incididunt ut labore et dolore magna aliqua.
 //
 // > This is a blockquote.
 // > It can contain multiple lines.
