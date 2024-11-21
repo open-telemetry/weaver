@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* Detect duplicate group ids and report them. ([#XXX](...) by lquerel).
+* Detect duplicate group ids, group names, and metric names. ([#382](https://github.com/open-telemetry/weaver/pull/382) by lquerel).
 * Add support for Maps `map[]` to the definition of an `AnyValue`. ([#396](https://github.com/open-telemetry/weaver/pull/396) by @MSNev).
 
 ## [0.10.0] - 2024-09-23
