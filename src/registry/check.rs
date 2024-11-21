@@ -17,7 +17,7 @@ use crate::registry::RegistryArgs;
 use crate::util::{
     check_policy, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
 };
-use crate::{DiagnosticArgs, ExitDirectives, WeaverArgs};
+use crate::{CommonRegistryArgs, DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry check` sub-command
 #[derive(Debug, Args)]
@@ -50,7 +50,7 @@ pub struct RegistryCheckArgs {
 
     /// Weaver parameters
     #[command(flatten)]
-    pub weaver_args: WeaverArgs,
+    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Check a semantic convention registry.
@@ -82,15 +82,19 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone(), args.weaver_args.follow_symlinks)
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_semconv_specs = load_semconv_specs(
+        &main_registry_repo,
+        logger.clone(),
+        args.common_registry_args.follow_symlinks,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
         .map(|repo| {
             // Baseline registry resolution should allow non-future features
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
-            load_semconv_specs(repo, logger.clone(),args.weaver_args.follow_symlinks)
+            load_semconv_specs(repo, logger.clone(), args.common_registry_args.follow_symlinks)
                 .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
                 .capture_non_fatal_errors(&mut diag_msgs)
         })
@@ -225,7 +229,7 @@ mod tests {
     use crate::registry::{
         semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
     };
-    use crate::{run_command, WeaverArgs};
+    use crate::{run_command, CommonRegistryArgs};
 
     #[test]
     fn test_registry_check_exit_code() {
@@ -247,7 +251,7 @@ mod tests {
                     skip_policies: true,
                     display_policy_coverage: false,
                     diagnostic: Default::default(),
-                    weaver_args: WeaverArgs {
+                    common_registry_args: CommonRegistryArgs {
                         follow_symlinks: false,
                     },
                 }),
@@ -276,7 +280,7 @@ mod tests {
                     skip_policies: false,
                     display_policy_coverage: false,
                     diagnostic: Default::default(),
-                    weaver_args: WeaverArgs {
+                    common_registry_args: CommonRegistryArgs {
                         follow_symlinks: false,
                     },
                 }),
@@ -305,7 +309,7 @@ mod tests {
                 skip_policies: false,
                 display_policy_coverage: false,
                 diagnostic: Default::default(),
-                weaver_args: WeaverArgs {
+                common_registry_args: CommonRegistryArgs {
                     follow_symlinks: false,
                 },
             }),
