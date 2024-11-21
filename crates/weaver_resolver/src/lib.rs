@@ -135,6 +135,7 @@ pub enum Error {
 
     /// A duplicate group id error.
     #[error("The group id `{group_id}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
     DuplicateGroupId {
         /// The group id.
         group_id: String,
@@ -144,6 +145,7 @@ pub enum Error {
 
     /// A duplicate group id error.
     #[error("The group name `{group_name}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
     DuplicateGroupName {
         /// The group name.
         group_name: String,
@@ -153,6 +155,7 @@ pub enum Error {
 
     /// A duplicate group id error.
     #[error("The metric name `{metric_name}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
     DuplicateMetricName {
         /// The metric name.
         metric_name: String,
