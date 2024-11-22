@@ -63,6 +63,8 @@ struct RenderContext {
     line_prefix: String,
     // Whether to skip the line prefix on the first line.
     skip_line_prefix_on_first_line: bool,
+    // The limit of characters per-line.
+    line_length: Option<usize>,
 }
 
 impl RenderContext {

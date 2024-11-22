@@ -368,7 +368,7 @@ fn find_words_dont_split_markdown<'a>(
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use weaver_diff::diff_output;
+    use weaver_diff::assert_string_eq;
 
     use super::*;
     use crate::config::{CommentFormat, IndentType};
@@ -455,8 +455,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
    * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
    * <p>
@@ -486,8 +486,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(indent=2) }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
    * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
    * <p>
@@ -517,8 +517,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(indent=2, indent_type='space') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
    * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
    * <p>
@@ -548,8 +548,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(indent=2, indent_type='tab') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
 		 * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
 		 * <p>
@@ -579,7 +579,9 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(line_length=30) }}", &ctx)
             .unwrap();
-        let expected_comment = r##"/**
+        assert_string_eq!(
+            &observed_comment,
+            r##"/**
  * The {@code error.type}
  * SHOULD be predictable, and
  * SHOULD have low
@@ -597,9 +599,9 @@ it's RECOMMENDED to:
  * document the list of errors
  * they report.
  * <p>
- * The cardinality of {@code
- * error.type} within one
- * instrumentation library
+ * The cardinality of
+ * {@code error.type} within
+ * one instrumentation library
  * SHOULD be low.
  * Telemetry consumers that
  * aggregate data from
@@ -625,7 +627,7 @@ it's RECOMMENDED to:
  * <p>
  * <ul>
  *   <li>Use a domain-specific
- * attribute
+ *   attribute
  *   <li>Set {@code
  * error.type} to capture all
  * errors, regardless of
@@ -633,12 +635,7 @@ it's RECOMMENDED to:
  * within the domain-specific
  * set or not
  * </ul>
- */"##;
-        assert_eq!(
-            &observed_comment,
-            expected_comment,
-            "Found differences: {}",
-            diff_output(expected_comment, &observed_comment)
+ */"##
         );
 
         // New configuration with `indent_type='tab'`
@@ -690,8 +687,8 @@ it's RECOMMENDED to:
                 &ctx,
             )
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
 		 * This is a brief description.
 		 * Note:
@@ -743,8 +740,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality
  */"##
@@ -759,8 +756,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality
  */"##
@@ -810,8 +807,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
  */"##
@@ -826,8 +823,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
  */"##
@@ -855,8 +852,8 @@ This also covers UDP network interactions where one side initiates the interacti
 /// protocol / API doesn't expose a clear notion of client and server).
 /// This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS."#;
 
-        assert_eq!(
-            comment_with_prefix(&Value::from(brief), "/// "),
+        assert_string_eq!(
+            &comment_with_prefix(&Value::from(brief), "/// "),
             expected_brief
         );
     }
