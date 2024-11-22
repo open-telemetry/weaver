@@ -16,7 +16,7 @@ groups:
       - ref: exception.escaped
 
   - id: feature_flag
-    name: feature_flag
+    name: trace_feature_flag
     type: event
     brief: >
       This semantic convention defines the attributes used to represent a

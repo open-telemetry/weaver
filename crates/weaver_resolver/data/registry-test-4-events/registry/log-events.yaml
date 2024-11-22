@@ -41,13 +41,13 @@ groups:
   - id: some.string.body.detailed.event
     stability: experimental
     type: event
-    name: string.body.event
+    name: string.body.detailed.event
     brief: >
       This event represents an occurrence of a something.
     note: >
       This event transmits the body as a JSON encoded string.
     body:
-      id: some.string.body.event.fields
+      id: some.string.body.detailed.event.fields
       type: string
       requirement_level: required
       brief: >
