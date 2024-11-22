@@ -4772,6 +4772,7 @@ name = "weaver_resolver"
 version = "0.10.0"
 dependencies = [
  "glob",
+ "itertools 0.13.0",
  "miette",
  "rayon",
  "serde",

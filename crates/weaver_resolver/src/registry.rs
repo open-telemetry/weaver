@@ -2,11 +2,11 @@
 
 //! Functions to resolve a semantic convention registry.
 
+use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
-
 use weaver_common::error::handle_errors;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
@@ -264,7 +264,7 @@ fn check_uniqueness<K, KF, EF>(
     for (key, provenances) in keys {
         if provenances.len() > 1 {
             // Deduplicate the provenances.
-            let provenances: HashSet<String> = provenances.into_iter().collect();
+            let provenances: HashSet<String> = provenances.into_iter().unique().collect();
 
             errors.push(error_fn(key.to_string(), provenances.into_iter().collect()));
         }
