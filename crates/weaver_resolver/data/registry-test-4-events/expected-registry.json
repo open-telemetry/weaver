@@ -6,7 +6,7 @@
       "type": "event",
       "brief": "brief",
       "attributes": [
-        7
+        9
       ],
       "name": "some.event",
       "lineage": {
@@ -40,9 +40,9 @@
       "type": "event",
       "brief": "This document defines attributes for feature flag evaluations represented using Log Records.\n",
       "attributes": [
-        17,
-        18,
-        19
+        19,
+        20,
+        21
       ],
       "name": "feature_flag",
       "lineage": {
@@ -106,12 +106,12 @@
       "note": "This event transmits the body as a JSON encoded string.\n",
       "stability": "experimental",
       "attributes": [],
-      "name": "string.body.event",
+      "name": "string.body.detailed.event",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "some.string.body.event.fields",
+        "id": "some.string.body.detailed.event.fields",
         "type": "string",
         "brief": "This is the body of the event which is a JSON encoded string.\n",
         "note": "This is a detailed note about the body.\n",
@@ -342,14 +342,38 @@
       }
     },
     {
+      "id": "ios.lifecycle.events",
+      "type": "event",
+      "brief": "This event represents an occurrence of a lifecycle transition on the iOS platform.\n",
+      "attributes": [
+        5
+      ],
+      "name": "ios.device.app.lifecycle",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
+      }
+    },
+    {
+      "id": "android.lifecycle.events",
+      "type": "event",
+      "brief": "This event represents an occurrence of a lifecycle transition on the Android platform.\n",
+      "attributes": [
+        6
+      ],
+      "name": "android.device.app.lifecycle",
+      "lineage": {
+        "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
+      }
+    },
+    {
       "id": "referenced.attributes",
       "type": "attribute_group",
       "brief": "These attributes are used as references for the test below\n",
       "attributes": [
-        5,
-        6,
         7,
-        8
+        8,
+        9,
+        10
       ],
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
@@ -360,8 +384,8 @@
       "type": "attribute_group",
       "brief": "Client test attributes",
       "attributes": [
-        9,
-        10
+        11,
+        12
       ],
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
@@ -372,10 +396,10 @@
       "type": "attribute_group",
       "brief": "This document defines the shared attributes used to report a single exception associated with a span or log.\n",
       "attributes": [
-        11,
-        12,
         13,
-        14
+        14,
+        15,
+        16
       ],
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
@@ -386,10 +410,10 @@
       "type": "event",
       "brief": "This document defines the attributes used to report a single exception associated with a span.\n",
       "attributes": [
-        13,
-        14,
         15,
-        16
+        16,
+        17,
+        18
       ],
       "name": "exception",
       "lineage": {
@@ -446,11 +470,11 @@
       "type": "event",
       "brief": "This semantic convention defines the attributes used to represent a feature flag evaluation as an event.\n",
       "attributes": [
-        17,
-        18,
-        19
+        19,
+        20,
+        21
       ],
-      "name": "feature_flag",
+      "name": "trace_feature_flag",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/trace-events.yaml"
       }
@@ -460,7 +484,7 @@
       "type": "event",
       "brief": "Simple example span event with an attribute\n",
       "attributes": [
-        20
+        22
       ],
       "name": "test_evt.with_attr",
       "lineage": {
@@ -486,7 +510,7 @@
       "type": "event",
       "brief": "Another simple span event with another attribute\n",
       "attributes": [
-        21
+        23
       ],
       "name": "test_evt.session",
       "lineage": {
@@ -506,6 +530,6 @@
           }
         }
       }
-   }
+    }
   ]
 }
