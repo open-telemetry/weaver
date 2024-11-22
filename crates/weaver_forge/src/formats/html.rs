@@ -5,9 +5,8 @@ use crate::install_weaver_extensions;
 use markdown::mdast::{Delete, Emphasis, Node, Strong};
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
-use textwrap::WordSeparator;
 use std::collections::HashMap;
-use textwrap::word_splitters::split_words;
+use textwrap::WordSeparator;
 
 use super::find_words_ascii_space_and_newline;
 
@@ -61,7 +60,6 @@ struct CodeContext {
 pub(crate) struct HtmlRenderer<'source> {
     options_by_format: HashMap<String, HtmlRenderOptions>,
     env: Environment<'source>,
-    lengths_by_format: HashMap<String, usize>,
 }
 
 struct RenderContext {
@@ -83,16 +81,21 @@ struct RenderContext {
 
     // Mecahnism we use to split words.
     word_separator: WordSeparator,
+
+    // True if there's a dangling space from previously written
+    // word we may choose to ignore.
+    letfover_space: bool,
 }
 
 impl Default for RenderContext {
     fn default() -> Self {
-        Self { 
-            html: Default::default(), 
-            leftover_tag: Default::default(), 
-            line_length: Default::default(), 
-            current_line_length: Default::default(), 
+        Self {
+            html: Default::default(),
+            leftover_tag: Default::default(),
+            line_length: Default::default(),
+            current_line_length: Default::default(),
             word_separator: WordSeparator::Custom(find_words_ascii_space_and_newline),
+            letfover_space: false,
         }
     }
 }
@@ -109,9 +112,13 @@ impl RenderContext {
             self.html.push('\n');
             self.html.push_str(indent);
             self.current_line_length = indent.len();
+        } else if self.letfover_space {
+            self.html.push(' ');
+            self.current_line_length += 1;
         }
         self.html.push_str(input);
         self.current_line_length += input.len();
+        self.letfover_space = false;
     }
 
     fn push_unbroken_ln(&mut self, input: &str, indent: &str) {
@@ -123,14 +130,22 @@ impl RenderContext {
         self.html.push('\n');
         self.html.push_str(indent);
         self.current_line_length = indent.len();
+        self.letfover_space = false;
     }
 
     // Pushes a string after splitting it into words.
     // This may alter end-of-line splits.
     fn push_words(&mut self, input: &str, indent: &str) {
+        // Just push the words directly if no limits.
+        if self.line_length.is_none() {
+            self.html.push_str(input);
+            self.current_line_length += input.len();
+            return;
+        }
         let mut first = true;
         for word in self.word_separator.find_words(input) {
-            // We either add an end of line or space between words.            
+            // We either add an end of line or space between words.
+            let mut newline = false;
             if self
                 .line_length
                 .map(|max| self.current_line_length + word.len() > max)
@@ -140,21 +155,31 @@ impl RenderContext {
                 self.html.push_str("\n");
                 self.html.push_str(indent);
                 self.current_line_length = indent.len();
+                newline = true;
             } else if !first {
                 self.html.push(' ');
                 self.current_line_length += 1;
+            } else if self.letfover_space {
+                self.html.push(' ');
+                self.current_line_length += 1;
             }
-            self.html.push_str(&word);
-            self.current_line_length += word.len();
+            // Handle a scenario where we created a new line
+            // and don't want a space in it.
+            if first && newline {
+                self.html.push_str(word.trim_start());
+                self.current_line_length += word.trim_start().len();
+            } else {
+                self.html.push_str(&word);
+                self.current_line_length += word.len();
+            }
+
             first = false;
+            self.letfover_space = false;
         }
         // TODO - mark this as tailing so we can later decide to add it or
         // newline.
         // We struggle with the AST of markdown here.
-        if input.ends_with(' ') && self.current_line_length != 0 {
-            self.html.push(' ');
-            self.current_line_length += 1;
-        }
+        self.letfover_space = input.ends_with(' ');
     }
 }
 
@@ -180,13 +205,6 @@ impl<'source> HtmlRenderer<'source> {
                 })
                 .collect(),
             env,
-            lengths_by_format: config
-                .comment_formats
-                .clone()
-                .unwrap_or_default()
-                .into_iter()
-                .filter_map(|(name, format)| format.line_length.map(|l| (name, l)))
-                .collect(),
         })
     }
 
@@ -196,7 +214,12 @@ impl<'source> HtmlRenderer<'source> {
     ///
     /// * `markdown` - The markdown text to render.
     /// * `format` - The comment format to use.
-    pub fn render(&self, markdown: &str, format: &str) -> Result<String, Error> {
+    pub fn render(
+        &self,
+        markdown: &str,
+        format: &str,
+        line_length_limit: Option<usize>,
+    ) -> Result<String, Error> {
         let html_render_options = if let Some(options) = self.options_by_format.get(format) {
             options
         } else {
@@ -206,15 +229,13 @@ impl<'source> HtmlRenderer<'source> {
             });
         };
 
-        let line_length: Option<usize> = self.lengths_by_format.get(format).copied();
-
         let md_options = markdown::ParseOptions::default();
         let md_node =
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
             })?;
         let mut render_context = RenderContext {
-            line_length,
+            line_length: line_length_limit,
             ..RenderContext::default()
         };
         self.write_html_to(
@@ -470,7 +491,7 @@ mod tests {
         let renderer = HtmlRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer to an IP and/or port directly,
@@ -484,7 +505,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -500,7 +521,7 @@ An example can be found in
 without a domain name. In this case, the IP address would go to the domain field.
 If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2)
 enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer to an IP and/or port directly,
@@ -517,7 +538,7 @@ In such case username and password SHOULD be redacted and attribute's value SHOU
 
 `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
 Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"For network calls, URL usually has {@code scheme://host[:port][path][?query][#fragment]} format, where the fragment
@@ -532,7 +553,7 @@ Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumen
 
         let markdown = r##"Pool names are generally obtained via
 [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName())."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Pool names are generally obtained via
@@ -540,7 +561,7 @@ Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumen
         );
 
         let markdown = r##"Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)"##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Value can be retrieved from value {@code space_name} of <a href="https://nodejs.org/api/v8.html#v8getheapspacestatistics">{@code v8.getHeapSpaceStatistics()}</a>"##
@@ -565,7 +586,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
@@ -627,7 +648,7 @@ it's RECOMMENDED to:
         let renderer = HtmlRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer
@@ -644,7 +665,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -664,7 +685,7 @@ Example Image Manifest</a>."##
 without a domain name. In this case, the IP address would go to the domain field.
 If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2)
 enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer
@@ -672,11 +693,11 @@ to an IP and/or port directly,
 without a domain name. In this
 case, the IP address would go
 to the domain field. If the URL
-contains a 
+contains a
 <a href="https://www.rfc-editor.org/rfc/rfc2732#section-2">
 literal IPv6 address</a>
-enclosed by {@code [} and 
-{@code ]}, the {@code [} and 
+enclosed by {@code [} and
+{@code ]}, the {@code [} and
 {@code ]} characters should
 also be captured in the domain
 field."##
@@ -690,11 +711,11 @@ In such case username and password SHOULD be redacted and attribute's value SHOU
 
 `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
 Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"For network calls, URL usually
-has 
+has
 {@code scheme://host[:port][path][?query][#fragment]}
  format, where the fragment is
 not transmitted over HTTP, but
@@ -703,11 +724,11 @@ included nevertheless.
 <p>
 {@code url.full} MUST NOT
 contain credentials passed via
-URL in form of 
+URL in form of
 {@code https://username:password@www.example.com/}
 . In such case username and
 password SHOULD be redacted and
-attribute's value SHOULD be 
+attribute's value SHOULD be
 {@code https://REDACTED:REDACTED@www.example.com/}
 .
 <p>
@@ -715,7 +736,7 @@ attribute's value SHOULD be
 the absolute URL when it is
 available (or can be
 reconstructed). Sensitive
-content provided in 
+content provided in
 {@code url.full} SHOULD be
 scrubbed when instrumentations
 can identify it."##
@@ -723,7 +744,7 @@ can identify it."##
 
         let markdown = r##"Pool names are generally obtained via
 [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName())."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"Pool names are generally
@@ -734,11 +755,11 @@ BufferPoolMXBean#getName()</a>
         );
 
         let markdown = r##"Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)"##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"Value can be retrieved from
-value {@code space_name} of 
+value {@code space_name} of
 <a href="https://nodejs.org/api/v8.html#v8getheapspacestatistics">
 {@code v8.getHeapSpaceStatistics()}
 </a>"##
@@ -763,7 +784,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "java")?;
+        let html = renderer.render(markdown, "java", Some(30))?;
         assert_string_eq!(
             &html,
             r##"The {@code error.type} SHOULD
@@ -780,14 +801,14 @@ Instrumentations SHOULD
 document the list of errors
 they report.
 <p>
-The cardinality of 
+The cardinality of
 {@code error.type} within one
 instrumentation library SHOULD
 be low. Telemetry consumers
 that aggregate data from
 multiple instrumentation
 libraries and applications
-should be prepared for 
+should be prepared for
 {@code error.type} to have high
 cardinality at query time when
 no additional filters are
@@ -795,7 +816,7 @@ applied.
 <p>
 If the operation has completed
 successfully, instrumentations
-SHOULD NOT set 
+SHOULD NOT set
 {@code error.type}.
 <p>
 If a specific domain defines

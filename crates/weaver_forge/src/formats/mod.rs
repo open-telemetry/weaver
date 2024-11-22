@@ -11,7 +11,9 @@ fn is_ascii_space_or_newline(ch: char) -> bool {
     ch == ' ' || ch == '\r' || ch == '\n'
 }
 
-fn find_words_ascii_space_and_newline<'a>(line: &'a str) -> Box<dyn Iterator<Item = Word<'a>> + 'a> {
+fn find_words_ascii_space_and_newline<'a>(
+    line: &'a str,
+) -> Box<dyn Iterator<Item = Word<'a>> + 'a> {
     let mut start = 0;
     let mut in_whitespace = false;
     let mut char_indices = line.char_indices();
@@ -40,9 +42,8 @@ fn find_words_ascii_space_and_newline<'a>(line: &'a str) -> Box<dyn Iterator<Ite
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use super::find_words_ascii_space_and_newline;
-
+    use itertools::Itertools;
 
     fn find_words_into_vec(line: &str) -> Vec<String> {
         find_words_ascii_space_and_newline(line)
@@ -52,7 +53,9 @@ mod tests {
 
     #[test]
     fn test_find_words_dont_split_markdown() {
-        assert_eq!(find_words_into_vec("test\nthe words"),
-    vec!("test", "the", "words"));
+        assert_eq!(
+            find_words_into_vec("test\nthe words"),
+            vec!("test", "the", "words")
+        );
     }
 }
