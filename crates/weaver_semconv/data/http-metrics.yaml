@@ -24,6 +24,7 @@ groups:
     extends: attributes.http.client
 
   - id: metric.http.server.request.duration
+    stability: stable
     type: metric
     metric_name: http.server.request.duration
     brief: "Duration of HTTP server requests."
@@ -32,6 +33,7 @@ groups:
     extends: metric_attributes.http.server
 
   - id: metric.http.server.active_requests
+    stability: stable
     type: metric
     metric_name: http.server.active_requests
     brief: "Number of active HTTP server requests."
@@ -63,6 +65,7 @@ groups:
           > to trigger cardinality limits, degrading the usefulness of the metric.
 
   - id: metric.http.server.request.body.size
+    stability: stable
     type: metric
     metric_name: http.server.request.body.size
     brief: "Size of HTTP server request bodies."
@@ -75,6 +78,7 @@ groups:
     extends: metric_attributes.http.server
 
   - id: metric.http.server.response.body.size
+    stability: stable
     type: metric
     metric_name: http.server.response.body.size
     brief: "Size of HTTP server response bodies."
@@ -87,6 +91,7 @@ groups:
     extends: metric_attributes.http.server
 
   - id: metric.http.client.request.duration
+    stability: stable
     type: metric
     metric_name: http.client.request.duration
     brief: "Duration of HTTP client requests."
@@ -95,6 +100,7 @@ groups:
     extends: metric_attributes.http.client
 
   - id: metric.http.client.request.body.size
+    stability: stable
     type: metric
     metric_name: http.client.request.body.size
     brief: "Size of HTTP client request bodies."
@@ -107,6 +113,7 @@ groups:
     extends: metric_attributes.http.client
 
   - id: metric.http.client.response.body.size
+    stability: stable
     type: metric
     metric_name: http.client.response.body.size
     brief: "Size of HTTP client response bodies."

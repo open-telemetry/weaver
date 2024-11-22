@@ -185,7 +185,8 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::Error::{
-        InvalidAttribute, InvalidExampleWarning, InvalidSemConvSpec, RegistryNotFound,
+        InvalidAttribute, InvalidExampleWarning, InvalidGroupStability, InvalidSemConvSpec,
+        RegistryNotFound,
     };
     use std::path::PathBuf;
     use weaver_common::test::ServeStaticFiles;
@@ -221,6 +222,7 @@ mod tests {
         let spec = r#"
         groups:
           - id: "group1"
+            stability: "stable"
             brief: "description1"
             attributes:
               - id: "attr1"
@@ -228,6 +230,7 @@ mod tests {
                 type: "string"
                 examples: "example1"
           - id: "group2"
+            stability: "stable"
             brief: "description2"
             attributes:
               - id: "attr2"
@@ -261,6 +264,7 @@ mod tests {
               - id: "attr1"
                 type: "string"
           - id: "group2"
+            stability: "stable"
             brief: "description2"
             attributes:
               - id: "attr2"
@@ -268,10 +272,15 @@ mod tests {
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
-            assert_eq!(errors.len(), 3);
+            assert_eq!(errors.len(), 4);
             assert_eq!(
                 errors,
                 vec![
+                    InvalidGroupStability {
+                        path_or_url: "<str>".to_owned(),
+                        group_id: "group1".to_owned(),
+                        error: "This group does not contain a stability field.".to_owned(),
+                    },
                     InvalidAttribute {
                         path_or_url: "<str>".to_owned(),
                         group_id: "group1".to_owned(),
@@ -345,6 +354,7 @@ mod tests {
         let spec = r#"
         groups:
           - id: "group1"
+            stability: "stable"
             brief: "description1"
             attributes:
               - id: "attr1"
@@ -352,6 +362,7 @@ mod tests {
                 type: "string"
                 examples: "example1"
           - id: "group2"
+            stability: "stable"
             brief: "description2"
             attributes:
               - id: "attr2"

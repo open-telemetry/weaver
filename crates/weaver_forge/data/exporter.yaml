@@ -1,5 +1,6 @@
 groups:
   - id: otel.scope
+    stability: stable
     type: resource
     brief: Attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.
     attributes:
@@ -14,6 +15,7 @@ groups:
         examples: ['1.0.0']
         stability: stable
   - id: otel.library
+    stability: stable
     type: resource
     brief: >
       Span attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.

@@ -1,5 +1,6 @@
 groups:
   - id: faas_span
+    stability: stable
     type: span
     brief: >
       This semantic convention describes an instance of a function that
@@ -24,6 +25,7 @@ groups:
       - ref: cloud.resource_id
 
   - id: faas_span.datasource
+    stability: stable
     type: span
     brief: >
       Semantic Convention for FaaS triggered as a response to some data
@@ -68,6 +70,7 @@ groups:
         examples: ["myFile.txt", "myTableName"]
 
   - id: faas_span.http
+    stability: stable
     type: span
     brief: >
       Semantic Convention for FaaS triggered as a response to some data
@@ -77,6 +80,7 @@ groups:
     attributes: []
 
   - id: faas_span.pubsub
+    stability: stable
     type: span
     brief: >
       Semantic Convention for FaaS set to be executed when messages are
@@ -86,6 +90,7 @@ groups:
     attributes: []
 
   - id: faas_span.timer
+    stability: stable
     type: span
     brief: >
       Semantic Convention for FaaS scheduled to be executed regularly.
@@ -105,6 +110,7 @@ groups:
         examples: "0/5 * * * ? *"
 
   - id: faas_span.in
+    stability: stable
     span_kind: server
     type: span
     brief: >
@@ -129,6 +135,7 @@ groups:
           call to invoke the lambda, which is often HTTP).
 
   - id: faas_span.out
+    stability: stable
     span_kind: client
     type: span
     brief: >

@@ -1,5 +1,6 @@
 groups:
   - id: exception
+    stability: stable
     type: span
     brief: >
       This document defines the shared attributes used to

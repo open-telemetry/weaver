@@ -5,6 +5,7 @@
       "id": "log_event_attributes_only",
       "type": "event",
       "brief": "brief",
+      "stability": "experimental",
       "attributes": [
         7
       ],
@@ -29,6 +30,7 @@
       "id": "log_event_empty",
       "type": "event",
       "brief": "brief",
+      "stability": "experimental",
       "attributes": [],
       "name": "empty.event",
       "lineage": {
@@ -39,6 +41,7 @@
       "id": "log-feature_flag",
       "type": "event",
       "brief": "This document defines attributes for feature flag evaluations represented using Log Records.\n",
+      "stability": "experimental",
       "attributes": [
         17,
         18,
@@ -90,8 +93,8 @@
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "some.string.body.event.fields",
         "type": "string",
+        "id": "some.string.body.event.fields",
         "brief": "This is the body of the event which is a JSON encoded string.\n",
         "examples": [
           "{\"key1\":\"value1\",\"key2\":\"value2\"}"
@@ -111,8 +114,8 @@
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "some.string.body.event.fields",
         "type": "string",
+        "id": "some.string.body.event.fields",
         "brief": "This is the body of the event which is a JSON encoded string.\n",
         "note": "This is a detailed note about the body.\n",
         "stability": "experimental",
@@ -134,89 +137,97 @@
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "device.app.lifecycle.fields",
         "type": "map",
+        "id": "device.app.lifecycle.fields",
         "requirement_level": "required",
         "fields": [
           {
-            "id": "ios.state",
             "type": "enum",
+            "id": "ios.state",
+            "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
+            "note": "The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.\n",
+            "stability": "experimental",
+            "requirement_level": {
+              "conditionally_required": "if and only if `os.name` is `ios`"
+            },
             "members": [
               {
                 "id": "active",
                 "value": "active",
                 "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               },
               {
                 "id": "inactive",
                 "value": "inactive",
                 "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               },
               {
                 "id": "background",
                 "value": "background",
                 "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               },
               {
                 "id": "foreground",
                 "value": "foreground",
                 "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               },
               {
                 "id": "terminate",
                 "value": "terminate",
                 "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               }
-            ],
-            "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
-            "requirement_level": {
-              "conditionally_required": "if and only if `os.name` is `ios`"
-            },
-            "note": "The iOS lifecycle states are defined in the [UIApplicationDelegate documentation](https://developer.apple.com/documentation/uikit/uiapplicationdelegate#1656902), and from which the `OS terminology` column values are derived.\n",
-            "stability": "experimental"
+            ]
           },
           {
-            "id": "android.state",
             "type": "enum",
+            "id": "android.state",
+            "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
+            "note": "The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.\n",
+            "stability": "experimental",
+            "requirement_level": {
+              "conditionally_required": "if and only if `os.name` is `android`"
+            },
             "members": [
               {
                 "id": "created",
                 "value": "created",
                 "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               },
               {
                 "id": "background",
                 "value": "background",
                 "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               },
               {
                 "id": "foreground",
                 "value": "foreground",
                 "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.\n",
                 "note": null,
-                "stability": null
+                "stability": null,
+                "deprecated": null
               }
-            ],
-            "brief": "This attribute represents the state the application has transitioned into at the occurrence of the event.\n",
-            "requirement_level": {
-              "conditionally_required": "if and only if `os.name` is `android`"
-            },
-            "note": "The Android lifecycle states are defined in [Activity lifecycle callbacks](https://developer.android.com/guide/components/activities/activity-lifecycle#lc), and from which the `OS identifiers` are derived.\n",
-            "stability": "experimental"
+            ]
           }
         ]
       }
@@ -225,6 +236,7 @@
       "id": "client.exception.event",
       "type": "event",
       "brief": "This document defines the log event used to report a client exception.\n",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -233,13 +245,13 @@
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "client.exception.event.fields",
         "type": "map",
+        "id": "client.exception.event.fields",
         "requirement_level": "optional",
         "fields": [
           {
-            "id": "type",
             "type": "string",
+            "id": "type",
             "brief": "The type of the exception.\n",
             "examples": [
               "java.net.ConnectException",
@@ -248,8 +260,8 @@
             "requirement_level": "optional"
           },
           {
-            "id": "message",
             "type": "string",
+            "id": "message",
             "brief": "The exception message.",
             "examples": [
               "Division by zero",
@@ -258,18 +270,18 @@
             "requirement_level": "optional"
           },
           {
-            "id": "stacktrace",
             "type": "string",
+            "id": "stacktrace",
             "brief": "A stacktrace.\n",
             "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
             "requirement_level": "optional"
           },
           {
-            "id": "escaped",
             "type": "boolean",
+            "id": "escaped",
             "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
-            "requirement_level": "optional",
-            "note": "An exception is considered to have escaped."
+            "note": "An exception is considered to have escaped.",
+            "requirement_level": "optional"
           }
         ]
       }
@@ -278,6 +290,7 @@
       "id": "browser.test.event_with_fields",
       "type": "event",
       "brief": "An event that adds global attributes for reuse.\n",
+      "stability": "experimental",
       "attributes": [
         1,
         2,
@@ -289,20 +302,20 @@
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "browser.test.event_with_body.fields",
         "type": "map",
+        "id": "browser.test.event_with_body.fields",
         "requirement_level": "required",
         "fields": [
           {
-            "id": "some.field",
             "type": "string",
+            "id": "some.field",
             "brief": "A field that is not referenced in the attributes",
+            "note": "This field is not referenced in the attributes",
             "examples": [
               "some value",
               "another value"
             ],
-            "requirement_level": "required",
-            "note": "This field is not referenced in the attributes"
+            "requirement_level": "required"
           }
         ]
       }
@@ -311,14 +324,15 @@
       "id": "browser.test.event_with_body_details",
       "type": "event",
       "brief": "An event that adds global attributes for reuse.\n",
+      "stability": "experimental",
       "attributes": [],
       "name": "browser.test.event_with_body_details",
       "lineage": {
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "browser.test.event_with_body_details.fields",
         "type": "map",
+        "id": "browser.test.event_with_body_details.fields",
         "brief": "A map of fields that are not referenced in the attributes",
         "note": "This map is not referenced in the attributes",
         "stability": "experimental",
@@ -328,15 +342,15 @@
         "requirement_level": "required",
         "fields": [
           {
-            "id": "some.field",
             "type": "string",
+            "id": "some.field",
             "brief": "A field that is not referenced in the attributes",
+            "note": "This field is not referenced in the attributes",
             "examples": [
               "some value",
               "another value"
             ],
-            "requirement_level": "optional",
-            "note": "This field is not referenced in the attributes"
+            "requirement_level": "optional"
           }
         ]
       }
@@ -385,6 +399,7 @@
       "id": "trace-exception",
       "type": "event",
       "brief": "This document defines the attributes used to report a single exception associated with a span.\n",
+      "stability": "experimental",
       "attributes": [
         13,
         14,
@@ -445,6 +460,7 @@
       "id": "feature_flag",
       "type": "event",
       "brief": "This semantic convention defines the attributes used to represent a feature flag evaluation as an event.\n",
+      "stability": "experimental",
       "attributes": [
         17,
         18,
@@ -459,6 +475,7 @@
       "id": "test_evt.with_attr",
       "type": "event",
       "brief": "Simple example span event with an attribute\n",
+      "stability": "experimental",
       "attributes": [
         20
       ],
@@ -485,6 +502,7 @@
       "id": "test_evt.session",
       "type": "event",
       "brief": "Another simple span event with another attribute\n",
+      "stability": "experimental",
       "attributes": [
         21
       ],
@@ -506,6 +524,6 @@
           }
         }
       }
-   }
+    }
   ]
 }

@@ -1,5 +1,6 @@
 groups:
   - id: rpc
+    stability: stable
     type: span
     brief: 'This document defines semantic conventions for remote procedure calls.'
     events: [rpc.message]
@@ -71,6 +72,7 @@ groups:
           - server.address
 
   - id: rpc.client
+    stability: stable
     type: span
     brief: 'This document defines semantic conventions for remote procedure call client spans.'
     extends: rpc
@@ -80,6 +82,7 @@ groups:
           recommended: If different than `server.address` and if `server.socket.address` is set.
 
   - id: rpc.server
+    stability: stable
     type: span
     extends: rpc
     span_kind: server
@@ -93,6 +96,7 @@ groups:
       - ref: network.type
 
   - id: rpc.grpc
+    stability: stable
     type: span
     extends: rpc
     brief: 'Tech-specific attributes for gRPC.'
@@ -155,6 +159,7 @@ groups:
         brief: "The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request."
 
   - id: rpc.jsonrpc
+    stability: stable
     type: span
     extends: rpc
     brief: 'Tech-specific attributes for [JSON RPC](https://www.jsonrpc.org/).'
@@ -190,6 +195,7 @@ groups:
           RPC conventions for more information.
 
   - id: rpc.message
+    stability: stable
     type: event
     brief: "RPC received/sent message."
     name: message
@@ -214,6 +220,7 @@ groups:
         brief: "Uncompressed size of the message in bytes."
 
   - id: rpc.connect_rpc
+    stability: stable
     type: span
     extends: rpc
     brief: 'Tech-specific attributes for Connect RPC.'
