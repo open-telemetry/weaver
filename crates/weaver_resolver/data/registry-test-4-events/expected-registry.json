@@ -114,8 +114,8 @@
         "source_file": "data/registry-test-4-events/registry/log-events.yaml"
       },
       "body": {
-        "id": "some.string.body.detailed.event.fields",
         "type": "string",
+        "id": "some.string.body.detailed.event.fields",
         "brief": "This is the body of the event which is a JSON encoded string.\n",
         "note": "This is a detailed note about the body.\n",
         "stability": "experimental",
@@ -359,6 +359,7 @@
       "id": "ios.lifecycle.events",
       "type": "event",
       "brief": "This event represents an occurrence of a lifecycle transition on the iOS platform.\n",
+      "stability": "experimental",
       "attributes": [
         5
       ],
@@ -371,6 +372,7 @@
       "id": "android.lifecycle.events",
       "type": "event",
       "brief": "This event represents an occurrence of a lifecycle transition on the Android platform.\n",
+      "stability": "experimental",
       "attributes": [
         6
       ],

@@ -1,5 +1,6 @@
 groups:
   - id: metric.faas.invoke_duration
+    stability: experimental
     type: metric
     metric_name: faas.invoke_duration
     brief: "Measures the duration of the function's logic execution"
@@ -9,6 +10,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.init_duration
+    stability: experimental
     type: metric
     metric_name: faas.init_duration
     brief: "Measures the duration of the function's initialization, such as a cold start"
@@ -18,6 +20,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.coldstarts
+    stability: experimental
     type: metric
     metric_name: faas.coldstarts
     brief: "Number of invocation cold starts"
