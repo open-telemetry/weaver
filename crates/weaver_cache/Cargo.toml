@@ -25,7 +25,7 @@ gix = { version = "0.67.0", default-features = false, features = [
 ] }
 flate2 = "1.0.35"
 tar = "0.4.43"
-zip = "2.2.0"
+zip = "2.2.1"
 
 thiserror.workspace = true
 serde.workspace = true
