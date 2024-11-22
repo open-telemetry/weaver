@@ -1,0 +1,27 @@
+groups:
+  - id: metric.faas.invoke_duration
+    type: metric
+    metric_name: faas.invoke_duration
+    brief: "Measures the duration of the function's logic execution"
+    instrument: histogram
+    unit: "s"
+    attributes:
+      - ref: faas.trigger
+
+  - id: metric.faas.init_duration
+    type: metric
+    metric_name: faas.init_duration
+    brief: "Measures the duration of the function's initialization, such as a cold start"
+    instrument: histogram
+    unit: "s"
+    attributes:
+      - ref: faas.trigger
+
+  - id: metric.faas.coldstarts
+    type: metric
+    metric_name: faas.coldstarts
+    brief: "Number of invocation cold starts"
+    instrument: counter
+    unit: "{coldstart}"
+    attributes:
+      - ref: faas.trigger
