@@ -469,7 +469,7 @@ mod tests {
                         params: None,
                         registry: RegistryArgs {
                             registry: RegistryPath::LocalFolder {
-                                path: "crates/weaver_codegen_test/symbolic_test/".to_owned(),
+                                path: "data/symbolic_test/".to_owned(),
                             },
                             registry_git_sub_dir: None,
                         },
