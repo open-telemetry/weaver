@@ -47,27 +47,30 @@ jobs:
       - name: No-default features
         run: cargo test --workspace --no-default-features
   msrv:
-    name: Check MSRV
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: "1.76.0"  # MSRV
-      - uses: Swatinem/rust-cache@v2
-      - name: Override default toolchain
-        run: rustup override set 1.76.0
-      - name: Validate correct toolchain
-        run: cargo --version --verbose
-      - name: Default features
-        run: cargo check --workspace --all-targets
-# [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
-#      - name: All features
-#        run: cargo check --workspace --all-targets --all-features
-      - name: No-default features
-        run: cargo check --workspace --all-targets --no-default-features
+      name: Check MSRV
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+        - name: Extract MSRV from Cargo.toml
+          id: extract-msrv
+          run: |
+            MSRV=$(grep -E 'rust-version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"' Cargo.toml | head -n 1 | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+            echo "MSRV=$MSRV" >> $GITHUB_ENV
+        - name: Install Rust
+          run: rustup toolchain install ${{ env.MSRV }}
+        - name: Override default toolchain
+          run: rustup override set ${{ env.MSRV }}
+        - uses: Swatinem/rust-cache@v2
+        - name: Validate correct toolchain
+          run: cargo --version --verbose
+        - name: Default features
+          run: cargo check --workspace --all-targets
+        # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
+        # - name: All features
+        #   run: cargo check --workspace --all-targets --all-features
+        - name: No-default features
+          run: cargo check --workspace --all-targets --no-default-features
   lockfile:
     runs-on: ubuntu-latest
     steps:
