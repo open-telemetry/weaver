@@ -161,7 +161,12 @@ pub(crate) fn comment(
                 line_length_limit.map(|limit| limit - (indent.len() + prefix.len()));
             comment = match &comment_format.format {
                 RenderFormat::Markdown(..) => markdown_snippet_renderer
-                    .render(&comment, &comment_format_name, actual_length_limit)
+                    .render(
+                        &comment,
+                        &comment_format_name,
+                        actual_length_limit,
+                        comment_format.ignore_newlines,
+                    )
                     .map_err(|e| {
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
@@ -172,7 +177,12 @@ pub(crate) fn comment(
                         )
                     })?,
                 RenderFormat::Html(..) => html_snippet_renderer
-                    .render(&comment, &comment_format_name, actual_length_limit)
+                    .render(
+                        &comment,
+                        &comment_format_name,
+                        actual_length_limit,
+                        comment_format.ignore_newlines,
+                    )
                     .map_err(|e| {
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
@@ -304,6 +314,7 @@ mod tests {
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: true,
                     },
                 )]
                 .into_iter()
@@ -472,6 +483,7 @@ it's RECOMMENDED to:
  * The {@code error.type}
  * SHOULD be predictable, and
  * SHOULD have low cardinality.
+ *
  * <p>
  * When {@code error.type} is
  * set to a type (e.g., an
@@ -479,6 +491,7 @@ it's RECOMMENDED to:
  * canonical class name
  * identifying the type within
  * the artifact SHOULD be used.
+ *
  * <p>
  * Instrumentations SHOULD
  * document the list of errors
@@ -542,6 +555,7 @@ it's RECOMMENDED to:
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: false,
                     },
                 )]
                 .into_iter()
@@ -604,6 +618,7 @@ it's RECOMMENDED to:
                         enforce_trailing_dots: false,
                         indent_type: Default::default(),
                         line_length: None,
+                        ignore_newlines: false,
                     },
                 )]
                 .into_iter()
@@ -671,6 +686,7 @@ it's RECOMMENDED to:
                         enforce_trailing_dots: true,
                         indent_type: Default::default(),
                         line_length: None,
+                        ignore_newlines: false,
                     },
                 )]
                 .into_iter()

@@ -206,6 +206,7 @@ impl MarkdownRenderer {
         markdown: &str,
         format: &str,
         max_line_length: Option<usize>,
+        ignore_newlines: bool,
     ) -> Result<String, Error> {
         let render_options = if let Some(options) = self.options_by_format.get(format) {
             options
@@ -223,6 +224,9 @@ impl MarkdownRenderer {
             })?;
         let mut render_context = RenderContext::default();
         render_context.word_wrap.line_length = max_line_length;
+        render_context
+            .word_wrap
+            .set_ignore_newlines(ignore_newlines);
         Self::write_markdown_to(&mut render_context, "", &md_node, render_options)?;
 
         if !render_context.shortcut_reference_links.is_empty() {
@@ -422,6 +426,7 @@ impl MarkdownRenderer {
                 for child in &heading.children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
+                ctx.end_unbreakable_block("");
                 ctx.add_blank_line();
                 ctx.add_leftover_newlines(1);
             }
@@ -481,6 +486,7 @@ mod tests {
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: false,
                     },
                 )]
                 .into_iter()
@@ -493,7 +499,7 @@ mod tests {
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", None)?;
+        let html = renderer.render(markdown, "go", None, false)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer to an IP and/or port directly,
@@ -508,7 +514,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "go", None)?;
+        let html = renderer.render(markdown, "go", None, false)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -543,7 +549,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "go", None)?;
+        let html = renderer.render(markdown, "go", None, false)?;
         assert_string_eq!(
             &html,
             r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
@@ -587,6 +593,7 @@ it's RECOMMENDED to:
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: false,
                     },
                 )]
                 .into_iter()
@@ -599,7 +606,7 @@ it's RECOMMENDED to:
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", None)?;
+        let html = renderer.render(markdown, "go", None, false)?;
         assert_string_eq!(
             &html,
             r##"In some cases a [URL] may refer to an [IP] and/or port directly,
@@ -628,6 +635,7 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: false,
                     },
                 )]
                 .into_iter()
@@ -640,7 +648,7 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", None)?;
+        let html = renderer.render(markdown, "go", None, false)?;
         assert_string_eq!(
             &html,
             r##"In some cases a \[URL\] may refer to an [IP] and/or port directly,
@@ -673,6 +681,7 @@ The file \[extension\] extracted \[from\] the `url.full`, excluding the leading 
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         line_length: Some(30),
+                        ignore_newlines: true,
                     },
                 )]
                 .into_iter()
@@ -685,7 +694,7 @@ The file \[extension\] extracted \[from\] the `url.full`, excluding the leading 
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", Some(30))?;
+        let html = renderer.render(markdown, "go", Some(30), true)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer
@@ -703,7 +712,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "go", Some(30))?;
+        let html = renderer.render(markdown, "go", Some(30), true)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -738,7 +747,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "go", Some(30))?;
+        let html = renderer.render(markdown, "go", Some(30), true)?;
         assert_string_eq!(
             &html,
             r##"The `error.type` SHOULD be
@@ -805,6 +814,7 @@ RECOMMENDED to:
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: true,
                     },
                 )]
                 .into_iter()
@@ -817,7 +827,7 @@ RECOMMENDED to:
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", Some(30))?;
+        let html = renderer.render(markdown, "go", Some(30), true)?;
         assert_string_eq!(
             &html,
             r##"In some cases a [URL] may refer
@@ -850,6 +860,7 @@ leading dot.
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
                         line_length: None,
+                        ignore_newlines: true,
                     },
                 )]
                 .into_iter()
@@ -862,7 +873,7 @@ leading dot.
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", Some(30))?;
+        let html = renderer.render(markdown, "go", Some(30), true)?;
         assert_string_eq!(
             &html,
             r##"In some cases a \[URL\] may

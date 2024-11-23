@@ -68,6 +68,14 @@ impl Default for WordWrapContext {
 }
 
 impl WordWrapContext {
+    fn set_ignore_newlines(&mut self, value: bool) {
+        if value {
+            self.word_separator = WordSeparator::Custom(find_words_ascii_space_and_newline);
+        } else {
+            self.word_separator = WordSeparator::AsciiSpace;
+        }
+    }
+
     fn write_unbroken<O: Write>(
         &mut self,
         out: &mut O,
