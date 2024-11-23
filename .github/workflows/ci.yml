@@ -49,21 +49,26 @@ jobs:
   msrv:
       name: Check MSRV
       runs-on: ubuntu-latest
+      env:
+        MSRV: "1.81.0"  # MSRV 
       steps:
         - name: Checkout repository
           uses: actions/checkout@v4
-        - name: Extract MSRV from Cargo.toml
-          id: extract-msrv
-          run: |
-            MSRV=$(grep -E 'rust-version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"' Cargo.toml | head -n 1 | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
-            echo "MSRV=$MSRV" >> $GITHUB_ENV
         - name: Install Rust
-          run: rustup toolchain install ${{ env.MSRV }}
-        - name: Override default toolchain
-          run: rustup override set ${{ env.MSRV }}
+          uses: dtolnay/rust-toolchain@stable
+          with: 
+            toolchain: ${{ env.MSRV }} 
         - uses: Swatinem/rust-cache@v2
+        - name: Override default toolchain
+          run: rustup override set "${{ env.MSRV }}"
         - name: Validate correct toolchain
-          run: cargo --version --verbose
+          run: |
+            CURRENT_TOOLCHAIN=$(rustup show active-toolchain | awk '{print $1}' | sed 's/-.*//')
+            if [ "$CURRENT_TOOLCHAIN" != "${{ env.MSRV }}" ]; then
+              echo "Expected ${{ env.MSRV }} but got $CURRENT_TOOLCHAIN"
+              exit 1
+            fi
+            cargo --version --verbose
         - name: Default features
           run: cargo check --workspace --all-targets
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
