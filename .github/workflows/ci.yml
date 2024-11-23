@@ -55,7 +55,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.81.0"  # MSRV
+          toolchain: "1.76.0"  # MSRV
       - uses: Swatinem/rust-cache@v2
         # Validate correct toolchain is installed
       - name: Check Rust version
