@@ -161,7 +161,7 @@ pub(crate) fn comment(
                 line_length_limit.map(|limit| limit - (indent.len() + prefix.len()));
             comment = match &comment_format.format {
                 RenderFormat::Markdown(..) => markdown_snippet_renderer
-                    .render(&comment, &comment_format_name)
+                    .render(&comment, &comment_format_name, actual_length_limit)
                     .map_err(|e| {
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
