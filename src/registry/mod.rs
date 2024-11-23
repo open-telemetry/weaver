@@ -158,8 +158,8 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
     }
 }
 
-/// Set of Parameters used to specify the extra options for the `weaver` command.
-/// The CommonRegistryArgs will be shared across all commands. So only the general options should be
+/// Set of Parameters used to specify the extra options for the `weaver registry` command.
+/// The CommonRegistryArgs will be shared across all `weaver registry` sub-commands. So only the general options should be
 /// included here.
 #[derive(Args, Debug)]
 pub struct CommonRegistryArgs {

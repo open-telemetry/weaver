@@ -53,7 +53,7 @@ pub struct RegistrySearchArgs {
     /// Otherwise, runs an interactive terminal UI.
     pub search_string: Option<String>,
 
-    /// Weaver parameters
+    /// Common weaver registry parameters
     #[command(flatten)]
     pub common_registry_args: CommonRegistryArgs,
 }

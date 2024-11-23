@@ -57,7 +57,7 @@ pub struct RegistryResolveArgs {
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
 
-    // Weaver parameters
+    // Common weaver registry parameters
     #[command(flatten)]
     pub common_registry_args: CommonRegistryArgs,
 }
