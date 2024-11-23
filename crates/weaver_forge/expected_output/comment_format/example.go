@@ -7,11 +7,11 @@ package test
 //
 // The device identifier MUST only be defined using the values outlined below.
 // This value is not an advertising identifier and MUST NOT be used as such. On
-// iOS (Swift or Objective-C), this value MUST be equal to the [vendor
-// identifier]. On Android (Java or Kotlin), this value MUST be equal to the
-// Firebase Installation ID or a globally unique UUID which is persisted across
-// sessions in your application. More information can be found [here] on best
-// practices and exact implementation details. Caution should be taken when
+// iOS (Swift or Objective-C), this value MUST be equal to the
+// [vendor identifier]. On Android (Java or Kotlin), this value MUST be equal to
+// the Firebase Installation ID or a globally unique UUID which is persisted
+// across sessions in your application. More information can be found [here] on
+// best practices and exact implementation details. Caution should be taken when
 // storing personal data or anything which can identify a user. GDPR and data
 // protection laws may apply, ensure you do your own due diligence
 //
@@ -31,9 +31,8 @@ const DEVICE_MANUFACTURER = ""
 // DEVICE_MODEL_IDENTIFIER
 // The model identifier for the device
 //
-// It's recommended this value represents a machine-readable version of the
-// model identifier rather than the market or consumer-friendly name of the
-// device
+// It's recommended this value represents a machine-readable version of the model
+// identifier rather than the market or consumer-friendly name of the device
 const DEVICE_MODEL_IDENTIFIER = ""
 
 // DEVICE_MODEL_NAME
@@ -77,8 +76,8 @@ const DNS_QUESTION_NAME = ""
 // If the operation has completed successfully, instrumentations SHOULD NOT set
 // `error.type`.
 //
-// If a specific domain defines its own set of error identifiers (such as HTTP
-// or gRPC status codes),
+// If a specific domain defines its own set of error identifiers (such as HTTP or
+// gRPC status codes),
 // it's RECOMMENDED to:
 //
 //   - Use a domain-specific attribute
@@ -104,7 +103,8 @@ const ERROR_TYPE = ""
 //     adipiscing elit sed do eiusmod tempor
 //     incididunt ut labore et dolore magna aliqua.
 //
-// And an **inline code snippet**: `Attr.attr`.
+// And an
+// **inline code snippet**: `Attr.attr`.
 //
 // # Summary
 //

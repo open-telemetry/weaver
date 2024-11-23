@@ -54,6 +54,9 @@ struct WordWrapContext {
     // True if there's a dangling space from previously written
     // word we may choose to ignore.
     letfover_space: bool,
+
+    // True if we wrap across newlines and don't preserve them.
+    ignore_newlines: bool,
 }
 
 impl Default for WordWrapContext {
@@ -63,6 +66,7 @@ impl Default for WordWrapContext {
             line_length: Default::default(),
             current_line_length: Default::default(),
             letfover_space: Default::default(),
+            ignore_newlines: false,
         }
     }
 }
@@ -74,6 +78,7 @@ impl WordWrapContext {
         } else {
             self.word_separator = WordSeparator::AsciiSpace;
         }
+        self.ignore_newlines = value;
     }
 
     fn write_unbroken<O: Write>(
@@ -149,7 +154,8 @@ impl WordWrapContext {
         // TODO - mark this as tailing so we can later decide to add it or
         // newline.
         // We struggle with the AST of markdown here.
-        self.letfover_space = input.ends_with(' ');
+        self.letfover_space =
+            input.ends_with(' ') || (self.ignore_newlines && input.ends_with('\n'));
         Ok(())
     }
 

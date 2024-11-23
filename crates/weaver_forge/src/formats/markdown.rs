@@ -87,12 +87,18 @@ impl RenderContext {
     /// Add a blank line if the current markdown buffer
     /// does not end already with a double newline.
     fn add_cond_blank_line(&mut self) {
+        // TODO - This is a workaround for not truly
+        // refactoring word-wrap vs. regular add-text.
         if !self.markdown.ends_with("\n\n") && !self.markdown.is_empty() {
-            let _ = self.word_wrap.write_ln(&mut self.markdown, "");
+            let _ = self
+                .word_wrap
+                .write_ln(&mut self.markdown, &self.line_prefix);
         }
     }
     fn add_blank_line(&mut self) {
-        let _ = self.word_wrap.write_ln(&mut self.markdown, "");
+        let _ = self
+            .word_wrap
+            .write_ln(&mut self.markdown, &self.line_prefix);
     }
 
     /// Set the line prefix to add in front of each new line.
@@ -141,10 +147,27 @@ impl RenderContext {
         if let Some(buf) = self.unbreakable_buffer.as_mut() {
             buf.push_str(text);
         } else if self.word_wrap.line_length.is_some() {
-            // Word wrap algorithm. TODO - throw the error.
-            let _ = self
-                .word_wrap
-                .write_words(&mut self.markdown, text, &self.line_prefix);
+            if !self.line_prefix.is_empty() && !self.skip_line_prefix_on_first_line {
+                let prefix = self.line_prefix.to_owned();
+                self.add_unbreakable_text(&prefix);
+            }
+            // Word wrap algorithm.
+            if self.word_wrap.ignore_newlines {
+                let _ = self
+                    .word_wrap
+                    .write_words(&mut self.markdown, text, &self.line_prefix);
+            } else {
+                // Now we need to deal with newlines.
+                let lines = text.split('\n');
+                for (i, line) in lines.enumerate() {
+                    if i > 0 {
+                        self.add_blank_line();
+                    }
+                    let _ = self
+                        .word_wrap
+                        .write_words(&mut self.markdown, line, &self.line_prefix);
+                }
+            }
         } else {
             // Preserve original lines
             let lines = text.split('\n');
@@ -230,6 +253,12 @@ impl MarkdownRenderer {
         Self::write_markdown_to(&mut render_context, "", &md_node, render_options)?;
 
         if !render_context.shortcut_reference_links.is_empty() {
+            let blank_line_count = render_context.take_leftover_newlines();
+            if blank_line_count > 0 {
+                render_context
+                    .markdown
+                    .push_str(&"\n".repeat(blank_line_count));
+            }
             for link in &render_context.shortcut_reference_links {
                 render_context.markdown.push('\n');
                 render_context
@@ -312,6 +341,7 @@ impl MarkdownRenderer {
                 for item in &list.children {
                     let leftover_newlines = ctx.take_leftover_newlines();
                     if leftover_newlines > 0 {
+                        ctx.set_line_prefix("");
                         for _ in 0..leftover_newlines {
                             ctx.add_blank_line();
                         }
@@ -324,7 +354,8 @@ impl MarkdownRenderer {
                     };
                     ctx.skip_line_prefix_on_first_line();
                     ctx.set_line_prefix(" ".repeat(line_prefix.len()).as_str());
-                    ctx.markdown.push_str(&line_prefix);
+                    // ctx.markdown.push_str(&line_prefix);
+                    ctx.add_unbreakable_text(&line_prefix);
                     Self::write_markdown_to(ctx, &indent, item, options)?;
                     ctx.add_leftover_newlines(1);
                 }
@@ -366,12 +397,23 @@ impl MarkdownRenderer {
                 ctx.add_blank_line();
             }
             Node::Blockquote(block_quote) => {
+                // Somehow we're getting  end of lines from the block quote.
                 ctx.add_cond_blank_line();
                 ctx.set_line_prefix("> ");
                 for child in &block_quote.children {
-                    Self::write_markdown_to(ctx, indent, child, options)?;
+                    match child {
+                        Node::Paragraph(paragraph) => {
+                            for child in &paragraph.children {
+                                Self::write_markdown_to(ctx, indent, child, options)?;
+                            }
+                        }
+                        _ => {
+                            Self::write_markdown_to(ctx, indent, child, options)?;
+                        }
+                    }
                 }
                 ctx.reset_line_prefix();
+                ctx.add_blank_line();
             }
             Node::Link(link) => {
                 ctx.start_unbreakable_block("[");
@@ -786,9 +828,10 @@ identifiers (such as HTTP or
 gRPC status codes), it's
 RECOMMENDED to:
 
-  - Use a domain-specific attribute
-  - Set `error.type` to capture all
-    errors, regardless of
+  - Use a domain-specific
+    attribute
+  - Set `error.type` to capture
+    all errors, regardless of
     whether they are defined
     within the domain-specific
     set or not."##
@@ -886,6 +929,152 @@ excluding the leading dot.
 [IP]: http://ip.com"##
         );
 
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"It should handle wierdly split lists.
+
+## Unordered
+
+- [Link 1](https://www.link1.com)
+- [Link 2](https://www.link2.com)
+- A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+  tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+1. Example 1
+2. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+   [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+   [labore](https://loremipsum.com) et dolore magna aliqua.
+3. Example 3
+"##;
+        let html = renderer.render(markdown, "go", Some(30), true)?;
+        assert_string_eq!(
+            &html,
+            r##"It should handle wierdly split
+lists.
+
+## Unordered
+
+  - [Link 1]
+  - [Link 2]
+  - A very long item in the
+    list with lorem ipsum dolor
+    sit amet, consectetur
+    adipiscing elit sed do
+    eiusmod tempor incididunt
+    ut labore et dolore magna
+    aliqua.
+
+## Ordered
+
+  1. Example 1
+  2. [Example] with lorem ipsum
+     dolor sit amet,
+     consectetur adipiscing
+     elit [sed] do eiusmod
+     tempor incididunt ut
+     [labore] et dolore magna
+     aliqua.
+  3. Example 3
+
+
+[Link 1]: https://www.link1.com
+[Link 2]: https://www.link2.com
+[Example]: https://loremipsum.com
+[sed]: https://loremipsum.com
+[labore]: https://loremipsum.com"##
+        );
+
+        Ok(())
+    }
+    #[test]
+    fn test_markdown_render_keep_newlines() -> Result<(), Error> {
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: true,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                        line_length: None,
+                        ignore_newlines: true,
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"It should handle wierdly split lists.
+
+## Unordered
+
+- [Link 1](https://www.link1.com)
+- [Link 2](https://www.link2.com)
+- A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+  tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+1. Example 1
+2. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+   [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+   [labore](https://loremipsum.com) et dolore magna aliqua.
+3. Example 3
+"##;
+        let html = renderer.render(markdown, "go", Some(30), false)?;
+        assert_string_eq!(
+            &html,
+            r##"It should handle wierdly split
+lists.
+
+## Unordered
+
+  - [Link 1]
+  - [Link 2]
+  - A very long item in the
+    list with lorem ipsum dolor
+    sit amet, consectetur
+    adipiscing elit sed do
+    eiusmod
+    tempor incididunt ut labore
+    et dolore magna aliqua.
+
+
+## Ordered
+
+  1. Example 1
+  2. [Example] with lorem ipsum
+     dolor sit amet,
+     consectetur adipiscing
+     elit
+     [sed] do eiusmod tempor
+     incididunt ut
+     [labore] et dolore magna
+     aliqua.
+  3. Example 3
+
+
+[Link 1]: https://www.link1.com
+[Link 2]: https://www.link2.com
+[Example]: https://loremipsum.com
+[sed]: https://loremipsum.com
+[labore]: https://loremipsum.com"##
+        );
         Ok(())
     }
 }
