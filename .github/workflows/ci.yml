@@ -57,8 +57,9 @@ jobs:
         with:
           toolchain: "1.76.0"  # MSRV
       - uses: Swatinem/rust-cache@v2
-        # Validate correct toolchain is installed
-      - name: Check Rust version
+      - name: Override default toolchain
+        run: rustup override set 1.76.0
+      - name: Validate correct toolchain
         run: cargo --version --verbose
       - name: Default features
         run: cargo check --workspace --all-targets
