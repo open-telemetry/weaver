@@ -67,8 +67,9 @@ jobs:
             if [ "$CURRENT_TOOLCHAIN" != "${{ env.MSRV }}" ]; then
               echo "Expected ${{ env.MSRV }} but got $CURRENT_TOOLCHAIN"
               exit 1
+            else 
+              echo "Correct toolchain $CURRENT_TOOLCHAIN is installed"
             fi
-            cargo --version --verbose
         - name: Default features
           run: cargo check --workspace --all-targets
         # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
