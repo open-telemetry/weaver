@@ -50,7 +50,7 @@ jobs:
       name: Check MSRV
       runs-on: ubuntu-latest
       env:
-        MSRV: "1.76.0"  # MSRV 
+        MSRV: "1.81.0"  # MSRV 
       steps:
         - name: Checkout repository
           uses: actions/checkout@v4
@@ -59,16 +59,17 @@ jobs:
           with: 
             toolchain: ${{ env.MSRV }} 
         - uses: Swatinem/rust-cache@v2
+        # The intended toolchain is being overridden here by the version defined in rust-toolchain.toml so we need to manually set it back
         - name: Override default toolchain
           run: rustup override set "${{ env.MSRV }}"
-        - name: Validate correct toolchain
+        - name: Validate correct toolchain is active
           run: |
             CURRENT_TOOLCHAIN=$(rustup show active-toolchain | awk '{print $1}' | sed 's/-.*//')
             if [ "$CURRENT_TOOLCHAIN" != "${{ env.MSRV }}" ]; then
-              echo "Expected ${{ env.MSRV }} but got $CURRENT_TOOLCHAIN"
+              echo "Expected active toolchain ${{ env.MSRV }} but got $CURRENT_TOOLCHAIN"
               exit 1
             else 
-              echo "Correct toolchain $CURRENT_TOOLCHAIN is installed"
+              echo "Correct toolchain $CURRENT_TOOLCHAIN is installed and active"
             fi
         - name: Default features
           run: cargo check --workspace --all-targets
