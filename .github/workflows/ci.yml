@@ -55,11 +55,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.76.0"  # MSRV
+          toolchain: "1.81.0"  # MSRV
       - uses: Swatinem/rust-cache@v2
-      - name: Default features
         # Validate correct toolchain is installed
+      - name: Check Rust version
         run: cargo --version --verbose
+      - name: Default features
         run: cargo check --workspace --all-targets
 # [ToDo LQ] Re-enable --all-features once the issue is resolved in Tantivy (zstd-safe). This is an experimental feature anyway.
 #      - name: All features
