@@ -103,8 +103,7 @@ const ERROR_TYPE = ""
 //     adipiscing elit sed do eiusmod tempor
 //     incididunt ut labore et dolore magna aliqua.
 //
-// And an
-// **inline code snippet**: `Attr.attr`.
+// And an **inline code snippet**: `Attr.attr`.
 //
 // # Summary
 //

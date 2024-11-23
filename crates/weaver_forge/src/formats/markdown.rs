@@ -282,7 +282,9 @@ impl MarkdownRenderer {
             // Add the newlines left by the previous node only if the current node
             // is not a list.
             if !matches!(md_node, Node::List(..)) {
-                ctx.markdown.push_str(&"\n".repeat(leftover_newlines));
+                for _ in 0..leftover_newlines {
+                    ctx.add_blank_line();
+                }
             }
         }
         match md_node {
@@ -1054,7 +1056,6 @@ lists.
     tempor incididunt ut labore
     et dolore magna aliqua.
 
-
 ## Ordered
 
   1. Example 1
@@ -1075,6 +1076,18 @@ lists.
 [sed]: https://loremipsum.com
 [labore]: https://loremipsum.com"##
         );
+
+        // ToDo: We do not want to split on punctuations like this, e.g.
+        // `.`, `:`, etc.
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"And an **inline code snippet**: `Attr.attr`."##;
+        let html = renderer.render(markdown, "go", Some(80), false)?;
+        assert_string_eq!(
+            &html,
+            r##"And an **inline code snippet**: `Attr.attr`.
+"##
+        );
+
         Ok(())
     }
 }
