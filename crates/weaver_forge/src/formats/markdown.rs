@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::default_bool;
 use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::install_weaver_extensions;
@@ -34,6 +35,8 @@ pub struct MarkdownRenderOptions {
     /// The default language for code blocks.
     /// Default is None.
     pub(crate) default_block_code_language: Option<String>,
+    #[serde(default = "default_bool::<false>")]
+    pub(crate) use_go_style_list_indent: bool,
 }
 
 pub(crate) struct ShortcutReferenceLink {
@@ -363,6 +366,8 @@ impl MarkdownRenderer {
                 ctx.list_level += 1;
                 let indent = if !options.indent_first_level_list_items && ctx.list_level == 1 {
                     indent.to_owned()
+                } else if options.use_go_style_list_indent && list.ordered {
+                    format!("{} ", indent)
                 } else {
                     format!("{}  ", indent)
                 };
@@ -553,6 +558,7 @@ mod tests {
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -661,6 +667,7 @@ it's RECOMMENDED to:
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -705,6 +712,7 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -754,6 +762,7 @@ The file \[extension\] extracted \[from\] the `url.full`, excluding the leading 
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -889,6 +898,7 @@ RECOMMENDED to:
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -937,6 +947,7 @@ leading dot.
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -1045,6 +1056,7 @@ lists.
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
@@ -1128,6 +1140,90 @@ lists.
             &html,
             r##"And an **inline code snippet**: `Attr.attr`.
 "##
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_markdown_render_go_lists() -> Result<(), Error> {
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: true,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                            use_go_style_list_indent: true,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: false,
+                        },
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"It should handle wierdly split lists for go.
+
+## Unordered
+
+  - [Link 1](https://www.link1.com)
+  - [Link 2](https://www.link2.com)
+  - A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+    tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+ 1. Example 1
+ 2. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+    [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+    [labore](https://loremipsum.com) et dolore magna aliqua.
+ 3. Example 3
+"##;
+        let html = renderer.render(markdown, "go", Some(80))?;
+        assert_string_eq!(
+            &html,
+            r##"It should handle wierdly split lists for go.
+
+## Unordered
+
+  - [Link 1]
+  - [Link 2]
+  - A very long item in the list with lorem ipsum dolor sit amet, consectetur
+    adipiscing elit sed do eiusmod
+    tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+ 1. Example 1
+ 2. [Example] with lorem ipsum dolor sit amet, consectetur adipiscing elit
+    [sed] do eiusmod tempor incididunt ut
+    [labore] et dolore magna aliqua.
+ 3. Example 3
+
+
+[Link 1]: https://www.link1.com
+[Link 2]: https://www.link2.com
+[Example]: https://loremipsum.com
+[sed]: https://loremipsum.com
+[labore]: https://loremipsum.com"##
         );
 
         Ok(())
