@@ -100,7 +100,7 @@ impl WordWrapContext {
     fn new(cfg: &WordWrapConfig) -> Self {
         Self {
             word_separator: default_word_separator(cfg.ignore_newlines),
-            line_length: cfg.line_length.clone(),
+            line_length: cfg.line_length,
             current_line_length: Default::default(),
             letfover_space: Default::default(),
             ignore_newlines: cfg.ignore_newlines,

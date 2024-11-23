@@ -136,11 +136,12 @@ impl RenderContext {
 
     fn start_unbreakable_block(&mut self, text: &str) {
         // TODO - check for existing unbreakable.
-        if self.unbreakable_buffer.is_some() {
-            panic!(
-                "Starting a new unbreakable block with [{}], existing block [{:?}]",
-                text, self.unbreakable_buffer
-            );
+        if let Some(buf) = self.unbreakable_buffer.as_ref() {
+            // ToDo - we should error out here.
+            // For now, we just FLUSH this to write to the buffer.
+            let _ = self
+                .word_wrap
+                .write_unbroken(&mut self.markdown, buf, &self.line_prefix);
         }
         if self.word_wrap.line_length.is_some() {
             // Start a buffer
@@ -150,7 +151,6 @@ impl RenderContext {
         }
     }
     fn end_unbreakable_block(&mut self, text: &str) {
-        // TODO - if word-wrapping, we should load stored text and try to write with word-wrap.
         let result = if let Some(buffer) = self.unbreakable_buffer.as_ref() {
             format!("{}{}", buffer, text)
         } else {
