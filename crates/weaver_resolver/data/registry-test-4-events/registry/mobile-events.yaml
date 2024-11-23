@@ -1,6 +1,7 @@
 
 groups:
   - id: ios.lifecycle.events
+    stability: experimental
     type: event
     name: ios.device.app.lifecycle
     brief: >
@@ -39,6 +40,7 @@ groups:
               brief: >
                 The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
   - id: android.lifecycle.events
+    stability: experimental
     type: event
     name: android.device.app.lifecycle
     brief: >

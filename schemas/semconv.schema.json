@@ -45,8 +45,7 @@
 			"type": "object",
 			"required": [
 				"id",
-				"brief",
-				"stability"
+				"brief"
 			],
 			"anyOf": [
 				{
@@ -60,6 +59,20 @@
 					]
 				}
 			],
+			"if": {
+				"properties": {
+					"type": {
+						"not": {
+							"const": "attribute_group"
+						}
+					}
+				}
+			},
+			"then": {
+				"required": [
+					"stability"
+				]
+			},
 			"properties": {
 				"id": {
 					"type": "string",
@@ -444,6 +457,13 @@
 				},
 				"type": {
 					"$ref": "#/$defs/AttributeType"
+				},
+				"stability": {
+					"allOf": [
+						{
+							"$ref": "#/$defs/StabilityLevel"
+						}
+					]
 				}
 			}
 		},

@@ -527,6 +527,7 @@
       "id": "metric.messaging.publish.duration",
       "type": "metric",
       "brief": "Measures the duration of publish operation.",
+      "stability": "experimental",
       "attributes": [
         56,
         74,
@@ -642,6 +643,7 @@
       "id": "metric.messaging.receive.duration",
       "type": "metric",
       "brief": "Measures the duration of receive operation.",
+      "stability": "experimental",
       "attributes": [
         56,
         74,
@@ -757,6 +759,7 @@
       "id": "metric.messaging.deliver.duration",
       "type": "metric",
       "brief": "Measures the duration of deliver operation.",
+      "stability": "experimental",
       "attributes": [
         56,
         74,
@@ -872,6 +875,7 @@
       "id": "metric.messaging.publish.messages",
       "type": "metric",
       "brief": "Measures the number of published messages.",
+      "stability": "experimental",
       "attributes": [
         56,
         74,
@@ -987,6 +991,7 @@
       "id": "metric.messaging.receive.messages",
       "type": "metric",
       "brief": "Measures the number of received messages.",
+      "stability": "experimental",
       "attributes": [
         56,
         74,
@@ -1102,6 +1107,7 @@
       "id": "metric.messaging.deliver.messages",
       "type": "metric",
       "brief": "Measures the number of delivered messages.",
+      "stability": "experimental",
       "attributes": [
         56,
         74,

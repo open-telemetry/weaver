@@ -90,6 +90,7 @@ groups:
         brief: "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name)."
 
   - id: messaging
+    stability: stable
     type: span
     brief: >
       This document defines general attributes used in

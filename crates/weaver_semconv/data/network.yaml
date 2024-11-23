@@ -161,6 +161,7 @@ groups:
         brief: "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network."
         examples: "DE"
   - id: peer
+    stability: stable
     type: span
     brief: "Operations that access some remote service."
     attributes:
@@ -172,6 +173,7 @@ groups:
           resource attribute of the remote service if any.
         examples: "AuthTokenCache"
   - id: identity
+    stability: stable
     type: span
     brief: >
       These attributes may be used for any operation with an authenticated and/or authorized enduser.
@@ -196,6 +198,7 @@ groups:
           or an attribute value in a [SAML 2.0 Assertion](http://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html).
         examples: 'read:message, write:files'
   - id: thread
+    stability: stable
     type: span
     brief: >
       These attributes may be used for any operation to store information about a thread that started a span.
@@ -214,6 +217,7 @@ groups:
         brief: "Whether the thread is daemon or not."
         type: boolean
   - id: code
+    stability: stable
     type: span
     brief: >
       These attributes allow to report this unit of code and therefore to provide more context about the span.

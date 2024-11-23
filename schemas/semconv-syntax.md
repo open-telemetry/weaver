@@ -42,7 +42,7 @@ All attributes are lower case.
 groups ::= semconv
        | semconv groups
 
-semconv ::= id [convtype] brief [note] [extends] stability [deprecated] [display_name] attributes [specificfields]
+semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] attributes [specificfields]
 
 id    ::= string
 
@@ -103,9 +103,9 @@ specificfields ::= spanfields
                |   eventfields
                |   metricfields
 
-spanfields ::= [events] [span_kind]
+spanfields ::= [events] [span_kind] stability 
 
-eventfields ::= name [body]
+eventfields ::= name [body] stability
 
 body ::= any_value
 
@@ -136,7 +136,7 @@ events ::= id {id} # MUST point to an existing event group
 
 name ::= string
 
-metricfields ::= metric_name instrument unit
+metricfields ::= metric_name instrument unit stability
 
 metric_name ::= string
 instrument ::=  "counter"
@@ -268,7 +268,7 @@ The following is only valid if `type` is `metric`:
 
 Attribute group (`attribute_group` type) defines a set of attributes that can be
 declared once and referenced by semantic conventions for different signals, for example spans and logs.
-Attribute groups don't have any specific fields and follow the general `semconv` semantics.
+Attribute groups don't have any specific fields and follow the general `semconv` semantics. `stability` is not required for attribute groups.
 
 #### Any Value semantic convention
 
