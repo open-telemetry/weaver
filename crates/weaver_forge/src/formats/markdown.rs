@@ -983,7 +983,7 @@ excluding the leading dot.
         );
 
         let renderer = MarkdownRenderer::try_new(&config)?;
-        let markdown = r##"It should handle wierdly split lists.
+        let markdown = r##"It should handle weirdly split lists.
 
 ## Unordered
 
@@ -1003,7 +1003,7 @@ excluding the leading dot.
         let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
-            r##"It should handle wierdly split
+            r##"It should handle weirdly split
 lists.
 
 ## Unordered
@@ -1180,7 +1180,7 @@ lists.
             ..WeaverConfig::default()
         };
         let renderer = MarkdownRenderer::try_new(&config)?;
-        let markdown = r##"It should handle wierdly split lists for go.
+        let markdown = r##"It should handle weirdly split lists for go.
 
 ## Unordered
 
@@ -1200,7 +1200,7 @@ lists.
         let html = renderer.render(markdown, "go", Some(80))?;
         assert_string_eq!(
             &html,
-            r##"It should handle wierdly split lists for go.
+            r##"It should handle weirdly split lists for go.
 
 ## Unordered
 
