@@ -598,7 +598,9 @@ comment_formats:           # optional
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
     enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
-    line_length: <int>                # Maximum number of characters on a line (default: unlimited).
+    word_wrap:
+      line_length: <int>              # Maximum number of characters on a line (default: unlimited).
+      ignore_newlines: <bool>         # Whether newlines in comment should be ignored when a max line_length is set (default: false).
 
     # Fields specific to 'markdown' format
     escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).

@@ -1,4 +1,4 @@
-use super::WordWrapContext;
+use super::{WordWrapConfig, WordWrapContext};
 use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::error::Error::InvalidCodeSnippet;
@@ -57,10 +57,10 @@ struct CodeContext {
 
 pub(crate) struct HtmlRenderer<'source> {
     options_by_format: HashMap<String, HtmlRenderOptions>,
+    word_wrap_by_format: HashMap<String, WordWrapConfig>,
     env: Environment<'source>,
 }
 
-#[derive(Default)]
 struct RenderContext {
     // The rendered HTML.
     html: String,
@@ -77,6 +77,13 @@ struct RenderContext {
 }
 
 impl RenderContext {
+    fn new(cfg: &WordWrapConfig) -> Self {
+        Self {
+            html: Default::default(),
+            leftover_tag: Default::default(),
+            word_wrap: WordWrapContext::new(cfg),
+        }
+    }
     // Pushes a string without splitting it into words.
     // This will wrap lines if the string is too long for the current line.
     fn push_unbroken(&mut self, input: &str, indent: &str) -> std::fmt::Result {
@@ -120,6 +127,16 @@ impl<'source> HtmlRenderer<'source> {
                     RenderFormat::Markdown(..) => None,
                 })
                 .collect(),
+            word_wrap_by_format: config
+                .comment_formats
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|(name, format)| match format.format {
+                    RenderFormat::Html(_) => Some((name, format.word_wrap)),
+                    RenderFormat::Markdown(..) => None,
+                })
+                .collect(),
             env,
         })
     }
@@ -134,11 +151,18 @@ impl<'source> HtmlRenderer<'source> {
         &self,
         markdown: &str,
         format: &str,
-        line_length_limit: Option<usize>,
-        ignore_newlines: bool,
+        line_length_override: Option<usize>,
     ) -> Result<String, Error> {
         let html_render_options = if let Some(options) = self.options_by_format.get(format) {
             options
+        } else {
+            return Err(Error::CommentFormatNotFound {
+                format: format.to_owned(),
+                formats: self.options_by_format.keys().cloned().collect(),
+            });
+        };
+        let word_wrap_options = if let Some(options) = self.word_wrap_by_format.get(format) {
+            options.with_line_length_override(line_length_override)
         } else {
             return Err(Error::CommentFormatNotFound {
                 format: format.to_owned(),
@@ -151,11 +175,7 @@ impl<'source> HtmlRenderer<'source> {
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
             })?;
-        let mut render_context = RenderContext::default();
-        render_context.word_wrap.line_length = line_length_limit;
-        render_context
-            .word_wrap
-            .set_ignore_newlines(ignore_newlines);
+        let mut render_context = RenderContext::new(&word_wrap_options);
         self.write_html_to(
             &mut render_context,
             "",
@@ -371,6 +391,7 @@ mod tests {
     use crate::config::{CommentFormat, IndentType, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::html::{HtmlRenderOptions, HtmlRenderer};
+    use crate::formats::WordWrapConfig;
     use weaver_diff::assert_string_eq;
 
     #[test]
@@ -393,8 +414,10 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -407,7 +430,7 @@ mod tests {
         let renderer = HtmlRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer to an IP and/or port directly,
@@ -421,7 +444,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -437,7 +460,7 @@ An example can be found in
 without a domain name. In this case, the IP address would go to the domain field.
 If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2)
 enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field."##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer to an IP and/or port directly,
@@ -454,7 +477,7 @@ In such case username and password SHOULD be redacted and attribute's value SHOU
 
 `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
 Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it."##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"For network calls, URL usually has {@code scheme://host[:port][path][?query][#fragment]} format, where the fragment
@@ -469,7 +492,7 @@ Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumen
 
         let markdown = r##"Pool names are generally obtained via
 [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName())."##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Pool names are generally obtained via
@@ -477,7 +500,7 @@ Sensitive content provided in {@code url.full} SHOULD be scrubbed when instrumen
         );
 
         let markdown = r##"Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)"##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Value can be retrieved from value {@code space_name} of <a href="https://nodejs.org/api/v8.html#v8getheapspacestatistics">{@code v8.getHeapSpaceStatistics()}</a>"##
@@ -502,7 +525,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "java", None, false)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
@@ -551,8 +574,10 @@ it's RECOMMENDED to:
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
-                        line_length: Some(30),
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
                     },
                 )]
                 .into_iter()
@@ -565,7 +590,7 @@ it's RECOMMENDED to:
         let renderer = HtmlRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer
@@ -582,7 +607,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -602,7 +627,7 @@ Example Image Manifest</a>."##
 without a domain name. In this case, the IP address would go to the domain field.
 If the URL contains a [literal IPv6 address](https://www.rfc-editor.org/rfc/rfc2732#section-2)
 enclosed by `[` and `]`, the `[` and `]` characters should also be captured in the domain field."##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer
@@ -628,7 +653,7 @@ In such case username and password SHOULD be redacted and attribute's value SHOU
 
 `url.full` SHOULD capture the absolute URL when it is available (or can be reconstructed).
 Sensitive content provided in `url.full` SHOULD be scrubbed when instrumentations can identify it."##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"For network calls, URL usually
@@ -661,7 +686,7 @@ can identify it."##
 
         let markdown = r##"Pool names are generally obtained via
 [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName())."##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Pool names are generally
@@ -672,7 +697,7 @@ BufferPoolMXBean#getName()</a>
         );
 
         let markdown = r##"Value can be retrieved from value `space_name` of [`v8.getHeapSpaceStatistics()`](https://nodejs.org/api/v8.html#v8getheapspacestatistics)"##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"Value can be retrieved from
@@ -701,7 +726,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "java", Some(30), true)?;
+        let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
             r##"The {@code error.type} SHOULD

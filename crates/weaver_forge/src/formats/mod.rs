@@ -4,10 +4,39 @@
 
 use std::fmt::Write;
 
+use crate::config::default_bool;
+use serde::{Deserialize, Serialize};
 use textwrap::{core::Word, WordSeparator};
 
 pub mod html;
 pub mod markdown;
+
+/// Configuration for word-wrap behavior.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct WordWrapConfig {
+    /// The limit of characters per-line.
+    /// If this contains a size, word wrapping will ensure
+    /// lines do not exceed this size UNLESS un-splittable
+    /// words exceed this size.
+    pub(crate) line_length: Option<usize>,
+    /// True if we wrap words across newlines and don't preserve them.
+    /// Note: This behavior is nuanced and likely needs finer grained control.
+    #[serde(default = "default_bool::<false>")]
+    pub(crate) ignore_newlines: bool,
+}
+
+impl WordWrapConfig {
+    // Applies an override to the config.
+    fn with_line_length_override(&self, line_length_override: Option<usize>) -> Self {
+        match line_length_override {
+            Some(size) => WordWrapConfig {
+                line_length: Some(size),
+                ignore_newlines: self.ignore_newlines,
+            },
+            None => self.clone(),
+        }
+    }
+}
 
 fn is_ascii_space_or_newline(ch: char) -> bool {
     ch == ' ' || ch == '\r' || ch == '\n'
@@ -59,26 +88,23 @@ struct WordWrapContext {
     ignore_newlines: bool,
 }
 
-impl Default for WordWrapContext {
-    fn default() -> Self {
-        Self {
-            word_separator: WordSeparator::Custom(find_words_ascii_space_and_newline),
-            line_length: Default::default(),
-            current_line_length: Default::default(),
-            letfover_space: Default::default(),
-            ignore_newlines: false,
-        }
+fn default_word_separator(ignore_newlines: bool) -> WordSeparator {
+    if ignore_newlines {
+        WordSeparator::Custom(find_words_ascii_space_and_newline)
+    } else {
+        WordSeparator::AsciiSpace
     }
 }
 
 impl WordWrapContext {
-    fn set_ignore_newlines(&mut self, value: bool) {
-        if value {
-            self.word_separator = WordSeparator::Custom(find_words_ascii_space_and_newline);
-        } else {
-            self.word_separator = WordSeparator::AsciiSpace;
+    fn new(cfg: &WordWrapConfig) -> Self {
+        Self {
+            word_separator: default_word_separator(cfg.ignore_newlines),
+            line_length: cfg.line_length.clone(),
+            current_line_length: Default::default(),
+            letfover_space: Default::default(),
+            ignore_newlines: cfg.ignore_newlines,
         }
-        self.ignore_newlines = value;
     }
 
     fn write_unbroken<O: Write>(

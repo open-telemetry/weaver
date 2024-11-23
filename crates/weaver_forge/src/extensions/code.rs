@@ -85,12 +85,12 @@ pub(crate) fn comment(
                 .as_ref()
                 .and_then(|comment_formats| comment_formats.get(&comment_format_name).cloned())
                 .unwrap_or_default();
-            // Grab line length limit.
+            // Grab line length limit, custom option.
             let line_length_limit: Option<usize> = args
                 .get("line_length")
                 .map(|v: u32| v as usize)
                 .ok()
-                .or(comment_format.line_length);
+                .or(comment_format.word_wrap.line_length);
 
             // If the input is an iterable (i.e. an array), join the values with a newline.
             let mut comment = if input.kind() == ValueKind::Seq {
@@ -161,12 +161,7 @@ pub(crate) fn comment(
                 line_length_limit.map(|limit| limit - (indent.len() + prefix.len()));
             comment = match &comment_format.format {
                 RenderFormat::Markdown(..) => markdown_snippet_renderer
-                    .render(
-                        &comment,
-                        &comment_format_name,
-                        actual_length_limit,
-                        comment_format.ignore_newlines,
-                    )
+                    .render(&comment, &comment_format_name, actual_length_limit)
                     .map_err(|e| {
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
@@ -177,12 +172,7 @@ pub(crate) fn comment(
                         )
                     })?,
                 RenderFormat::Html(..) => html_snippet_renderer
-                    .render(
-                        &comment,
-                        &comment_format_name,
-                        actual_length_limit,
-                        comment_format.ignore_newlines,
-                    )
+                    .render(&comment, &comment_format_name, actual_length_limit)
                     .map_err(|e| {
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
@@ -291,6 +281,7 @@ mod tests {
     use crate::config::{CommentFormat, IndentType};
     use crate::extensions::code;
     use crate::formats::html::HtmlRenderOptions;
+    use crate::formats::WordWrapConfig;
 
     #[test]
     fn test_comment() -> Result<(), Error> {
@@ -313,8 +304,10 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: true,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: true,
+                        },
                     },
                 )]
                 .into_iter()
@@ -554,8 +547,10 @@ it's RECOMMENDED to:
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -617,8 +612,10 @@ it's RECOMMENDED to:
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         indent_type: Default::default(),
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -685,8 +682,10 @@ it's RECOMMENDED to:
                         remove_trailing_dots: false,
                         enforce_trailing_dots: true,
                         indent_type: Default::default(),
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()

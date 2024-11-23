@@ -38,7 +38,9 @@ comment_formats:
     trim: true
     remove_trailing_dots: true
     escape_square_brackets: false
-    line_length: 80
+    word_wrap:
+      line_length: 80
+      ignore_newlines: false
   python:
     format: markdown
     header: '"""'

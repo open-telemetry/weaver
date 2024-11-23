@@ -8,7 +8,7 @@ use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::WordWrapContext;
+use super::{WordWrapConfig, WordWrapContext};
 
 /// Options for rendering markdown.
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -43,9 +43,9 @@ pub(crate) struct ShortcutReferenceLink {
 
 pub(crate) struct MarkdownRenderer {
     options_by_format: HashMap<String, MarkdownRenderOptions>,
+    word_wrap_by_format: HashMap<String, WordWrapConfig>,
 }
 
-#[derive(Default)]
 struct RenderContext {
     // The rendered markdown.
     markdown: String,
@@ -72,6 +72,20 @@ struct RenderContext {
 }
 
 impl RenderContext {
+    fn new(cfg: &WordWrapConfig) -> Self {
+        Self {
+            markdown: Default::default(),
+            list_level: Default::default(),
+            list_item_number: Default::default(),
+            shortcut_reference_links: Default::default(),
+            leftover_newlines: Default::default(),
+            line_prefix: Default::default(),
+            skip_line_prefix_on_first_line: Default::default(),
+            word_wrap: WordWrapContext::new(cfg),
+            unbreakable_buffer: Default::default(),
+        }
+    }
+
     /// Return the number of leftover newlines and reset the count.
     fn take_leftover_newlines(&mut self) -> usize {
         let leftover_newlines = self.leftover_newlines;
@@ -215,6 +229,16 @@ impl MarkdownRenderer {
                     RenderFormat::Markdown(markdown_options) => Some((name, markdown_options)),
                 })
                 .collect(),
+            word_wrap_by_format: config
+                .comment_formats
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|(name, format)| match format.format {
+                    RenderFormat::Html(..) => None,
+                    RenderFormat::Markdown(_) => Some((name, format.word_wrap)),
+                })
+                .collect(),
         })
     }
 
@@ -228,11 +252,18 @@ impl MarkdownRenderer {
         &self,
         markdown: &str,
         format: &str,
-        max_line_length: Option<usize>,
-        ignore_newlines: bool,
+        line_length_override: Option<usize>,
     ) -> Result<String, Error> {
         let render_options = if let Some(options) = self.options_by_format.get(format) {
             options
+        } else {
+            return Err(Error::CommentFormatNotFound {
+                format: format.to_owned(),
+                formats: self.options_by_format.keys().cloned().collect(),
+            });
+        };
+        let word_wrap_options = if let Some(options) = self.word_wrap_by_format.get(format) {
+            options.with_line_length_override(line_length_override)
         } else {
             return Err(Error::CommentFormatNotFound {
                 format: format.to_owned(),
@@ -245,11 +276,7 @@ impl MarkdownRenderer {
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
             })?;
-        let mut render_context = RenderContext::default();
-        render_context.word_wrap.line_length = max_line_length;
-        render_context
-            .word_wrap
-            .set_ignore_newlines(ignore_newlines);
+        let mut render_context = RenderContext::new(&word_wrap_options);
         Self::write_markdown_to(&mut render_context, "", &md_node, render_options)?;
 
         if !render_context.shortcut_reference_links.is_empty() {
@@ -507,6 +534,7 @@ mod tests {
     use crate::config::{CommentFormat, IndentType, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::markdown::{MarkdownRenderOptions, MarkdownRenderer};
+    use crate::formats::WordWrapConfig;
 
     #[test]
     fn test_markdown_renderer() -> Result<(), Error> {
@@ -529,8 +557,10 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -543,7 +573,7 @@ mod tests {
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", None, false)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer to an IP and/or port directly,
@@ -558,7 +588,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "go", None, false)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -593,7 +623,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "go", None, false)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
@@ -636,8 +666,10 @@ it's RECOMMENDED to:
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -650,7 +682,7 @@ it's RECOMMENDED to:
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", None, false)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a [URL] may refer to an [IP] and/or port directly,
@@ -678,8 +710,10 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -692,7 +726,7 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", None, false)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a \[URL\] may refer to an [IP] and/or port directly,
@@ -724,8 +758,10 @@ The file \[extension\] extracted \[from\] the `url.full`, excluding the leading 
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
-                        line_length: Some(30),
-                        ignore_newlines: true,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
                     },
                 )]
                 .into_iter()
@@ -738,7 +774,7 @@ The file \[extension\] extracted \[from\] the `url.full`, excluding the leading 
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", Some(30), true)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a URL may refer
@@ -756,7 +792,7 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "go", Some(30), true)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"Follows
@@ -791,7 +827,7 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "go", Some(30), true)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"The `error.type` SHOULD be
@@ -858,8 +894,10 @@ RECOMMENDED to:
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: true,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
                     },
                 )]
                 .into_iter()
@@ -872,7 +910,7 @@ RECOMMENDED to:
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", Some(30), true)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a [URL] may refer
@@ -904,8 +942,10 @@ leading dot.
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: true,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
                     },
                 )]
                 .into_iter()
@@ -918,7 +958,7 @@ leading dot.
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go", Some(30), true)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"In some cases a \[URL\] may
@@ -949,7 +989,7 @@ excluding the leading dot.
    [labore](https://loremipsum.com) et dolore magna aliqua.
 3. Example 3
 "##;
-        let html = renderer.render(markdown, "go", Some(30), true)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"It should handle wierdly split
@@ -1010,8 +1050,10 @@ lists.
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
-                        line_length: None,
-                        ignore_newlines: true,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -1038,7 +1080,7 @@ lists.
    [labore](https://loremipsum.com) et dolore magna aliqua.
 3. Example 3
 "##;
-        let html = renderer.render(markdown, "go", Some(30), false)?;
+        let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
             r##"It should handle wierdly split
@@ -1077,11 +1119,11 @@ lists.
 [labore]: https://loremipsum.com"##
         );
 
-        // ToDo: We do not want to split on punctuations like this, e.g.
+        // We do not want to split on punctuations like this, e.g.
         // `.`, `:`, etc.
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"And an **inline code snippet**: `Attr.attr`."##;
-        let html = renderer.render(markdown, "go", Some(80), false)?;
+        let html = renderer.render(markdown, "go", Some(80))?;
         assert_string_eq!(
             &html,
             r##"And an **inline code snippet**: `Attr.attr`.
