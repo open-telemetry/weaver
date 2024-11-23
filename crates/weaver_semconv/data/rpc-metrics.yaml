@@ -18,6 +18,7 @@ groups:
 
   # RPC Server metrics
   - id: metric.rpc.server.duration
+    stability: stable
     type: metric
     metric_name: rpc.server.duration
     brief: >
@@ -30,6 +31,7 @@ groups:
       to end-of-batch, it's hard to interpret in practice.
 
   - id: metric.rpc.server.request.size
+    stability: stable
     type: metric
     metric_name: rpc.server.request.size
     brief: >
@@ -39,6 +41,7 @@ groups:
     unit: "By"
 
   - id: metric.rpc.server.response.size
+    stability: stable
     type: metric
     metric_name: rpc.server.response.size
     brief: >
@@ -48,6 +51,7 @@ groups:
     unit: "By"
 
   - id: metric.rpc.server.requests_per_rpc
+    stability: stable
     type: metric
     metric_name: rpc.server.requests_per_rpc
     brief: >
@@ -57,6 +61,7 @@ groups:
     unit: "{count}"
 
   - id: metric.rpc.server.responses_per_rpc
+    stability: stable
     type: metric
     metric_name: rpc.server.responses_per_rpc
     brief: >
@@ -67,6 +72,7 @@ groups:
 
   # RPC Client metrics
   - id: metric.rpc.client.duration
+    stability: stable
     type: metric
     metric_name: rpc.client.duration
     brief: >
@@ -79,6 +85,7 @@ groups:
       to end-of-batch, it's hard to interpret in practice.
 
   - id: metric.rpc.client.request.size
+    stability: stable
     type: metric
     metric_name: rpc.client.request.size
     brief: >
@@ -88,6 +95,7 @@ groups:
     unit: "By"
 
   - id: metric.rpc.client.response.size
+    stability: stable
     type: metric
     metric_name: rpc.client.response.size
     brief: >
@@ -97,6 +105,7 @@ groups:
     unit: "By"
 
   - id: metric.rpc.client.requests_per_rpc
+    stability: stable
     type: metric
     metric_name: rpc.client.requests_per_rpc
     brief: >
@@ -106,6 +115,7 @@ groups:
     unit: "{count}"
 
   - id: metric.rpc.client.responses_per_rpc
+    stability: stable
     type: metric
     metric_name: rpc.client.responses_per_rpc
     brief: >

@@ -1,5 +1,6 @@
 groups:
   - id: cloud
+    stability: stable
     type: resource
     brief: >
       A cloud environment (e.g. GCP, Azure, AWS)

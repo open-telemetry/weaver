@@ -67,8 +67,14 @@
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.xyz",
-            "inherited_fields": ["brief", "examples", "note"],
-            "locally_overridden_fields": ["requirement_level"]
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level"
+            ]
           },
           "network.protocol.name2": {
             "source_group": "intermediate.level",
