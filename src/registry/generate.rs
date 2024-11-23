@@ -421,4 +421,101 @@ mod tests {
 
         assert_eq!(rust_files, expected_rust_files);
     }
+
+    #[test]
+    fn test_registry_generate_with_symbolic_link_cases() {
+        let test_cases = vec![
+            (
+                true, // follow_symlinks
+                vec![
+                    // expected files when following symlinks
+                    "attributes/client.rs",
+                    "metrics/system.rs",
+                    "attributes/mod.rs",
+                    "metrics/http.rs",
+                    "attributes/exception.rs",
+                    "attributes/server.rs",
+                    "metrics/mod.rs",
+                    "attributes/network.rs",
+                    "attributes/url.rs",
+                    "attributes/http.rs",
+                    "attributes/system.rs",
+                    "attributes/error.rs",
+                ],
+            ),
+            (
+                false,  // don't follow_symlinks
+                vec![], // expect no files when not following symlinks
+            ),
+        ];
+
+        for (follow_symlinks, expected_files) in test_cases {
+            let logger = TestLogger::new();
+            let temp_output = TempDir::new("output")
+                .expect("Failed to create temporary directory")
+                .into_path();
+
+            let cli = Cli {
+                debug: 0,
+                quiet: false,
+                future: false,
+                command: Some(Commands::Registry(RegistryCommand {
+                    command: RegistrySubCommand::Generate(RegistryGenerateArgs {
+                        target: "rust".to_owned(),
+                        output: temp_output.clone(),
+                        templates: PathBuf::from("crates/weaver_codegen_test/templates/"),
+                        config: None,
+                        param: None,
+                        params: None,
+                        registry: RegistryArgs {
+                            registry: RegistryPath::LocalFolder {
+                                path: "crates/weaver_codegen_test/symbolic_test/".to_owned(),
+                            },
+                            registry_git_sub_dir: None,
+                        },
+                        policies: vec![],
+                        skip_policies: true,
+                        future: false,
+                        diagnostic: Default::default(),
+                        common_registry_args: CommonRegistryArgs { follow_symlinks },
+                    }),
+                })),
+            };
+
+            let exit_directive = run_command(&cli, logger.clone());
+            // The command should succeed in both cases
+            assert_eq!(exit_directive.exit_code, 0);
+
+            // Get the actual generated files
+            let rust_files: std::collections::HashSet<_> = walkdir::WalkDir::new(&temp_output)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+                .map(|e| {
+                    e.path()
+                        .strip_prefix(&temp_output)
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .collect();
+
+            // Convert expected files to paths with proper OS separators
+            let expected_rust_files: std::collections::HashSet<_> = expected_files
+                .into_iter()
+                .map(|s| {
+                    s.split('/')
+                        .collect::<PathBuf>()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .collect();
+
+            assert_eq!(
+                rust_files, expected_rust_files,
+                "File sets don't match for follow_symlinks = {}",
+                follow_symlinks
+            );
+        }
+    }
 }
