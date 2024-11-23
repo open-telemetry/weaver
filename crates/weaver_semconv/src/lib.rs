@@ -74,6 +74,18 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention spec contains an invalid group stability definition.
+    #[error("Invalid stability on group '{group_id}' detected while resolving '{path_or_url:?}'. {error}")]
+    #[diagnostic(severity(Warning))]
+    InvalidGroupStability {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id.
+        group_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention asset contains an invalid attribute definition.
     #[error("Invalid attribute definition detected while resolving '{path_or_url:?}' (group_id='{group_id}', attribute_id='{attribute_id}'). {error}")]
     InvalidAttribute {

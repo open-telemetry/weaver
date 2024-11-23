@@ -1,5 +1,6 @@
 groups:
   - id: metric.faas.invoke_duration
+    stability: experimental
     type: metric
     metric_name: faas.invoke_duration
     brief: "Measures the duration of the function's logic execution"
@@ -9,6 +10,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.init_duration
+    stability: experimental
     type: metric
     metric_name: faas.init_duration
     brief: "Measures the duration of the function's initialization, such as a cold start"
@@ -18,6 +20,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.coldstarts
+    stability: experimental
     type: metric
     metric_name: faas.coldstarts
     brief: "Number of invocation cold starts"
@@ -27,6 +30,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.errors
+    stability: experimental
     type: metric
     metric_name: faas.errors
     brief: "Number of invocation errors"
@@ -36,6 +40,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.invocations
+    stability: experimental
     type: metric
     metric_name: faas.invocations
     brief: "Number of successful invocations"
@@ -45,6 +50,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.timeouts
+    stability: experimental
     type: metric
     metric_name: faas.timeouts
     brief: "Number of invocation timeouts"
@@ -54,6 +60,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.mem_usage
+    stability: experimental
     type: metric
     metric_name: faas.mem_usage
     brief: "Distribution of max memory usage per invocation"
@@ -63,6 +70,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.cpu_usage
+    stability: experimental
     type: metric
     metric_name: faas.cpu_usage
     brief: "Distribution of CPU usage per invocation"
@@ -72,6 +80,7 @@ groups:
       - ref: faas.trigger
 
   - id: metric.faas.net_io
+    stability: experimental
     type: metric
     metric_name: faas.net_io
     brief: "Distribution of net I/O usage per invocation"
@@ -81,6 +90,7 @@ groups:
       - ref: faas.trigger
         
   - id: metric.faas.invoke_duration
+    stability: experimental
     type: metric
     metric_name: faas.invoke_duration
     brief: "Measures the duration of the function's logic execution"

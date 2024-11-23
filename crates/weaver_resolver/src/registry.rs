@@ -1011,6 +1011,7 @@ groups:
 groups:
     - id: span.one
       type: span
+      stability: stable
       brief: 'Span one'
       attributes:
         - ref: non.existent.one
@@ -1035,6 +1036,7 @@ groups:
 groups:
     - id: span.one
       type: span
+      stability: stable
       brief: 'Span one'
       constraints:
         - include: 'non.existent.one'

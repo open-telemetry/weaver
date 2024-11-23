@@ -1,5 +1,6 @@
 groups:
   - id: metric.jvm.memory.init
+    stability: experimental
     type: metric
     metric_name: jvm.memory.init
     extends: attributes.jvm.memory
@@ -8,6 +9,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.system.cpu.utilization
+    stability: experimental
     type: metric
     metric_name: jvm.system.cpu.utilization
     brief: "Recent CPU utilization for the whole system as reported by the JVM."
@@ -20,6 +22,7 @@ groups:
     unit: "1"
 
   - id: metric.jvm.system.cpu.load_1m
+    stability: experimental
     type: metric
     metric_name: jvm.system.cpu.load_1m
     brief: "Average CPU load of the whole system for the last minute as reported by the JVM."
@@ -45,6 +48,7 @@ groups:
           [BufferPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/BufferPoolMXBean.html#getName()).
 
   - id: metric.jvm.buffer.memory.usage
+    stability: experimental
     type: metric
     metric_name: jvm.buffer.memory.usage
     extends: attributes.jvm.buffer
@@ -53,6 +57,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.buffer.memory.limit
+    stability: experimental
     type: metric
     metric_name: jvm.buffer.memory.limit
     extends: attributes.jvm.buffer
@@ -61,6 +66,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.buffer.count
+    stability: experimental
     type: metric
     metric_name: jvm.buffer.count
     extends: attributes.jvm.buffer

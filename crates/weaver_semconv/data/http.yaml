@@ -36,6 +36,7 @@ groups:
       - ref: user_agent.original
 
   - id: trace.http.client
+    stability: stable
     type: span
     extends: attributes.http.client
     span_kind: client
@@ -84,6 +85,7 @@ groups:
 
 
   - id: trace.http.server
+    stability: stable
     type: span
     extends: attributes.http.server
     span_kind: server

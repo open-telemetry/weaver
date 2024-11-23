@@ -1,5 +1,6 @@
 groups:
   - id: log_event_attributes_only
+    stability: experimental
     name: some.event
     type: event
     brief: brief
@@ -7,11 +8,13 @@ groups:
       - ref: test_attr.event.attr
 
   - id: log_event_empty
+    stability: experimental
     name: empty.event
     type: event
     brief: brief
 
   - id: log-feature_flag
+    stability: experimental
     type: event
     name: feature_flag
     brief: >
@@ -132,6 +135,7 @@ groups:
                 Any time after Activity.onResume() or, if the app has no Activity,
                 Context.startService() has been called when the app was in either the created or background states.
   - id: client.exception.event
+    stability: experimental
     name: client.exception.event
     type: event
     brief: >
@@ -177,6 +181,7 @@ groups:
           The name of the client that reported the exception.
         examples: ["myclient"]
   - id: browser.test.event_with_fields
+    stability: experimental
     name: browser.test.event_with_fields
     type: event
     brief: >
@@ -226,6 +231,7 @@ groups:
           requirement_level: required
 
   - id: browser.test.event_with_body_details
+    stability: experimental
     name: browser.test.event_with_body_details
     type: event
     brief: >
