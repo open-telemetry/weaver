@@ -273,111 +273,14 @@ pub(crate) fn map_text(
     }
 }
 
-// [Title]: link
-// [Title](link)
-#[derive(PartialEq)]
-enum MarkdownLinkParserState {
-    Inactive,
-    Title,
-    Colon,
-    Space,
-    Link,
-}
-
-fn find_words_dont_split_markdown<'a>(
-    line: &'a str,
-) -> Box<dyn Iterator<Item = textwrap::core::Word<'a>> + 'a> {
-    let mut start = 0;
-    let mut in_whitespace = false;
-    let mut markdown_parser_state = MarkdownLinkParserState::Inactive;
-    let mut char_indices = line.char_indices();
-    Box::new(std::iter::from_fn(move || {
-        // TODO - Return Some(word) when we fine a word.
-        for (idx, ch) in char_indices.by_ref() {
-            match markdown_parser_state {
-                MarkdownLinkParserState::Title => {
-                    // Track `[{name}]`.
-                    if ch != ']' {
-                        continue;
-                    } else {
-                        markdown_parser_state = MarkdownLinkParserState::Colon;
-                        continue;
-                    }
-                }
-                MarkdownLinkParserState::Colon => {
-                    // Track `: {url}` portion of markdown link.
-                    if ch == ':' {
-                        markdown_parser_state = MarkdownLinkParserState::Space;
-                        continue;
-                    } else {
-                        // TODO - should we handle `[title](link)` here?
-                        markdown_parser_state = MarkdownLinkParserState::Inactive;
-                    }
-                }
-                MarkdownLinkParserState::Space => {
-                    if ch != ' ' {
-                        markdown_parser_state = MarkdownLinkParserState::Link;
-                        in_whitespace = false;
-                    }
-                    continue;
-                }
-                MarkdownLinkParserState::Inactive | MarkdownLinkParserState::Link => {
-                    // We can just let the regular whitespace control work.
-                }
-            }
-
-            if in_whitespace && ch != ' ' {
-                let word = textwrap::core::Word::from(&line[start..idx]);
-                start = idx;
-                in_whitespace = ch == ' ';
-                markdown_parser_state = MarkdownLinkParserState::Inactive;
-                return Some(word);
-            }
-            if markdown_parser_state == MarkdownLinkParserState::Inactive && ch == '[' {
-                markdown_parser_state = MarkdownLinkParserState::Title;
-            }
-            in_whitespace = ch == ' ';
-        }
-        // Return last word.
-        if start < line.len() {
-            let word = textwrap::core::Word::from(&line[start..]);
-            start = line.len();
-            return Some(word);
-        }
-        None
-    }))
-}
-
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use weaver_diff::assert_string_eq;
 
     use super::*;
     use crate::config::{CommentFormat, IndentType};
     use crate::extensions::code;
     use crate::formats::html::HtmlRenderOptions;
-
-    // Simplify test cases by forcing word split into a vector.
-    fn find_words_into_vec(line: &str) -> Vec<String> {
-        find_words_dont_split_markdown(line)
-            .map(|w| w.to_string())
-            .collect_vec()
-    }
-    #[test]
-    fn test_find_words_dont_split_markdown() {
-        assert_eq!(
-            find_words_into_vec("test the words"),
-            vec!("test", "the", "words")
-        );
-        assert_eq!(find_words_into_vec("[test] link"), vec!("[test]", "link"));
-        assert_eq!(find_words_into_vec("[test]: link"), vec!("[test]: link"));
-        assert_eq!(find_words_into_vec("[test](link)"), vec!("[test](link)"));
-        assert_eq!(
-            find_words_into_vec("[test]: link-with-hyphen"),
-            vec!("[test]: link-with-hyphen")
-        );
-    }
 
     #[test]
     fn test_comment() -> Result<(), Error> {
