@@ -608,7 +608,7 @@ comment_formats:           # optional
     shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").
-    use_go_style_list_indent: <bool>,     # Whether to use different indent spacing for ordered and unorderd lists (default: false).
+    use_go_style_list_indent: <bool>,     # Whether to use different indent spacing for ordered and unordered lists (default: false).
     
     # Fields specific to 'html' format
     old_style_paragraph: <bool>       # Use old-style HTML paragraphs (default: false).

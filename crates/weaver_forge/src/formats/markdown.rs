@@ -1075,7 +1075,7 @@ lists.
             ..WeaverConfig::default()
         };
         let renderer = MarkdownRenderer::try_new(&config)?;
-        let markdown = r##"It should handle wierdly split lists.
+        let markdown = r##"It should handle weirdly split lists.
 
 ## Unordered
 
@@ -1095,7 +1095,7 @@ lists.
         let html = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &html,
-            r##"It should handle wierdly split
+            r##"It should handle weirdly split
 lists.
 
 ## Unordered

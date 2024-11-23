@@ -72,7 +72,7 @@ fn find_words_ascii_space_and_newline<'a>(
 }
 
 struct WordWrapContext {
-    // Mecahnism we use to split words.
+    // Mechanism we use to split words.
     word_separator: WordSeparator,
     // The limit of characters per-line.
     line_length: Option<usize>,
