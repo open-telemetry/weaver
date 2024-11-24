@@ -70,7 +70,7 @@ struct RenderContext {
     skip_line_prefix_on_first_line: bool,
     // Word wrapping helper.
     word_wrap: WordWrapContext,
-    // A buffere of text we cannot break apart when dealing with links, emphasis, etc.
+    // A buffer of text we cannot break apart when dealing with links, emphasis, etc.
     unbreakable_buffer: Option<String>,
 }
 
