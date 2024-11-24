@@ -1,5 +1,6 @@
 groups:
   - id: cloudevents
+    stability: stable
     type: span
     brief: >
       This document defines attributes for CloudEvents.

@@ -1,5 +1,6 @@
 groups:
   - id: trace-exception
+    stability: experimental
     name: exception
     type: event
     brief: >
