@@ -1,10 +1,11 @@
+package test
+
 {% for attributes_root_namespace in ctx %}
 {{ ("Examples of comments for group " ~ attributes_root_namespace.root_namespace) | comment(format="go") }}
 
     {% for attr in attributes_root_namespace.attributes %}
-  {{ [attr.name | screaming_snake_case, attr.brief, "\n", attr.note] | comment(format="go", indent=2) }}
-  const {{ attr.name | screaming_snake_case }} = ""
+{{ [attr.name | screaming_snake_case, attr.brief, "\n", attr.note] | comment(format="go", indent=0) }}
+const {{ attr.name | screaming_snake_case }} = ""
 
     {% endfor %}
-
 {% endfor %}
