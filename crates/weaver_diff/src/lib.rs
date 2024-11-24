@@ -119,6 +119,19 @@ pub fn diff_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Re
     Ok(are_identical)
 }
 
+#[macro_export]
+/// Macro to simplify comparing two strings with a diff.
+macro_rules! assert_string_eq {
+    ($lhs:expr, $rhs:expr) => {
+        assert_eq!(
+            $lhs,
+            $rhs,
+            "Found string differences: {}",
+            weaver_diff::diff_output($lhs, $rhs)
+        );
+    };
+}
+
 /// Canonicalizes a JSON string by parsing it into a `serde_json::Value` and then canonicalizing it.
 ///
 /// # Returns
