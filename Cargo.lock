@@ -2875,20 +2875,6 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "opentelemetry"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "570074cc999d1a58184080966e5bd3bf3a9a4af650c3b05047c2621e7405cd17"
-dependencies = [
- "futures-core",
- "futures-sink",
- "js-sys",
- "once_cell",
- "pin-project-lite",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "opentelemetry"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f3cebff57f7dbd1255b44d8bddc2cebeb0ea677dbaa2e25a3070a91b318f660"
@@ -2910,7 +2896,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
- "opentelemetry 0.27.0",
+ "opentelemetry",
  "opentelemetry_sdk",
  "ordered-float",
  "serde",
@@ -2930,7 +2916,7 @@ dependencies = [
  "futures-util",
  "glob",
  "once_cell",
- "opentelemetry 0.27.0",
+ "opentelemetry",
  "percent-encoding",
  "rand 0.8.5",
  "serde_json",
@@ -4733,7 +4719,7 @@ version = "0.10.0"
 dependencies = [
  "dirs",
  "miette",
- "opentelemetry 0.26.0",
+ "opentelemetry",
  "walkdir",
  "weaver_cache",
  "weaver_common",
@@ -4783,7 +4769,7 @@ dependencies = [
  "miette",
  "minijinja",
  "minijinja-contrib",
- "opentelemetry 0.26.0",
+ "opentelemetry",
  "opentelemetry-stdout",
  "opentelemetry_sdk",
  "rayon",
