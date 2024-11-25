@@ -40,6 +40,7 @@ use crate::error::Error::InvalidConfigFile;
 use crate::file_loader::{FileContent, FileLoader};
 use crate::formats::html::HtmlRenderOptions;
 use crate::formats::markdown::MarkdownRenderOptions;
+use crate::formats::WordWrapConfig;
 use crate::WEAVER_YAML;
 
 /// Weaver configuration.
@@ -322,6 +323,10 @@ pub struct CommentFormat {
     /// Flag to enforce trailing dots on the comment content.
     #[serde(default = "default_bool::<false>")]
     pub enforce_trailing_dots: bool,
+
+    /// Configuration of word-wrapping behavior for comments.
+    #[serde(default)]
+    pub word_wrap: WordWrapConfig,
 }
 
 /// The type of indentation to use for the comment.

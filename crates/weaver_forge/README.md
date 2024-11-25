@@ -598,6 +598,9 @@ comment_formats:           # optional
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
     enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
+    word_wrap:
+      line_length: <int>              # Maximum number of characters on a line (default: unlimited).
+      ignore_newlines: <bool>         # Whether newlines in comment should be ignored when a max line_length is set (default: false).
 
     # Fields specific to 'markdown' format
     escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).
@@ -605,6 +608,7 @@ comment_formats:           # optional
     shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").
+    use_go_style_list_indent: <bool>,     # Whether to use different indent spacing for ordered and unordered lists (default: false).
     
     # Fields specific to 'html' format
     old_style_paragraph: <bool>       # Use old-style HTML paragraphs (default: false).
@@ -753,7 +757,6 @@ The resulting comment in JavaDoc format would be:
    * This is a note about the attribute {@code attr}. It can be multiline.
    * <p>
    * It can contain a list:
-   * <p>
    * <ul>
    *   <li>item <strong>1</strong>,
    *   <li>lorem ipsum dolor sit amet, consectetur
@@ -862,6 +865,7 @@ The `comment` filter accepts the following optional parameters:
 - **`footer`**: A custom footer for the comment block.
 - **`indent`**: Number of spaces to add before each comment line for indentation purposes.
 - **`indent_type`**: The type of indentation to use. Supported values are `space` (default) and `tab`.
+- **`line_length`**: The maximum number of characters in a line.
 
 > Please open an issue if you have any suggestions for new formats or features.
 
