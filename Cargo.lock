@@ -4677,7 +4677,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempdir",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "tui-textarea",
  "walkdir",
  "weaver_cache",
@@ -4704,7 +4704,7 @@ dependencies = [
  "serde",
  "tar",
  "tempdir",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "ureq",
  "url",
  "walkdir",
@@ -4722,7 +4722,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "walkdir",
  "weaver_common",
 ]
@@ -4751,7 +4751,7 @@ dependencies = [
  "rouille",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "ureq",
 ]
 
@@ -4793,7 +4793,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "textwrap",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "walkdir",
  "weaver_common",
  "weaver_diff",
@@ -4810,7 +4810,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "weaver_semconv",
  "weaver_version",
 ]
@@ -4825,7 +4825,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "walkdir",
  "weaver_cache",
  "weaver_common",
@@ -4845,7 +4845,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "ureq",
  "weaver_common",
 ]
@@ -4857,7 +4857,7 @@ dependencies = [
  "miette",
  "nom",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
  "weaver_cache",
  "weaver_common",
  "weaver_diff",
@@ -4875,7 +4875,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_yaml",
- "thiserror 1.0.69",
+ "thiserror 2.0.3",
 ]
 
 [[package]]
