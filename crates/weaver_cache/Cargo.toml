@@ -16,7 +16,7 @@ weaver_common = { path = "../weaver_common" }
 
 tempdir = "0.3.7"
 dirs = "5.0.1"
-gix = { version = "0.67.0", default-features = false, features = [
+gix = { version = "0.68.0", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
     "max-performance-safe",
