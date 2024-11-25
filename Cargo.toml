@@ -39,7 +39,7 @@ rust-version = "1.76"
 serde = { version = "1.0.215", features = ["derive"] }
 serde_yaml = "0.9.32"
 serde_json = { version = "1.0.133"}
-thiserror = "1.0.69"
+thiserror = "2.0.3"
 url = "2.5.3"
 ureq = "2.10.0"
 regex = "1.11.1"
