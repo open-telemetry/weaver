@@ -364,7 +364,6 @@ it's RECOMMENDED to:
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
@@ -395,7 +394,6 @@ it's RECOMMENDED to:
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
@@ -426,7 +424,6 @@ it's RECOMMENDED to:
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
@@ -457,7 +454,6 @@ it's RECOMMENDED to:
 		 * <p>
 		 * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
 		 * it's RECOMMENDED to:
-		 * <p>
 		 * <ul>
 		 *   <li>Use a domain-specific attribute
 		 *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
@@ -476,7 +472,6 @@ it's RECOMMENDED to:
  * The {@code error.type}
  * SHOULD be predictable, and
  * SHOULD have low cardinality.
- *
  * <p>
  * When {@code error.type} is
  * set to a type (e.g., an
@@ -484,7 +479,6 @@ it's RECOMMENDED to:
  * canonical class name
  * identifying the type within
  * the artifact SHOULD be used.
- *
  * <p>
  * Instrumentations SHOULD
  * document the list of errors
@@ -514,7 +508,6 @@ it's RECOMMENDED to:
  * identifiers (such as HTTP or
  * gRPC status codes), it's
  * RECOMMENDED to:
- * <p>
  * <ul>
  *   <li>Use a domain-specific
  *   attribute

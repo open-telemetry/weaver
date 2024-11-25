@@ -757,7 +757,6 @@ The resulting comment in JavaDoc format would be:
    * This is a note about the attribute {@code attr}. It can be multiline.
    * <p>
    * It can contain a list:
-   * <p>
    * <ul>
    *   <li>item <strong>1</strong>,
    *   <li>lorem ipsum dolor sit amet, consectetur
