@@ -70,7 +70,7 @@ struct RenderContext {
     // node following the current one in the AST traversal. This field contains
     // such a tag left by the previous node, which must be added by the current
     // node during rendering, if it exists.
-    leftover_tag: Option<String>,
+    add_old_style_paragraph: bool,
 
     // Context for wrapping words.
     word_wrap: WordWrapContext,
@@ -80,7 +80,7 @@ impl RenderContext {
     fn new(cfg: &WordWrapConfig) -> Self {
         Self {
             html: Default::default(),
-            leftover_tag: Default::default(),
+            add_old_style_paragraph: Default::default(),
             word_wrap: WordWrapContext::new(cfg),
         }
     }
@@ -243,8 +243,12 @@ impl<'source> HtmlRenderer<'source> {
         format: &str,
         options: &HtmlRenderOptions,
     ) -> Result<(), Error> {
-        if let Some(tag) = ctx.leftover_tag.take() {
-            ctx.push_unbroken_ln(&tag, indent)?;
+        if ctx.add_old_style_paragraph {
+            ctx.pushln(indent)?;
+            if !matches!(md_node, Node::List(_)) {
+                ctx.push_unbroken_ln("<p>", indent)?;
+            }
+            ctx.add_old_style_paragraph = false;
         }
 
         match md_node {
@@ -264,7 +268,7 @@ impl<'source> HtmlRenderer<'source> {
                     self.write_html_to(ctx, indent, child, format, options)?;
                 }
                 if options.old_style_paragraph {
-                    ctx.leftover_tag = Some("\n<p>".to_owned());
+                    ctx.add_old_style_paragraph = true;
                 } else {
                     ctx.push_unbroken_ln("</p>", indent)?;
                 }
@@ -544,7 +548,6 @@ If the operation has completed successfully, instrumentations SHOULD NOT set {@c
 <p>
 If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
 it's RECOMMENDED to:
-<p>
 <ul>
   <li>Use a domain-specific attribute
   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not.
@@ -766,7 +769,6 @@ its own set of error
 identifiers (such as HTTP or
 gRPC status codes), it's
 RECOMMENDED to:
-<p>
 <ul>
   <li>Use a domain-specific
   attribute

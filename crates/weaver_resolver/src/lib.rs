@@ -58,7 +58,7 @@ pub enum Error {
     },
 
     /// Failed to resolve a metric.
-    #[error("Failed to resolve the metric '{r#ref}'")]
+    #[error("Failed to resolve the metric '{ref}'")]
     FailToResolveMetric {
         /// The reference to the metric.
         r#ref: String,
