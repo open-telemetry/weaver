@@ -164,11 +164,10 @@ mod tests {
     fn test_acronym_filter() {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
-        let config = 
-            WeaverConfig {
-                acronyms: Some(vec!["Html".to_owned(), "iOS".to_owned(), "API".to_owned()]), 
-                ..Default::default()
-            };
+        let config = WeaverConfig {
+            acronyms: Some(vec!["Html".to_owned(), "iOS".to_owned(), "API".to_owned()]),
+            ..Default::default()
+        };
         add_filters(&mut env, &config);
         assert_eq!(
             env.render_str("{{ 'api' | acronym }}", &ctx).unwrap(),
