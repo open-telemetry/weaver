@@ -124,7 +124,7 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
         let input_matcher = input.to_lowercase();
         for (matcher, replacement) in acronym_map.iter() {
             for (idx, _) in input_matcher.match_indices(matcher) {
-                result.replace_range(idx..(idx + replacement.len()), &replacement);
+                result.replace_range(idx..(idx + replacement.len()), replacement);
             }
         }
         result
