@@ -165,6 +165,6 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
 pub struct CommonRegistryArgs {
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
     /// Default is false.
-    #[arg(short, long)]
+    #[arg(short = 's', long)]
     pub(crate) follow_symlinks: bool,
 }
