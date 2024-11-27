@@ -268,10 +268,12 @@ impl SchemaResolver {
     /// * `registry_repo` - The registry repository containing the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
+        follow_symlinks: bool,
     ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
+            follow_symlinks,
         )
     }
 
@@ -285,6 +287,7 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
+        follow_symlinks: bool,
     ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -306,6 +309,7 @@ impl SchemaResolver {
         // All yaml files are recursively loaded and parsed in parallel from
         // the given path.
         let result = walkdir::WalkDir::new(local_path.clone())
+            .follow_links(follow_symlinks)
             .into_iter()
             .filter_entry(|e| !is_hidden(e))
             .par_bridge()
