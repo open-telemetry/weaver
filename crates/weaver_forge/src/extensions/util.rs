@@ -122,8 +122,8 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
         // This may not be true for i18n strings.
         let mut result = input.to_owned();
         let input_matcher = input.to_lowercase();
-        for (acronymn, replacement) in acronym_map.iter() {
-            for (idx, _) in input_matcher.match_indices(acronymn) {
+        for (matcher, replacement) in acronym_map.iter() {
+            for (idx, _) in input_matcher.match_indices(matcher) {
                 result.replace_range(idx..(idx + replacement.len()), &replacement);
             }
         }
@@ -157,6 +157,25 @@ mod tests {
             )
             .unwrap(),
             "This A test with multiple A's"
+        );
+    }
+
+    #[test]
+    fn test_acronym_filter() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+        let mut config = crate::config::WeaverConfig::default();
+        config.acronyms = Some(vec!["Html".to_owned(), "iOS".to_owned(), "API".to_owned()]);
+        add_filters(&mut env, &config);
+        assert_eq!(
+            env.render_str("{{ 'api' | acronym }}", &ctx).unwrap(),
+            "API"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'iosapplyhtmlthings' | acronym }}", &ctx)
+                .unwrap(),
+            "iOSapplyHtmlthings"
         );
     }
 }
