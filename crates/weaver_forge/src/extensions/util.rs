@@ -133,14 +133,14 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::extensions::util::add_filters;
+    use crate::{config::WeaverConfig, extensions::util::add_filters};
     use minijinja::Environment;
 
     #[test]
     fn test_regex_replace() {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
-        let config = crate::config::WeaverConfig::default();
+        let config = WeaverConfig::default();
 
         add_filters(&mut env, &config);
 
@@ -164,8 +164,11 @@ mod tests {
     fn test_acronym_filter() {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
-        let mut config = crate::config::WeaverConfig::default();
-        config.acronyms = Some(vec!["Html".to_owned(), "iOS".to_owned(), "API".to_owned()]);
+        let config = 
+            WeaverConfig {
+                acronyms: Some(vec!["Html".to_owned(), "iOS".to_owned(), "API".to_owned()]), 
+                ..Default::default()
+            };
         add_filters(&mut env, &config);
         assert_eq!(
             env.render_str("{{ 'api' | acronym }}", &ctx).unwrap(),
