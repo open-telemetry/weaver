@@ -26,6 +26,7 @@ const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
 const TEMPLATES_PATH: &str = "./templates/registry/";
 const REGISTRY_ID: &str = "test";
 const TARGET: &str = "rust";
+const FOLLOW_SYMLINKS: bool = false;
 
 fn main() {
     // Tell Cargo when to rerun this build script
@@ -45,7 +46,7 @@ fn main() {
     };
     let registry_repo =
         RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo)
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, FOLLOW_SYMLINKS)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));

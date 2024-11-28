@@ -13,7 +13,7 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::format::{apply_format, Format};
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
 use crate::{registry, DiagnosticArgs, ExitDirectives};
 use miette::Diagnostic;
@@ -56,6 +56,10 @@ pub struct RegistryResolveArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    // Common weaver registry parameters
+    #[command(flatten)]
+    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Resolve a semantic convention registry and write the resolved schema to a
@@ -82,9 +86,13 @@ pub(crate) fn command(
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(&registry_repo, logger.clone())
-        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-        .into_result_failing_non_fatal()?;
+    let semconv_specs = load_semconv_specs(
+        &registry_repo,
+        logger.clone(),
+        args.common_registry_args.follow_symlinks,
+    )
+    .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+    .into_result_failing_non_fatal()?;
 
     if !args.skip_policies {
         let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
@@ -150,7 +158,9 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{
+        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]
@@ -174,6 +184,9 @@ mod tests {
                     policies: vec![],
                     skip_policies: true,
                     diagnostic: Default::default(),
+                    common_registry_args: CommonRegistryArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };
@@ -201,6 +214,9 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     diagnostic: Default::default(),
+                    common_registry_args: CommonRegistryArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };
