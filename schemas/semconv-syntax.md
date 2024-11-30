@@ -42,7 +42,9 @@ All attributes are lower case.
 groups ::= semconv
        | semconv groups
 
-semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] attributes [specificfields]
+semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] [attributes] specificfields
+
+extends_or_attributes ::= (extends | attributes | (extends attributes))
 
 id    ::= string
 
@@ -50,7 +52,7 @@ convtype ::= "span" # Default if not specified
          |   "resource" # see spansfields
          |   "event"    # see eventfields
          |   "metric"   # see metricfields
-         |   "attribute_group" # no specific fields defined
+         |   "attribute_group" # see attribute_group_fields
 
 brief ::= string
 note  ::= string
@@ -102,8 +104,11 @@ examples ::= <example_value> {<example_value>}
 specificfields ::= spanfields
                |   eventfields
                |   metricfields
+               |   attribute_group_fields
 
-spanfields ::= [events] [span_kind] stability 
+attribute_group_fields ::= extends_or_attributes
+
+spanfields ::= [events] [span_kind] stability extends_or_attributes
 
 eventfields ::= name [body] stability
 
