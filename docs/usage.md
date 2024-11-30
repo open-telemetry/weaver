@@ -57,6 +57,9 @@ Options:
 
           [default: diagnostic_templates]
 
+  -s, --follow-symlinks
+          Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -112,8 +115,12 @@ Options:
 
           [default: diagnostic_templates]
 
+  -s, --follow-symlinks
+          Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
   -h, --help
           Print help (see a summary with '-h')
+  
 ```
 
 ## registry resolve
@@ -171,6 +178,9 @@ Options:
 
           [default: diagnostic_templates]
 
+  -s, --follow-symlinks
+          Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -194,6 +204,8 @@ Options:
           Whether or not to run updates in dry-run mode
       --attribute-registry-base-url <ATTRIBUTE_REGISTRY_BASE_URL>
           Optional path to the attribute registry. If provided, all attributes will be linked here
+  -s, --follow-symlinks
+          Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
   -h, --help
           Print help
 ```
