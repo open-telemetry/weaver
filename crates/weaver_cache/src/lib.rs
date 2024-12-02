@@ -29,6 +29,8 @@ pub mod registry_path;
 const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
 const ZIP_EXT: &str = ".zip";
+/// The name of the registry manifest file.
+const REGISTRY_MANIFEST: &'static str = "registry_manifest.yaml";
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
@@ -512,7 +514,7 @@ impl RegistryRepo {
     /// Returns the path to the `registry_manifest.yaml` file (if any).
     #[must_use]
     pub fn manifest_path(&self) -> Option<PathBuf> {
-        let manifest_path = self.path.join("registry_manifest.yaml");
+        let manifest_path = self.path.join(REGISTRY_MANIFEST);
         if manifest_path.exists() {
             Some(manifest_path)
         } else {

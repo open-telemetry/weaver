@@ -212,7 +212,7 @@ impl ResolvedTelemetrySchema {
         // a new attribute in the latest schema.
         let mut renamed_attributes = HashMap::new();
 
-        // ToDo process differences at the field level ?
+        // ToDo for future PR, process differences at the field level (not required for the schema update)
 
         // Collect all the information related to the attributes that have been
         // deprecated in the latest schema.
@@ -447,4 +447,6 @@ mod tests {
         // Ensure the schema can be serialized to a string
         assert!(to_string_pretty(&schema).is_ok());
     }
+    
+    // ToDo LQ add tests for the diff method
 }
