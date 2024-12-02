@@ -204,7 +204,7 @@ impl SemConvRegistry {
         SemConvSpec::from_file(semconv_path).map(|spec| (provenance, spec))
     }
 
-    /// Downloads and returns the semantic convention spec from an URL.
+    /// Downloads and returns the semantic convention spec from a URL.
     pub fn semconv_spec_from_url(sem_conv_url: &str) -> WResult<(String, SemConvSpec), Error> {
         SemConvSpec::from_url(sem_conv_url).map(|spec| (sem_conv_url.to_owned(), spec))
     }
