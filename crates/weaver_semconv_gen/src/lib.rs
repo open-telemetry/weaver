@@ -332,8 +332,8 @@ impl ResolvedSemconvRegistry {
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let semconv_specs =
-            SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks).capture_non_fatal_errors(diag_msgs)?;
+        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
+            .capture_non_fatal_errors(diag_msgs)?;
         let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)?;
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
         let lookup = ResolvedSemconvRegistry { schema };

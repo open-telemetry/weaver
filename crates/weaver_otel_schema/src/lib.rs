@@ -4,8 +4,8 @@
 //! Please refer to the [OpenTelemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0152-telemetry-schemas.md)
 //! for more information.
 
-use miette::Diagnostic;
 use crate::Error::{InvalidTelemetrySchema, TelemetrySchemaNotFound};
+use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_version::Versions;

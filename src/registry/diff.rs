@@ -3,7 +3,7 @@
 //! Generate a diff between two versions of a semantic convention registry.
 
 use crate::registry::Error::DiffRender;
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::util::{load_semconv_specs, resolve_telemetry_schema};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
@@ -50,6 +50,10 @@ pub struct RegistryDiffArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub(crate) diagnostic: DiagnosticArgs,
+
+    /// Common weaver registry parameters
+    #[command(flatten)]
+    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// An error that can occur while generating the diff between two versions of the same
@@ -85,10 +89,18 @@ pub(crate) fn command(
     let registry_path = args.registry.registry.clone();
     let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-    let baseline_semconv_specs = load_semconv_specs(&baseline_registry_repo, logger.clone())
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_semconv_specs = load_semconv_specs(
+        &main_registry_repo,
+        logger.clone(),
+        args.common_registry_args.follow_symlinks,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
+    let baseline_semconv_specs = load_semconv_specs(
+        &baseline_registry_repo,
+        logger.clone(),
+        args.common_registry_args.follow_symlinks,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
     let main_resolved_schema = resolve_telemetry_schema(
         &main_registry_repo,
         main_semconv_specs,

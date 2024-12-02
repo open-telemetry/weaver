@@ -457,7 +457,6 @@ mod tests {
                             registry: RegistryPath::LocalFolder {
                                 path: "data/symbolic_test/".to_owned(),
                             },
-                            registry_git_sub_dir: None,
                         },
                         policies: vec![],
                         skip_policies: true,

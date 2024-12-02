@@ -15,7 +15,6 @@ use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
 use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-use crate::registry::update_schema::RegistryUpdateSchemaArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_cache::registry_path::RegistryPath;
@@ -30,7 +29,6 @@ mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
-mod update_schema;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
@@ -117,9 +115,6 @@ pub enum RegistrySubCommand {
     /// - ...
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),
-    /// Update an OpenTelemetry Schema file with the latest changes observed between two versions of a semantic convention registry.
-    #[clap(verbatim_doc_comment)]
-    UpdateSchema(RegistryUpdateSchemaArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -169,10 +164,6 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::Diff(args) => CmdResult::new(
             diff::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::UpdateSchema(args) => CmdResult::new(
-            update_schema::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }

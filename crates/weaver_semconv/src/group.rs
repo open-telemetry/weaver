@@ -866,7 +866,9 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some("true".to_owned()),
+                deprecated: Some(Deprecated::Deprecated {
+                    note: "deprecated".to_owned(),
+                }),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),

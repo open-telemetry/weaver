@@ -12,7 +12,6 @@ use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
-    registry,
     registry::{CommonRegistryArgs, RegistryArgs},
     util::{load_semconv_specs, resolve_semconv_specs},
     DiagnosticArgs, ExitDirectives,
