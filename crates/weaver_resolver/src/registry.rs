@@ -2,10 +2,11 @@
 
 //! Functions to resolve a semantic convention registry.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
-
+use itertools::Itertools;
 use serde::Deserialize;
-
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt::Display;
+use std::hash::Hash;
 use weaver_common::error::handle_errors;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
@@ -16,6 +17,7 @@ use weaver_semconv::registry::SemConvRegistry;
 
 use crate::attribute::AttributeCatalog;
 use crate::constraint::resolve_constraints;
+use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use crate::{Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
@@ -105,7 +107,40 @@ pub fn resolve_semconv_registry(
     }
 
     // Other complementary checks.
-    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index)?;
+    let mut errors = vec![];
+    // Check for duplicate group IDs.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| Some(group.id.clone()),
+        |group_id, provenances| DuplicateGroupId {
+            group_id,
+            provenances,
+        },
+    );
+    // Check for duplicate metric names.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| group.metric_name.clone(),
+        |metric_name, provenances| DuplicateMetricName {
+            metric_name,
+            provenances,
+        },
+    );
+    // Check for duplicate group names.
+    check_uniqueness(
+        &ureg.registry,
+        &mut errors,
+        |group| group.name.clone(),
+        |group_name, provenances| DuplicateGroupName {
+            group_name,
+            provenances,
+        },
+    );
+    check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
+
+    handle_errors(errors)?;
 
     Ok(ureg.registry)
 }
@@ -203,6 +238,39 @@ fn check_group_any_of_constraints(
     Ok(())
 }
 
+/// Generic function to check for duplicate keys in the given registry.
+///
+/// A key can be a group ID, a metric name, an event name, or any other key that is used
+/// to identify a group.
+fn check_uniqueness<K, KF, EF>(
+    registry: &Registry,
+    errors: &mut Vec<Error>,
+    key_fn: KF,
+    error_fn: EF,
+) where
+    K: Eq + Display + Hash,
+    KF: Fn(&Group) -> Option<K>,
+    EF: Fn(String, Vec<String>) -> Error,
+{
+    let mut keys: HashMap<K, Vec<String>> = HashMap::new();
+
+    for group in registry.groups.iter() {
+        if let Some(key) = key_fn(group) {
+            let provenances = keys.entry(key).or_default();
+            provenances.push(group.provenance().to_owned());
+        }
+    }
+
+    for (key, provenances) in keys {
+        if provenances.len() > 1 {
+            // Deduplicate the provenances.
+            let provenances: HashSet<String> = provenances.into_iter().unique().collect();
+
+            errors.push(error_fn(key.to_string(), provenances.into_iter().collect()));
+        }
+    }
+}
+
 /// Checks for duplicate attribute IDs in the given registry.
 ///
 /// This function iterates over all groups in the registry that are of type `AttributeGroup`.
@@ -215,6 +283,7 @@ fn check_group_any_of_constraints(
 ///
 /// * `registry` - The registry to check for duplicate attribute IDs.
 /// * `attr_name_index` - The index of attribute names (catalog).
+/// * `errors` - The list of errors to append the duplicate attribute ID errors to.
 ///
 /// # Returns
 ///
@@ -223,7 +292,8 @@ fn check_group_any_of_constraints(
 pub fn check_root_attribute_id_duplicates(
     registry: &Registry,
     attr_name_index: &[String],
-) -> Result<(), Error> {
+    errors: &mut Vec<Error>,
+) {
     // Map to track groups by their root attribute ID.
     let mut groups_by_root_attr_id = HashMap::new();
 
@@ -251,7 +321,7 @@ pub fn check_root_attribute_id_duplicates(
         });
 
     // Collect errors for attribute IDs that are found in multiple groups.
-    let errors = groups_by_root_attr_id
+    let local_errors: Vec<_> = groups_by_root_attr_id
         .into_iter()
         .filter(|(_, group_ids)| group_ids.len() > 1)
         .map(|(attr_id, group_ids)| Error::DuplicateAttributeId {
@@ -260,9 +330,7 @@ pub fn check_root_attribute_id_duplicates(
         })
         .collect();
 
-    // Handle any errors that were found.
-    handle_errors(errors)?;
-    Ok(())
+    errors.extend(local_errors);
 }
 
 /// Creates a semantic convention registry from a set of semantic convention
@@ -766,7 +834,7 @@ mod tests {
 
     use glob::glob;
     use serde::Serialize;
-
+    use weaver_diff::canonicalize_json_string;
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::{Constraint, Registry};
     use weaver_semconv::group::GroupType;
@@ -837,12 +905,21 @@ mod tests {
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
 
-            // If the expected attr catalog is not defined in the test directory, then it means
-            // that the normal behavior of this test is to fail.
-            let expected_attr_catalog_file =
-                format!("{}/expected-attribute-catalog.json", test_dir);
-            if !PathBuf::from(&expected_attr_catalog_file).exists() {
+            // Check presence of an `expected-errors.json` file.
+            // If the file is present, the test is expected to fail with the errors in the file.
+            let expected_errors_file = format!("{}/expected-errors.json", test_dir);
+            if PathBuf::from(&expected_errors_file).exists() {
                 assert!(observed_registry.is_err(), "This test is expected to fail");
+                let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
+                    .expect("Failed to read expected errors file");
+                let observed_errors = serde_json::to_string(&observed_registry).unwrap();
+                assert_eq!(
+                    canonicalize_json_string(&observed_errors).unwrap(),
+                    canonicalize_json_string(&expected_errors).unwrap(),
+                    "Observed and expected errors don't match for `{}`.\n{}",
+                    test_dir,
+                    weaver_diff::diff_output(&expected_errors, &observed_errors)
+                );
                 continue;
             }
 
@@ -850,6 +927,8 @@ mod tests {
             let observed_registry = observed_registry.expect("Failed to resolve the registry");
 
             // Load the expected registry and attribute catalog.
+            let expected_attr_catalog_file =
+                format!("{}/expected-attribute-catalog.json", test_dir);
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
                 std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
@@ -932,6 +1011,7 @@ groups:
 groups:
     - id: span.one
       type: span
+      stability: stable
       brief: 'Span one'
       attributes:
         - ref: non.existent.one
@@ -956,6 +1036,7 @@ groups:
 groups:
     - id: span.one
       type: span
+      stability: stable
       brief: 'Span one'
       constraints:
         - include: 'non.existent.one'

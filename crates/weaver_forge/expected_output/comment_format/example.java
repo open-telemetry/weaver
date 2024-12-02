@@ -60,7 +60,6 @@
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
@@ -77,7 +76,6 @@
    * This is a note about the attribute {@code attr}. It can be multiline.
    * <p>
    * It can contain a list:
-   * <p>
    * <ul>
    *   <li>item <strong>1</strong>,
    *   <li>lorem ipsum dolor sit amet, consectetur
@@ -111,7 +109,7 @@
    * It can contain multiple lines.
    * Lorem ipsum dolor sit amet, consectetur adipiscing
    * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
-   * 
+   *
    * <p>
    * <blockquote>
    * [!NOTE] Something very important here</blockquote>

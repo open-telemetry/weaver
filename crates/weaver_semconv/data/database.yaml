@@ -1,5 +1,6 @@
 groups:
   - id: db
+    stability: stable
     type: span
     brief: >
       This document defines the attributes used to perform database client calls.
@@ -254,6 +255,7 @@ groups:
           - 'server.socket.address'
 
   - id: db.mssql
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -271,6 +273,7 @@ groups:
         examples: 'MSSQLSERVER'
 
   - id: db.cassandra
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -354,6 +357,7 @@ groups:
         examples: 'us-west-2'
 
   - id: db.hbase
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -367,6 +371,7 @@ groups:
         note: For HBase the `db.name` should be set to the HBase namespace.
 
   - id: db.couchdb
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -385,6 +390,7 @@ groups:
           [`GET /{db}/{docid}`](http://docs.couchdb.org/en/stable/api/document/common.html#get--db-docid).
 
   - id: db.redis
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -408,6 +414,7 @@ groups:
           For **Redis**, the value provided for `db.statement` SHOULD correspond to the syntax of the Redis CLI.
           If, for example, the [`HMSET` command](https://redis.io/commands/hmset) is invoked, `"HMSET myhash field1 'Hello' field2 'World'"` would be a suitable value for `db.statement`.
   - id: db.mongodb
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -422,6 +429,7 @@ groups:
         examples: [ 'customers', 'products' ]
 
   - id: db.elasticsearch
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -447,6 +455,7 @@ groups:
       - ref: server.port
 
   - id: db.sql
+    stability: stable
     type: span
     extends: 'db'
     brief: >
@@ -466,6 +475,7 @@ groups:
         examples: ['public.users', 'customers']
 
   - id: db.cosmosdb
+    stability: stable
     type: span
     extends: db
     brief: >
@@ -568,6 +578,7 @@ groups:
           conditionally_required: when available
 
   - id: db.tech
+    stability: stable
     type: span
     brief: "Semantic convention group for specific technologies"
     constraints:

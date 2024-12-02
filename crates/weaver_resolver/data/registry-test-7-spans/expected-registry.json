@@ -127,6 +127,7 @@
       "id": "db",
       "type": "span",
       "brief": "This document defines the attributes used to perform database client calls.\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -327,6 +328,7 @@
       "id": "db.mssql",
       "type": "span",
       "brief": "Connection-level attributes for Microsoft SQL Server\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -539,6 +541,7 @@
       "id": "db.cassandra",
       "type": "span",
       "brief": "Call-level attributes for Cassandra\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -825,6 +828,7 @@
       "id": "db.hbase",
       "type": "span",
       "brief": "Call-level attributes for HBase\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1022,6 +1026,7 @@
       "id": "db.couchdb",
       "type": "span",
       "brief": "Call-level attributes for CouchDB\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1219,6 +1224,7 @@
       "id": "db.redis",
       "type": "span",
       "brief": "Call-level attributes for Redis\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1429,6 +1435,7 @@
       "id": "db.mongodb",
       "type": "span",
       "brief": "Call-level attributes for MongoDB\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1641,6 +1648,7 @@
       "id": "db.elasticsearch",
       "type": "span",
       "brief": "Call-level attributes for Elasticsearch\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1907,6 +1915,7 @@
       "id": "db.sql",
       "type": "span",
       "brief": "Call-level attributes for SQL databases\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -2119,6 +2128,7 @@
       "id": "db.cosmosdb",
       "type": "span",
       "brief": "Call-level attributes for Cosmos DB.\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -2433,6 +2443,7 @@
       "id": "db.tech",
       "type": "span",
       "brief": "Semantic convention group for specific technologies",
+      "stability": "experimental",
       "attributes": [
         62,
         63,

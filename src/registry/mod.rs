@@ -177,3 +177,14 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
     }
 }
+
+/// Set of Parameters used to specify the extra options for the `weaver registry` command.
+/// The CommonRegistryArgs will be shared across all `weaver registry` sub-commands. So only the general options should be
+/// included here.
+#[derive(Args, Debug)]
+pub struct CommonRegistryArgs {
+    /// Boolean flag to specify whether to follow symlinks when loading the registry.
+    /// Default is false.
+    #[arg(short = 's', long)]
+    pub(crate) follow_symlinks: bool,
+}

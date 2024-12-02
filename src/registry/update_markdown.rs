@@ -3,11 +3,11 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::RegistryRepo;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
@@ -49,6 +49,10 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// Common weaver registry parameters
+    #[command(flatten)]
+    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Update markdown files.
@@ -61,6 +65,9 @@ pub(crate) fn command(
         let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
         path.is_file() && extension == "md"
     }
+
+    let mut diag_msgs = DiagnosticMessages::empty();
+
     // Construct a generator if we were given a `--target` argument.
     let generator = {
         let loader = FileSystemFileLoader::try_new(
@@ -75,7 +82,19 @@ pub(crate) fn command(
 
     let registry_path = args.registry.registry.clone();
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-    let generator = SnippetGenerator::try_from_registry_repo(&registry_repo, generator)?;
+    let generator = SnippetGenerator::try_from_registry_repo(
+        &registry_repo,
+        generator,
+        &mut diag_msgs,
+        args.common_registry_args.follow_symlinks,
+    )?;
+
+    if is_future_mode_enabled() && !diag_msgs.is_empty() {
+        // If we are in future mode and there are diagnostics, return them
+        // without generating any snippets.
+        return Err(diag_msgs);
+    }
+
     log.success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
@@ -105,6 +124,10 @@ pub(crate) fn command(
         panic!("weaver registry update-markdown failed.");
     }
 
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
+
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
@@ -117,7 +140,9 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{
+        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]
@@ -140,6 +165,9 @@ mod tests {
                     templates: "data/update_markdown/templates".to_owned(),
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
+                    common_registry_args: CommonRegistryArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };

@@ -1,5 +1,6 @@
 groups:
   - id: trace-exception
+    stability: experimental
     name: exception
     type: event
     brief: >
@@ -16,7 +17,8 @@ groups:
       - ref: exception.escaped
 
   - id: feature_flag
-    name: feature_flag
+    stability: experimental
+    name: trace_feature_flag
     type: event
     brief: >
       This semantic convention defines the attributes used to represent a
@@ -50,6 +52,7 @@ groups:
           should be determined by the implementer.
 
   - id: test_evt.with_attr
+    stability: experimental
     name: test_evt.with_attr
     type: event
     brief: >
@@ -62,6 +65,7 @@ groups:
           test attribute
 
   - id: test_evt.session
+    stability: experimental
     name: test_evt.session
     type: event
     brief: >

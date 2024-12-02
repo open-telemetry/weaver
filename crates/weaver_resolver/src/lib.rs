@@ -57,7 +57,7 @@ pub enum Error {
     },
 
     /// Failed to resolve a metric.
-    #[error("Failed to resolve the metric '{r#ref}'")]
+    #[error("Failed to resolve the metric '{ref}'")]
     FailToResolveMetric {
         /// The reference to the metric.
         r#ref: String,
@@ -130,6 +130,36 @@ pub enum Error {
     InvalidSchemaPath {
         /// The schema path.
         path: PathBuf,
+    },
+
+    /// A duplicate group id error.
+    #[error("The group id `{group_id}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
+    DuplicateGroupId {
+        /// The group id.
+        group_id: String,
+        /// The provenances where this group is duplicated.
+        provenances: Vec<String>,
+    },
+
+    /// A duplicate group id error.
+    #[error("The group name `{group_name}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
+    DuplicateGroupName {
+        /// The group name.
+        group_name: String,
+        /// The provenances where this group is duplicated.
+        provenances: Vec<String>,
+    },
+
+    /// A duplicate group id error.
+    #[error("The metric name `{metric_name}` is declared multiple times in the following locations:\n{provenances:?}")]
+    #[diagnostic(severity(Warning))]
+    DuplicateMetricName {
+        /// The metric name.
+        metric_name: String,
+        /// The provenances where this metric name is duplicated.
+        provenances: Vec<String>,
     },
 
     /// A duplicate attribute id error.
@@ -236,10 +266,12 @@ impl SchemaResolver {
     /// * `registry_repo` - The registry repository containing the semantic convention files.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
+        follow_symlinks: bool,
     ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
         Self::load_semconv_from_local_path(
             registry_repo.path().to_path_buf(),
             registry_repo.registry_path_repr(),
+            follow_symlinks,
         )
     }
 
@@ -253,6 +285,7 @@ impl SchemaResolver {
     fn load_semconv_from_local_path(
         local_path: PathBuf,
         registry_path_repr: &str,
+        follow_symlinks: bool,
     ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -274,6 +307,7 @@ impl SchemaResolver {
         // All yaml files are recursively loaded and parsed in parallel from
         // the given path.
         let result = walkdir::WalkDir::new(local_path.clone())
+            .follow_links(follow_symlinks)
             .into_iter()
             .filter_entry(|e| !is_hidden(e))
             .par_bridge()

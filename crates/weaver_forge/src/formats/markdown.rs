@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::default_bool;
 use crate::config::{RenderFormat, WeaverConfig};
 use crate::error::Error;
 use crate::install_weaver_extensions;
@@ -7,6 +8,8 @@ use markdown::mdast::{Delete, Emphasis, Node, Strong};
 use minijinja::Environment;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use super::{WordWrapConfig, WordWrapContext};
 
 /// Options for rendering markdown.
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -32,6 +35,8 @@ pub struct MarkdownRenderOptions {
     /// The default language for code blocks.
     /// Default is None.
     pub(crate) default_block_code_language: Option<String>,
+    #[serde(default = "default_bool::<false>")]
+    pub(crate) use_go_style_list_indent: bool,
 }
 
 pub(crate) struct ShortcutReferenceLink {
@@ -41,9 +46,9 @@ pub(crate) struct ShortcutReferenceLink {
 
 pub(crate) struct MarkdownRenderer {
     options_by_format: HashMap<String, MarkdownRenderOptions>,
+    word_wrap_by_format: HashMap<String, WordWrapConfig>,
 }
 
-#[derive(Default)]
 struct RenderContext {
     // The rendered markdown.
     markdown: String,
@@ -63,9 +68,27 @@ struct RenderContext {
     line_prefix: String,
     // Whether to skip the line prefix on the first line.
     skip_line_prefix_on_first_line: bool,
+    // Word wrapping helper.
+    word_wrap: WordWrapContext,
+    // A buffer of text we cannot break apart when dealing with links, emphasis, etc.
+    unbreakable_buffer: Option<String>,
 }
 
 impl RenderContext {
+    fn new(cfg: &WordWrapConfig) -> Self {
+        Self {
+            markdown: Default::default(),
+            list_level: Default::default(),
+            list_item_number: Default::default(),
+            shortcut_reference_links: Default::default(),
+            leftover_newlines: Default::default(),
+            line_prefix: Default::default(),
+            skip_line_prefix_on_first_line: Default::default(),
+            word_wrap: WordWrapContext::new(cfg),
+            unbreakable_buffer: Default::default(),
+        }
+    }
+
     /// Return the number of leftover newlines and reset the count.
     fn take_leftover_newlines(&mut self) -> usize {
         let leftover_newlines = self.leftover_newlines;
@@ -81,9 +104,18 @@ impl RenderContext {
     /// Add a blank line if the current markdown buffer
     /// does not end already with a double newline.
     fn add_cond_blank_line(&mut self) {
+        // TODO - This is a workaround for not truly
+        // refactoring word-wrap vs. regular add-text.
         if !self.markdown.ends_with("\n\n") && !self.markdown.is_empty() {
-            self.markdown.push('\n');
+            let _ = self
+                .word_wrap
+                .write_ln(&mut self.markdown, &self.line_prefix);
         }
+    }
+    fn add_blank_line(&mut self) {
+        let _ = self
+            .word_wrap
+            .write_ln(&mut self.markdown, &self.line_prefix);
     }
 
     /// Set the line prefix to add in front of each new line.
@@ -102,17 +134,78 @@ impl RenderContext {
         self.skip_line_prefix_on_first_line = false;
     }
 
+    fn start_unbreakable_block(&mut self, text: &str) {
+        // TODO - check for existing unbreakable.
+        if let Some(buf) = self.unbreakable_buffer.as_ref() {
+            // ToDo - we should error out here.
+            // For now, we just FLUSH this to write to the buffer.
+            let _ = self
+                .word_wrap
+                .write_unbroken(&mut self.markdown, buf, &self.line_prefix);
+        }
+        if self.word_wrap.line_length.is_some() {
+            // Start a buffer
+            self.unbreakable_buffer = Some(text.to_owned());
+        } else {
+            self.markdown.push_str(text);
+        }
+    }
+    fn end_unbreakable_block(&mut self, text: &str) {
+        let result = if let Some(buffer) = self.unbreakable_buffer.as_ref() {
+            format!("{}{}", buffer, text)
+        } else {
+            text.to_owned()
+        };
+        self.unbreakable_buffer = None;
+        self.add_unbreakable_text(&result);
+    }
     /// Add text to the markdown buffer.
     fn add_text(&mut self, text: &str) {
-        let lines = text.split('\n');
-        for (i, line) in lines.enumerate() {
-            if i > 0 {
-                self.markdown.push('\n');
+        if let Some(buf) = self.unbreakable_buffer.as_mut() {
+            buf.push_str(text);
+        } else if self.word_wrap.line_length.is_some() {
+            if !self.line_prefix.is_empty() && !self.skip_line_prefix_on_first_line {
+                let prefix = self.line_prefix.to_owned();
+                self.add_unbreakable_text(&prefix);
             }
-            if !self.line_prefix.is_empty() && (!self.skip_line_prefix_on_first_line || i > 0) {
-                self.markdown.push_str(self.line_prefix.as_str());
+            // Word wrap algorithm.
+            if self.word_wrap.ignore_newlines {
+                let _ = self
+                    .word_wrap
+                    .write_words(&mut self.markdown, text, &self.line_prefix);
+            } else {
+                // Now we need to deal with newlines.
+                let lines = text.split('\n');
+                for (i, line) in lines.enumerate() {
+                    if i > 0 {
+                        self.add_blank_line();
+                    }
+                    let _ = self
+                        .word_wrap
+                        .write_words(&mut self.markdown, line, &self.line_prefix);
+                }
             }
-            self.markdown.push_str(line);
+        } else {
+            // Preserve original lines
+            let lines = text.split('\n');
+            for (i, line) in lines.enumerate() {
+                if i > 0 {
+                    self.markdown.push('\n');
+                }
+                if !self.line_prefix.is_empty() && (!self.skip_line_prefix_on_first_line || i > 0) {
+                    self.markdown.push_str(self.line_prefix.as_str());
+                }
+                self.markdown.push_str(line);
+            }
+        }
+    }
+    fn add_unbreakable_text(&mut self, text: &str) {
+        if let Some(buf) = self.unbreakable_buffer.as_mut() {
+            buf.push_str(text);
+        } else {
+            let _ = self
+                .word_wrap
+                .write_unbroken(&mut self.markdown, text, &self.line_prefix);
         }
     }
 }
@@ -139,6 +232,16 @@ impl MarkdownRenderer {
                     RenderFormat::Markdown(markdown_options) => Some((name, markdown_options)),
                 })
                 .collect(),
+            word_wrap_by_format: config
+                .comment_formats
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|(name, format)| match format.format {
+                    RenderFormat::Html(..) => None,
+                    RenderFormat::Markdown(_) => Some((name, format.word_wrap)),
+                })
+                .collect(),
         })
     }
 
@@ -148,9 +251,22 @@ impl MarkdownRenderer {
     ///
     /// * `markdown` - The markdown text to render.
     /// * `format` - The comment format to use.
-    pub fn render(&self, markdown: &str, format: &str) -> Result<String, Error> {
+    pub fn render(
+        &self,
+        markdown: &str,
+        format: &str,
+        line_length_override: Option<usize>,
+    ) -> Result<String, Error> {
         let render_options = if let Some(options) = self.options_by_format.get(format) {
             options
+        } else {
+            return Err(Error::CommentFormatNotFound {
+                format: format.to_owned(),
+                formats: self.options_by_format.keys().cloned().collect(),
+            });
+        };
+        let word_wrap_options = if let Some(options) = self.word_wrap_by_format.get(format) {
+            options.with_line_length_override(line_length_override)
         } else {
             return Err(Error::CommentFormatNotFound {
                 format: format.to_owned(),
@@ -163,10 +279,16 @@ impl MarkdownRenderer {
             markdown::to_mdast(markdown, &md_options).map_err(|e| Error::InvalidMarkdown {
                 error: e.to_string(),
             })?;
-        let mut render_context = RenderContext::default();
+        let mut render_context = RenderContext::new(&word_wrap_options);
         Self::write_markdown_to(&mut render_context, "", &md_node, render_options)?;
 
         if !render_context.shortcut_reference_links.is_empty() {
+            let blank_line_count = render_context.take_leftover_newlines();
+            if blank_line_count > 0 {
+                render_context
+                    .markdown
+                    .push_str(&"\n".repeat(blank_line_count));
+            }
             for link in &render_context.shortcut_reference_links {
                 render_context.markdown.push('\n');
                 render_context
@@ -190,7 +312,9 @@ impl MarkdownRenderer {
             // Add the newlines left by the previous node only if the current node
             // is not a list.
             if !matches!(md_node, Node::List(..)) {
-                ctx.markdown.push_str(&"\n".repeat(leftover_newlines));
+                for _ in 0..leftover_newlines {
+                    ctx.add_blank_line();
+                }
             }
         }
         match md_node {
@@ -236,20 +360,25 @@ impl MarkdownRenderer {
                 for child in &p.children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
-                ctx.markdown.push('\n');
+                ctx.add_blank_line();
             }
             Node::List(list) => {
                 ctx.list_level += 1;
                 let indent = if !options.indent_first_level_list_items && ctx.list_level == 1 {
                     indent.to_owned()
+                } else if options.use_go_style_list_indent && list.ordered {
+                    format!("{} ", indent)
                 } else {
                     format!("{}  ", indent)
                 };
-                ctx.markdown.push('\n');
+                ctx.add_blank_line();
                 for item in &list.children {
                     let leftover_newlines = ctx.take_leftover_newlines();
                     if leftover_newlines > 0 {
-                        ctx.markdown.push_str(&"\n".repeat(leftover_newlines));
+                        ctx.set_line_prefix("");
+                        for _ in 0..leftover_newlines {
+                            ctx.add_blank_line();
+                        }
                     }
                     ctx.list_item_number += 1;
                     let line_prefix = if list.ordered {
@@ -259,7 +388,8 @@ impl MarkdownRenderer {
                     };
                     ctx.skip_line_prefix_on_first_line();
                     ctx.set_line_prefix(" ".repeat(line_prefix.len()).as_str());
-                    ctx.markdown.push_str(&line_prefix);
+                    // ctx.markdown.push_str(&line_prefix);
+                    ctx.add_unbreakable_text(&line_prefix);
                     Self::write_markdown_to(ctx, &indent, item, options)?;
                     ctx.add_leftover_newlines(1);
                 }
@@ -283,10 +413,10 @@ impl MarkdownRenderer {
                 }
             }
             Node::Html(html) => {
-                ctx.markdown.push_str(&html.value);
+                ctx.add_unbreakable_text(&html.value);
             }
             Node::InlineCode(code) => {
-                ctx.markdown.push_str(&format!("`{}`", code.value));
+                ctx.add_unbreakable_text(&format!("`{}`", code.value));
             }
             Node::Code(code) => {
                 // If the language is not specified, use the default language and if no default
@@ -297,58 +427,74 @@ impl MarkdownRenderer {
                     .or(options.default_block_code_language.as_deref())
                     .unwrap_or("");
 
-                ctx.markdown
-                    .push_str(&format!("```{}\n{}\n```\n", lang, code.value));
+                ctx.add_unbreakable_text(&format!("```{}\n{}\n```", lang, code.value));
+                ctx.add_blank_line();
             }
             Node::Blockquote(block_quote) => {
+                // Somehow we're getting  end of lines from the block quote.
                 ctx.add_cond_blank_line();
                 ctx.set_line_prefix("> ");
                 for child in &block_quote.children {
-                    Self::write_markdown_to(ctx, indent, child, options)?;
+                    match child {
+                        Node::Paragraph(paragraph) => {
+                            for child in &paragraph.children {
+                                Self::write_markdown_to(ctx, indent, child, options)?;
+                            }
+                        }
+                        _ => {
+                            Self::write_markdown_to(ctx, indent, child, options)?;
+                        }
+                    }
                 }
                 ctx.reset_line_prefix();
+                ctx.add_blank_line();
             }
             Node::Link(link) => {
-                ctx.markdown.push('[');
+                ctx.start_unbreakable_block("[");
                 let start = ctx.markdown.len();
                 for child in &link.children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
-                let label = ctx.markdown[start..].to_string();
-                ctx.markdown.push(']');
+                let label = if let Some(buf) = ctx.unbreakable_buffer.as_ref() {
+                    buf[1..].to_string()
+                } else {
+                    ctx.markdown[start..].to_string()
+                };
+                ctx.add_unbreakable_text("]");
                 if options.shortcut_reference_link && !link.url.is_empty() {
                     let url = link.url.clone();
                     ctx.shortcut_reference_links
                         .push(ShortcutReferenceLink { label, url });
                 } else {
-                    ctx.markdown.push_str(&format!("({})", link.url));
+                    ctx.add_unbreakable_text(&format!("({})", link.url));
                 }
+                ctx.end_unbreakable_block("");
             }
             Node::Strong(Strong { children, .. }) => {
-                ctx.markdown.push_str("**");
+                ctx.start_unbreakable_block("**");
                 for child in children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
-                ctx.markdown.push_str("**");
+                ctx.end_unbreakable_block("**");
             }
             Node::Emphasis(Emphasis { children, .. }) => {
-                ctx.markdown.push('*');
+                ctx.start_unbreakable_block("*");
                 for child in children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
-                ctx.markdown.push('*');
+                ctx.end_unbreakable_block("*");
             }
             Node::Delete(Delete { children, .. }) => {
-                ctx.markdown.push_str("~~");
+                ctx.start_unbreakable_block("~~");
                 for child in children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
-                ctx.markdown.push_str("~~");
+                ctx.end_unbreakable_block("~~");
             }
             Node::Heading(heading) => {
                 // Heading nodes must surrounded by newlines.
                 ctx.add_cond_blank_line();
-                ctx.markdown.push_str(&format!(
+                ctx.start_unbreakable_block(&format!(
                     "{}{} ",
                     indent,
                     "#".repeat(heading.depth as usize),
@@ -356,7 +502,8 @@ impl MarkdownRenderer {
                 for child in &heading.children {
                     Self::write_markdown_to(ctx, indent, child, options)?;
                 }
-                ctx.markdown.push('\n');
+                ctx.end_unbreakable_block("");
+                ctx.add_blank_line();
                 ctx.add_leftover_newlines(1);
             }
             // Not supported markdown node types.
@@ -387,9 +534,12 @@ impl MarkdownRenderer {
 
 #[cfg(test)]
 mod tests {
+    use weaver_diff::assert_string_eq;
+
     use crate::config::{CommentFormat, IndentType, RenderFormat, WeaverConfig};
     use crate::error::Error;
     use crate::formats::markdown::{MarkdownRenderOptions, MarkdownRenderer};
+    use crate::formats::WordWrapConfig;
 
     #[test]
     fn test_markdown_renderer() -> Result<(), Error> {
@@ -408,10 +558,15 @@ mod tests {
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -424,9 +579,9 @@ mod tests {
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
           The file extension extracted from the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go")?;
-        assert_eq!(
-            html,
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
             r##"In some cases a URL may refer to an IP and/or port directly,
 The file extension extracted from the `url.full`, excluding the leading dot.
 "## // ToDo why a new line at the end?
@@ -439,9 +594,9 @@ and specifically the
 
 An example can be found in
 [Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
-        let html = renderer.render(markdown, "go")?;
-        assert_eq!(
-            html,
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
             r##"Follows
 [OCI Image Manifest Specification],
 and specifically the
@@ -474,9 +629,9 @@ it's RECOMMENDED to:
 
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
-        let html = renderer.render(markdown, "go")?;
-        assert_eq!(
-            html,
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
             r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
 
 When `error.type` is set to a type (e.g., an exception type), its
@@ -512,11 +667,16 @@ it's RECOMMENDED to:
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -529,9 +689,9 @@ it's RECOMMENDED to:
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go")?;
-        assert_eq!(
-            html,
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
             r##"In some cases a [URL] may refer to an [IP] and/or port directly,
 The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot.
 
@@ -552,11 +712,16 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
                             indent_first_level_list_items: true,
                             shortcut_reference_link: true,
                             default_block_code_language: None,
+                            use_go_style_list_indent: false,
                         }),
                         trim: true,
                         remove_trailing_dots: true,
                         indent_type: Default::default(),
                         enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -569,13 +734,496 @@ The file \[extension\] extracted \[from] the `url.full`, excluding the leading d
         let renderer = MarkdownRenderer::try_new(&config)?;
         let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
           The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
-        let html = renderer.render(markdown, "go")?;
-        assert_eq!(
-            html,
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
             r##"In some cases a \[URL\] may refer to an [IP] and/or port directly,
 The file \[extension\] extracted \[from\] the `url.full`, excluding the leading dot.
 
 [IP]: http://ip.com"##
+        );
+
+        Ok(())
+    }
+    #[test]
+    fn test_markdown_renderer_wrap() -> Result<(), Error> {
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        indent_type: IndentType::Space,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: false,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                            use_go_style_list_indent: false,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"In some cases a URL may refer to an IP and/or port directly,
+          The file extension extracted from the `url.full`, excluding the leading dot."##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"In some cases a URL may refer
+to an IP and/or port directly,
+The file extension extracted
+from the `url.full`, excluding
+the leading dot.
+"## // ToDo why a new line at the end?
+        );
+
+        let markdown = r##"Follows
+[OCI Image Manifest Specification](https://github.com/opencontainers/image-spec/blob/main/manifest.md),
+and specifically the
+[Digest property](https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests).
+
+An example can be found in
+[Example Image Manifest](https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest)."##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"Follows
+[OCI Image Manifest Specification]
+, and specifically the
+[Digest property].
+
+An example can be found in
+[Example Image Manifest].
+
+[OCI Image Manifest Specification]: https://github.com/opencontainers/image-spec/blob/main/manifest.md
+[Digest property]: https://github.com/opencontainers/image-spec/blob/main/descriptor.md#digests
+[Example Image Manifest]: https://docs.docker.com/registry/spec/manifest-v2-2/#example-image-manifest"##
+        );
+
+        let markdown = r##"The `error.type` SHOULD be predictable, and SHOULD have low cardinality.
+
+When `error.type` is set to a type (e.g., an exception type), its
+canonical class name identifying the type within the artifact SHOULD be used.
+
+Instrumentations SHOULD document the list of errors they report.
+
+The cardinality of `error.type` within one instrumentation library SHOULD be low.
+Telemetry consumers that aggregate data from multiple instrumentation libraries and applications
+should be prepared for `error.type` to have high cardinality at query time when no
+additional filters are applied.
+
+If the operation has completed successfully, instrumentations SHOULD NOT set `error.type`.
+
+If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
+it's RECOMMENDED to:
+
+* Use a domain-specific attribute
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"The `error.type` SHOULD be
+predictable, and SHOULD have
+low cardinality.
+
+When `error.type` is set to a
+type (e.g., an exception type),
+its canonical class name
+identifying the type within the
+artifact SHOULD be used.
+
+Instrumentations SHOULD
+document the list of errors
+they report.
+
+The cardinality of `error.type`
+ within one instrumentation
+library SHOULD be low.
+Telemetry consumers that
+aggregate data from multiple
+instrumentation libraries and
+applications should be prepared
+for `error.type` to have high
+cardinality at query time when
+no additional filters are
+applied.
+
+If the operation has completed
+successfully, instrumentations
+SHOULD NOT set `error.type`.
+
+If a specific domain defines
+its own set of error
+identifiers (such as HTTP or
+gRPC status codes), it's
+RECOMMENDED to:
+
+  - Use a domain-specific
+    attribute
+  - Set `error.type` to capture
+    all errors, regardless of
+    whether they are defined
+    within the domain-specific
+    set or not."##
+        );
+
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: false,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                            use_go_style_list_indent: false,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
+          The file \\[extension\\] extracted \\[from] the `url.full`, excluding the leading dot."##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"In some cases a [URL] may refer
+to an [IP] and/or port
+directly, The file
+\[extension\] extracted \[from]
+the `url.full`, excluding the
+leading dot.
+
+[IP]: http://ip.com"##
+        );
+
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: true,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                            use_go_style_list_indent: false,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: true,
+                        },
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"In some cases a [URL] may refer to an [IP](http://ip.com) and/or port directly,
+          The file \[extension\] extracted \[from] the `url.full`, excluding the leading dot."##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"In some cases a \[URL\] may
+refer to an [IP] and/or port
+directly, The file
+\[extension\] extracted
+\[from\] the `url.full`,
+excluding the leading dot.
+
+[IP]: http://ip.com"##
+        );
+
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"It should handle weirdly split lists.
+
+## Unordered
+
+- [Link 1](https://www.link1.com)
+- [Link 2](https://www.link2.com)
+- A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+  tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+1. Example 1
+2. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+   [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+   [labore](https://loremipsum.com) et dolore magna aliqua.
+3. Example 3
+"##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"It should handle weirdly split
+lists.
+
+## Unordered
+
+  - [Link 1]
+  - [Link 2]
+  - A very long item in the
+    list with lorem ipsum dolor
+    sit amet, consectetur
+    adipiscing elit sed do
+    eiusmod tempor incididunt
+    ut labore et dolore magna
+    aliqua.
+
+## Ordered
+
+  1. Example 1
+  2. [Example] with lorem ipsum
+     dolor sit amet,
+     consectetur adipiscing
+     elit [sed] do eiusmod
+     tempor incididunt ut
+     [labore] et dolore magna
+     aliqua.
+  3. Example 3
+
+
+[Link 1]: https://www.link1.com
+[Link 2]: https://www.link2.com
+[Example]: https://loremipsum.com
+[sed]: https://loremipsum.com
+[labore]: https://loremipsum.com"##
+        );
+
+        Ok(())
+    }
+    #[test]
+    fn test_markdown_render_keep_newlines() -> Result<(), Error> {
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: true,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                            use_go_style_list_indent: false,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: false,
+                        },
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"It should handle weirdly split lists.
+
+## Unordered
+
+- [Link 1](https://www.link1.com)
+- [Link 2](https://www.link2.com)
+- A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+  tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+1. Example 1
+2. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+   [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+   [labore](https://loremipsum.com) et dolore magna aliqua.
+3. Example 3
+"##;
+        let rendered_md = renderer.render(markdown, "go", None)?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"It should handle weirdly split
+lists.
+
+## Unordered
+
+  - [Link 1]
+  - [Link 2]
+  - A very long item in the
+    list with lorem ipsum dolor
+    sit amet, consectetur
+    adipiscing elit sed do
+    eiusmod
+    tempor incididunt ut labore
+    et dolore magna aliqua.
+
+## Ordered
+
+  1. Example 1
+  2. [Example] with lorem ipsum
+     dolor sit amet,
+     consectetur adipiscing
+     elit
+     [sed] do eiusmod tempor
+     incididunt ut
+     [labore] et dolore magna
+     aliqua.
+  3. Example 3
+
+
+[Link 1]: https://www.link1.com
+[Link 2]: https://www.link2.com
+[Example]: https://loremipsum.com
+[sed]: https://loremipsum.com
+[labore]: https://loremipsum.com"##
+        );
+
+        // We do not want to split on punctuations like this, e.g.
+        // `.`, `:`, etc.
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"And an **inline code snippet**: `Attr.attr`."##;
+        let rendered_md = renderer.render(markdown, "go", Some(80))?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"And an **inline code snippet**: `Attr.attr`.
+"##
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_markdown_render_go_lists() -> Result<(), Error> {
+        let config = WeaverConfig {
+            comment_formats: Some(
+                vec![(
+                    "go".to_owned(),
+                    CommentFormat {
+                        header: None,
+                        prefix: Some("// ".to_owned()),
+                        footer: None,
+                        format: RenderFormat::Markdown(MarkdownRenderOptions {
+                            escape_backslashes: false,
+                            escape_square_brackets: true,
+                            indent_first_level_list_items: true,
+                            shortcut_reference_link: true,
+                            default_block_code_language: None,
+                            use_go_style_list_indent: true,
+                        }),
+                        trim: true,
+                        remove_trailing_dots: true,
+                        indent_type: Default::default(),
+                        enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: Some(30),
+                            ignore_newlines: false,
+                        },
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            default_comment_format: Some("go".to_owned()),
+            ..WeaverConfig::default()
+        };
+        let renderer = MarkdownRenderer::try_new(&config)?;
+        let markdown = r##"It should handle weirdly split lists for go.
+
+## Unordered
+
+  - [Link 1](https://www.link1.com)
+  - [Link 2](https://www.link2.com)
+  - A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
+    tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+ 1. Example 1
+ 2. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
+    [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
+    [labore](https://loremipsum.com) et dolore magna aliqua.
+ 3. Example 3
+"##;
+        let rendered_md = renderer.render(markdown, "go", Some(80))?;
+        assert_string_eq!(
+            &rendered_md,
+            r##"It should handle weirdly split lists for go.
+
+## Unordered
+
+  - [Link 1]
+  - [Link 2]
+  - A very long item in the list with lorem ipsum dolor sit amet, consectetur
+    adipiscing elit sed do eiusmod
+    tempor incididunt ut labore et dolore magna aliqua.
+
+## Ordered
+
+ 1. Example 1
+ 2. [Example] with lorem ipsum dolor sit amet, consectetur adipiscing elit
+    [sed] do eiusmod tempor incididunt ut
+    [labore] et dolore magna aliqua.
+ 3. Example 3
+
+
+[Link 1]: https://www.link1.com
+[Link 2]: https://www.link2.com
+[Example]: https://loremipsum.com
+[sed]: https://loremipsum.com
+[labore]: https://loremipsum.com"##
         );
 
         Ok(())

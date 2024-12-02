@@ -1,5 +1,6 @@
 groups:
   - id: browser
+    stability: stable
     type: resource
     brief: >
       The web browser in which the application represented by the resource is running.

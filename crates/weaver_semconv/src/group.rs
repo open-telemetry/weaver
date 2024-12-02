@@ -110,6 +110,15 @@ impl GroupSpec {
             });
         }
 
+        // Field stability is required for all group types except attribute group.
+        if self.r#type != GroupType::AttributeGroup && self.stability.is_none() {
+            errors.push(Error::InvalidGroupStability {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group does not contain a stability field.".to_owned(),
+            });
+        }
+
         // Fields span_kind and events are only valid if type is span (the default).
         if self.r#type != GroupType::Span {
             if self.span_kind.is_some() {
@@ -412,7 +421,8 @@ mod tests {
     use crate::attribute::{BasicRequirementLevelSpec, Examples, RequirementLevel};
     use crate::deprecated::Deprecated;
     use crate::Error::{
-        CompoundError, InvalidExampleWarning, InvalidGroup, InvalidGroupUsesPrefix, InvalidMetric,
+        CompoundError, InvalidExampleWarning, InvalidGroup, InvalidGroupStability,
+        InvalidGroupUsesPrefix, InvalidMetric,
     };
 
     use super::*;
@@ -838,6 +848,155 @@ mod tests {
             },),
             result
         );
+    }
+
+    #[test]
+    fn test_validate_group_stability() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: None,
+                stability: Some(Stability::Deprecated),
+                deprecated: Some("true".to_owned()),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+            }],
+            constraints: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            display_name: None,
+            body: None,
+        };
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // all other group types must have a stability field.
+        group.r#type = GroupType::Span;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Experimental);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+        group.r#type = GroupType::Resource;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Experimental);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::Scope;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Experimental);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::Metric;
+        group.metric_name = Some("test".to_owned());
+        group.instrument = Some(Counter);
+        group.unit = Some("test".to_owned());
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Experimental);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::Event;
+        group.name = Some("test".to_owned());
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Experimental);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::MetricGroup;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Experimental);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
     }
 
     #[test]

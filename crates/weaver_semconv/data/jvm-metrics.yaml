@@ -26,6 +26,7 @@ groups:
           [MemoryPoolMXBean#getName()](https://docs.oracle.com/en/java/javase/11/docs/api/java.management/java/lang/management/MemoryPoolMXBean.html#getName()).
 
   - id: metric.jvm.memory.usage
+    stability: stable
     type: metric
     metric_name: jvm.memory.usage
     extends: attributes.jvm.memory
@@ -34,6 +35,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.memory.committed
+    stability: stable
     type: metric
     metric_name: jvm.memory.committed
     extends: attributes.jvm.memory
@@ -42,6 +44,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.memory.limit
+    stability: stable
     type: metric
     metric_name: jvm.memory.limit
     extends: attributes.jvm.memory
@@ -50,6 +53,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.memory.usage_after_last_gc
+    stability: stable
     type: metric
     metric_name: jvm.memory.usage_after_last_gc
     extends: attributes.jvm.memory
@@ -58,6 +62,7 @@ groups:
     unit: "By"
 
   - id: metric.jvm.gc.duration
+    stability: stable
     type: metric
     metric_name: jvm.gc.duration
     brief: "Duration of JVM garbage collection actions."
@@ -82,6 +87,7 @@ groups:
           [GarbageCollectionNotificationInfo#getGcAction()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcAction()).
 
   - id: metric.jvm.thread.count
+    stability: stable
     type: metric
     metric_name: jvm.thread.count
     brief: "Number of executing platform threads."
@@ -92,6 +98,7 @@ groups:
         requirement_level: recommended
 
   - id: metric.jvm.class.loaded
+    stability: stable
     type: metric
     metric_name: jvm.class.loaded
     brief: "Number of classes loaded since JVM start."
@@ -99,6 +106,7 @@ groups:
     unit: "{class}"
 
   - id: metric.jvm.class.unloaded
+    stability: stable
     type: metric
     metric_name: jvm.class.unloaded
     brief: "Number of classes unloaded since JVM start."
@@ -106,6 +114,7 @@ groups:
     unit: "{class}"
 
   - id: metric.jvm.class.count
+    stability: stable
     type: metric
     metric_name: jvm.class.count
     brief: "Number of classes currently loaded."
@@ -113,6 +122,7 @@ groups:
     unit: "{class}"
 
   - id: metric.jvm.cpu.count
+    stability: stable
     type: metric
     metric_name: jvm.cpu.count
     brief: "Number of processors available to the Java virtual machine."
@@ -120,6 +130,7 @@ groups:
     unit: "{cpu}"
 
   - id: metric.jvm.cpu.time
+    stability: stable
     type: metric
     metric_name: jvm.cpu.time
     brief: "CPU time used by the process as reported by the JVM."
@@ -127,6 +138,7 @@ groups:
     unit: "s"
 
   - id: metric.jvm.cpu.recent_utilization
+    stability: stable
     type: metric
     metric_name: jvm.cpu.recent_utilization
     brief: "Recent CPU utilization for the process as reported by the JVM."

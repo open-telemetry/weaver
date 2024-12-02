@@ -13,7 +13,7 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::RegistryArgs;
+use crate::registry::{CommonRegistryArgs, RegistryArgs};
 use crate::util::{
     check_policy, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
 };
@@ -47,6 +47,10 @@ pub struct RegistryCheckArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// Common weaver registry parameters
+    #[command(flatten)]
+    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Check a semantic convention registry.
@@ -71,17 +75,25 @@ pub(crate) fn command(
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
-    let main_semconv_specs = load_semconv_specs(&main_registry_repo, logger.clone())
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_semconv_specs = load_semconv_specs(
+        &main_registry_repo,
+        logger.clone(),
+        args.common_registry_args.follow_symlinks,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
         .map(|repo| {
             // Baseline registry resolution should allow non-future features
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
-            load_semconv_specs(repo, logger.clone())
-                .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-                .capture_non_fatal_errors(&mut diag_msgs)
+            load_semconv_specs(
+                repo,
+                logger.clone(),
+                args.common_registry_args.follow_symlinks,
+            )
+            .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+            .capture_non_fatal_errors(&mut diag_msgs)
         })
         .transpose()?;
 
@@ -208,7 +220,8 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+        semconv_registry, CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath,
+        RegistrySubCommand,
     };
     use crate::run_command;
 
@@ -231,6 +244,9 @@ mod tests {
                     skip_policies: true,
                     display_policy_coverage: false,
                     diagnostic: Default::default(),
+                    common_registry_args: CommonRegistryArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };
@@ -256,6 +272,9 @@ mod tests {
                     skip_policies: false,
                     display_policy_coverage: false,
                     diagnostic: Default::default(),
+                    common_registry_args: CommonRegistryArgs {
+                        follow_symlinks: false,
+                    },
                 }),
             })),
         };
@@ -281,6 +300,9 @@ mod tests {
                 skip_policies: false,
                 display_policy_coverage: false,
                 diagnostic: Default::default(),
+                common_registry_args: CommonRegistryArgs {
+                    follow_symlinks: false,
+                },
             }),
         };
 
