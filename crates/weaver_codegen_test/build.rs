@@ -175,6 +175,7 @@ impl Module {
         content.push_str(&self.content);
 
         for module in self.sub_modules.values() {
+            content.push_str("/// Generated module");
             content.push_str(&format!("\npub mod {} {{\n", module.name));
             content.push_str(&module.generate());
             content.push_str("\n}\n");
