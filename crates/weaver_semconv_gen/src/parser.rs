@@ -113,9 +113,16 @@ pub fn is_markdown_snippet_directive(line: &str) -> bool {
 pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownArgs, Error> {
     match parse_markdown_snippet_raw(line) {
         Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
-        _ => Err(Error::InvalidSnippetHeader {
-            header: line.to_owned(),
-        }),
+        Ok((rest, _)) => {
+            println!("Failed to parse {line}, leftover: [{rest}]");
+            Err(Error::InvalidSnippetHeader { header: line.to_owned() })
+        },
+        Err(e) => {
+            println!("Failed to parse {line}, errors: [{e}]");
+            Err(Error::InvalidSnippetHeader {
+                header: line.to_owned(),
+            })
+        },
     }
 }
 
@@ -130,6 +137,10 @@ mod tests {
     fn recognizes_trailer() {
         assert!(is_semconv_trailer("<!-- endsemconv -->"));
         assert!(!is_semconv_trailer("<!-- endsemconvded -->"));
+        // Add whitespace friendly versions
+        assert!(is_semconv_trailer("<!--endsemconv-->"));
+        assert!(is_semconv_trailer("<!-- endsemconv-->"));
+        assert!(is_semconv_trailer("<!--endsemconv -->"));
     }
 
     #[test]
@@ -156,6 +167,16 @@ mod tests {
         assert!(!is_markdown_snippet_directive("hello"));
         assert!(!is_markdown_snippet_directive(
             "<!-- other semconv stuff -->"
+        ));
+        // Test ignoring whitespace
+        assert!(is_markdown_snippet_directive(
+            "<!-- semconv stuff-->"
+        ));
+        assert!(is_markdown_snippet_directive(
+            "<!--semconv stuff -->"
+        ));
+        assert!(is_markdown_snippet_directive(
+            "<!--semconv stuff-->"
         ));
     }
 
@@ -187,6 +208,10 @@ mod tests {
             .args
             .iter()
             .any(|v| v == &MarkdownGenParameters::Tag("tech-specific-rabbitmq".into())));
+
+        let result =
+        parse_markdown_snippet_directive("<!--semconv stuff-->")?;
+        assert_eq!(result.id, "stuff");
 
         Ok(())
     }
