@@ -1144,7 +1144,7 @@ dependencies = [
  "gix-worktree-state",
  "once_cell",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1157,7 +1157,7 @@ dependencies = [
  "gix-date",
  "gix-utils",
  "itoa",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "winnow",
 ]
 
@@ -1174,7 +1174,7 @@ dependencies = [
  "gix-trace",
  "kstring",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "unicode-bom",
 ]
 
@@ -1184,7 +1184,7 @@ version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d48b897b4bbc881aea994b4a5bbb340a04979d7be9089791304e04a9fbc66b53"
 dependencies = [
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1193,7 +1193,7 @@ version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6ffbeb3a5c0b8b84c3fe4133a6f8c82fa962f4caefe8d0762eced025d3eb4f7"
 dependencies = [
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1219,7 +1219,7 @@ dependencies = [
  "gix-features",
  "gix-hash",
  "memmap2",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1238,7 +1238,7 @@ dependencies = [
  "memchr",
  "once_cell",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "unicode-bom",
  "winnow",
 ]
@@ -1253,7 +1253,7 @@ dependencies = [
  "bstr",
  "gix-path",
  "libc",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1270,7 +1270,7 @@ dependencies = [
  "gix-sec",
  "gix-trace",
  "gix-url",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1282,7 +1282,7 @@ dependencies = [
  "bstr",
  "itoa",
  "jiff",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1294,7 +1294,7 @@ dependencies = [
  "bstr",
  "gix-hash",
  "gix-object",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1310,7 +1310,7 @@ dependencies = [
  "gix-path",
  "gix-ref",
  "gix-sec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1332,7 +1332,7 @@ dependencies = [
  "parking_lot",
  "prodash",
  "sha1_smol",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "walkdir",
 ]
 
@@ -1354,7 +1354,7 @@ dependencies = [
  "gix-trace",
  "gix-utils",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1387,7 +1387,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b5eccc17194ed0e67d49285e4853307e4147e95407f91c1c3e4a13ba9f4e4ce"
 dependencies = [
  "faster-hex",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1439,7 +1439,7 @@ dependencies = [
  "memmap2",
  "rustix",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1450,7 +1450,7 @@ checksum = "1cd3ab68a452db63d9f3ebdacb10f30dba1fa0d31ac64f4203d395ed1102d940"
 dependencies = [
  "gix-tempfile",
  "gix-utils",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1466,7 +1466,7 @@ dependencies = [
  "gix-object",
  "gix-revwalk",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1485,7 +1485,7 @@ dependencies = [
  "gix-validate",
  "itoa",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "winnow",
 ]
 
@@ -1507,7 +1507,7 @@ dependencies = [
  "gix-quote",
  "parking_lot",
  "tempfile",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1527,7 +1527,7 @@ dependencies = [
  "memmap2",
  "parking_lot",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "uluru",
 ]
 
@@ -1540,7 +1540,7 @@ dependencies = [
  "bstr",
  "faster-hex",
  "gix-trace",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1552,7 +1552,7 @@ dependencies = [
  "bstr",
  "faster-hex",
  "gix-trace",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1565,7 +1565,7 @@ dependencies = [
  "gix-trace",
  "home",
  "once_cell",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1580,7 +1580,7 @@ dependencies = [
  "gix-config-value",
  "gix-glob",
  "gix-path",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1593,7 +1593,7 @@ dependencies = [
  "gix-config-value",
  "parking_lot",
  "rustix",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1610,7 +1610,7 @@ dependencies = [
  "gix-transport",
  "gix-utils",
  "maybe-async",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "winnow",
 ]
 
@@ -1622,7 +1622,7 @@ checksum = "64a1e282216ec2ab2816cd57e6ed88f8009e634aec47562883c05ac8a7009a63"
 dependencies = [
  "bstr",
  "gix-utils",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1642,7 +1642,7 @@ dependencies = [
  "gix-utils",
  "gix-validate",
  "memmap2",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "winnow",
 ]
 
@@ -1657,7 +1657,7 @@ dependencies = [
  "gix-revision",
  "gix-validate",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1672,7 +1672,7 @@ dependencies = [
  "gix-hash",
  "gix-object",
  "gix-revwalk",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1687,7 +1687,7 @@ dependencies = [
  "gix-hashtable",
  "gix-object",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1714,7 +1714,7 @@ dependencies = [
  "gix-pathspec",
  "gix-refspec",
  "gix-url",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1752,7 +1752,7 @@ dependencies = [
  "gix-sec",
  "gix-url",
  "reqwest",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1769,7 +1769,7 @@ dependencies = [
  "gix-object",
  "gix-revwalk",
  "smallvec",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1781,7 +1781,7 @@ dependencies = [
  "bstr",
  "gix-features",
  "gix-path",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "url",
 ]
 
@@ -1802,7 +1802,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd520d09f9f585b34b32aba1d0b36ada89ab7fefb54a8ca3fe37fc482a750937"
 dependencies = [
  "bstr",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -1841,7 +1841,7 @@ dependencies = [
  "gix-path",
  "gix-worktree",
  "io-close",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -3180,7 +3180,7 @@ dependencies = [
  "rustc-hash",
  "rustls",
  "socket2",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "tokio",
  "tracing",
 ]
@@ -3199,7 +3199,7 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "slab",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "tinyvec",
  "tracing",
  "web-time",
@@ -4113,11 +4113,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.3"
+version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c006c85c7651b3cf2ada4584faa36773bd07bac24acfb39f3c431b36d7e667aa"
+checksum = "2f49a1853cf82743e3b7950f77e0f4d622ca36cf4317cba00c767838bac8d490"
 dependencies = [
- "thiserror-impl 2.0.3",
+ "thiserror-impl 2.0.4",
 ]
 
 [[package]]
@@ -4133,9 +4133,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.3"
+version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f077553d607adc1caf65430528a576c757a71ed73944b66ebb58ef2bbd243568"
+checksum = "8381894bb3efe0c4acac3ded651301ceee58a15d47c2e34885ed1908ad667061"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4648,7 +4648,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -4663,7 +4663,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempdir",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "tui-textarea",
  "walkdir",
  "weaver_cache",
@@ -4679,7 +4679,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "dirs",
  "flate2",
@@ -4690,7 +4690,7 @@ dependencies = [
  "serde",
  "tar",
  "tempdir",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "ureq",
  "url",
  "walkdir",
@@ -4700,7 +4700,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "globset",
  "miette",
@@ -4708,14 +4708,14 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "walkdir",
  "weaver_common",
 ]
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "dirs",
  "miette",
@@ -4730,20 +4730,20 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "miette",
  "paris",
  "rouille",
  "serde",
  "serde_json",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "ureq",
 ]
 
 [[package]]
 name = "weaver_diff"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -4752,7 +4752,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -4779,7 +4779,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "textwrap",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "walkdir",
  "weaver_common",
  "weaver_diff",
@@ -4790,20 +4790,20 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "ordered-float",
  "schemars",
  "serde",
  "serde_json",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "weaver_semconv",
  "weaver_version",
 ]
 
 [[package]]
 name = "weaver_resolver"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "glob",
  "itertools 0.13.0",
@@ -4811,7 +4811,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "walkdir",
  "weaver_cache",
  "weaver_common",
@@ -4822,7 +4822,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "glob",
  "miette",
@@ -4831,19 +4831,19 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "ureq",
  "weaver_common",
 ]
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "miette",
  "nom",
  "serde",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "weaver_cache",
  "weaver_common",
  "weaver_diff",
@@ -4855,13 +4855,13 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "schemars",
  "semver",
  "serde",
  "serde_yaml",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
 ]
 
 [[package]]
@@ -5287,7 +5287,7 @@ dependencies = [
  "pbkdf2",
  "rand 0.8.5",
  "sha1",
- "thiserror 2.0.3",
+ "thiserror 2.0.4",
  "time",
  "zeroize",
  "zopfli",
