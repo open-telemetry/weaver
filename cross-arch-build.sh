@@ -1,12 +1,12 @@
 set -exu
 
 if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then
-  RUST_TARGET=x86_64-unknown-linux-gnu
+  RUST_TARGET=x86_64-unknown-linux-musl
   if [ "${TARGETPLATFORM}" != "${BUILDPLATFORM}" ]; then
     apt-get update && apt-get install -y gcc-x86-64-linux-gnu
   fi
 elif [ "${TARGETPLATFORM}" = "linux/arm64" ]; then
-  RUST_TARGET=aarch64-unknown-linux-gnu
+  RUST_TARGET=aarch64-unknown-linux-musl
   if [ "${TARGETPLATFORM}" != "${BUILDPLATFORM}" ]; then
     apt-get update && apt-get install -y gcc-aarch64-linux-gnu
   fi

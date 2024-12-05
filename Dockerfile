@@ -27,7 +27,7 @@ RUN addgroup weaver \
   --disabled-password \
   weaver
 WORKDIR /home/weaver
-COPY --from=weaver-build /build/weaver /weaver/weaver
+COPY --from=weaver-build --chown=weaver:weaver /build/weaver /weaver/weaver
 USER weaver
 RUN mkdir /home/weaver/target
 ENTRYPOINT ["/weaver/weaver"]
