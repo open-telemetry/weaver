@@ -1,5 +1,5 @@
 params:
-  exclude_stability: ["experimental"]
+  exclude_stability: ["development"]
 
 templates:
   - template: semconv_attributes.json
@@ -13,12 +13,12 @@ templates:
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"]
+        "exclude_stability": ["development"]
       })
     application_mode: single
   - template: semconv_metrics.json
     filter: >
-      semconv_grouped_metrics({"exclude_stability": ["experimental"]})
+      semconv_grouped_metrics({"exclude_stability": ["development"]})
     application_mode: single
   - pattern: semconv_events.json
     filter: >

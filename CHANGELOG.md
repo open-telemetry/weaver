@@ -10,6 +10,12 @@ What's changed
 * Add support for Maps `map[]` to the definition of an `AnyValue`. ([#396](https://github.com/open-telemetry/weaver/pull/396) by @MSNev).
 * Update semconv schema, syntax doc and validity check to correctly define `stability` as optional for attribute groups. ([#467](https://github.com/open-telemetry/weaver/pull/467) by @jerbly).
 * Fix issue [#405](https://github.com/open-telemetry/weaver/issues/405) - Updated the EBNF and JSON schema to define the `extends` or `attributes` requirement mandatory for all group types except `metric` and `event`. Added a group validity check as a warning. ([#494](https://github.com/open-telemetry/weaver/pull/494) by @jerbly).
+* Issue [#502](https://github.com/open-telemetry/weaver/issues/502) - Support stability definitions from [OTEP 232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md) - ([#???](https://github.com/open-telemetry/weaver/pull/???) by @jerbly).
+  * Stability enum now has these variants: `stable`, `development`, `deprecated`, `alpha`, `beta`, `release_candidate`
+  * `unmaintained` is not supported yet.
+  * `experimental` is still accepted when parsing but aliased to `development`.
+  * The minijinja test, `experimental`, now returns true for any variant other than `stable` and `deprecated`.
+  * EBNF and JSON schema updated to define the new enum without the `experimental` variant.
 
 ## [0.10.0] - 2024-09-23
 

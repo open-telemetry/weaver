@@ -277,15 +277,15 @@ pub(crate) fn is_stable(input: &Value) -> bool {
     false
 }
 
-/// Checks if the input value is an object with a field named "stability" that has the value
-/// "experimental". Otherwise, it returns false.
+/// Checks if the input value is an object with a field named "stability" that has any value
+/// other than "stable" or "deprecated". Otherwise, it returns false.
 #[must_use]
 pub(crate) fn is_experimental(input: &Value) -> bool {
     let result = input.get_attr("stability");
 
     if let Ok(stability) = result {
         if let Some(stability) = stability.as_str() {
-            return stability == "experimental";
+            return stability != "stable" && stability != "deprecated";
         }
     }
     false
@@ -693,6 +693,51 @@ mod tests {
             deprecated: None,
         });
         assert!(is_experimental(&attr));
+
+        // An attribute with stability "development"
+        let attr = Value::from_object(DynAttr {
+            id: "test".to_owned(),
+            r#type: "test".to_owned(),
+            stability: "development".to_owned(),
+            deprecated: None,
+        });
+        assert!(is_experimental(&attr));
+
+        // An attribute with stability "alpha"
+        let attr = Value::from_object(DynAttr {
+            id: "test".to_owned(),
+            r#type: "test".to_owned(),
+            stability: "alpha".to_owned(),
+            deprecated: None,
+        });
+        assert!(is_experimental(&attr));
+
+        // An attribute with stability "beta"
+        let attr = Value::from_object(DynAttr {
+            id: "test".to_owned(),
+            r#type: "test".to_owned(),
+            stability: "beta".to_owned(),
+            deprecated: None,
+        });
+        assert!(is_experimental(&attr));
+
+        // An attribute with stability "release_candidate"
+        let attr = Value::from_object(DynAttr {
+            id: "test".to_owned(),
+            r#type: "test".to_owned(),
+            stability: "release_candidate".to_owned(),
+            deprecated: None,
+        });
+        assert!(is_experimental(&attr));
+
+        // An attribute with stability "deprecated"
+        let attr = Value::from_object(DynAttr {
+            id: "test".to_owned(),
+            r#type: "test".to_owned(),
+            stability: "deprecated".to_owned(),
+            deprecated: None,
+        });
+        assert!(!is_experimental(&attr));
 
         // An attribute with stability "stable"
         let attr = Value::from_object(DynAttr {

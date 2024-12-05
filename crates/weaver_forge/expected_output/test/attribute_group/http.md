@@ -13,7 +13,7 @@ The size of the request payload body in bytes. This is the number of bytes trans
 - Type: int
 - Examples: 3495
   
-- Stability: Experimental
+- Stability: Development
   
   
 #### Attribute `http.request.header`
@@ -110,7 +110,7 @@ The size of the response payload body in bytes. This is the number of bytes tran
 - Type: int
 - Examples: 3495
   
-- Stability: Experimental
+- Stability: Development
   
   
 #### Attribute `http.response.header`
