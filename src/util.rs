@@ -206,9 +206,15 @@ pub(crate) fn resolve_semconv_specs(
 pub(crate) fn resolve_telemetry_schema(
     registry_repo: &RegistryRepo,
     semconv_specs: Vec<(String, SemConvSpec)>,
-    logger: impl Logger + Sync + Clone,
-    diag_msgs: &mut DiagnosticMessages,
-) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
+    logger: impl Logger + Sync + Clone
+) -> WResult<ResolvedTelemetrySchema, DiagnosticMessages> {
+    // ToDo
+    // from_semconv_specs et resolve_semconv_specs doivent retourner un WResult
+    // et on doit les chainer ensemble tout en emettant les fatals errors intermediaires.
+    // Liste de DiagnosticMessages non fatal locale afin de captures toutes les erreurs
+    // non fatales, les retourner a la fin, ou emettre un WResult falal si besoin.
+    // Faire tous les changements necessaire
+    
     let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
         .combine_diag_msgs_with(diag_msgs)?;
     // Resolve the semantic convention specifications.

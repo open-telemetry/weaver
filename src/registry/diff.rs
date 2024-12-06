@@ -101,22 +101,23 @@ pub(crate) fn command(
         args.common_registry_args.follow_symlinks,
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
+    
     let main_resolved_schema = resolve_telemetry_schema(
         &main_registry_repo,
         main_semconv_specs,
         logger.clone(),
-        &mut diag_msgs,
-    )?;
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_resolved_schema = resolve_telemetry_schema(
         &baseline_registry_repo,
         baseline_semconv_specs,
         logger.clone(),
-        &mut diag_msgs,
-    )?;
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
 
     // Generate the diff between the two versions of the registries.
     let changes = main_resolved_schema.diff(&baseline_resolved_schema);
-
+    
     if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
