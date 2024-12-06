@@ -65,6 +65,9 @@ struct RenderContext {
     // The rendered HTML.
     html: String,
 
+    // Add a newline before rendering the next node.
+    add_newline: bool,
+
     // The rendering process traverses the AST tree in a depth-first manner.
     // In certain circumstances, a tag should only be rendered if there is a
     // node following the current one in the AST traversal. This field contains
@@ -80,6 +83,7 @@ impl RenderContext {
     fn new(cfg: &WordWrapConfig) -> Self {
         Self {
             html: Default::default(),
+            add_newline: Default::default(),
             add_old_style_paragraph: Default::default(),
             word_wrap: WordWrapContext::new(cfg),
         }
@@ -243,8 +247,11 @@ impl<'source> HtmlRenderer<'source> {
         format: &str,
         options: &HtmlRenderOptions,
     ) -> Result<(), Error> {
-        if ctx.add_old_style_paragraph {
+        if ctx.add_newline {
             ctx.pushln(indent)?;
+            ctx.add_newline = false;
+        }
+        if ctx.add_old_style_paragraph {
             if !matches!(md_node, Node::List(_)) {
                 ctx.push_unbroken_ln("<p>", indent)?;
             }
@@ -270,8 +277,9 @@ impl<'source> HtmlRenderer<'source> {
                 if options.old_style_paragraph {
                     ctx.add_old_style_paragraph = true;
                 } else {
-                    ctx.push_unbroken_ln("</p>", indent)?;
+                    ctx.push_unbroken("</p>", indent)?;
                 }
+                ctx.add_newline = true;
             }
             Node::List(list) => {
                 let tag = if list.ordered { "ol" } else { "ul" };
@@ -286,7 +294,8 @@ impl<'source> HtmlRenderer<'source> {
                     }
                 }
                 ctx.pushln(indent)?;
-                ctx.push_unbroken_ln(&format!("</{}>", tag), indent)?;
+                ctx.push_unbroken(&format!("</{}>", tag), indent)?;
+                ctx.add_newline = true;
             }
             Node::ListItem(item) => {
                 for child in &item.children {
@@ -325,7 +334,8 @@ impl<'source> HtmlRenderer<'source> {
                 for child in &block_quote.children {
                     self.write_html_to(ctx, indent, child, format, options)?;
                 }
-                ctx.push_unbroken_ln("</blockquote>", indent)?;
+                ctx.push_unbroken("</blockquote>", indent)?;
+                ctx.add_newline = true;
             }
             Node::Link(link) => {
                 ctx.push_unbroken(&format!("<a href=\"{}\">", link.url), indent)?;
@@ -551,8 +561,7 @@ it's RECOMMENDED to:
 <ul>
   <li>Use a domain-specific attribute
   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not.
-</ul>
-"##
+</ul>"##
         );
         Ok(())
     }
@@ -777,8 +786,7 @@ RECOMMENDED to:
   regardless of whether they
   are defined within the
   domain-specific set or not.
-</ul>
-"##
+</ul>"##
         );
         Ok(())
     }
