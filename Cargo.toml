@@ -1,6 +1,6 @@
 [package]
 name = "weaver"
-version = "0.10.0"
+version.workspace = true
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -28,6 +28,7 @@ members = [
 ]
 
 [workspace.package]
+version = "0.11.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -79,7 +80,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.22", features = ["derive"] }
+clap = { version = "4.5.23", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }

@@ -488,9 +488,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.22"
+version = "4.5.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69371e34337c4c984bbe322360c2547210bf632eb2814bbe78a6e87a2935bd2b"
+checksum = "3135e7ec2ef7b10c6ed8950f0f792ed96ee093fa088608f1c76e569722700c84"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -498,9 +498,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.22"
+version = "4.5.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e24c1b4099818523236a8ca881d2b45db98dadfb4625cf6608c12069fcbbde1"
+checksum = "30582fc632330df2bd26877bde0c1f4470d57c582bbc070376afcd04d8cb4838"
 dependencies = [
  "anstream",
  "anstyle",
@@ -522,9 +522,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afb84c814227b90d6895e01398aee0d8033c00e7466aca416fb6a8e0eb19d8a7"
+checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "clru"
@@ -4648,7 +4648,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -4679,7 +4679,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "dirs",
  "flate2",
@@ -4700,7 +4700,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "globset",
  "miette",
@@ -4715,7 +4715,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "dirs",
  "miette",
@@ -4730,7 +4730,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "miette",
  "paris",
@@ -4743,7 +4743,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "serde_json",
  "similar",
@@ -4752,7 +4752,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "convert_case",
  "dirs",
@@ -4790,7 +4790,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -4803,7 +4803,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "glob",
  "itertools 0.13.0",
@@ -4822,7 +4822,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "glob",
  "miette",
@@ -4838,7 +4838,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "miette",
  "nom",
@@ -4855,7 +4855,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "schemars",
  "semver",
