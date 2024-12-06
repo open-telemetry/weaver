@@ -13,7 +13,7 @@ templates:
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["development"]
+        "exclude_stability": ["experimental"]
       })
     application_mode: single
   - template: semconv_metrics.json

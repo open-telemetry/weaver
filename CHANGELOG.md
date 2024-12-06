@@ -14,7 +14,7 @@ What's changed
   * Stability enum now has these variants: `stable`, `development`, `deprecated`, `alpha`, `beta`, `release_candidate`
   * `unmaintained` is not supported yet.
   * `experimental` is still accepted when parsing but aliased to `development`.
-  * The minijinja test, `experimental`, now returns true for any variant other than `stable` and `deprecated`.
+  * The minijinja test, `experimental`, now returns true for any variant other than `stable`.
   * EBNF and JSON schema updated to define the new enum without the `experimental` variant.
 
 ## [0.10.0] - 2024-09-23

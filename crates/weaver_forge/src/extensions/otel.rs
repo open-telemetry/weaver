@@ -737,7 +737,7 @@ mod tests {
             stability: "deprecated".to_owned(),
             deprecated: None,
         });
-        assert!(!is_experimental(&attr));
+        assert!(is_experimental(&attr));
 
         // An attribute with stability "stable"
         let attr = Value::from_object(DynAttr {
