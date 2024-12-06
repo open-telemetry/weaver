@@ -245,7 +245,7 @@ impl<'source> HtmlRenderer<'source> {
     ) -> Result<(), Error> {
         if ctx.add_old_style_paragraph {
             ctx.pushln(indent)?;
-            if !matches!(md_node, Node::List(_)) {
+            if matches!(md_node, Node::Paragraph(_)) {
                 ctx.push_unbroken_ln("<p>", indent)?;
             }
             ctx.add_old_style_paragraph = false;

@@ -87,7 +87,6 @@
    * incididunt ut labore et dolore magna aliqua.
    * </ul>
    * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
-   * <p>
    * <h1>Summary</h1>
    * <h2>Examples</h2>
    * <ol>
@@ -110,7 +109,6 @@
    * Lorem ipsum dolor sit amet, consectetur adipiscing
    * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
    *
-   * <p>
    * <blockquote>
    * [!NOTE] Something very important here</blockquote>
    */
