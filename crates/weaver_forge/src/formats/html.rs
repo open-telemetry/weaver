@@ -245,7 +245,7 @@ impl<'source> HtmlRenderer<'source> {
     ) -> Result<(), Error> {
         if ctx.add_old_style_paragraph {
             ctx.pushln(indent)?;
-            if !matches!(md_node, Node::List(_)) {
+            if matches!(md_node, Node::Paragraph(_)) {
                 ctx.push_unbroken_ln("<p>", indent)?;
             }
             ctx.add_old_style_paragraph = false;
@@ -528,7 +528,9 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 
 * Use a domain-specific attribute
-* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+And something more."##;
         let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
@@ -550,9 +552,9 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 <ul>
   <li>Use a domain-specific attribute
-  <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not.
+  <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
 </ul>
-"##
+And something more."##
         );
         Ok(())
     }
@@ -728,7 +730,9 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 
 * Use a domain-specific attribute
-* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+And something more."##;
         let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
@@ -776,9 +780,9 @@ RECOMMENDED to:
   capture all errors,
   regardless of whether they
   are defined within the
-  domain-specific set or not.
+  domain-specific set or not
 </ul>
-"##
+And something more."##
         );
         Ok(())
     }
