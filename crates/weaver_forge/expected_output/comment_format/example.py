@@ -56,6 +56,8 @@
 
   - Use a domain-specific attribute
   - Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+  And something more
   """
 
   ATTR: Final = ""

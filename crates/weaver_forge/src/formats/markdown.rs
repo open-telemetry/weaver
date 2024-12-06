@@ -628,7 +628,9 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 
 * Use a domain-specific attribute
-* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+And something more."##;
         let rendered_md = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &rendered_md,
@@ -650,7 +652,10 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 
   - Use a domain-specific attribute
-  - Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##
+  - Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+And something more.
+"##
         );
 
         let config = WeaverConfig {
@@ -835,7 +840,9 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 
 * Use a domain-specific attribute
-* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not."##;
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+And something more."##;
         let rendered_md = renderer.render(markdown, "go", None)?;
         assert_string_eq!(
             &rendered_md,
@@ -881,7 +888,10 @@ RECOMMENDED to:
     all errors, regardless of
     whether they are defined
     within the domain-specific
-    set or not."##
+    set or not
+
+And something more.
+"##
         );
 
         let config = WeaverConfig {

@@ -8,7 +8,7 @@ Note: This event identifies the fields that are common to all lifecycle events f
 Brief: This event represents an occurrence of a lifecycle transition on Android or iOS platform.
 
 Requirement level: 
-Stability: experimental
+Stability: development
 
 ### Attributes
 

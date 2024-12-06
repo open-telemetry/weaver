@@ -1,5 +1,4 @@
 {{- template.set_file_name("attributes/mod.rs") -}}
-
 /*
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
@@ -10,11 +9,12 @@
 
 use opentelemetry::{Key, KeyValue, StringValue};
 
+/// A constant indicating whether the attributes are enabled.
 pub const ATTRIBUTES_PARAM: bool = {{ params.attributes }};
 
 {% for attributes_root_namespace in ctx %}
-/// Attributes for the `{{ attributes_root_namespace.root_namespace }}` namespace.
-pub mod {{ attributes_root_namespace.root_namespace | snake_case }};
+//! Attributes for the `{{ attributes_root_namespace.root_namespace }}` namespace.
+//! pub mod {{ attributes_root_namespace.root_namespace | snake_case }};
 {% endfor %}
 
 /// A typed attribute key.
