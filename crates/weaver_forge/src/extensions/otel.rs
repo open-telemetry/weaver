@@ -278,7 +278,7 @@ pub(crate) fn is_stable(input: &Value) -> bool {
 }
 
 /// Checks if the input value is an object with a field named "stability" that has any value
-/// other than "stable" or "deprecated". Otherwise, it returns false.
+/// other than "stable". Otherwise, it returns false.
 #[must_use]
 pub(crate) fn is_experimental(input: &Value) -> bool {
     let result = input.get_attr("stability");
