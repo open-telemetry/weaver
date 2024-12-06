@@ -83,6 +83,8 @@ const DNS_QUESTION_NAME = ""
 //   - Use a domain-specific attribute
 //   - Set `error.type` to capture all errors, regardless of whether they are
 //     defined within the domain-specific set or not
+//
+// And something more
 const ERROR_TYPE = ""
 
 // Examples of comments for group other
