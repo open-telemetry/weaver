@@ -24,7 +24,6 @@ const SEMCONV_HEADER: &str = "semconv";
 /// exact string we expect for ending a semconv snippet.
 const SEMCONV_TRAILER: &str = "endsemconv";
 
-
 /// nom parser for tag values.
 fn parse_value(input: &str) -> IResult<&str, &str> {
     recognize(pair(
@@ -104,10 +103,13 @@ fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdow
     let (input, id) = parse_id(input)?;
     let (input, opt_args) = opt(parse_markdown_gen_parameters)(input)?;
     let (input, _) = multispace0(input)?;
-    Ok((input, GenerateMarkdownArgs {
-        id: id.to_owned(),
-        args: opt_args.unwrap_or(Vec::new()),
-    },))
+    Ok((
+        input,
+        GenerateMarkdownArgs {
+            id: id.to_owned(),
+            args: opt_args.unwrap_or(Vec::new()),
+        },
+    ))
 }
 
 /// nom parser for <!-- semconv {id}({args}) -->
@@ -117,7 +119,10 @@ fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs
     if remains.is_empty() {
         Ok((input, result))
     } else {
-        Err(nom::Err::Failure(ParseError::from_error_kind(remains, ErrorKind::IsNot)))
+        Err(nom::Err::Failure(ParseError::from_error_kind(
+            remains,
+            ErrorKind::IsNot,
+        )))
     }
 }
 
@@ -130,9 +135,11 @@ fn parse_semconv_trailer(input: &str) -> IResult<&str, ()> {
     if snippet.is_empty() {
         Ok((input, ()))
     } else {
-        Err(nom::Err::Failure(ParseError::from_error_kind(snippet, ErrorKind::Not)))
+        Err(nom::Err::Failure(ParseError::from_error_kind(
+            snippet,
+            ErrorKind::Not,
+        )))
     }
-    
 }
 
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
@@ -149,16 +156,9 @@ pub fn is_markdown_snippet_directive(line: &str) -> bool {
 pub fn parse_markdown_snippet_directive(line: &str) -> Result<GenerateMarkdownArgs, Error> {
     match parse_markdown_snippet_raw(line) {
         Ok((rest, result)) if rest.trim().is_empty() => Ok(result),
-        Ok((rest, _)) => {
-            println!("Failed to parse {line}, leftover: [{rest}]");
-            Err(Error::InvalidSnippetHeader { header: line.to_owned() })
-        },
-        Err(e) => {
-            println!("Failed to parse {line}, errors: [{e}]");
-            Err(Error::InvalidSnippetHeader {
-                header: line.to_owned(),
-            })
-        },
+        _ => Err(Error::InvalidSnippetHeader {
+            header: line.to_owned(),
+        }),
     }
 }
 
@@ -205,15 +205,9 @@ mod tests {
             "<!-- other semconv stuff -->"
         ));
         // Test ignoring whitespace
-        assert!(is_markdown_snippet_directive(
-            "<!-- semconv stuff-->"
-        ));
-        assert!(is_markdown_snippet_directive(
-            "<!--semconv stuff -->"
-        ));
-        assert!(is_markdown_snippet_directive(
-            "<!--semconv stuff-->"
-        ));
+        assert!(is_markdown_snippet_directive("<!-- semconv stuff-->"));
+        assert!(is_markdown_snippet_directive("<!--semconv stuff -->"));
+        assert!(is_markdown_snippet_directive("<!--semconv stuff-->"));
     }
 
     #[test]
@@ -245,8 +239,7 @@ mod tests {
             .iter()
             .any(|v| v == &MarkdownGenParameters::Tag("tech-specific-rabbitmq".into())));
 
-        let result =
-        parse_markdown_snippet_directive("<!--semconv stuff-->")?;
+        let result = parse_markdown_snippet_directive("<!--semconv stuff-->")?;
         assert_eq!(result.id, "stuff");
 
         Ok(())
