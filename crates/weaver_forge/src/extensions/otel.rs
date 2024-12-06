@@ -285,7 +285,7 @@ pub(crate) fn is_experimental(input: &Value) -> bool {
 
     if let Ok(stability) = result {
         if let Some(stability) = stability.as_str() {
-            return stability != "stable" && stability != "deprecated";
+            return stability != "stable";
         }
     }
     false
