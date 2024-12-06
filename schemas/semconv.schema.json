@@ -47,32 +47,56 @@
 				"id",
 				"brief"
 			],
-			"anyOf": [
+			"allOf": [
 				{
-					"required": [
-						"attributes"
-					]
+					"if": {
+						"properties": {
+							"type": {
+								"not": {
+									"anyOf": [
+										{
+											"const": "metric"
+										},
+										{
+											"const": "event"
+										}
+									]
+								}
+							}
+						}
+					},
+					"then": {
+						"anyOf": [
+							{
+								"required": [
+									"attributes"
+								]
+							},
+							{
+								"required": [
+									"extends"
+								]
+							}
+						]
+					}
 				},
 				{
-					"required": [
-						"extends"
-					]
-				}
-			],
-			"if": {
-				"properties": {
-					"type": {
-						"not": {
-							"const": "attribute_group"
+					"if": {
+						"properties": {
+							"type": {
+								"not": {
+									"const": "attribute_group"
+								}
+							}
 						}
+					},
+					"then": {
+						"required": [
+							"stability"
+						]
 					}
 				}
-			},
-			"then": {
-				"required": [
-					"stability"
-				]
-			},
+			],
 			"properties": {
 				"id": {
 					"type": "string",
@@ -505,11 +529,15 @@
 			]
 		},
 		"StabilityLevel": {
-			"description": "specifies the stability level. Can be 'stable' or 'experimental' (the default).",
+			"description": "specifies the stability level",
 			"type": "string",
 			"enum": [
 				"stable",
-				"experimental"
+				"development",
+				"deprecated",
+				"alpha",
+				"beta",
+				"release_candidate"
 			]
 		},
 		"Attribute": {

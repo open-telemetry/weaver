@@ -362,7 +362,7 @@ templates:
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"],
+        "exclude_stability": ["development"],
         "exclude_deprecated": true
       })
     application_mode: each 
@@ -436,7 +436,7 @@ templates:
     filter: >
       semconv_grouped_metrics({
         "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"],
+        "exclude_stability": ["development"],
         "exclude_deprecated": true
       })
     application_mode: each  
@@ -768,7 +768,6 @@ The resulting comment in JavaDoc format would be:
    * incididunt ut labore et dolore magna aliqua.
    * </ul>
    * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
-   * <p>
    * <h1>Summary</h1>
    * <h2>Examples</h2>
    * <ol>
@@ -790,8 +789,6 @@ The resulting comment in JavaDoc format would be:
    * It can contain multiple lines.
    * Lorem ipsum dolor sit amet, consectetur adipiscing
    * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
-   * 
-   * <p>
    * <blockquote>
    * [!NOTE] Something very important here</blockquote>
    */
@@ -895,7 +892,7 @@ In addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
 - `stable`: Tests if an `Attribute` is stable.
-- `experimental`: Tests if an `Attribute` is experimental.
+- `experimental`: Tests if an `Attribute` is experimental (not stable).
 - `deprecated`: Tests if an `Attribute` is deprecated.
 - `enum`: Tests if an attribute has an enum type.
 - `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean |

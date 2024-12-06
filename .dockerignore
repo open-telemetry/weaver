@@ -1,6 +1,5 @@
 # Rust related build artifacts.
 /target
-.cargo/
 wix/
 scripts/
 examples/

@@ -494,7 +494,7 @@ pub struct ResourcesVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for ResourcesVersionAttributeChanges<'a> {
+impl VersionAttributeChanges for ResourcesVersionAttributeChanges<'_> {
     /// Returns the new name of the given resource attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -507,7 +507,7 @@ pub struct MetricsVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for MetricsVersionAttributeChanges<'a> {
+impl VersionAttributeChanges for MetricsVersionAttributeChanges<'_> {
     /// Returns the new name of the given metric attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -520,7 +520,7 @@ pub struct LogsVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for LogsVersionAttributeChanges<'a> {
+impl VersionAttributeChanges for LogsVersionAttributeChanges<'_> {
     /// Returns the new name of the given log attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
@@ -533,7 +533,7 @@ pub struct SpansVersionAttributeChanges<'a> {
     version_changes: &'a VersionChanges,
 }
 
-impl<'a> VersionAttributeChanges for SpansVersionAttributeChanges<'a> {
+impl VersionAttributeChanges for SpansVersionAttributeChanges<'_> {
     /// Returns the new name of the given span attribute or the given name if the attribute
     /// has not been renamed.
     fn get_attribute_name(&self, name: &str) -> String {
