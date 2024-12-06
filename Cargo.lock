@@ -4671,6 +4671,7 @@ dependencies = [
  "weaver_common",
  "weaver_diff",
  "weaver_forge",
+ "weaver_otel_schema",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_semconv",
@@ -4789,6 +4790,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "weaver_otel_schema"
+version = "0.10.0"
+dependencies = [
+ "miette",
+ "serde",
+ "serde_yaml",
+ "thiserror 2.0.3",
+ "weaver_common",
+ "weaver_version",
+]
+
+[[package]]
 name = "weaver_resolved_schema"
 version = "0.11.0"
 dependencies = [
@@ -4827,12 +4840,14 @@ dependencies = [
  "glob",
  "miette",
  "ordered-float",
+ "regex",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
  "thiserror 2.0.4",
  "ureq",
+ "weaver_cache",
  "weaver_common",
 ]
 

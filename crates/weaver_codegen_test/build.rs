@@ -24,7 +24,6 @@ use weaver_semconv::registry::SemConvRegistry;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
 const TEMPLATES_PATH: &str = "./templates/registry/";
-const REGISTRY_ID: &str = "test";
 const TARGET: &str = "rust";
 const FOLLOW_SYMLINKS: bool = false;
 
@@ -50,7 +49,8 @@ fn main() {
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
-    let mut registry = SemConvRegistry::from_semconv_specs(REGISTRY_ID, semconv_specs);
+    let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
+        .unwrap_or_else(|e| process_error(&logger, e));
     let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
         .unwrap_or_else(|e| process_error(&logger, e));
 
@@ -62,13 +62,9 @@ fn main() {
     engine
         .import_jq_package(SEMCONV_JQ)
         .unwrap_or_else(|e| process_error(&logger, e));
-    let template_registry = ResolvedRegistry::try_from_resolved_registry(
-        schema
-            .registry(REGISTRY_ID)
-            .expect("Failed to get the registry from the resolved schema"),
-        schema.catalog(),
-    )
-    .unwrap_or_else(|e| process_error(&logger, e));
+    let template_registry =
+        ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
+            .unwrap_or_else(|e| process_error(&logger, e));
     let target_dir: PathBuf = target_dir.into();
     engine
         .generate(

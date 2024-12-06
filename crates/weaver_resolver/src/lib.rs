@@ -3,7 +3,6 @@
 #![doc = include_str!("../README.md")]
 
 use miette::Diagnostic;
-use std::collections::HashMap;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
 use rayon::iter::ParallelIterator;
@@ -243,18 +242,17 @@ impl SchemaResolver {
             attributes: attr_catalog.drain_attributes(),
         };
 
-        let mut registries = HashMap::new();
-        _ = registries.insert(registry.id().into(), resolved_registry);
-
         let resolved_schema = ResolvedTelemetrySchema {
             file_format: "1.0.0".to_owned(),
             schema_url: "".to_owned(),
-            registries,
+            registry_id: registry.id().into(),
+            registry: resolved_registry,
             catalog,
             resource: None,
             instrumentation_library: None,
             dependencies: vec![],
             versions: None, // ToDo LQ: Implement this!
+            registry_manifest: registry.manifest().cloned(),
         };
 
         Ok(resolved_schema)
