@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
+* Issue [#502](https://github.com/open-telemetry/weaver/issues/502) - Support stability definitions from [OTEP 232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md) - ([#504](https://github.com/open-telemetry/weaver/pull/504) by @jerbly).
+  * Stability enum now has these variants: `stable`, `development`, `deprecated`, `alpha`, `beta`, `release_candidate`
+  * `unmaintained` is not supported yet.
+  * `experimental` is still accepted when parsing but aliased to `development`.
+  * The minijinja test, `experimental`, now returns true for any variant other than `stable`.
+  * EBNF and JSON schema updated to define the new enum without the `experimental` variant.
+
 ## [0.11.0] - 2024-12-05
 
 What's changed
