@@ -64,6 +64,7 @@
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * And something more
    */
   static ERROR_TYPE = "";
 
