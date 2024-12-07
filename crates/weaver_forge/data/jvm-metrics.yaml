@@ -1,7 +1,6 @@
 groups:
   - id: attributes.jvm.memory
     type: attribute_group
-    prefix: THIS IS TO BE DELETED
     brief: "Describes JVM memory metric attributes."
     attributes:
       - id: jvm.memory.type
