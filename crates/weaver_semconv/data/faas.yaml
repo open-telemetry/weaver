@@ -42,7 +42,6 @@ groups:
       - id: faas.document.operation
         requirement_level: required
         type:
-          allow_custom_values: true
           members:
             - id: insert
               value: 'insert'

@@ -7,7 +7,6 @@ groups:
     attributes:
       - id: cloud.provider
         type:
-          allow_custom_values: true
           members:
             - id: 'alibaba_cloud'
               value: 'alibaba_cloud'
@@ -90,7 +89,6 @@ groups:
         examples: ['us-east-1c']
       - id: cloud.platform
         type:
-          allow_custom_values: true
           members:
             - id: alibaba_cloud_ecs
               value: 'alibaba_cloud_ecs'

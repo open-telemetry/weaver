@@ -12,6 +12,7 @@ What's changed
   * `experimental` is still accepted when parsing but aliased to `development`.
   * The minijinja test, `experimental`, now returns true for any variant other than `stable`.
   * EBNF and JSON schema updated to define the new enum without the `experimental` variant.
+* Issue [#301](https://github.com/open-telemetry/weaver/issues/301) - Warn against usage of `allow_custom_values`. ([#5??](https://github.com/open-telemetry/weaver/pull/5??) by @jerbly).
 
 ## [0.11.0] - 2024-12-05
 
