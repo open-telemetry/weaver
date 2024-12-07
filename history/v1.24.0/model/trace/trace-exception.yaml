@@ -1,0 +1,16 @@
+groups:
+  - id: trace-exception
+    prefix: exception
+    type: event
+    brief: >
+      This document defines the attributes used to
+      report a single exception associated with a span.
+    attributes:
+      - ref: exception.type
+      - ref: exception.message
+      - ref: exception.stacktrace
+      - ref: exception.escaped
+    constraints:
+      - any_of:
+          - "exception.type"
+          - "exception.message"

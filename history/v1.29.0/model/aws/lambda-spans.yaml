@@ -1,0 +1,8 @@
+groups:
+  - id: span.aws.lambda
+    type: span
+    brief: >
+      Span attributes used by AWS Lambda (in addition to general `faas` attributes).
+    attributes:
+      - ref: aws.lambda.invoked_arn
+        requirement_level: recommended
