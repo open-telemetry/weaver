@@ -1,0 +1,584 @@
+groups:
+  # General system attributes
+  - id: attributes.system
+    prefix: system
+    type: attribute_group
+    brief: "Describes System metric attributes"
+    attributes:
+      - id: device
+        type: string
+        stability: experimental
+        brief: "The device identifier"
+        examples: ["(identifier)"]
+
+  # system.cpu.* metrics and attribute group
+  - id: attributes.system.cpu
+    prefix: system.cpu
+    type: attribute_group
+    brief: "Describes System CPU metric attributes"
+    attributes:
+      - id: state
+        type:
+          allow_custom_values: true
+          members:
+            - id: user
+              value: 'user'
+              stability: experimental
+            - id: system
+              value: 'system'
+              stability: experimental
+            - id: nice
+              value: 'nice'
+              stability: experimental
+            - id: idle
+              value: 'idle'
+              stability: experimental
+            - id: iowait
+              value: 'iowait'
+              stability: experimental
+            - id: interrupt
+              value: 'interrupt'
+              stability: experimental
+            - id: steal
+              value: 'steal'
+              stability: experimental
+        brief: "The CPU state for this data point. A system's CPU SHOULD be characterized *either* by data points with no `state` labels, *or only* data points with `state` labels."
+        stability: experimental
+        examples: ["idle", "interrupt"]
+      - id: logical_number
+        type: int
+        stability: experimental
+        brief: "The logical CPU number [0..n-1]"
+        examples: [1]
+
+  - id: metric.system.cpu.time
+    type: metric
+    metric_name: system.cpu.time
+    stability: experimental
+    brief: "Seconds each logical CPU spent on each mode"
+    instrument: counter
+    unit: "s"
+    attributes:
+      - ref: system.cpu.state
+      - ref: system.cpu.logical_number
+
+  - id: metric.system.cpu.utilization
+    type: metric
+    metric_name: system.cpu.utilization
+    stability: experimental
+    brief: "Difference in system.cpu.time since the last measurement, divided by the elapsed time and number of logical CPUs"
+    instrument: gauge
+    unit: "1"
+    attributes:
+      - ref: system.cpu.state
+      - ref: system.cpu.logical_number
+
+  - id: metric.system.cpu.frequency
+    type: metric
+    metric_name: system.cpu.frequency
+    stability: experimental
+    brief: "Reports the current frequency of the CPU in Hz"
+    instrument: gauge
+    unit: "{Hz}"
+    attributes:
+      - ref: system.cpu.logical_number
+
+  - id: metric.system.cpu.physical.count
+    type: metric
+    metric_name: system.cpu.physical.count
+    stability: experimental
+    brief: "Reports the number of actual physical processor cores on the hardware"
+    instrument: updowncounter
+    unit: "{cpu}"
+    attributes: []
+
+  - id: metric.system.cpu.logical.count
+    type: metric
+    metric_name: system.cpu.logical.count
+    stability: experimental
+    brief: "Reports the number of logical (virtual) processor cores created by the operating system to manage multitasking"
+    instrument: updowncounter
+    unit: "{cpu}"
+    attributes: []
+
+  # sytem.memory.* metrics and attribute group
+  - id: attributes.system.memory
+    prefix: system.memory
+    type: attribute_group
+    brief: "Describes System Memory metric attributes"
+    attributes:
+      - id: state
+        type:
+          allow_custom_values: true
+          members:
+            - id: used
+              value: 'used'
+              stability: experimental
+            - id: free
+              value: 'free'
+              stability: experimental
+            - id: shared
+              value: 'shared'
+              stability: experimental
+            - id: buffers
+              value: 'buffers'
+              stability: experimental
+            - id: cached
+              value: 'cached'
+              stability: experimental
+        stability: experimental
+        brief: "The memory state"
+        examples: ["free", "cached"]
+
+  - id: metric.system.memory.usage
+    type: metric
+    metric_name: system.memory.usage
+    stability: experimental
+    brief: "Reports memory in use by state."
+    note: |
+      The sum over all `system.memory.state` values SHOULD equal the total memory
+      available on the system, that is `system.memory.limit`.
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: system.memory.state
+
+  - id: metric.system.memory.limit
+    type: metric
+    metric_name: system.memory.limit
+    stability: experimental
+    brief: "Total memory available in the system."
+    note: |
+      Its value SHOULD equal the sum of `system.memory.state` over all states.
+    instrument: updowncounter
+    unit: "By"
+
+  - id: metric.system.memory.utilization
+    type: metric
+    metric_name: system.memory.utilization
+    stability: experimental
+    brief: ""
+    instrument: gauge
+    unit: "1"
+    attributes:
+      - ref: system.memory.state
+
+  # system.paging.* metrics and attribute group
+  - id: attributes.system.paging
+    prefix: system.paging
+    type: attribute_group
+    brief: "Describes System Memory Paging metric attributes"
+    attributes:
+      - id: state
+        type:
+          allow_custom_values: false
+          members:
+            - id: used
+              value: 'used'
+              stability: experimental
+            - id: free
+              value: 'free'
+              stability: experimental
+        stability: experimental
+        brief: "The memory paging state"
+        examples: ["free"]
+      - id: type
+        type:
+          allow_custom_values: false
+          members:
+            - id: major
+              value: 'major'
+              stability: experimental
+            - id: minor
+              value: 'minor'
+              stability: experimental
+        stability: experimental
+        brief: "The memory paging type"
+        examples: ["minor"]
+      - id: direction
+        type:
+          allow_custom_values: false
+          members:
+            - id: in
+              value: 'in'
+              stability: experimental
+            - id: out
+              value: 'out'
+              stability: experimental
+        stability: experimental
+        brief: "The paging access direction"
+        examples: ["in"]
+  - id: metric.system.paging.usage
+    type: metric
+    metric_name: system.paging.usage
+    stability: experimental
+    brief: "Unix swap or windows pagefile usage"
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: system.paging.state
+
+  - id: metric.system.paging.utilization
+    type: metric
+    metric_name: system.paging.utilization
+    stability: experimental
+    brief: ""
+    instrument: gauge
+    unit: "1"
+    attributes:
+      - ref: system.paging.state
+
+  - id: metric.system.paging.faults
+    type: metric
+    metric_name: system.paging.faults
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "{fault}"
+    attributes:
+      - ref: system.paging.type
+
+  - id: metric.system.paging.operations
+    type: metric
+    metric_name: system.paging.operations
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "{operation}"
+    attributes:
+      - ref: system.paging.type
+      - ref: system.paging.direction
+
+  # system.disk.* metrics and attribute group
+  - id: metric.system.disk.io
+    type: metric
+    metric_name: system.disk.io
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "By"
+    attributes:
+      - ref: system.device
+      - ref: disk.io.direction
+
+  - id: metric.system.disk.operations
+    type: metric
+    metric_name: system.disk.operations
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "{operation}"
+    attributes:
+      - ref: system.device
+      - ref: disk.io.direction
+
+  - id: metric.system.disk.io_time
+    type: metric
+    metric_name: system.disk.io_time
+    stability: experimental
+    brief: "Time disk spent activated"
+    instrument: counter
+    unit: "s"
+    note: |
+       The real elapsed time ("wall clock") used in the I/O path (time from operations running in parallel are not counted). Measured as:
+
+       - Linux: Field 13 from [procfs-diskstats](https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats)
+       - Windows: The complement of
+         ["Disk\% Idle Time"](https://learn.microsoft.com/archive/blogs/askcore/windows-performance-monitor-disk-counters-explained#windows-performance-monitor-disk-counters-explained)
+         performance counter: `uptime * (100 - "Disk\% Idle Time") / 100`
+    attributes:
+      - ref: system.device
+
+  - id: metric.system.disk.operation_time
+    type: metric
+    metric_name: system.disk.operation_time
+    stability: experimental
+    brief: "Sum of the time each operation took to complete"
+    instrument: counter
+    unit: "s"
+    note: |
+       Because it is the sum of time each request took, parallel-issued requests each contribute to make the count grow. Measured as:
+
+       - Linux: Fields 7 & 11 from [procfs-diskstats](https://www.kernel.org/doc/Documentation/ABI/testing/procfs-diskstats)
+       - Windows: "Avg. Disk sec/Read" perf counter multiplied by "Disk Reads/sec" perf counter (similar for Writes)
+    attributes:
+      - ref: system.device
+      - ref: disk.io.direction
+
+  - id: metric.system.disk.merged
+    type: metric
+    metric_name: system.disk.merged
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "{operation}"
+    attributes:
+      - ref: system.device
+      - ref: disk.io.direction
+
+  # system.filesystem.* metrics and attribute group
+  - id: attributes.system.filesystem
+    prefix: system.filesystem
+    type: attribute_group
+    brief: "Describes Filesystem metric attributes"
+    attributes:
+      - id: state
+        brief: "The filesystem state"
+        type:
+          allow_custom_values: false
+          members:
+            - id: used
+              value: 'used'
+              stability: experimental
+            - id: free
+              value: 'free'
+              stability: experimental
+            - id: reserved
+              value: 'reserved'
+              stability: experimental
+        stability: experimental
+        examples: ["used"]
+      - id: type
+        type:
+          allow_custom_values: true
+          members:
+            - id: fat32
+              value: 'fat32'
+              stability: experimental
+            - id: exfat
+              value: 'exfat'
+              stability: experimental
+            - id: ntfs
+              value: 'ntfs'
+              stability: experimental
+            - id: refs
+              value: 'refs'
+              stability: experimental
+            - id: hfsplus
+              value: 'hfsplus'
+              stability: experimental
+            - id: ext4
+              value: 'ext4'
+              stability: experimental
+        stability: experimental
+        brief: "The filesystem type"
+        examples: ["ext4"]
+      - id: mode
+        type: string
+        stability: experimental
+        brief: "The filesystem mode"
+        examples: ["rw, ro"]
+      - id: mountpoint
+        type: string
+        stability: experimental
+        brief: "The filesystem mount path"
+        examples: ["/mnt/data"]
+
+  - id: metric.system.filesystem.usage
+    type: metric
+    metric_name: system.filesystem.usage
+    stability: experimental
+    brief: ""
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: system.device
+      - ref: system.filesystem.state
+      - ref: system.filesystem.type
+      - ref: system.filesystem.mode
+      - ref: system.filesystem.mountpoint
+
+  - id: metric.system.filesystem.utilization
+    type: metric
+    metric_name: system.filesystem.utilization
+    stability: experimental
+    brief: ""
+    instrument: gauge
+    unit: "1"
+    attributes:
+      - ref: system.device
+      - ref: system.filesystem.state
+      - ref: system.filesystem.type
+      - ref: system.filesystem.mode
+      - ref: system.filesystem.mountpoint
+
+  # system.network.* metrics and attribute group
+
+  # System-specific network attributes
+  - id: attributes.system.network
+    prefix: system.network
+    type: attribute_group
+    brief: "Describes Network metric attributes"
+    attributes:
+      - id: state
+        type:
+          allow_custom_values: false
+          members:
+            - id: close
+              value: 'close'
+              stability: experimental
+            - id: close_wait
+              value: 'close_wait'
+              stability: experimental
+            - id: closing
+              value: 'closing'
+              stability: experimental
+            - id: delete
+              value: 'delete'
+              stability: experimental
+            - id: established
+              value: 'established'
+              stability: experimental
+            - id: fin_wait_1
+              value: 'fin_wait_1'
+              stability: experimental
+            - id: fin_wait_2
+              value: 'fin_wait_2'
+              stability: experimental
+            - id: last_ack
+              value: 'last_ack'
+              stability: experimental
+            - id: listen
+              value: 'listen'
+              stability: experimental
+            - id: syn_recv
+              value: 'syn_recv'
+              stability: experimental
+            - id: syn_sent
+              value: 'syn_sent'
+              stability: experimental
+            - id: time_wait
+              value: 'time_wait'
+              stability: experimental
+        stability: experimental
+        brief: "A stateless protocol MUST NOT set this attribute"
+        examples: ["close_wait"]
+
+  - id: metric.system.network.dropped
+    type: metric
+    metric_name: system.network.dropped
+    stability: experimental
+    brief: "Count of packets that are dropped or discarded even though there was no error"
+    instrument: counter
+    unit: "{packet}"
+    note: |
+      Measured as:
+
+      - Linux: the `drop` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html))
+      - Windows: [`InDiscards`/`OutDiscards`](https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)
+        from [`GetIfEntry2`](https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2)
+    attributes:
+      - ref: system.device
+      - ref: network.io.direction
+
+  - id: metric.system.network.packets
+    type: metric
+    metric_name: system.network.packets
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "{packet}"
+    attributes:
+      - ref: system.device
+      - ref: network.io.direction
+
+  - id: metric.system.network.errors
+    type: metric
+    metric_name: system.network.errors
+    stability: experimental
+    brief: "Count of network errors detected"
+    instrument: counter
+    unit: "{error}"
+    note: |
+      Measured as:
+
+      - Linux: the `errs` column in `/proc/dev/net` ([source](https://web.archive.org/web/20180321091318/http://www.onlamp.com/pub/a/linux/2000/11/16/LinuxAdmin.html)).
+      - Windows: [`InErrors`/`OutErrors`](https://docs.microsoft.com/windows/win32/api/netioapi/ns-netioapi-mib_if_row2)
+        from [`GetIfEntry2`](https://docs.microsoft.com/windows/win32/api/netioapi/nf-netioapi-getifentry2).
+    attributes:
+      - ref: system.device
+      - ref: network.io.direction
+
+  - id: metric.system.network.io
+    type: metric
+    metric_name: system.network.io
+    stability: experimental
+    brief: ""
+    instrument: counter
+    unit: "By"
+    attributes:
+      - ref: system.device
+      - ref: network.io.direction
+
+  - id: metric.system.network.connections
+    type: metric
+    metric_name: system.network.connections
+    stability: experimental
+    brief: ""
+    instrument: updowncounter
+    unit: "{connection}"
+    attributes:
+      - ref: system.device
+      - ref: system.network.state
+      - ref: network.transport
+
+  # system.process.* metrics and attribute group
+  - id: attributes.system.process
+    prefix: system.process
+    type: attribute_group
+    brief: "Describes System Process metric attributes"
+    attributes:
+      - id: status
+        type:
+          allow_custom_values: true
+          members:
+            - id: running
+              value: 'running'
+              stability: experimental
+            - id: sleeping
+              value: 'sleeping'
+              stability: experimental
+            - id: stopped
+              value: 'stopped'
+              stability: experimental
+            - id: defunct
+              value: 'defunct'
+              stability: experimental
+        stability: experimental
+        brief: >
+          The process state, e.g., [Linux Process State Codes](https://man7.org/linux/man-pages/man1/ps.1.html#PROCESS_STATE_CODES)
+        examples: ["running"]
+
+
+  - id: metric.system.process.count
+    type: metric
+    metric_name: system.process.count
+    stability: experimental
+    brief: "Total number of processes in each state"
+    instrument: updowncounter
+    unit: "{process}"
+    attributes:
+      - ref: system.process.status
+
+  - id: metric.system.process.created
+    type: metric
+    metric_name: system.process.created
+    stability: experimental
+    brief: "Total number of processes created over uptime of the host"
+    instrument: counter
+    unit: "{process}"
+
+  # system.linux.* metrics
+  - id: metric.system.linux.memory.available
+    type: metric
+    metric_name: system.linux.memory.available
+    stability: experimental
+    brief: "An estimate of how much memory is available for starting new applications, without causing swapping"
+    note: |
+      This is an alternative to `system.memory.usage` metric with `state=free`.
+      Linux starting from 3.14 exports "available" memory. It takes "free" memory as a baseline, and then factors in kernel-specific values.
+      This is supposed to be more accurate than just "free" memory.
+      For reference, see the calculations [here](https://superuser.com/a/980821).
+      See also `MemAvailable` in [/proc/meminfo](https://man7.org/linux/man-pages/man5/proc.5.html).
+    instrument: updowncounter
+    unit: "By"
