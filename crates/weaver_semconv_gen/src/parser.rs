@@ -5,6 +5,9 @@
 use crate::Error;
 use crate::GenerateMarkdownArgs;
 use crate::MarkdownGenParameters;
+use nom::bytes::complete::take_until;
+use nom::error::ErrorKind;
+use nom::error::ParseError;
 use nom::multi::many0_count;
 use nom::{
     branch::alt,
@@ -16,8 +19,10 @@ use nom::{
     IResult,
 };
 
+/// exact string we expect for starting a semconv snippet.
+const SEMCONV_HEADER: &str = "semconv";
 /// exact string we expect for ending a semconv snippet.
-const SEMCONV_TRAILER: &str = "<!-- endsemconv -->";
+const SEMCONV_TRAILER: &str = "endsemconv";
 
 /// nom parser for tag values.
 fn parse_value(input: &str) -> IResult<&str, &str> {
@@ -78,17 +83,26 @@ fn parse_id(input: &str) -> IResult<&str, &str> {
     ))(input)
 }
 
-/// nom parser for <!-- semconv {id}({args}) -->
-fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs> {
+/// nom parser for HTML comments: `<!--{comment}-->
+fn parse_html_comment(input: &str) -> IResult<&str, &str> {
+    // Comments must have the following format:
+    // The string "<!--".
     let (input, _) = tag("<!--")(input)?;
+    // Optionally, text, with the additional restriction that the text must not start with the string ">", nor start with the string "->", nor contain the strings "<!--", "-->", or "--!>", nor end with the string "<!-".
+    let (input, result) = take_until("-->")(input)?;
+    // The string "-->".
+    let (input, _) = tag("-->")(input)?;
+    Ok((input, result))
+}
+
+/// Parses the semantic convention header and directives for markdown generation.
+fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdownArgs> {
     let (input, _) = multispace0(input)?;
-    let (input, _) = tag("semconv")(input)?;
+    let (input, _) = tag(SEMCONV_HEADER)(input)?;
     let (input, _) = multispace0(input)?;
     let (input, id) = parse_id(input)?;
     let (input, opt_args) = opt(parse_markdown_gen_parameters)(input)?;
     let (input, _) = multispace0(input)?;
-    let (input, _) = tag("-->")(input)?;
-
     Ok((
         input,
         GenerateMarkdownArgs {
@@ -98,10 +112,39 @@ fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs
     ))
 }
 
+/// nom parser for <!-- semconv {id}({args}) -->
+fn parse_markdown_snippet_raw(input: &str) -> IResult<&str, GenerateMarkdownArgs> {
+    let (input, snippet) = parse_html_comment(input)?;
+    let (remains, result) = parse_semconv_snippet_directive(snippet)?;
+    if remains.is_empty() {
+        Ok((input, result))
+    } else {
+        Err(nom::Err::Failure(ParseError::from_error_kind(
+            remains,
+            ErrorKind::IsNot,
+        )))
+    }
+}
+
+/// nom parser for <!-- endsemconv -->
+fn parse_semconv_trailer(input: &str) -> IResult<&str, ()> {
+    let (input, snippet) = parse_html_comment(input)?;
+    let (snippet, _) = multispace0(snippet)?;
+    let (snippet, _) = tag(SEMCONV_TRAILER)(snippet)?;
+    let (snippet, _) = multispace0(snippet)?;
+    if snippet.is_empty() {
+        Ok((input, ()))
+    } else {
+        Err(nom::Err::Failure(ParseError::from_error_kind(
+            snippet,
+            ErrorKind::Not,
+        )))
+    }
+}
+
 /// Returns true if the line is the <!-- endsemconv --> marker for markdown snippets.
 pub fn is_semconv_trailer(line: &str) -> bool {
-    // TODO - more flexibility in what we recognize here.
-    line.trim() == SEMCONV_TRAILER
+    matches!(parse_semconv_trailer(line), Ok((rest, _)) if rest.trim().is_empty())
 }
 
 /// Returns true if the line begins a markdown snippet directive and needs tobe parsed.
@@ -130,6 +173,10 @@ mod tests {
     fn recognizes_trailer() {
         assert!(is_semconv_trailer("<!-- endsemconv -->"));
         assert!(!is_semconv_trailer("<!-- endsemconvded -->"));
+        // Add whitespace friendly versions
+        assert!(is_semconv_trailer("<!--endsemconv-->"));
+        assert!(is_semconv_trailer("<!-- endsemconv-->"));
+        assert!(is_semconv_trailer("<!--endsemconv -->"));
     }
 
     #[test]
@@ -157,6 +204,10 @@ mod tests {
         assert!(!is_markdown_snippet_directive(
             "<!-- other semconv stuff -->"
         ));
+        // Test ignoring whitespace
+        assert!(is_markdown_snippet_directive("<!-- semconv stuff-->"));
+        assert!(is_markdown_snippet_directive("<!--semconv stuff -->"));
+        assert!(is_markdown_snippet_directive("<!--semconv stuff-->"));
     }
 
     #[test]
@@ -187,6 +238,9 @@ mod tests {
             .args
             .iter()
             .any(|v| v == &MarkdownGenParameters::Tag("tech-specific-rabbitmq".into())));
+
+        let result = parse_markdown_snippet_directive("<!--semconv stuff-->")?;
+        assert_eq!(result.id, "stuff");
 
         Ok(())
     }
