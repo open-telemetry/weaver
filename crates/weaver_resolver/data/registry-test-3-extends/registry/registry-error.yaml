@@ -9,7 +9,6 @@ groups:
         brief: >
           Describes a class of error the operation ended with.
         type:
-          allow_custom_values: true
           members:
             - id: other
               value: "_OTHER"

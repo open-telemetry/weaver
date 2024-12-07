@@ -5,7 +5,6 @@ groups:
     attributes:
       - id: jvm.memory.type
         type:
-          allow_custom_values: false
           members:
             - id: heap
               value: 'heap'

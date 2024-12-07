@@ -11,7 +11,6 @@ groups:
         brief: An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
         requirement_level: required
         type:
-          allow_custom_values: true
           members:
             - id: other_sql
               value: 'other_sql'
@@ -487,7 +486,6 @@ groups:
         examples: '3ba4827d-4422-483f-b59f-85b74211c11d'
       - id: db.cosmosdb.operation_type
         type:
-          allow_custom_values: true
           members:
             - id: invalid
               value: 'Invalid'
@@ -538,7 +536,6 @@ groups:
         examples: ['cosmos-netstandard-sdk/3.23.0\|3.23.1\|1\|X64\|Linux 5.4.0-1098-azure 104 18\|.NET Core 3.1.32\|S\|']
       - id: db.cosmosdb.connection_mode
         type:
-          allow_custom_values: false
           members:
             - id: gateway
               value: 'gateway'

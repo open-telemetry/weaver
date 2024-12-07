@@ -118,7 +118,6 @@ groups:
         examples: 1439
       - id: messaging.operation
         type:
-          allow_custom_values: true
           members:
             - id: publish
               value: "publish"
@@ -155,7 +154,6 @@ groups:
         examples: "myConsumerGroup"
       - id: messaging.rocketmq.consumption_model
         type:
-          allow_custom_values: false
           members:
             - id: clustering
               value: "clustering"
@@ -192,7 +190,6 @@ groups:
         examples: tagA
       - id: messaging.rocketmq.message.type
         type:
-          allow_custom_values: false
           members:
             - id: normal
               value: "normal"
@@ -222,7 +219,6 @@ groups:
         brief: >
           An identifier for the messaging system being used. See below for a list of well-known identifiers.
         type:
-          allow_custom_values: true
           members:
             - id: activemq
               value: "activemq"

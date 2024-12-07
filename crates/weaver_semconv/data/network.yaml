@@ -6,7 +6,6 @@ groups:
     attributes:
       - id: network.transport
         type:
-          allow_custom_values: true
           members:
             - id: tcp
               value: 'tcp'
@@ -27,7 +26,6 @@ groups:
         examples: ['tcp', 'udp']
       - id: network.type
         type:
-          allow_custom_values: true
           members:
             - id: ipv4
               value: 'ipv4'
@@ -61,7 +59,6 @@ groups:
     attributes:
       - id: network.connection.type
         type:
-          allow_custom_values: true
           members:
             - id: wifi
               value: "wifi"
@@ -77,7 +74,6 @@ groups:
         examples: 'wifi'
       - id: network.connection.subtype
         type:
-          allow_custom_values: true
           members:
             - id: gprs
               brief: GPRS

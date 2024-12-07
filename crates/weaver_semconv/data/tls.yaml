@@ -98,7 +98,6 @@ groups:
         brief: >
           Normalized lowercase protocol name parsed from original string of the negotiated [SSL/TLS protocol version](https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html#RETURN-VALUES)
         type:
-          allow_custom_values: true
           members:
             - id: ssl
               value: ssl

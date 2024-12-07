@@ -6,7 +6,6 @@ groups:
       - id: jvm.memory.type
         stability: stable
         type:
-          allow_custom_values: false
           members:
             - id: heap
               value: 'heap'
@@ -106,7 +105,6 @@ groups:
         stability: stable
         requirement_level: recommended
         type:
-          allow_custom_values: false
           members:
             - id: new
               value: 'new'

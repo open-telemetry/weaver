@@ -7,7 +7,6 @@ groups:
       - id: faas.trigger
         brief: 'Type of the trigger which caused this function invocation.'
         type:
-          allow_custom_values: false
           members:
             - id: datasource
               value: 'datasource'
@@ -35,7 +34,6 @@ groups:
         examples: 'my-function'
       - id: faas.invoked_provider
         type:
-          allow_custom_values: true
           members:
             - id: 'alibaba_cloud'
               value: 'alibaba_cloud'

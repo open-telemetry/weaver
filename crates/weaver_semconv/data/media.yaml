@@ -8,7 +8,6 @@ groups:
         brief: >
           The stream associated with the log. See below for a list of well-known values.
         type:
-          allow_custom_values: false
           members:
             - id: stdout
               value: 'stdout'

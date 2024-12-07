@@ -30,7 +30,6 @@ groups:
       - id: http.request.method
         stability: stable
         type:
-          allow_custom_values: true
           members:
             - id: connect
               value: "CONNECT"
