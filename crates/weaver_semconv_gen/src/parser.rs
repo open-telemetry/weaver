@@ -90,6 +90,17 @@ fn parse_html_comment(input: &str) -> IResult<&str, &str> {
     let (input, _) = tag("<!--")(input)?;
     // Optionally, text, with the additional restriction that the text must not start with the string ">", nor start with the string "->", nor contain the strings "<!--", "-->", or "--!>", nor end with the string "<!-".
     let (input, result) = take_until("-->")(input)?;
+
+    // Check for spacing issues and warn if found
+    if result.starts_with("semconv") && !input.trim().starts_with("semconv ") {
+        // Missing space after "<!--"
+        eprintln!("Warning: Missing space after '<!--' in semconv comment: {}", result);
+    }
+    if result.ends_with("semconv") && !result.trim().ends_with(" semconv") {
+        // Missing space before "-->"
+        eprintln!("Warning: Missing space before '-->' in semconv comment: {}", result);
+    }
+
     // The string "-->".
     let (input, _) = tag("-->")(input)?;
     Ok((input, result))
