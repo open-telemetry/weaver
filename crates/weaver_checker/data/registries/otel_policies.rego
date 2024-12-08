@@ -22,7 +22,7 @@ deny[attr_registry_violation("registry_with_ref_attr", group.id, attr.ref)] {
 deny[attr_violation("attr_stability_deprecated", group.id, attr.id)] {
     group := input.groups[_]
     attr := group.attributes[_]
-    attr.stability != "deprecaded"
+    attr.stability != "deprecated"
     attr.deprecated
 }
 
@@ -50,7 +50,7 @@ attr_registry_violation(violation_id, group_id, attr_id) = violation {
     violation := {
         "id": violation_id,
         "type": "semconv_attribute",
-        "category": "attrigute_registry",
+        "category": "attribute_registry",
         "group": group_id,
         "attr": attr_id,
     }
@@ -61,7 +61,7 @@ attr_violation(violation_id, group_id, attr_id) = violation {
     violation := {
         "id": violation_id,
         "type": "semconv_attribute",
-        "category": "attrigute",
+        "category": "attribute",
         "group": group_id,
         "attr": attr_id,
     }
