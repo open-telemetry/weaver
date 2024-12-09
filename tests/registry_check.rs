@@ -66,7 +66,8 @@ fn test_history() {
 
     for entry in entries {
         let path = std::path::Path::new(root).join(&entry);
-        if path.is_dir() {
+        // Check if the path is a zip file
+        if path.is_file() && path.extension().unwrap() == "zip" {
             let path_str = path.to_str().unwrap();
             let mut cmd = Command::cargo_bin("weaver").unwrap();
             let output = cmd
