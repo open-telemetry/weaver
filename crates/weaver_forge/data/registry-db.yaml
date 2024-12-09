@@ -87,7 +87,6 @@ groups:
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.connection_mode
         type:
-          allow_custom_values: false
           members:
             - id: gateway
               value: 'gateway'
@@ -104,7 +103,6 @@ groups:
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.operation_type
         type:
-          allow_custom_values: true
           members:
             - id: invalid
               value: 'Invalid'
@@ -256,7 +254,6 @@ groups:
       - id: db.system
         brief: An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
         type:
-          allow_custom_values: true
           members:
             - id: other_sql
               value: 'other_sql'
