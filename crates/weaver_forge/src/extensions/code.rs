@@ -370,6 +370,7 @@ And something more..  "#;
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
    * And something more
    */"##
         );
@@ -401,6 +402,7 @@ And something more..  "#;
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
    * And something more
    */"##
         );
@@ -432,6 +434,7 @@ And something more..  "#;
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
    * And something more
    */"##
         );
@@ -463,6 +466,7 @@ And something more..  "#;
 		 *   <li>Use a domain-specific attribute
 		 *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
 		 * </ul>
+		 * <p>
 		 * And something more
 		 */"##
         );
@@ -523,6 +527,7 @@ And something more..  "#;
  *   are defined within the
  *   domain-specific set or not
  * </ul>
+ * <p>
  * And something more
  */"##
         );

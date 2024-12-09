@@ -64,6 +64,7 @@
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
    * And something more
    */
   static ERROR_TYPE = "";
@@ -87,6 +88,7 @@
    * adipiscing elit sed do eiusmod tempor
    * incididunt ut labore et dolore magna aliqua.
    * </ul>
+   * <p>
    * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
    * <h1>Summary</h1>
    * <h2>Examples</h2>
@@ -109,7 +111,6 @@
    * It can contain multiple lines.
    * Lorem ipsum dolor sit amet, consectetur adipiscing
    * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
-   *
    * <blockquote>
    * [!NOTE] Something very important here</blockquote>
    */

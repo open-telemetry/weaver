@@ -529,11 +529,15 @@
 			]
 		},
 		"StabilityLevel": {
-			"description": "specifies the stability level. Can be 'stable' or 'experimental' (the default).",
+			"description": "specifies the stability level",
 			"type": "string",
 			"enum": [
 				"stable",
-				"experimental"
+				"development",
+				"deprecated",
+				"alpha",
+				"beta",
+				"release_candidate"
 			]
 		},
 		"Attribute": {

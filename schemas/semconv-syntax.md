@@ -59,8 +59,12 @@ note  ::= string
 
 extends ::= string
 
-stability ::= "experimental"
-          |   "stable"
+stability ::= "stable"
+          |   "development"
+          |   "deprecated"
+          |   "alpha"
+          |   "beta"
+          |   "release_candidate"
 
 deprecated ::= <description>
 
@@ -164,7 +168,7 @@ The field `semconv` represents a semantic convention and it is made by:
 - `id`, string that uniquely identifies the semantic convention.
 - `type`, optional enum, defaults to `span` (with a warning if not present).
 - `brief`, string, a brief description of the semantic convention.
-- `stability`, required enum, either `stable` or `experimental`, specifies the stability of the attribute.
+- `stability`, required enum, specifies the stability of the attribute.
 - `note`, optional string, a more elaborate description of the semantic convention.
    It defaults to an empty string.
 - `extends`, optional string, reference another semantic convention `id`.
@@ -195,7 +199,7 @@ The following is only valid if `type` is `event`:
     name: the.event.name
     type: event
     brief: "Describes the event."
-    stability: experimental
+    stability: development
     attributes:                                  # Optional
       - ref: registry.attribute.id
       - ref: registry.some_other.attribute.id    # Reference to an existing global attribute
@@ -206,36 +210,36 @@ The following is only valid if `type` is `event`:
       fields:                                    # Unique to this event definition only
         - id: method
           type: string
-          stability: experimental
+          stability: development
           brief: "The HTTP method used in the request."
           examples: ['GET', 'POST']
           requirement_level: required
         - id: url
           type: string
-          stability: experimental
+          stability: development
           brief: "The URL of the request."
           examples: ['http://example.com']
           requirement_level: required
         - id: status_code
           type: int
-          stability: experimental
+          stability: development
           brief: "The status code of the response."
           examples: [200, 404]
           requirement_level: required
         - id: nested_map
           type: map
-          stability: experimental
+          stability: development
           requirement_level: required
           fields:
             - id: nested_field
               type: string    # May be any supported any_value type
-              stability: experimental
+              stability: development
               requirement_level: required
               brief: "A nested field."
               examples: ['nested_value']
         - id: nested_enum_state
           type: enum
-          stability: experimental
+          stability: development
           requirement_level: required
           members:
             - id: active
@@ -327,7 +331,7 @@ An attribute is defined by:
     * `"boolean[]"`: Array of boolean attributes.
   * _template type as string literal:_ `"template[<PRIMITIVE_OR_ARRAY_TYPE>]"` (See [below](#template-type))
   See the [specification of Attributes](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute) for the definition of the value types.
-- `stability`, required enum, either `stable` or `experimental`, specifies the stability of the attribute.
+- `stability`, required enum, specifies the stability of the attribute.
 - `ref`, optional string, reference an existing attribute, see [below](#ref).
 - `tag`, optional string, associates a tag ("sub-group") to the attribute.
    It carries no particular semantic meaning but can be used e.g. for filtering
@@ -477,6 +481,6 @@ An enum entry has the following fields:
 - `value`, string, int, or boolean; value of the enum entry.
 - `brief`, optional string, brief description of the enum entry value. It defaults to the value of `id`.
 - `note`, optional string, longer description. It defaults to an empty string.
-- `stability`, required stability level. Attributes marked as experimental cannot have stable members.
+- `stability`, required stability level. Attributes marked non-stable cannot have stable members.
 - `deprecated`, optional string, similarly to semantic convention and attribute deprecation, marks specific member as deprecated.
 

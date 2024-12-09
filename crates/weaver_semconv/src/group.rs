@@ -894,7 +894,7 @@ mod tests {
             }),
             result
         );
-        group.stability = Some(Stability::Experimental);
+        group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -911,7 +911,7 @@ mod tests {
             }),
             result
         );
-        group.stability = Some(Stability::Experimental);
+        group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -929,7 +929,7 @@ mod tests {
             }),
             result
         );
-        group.stability = Some(Stability::Experimental);
+        group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -950,7 +950,7 @@ mod tests {
             }),
             result
         );
-        group.stability = Some(Stability::Experimental);
+        group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -969,7 +969,7 @@ mod tests {
             }),
             result
         );
-        group.stability = Some(Stability::Experimental);
+        group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -987,7 +987,7 @@ mod tests {
             }),
             result
         );
-        group.stability = Some(Stability::Experimental);
+        group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
