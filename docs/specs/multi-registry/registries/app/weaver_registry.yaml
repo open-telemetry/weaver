@@ -1,0 +1,15 @@
+name: my_app
+version: 1.0.0
+schema_url: https://mycompany.com/schemas/my_app/1.0.0
+owner:
+  name: MyCompany
+  contact: registry@mycompany.com
+maintainers:
+  - name: John Doe
+dependencies:
+  - name: otel
+    version: 1.27.0
+    repository: https://opentelemetry.io/registries/
+  - name: acme
+    version: 0.7.1
+    repository: https://github.com/acme-http-server-lib/registries/
