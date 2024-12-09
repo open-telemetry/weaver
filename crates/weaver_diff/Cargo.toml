@@ -1,6 +1,6 @@
 [package]
 name = "weaver_diff"
-version = "0.10.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -10,8 +10,8 @@ rust-version.workspace = true
 
 [dependencies]
 walkdir.workspace = true
+serde_json.workspace = true
 similar = "2.5.0"
-
 
 [lints]
 workspace = true

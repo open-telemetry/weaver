@@ -3,9 +3,8 @@ groups:
     type: attribute_group
     brief: "Describes FaaS attributes."
     display_name: "FaaS Attributes"
-    prefix: faas
     attributes:
-      - id: trigger
+      - id: faas.trigger
         brief: 'Type of the trigger which caused this function invocation.'
         type:
           allow_custom_values: false
@@ -25,7 +24,7 @@ groups:
             - id: other
               value: 'other'
               brief: 'If none of the others apply'
-      - id: invoked_name
+      - id: faas.invoked_name
         type: string
         requirement_level: required
         brief: >
@@ -34,7 +33,7 @@ groups:
           SHOULD be equal to the `faas.name` resource attribute of the
           invoked function.
         examples: 'my-function'
-      - id: invoked_provider
+      - id: faas.invoked_provider
         type:
           allow_custom_values: true
           members:
@@ -59,7 +58,7 @@ groups:
         note: >
           SHOULD be equal to the `cloud.provider` resource attribute of the
           invoked function.
-      - id: invoked_region
+      - id: faas.invoked_region
         type: string
         requirement_level:
           conditionally_required: >

@@ -1,6 +1,7 @@
 groups:
   - id: trace-exception
-    prefix: exception
+    stability: experimental
+    name: exception
     type: event
     brief: >
       This document defines the attributes used to
@@ -9,7 +10,7 @@ groups:
       - ref: exception.type
       - ref: exception.message
       - ref: exception.stacktrace
-      - id: escaped
+      - id: exception.escaped
         type: boolean
         brief: >
           SHOULD be set to true if the exception event is recorded at a point where

@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Next] - YYYY-MM-DD
+
+What's changed
+
+* Issue [#502](https://github.com/open-telemetry/weaver/issues/502) - Support stability definitions from [OTEP 232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md) - ([#504](https://github.com/open-telemetry/weaver/pull/504) by @jerbly).
+  * Stability enum now has these variants: `stable`, `development`, `deprecated`, `alpha`, `beta`, `release_candidate`
+  * `unmaintained` is not supported yet.
+  * `experimental` is still accepted when parsing but aliased to `development`.
+  * The minijinja test, `experimental`, now returns true for any variant other than `stable`.
+  * EBNF and JSON schema updated to define the new enum without the `experimental` variant.
+
+## [0.11.0] - 2024-12-05
+
+What's changed
+
+* Detect duplicate group ids, group names, and metric names. ([#382](https://github.com/open-telemetry/weaver/pull/382) by lquerel).
+* Add support for Maps `map[]` to the definition of an `AnyValue`. ([#396](https://github.com/open-telemetry/weaver/pull/396) by @MSNev).
+* Update semconv schema, syntax doc and validity check to correctly define `stability` as optional for attribute groups. ([#467](https://github.com/open-telemetry/weaver/pull/467) by @jerbly).
+* Fix issue [#405](https://github.com/open-telemetry/weaver/issues/405) - Updated the EBNF and JSON schema to define the `extends` or `attributes` requirement mandatory for all group types except `metric` and `event`. Added a group validity check as a warning. ([#494](https://github.com/open-telemetry/weaver/pull/494) by @jerbly).
+* Allow adding a description when using opt_in requirement level ([#392](https://github.com/open-telemetry/weaver/pull/392) by @joaopgrassi)
+* Add warning that issues when using prefix on groups ([#407](https://github.com/open-telemetry/weaver/pull/407) by @jsuereth)
+* Update comment filter to remove trailing spaces ([#453](https://github.com/open-telemetry/weaver/pull/453) by @jsuereth)
+* Metrics and Events don't require attributes ([#494](https://github.com/open-telemetry/weaver/pull/494) by @jerbly)
+* Added an option to follow symbolic links when loading the registry in various parts of the codebase. ([#468](https://github.com/open-telemetry/weaver/pull/468) by @leo6leo)
+* Provide max line-length in comment filter. ([#454](https://github.com/open-telemetry/weaver/pull/454) by @jsuereth)
+
 ## [0.10.0] - 2024-09-23
 
 What's changed

@@ -3,6 +3,14 @@ def semconv_group_attributes_by_root_namespace:
     group_by(.root_namespace)
     | map({ root_namespace: .[0].root_namespace, attributes: . | sort_by(.name) });
 
+# Expands stability array that previously used "experimental" for equivalent new strings.
+def expand_stability($stability):
+  if ($stability | index("experimental")) then
+    $stability + [ "development", "alpha", "beta", "release_candidate" ] 
+  else
+    $stability 
+  end;
+
 #####################
 # Attribute functions
 #####################
@@ -17,7 +25,7 @@ def semconv_attributes($options):
     | map(select(.type == "attribute_group" and (.id | startswith("registry."))))
     | map(.attributes) | add
     | if ($options | has("exclude_stability")) then
-        map(select(.stability as $st | $options.exclude_stability | index($st) | not))
+        map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
       else
         .
       end
@@ -62,7 +70,7 @@ def semconv_signal($signal; $options):
     .groups
     | map(select(.type == $signal))
     | if ($options | has("exclude_stability")) then
-        map(select(.stability as $st | $options.exclude_stability | index($st) | not))
+        map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
       else
         .
       end

@@ -5,7 +5,6 @@
       "id": "registry.db",
       "type": "attribute_group",
       "brief": "This document defines the attributes used to describe telemetry in the context of databases.\n",
-      "prefix": "db",
       "attributes": [
         0,
         1,
@@ -46,7 +45,6 @@
       "id": "registry.http",
       "type": "attribute_group",
       "brief": "This document defines semantic convention attributes in the HTTP namespace.",
-      "prefix": "http",
       "attributes": [
         30,
         31,
@@ -66,7 +64,6 @@
       "id": "registry.network",
       "type": "attribute_group",
       "brief": "These attributes may be used for any network related operation.\n",
-      "prefix": "network",
       "attributes": [
         39,
         40,
@@ -92,7 +89,6 @@
       "id": "server",
       "type": "attribute_group",
       "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
-      "prefix": "server",
       "attributes": [
         54,
         55
@@ -105,7 +101,6 @@
       "id": "registry.url",
       "type": "attribute_group",
       "brief": "Attributes describing URL.",
-      "prefix": "url",
       "attributes": [
         56,
         57,
@@ -121,7 +116,6 @@
       "id": "registry.user_agent",
       "type": "attribute_group",
       "brief": "Describes user-agent attributes.",
-      "prefix": "user_agent",
       "attributes": [
         61
       ],
@@ -133,6 +127,7 @@
       "id": "db",
       "type": "span",
       "brief": "This document defines the attributes used to perform database client calls.\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -333,6 +328,7 @@
       "id": "db.mssql",
       "type": "span",
       "brief": "Connection-level attributes for Microsoft SQL Server\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -545,6 +541,7 @@
       "id": "db.cassandra",
       "type": "span",
       "brief": "Call-level attributes for Cassandra\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -831,6 +828,7 @@
       "id": "db.hbase",
       "type": "span",
       "brief": "Call-level attributes for HBase\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1028,6 +1026,7 @@
       "id": "db.couchdb",
       "type": "span",
       "brief": "Call-level attributes for CouchDB\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1225,6 +1224,7 @@
       "id": "db.redis",
       "type": "span",
       "brief": "Call-level attributes for Redis\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1435,6 +1435,7 @@
       "id": "db.mongodb",
       "type": "span",
       "brief": "Call-level attributes for MongoDB\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1647,6 +1648,7 @@
       "id": "db.elasticsearch",
       "type": "span",
       "brief": "Call-level attributes for Elasticsearch\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -1913,6 +1915,7 @@
       "id": "db.sql",
       "type": "span",
       "brief": "Call-level attributes for SQL databases\n",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -2125,7 +2128,7 @@
       "id": "db.cosmosdb",
       "type": "span",
       "brief": "Call-level attributes for Cosmos DB.\n",
-      "prefix": "db.cosmosdb",
+      "stability": "experimental",
       "attributes": [
         62,
         63,
@@ -2440,6 +2443,7 @@
       "id": "db.tech",
       "type": "span",
       "brief": "Semantic convention group for specific technologies",
+      "stability": "experimental",
       "attributes": [
         62,
         63,

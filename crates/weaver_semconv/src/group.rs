@@ -98,6 +98,37 @@ impl GroupSpec {
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {
         let mut errors = vec![];
 
+        if !self.prefix.is_empty() {
+            errors.push(Error::InvalidGroupUsesPrefix {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+            });
+        }
+
+        // Field stability is required for all group types except attribute group.
+        if self.r#type != GroupType::AttributeGroup && self.stability.is_none() {
+            errors.push(Error::InvalidGroupStability {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group does not contain a stability field.".to_owned(),
+            });
+        }
+
+        // All types, except metric and event, must have extends or attributes or both.
+        // For backward compatibility, if constraints are set, extends or attributes are not required.
+        if self.r#type != GroupType::Metric
+            && self.r#type != GroupType::Event
+            && self.extends.is_none()
+            && self.attributes.is_empty()
+            && self.constraints.is_empty()
+        {
+            errors.push(Error::InvalidGroupMissingExtendsOrAttributes {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group does not contain an extends or attributes field.".to_owned(),
+            });
+        }
+
         // Fields span_kind and events are only valid if type is span (the default).
         if self.r#type != GroupType::Span {
             if self.span_kind.is_some() {
@@ -398,7 +429,10 @@ impl Display for InstrumentSpec {
 mod tests {
     use crate::any_value::AnyValueCommonSpec;
     use crate::attribute::{BasicRequirementLevelSpec, Examples, RequirementLevel};
-    use crate::Error::{CompoundError, InvalidExampleWarning, InvalidGroup, InvalidMetric};
+    use crate::Error::{
+        CompoundError, InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
+        InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
+    };
 
     use super::*;
 
@@ -409,7 +443,7 @@ mod tests {
             r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -440,7 +474,19 @@ mod tests {
             .into_result_failing_non_fatal()
             .is_ok());
 
+        // group has a prefix.
+        group.prefix = "test".to_owned();
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupUsesPrefix {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned()
+            }),
+            result
+        );
+
         // Span kind is set but the type is not span.
+        group.prefix = "".to_owned();
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -513,7 +559,7 @@ mod tests {
             r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -603,7 +649,7 @@ mod tests {
             name: Some("test_event".to_owned()),
             brief: "test".to_owned(),
             note: "test".to_owned(),
-            prefix: "test".to_owned(),
+            prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some("true".to_owned()),
@@ -677,8 +723,35 @@ mod tests {
             result
         );
 
-        // Examples are not required for Maps.
+        // Examples are not required for Map.
         group.body = Some(AnyValueSpec::Map {
+            common: AnyValueCommonSpec {
+                id: "map_id".to_owned(),
+                brief: "brief".to_owned(),
+                note: "note".to_owned(),
+                stability: None,
+                examples: None,
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+            },
+            fields: vec![AnyValueSpec::String {
+                common: AnyValueCommonSpec {
+                    id: "string_id".to_owned(),
+                    brief: "brief".to_owned(),
+                    note: "note".to_owned(),
+                    stability: None,
+                    examples: Some(Examples::String("test".to_owned())),
+                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                },
+            }],
+        });
+
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Examples are not required for Map[].
+        group.body = Some(AnyValueSpec::Maps {
             common: AnyValueCommonSpec {
                 id: "map_id".to_owned(),
                 brief: "brief".to_owned(),
@@ -770,6 +843,286 @@ mod tests {
             },),
             result
         );
+    }
+
+    #[test]
+    fn test_validate_group_stability() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            attributes: vec![AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: None,
+                stability: Some(Stability::Deprecated),
+                deprecated: Some("true".to_owned()),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+            }],
+            constraints: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            display_name: None,
+            body: None,
+        };
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // all other group types must have a stability field.
+        group.r#type = GroupType::Span;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Development);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+        group.r#type = GroupType::Resource;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Development);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::Scope;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Development);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::Metric;
+        group.metric_name = Some("test".to_owned());
+        group.instrument = Some(Counter);
+        group.unit = Some("test".to_owned());
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Development);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::Event;
+        group.name = Some("test".to_owned());
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Development);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.stability = None;
+
+        group.r#type = GroupType::MetricGroup;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a stability field.".to_owned(),
+            }),
+            result
+        );
+        group.stability = Some(Stability::Development);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+    }
+
+    #[test]
+    fn test_validate_extends_or_attributes() {
+        let attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+        }];
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            constraints: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            display_name: None,
+            body: None,
+        };
+
+        // Attribute Group must have extends or attributes.
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupMissingExtendsOrAttributes {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain an extends or attributes field.".to_owned(),
+            }),
+            result
+        );
+
+        group.attributes = attributes.clone();
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.attributes = vec![];
+        group.extends = Some("test".to_owned());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        group.extends = None;
+
+        // Span must have extends or attributes.
+        group.r#type = GroupType::Span;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupMissingExtendsOrAttributes {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain an extends or attributes field.".to_owned(),
+            }),
+            result
+        );
+
+        group.attributes = attributes.clone();
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.attributes = vec![];
+        group.extends = Some("test".to_owned());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        group.extends = None;
+
+        // Resource must have extends or attributes.
+        group.r#type = GroupType::Resource;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupMissingExtendsOrAttributes {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain an extends or attributes field.".to_owned(),
+            }),
+            result
+        );
+
+        group.attributes = attributes.clone();
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        group.attributes = vec![];
+        group.extends = Some("test".to_owned());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        group.extends = None;
+
+        // Metrics DO NOT need extends or attributes.
+        group.r#type = GroupType::Metric;
+        group.metric_name = Some("test".to_owned());
+        group.instrument = Some(Counter);
+        group.unit = Some("test".to_owned());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Events DO NOT need extends or attributes.
+        group.r#type = GroupType::Event;
+        group.name = Some("test".to_owned());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
     }
 
     #[test]

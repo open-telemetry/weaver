@@ -241,6 +241,14 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
+impl From<std::fmt::Error> for Error {
+    fn from(_: std::fmt::Error) -> Self {
+        Self::TemplateEngineError {
+            error: "Unexpected string formatting error".to_owned(),
+        }
+    }
+}
+
 #[must_use]
 pub(crate) fn jinja_err_convert(e: minijinja::Error) -> Error {
     Error::WriteGeneratedCodeFailed {

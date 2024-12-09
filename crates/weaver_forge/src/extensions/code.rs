@@ -85,6 +85,12 @@ pub(crate) fn comment(
                 .as_ref()
                 .and_then(|comment_formats| comment_formats.get(&comment_format_name).cloned())
                 .unwrap_or_default();
+            // Grab line length limit, custom option.
+            let line_length_limit: Option<usize> = args
+                .get("line_length")
+                .map(|v: u32| v as usize)
+                .ok()
+                .or(comment_format.word_wrap.line_length);
 
             // If the input is an iterable (i.e. an array), join the values with a newline.
             let mut comment = if input.kind() == ValueKind::Seq {
@@ -122,31 +128,6 @@ pub(crate) fn comment(
             {
                 comment.push('.');
             }
-
-            comment = match &comment_format.format {
-                RenderFormat::Markdown(..) => markdown_snippet_renderer
-                    .render(&comment, &comment_format_name)
-                    .map_err(|e| {
-                        minijinja::Error::new(
-                            ErrorKind::InvalidOperation,
-                            format!(
-                                "Comment Markdown rendering failed for format '{}': {}",
-                                default_comment_format, e
-                            ),
-                        )
-                    })?,
-                RenderFormat::Html(..) => html_snippet_renderer
-                    .render(&comment, &comment_format_name)
-                    .map_err(|e| {
-                        minijinja::Error::new(
-                            ErrorKind::InvalidOperation,
-                            format!(
-                                "Comment HTML rendering failed for format '{}': {}",
-                                default_comment_format, e
-                            ),
-                        )
-                    })?,
-            };
             let indent_arg = args.get("indent").map(|v: usize| v).unwrap_or(0);
             let indent_type_arg = args
                 .get("indent_type")
@@ -162,7 +143,6 @@ pub(crate) fn comment(
                     ))
                 }
             };
-
             let header = args
                 .get("header")
                 .map(|v: String| v)
@@ -176,26 +156,62 @@ pub(crate) fn comment(
                 .map(|v: String| v)
                 .unwrap_or_else(|_| comment_format.footer.clone().unwrap_or("".to_owned()));
 
+            // TODO - reduce line limit by tabs.
+            let actual_length_limit =
+                line_length_limit.map(|limit| limit - (indent.len() + prefix.len()));
+            comment = match &comment_format.format {
+                RenderFormat::Markdown(..) => markdown_snippet_renderer
+                    .render(&comment, &comment_format_name, actual_length_limit)
+                    .map_err(|e| {
+                        minijinja::Error::new(
+                            ErrorKind::InvalidOperation,
+                            format!(
+                                "Comment Markdown rendering failed for format '{}': {}",
+                                default_comment_format, e
+                            ),
+                        )
+                    })?,
+                RenderFormat::Html(..) => html_snippet_renderer
+                    .render(&comment, &comment_format_name, actual_length_limit)
+                    .map_err(|e| {
+                        minijinja::Error::new(
+                            ErrorKind::InvalidOperation,
+                            format!(
+                                "Comment HTML rendering failed for format '{}': {}",
+                                default_comment_format, e
+                            ),
+                        )
+                    })?,
+            };
+
+            // Expand all text with prefix.
             let mut new_comment = String::new();
             for line in comment.lines() {
                 if !new_comment.is_empty() {
                     new_comment.push('\n');
                 }
+                // We apply "trim" to all split lines.
                 if header.is_empty() && new_comment.is_empty() {
                     // For the first line we don't add the indentation
-                    new_comment.push_str(&format!("{}{}", prefix, line));
+                    if comment_format.trim {
+                        new_comment.push_str(format!("{}{}", prefix, line).trim_end());
+                    } else {
+                        new_comment.push_str(&format!("{}{}", prefix, line));
+                    }
+                } else if comment_format.trim {
+                    new_comment.push_str(format!("{}{}{}", indent, prefix, line).trim_end());
                 } else {
                     new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
                 }
             }
             comment = new_comment;
 
+            // Add header + footer to the comment.
             if !header.is_empty() {
                 comment = format!("{}\n{}", header, comment);
             }
-
             if !footer.is_empty() {
-                comment = format!("{}\n{}{}", comment, indent, footer);
+                comment = format!("{}\n{}{}", comment.trim_end(), indent, footer);
             }
 
             // Remove all trailing spaces from the comment
@@ -259,10 +275,13 @@ pub(crate) fn map_text(
 
 #[cfg(test)]
 mod tests {
+    use weaver_diff::assert_string_eq;
+
     use super::*;
     use crate::config::{CommentFormat, IndentType};
     use crate::extensions::code;
     use crate::formats::html::HtmlRenderOptions;
+    use crate::formats::WordWrapConfig;
 
     #[test]
     fn test_comment() -> Result<(), Error> {
@@ -285,6 +304,10 @@ mod tests {
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: true,
+                        },
                     },
                 )]
                 .into_iter()
@@ -311,7 +334,9 @@ If a specific domain defines its own set of error identifiers (such as HTTP or g
 it's RECOMMENDED to:
 
 * Use a domain-specific attribute
-* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not..  "#;
+* Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+And something more..  "#;
         let ctx = serde_json::json!({
             "note": note
         });
@@ -322,8 +347,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java', indent=2) }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
    * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
    * <p>
@@ -341,11 +366,12 @@ it's RECOMMENDED to:
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
+   * And something more
    */"##
         );
 
@@ -353,8 +379,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(indent=2) }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
    * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
    * <p>
@@ -372,11 +398,12 @@ it's RECOMMENDED to:
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
+   * And something more
    */"##
         );
 
@@ -384,8 +411,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(indent=2, indent_type='space') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
    * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
    * <p>
@@ -403,11 +430,12 @@ it's RECOMMENDED to:
    * <p>
    * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
    * it's RECOMMENDED to:
-   * <p>
    * <ul>
    *   <li>Use a domain-specific attribute
    *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
    * </ul>
+   * <p>
+   * And something more
    */"##
         );
 
@@ -415,8 +443,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(indent=2, indent_type='tab') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
 		 * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
 		 * <p>
@@ -434,12 +462,74 @@ it's RECOMMENDED to:
 		 * <p>
 		 * If a specific domain defines its own set of error identifiers (such as HTTP or gRPC status codes),
 		 * it's RECOMMENDED to:
-		 * <p>
 		 * <ul>
 		 *   <li>Use a domain-specific attribute
 		 *   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
 		 * </ul>
+		 * <p>
+		 * And something more
 		 */"##
+        );
+
+        // Test with the optional parameter `line_length=30`
+        // TODO - Figure out where extra space is coming from li/code near bottom.
+        let observed_comment = env
+            .render_str("{{ note | comment(line_length=30) }}", &ctx)
+            .unwrap();
+        assert_string_eq!(
+            &observed_comment,
+            r##"/**
+ * The {@code error.type}
+ * SHOULD be predictable, and
+ * SHOULD have low cardinality.
+ * <p>
+ * When {@code error.type} is
+ * set to a type (e.g., an
+ * exception type), its
+ * canonical class name
+ * identifying the type within
+ * the artifact SHOULD be used.
+ * <p>
+ * Instrumentations SHOULD
+ * document the list of errors
+ * they report.
+ * <p>
+ * The cardinality of
+ * {@code error.type} within
+ * one instrumentation library
+ * SHOULD be low. Telemetry
+ * consumers that aggregate
+ * data from multiple
+ * instrumentation libraries
+ * and applications should be
+ * prepared for
+ * {@code error.type} to have
+ * high cardinality at query
+ * time when no additional
+ * filters are applied.
+ * <p>
+ * If the operation has
+ * completed successfully,
+ * instrumentations SHOULD NOT
+ * set {@code error.type}.
+ * <p>
+ * If a specific domain defines
+ * its own set of error
+ * identifiers (such as HTTP or
+ * gRPC status codes), it's
+ * RECOMMENDED to:
+ * <ul>
+ *   <li>Use a domain-specific
+ *   attribute
+ *   <li>Set {@code error.type}
+ *    to capture all errors,
+ *   regardless of whether they
+ *   are defined within the
+ *   domain-specific set or not
+ * </ul>
+ * <p>
+ * And something more
+ */"##
         );
 
         // New configuration with `indent_type='tab'`
@@ -462,6 +552,10 @@ it's RECOMMENDED to:
                         trim: true,
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -490,8 +584,8 @@ it's RECOMMENDED to:
                 &ctx,
             )
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
 		 * This is a brief description.
 		 * Note:
@@ -523,6 +617,10 @@ it's RECOMMENDED to:
                         remove_trailing_dots: true,
                         enforce_trailing_dots: false,
                         indent_type: Default::default(),
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -542,8 +640,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality
  */"##
@@ -558,8 +656,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality
  */"##
@@ -589,6 +687,10 @@ it's RECOMMENDED to:
                         remove_trailing_dots: false,
                         enforce_trailing_dots: true,
                         indent_type: Default::default(),
+                        word_wrap: WordWrapConfig {
+                            line_length: None,
+                            ignore_newlines: false,
+                        },
                     },
                 )]
                 .into_iter()
@@ -608,8 +710,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
  */"##
@@ -624,8 +726,8 @@ it's RECOMMENDED to:
         let observed_comment = env
             .render_str("{{ note | comment(format='java') }}", &ctx)
             .unwrap();
-        assert_eq!(
-            observed_comment,
+        assert_string_eq!(
+            &observed_comment,
             r##"/**
  * The {@code error.type} SHOULD be predictable, and SHOULD have low cardinality.
  */"##
@@ -653,8 +755,8 @@ This also covers UDP network interactions where one side initiates the interacti
 /// protocol / API doesn't expose a clear notion of client and server).
 /// This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS."#;
 
-        assert_eq!(
-            comment_with_prefix(&Value::from(brief), "/// "),
+        assert_string_eq!(
+            &comment_with_prefix(&Value::from(brief), "/// "),
             expected_brief
         );
     }

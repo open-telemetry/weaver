@@ -1,11 +1,11 @@
 groups:
   - id: rpc
-    prefix: rpc
+    stability: stable
     type: span
     brief: 'This document defines semantic conventions for remote procedure calls.'
     events: [rpc.message]
     attributes:
-      - id: system
+      - id: rpc.system
         requirement_level: required
         brief: 'A string identifying the remoting system. See below for a list of well-known identifiers.'
         type:
@@ -26,7 +26,7 @@ groups:
             - id: connect_rpc
               value: 'connect_rpc'
               brief: 'Connect RPC'
-      - id: service
+      - id: rpc.service
         type: string
         requirement_level: recommended
         brief: 'The full (logical) name of the service being called, including its package name, if applicable.'
@@ -38,7 +38,7 @@ groups:
           e.g., class with method actually executing the call on the server side,
           RPC client stub class on the client side).
         examples: "myservice.EchoService"
-      - id: method
+      - id: rpc.method
         type: string
         requirement_level: recommended
         brief: 'The name of the (logical) method being called, must be equal to the $method part in the span name.'
@@ -72,6 +72,7 @@ groups:
           - server.address
 
   - id: rpc.client
+    stability: stable
     type: span
     brief: 'This document defines semantic conventions for remote procedure call client spans.'
     extends: rpc
@@ -81,7 +82,7 @@ groups:
           recommended: If different than `server.address` and if `server.socket.address` is set.
 
   - id: rpc.server
-    prefix: rpc
+    stability: stable
     type: span
     extends: rpc
     span_kind: server
@@ -95,12 +96,12 @@ groups:
       - ref: network.type
 
   - id: rpc.grpc
-    prefix: rpc.grpc
+    stability: stable
     type: span
     extends: rpc
     brief: 'Tech-specific attributes for gRPC.'
     attributes:
-      - id: status_code
+      - id: rpc.grpc.status_code
         type:
           members:
             - id: ok
@@ -158,18 +159,18 @@ groups:
         brief: "The [numeric status code](https://github.com/grpc/grpc/blob/v1.33.2/doc/statuscodes.md) of the gRPC request."
 
   - id: rpc.jsonrpc
-    prefix: rpc.jsonrpc
+    stability: stable
     type: span
     extends: rpc
     brief: 'Tech-specific attributes for [JSON RPC](https://www.jsonrpc.org/).'
     attributes:
-      - id: version
+      - id: rpc.jsonrpc.version
         type: string
         requirement_level:
           conditionally_required: If other than the default version (`1.0`)
         brief: "Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 does not specify this, the value can be omitted."
         examples: ['2.0', '1.0']
-      - id: request_id
+      - id: rpc.jsonrpc.request_id
         type: string
         brief: >
           `id` property of request or response.
@@ -177,13 +178,13 @@ groups:
           value is expected to be cast to string for simplicity.
           Use empty string in case of `null` value. Omit entirely if this is a notification.
         examples: ['10', 'request-7', '']
-      - id: error_code
+      - id: rpc.jsonrpc.error_code
         type: int
         requirement_level:
           conditionally_required: If response is not successful.
         brief: "`error.code` property of response if it is an error response."
         examples: [-32700, 100]
-      - id: error_message
+      - id: rpc.jsonrpc.error_message
         type: string
         brief: "`error.message` property of response if it is an error response."
         examples: ['Parse error', 'User already exists']
@@ -194,11 +195,12 @@ groups:
           RPC conventions for more information.
 
   - id: rpc.message
-    prefix: "message"  # TODO: Change the prefix to rpc.message?
+    stability: stable
     type: event
     brief: "RPC received/sent message."
+    name: message
     attributes:
-      - id: type
+      - id: message.type
         type:
           members:
             - id: sent
@@ -206,24 +208,24 @@ groups:
             - id: received
               value: "RECEIVED"
         brief: "Whether this is a received or sent message."
-      - id: id
+      - id: message.id
         type: int
         brief: "MUST be calculated as two different counters starting from `1` one for sent messages and one for received message."
         note: "This way we guarantee that the values will be consistent between different implementations."
-      - id: compressed_size
+      - id: message.compressed_size
         type: int
         brief: "Compressed size of the message in bytes."
-      - id: uncompressed_size
+      - id: message.uncompressed_size
         type: int
         brief: "Uncompressed size of the message in bytes."
 
   - id: rpc.connect_rpc
-    prefix: rpc.connect_rpc
+    stability: stable
     type: span
     extends: rpc
     brief: 'Tech-specific attributes for Connect RPC.'
     attributes:
-      - id: error_code
+      - id: rpc.connect_rpc.error_code
         type:
           members:
             - id: cancelled

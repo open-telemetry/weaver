@@ -1,7 +1,8 @@
 groups:
   - id: trace-exception
-    prefix: exception
+    stability: experimental
     type: event
+    name: exception
     brief: >
       This document defines the attributes used to
       report a single exception associated with a span.

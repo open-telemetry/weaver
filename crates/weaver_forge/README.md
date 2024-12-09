@@ -362,7 +362,7 @@ templates:
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"],
+        "exclude_stability": ["development"],
         "exclude_deprecated": true
       })
     application_mode: each 
@@ -436,7 +436,7 @@ templates:
     filter: >
       semconv_grouped_metrics({
         "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["experimental"],
+        "exclude_stability": ["development"],
         "exclude_deprecated": true
       })
     application_mode: each  
@@ -551,6 +551,23 @@ The following filters are available:
 - `print_value`: Filter returning a quoted and escaped string representation of the input
   if the input is of type string (JSON escape rules are used). Numbers and booleans are
   stringified without the quotes, and an empty string is returned for other types.
+- `body_fields`: A filter that returns a list of triples (`path`, `field`, `depth`) from a
+  body field in depth-first order. This filter can be used to iterate over a tree of fields
+  in a body. The parameter `sort_by` can be used to sort the fields by the given key (by
+  default, the fields at each level are sorted by their IDs).
+
+  Example of usage:
+
+  ```jinja
+  {% for path, field, depth in body|body_fields %}
+  Do something with {{ field }} at depth {{ depth }} with path {{ path }}
+  {% endfor %}
+  
+  {% for path, field, depth in body|body_fields(sort_by=`type`) %}
+  Do something with {{ field }} at depth {{ depth }} with path {{ path }}
+  {% endfor %}
+  ```
+
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
@@ -581,6 +598,9 @@ comment_formats:           # optional
     trim: <bool>                      # Flag to trim the comment content (default: true). 
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
     enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
+    word_wrap:
+      line_length: <int>              # Maximum number of characters on a line (default: unlimited).
+      ignore_newlines: <bool>         # Whether newlines in comment should be ignored when a max line_length is set (default: false).
 
     # Fields specific to 'markdown' format
     escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).
@@ -588,6 +608,7 @@ comment_formats:           # optional
     shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").
+    use_go_style_list_indent: <bool>,     # Whether to use different indent spacing for ordered and unordered lists (default: false).
     
     # Fields specific to 'html' format
     old_style_paragraph: <bool>       # Use old-style HTML paragraphs (default: false).
@@ -736,7 +757,6 @@ The resulting comment in JavaDoc format would be:
    * This is a note about the attribute {@code attr}. It can be multiline.
    * <p>
    * It can contain a list:
-   * <p>
    * <ul>
    *   <li>item <strong>1</strong>,
    *   <li>lorem ipsum dolor sit amet, consectetur
@@ -747,8 +767,8 @@ The resulting comment in JavaDoc format would be:
    * adipiscing elit sed do eiusmod tempor
    * incididunt ut labore et dolore magna aliqua.
    * </ul>
-   * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
    * <p>
+   * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
    * <h1>Summary</h1>
    * <h2>Examples</h2>
    * <ol>
@@ -770,8 +790,6 @@ The resulting comment in JavaDoc format would be:
    * It can contain multiple lines.
    * Lorem ipsum dolor sit amet, consectetur adipiscing
    * elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</blockquote>
-   * 
-   * <p>
    * <blockquote>
    * [!NOTE] Something very important here</blockquote>
    */
@@ -845,6 +863,7 @@ The `comment` filter accepts the following optional parameters:
 - **`footer`**: A custom footer for the comment block.
 - **`indent`**: Number of spaces to add before each comment line for indentation purposes.
 - **`indent_type`**: The type of indentation to use. Supported values are `space` (default) and `tab`.
+- **`line_length`**: The maximum number of characters in a line.
 
 > Please open an issue if you have any suggestions for new formats or features.
 
@@ -874,7 +893,7 @@ In addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
 - `stable`: Tests if an `Attribute` is stable.
-- `experimental`: Tests if an `Attribute` is experimental.
+- `experimental`: Tests if an `Attribute` is experimental (not stable).
 - `deprecated`: Tests if an `Attribute` is deprecated.
 - `enum`: Tests if an attribute has an enum type.
 - `simple_type`: Tests if a type is a simple type (i.e.: string | string[] | int | int[] | double | double[] | boolean |

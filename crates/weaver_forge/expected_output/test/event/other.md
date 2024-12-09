@@ -7,7 +7,7 @@ Note:
 Brief: This document defines the attributes used to report a single exception associated with a span.
 
 Requirement level: 
-Stability: 
+Stability: development
 
 ### Attributes
 

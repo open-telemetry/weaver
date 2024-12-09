@@ -5,7 +5,6 @@
       "id": "attributes.faas.common",
       "type": "attribute_group",
       "brief": "Describes FaaS attributes.",
-      "prefix": "faas",
       "attributes": [
         0,
         1,
@@ -20,6 +19,7 @@
       "id": "metric.faas.invoke_duration",
       "type": "metric",
       "brief": "Measures the duration of the function's logic execution",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -44,6 +44,7 @@
       "id": "metric.faas.init_duration",
       "type": "metric",
       "brief": "Measures the duration of the function's initialization, such as a cold start",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -68,6 +69,7 @@
       "id": "metric.faas.coldstarts",
       "type": "metric",
       "brief": "Number of invocation cold starts",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -92,6 +94,7 @@
       "id": "metric.faas.errors",
       "type": "metric",
       "brief": "Number of invocation errors",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -116,6 +119,7 @@
       "id": "metric.faas.invocations",
       "type": "metric",
       "brief": "Number of successful invocations",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -140,6 +144,7 @@
       "id": "metric.faas.timeouts",
       "type": "metric",
       "brief": "Number of invocation timeouts",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -164,6 +169,7 @@
       "id": "metric.faas.mem_usage",
       "type": "metric",
       "brief": "Distribution of max memory usage per invocation",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -188,6 +194,7 @@
       "id": "metric.faas.cpu_usage",
       "type": "metric",
       "brief": "Distribution of CPU usage per invocation",
+      "stability": "experimental",
       "attributes": [
         0
       ],
@@ -212,6 +219,7 @@
       "id": "metric.faas.net_io",
       "type": "metric",
       "brief": "Distribution of net I/O usage per invocation",
+      "stability": "experimental",
       "attributes": [
         0
       ],

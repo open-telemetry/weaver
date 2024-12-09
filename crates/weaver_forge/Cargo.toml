@@ -1,6 +1,6 @@
 [package]
 name = "weaver_forge"
-version = "0.10.0"
+version.workspace = true
 authors.workspace = true
 repository.workspace = true
 license.workspace = true
@@ -18,17 +18,18 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "2.3.1", features = ["loader", "custom_syntax", "debug", "json", "urlencode", "macros"] }
-minijinja-contrib = { version="2.3.1", features = ["pycompat"] }
+minijinja = { version = "2.5.0", features = ["loader", "custom_syntax", "debug", "json", "urlencode", "macros"] }
+minijinja-contrib = { version="2.5.0", features = ["pycompat"] }
 convert_case = "0.6.0"
 jaq-core = "1.5.1"
 jaq-std = "1.5.1"
 jaq-interpret = "1.5.0"
 jaq-parse = "1.0.3"
 jaq-syn = "1.1.0"
-indexmap = "2.5.0"
-regex = "1.10.6"
-markdown = "=1.0.0-alpha.20"
+indexmap = "2.6.0"
+regex = "1.11.1"
+markdown = "=1.0.0-alpha.21"
+textwrap = "0.16.1"
 
 itertools.workspace = true
 thiserror.workspace = true
@@ -45,6 +46,6 @@ dirs.workspace = true
 
 [dev-dependencies]
 opentelemetry.workspace = true
-opentelemetry_sdk = { version = "0.25.0", features = ["trace", "metrics", "logs"] }
-opentelemetry-stdout = { version = "0.25.0", features = ["trace", "metrics", "logs"] }
+opentelemetry_sdk = { version = "0.27.1", features = ["trace", "metrics", "logs"] }
+opentelemetry-stdout = { version = "0.27.0", features = ["trace", "metrics", "logs"] }
 

@@ -77,17 +77,17 @@ groups:
   - id: span.event.test.no_name
     stability: experimental
     type: event
-    prefix: span.event.test
+    name: span.event.test
     brief: >
       This event represents an occurrence of a span event.
     attributes:
-        - id: attribute1
+        - id: span.event.test.attribute1
           type: string
           brief: 'The attribute1'
           examples: ['value1', 'value2']
           requirement_level:
             conditionally_required: Required if `attribute2` is not set, recommended otherwise.
-        - id: attribute2
+        - id: span.event.test.attribute2
           type: string
           brief: 'The attribute2'
           examples: ['value1', 'value2']
@@ -98,17 +98,16 @@ groups:
     name: span.event.test.with_name
     stability: experimental
     type: event
-    prefix: span.event.test.with_name
     brief: >
       This event represents an occurrence of a span event.
     attributes:
-        - id: attribute1
+        - id: span.event.test.with_name.attribute1
           type: string
           brief: 'The attribute1'
           examples: ['value1', 'value2']
           requirement_level:
             conditionally_required: Required if `attribute2` is not set, recommended otherwise.
-        - id: attribute2
+        - id: span.event.test.with_name.attribute2
           type: string
           brief: 'The attribute2'
           examples: ['value1', 'value2']

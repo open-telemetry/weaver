@@ -1,6 +1,6 @@
 [package]
 name = "weaver"
-version = "0.10.0"
+version.workspace = true
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -28,34 +28,36 @@ members = [
 ]
 
 [workspace.package]
+version = "0.11.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
 license = "Apache-2.0"
 publish = false
-rust-version = "1.76"
+rust-version = "1.81.0"
 
 [workspace.dependencies]
-serde = { version = "1.0.210", features = ["derive"] }
+serde = { version = "1.0.215", features = ["derive"] }
 serde_yaml = "0.9.32"
-serde_json = { version = "1.0.128"}
-thiserror = "1.0.64"
-url = "2.5.2"
-ureq = "2.10.0"
-regex = "1.10.6"
+serde_json = { version = "1.0.133"}
+thiserror = "2.0.4"
+url = "2.5.3"
+ureq = "2.12.1"
+regex = "1.11.1"
 rayon = "1.10.0"
-ordered-float = { version = "4.3.0", features = ["serde", "schemars"] }
+ordered-float = { version = "4.5.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
-anyhow = "1.0.89"
+anyhow = "1.0.94"
 itertools = "0.13.0"
 globset = { version = "0.4.15", features = ["serde1"] }
-miette = { version = "7.2.0", features = ["fancy", "serde"] }
+miette = { version = "7.4.0", features = ["fancy", "serde"] }
 include_dir = "0.7.4"
 tempdir = "0.3.7"
 schemars = "0.8.21"
 dirs = "5.0.1"
-once_cell = "1.19.0"
-opentelemetry = { version = "0.23.0", features = ["trace", "metrics", "logs", "otel_unstable"] }
+once_cell = "1.20.2"
+opentelemetry = { version = "0.27.1", features = ["trace", "metrics", "logs", "otel_unstable"] }
+rouille = "3.6.2"
 
 # Features definition =========================================================
 [features]
@@ -78,11 +80,11 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.18", features = ["derive"] }
+clap = { version = "4.5.23", features = ["derive"] }
 rayon = "1.10.0"
-ratatui = { version = "0.28.1", features=["serde"] }
+ratatui = { version = "0.29.0", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
-tui-textarea = "0.6.1"
+tui-textarea = "0.7.0"
 
 # workspace dependencies
 serde.workspace = true

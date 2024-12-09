@@ -185,9 +185,11 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::Error::{
-        InvalidAttribute, InvalidExampleWarning, InvalidSemConvSpec, RegistryNotFound,
+        InvalidAttribute, InvalidExampleWarning, InvalidGroupStability, InvalidSemConvSpec,
+        RegistryNotFound,
     };
     use std::path::PathBuf;
+    use weaver_common::test::ServeStaticFiles;
 
     #[test]
     fn test_semconv_spec_from_file() {
@@ -220,6 +222,7 @@ mod tests {
         let spec = r#"
         groups:
           - id: "group1"
+            stability: "stable"
             brief: "description1"
             attributes:
               - id: "attr1"
@@ -227,6 +230,7 @@ mod tests {
                 type: "string"
                 examples: "example1"
           - id: "group2"
+            stability: "stable"
             brief: "description2"
             attributes:
               - id: "attr2"
@@ -260,6 +264,7 @@ mod tests {
               - id: "attr1"
                 type: "string"
           - id: "group2"
+            stability: "stable"
             brief: "description2"
             attributes:
               - id: "attr2"
@@ -267,10 +272,15 @@ mod tests {
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
-            assert_eq!(errors.len(), 3);
+            assert_eq!(errors.len(), 4);
             assert_eq!(
                 errors,
                 vec![
+                    InvalidGroupStability {
+                        path_or_url: "<str>".to_owned(),
+                        group_id: "group1".to_owned(),
+                        error: "This group does not contain a stability field.".to_owned(),
+                    },
                     InvalidAttribute {
                         path_or_url: "<str>".to_owned(),
                         group_id: "group1".to_owned(),
@@ -303,26 +313,27 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_url() {
+        let server = ServeStaticFiles::from("tests/test_data").unwrap();
         // Existing URL. The URL is a raw file from the semantic conventions repository.
         // This file is expected to be available.
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/url/common.yaml";
-        let semconv_spec = SemConvSpec::from_url(semconv_url)
+        let semconv_url = server.relative_path_to_url("url/common.yaml");
+        let semconv_spec = SemConvSpec::from_url(&semconv_url)
             .into_result_failing_non_fatal()
             .unwrap();
         assert!(!semconv_spec.groups.is_empty());
 
         // Invalid semconv file
-        let semconv_url = "https://raw.githubusercontent.com/open-telemetry/semantic-conventions/main/model/README.md";
-        let semconv_spec = SemConvSpec::from_url(semconv_url).into_result_failing_non_fatal();
+        let semconv_url = server.relative_path_to_url("README.md");
+        let semconv_spec = SemConvSpec::from_url(&semconv_url).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
             InvalidSemConvSpec { .. }
         ));
 
-        // Non-existing URL (including both a leading underscore (which is not a valid domain) and a non-existing domain)
-        let semconv_url = "http://_unknown.com.invalid/unknown-semconv.yaml";
-        let semconv_spec = SemConvSpec::from_url(semconv_url).into_result_failing_non_fatal();
+        // Non-existing URL
+        let semconv_url = server.relative_path_to_url("unknown-semconv.yaml");
+        let semconv_spec = SemConvSpec::from_url(&semconv_url).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
     }
@@ -343,6 +354,7 @@ mod tests {
         let spec = r#"
         groups:
           - id: "group1"
+            stability: "stable"
             brief: "description1"
             attributes:
               - id: "attr1"
@@ -350,6 +362,7 @@ mod tests {
                 type: "string"
                 examples: "example1"
           - id: "group2"
+            stability: "stable"
             brief: "description2"
             attributes:
               - id: "attr2"

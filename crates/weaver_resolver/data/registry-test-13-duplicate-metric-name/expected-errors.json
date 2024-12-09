@@ -1,0 +1,60 @@
+{
+  "Err": {
+    "CompoundError": [
+      {
+        "DuplicateGroupId": {
+          "group_id": "metric.faas.init_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroupId": {
+          "group_id": "metric.faas.invoke_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateGroupId": {
+          "group_id": "metric.faas.coldstarts",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateMetricName": {
+          "metric_name": "faas.coldstarts",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateMetricName": {
+          "metric_name": "faas.invoke_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      },
+      {
+        "DuplicateMetricName": {
+          "metric_name": "faas.init_duration",
+          "provenances": [
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics-bis.yaml",
+            "data/registry-test-13-duplicate-metric-name/registry/faas-metrics.yaml"
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,11 +1,10 @@
 groups:
   - id: registry.error
     type: attribute_group
-    prefix: error
     brief: >
       This document defines the shared attributes used to report an error.
     attributes:
-      - id: type
+      - id: error.type
         stability: stable
         brief: >
           Describes a class of error the operation ended with.
@@ -37,4 +36,6 @@ groups:
           it's RECOMMENDED to:
 
           * Use a domain-specific attribute
-          * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not.
+          * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
+
+          And something more.
