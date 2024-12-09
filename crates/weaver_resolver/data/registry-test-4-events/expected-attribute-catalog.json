@@ -60,7 +60,7 @@
   {
     "name": "ios.state",
     "type": {
-      "allow_custom_values": false,
+      "allow_custom_values": null,
       "members": [
         {
           "id": "active",
@@ -111,7 +111,7 @@
   {
     "name": "android.state",
     "type": {
-      "allow_custom_values": false,
+      "allow_custom_values": null,
       "members": [
         {
           "id": "created",
