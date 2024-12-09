@@ -447,6 +447,6 @@ mod tests {
         // Ensure the schema can be serialized to a string
         assert!(to_string_pretty(&schema).is_ok());
     }
-    
+
     // ToDo LQ add tests for the diff method
 }

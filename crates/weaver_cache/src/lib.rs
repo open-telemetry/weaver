@@ -30,7 +30,7 @@ const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
 const ZIP_EXT: &str = ".zip";
 /// The name of the registry manifest file.
-const REGISTRY_MANIFEST: &'static str = "registry_manifest.yaml";
+const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]

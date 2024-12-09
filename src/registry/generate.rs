@@ -136,7 +136,8 @@ pub(crate) fn command(
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
+    let schema = resolve_semconv_specs(&mut registry, logger.clone())
+        .capture_non_fatal_errors(&mut diag_msgs)?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
     let config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)

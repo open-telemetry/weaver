@@ -56,6 +56,7 @@ fn test_cli_interface() {
     let mut attr_catalog = AttributeCatalog::default();
     let resolved_registry =
         resolve_semconv_registry(&mut attr_catalog, SEMCONV_REGISTRY_URL, &semconv_specs)
+            .into_result_failing_non_fatal()
             .unwrap_or_else(|e| {
                 panic!("Failed to resolve the official semantic convention registry, error: {e}");
             });

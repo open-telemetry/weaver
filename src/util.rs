@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
-use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -194,35 +194,35 @@ pub(crate) fn check_policy(
 pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
     logger: impl Logger + Sync + Clone,
-) -> Result<ResolvedTelemetrySchema, DiagnosticMessages> {
+) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let registry_id = registry.id().to_owned();
-    let resolved_schema = SchemaResolver::resolve_semantic_convention_registry(registry)?;
-
-    logger.success(&format!("`{}` semconv registry resolved", registry_id));
-    Ok(resolved_schema)
+    match SchemaResolver::resolve_semantic_convention_registry(registry) {
+        WResult::Ok(resolved_schema) => {
+            logger.success(&format!("`{}` semconv registry resolved", registry_id));
+            WResult::Ok(resolved_schema)
+        }
+        WResult::OkWithNFEs(resolved_schema, errs) => {
+            logger.success(&format!("`{}` semconv registry resolved", registry_id));
+            let nfes = errs.into_iter().map(DiagnosticMessage::new).collect();
+            WResult::OkWithNFEs(resolved_schema, nfes)
+        }
+        WResult::FatalErr(err) => WResult::FatalErr(DiagnosticMessage::new(err)),
+    }
 }
 
 /// Resolves the telemetry schema from the given semantic convention specifications.
 pub(crate) fn resolve_telemetry_schema(
     registry_repo: &RegistryRepo,
     semconv_specs: Vec<(String, SemConvSpec)>,
-    logger: impl Logger + Sync + Clone
-) -> WResult<ResolvedTelemetrySchema, DiagnosticMessages> {
-    // ToDo
-    // from_semconv_specs et resolve_semconv_specs doivent retourner un WResult
-    // et on doit les chainer ensemble tout en emettant les fatals errors intermediaires.
-    // Liste de DiagnosticMessages non fatal locale afin de captures toutes les erreurs
-    // non fatales, les retourner a la fin, ou emettre un WResult falal si besoin.
-    // Faire tous les changements necessaire
-    
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
-        .combine_diag_msgs_with(diag_msgs)?;
+    logger: impl Logger + Sync + Clone,
+) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
+    let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
+        Ok(registry) => registry,
+        Err(e) => return WResult::FatalErr(DiagnosticMessage::new(e)),
+    };
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger.clone()).combine_diag_msgs_with(diag_msgs)?;
-
-    Ok(resolved_schema)
+    resolve_semconv_specs(&mut registry, logger.clone())
 }

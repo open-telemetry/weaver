@@ -75,6 +75,12 @@ pub struct DiagnosticMessage {
 #[serde(transparent)]
 pub struct DiagnosticMessages(Vec<DiagnosticMessage>);
 
+impl From<DiagnosticMessage> for DiagnosticMessages {
+    fn from(value: DiagnosticMessage) -> Self {
+        Self(vec![value])
+    }
+}
+
 impl DiagnosticMessage {
     /// Creates a new diagnostic message from an error
     pub fn new<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(error: M) -> Self {
@@ -241,7 +247,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use miette::{diagnostic, Diagnostic};
+    use miette::Diagnostic;
 
     #[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
     #[error("This is a test error")]

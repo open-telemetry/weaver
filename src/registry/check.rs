@@ -132,7 +132,7 @@ pub(crate) fn command(
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
     let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
-        .combine_diag_msgs_with(&diag_msgs)?;
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
     if let Some(policy_engine) = policy_engine.as_mut() {
         // Convert the resolved schemas into a resolved registry.
@@ -174,7 +174,7 @@ pub(crate) fn command(
             )?;
             let baseline_resolved_schema =
                 resolve_semconv_specs(&mut baseline_registry, logger.clone())
-                    .combine_diag_msgs_with(&diag_msgs)?;
+                    .capture_non_fatal_errors(&mut diag_msgs)?;
             let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
                 &baseline_resolved_schema.registry,
                 baseline_resolved_schema.catalog(),

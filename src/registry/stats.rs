@@ -41,6 +41,7 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
+    let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = args.registry.registry.clone();
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
@@ -57,7 +58,12 @@ pub(crate) fn command(
     display_semconv_registry_stats(&registry);
 
     // Resolve the semantic convention registry.
-    let resolved_schema = resolve_semconv_specs(&mut registry, logger)?;
+    let resolved_schema =
+        resolve_semconv_specs(&mut registry, logger).capture_non_fatal_errors(&mut diag_msgs)?;
+
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
 
     display_schema_stats(&resolved_schema);
     Ok(ExitDirectives {

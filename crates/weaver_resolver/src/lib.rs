@@ -234,28 +234,28 @@ impl SchemaResolver {
     /// corresponding resolved telemetry schema.
     pub fn resolve_semantic_convention_registry(
         registry: &mut SemConvRegistry,
-    ) -> Result<ResolvedTelemetrySchema, Error> {
+    ) -> WResult<ResolvedTelemetrySchema, Error> {
         let mut attr_catalog = AttributeCatalog::default();
-        let resolved_registry = resolve_semconv_registry(&mut attr_catalog, "", registry)?;
+        resolve_semconv_registry(&mut attr_catalog, "", registry).map(move |resolved_registry| {
+            let catalog = Catalog {
+                attributes: attr_catalog.drain_attributes(),
+            };
 
-        let catalog = Catalog {
-            attributes: attr_catalog.drain_attributes(),
-        };
+            let resolved_schema = ResolvedTelemetrySchema {
+                file_format: "1.0.0".to_owned(),
+                schema_url: "".to_owned(),
+                registry_id: registry.id().into(),
+                registry: resolved_registry,
+                catalog,
+                resource: None,
+                instrumentation_library: None,
+                dependencies: vec![],
+                versions: None, // ToDo LQ: Implement this!
+                registry_manifest: registry.manifest().cloned(),
+            };
 
-        let resolved_schema = ResolvedTelemetrySchema {
-            file_format: "1.0.0".to_owned(),
-            schema_url: "".to_owned(),
-            registry_id: registry.id().into(),
-            registry: resolved_registry,
-            catalog,
-            resource: None,
-            instrumentation_library: None,
-            dependencies: vec![],
-            versions: None, // ToDo LQ: Implement this!
-            registry_manifest: registry.manifest().cloned(),
-        };
-
-        Ok(resolved_schema)
+            resolved_schema
+        })
     }
 
     /// Loads the semantic convention specifications from the given registry path.

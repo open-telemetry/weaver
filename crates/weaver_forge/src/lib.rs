@@ -776,6 +776,7 @@ mod tests {
         engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
         let template_registry =
@@ -954,6 +955,7 @@ mod tests {
             .into_result_failing_non_fatal()
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
         let template_registry =

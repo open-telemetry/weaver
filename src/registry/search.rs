@@ -375,6 +375,7 @@ pub(crate) fn command(
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
+    let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = args.registry.registry.clone();
     let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
@@ -387,7 +388,8 @@ pub(crate) fn command(
     .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
     .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
+    let schema = resolve_semconv_specs(&mut registry, logger.clone())
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
     // We should have two modes:
     // 1. a single input we take in and directly output some rendered result.
@@ -404,6 +406,11 @@ pub(crate) fn command(
             quiet_mode: false,
         });
     }
+
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
+    }
+
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,

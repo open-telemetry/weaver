@@ -10,6 +10,7 @@ use std::{fmt, fs};
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::result::WResult;
 use weaver_diff::diff_output;
 use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::TemplateEngine;
@@ -332,12 +333,29 @@ impl ResolvedSemconvRegistry {
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
-            .capture_non_fatal_errors(diag_msgs)?;
-        let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)?;
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
-        let lookup = ResolvedSemconvRegistry { schema };
-        Ok(lookup)
+        let semconv_specs = match SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
+        {
+            WResult::Ok(semconv_specs) => semconv_specs,
+            WResult::OkWithNFEs(semconv_specs, errs) => {
+                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                semconv_specs
+            }
+            WResult::FatalErr(err) => return Err(err.into()),
+        };
+
+        let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
+            Ok(registry) => registry,
+            Err(e) => return Err(e.into()),
+        };
+        let schema = match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+            WResult::Ok(schema) => schema,
+            WResult::OkWithNFEs(schema, errs) => {
+                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                schema
+            }
+            WResult::FatalErr(err) => return Err(err.into()),
+        };
+        Ok(ResolvedSemconvRegistry { schema })
     }
 
     fn catalog(&self) -> &Catalog {

@@ -103,7 +103,8 @@ pub(crate) fn command(
     }
 
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
+    let schema = resolve_semconv_specs(&mut registry, logger.clone())
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
     // Serialize the resolved schema and write it
     // to a file or print it to stdout.
