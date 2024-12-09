@@ -11,7 +11,7 @@ rust-version.workspace = true
 [dependencies]
 walkdir.workspace = true
 serde_json.workspace = true
-similar = "2.5.0"
+similar = "2.6.0"
 
 [lints]
 workspace = true
