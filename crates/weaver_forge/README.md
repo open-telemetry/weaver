@@ -767,6 +767,7 @@ The resulting comment in JavaDoc format would be:
    * adipiscing elit sed do eiusmod tempor
    * incididunt ut labore et dolore magna aliqua.
    * </ul>
+   * <p>
    * And an <strong>inline code snippet</strong>: {@code Attr.attr}.
    * <h1>Summary</h1>
    * <h2>Examples</h2>

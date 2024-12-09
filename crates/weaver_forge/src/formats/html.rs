@@ -296,6 +296,9 @@ impl<'source> HtmlRenderer<'source> {
                 ctx.pushln(indent)?;
                 ctx.push_unbroken(&format!("</{}>", tag), indent)?;
                 ctx.add_newline = true;
+                if options.old_style_paragraph {
+                    ctx.add_old_style_paragraph = true;
+                }
             }
             Node::ListItem(item) => {
                 for child in &item.children {
@@ -564,6 +567,7 @@ it's RECOMMENDED to:
   <li>Use a domain-specific attribute
   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
 </ul>
+<p>
 And something more."##
         );
         Ok(())
@@ -792,6 +796,7 @@ RECOMMENDED to:
   are defined within the
   domain-specific set or not
 </ul>
+<p>
 And something more."##
         );
         Ok(())
