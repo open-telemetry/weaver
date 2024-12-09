@@ -63,14 +63,7 @@ pub(crate) fn command(
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
     // Initialize the main registry.
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir
-    // ToDo: This parameter is now deprecated and should be removed in the future
-    if let RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
+    let registry_path = args.registry.registry.clone();
     let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // Initialize the baseline registry if provided.
@@ -133,13 +126,13 @@ pub(crate) fn command(
     }
 
     let mut main_registry =
-        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
+        SemConvRegistry::from_semconv_specs(&main_registry_repo, main_semconv_specs)?;
     // Resolve the semantic convention specifications.
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
     let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
-        .combine_diag_msgs_with(&diag_msgs)?;
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
     if let Some(policy_engine) = policy_engine.as_mut() {
         // Convert the resolved schemas into a resolved registry.
@@ -147,9 +140,7 @@ pub(crate) fn command(
         // diagnostic messages and returned immediately because there is no point in continuing
         // as the registry resolution is a prerequisite for the next stages.
         let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-            main_resolved_schema
-                .registry(main_registry_repo.id())
-                .expect("Failed to get the registry from the resolved schema"),
+            &main_resolved_schema.registry,
             main_resolved_schema.catalog(),
         )
         .combine_diag_msgs_with(&diag_msgs)?;
@@ -178,16 +169,14 @@ pub(crate) fn command(
             (baseline_registry_repo, baseline_semconv_specs)
         {
             let mut baseline_registry = SemConvRegistry::from_semconv_specs(
-                baseline_registry_repo.id(),
+                &baseline_registry_repo,
                 baseline_semconv_specs,
-            );
+            )?;
             let baseline_resolved_schema =
                 resolve_semconv_specs(&mut baseline_registry, logger.clone())
-                    .combine_diag_msgs_with(&diag_msgs)?;
+                    .capture_non_fatal_errors(&mut diag_msgs)?;
             let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-                baseline_resolved_schema
-                    .registry(baseline_registry_repo.id())
-                    .expect("Failed to get the registry from the baseline resolved schema"),
+                &baseline_resolved_schema.registry,
                 baseline_resolved_schema.catalog(),
             )
             .combine_diag_msgs_with(&diag_msgs)?;
@@ -249,7 +238,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     baseline_registry: None,
                     policies: vec![],
@@ -278,7 +266,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     baseline_registry: None,
                     policies: vec![],
@@ -307,7 +294,6 @@ mod tests {
                     registry: RegistryPath::LocalFolder {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                     },
-                    registry_git_sub_dir: None,
                 },
                 baseline_registry: None,
                 policies: vec![],

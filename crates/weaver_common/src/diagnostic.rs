@@ -75,6 +75,12 @@ pub struct DiagnosticMessage {
 #[serde(transparent)]
 pub struct DiagnosticMessages(Vec<DiagnosticMessage>);
 
+impl From<DiagnosticMessage> for DiagnosticMessages {
+    fn from(value: DiagnosticMessage) -> Self {
+        Self(vec![value])
+    }
+}
+
 impl DiagnosticMessage {
     /// Creates a new diagnostic message from an error
     pub fn new<M: Error + Diagnostic + Serialize + Send + Sync + 'static>(error: M) -> Self {
@@ -180,8 +186,7 @@ impl DiagnosticMessages {
         Self(vec![DiagnosticMessage::new(error)])
     }
 
-    /// Returns true if all the diagnostic messages are explicitly marked as
-    /// warnings or advices.
+    /// Returns true if at least one diagnostic message has an error severity.
     #[must_use]
     pub fn has_error(&self) -> bool {
         let non_error_count = self
@@ -242,7 +247,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use miette::{diagnostic, Diagnostic};
+    use miette::Diagnostic;
 
     #[derive(thiserror::Error, Debug, Clone, Diagnostic, Serialize)]
     #[error("This is a test error")]
