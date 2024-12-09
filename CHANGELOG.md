@@ -25,9 +25,10 @@ What's changed
 * Javadoc <p> tags should only precede paragraphs ([#510](https://github.com/open-telemetry/weaver/pull/510) by @trask).
 * More consistent newline behavior ([#509](https://github.com/open-telemetry/weaver/pull/509) by @trask).
 * Add test cases to cover a paragraph after a list ([#508](https://github.com/open-telemetry/weaver/pull/508) by @trask).
-* Add cross-compile support ([#506](https://github.com/open-telemetry/weaver/pull/506) by @bernot-dev)
-  * This change uses Rust's ability to cross-compile for different platforms instead of relying on emulation, resulting in much faster builds.
-  * Expected improvement is from ≈1h25m to <10m. Local cross-platform builds took about 3-7 minutes for me.
+
+Important note: Our CI/CD pipeline has been updated to use Rust cross-compilation, significantly speeding up the ARM
+target (see [#506](https://github.com/open-telemetry/weaver/pull/506, thanks to @bernot-dev). If you encounter any
+issues on ARM, please let us know as soon as possible. Thank you!
 
 ## [0.11.0] - 2024-12-05
 
