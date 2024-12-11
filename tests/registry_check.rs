@@ -3,7 +3,6 @@
 //! Test the registry check command.
 
 use assert_cmd::Command;
-use std::time::Duration;
 
 /// This test checks the CLI interface for the registry generate command.
 /// This test doesn't count for the coverage report as it runs a separate process.
@@ -16,7 +15,7 @@ fn test_cli_interface() {
     let output = cmd
         .arg("registry")
         .arg("check")
-        .timeout(Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");
 
@@ -34,7 +33,7 @@ fn test_cli_interface() {
         .arg("crates/weaver_codegen_test/semconv_registry/")
         .arg("--diagnostic-format")
         .arg("json")
-        .timeout(Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");
 
