@@ -38,3 +38,6 @@ lcov.info
 # Ignore the output of the `weaver resolve` command
 output.json
 resolved-schema.yaml
+
+# Ignore the temporary repo dir created by `cargo xtask history` command
+history-temp-repo/
