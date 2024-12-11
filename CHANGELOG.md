@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
+* 
+
+## [0.12.0] - 2024-12-09
+
+What's changed
+
 * Issue [#502](https://github.com/open-telemetry/weaver/issues/502) - Support stability definitions from [OTEP 232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md) - ([#504](https://github.com/open-telemetry/weaver/pull/504) by @jerbly).
   * Stability enum now has these variants: `stable`, `development`, `deprecated`, `alpha`, `beta`, `release_candidate`
   * `unmaintained` is not supported yet.
@@ -13,6 +19,16 @@ What's changed
   * The minijinja test, `experimental`, now returns true for any variant other than `stable`.
   * EBNF and JSON schema updated to define the new enum without the `experimental` variant.
 * Issue [#301](https://github.com/open-telemetry/weaver/issues/301) - Warn against usage of `allow_custom_values`. ([#514](https://github.com/open-telemetry/weaver/pull/514) by @jerbly).
+* Fixed rego typos, attrigute and deprecaded ([#517](https://github.com/open-telemetry/weaver/pull/517) by @jerbly).
+* Create better HTML comment parser - Allow more semconv snippet headers ([#512](https://github.com/open-telemetry/weaver/pull/512) by @jsuereth).
+* Add javadoc <p> tag after lists ([#511](https://github.com/open-telemetry/weaver/pull/511) @trask).
+* Javadoc <p> tags should only precede paragraphs ([#510](https://github.com/open-telemetry/weaver/pull/510) by @trask).
+* More consistent newline behavior ([#509](https://github.com/open-telemetry/weaver/pull/509) by @trask).
+* Add test cases to cover a paragraph after a list ([#508](https://github.com/open-telemetry/weaver/pull/508) by @trask).
+
+Important note: Our CI/CD pipeline has been updated to use Rust cross-compilation, significantly speeding up the ARM
+target (see [#506](https://github.com/open-telemetry/weaver/pull/506, thanks to @bernot-dev). If you encounter any
+issues on ARM, please let us know as soon as possible. Thank you!
 
 ## [0.11.0] - 2024-12-05
 

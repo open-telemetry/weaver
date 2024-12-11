@@ -28,7 +28,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.11.0"
+version = "0.12.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -38,10 +38,10 @@ rust-version = "1.81.0"
 
 [workspace.dependencies]
 serde = { version = "1.0.215", features = ["derive"] }
-serde_yaml = "0.9.32"
+serde_yaml = "0.9.34"
 serde_json = { version = "1.0.133"}
-thiserror = "2.0.4"
-url = "2.5.3"
+thiserror = "2.0.6"
+url = "2.5.4"
 ureq = "2.12.1"
 regex = "1.11.1"
 rayon = "1.10.0"
@@ -100,7 +100,7 @@ itertools.workspace = true
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
 tempdir.workspace = true
-assert_cmd = "2.0.14"
+assert_cmd = "2.0.16"
 
 [profile.release]
 lto = true
