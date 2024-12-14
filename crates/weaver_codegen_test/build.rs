@@ -18,7 +18,7 @@ use weaver_common::{in_memory, Logger};
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
+use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 
@@ -58,10 +58,7 @@ fn main() {
         .unwrap_or_else(|e| process_error(&logger, e));
     let config = WeaverConfig::try_from_path("./templates/registry/rust")
         .unwrap_or_else(|e| process_error(&logger, e));
-    let mut engine = TemplateEngine::new(config, loader, Params::default());
-    engine
-        .import_jq_package(SEMCONV_JQ)
-        .unwrap_or_else(|e| process_error(&logger, e));
+    let engine = TemplateEngine::new(config, loader, Params::default());
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)
