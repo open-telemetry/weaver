@@ -739,7 +739,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
-        let mut engine = TemplateEngine::new(config, loader, cli_params);
+        let engine = TemplateEngine::new(config, loader, cli_params);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .expect("Failed to resolve registry");
 
