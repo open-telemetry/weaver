@@ -186,8 +186,7 @@ mod tests {
         let input = json!({});
         let values = BTreeMap::new();
         let error = execute_jq(&input, "(", &values)
-            .err()
-            .expect("Should have failed to lex");
+            .expect_err("Should have failed to lex");
         let msg = format!("{error}");
         assert!(
             msg.contains("expected closing parenthesis"),
@@ -200,8 +199,7 @@ mod tests {
         let input = json!({});
         let values = BTreeMap::new();
         let error = execute_jq(&input, "if false then .", &values)
-            .err()
-            .expect("Should have failed to parse");
+            .expect_err("Should have failed to parse");
         let msg = format!("{error}");
         assert!(
             msg.contains("expected else or end"),
@@ -214,8 +212,7 @@ mod tests {
         let input = json!({});
         let values = BTreeMap::new();
         let error = execute_jq(&input, ".x | de", &values)
-            .err()
-            .expect("Should have failed to parse");
+            .expect_err("Should have failed to parse");
         let msg = format!("{error}");
         assert!(
             msg.contains("undefined filter"),
