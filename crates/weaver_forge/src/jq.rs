@@ -185,8 +185,7 @@ mod tests {
     fn test_lex_error() {
         let input = json!({});
         let values = BTreeMap::new();
-        let error = execute_jq(&input, "(", &values)
-            .expect_err("Should have failed to lex");
+        let error = execute_jq(&input, "(", &values).expect_err("Should have failed to lex");
         let msg = format!("{error}");
         assert!(
             msg.contains("expected closing parenthesis"),
@@ -211,8 +210,8 @@ mod tests {
     fn test_compile_error() {
         let input = json!({});
         let values = BTreeMap::new();
-        let error = execute_jq(&input, ".x | de", &values)
-            .expect_err("Should have failed to parse");
+        let error =
+            execute_jq(&input, ".x | de", &values).expect_err("Should have failed to parse");
         let msg = format!("{error}");
         assert!(
             msg.contains("undefined filter"),
