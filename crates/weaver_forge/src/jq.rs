@@ -104,9 +104,9 @@ fn load_errors(errs: jaq_core::load::Errors<&str, JqFileType>) -> String {
     use jaq_core::load::Error;
     let errs = errs.into_iter().flat_map(|(_, err)| {
         let result: Vec<String> = match err {
-            Error::Io(errs) => errs.into_iter().map(|e| report_io(e)).collect(),
-            Error::Lex(errs) => errs.into_iter().map(|e| report_lex(e)).collect(),
-            Error::Parse(errs) => errs.into_iter().map(|e| report_parse(e)).collect(),
+            Error::Io(errs) => errs.into_iter().map(report_io).collect(),
+            Error::Lex(errs) => errs.into_iter().map(report_lex).collect(),
+            Error::Parse(errs) => errs.into_iter().map(report_parse).collect(),
         };
         result
     });
@@ -117,7 +117,7 @@ fn load_errors(errs: jaq_core::load::Errors<&str, JqFileType>) -> String {
 fn compile_errors(errs: jaq_core::compile::Errors<&str, JqFileType>) -> String {
     let errs = errs
         .into_iter()
-        .flat_map(|(_, errs)| errs.into_iter().map(|e| report_compile(e)));
+        .flat_map(|(_, errs)| errs.into_iter().map(report_compile));
     errors_to_string(errs)
 }
 
@@ -136,16 +136,15 @@ fn report_parse((expected, _): jaq_core::load::parse::Error<&str>) -> String {
     format!("expected {}", expected.as_str())
 }
 
-/// Turns erros coming from JAQ compile phase into raw strings.
+/// Turns errors coming from JAQ compile phase into raw strings.
 fn report_compile((found, undefined): jaq_core::compile::Error<&str>) -> String {
     use jaq_core::compile::Undefined::Filter;
     let wnoa = |exp, got| format!("wrong number of arguments (expected {exp}, found {got})");
-    let message = match (found, undefined) {
+    match (found, undefined) {
         ("reduce", Filter(arity)) => wnoa("2", arity),
         ("foreach", Filter(arity)) => wnoa("2 or 3", arity),
         (_, undefined) => format!("undefined {}", undefined.as_str()),
-    };
-    message
+    }
 }
 
 #[cfg(test)]
