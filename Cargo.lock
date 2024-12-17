@@ -2360,6 +2360,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "jaq-core"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d03ee1b714d63f0a5820131180056b592ecd400b32879c848e53e58707f19df0"
+dependencies = [
+ "dyn-clone",
+ "once_cell",
+ "typed-arena",
+]
+
+[[package]]
 name = "jaq-interpret"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2386,11 +2397,18 @@ dependencies = [
 
 [[package]]
 name = "jaq-std"
-version = "1.6.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfbaa55578fd3b70433b594a370741e0c364e4afff92cc0099623fce87311bc1"
+checksum = "80e2c65cceafd4c0019f15a0dac7c0dd659b0fcf5182fc3a10d15b89d89ac6e8"
 dependencies = [
- "jaq-syn",
+ "aho-corasick",
+ "base64 0.22.1",
+ "chrono",
+ "jaq-core 2.0.0",
+ "libm",
+ "log",
+ "regex-lite",
+ "urlencoding",
 ]
 
 [[package]]
@@ -3416,6 +3434,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex-lite"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53a49587ad06b26609c52e423de037e7f57f20d53535d66e08c695f347df952a"
+
+[[package]]
 name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4345,6 +4369,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "typed-arena"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4758,7 +4788,7 @@ dependencies = [
  "include_dir",
  "indexmap",
  "itertools 0.13.0",
- "jaq-core",
+ "jaq-core 1.5.1",
  "jaq-interpret",
  "jaq-parse",
  "jaq-std",
