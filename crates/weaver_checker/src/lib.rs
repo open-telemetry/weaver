@@ -484,7 +484,7 @@ mod tests {
         let expected_violations: HashMap<String, Violation> = vec![
             Violation::SemconvAttribute {
                 id: "attr_stability_deprecated".to_owned(),
-                category: "attrigute".to_owned(),
+                category: "attribute".to_owned(),
                 group: "registry.network1".to_owned(),
                 attr: "protocol.name".to_owned(),
             },
@@ -496,7 +496,7 @@ mod tests {
             },
             Violation::SemconvAttribute {
                 id: "registry_with_ref_attr".to_owned(),
-                category: "attrigute_registry".to_owned(),
+                category: "attribute_registry".to_owned(),
                 group: "registry.network1".to_owned(),
                 attr: "protocol.port".to_owned(),
             },
@@ -569,7 +569,7 @@ mod tests {
         let expected_violations: HashMap<String, Violation> = vec![
             Violation::SemconvAttribute {
                 id: "attr_stability_deprecated".to_owned(),
-                category: "attrigute".to_owned(),
+                category: "attribute".to_owned(),
                 group: "registry.network1".to_owned(),
                 attr: "protocol.name".to_owned(),
             },
@@ -581,7 +581,7 @@ mod tests {
             },
             Violation::SemconvAttribute {
                 id: "registry_with_ref_attr".to_owned(),
-                category: "attrigute_registry".to_owned(),
+                category: "attribute_registry".to_owned(),
                 group: "registry.network1".to_owned(),
                 attr: "protocol.port".to_owned(),
             },

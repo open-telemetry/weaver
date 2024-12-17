@@ -9,7 +9,6 @@ groups:
         requirement_level: required
         brief: 'A string identifying the remoting system. See below for a list of well-known identifiers.'
         type:
-          allow_custom_values: true
           members:
             - id: grpc
               value: 'grpc'

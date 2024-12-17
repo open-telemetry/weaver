@@ -203,9 +203,8 @@ pub enum AttributeType {
     /// An enum definition type.
     Enum {
         /// Set to false to not accept values other than the specified members.
-        /// It defaults to true.
-        #[serde(default = "default_as_true")]
-        allow_custom_values: bool,
+        /// No longer used since semconv 1.27.0.
+        allow_custom_values: Option<bool>,
         /// List of enum entries.
         members: Vec<EnumEntriesSpec>,
     },
@@ -227,11 +226,6 @@ impl Display for AttributeType {
             }
         }
     }
-}
-
-/// Specifies the default value for allow_custom_values.
-fn default_as_true() -> bool {
-    true
 }
 
 /// Primitive or array types.
@@ -803,7 +797,7 @@ mod tests {
             format!(
                 "{}",
                 Enum {
-                    allow_custom_values: true,
+                    allow_custom_values: Some(true),
                     members: vec![EnumEntriesSpec {
                         id: "id".to_owned(),
                         value: ValueSpec::Int(42),
