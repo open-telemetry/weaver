@@ -688,7 +688,9 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some("true".to_owned()),
+            deprecated: Some(Deprecated::Deprecated {
+                note: "deprecated".to_owned(),
+            }),
             attributes: vec![AttributeSpec::Id {
                 id: "test".to_owned(),
                 r#type: AttributeType::Enum {
@@ -697,7 +699,9 @@ mod tests {
                 },
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some("true".to_owned()),
+                deprecated: Some(Deprecated::Deprecated {
+                    note: "deprecated".to_owned(),
+                }),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -735,7 +739,9 @@ mod tests {
             },
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some("true".to_owned()),
+            deprecated: Some(Deprecated::Deprecated {
+                note: "deprecated".to_owned(),
+            }),
             examples: Some(Examples::String("test".to_owned())),
             tag: None,
             requirement_level: Default::default(),
