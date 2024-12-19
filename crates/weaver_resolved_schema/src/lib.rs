@@ -175,7 +175,7 @@ impl ResolvedTelemetrySchema {
             .collect()
     }
 
-    /// Get the metrics of the resolved telemetry schema.
+    /// Get the groups of a specific type from the resolved telemetry schema.
     #[must_use]
     pub fn groups(&self, group_type: GroupType) -> HashMap<String, &Group> {
         self.registry
