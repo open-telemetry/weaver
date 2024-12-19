@@ -85,6 +85,60 @@ pub struct Stats {
 }
 
 impl ResolvedTelemetrySchema {
+    /// Create a new resolved telemetry schema.
+    pub fn new<S: AsRef<str>>(
+        file_format: S,
+        schema_url: S,
+        registry_id: S,
+        registry_url: S,
+    ) -> Self {
+        Self {
+            file_format: file_format.as_ref().to_owned(),
+            schema_url: schema_url.as_ref().to_owned(),
+            registry_id: registry_id.as_ref().to_owned(),
+            registry: Registry::new(registry_url),
+            catalog: Catalog::default(),
+            resource: None,
+            instrumentation_library: None,
+            dependencies: vec![],
+            versions: None,
+            registry_manifest: None,
+        }
+    }
+
+    /// Adds a new attribute group to the schema.
+    ///
+    /// Note: This method is intended to be used for testing purposes only.
+    #[cfg(test)]
+    pub(crate) fn add_attribute_group<const N: usize>(
+        &mut self,
+        group_id: &str,
+        attrs: [Attribute; N],
+    ) {
+        let attr_refs = self.catalog.add_attributes(attrs);
+        self.registry.groups.push(Group {
+            id: group_id.to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: None,
+            name: Some(group_id.to_owned()),
+            lineage: None,
+            display_name: None,
+            attributes: attr_refs,
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            constraints: vec![],
+            unit: None,
+            body: None,
+        });
+    }
+
     /// Get the catalog of the resolved telemetry schema.
     pub fn catalog(&self) -> &Catalog {
         &self.catalog
@@ -435,9 +489,13 @@ impl ResolvedTelemetrySchema {
 
 #[cfg(test)]
 mod tests {
+    use crate::attribute::Attribute;
     use crate::ResolvedTelemetrySchema;
     use schemars::schema_for;
     use serde_json::to_string_pretty;
+    use std::collections::HashSet;
+    use weaver_semconv::deprecated::Deprecated;
+    use weaver_version::schema_changes::SchemaItemChange;
 
     #[test]
     fn test_json_schema_gen() {
@@ -448,5 +506,265 @@ mod tests {
         assert!(to_string_pretty(&schema).is_ok());
     }
 
-    // ToDo LQ add tests for the diff method
+    #[test]
+    fn no_diff() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::int("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        let changes = prior_schema.diff(&prior_schema);
+        assert!(changes.is_empty());
+    }
+
+    #[test]
+    fn detect_2_added_attributes() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+            ],
+        );
+
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::int("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 2);
+        assert_eq!(changes.count_attribute_changes(), 2);
+        assert_eq!(changes.count_added_attributes(), 2);
+    }
+
+    #[test]
+    fn detect_2_deprecated_attributes() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::int("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Deprecated {
+                    note: "deprecated".to_owned(),
+                }),
+                Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Deprecated {
+                    note: "deprecated".to_owned(),
+                }),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 2);
+        assert_eq!(changes.count_attribute_changes(), 2);
+        assert_eq!(changes.count_deprecated_attributes(), 2);
+    }
+
+    #[test]
+    fn detect_2_renamed_to_new_attributes() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::int("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        // 2 new attributes are added: attr2_bis and attr3_bis
+        // attr2 is renamed attr2_bis
+        // attr3 is renamed attr3_bis
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
+                    new_name: "attr2_bis".to_owned(),
+                    note: Some("deprecated".to_owned()),
+                }),
+                Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
+                    new_name: "attr3_bis".to_owned(),
+                    note: Some("deprecated".to_owned()),
+                }),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+        latest_schema.add_attribute_group(
+            "group2",
+            [
+                Attribute::boolean("attr2_bis", "brief1", "note1"),
+                Attribute::boolean("attr3_bis", "brief1", "note1"),
+            ],
+        );
+
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 2);
+        assert_eq!(changes.count_attribute_changes(), 2);
+        assert_eq!(changes.count_renamed_to_new_attributes(), 2);
+    }
+
+    #[test]
+    fn detect_merge_of_2_attributes_renamed_to_the_same_existing_attribute() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::string("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+        prior_schema.add_attribute_group("group2", [Attribute::string("attr5", "brief", "note")]);
+
+        // 2 new attributes are added: attr2_bis and attr3_bis
+        // attr2 is renamed attr2_bis
+        // attr3 is renamed attr3_bis
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
+                    new_name: "attr5".to_owned(),
+                    note: Some("deprecated".to_owned()),
+                }),
+                Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
+                    new_name: "attr5".to_owned(),
+                    note: Some("deprecated".to_owned()),
+                }),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+        latest_schema.add_attribute_group("group2", [Attribute::string("attr5", "brief", "note")]);
+
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 1);
+        assert_eq!(changes.count_attribute_changes(), 1);
+        // 2 attributes are renamed to the same existing attribute
+        assert_eq!(changes.count_renamed_to_existing_attributes(), 1);
+        let changes = changes.renamed_to_existing_attributes();
+        if let SchemaItemChange::RenamedToExisting {
+            old_names,
+            current_name,
+        } = &changes[0]
+        {
+            let expected_old_names: HashSet<_> = ["attr2".to_owned(), "attr3".to_owned()]
+                .into_iter()
+                .collect();
+            assert_eq!(old_names, &expected_old_names);
+            assert_eq!(current_name, "attr5");
+        }
+    }
+
+    #[test]
+    fn detect_merge_of_2_attributes_renamed_to_the_same_new_attribute() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::string("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        // 2 new attributes are added: attr2_bis and attr3_bis
+        // attr2 is renamed attr2_bis
+        // attr3 is renamed attr3_bis
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
+                    new_name: "attr5".to_owned(),
+                    note: Some("deprecated".to_owned()),
+                }),
+                Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
+                    new_name: "attr5".to_owned(),
+                    note: Some("deprecated".to_owned()),
+                }),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+        latest_schema.add_attribute_group("group2", [Attribute::string("attr5", "brief", "note")]);
+
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 1);
+        assert_eq!(changes.count_attribute_changes(), 1);
+        // 2 attributes are renamed to the same existing attribute
+        assert_eq!(changes.count_renamed_to_new_attributes(), 1);
+        let changes = changes.renamed_to_new_attributes();
+        if let SchemaItemChange::RenamedToNew {
+            old_names,
+            new_name,
+        } = &changes[0]
+        {
+            let expected_old_names: HashSet<_> = ["attr2".to_owned(), "attr3".to_owned()]
+                .into_iter()
+                .collect();
+            assert_eq!(old_names, &expected_old_names);
+            assert_eq!(new_name, "attr5");
+        }
+    }
+
+    /// In normal situation this should never happen based on the registry evolution process.
+    /// However, detecting this case is useful for identifying a violation of the process.
+    #[test]
+    fn detect_2_removed_attributes() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+                Attribute::int("attr3", "brief3", "note3"),
+                Attribute::double("attr4", "brief4", "note4"),
+            ],
+        );
+
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_attribute_group(
+            "group1",
+            [
+                Attribute::boolean("attr1", "brief1", "note1"),
+                Attribute::string("attr2", "brief2", "note2"),
+            ],
+        );
+
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 2);
+        assert_eq!(changes.count_attribute_changes(), 2);
+        assert_eq!(changes.count_removed_attributes(), 2);
+    }
 }

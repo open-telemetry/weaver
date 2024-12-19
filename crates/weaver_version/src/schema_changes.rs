@@ -114,6 +114,119 @@ impl SchemaChanges {
         schema_changes
     }
 
+    /// Returns true if there are no changes in the schema.
+    /// Otherwise, it returns false.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.changes.values().all(|v| v.is_empty())
+    }
+
+    /// Counts the number of changes in the schema.
+    #[must_use]
+    pub fn count_changes(&self) -> usize {
+        self.changes.values().map(|v| v.len()).sum()
+    }
+
+    /// Counts the number of attribute changes in the schema.
+    #[must_use]
+    pub fn count_attribute_changes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of added attributes in the schema.
+    #[must_use]
+    pub fn count_added_attributes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::Added { .. }))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of deprecated attributes in the schema.
+    #[must_use]
+    pub fn count_deprecated_attributes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::Deprecated { .. }))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of renamed to new attributes in the schema.
+    #[must_use]
+    pub fn count_renamed_to_new_attributes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::RenamedToNew { .. }))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of renamed to existing attributes in the schema.
+    #[must_use]
+    pub fn count_renamed_to_existing_attributes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::RenamedToExisting { .. }))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of removed attributes in the schema.
+    #[must_use]
+    pub fn count_removed_attributes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::Removed { .. }))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+
+    /// Returns all the renamed to existing attributes changes.
+    #[must_use]
+    pub fn renamed_to_existing_attributes(&self) -> Vec<&SchemaItemChange> {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::RenamedToExisting { .. }))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Returns all the renamed to new attributes changes.
+    #[must_use]
+    pub fn renamed_to_new_attributes(&self) -> Vec<&SchemaItemChange> {
+        self.changes
+            .get(&SchemaItemType::Attributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::RenamedToNew { .. }))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Add a `SchemaChange` to the list of changes for the specified schema item type.
     pub fn add_change(&mut self, item_type: SchemaItemType, change: SchemaItemChange) {
         self.changes

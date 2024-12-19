@@ -237,9 +237,7 @@ impl SchemaResolver {
     ) -> WResult<ResolvedTelemetrySchema, Error> {
         let mut attr_catalog = AttributeCatalog::default();
         resolve_semconv_registry(&mut attr_catalog, "", registry).map(move |resolved_registry| {
-            let catalog = Catalog {
-                attributes: attr_catalog.drain_attributes(),
-            };
+            let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
 
             let resolved_schema = ResolvedTelemetrySchema {
                 file_format: "1.0.0".to_owned(),

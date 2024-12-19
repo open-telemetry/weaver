@@ -115,7 +115,7 @@ impl<'a> SearchApp<'a> {
             format!(
                 "Loaded {0:?} groups w/ {1} attributes",
                 group_count,
-                self.schema.catalog.attributes.len()
+                self.schema.catalog.count_attributes()
             ),
             Style::default().fg(Color::Gray),
         )]);
@@ -131,7 +131,6 @@ impl<'a> SearchApp<'a> {
     fn result_set(&'a self) -> impl Iterator<Item = &'a Attribute> {
         self.schema
             .catalog
-            .attributes
             .iter()
             .filter(|a| a.name.contains(self.search_string().as_str()))
     }
@@ -361,7 +360,6 @@ fn run_ui(schema: &ResolvedTelemetrySchema) -> Result<(), Error> {
 fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
     let results = schema
         .catalog()
-        .attributes
         .iter()
         .filter(|a| a.name.contains(pattern))
         .map(|a| a.name.to_owned())

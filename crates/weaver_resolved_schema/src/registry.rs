@@ -237,6 +237,15 @@ impl CommonGroupStats {
 }
 
 impl Registry {
+    /// Creates a new registry.
+    #[must_use]
+    pub fn new<S: AsRef<str>>(registry_url: S) -> Self {
+        Self {
+            registry_url: registry_url.as_ref().to_owned(),
+            groups: Vec::new(),
+        }
+    }
+
     /// Returns the groups of the specified type.
     ///
     /// # Arguments

@@ -370,10 +370,7 @@ fn unresolved_registry_from_specs(
         .collect();
 
     UnresolvedRegistry {
-        registry: Registry {
-            registry_url: registry_url.to_owned(),
-            groups: vec![],
-        },
+        registry: Registry::new(registry_url),
         groups,
     }
 }
