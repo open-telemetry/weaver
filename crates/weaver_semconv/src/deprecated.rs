@@ -22,7 +22,7 @@ pub enum Deprecated {
     /// existing object or to a new object.
     Renamed {
         /// The new name of the field.
-        new_name: String,
+        renamed_to: String,
     },
     /// The object containing the deprecated field has been deprecated
     /// either because it no longer exists, has been split into multiple fields,
@@ -88,7 +88,7 @@ where
                     let rename_to =
                         new_name.ok_or_else(|| de::Error::missing_field("rename_to"))?;
                     Ok(Deprecated::Renamed {
-                        new_name: rename_to,
+                        renamed_to: rename_to,
                     })
                 }
                 Some("deprecated") => Ok(Deprecated::Deprecated),
@@ -150,7 +150,7 @@ impl Display for Deprecated {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Deprecated::Renamed {
-                new_name: rename_to,
+                renamed_to: rename_to,
             } => {
                 write!(f, "Replaced by `{}`.", rename_to)
             }
@@ -189,7 +189,7 @@ mod tests {
         assert_eq!(
             items[2].deprecated,
             Some(Deprecated::Renamed {
-                new_name: "foo.unique_id".to_owned(),
+                renamed_to: "foo.unique_id".to_owned(),
             })
         );
     }

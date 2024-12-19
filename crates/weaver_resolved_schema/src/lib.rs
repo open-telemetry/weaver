@@ -274,7 +274,7 @@ impl ResolvedTelemetrySchema {
             if let Some(deprecated) = attr.deprecated.as_ref() {
                 match deprecated {
                     Deprecated::Renamed {
-                        new_name: rename_to,
+                        renamed_to: rename_to,
                         ..
                     } => {
                         // Insert the old name into the set of old names
@@ -392,7 +392,7 @@ impl ResolvedTelemetrySchema {
             if let Some(deprecated) = group.deprecated.as_ref() {
                 match deprecated {
                     Deprecated::Renamed {
-                        new_name: rename_to,
+                        renamed_to: rename_to,
                         ..
                     } => {
                         // Insert the deprecated signal into the set of renamed/deprecated signals
@@ -607,10 +607,10 @@ mod tests {
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
-                    new_name: "attr2_bis".to_owned(),
+                    renamed_to: "attr2_bis".to_owned(),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
-                    new_name: "attr3_bis".to_owned(),
+                    renamed_to: "attr3_bis".to_owned(),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -652,10 +652,10 @@ mod tests {
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
-                    new_name: "attr5".to_owned(),
+                    renamed_to: "attr5".to_owned(),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
-                    new_name: "attr5".to_owned(),
+                    renamed_to: "attr5".to_owned(),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -703,10 +703,10 @@ mod tests {
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
-                    new_name: "attr5".to_owned(),
+                    renamed_to: "attr5".to_owned(),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
-                    new_name: "attr5".to_owned(),
+                    renamed_to: "attr5".to_owned(),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
