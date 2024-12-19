@@ -569,12 +569,12 @@ mod tests {
             "group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
-                Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Deprecated {
-                    note: "deprecated".to_owned(),
-                }),
-                Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Deprecated {
-                    note: "deprecated".to_owned(),
-                }),
+                Attribute::string("attr2", "brief2", "note2")
+                    .deprecated(Deprecated::Deprecated)
+                    .note("This attribute is deprecated."),
+                Attribute::int("attr3", "brief3", "note3")
+                    .deprecated(Deprecated::Deprecated)
+                    .note("This attribute is deprecated."),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
         );
@@ -608,11 +608,9 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     new_name: "attr2_bis".to_owned(),
-                    note: Some("deprecated".to_owned()),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     new_name: "attr3_bis".to_owned(),
-                    note: Some("deprecated".to_owned()),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -655,11 +653,9 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     new_name: "attr5".to_owned(),
-                    note: Some("deprecated".to_owned()),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     new_name: "attr5".to_owned(),
-                    note: Some("deprecated".to_owned()),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -708,11 +704,9 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     new_name: "attr5".to_owned(),
-                    note: Some("deprecated".to_owned()),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     new_name: "attr5".to_owned(),
-                    note: Some("deprecated".to_owned()),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],

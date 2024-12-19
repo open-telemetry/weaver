@@ -471,17 +471,13 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             attributes: vec![AttributeSpec::Id {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some(Deprecated::Deprecated {
-                    note: "deprecated".to_owned(),
-                }),
+                deprecated: Some(Deprecated::Deprecated),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -591,17 +587,13 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             attributes: vec![AttributeSpec::Id {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some(Deprecated::Deprecated {
-                    note: "deprecated".to_owned(),
-                }),
+                deprecated: Some(Deprecated::Deprecated),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -629,9 +621,7 @@ mod tests {
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             examples: None,
             tag: None,
             requirement_level: Default::default(),
@@ -656,9 +646,7 @@ mod tests {
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             examples: None,
             tag: None,
             requirement_level: Default::default(),
@@ -688,9 +676,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             attributes: vec![AttributeSpec::Id {
                 id: "test".to_owned(),
                 r#type: AttributeType::Enum {
@@ -699,9 +685,7 @@ mod tests {
                 },
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some(Deprecated::Deprecated {
-                    note: "deprecated".to_owned(),
-                }),
+                deprecated: Some(Deprecated::Deprecated),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -739,9 +723,7 @@ mod tests {
             },
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             examples: Some(Examples::String("test".to_owned())),
             tag: None,
             requirement_level: Default::default(),
@@ -763,9 +745,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "deprecated".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             constraints: vec![],
             span_kind: None,
             events: vec![],
@@ -974,9 +954,7 @@ mod tests {
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
                 stability: Some(Stability::Deprecated),
-                deprecated: Some(Deprecated::Deprecated {
-                    note: "deprecated".to_owned(),
-                }),
+                deprecated: Some(Deprecated::Deprecated),
                 examples: Some(Examples::String("test".to_owned())),
                 tag: None,
                 requirement_level: Default::default(),
@@ -1116,9 +1094,7 @@ mod tests {
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
             stability: Some(Stability::Deprecated),
-            deprecated: Some(Deprecated::Deprecated {
-                note: "true".to_owned(),
-            }),
+            deprecated: Some(Deprecated::Deprecated),
             examples: Some(Examples::String("test".to_owned())),
             tag: None,
             requirement_level: Default::default(),

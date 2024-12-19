@@ -194,4 +194,12 @@ impl Attribute {
         self.deprecated = Some(deprecated);
         self
     }
+
+    /// Sets the note field of the attribute.
+    /// Note: This method is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn note<S: AsRef<str>>(mut self, note: S) -> Self {
+        self.note = note.as_ref().to_owned();
+        self
+    }
 }

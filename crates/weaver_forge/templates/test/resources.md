@@ -39,7 +39,7 @@ Brief: {{ resource.brief }}
 - Sampling relevant: {{ attribute.sampling_relevant }}
   {%- endif %}
   {%- if attribute.deprecated %}
-- Deprecated: {{ attribute.deprecated.note }}
+- Deprecated: {{ attribute.note }}
   {%- endif %}
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}

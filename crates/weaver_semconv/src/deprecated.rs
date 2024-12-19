@@ -7,7 +7,6 @@
 //! - A map with the action (renamed or removed) and optionally a note. When the
 //!   action is renamed, the map must also contain the field renamed_to.
 
-use regex::Regex;
 use schemars::JsonSchema;
 use serde::de::{MapAccess, Visitor};
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -24,17 +23,13 @@ pub enum Deprecated {
     Renamed {
         /// The new name of the field.
         new_name: String,
-        /// An optional note to explain why the field has been renamed.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        note: Option<String>,
     },
     /// The object containing the deprecated field has been deprecated
     /// either because it no longer exists, has been split into multiple fields,
     /// has been renamed in various ways across different contexts, or for any other reason.
-    Deprecated {
-        /// A note to explain why the field has been deprecated.
-        note: String,
-    },
+    ///
+    /// The note field should contain the reason why the field has been deprecated.
+    Deprecated,
 }
 
 /// Custom deserialization function to handle both old and new formats.
@@ -55,30 +50,16 @@ where
             formatter.write_str("a string or a map for deprecated field")
         }
 
-        // Handle the old format (just a string)
-        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        /// Handle the old format (just a string)
+        ///
+        /// Note: The old format of the deprecated field is a string with the deprecation message.
+        /// The new format is a map with at least the `action` field and the deprecation message is
+        /// expected to be in the standard `note` field.
+        fn visit_str<E>(self, _value: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            // Regex to match "Replaced by `some_field`"
-            // ToDo make this regex global
-            // Replaced by `([\w]+(?:\.[\w]+)*)`?
-            let renamed_regex =
-                Regex::new(r"(?i)(?:replace[d]? by|use|use the) `([\w]+(?:\.[\w]+)*)`?")
-                    .map_err(E::custom)?;
-
-            if let Some(captures) = renamed_regex.captures(value) {
-                // This is the old format for renamed fields
-                let rename_to = captures.get(1).map_or("", |m| m.as_str()).to_owned();
-                Ok(Deprecated::Renamed {
-                    new_name: rename_to,
-                    note: Some(value.to_owned()),
-                })
-            } else {
-                Ok(Deprecated::Deprecated {
-                    note: value.to_owned(),
-                })
-            }
+            Ok(Deprecated::Deprecated)
         }
 
         // Handle the new format (a map with action and optionally `rename_to` or `note`)
@@ -88,13 +69,11 @@ where
         {
             let mut action = None;
             let mut new_name = None;
-            let mut note = None;
 
             while let Some(key) = map.next_key::<String>()? {
                 match key.as_str() {
                     "action" => action = Some(map.next_value::<String>()?),
                     "new_name" => new_name = Some(map.next_value()?),
-                    "note" => note = Some(map.next_value()?),
                     _ => {
                         return Err(de::Error::unknown_field(
                             &key,
@@ -110,13 +89,9 @@ where
                         new_name.ok_or_else(|| de::Error::missing_field("rename_to"))?;
                     Ok(Deprecated::Renamed {
                         new_name: rename_to,
-                        note,
                     })
                 }
-                Some("deprecated") => {
-                    let note = note.ok_or_else(|| de::Error::missing_field("note"))?;
-                    Ok(Deprecated::Deprecated { note })
-                }
+                Some("deprecated") => Ok(Deprecated::Deprecated),
                 _ => Err(de::Error::missing_field("action")),
             }
         }
@@ -176,16 +151,11 @@ impl Display for Deprecated {
         match self {
             Deprecated::Renamed {
                 new_name: rename_to,
-                note,
             } => {
-                if let Some(note) = note.as_ref() {
-                    write!(f, "{}", note)
-                } else {
-                    write!(f, "Replaced by `{}`.", rename_to)
-                }
+                write!(f, "Replaced by `{}`.", rename_to)
             }
-            Deprecated::Deprecated { note } => {
-                write!(f, "{}", note)
+            Deprecated::Deprecated => {
+                write!(f, "Deprecated")
             }
         }
     }
@@ -207,134 +177,19 @@ mod tests {
 - deprecated: 'Replaced by `jvm.buffer.memory.used`.'
 - deprecated: 
     action: deprecated
-    note: This attribute is no longer used.
-- deprecated: 
-    action: deprecated
-    note: Should no longer be used.
 - deprecated:
     action: renamed
     new_name: foo.unique_id
-    note: This field has been renamed for consistency.
-- deprecated:
-    action: renamed
-    new_name: foo.unique_id
-- deprecated: Removed.
-- deprecated: Replaced by `gen_ai.usage.input_tokens` attribute.
-- deprecated:
-- deprecated: 'Replaced by `server.address` on client spans and `client.address` on server spans.'
-- deprecated: 'Split to `network.transport` and `network.type`.'
-- deprecated: "Replaced by `db.client.connection.state`."
-- deprecated: "Replaced by `db.client.connection.state."
 "#;
 
         let items: Vec<Item> = serde_yaml::from_str(yaml_data).unwrap();
-        assert_eq!(items.len(), 12);
-        assert_eq!(
-            items[0].deprecated.clone().unwrap().to_string(),
-            "Replaced by `jvm.buffer.memory.used`.".to_owned()
-        );
-        assert_eq!(
-            items[0].deprecated,
-            Some(Deprecated::Renamed {
-                new_name: "jvm.buffer.memory.used".to_owned(),
-                note: Some("Replaced by `jvm.buffer.memory.used`.".to_owned())
-            })
-        );
-        assert_eq!(
-            items[1].deprecated.clone().unwrap().to_string(),
-            "This attribute is no longer used.".to_owned()
-        );
-        assert_eq!(
-            items[1].deprecated,
-            Some(Deprecated::Deprecated {
-                note: "This attribute is no longer used.".to_owned()
-            })
-        );
-        assert_eq!(
-            items[2].deprecated.clone().unwrap().to_string(),
-            "Should no longer be used.".to_owned()
-        );
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].deprecated, Some(Deprecated::Deprecated));
+        assert_eq!(items[1].deprecated, Some(Deprecated::Deprecated {}));
         assert_eq!(
             items[2].deprecated,
-            Some(Deprecated::Deprecated {
-                note: "Should no longer be used.".to_owned()
-            })
-        );
-        assert_eq!(
-            items[3].deprecated.clone().unwrap().to_string(),
-            "This field has been renamed for consistency.".to_owned()
-        );
-        assert_eq!(
-            items[3].deprecated,
             Some(Deprecated::Renamed {
                 new_name: "foo.unique_id".to_owned(),
-                note: Some("This field has been renamed for consistency.".to_owned())
-            })
-        );
-        assert_eq!(
-            items[4].deprecated.clone().unwrap().to_string(),
-            "Replaced by `foo.unique_id`.".to_owned()
-        );
-        assert_eq!(
-            items[4].deprecated,
-            Some(Deprecated::Renamed {
-                new_name: "foo.unique_id".to_owned(),
-                note: None
-            })
-        );
-        assert_eq!(
-            items[5].deprecated.clone().unwrap().to_string(),
-            "Removed.".to_owned()
-        );
-        assert_eq!(
-            items[5].deprecated,
-            Some(Deprecated::Deprecated {
-                note: "Removed.".to_owned()
-            })
-        );
-        assert_eq!(
-            items[6].deprecated.clone().unwrap().to_string(),
-            "Replaced by `gen_ai.usage.input_tokens` attribute.".to_owned()
-        );
-        assert_eq!(
-            items[6].deprecated,
-            Some(Deprecated::Renamed {
-                new_name: "gen_ai.usage.input_tokens".to_owned(),
-                note: Some("Replaced by `gen_ai.usage.input_tokens` attribute.".to_owned())
-            })
-        );
-        assert_eq!(items[7].deprecated, None);
-        assert_eq!(
-            items[8].deprecated.clone().unwrap().to_string(),
-            "Replaced by `server.address` on client spans and `client.address` on server spans."
-                .to_owned()
-        );
-        assert_eq!(items[8].deprecated, Some(Deprecated::Renamed {
-            new_name: "server.address".to_owned(),
-            note: Some("Replaced by `server.address` on client spans and `client.address` on server spans.".to_owned())
-        }));
-        assert_eq!(
-            items[9].deprecated.clone().unwrap().to_string(),
-            "Split to `network.transport` and `network.type`.".to_owned()
-        );
-        assert_eq!(
-            items[9].deprecated,
-            Some(Deprecated::Deprecated {
-                note: "Split to `network.transport` and `network.type`.".to_owned()
-            })
-        );
-        assert_eq!(
-            items[10].deprecated,
-            Some(Deprecated::Renamed {
-                new_name: "db.client.connection.state".to_owned(),
-                note: Some("Replaced by `db.client.connection.state`.".to_owned())
-            })
-        );
-        assert_eq!(
-            items[11].deprecated,
-            Some(Deprecated::Renamed {
-                new_name: "db.client.connection.state".to_owned(),
-                note: Some("Replaced by `db.client.connection.state.".to_owned())
             })
         );
     }
