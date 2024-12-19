@@ -11,7 +11,7 @@ use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
-use weaver_forge::{TemplateEngine, SEMCONV_JQ};
+use weaver_forge::TemplateEngine;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command
@@ -75,9 +75,7 @@ pub(crate) fn command(
             &args.target,
         )?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        let mut engine = TemplateEngine::new(config, loader, Params::default());
-        engine.import_jq_package(SEMCONV_JQ)?;
-        engine
+        TemplateEngine::new(config, loader, Params::default())
     };
 
     let registry_path = args.registry.registry.clone();

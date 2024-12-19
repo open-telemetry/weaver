@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{fmt, fs};
 
-use jaq_interpret::Val;
 use minijinja::syntax::SyntaxConfig;
 use minijinja::value::{from_args, Enumerator, Object};
 use minijinja::{Environment, ErrorKind, State, Value};
@@ -41,6 +40,7 @@ pub mod extensions;
 pub mod file_loader;
 mod filter;
 mod formats;
+mod jq;
 pub mod registry;
 
 /// Name of the Weaver configuration file.
@@ -158,9 +158,6 @@ pub struct TemplateEngine {
 
     /// Target configuration
     target_config: WeaverConfig,
-
-    /// The jq packages that have been imported.
-    jq_packages: Vec<jaq_syn::Def>,
 }
 
 /// Global context for the template engine.
@@ -231,30 +228,7 @@ impl TemplateEngine {
         Self {
             file_loader: Arc::new(loader),
             target_config: config,
-            jq_packages: Vec::new(),
         }
-    }
-
-    /// Import a jq package into the template engine.
-    /// A jq package is a collection of jq functions that can be used in the templates.
-    pub fn import_jq_package(&mut self, package_content: &str) -> Result<(), Error> {
-        let (defs, errs) = jaq_parse::parse(package_content, jaq_parse::defs());
-
-        if !errs.is_empty() {
-            return Err(Error::CompoundError(
-                errs.into_iter()
-                    .map(|e| Error::ImportError {
-                        package: package_content.to_owned(),
-                        error: e.to_string(),
-                    })
-                    .collect(),
-            ));
-        }
-
-        if let Some(def) = defs {
-            self.jq_packages.extend(def);
-        }
-        Ok(())
     }
 
     /// Generate a template snippet from serializable context and a snippet identifier.
@@ -351,23 +325,16 @@ impl TemplateEngine {
         output_directive: &OutputDirective,
         log: impl Logger + Sync + Clone,
     ) -> Result<(), Error> {
-        let params = Self::init_params(template.params.clone())?;
-        let (jq_vars, jq_ctx) = Self::prepare_jq_context(&params)?;
-        let filter = Filter::try_new(
-            template.filter.as_str(),
-            jq_vars.clone(),
-            self.jq_packages.clone(),
-        )?;
-        // `jaq_interpret::val::Val` is not Sync, so we need to convert json_values to
-        // jaq_interpret::val::Val here.
-        let jq_ctx = jq_ctx.into_iter().map(Val::from).collect::<Vec<_>>();
-        let filtered_result = filter.apply(context.clone(), jq_ctx)?;
+        let yaml_params = Self::init_params(template.params.clone())?;
+        let params = Self::prepare_jq_context(&yaml_params)?;
+        let filter = Filter::new(template.filter.as_str());
+        let filtered_result = filter.apply(context.clone(), &params)?;
 
         match template.application_mode {
             ApplicationMode::Single => self.process_single_mode(
                 &filtered_result,
                 template.file_name.as_ref(),
-                &params,
+                &yaml_params,
                 template_file,
                 output_dir,
                 output_directive,
@@ -376,7 +343,7 @@ impl TemplateEngine {
             ApplicationMode::Each => self.process_each_mode(
                 &filtered_result,
                 template.file_name.as_ref(),
-                &params,
+                &yaml_params,
                 template_file,
                 output_dir,
                 output_directive,
@@ -459,9 +426,9 @@ impl TemplateEngine {
     /// Build a JQ context from the Weaver parameters.
     fn prepare_jq_context(
         params: &BTreeMap<String, serde_yaml::Value>,
-    ) -> Result<(Vec<String>, Vec<serde_json::Value>), Error> {
+    ) -> Result<BTreeMap<String, serde_json::Value>, Error> {
         let mut errs = Vec::new();
-        let (jq_vars, jq_ctx): (Vec<String>, Vec<serde_json::Value>) = params
+        let jq_ctx: BTreeMap<String, serde_json::Value> = params
             .iter()
             .filter_map(|(k, v)| {
                 let json_value = match serde_json::to_value(v) {
@@ -475,10 +442,9 @@ impl TemplateEngine {
                 };
                 Some((k.clone(), json_value))
             })
-            .unzip();
-
+            .collect();
         handle_errors(errs)?;
-        Ok((jq_vars, jq_ctx))
+        Ok(jq_ctx)
     }
 
     /// Initialize a map of parameters from the template parameters.
@@ -772,9 +738,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
-        let mut engine = TemplateEngine::new(config, loader, cli_params);
-        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
-
+        let engine = TemplateEngine::new(config, loader, cli_params);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
@@ -935,7 +899,6 @@ mod tests {
         let config =
             WeaverConfig::try_from_loader(&loader).expect("Failed to load `templates/weaver.yaml`");
         let mut engine = TemplateEngine::new(config, loader, Params::default());
-        engine.import_jq_package(super::SEMCONV_JQ).unwrap();
 
         // Add a template configuration for converter.md on top
         // of the default template configuration. This is useful
