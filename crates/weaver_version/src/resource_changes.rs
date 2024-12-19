@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Resource version.
+//! Resource change definitions.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

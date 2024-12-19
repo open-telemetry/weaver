@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Metrics version.
+//! Metrics change definitions.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
