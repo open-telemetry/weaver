@@ -1,0 +1,12 @@
+name: waf_vendor
+version: 1.5.1
+schema_url: https://waf_vendor.com/schemas/1.5.1
+owner:
+  name: WAF Vendor
+  contact: contact@waf_vendor.com
+maintainers:
+  - name: Neo
+dependencies:
+  - name: otel
+    version: 1.27.0
+    repository: https://opentelemetry.io/registries/

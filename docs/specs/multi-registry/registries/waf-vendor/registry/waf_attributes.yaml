@@ -1,0 +1,30 @@
+groups:
+  - id: registry.waf
+    type: attribute_group
+    display_name: WAF Attributes
+    brief: 'A set of specific WAF attributes.'
+    attributes:
+      - id: waf.signature
+        brief: "The WAF signature"
+        type: string
+      - id: waf.action.type
+        brief: "The WAF action type."
+        stability: stable
+        type:
+          members:
+            - id: alarmed
+              value: "ALARMED"
+              brief: 'ALARMED action.'
+              stability: stable
+            - id: blocked
+              value: "BLOCKED"
+              brief: 'BLOCKED action.'
+              stability: stable
+            - id: legal
+              value: "LEGAL"
+              brief: 'LEGAL action.'
+              stability: stable
+            - id: dropped
+              value: "DROPPED"
+              brief: 'DROPPED action.'
+              stability: stable
