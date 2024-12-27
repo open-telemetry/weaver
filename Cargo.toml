@@ -37,7 +37,7 @@ publish = false
 rust-version = "1.81.0"
 
 [workspace.dependencies]
-serde = { version = "1.0.216", features = ["derive"] }
+serde = { version = "1.0.217", features = ["derive"] }
 serde_yaml = "0.9.34"
 serde_json = { version = "1.0.134"}
 thiserror = "2.0.9"
