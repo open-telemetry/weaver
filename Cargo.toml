@@ -39,7 +39,7 @@ rust-version = "1.81.0"
 [workspace.dependencies]
 serde = { version = "1.0.216", features = ["derive"] }
 serde_yaml = "0.9.34"
-serde_json = { version = "1.0.133"}
+serde_json = { version = "1.0.134"}
 thiserror = "2.0.8"
 url = "2.5.4"
 ureq = "2.12.1"
