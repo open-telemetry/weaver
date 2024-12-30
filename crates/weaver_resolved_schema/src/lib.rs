@@ -176,7 +176,7 @@ impl ResolvedTelemetrySchema {
     }
 
     /// Get the "registry" attributes of the resolved telemetry schema.
-    /// 
+    ///
     /// Note: At the moment (2024-12-30), I don't know a better way to identify
     /// the "registry" attributes other than by checking if the group ID starts
     /// with "registry.".
@@ -201,7 +201,7 @@ impl ResolvedTelemetrySchema {
             })
             .collect()
     }
-    
+
     /// Get the groups of a specific type from the resolved telemetry schema.
     #[must_use]
     pub fn groups(&self, group_type: GroupType) -> HashMap<String, &Group> {
@@ -209,15 +209,7 @@ impl ResolvedTelemetrySchema {
             .groups
             .iter()
             .filter(|group| group.r#type == group_type)
-            .map(|group| match group_type {
-                GroupType::AttributeGroup
-                | GroupType::Event
-                | GroupType::Span
-                | GroupType::Resource
-                | GroupType::MetricGroup
-                | GroupType::Scope => (group.name.clone().unwrap_or_default(), group),
-                GroupType::Metric => (group.metric_name.clone().unwrap_or_default(), group),
-            })
+            .map(|group| (group.id.clone(), group))
             .collect()
     }
 
