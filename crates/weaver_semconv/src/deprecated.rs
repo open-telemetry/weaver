@@ -28,7 +28,7 @@ pub enum Deprecated {
     /// either because it no longer exists, has been split into multiple fields,
     /// has been renamed in various ways across different contexts, or for any other reason.
     ///
-    /// The note field should contain the reason why the field has been deprecated.
+    /// The `note` field should contain the reason why the field has been deprecated.
     Deprecated,
 }
 
