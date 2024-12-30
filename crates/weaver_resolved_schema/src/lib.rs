@@ -175,6 +175,33 @@ impl ResolvedTelemetrySchema {
             .collect()
     }
 
+    /// Get the "registry" attributes of the resolved telemetry schema.
+    /// 
+    /// Note: At the moment (2024-12-30), I don't know a better way to identify
+    /// the "registry" attributes other than by checking if the group ID starts
+    /// with "registry.".
+    #[must_use]
+    pub fn registry_attribute_map(&self) -> HashMap<&str, &Attribute> {
+        self.registry
+            .groups
+            .iter()
+            .filter(|group| group.r#type == GroupType::AttributeGroup)
+            .filter(|group| group.id.starts_with("registry."))
+            .flat_map(|group| {
+                group.attributes.iter().map(|attr_ref| {
+                    // An attribute ref is a reference to an attribute in the catalog.
+                    // Not finding the attribute in the catalog is a bug somewhere in
+                    // the resolution process. So it's fine to panic here.
+                    let attr = self
+                        .catalog
+                        .attribute(attr_ref)
+                        .expect("Attribute ref not found in catalog. This is a bug.");
+                    (attr.name.as_str(), attr)
+                })
+            })
+            .collect()
+    }
+    
     /// Get the groups of a specific type from the resolved telemetry schema.
     #[must_use]
     pub fn groups(&self, group_type: GroupType) -> HashMap<String, &Group> {
@@ -257,8 +284,8 @@ impl ResolvedTelemetrySchema {
         baseline_schema: &ResolvedTelemetrySchema,
         changes: &mut SchemaChanges,
     ) {
-        let latest_attributes = self.attribute_map();
-        let baseline_attributes = baseline_schema.attribute_map();
+        let latest_attributes = self.registry_attribute_map();
+        let baseline_attributes = baseline_schema.registry_attribute_map();
 
         // A map of attributes that have been renamed to a new attribute.
         // The key is the new name of the attribute, and the value is a set of old names.
