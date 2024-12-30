@@ -37,17 +37,17 @@ publish = false
 rust-version = "1.81.0"
 
 [workspace.dependencies]
-serde = { version = "1.0.216", features = ["derive"] }
+serde = { version = "1.0.217", features = ["derive"] }
 serde_yaml = "0.9.34"
-serde_json = { version = "1.0.133"}
-thiserror = "2.0.7"
+serde_json = { version = "1.0.134"}
+thiserror = "2.0.9"
 url = "2.5.4"
 ureq = "2.12.1"
 regex = "1.11.1"
 rayon = "1.10.0"
-ordered-float = { version = "4.5.0", features = ["serde", "schemars"] }
+ordered-float = { version = "4.6.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
-anyhow = "1.0.94"
+anyhow = "1.0.95"
 itertools = "0.13.0"
 globset = { version = "0.4.15", features = ["serde1"] }
 miette = { version = "7.4.0", features = ["fancy", "serde"] }
