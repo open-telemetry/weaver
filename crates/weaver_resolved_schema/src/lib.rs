@@ -546,7 +546,7 @@ mod tests {
     fn detect_2_added_attributes() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         prior_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
@@ -555,7 +555,7 @@ mod tests {
 
         let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         latest_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
@@ -574,18 +574,20 @@ mod tests {
     fn detect_2_deprecated_attributes() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         prior_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
                 Attribute::int("attr3", "brief3", "note3"),
                 Attribute::double("attr4", "brief4", "note4"),
+                Attribute::double("attr5", "brief5", "note5")
+                    .deprecated(Deprecated::Deprecated),
             ],
         );
 
         let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         latest_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2")
@@ -595,6 +597,8 @@ mod tests {
                     .deprecated(Deprecated::Deprecated)
                     .note("This attribute is deprecated."),
                 Attribute::double("attr4", "brief4", "note4"),
+                Attribute::double("attr5", "brief5", "note5")
+                    .deprecated(Deprecated::Deprecated),
             ],
         );
 
@@ -608,7 +612,7 @@ mod tests {
     fn detect_2_renamed_to_new_attributes() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         prior_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
@@ -622,7 +626,7 @@ mod tests {
         // attr3 is renamed attr3_bis
         let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         latest_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
@@ -635,7 +639,7 @@ mod tests {
             ],
         );
         latest_schema.add_attribute_group(
-            "group2",
+            "registry.group2",
             [
                 Attribute::boolean("attr2_bis", "brief1", "note1"),
                 Attribute::boolean("attr3_bis", "brief1", "note1"),
@@ -652,7 +656,7 @@ mod tests {
     fn detect_merge_of_2_attributes_renamed_to_the_same_existing_attribute() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         prior_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
@@ -667,7 +671,7 @@ mod tests {
         // attr3 is renamed attr3_bis
         let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         latest_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
@@ -704,7 +708,7 @@ mod tests {
     fn detect_merge_of_2_attributes_renamed_to_the_same_new_attribute() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         prior_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
@@ -718,7 +722,7 @@ mod tests {
         // attr3 is renamed attr3_bis
         let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         latest_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
@@ -730,7 +734,10 @@ mod tests {
                 Attribute::double("attr4", "brief4", "note4"),
             ],
         );
-        latest_schema.add_attribute_group("group2", [Attribute::string("attr5", "brief", "note")]);
+        latest_schema.add_attribute_group(
+            "registry.group2",
+            [Attribute::string("attr5", "brief", "note")],
+        );
 
         let changes = latest_schema.diff(&prior_schema);
         assert_eq!(changes.count_changes(), 1);
@@ -757,7 +764,7 @@ mod tests {
     fn detect_2_removed_attributes() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         prior_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
@@ -768,7 +775,7 @@ mod tests {
 
         let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
         latest_schema.add_attribute_group(
-            "group1",
+            "registry.group1",
             [
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2"),
