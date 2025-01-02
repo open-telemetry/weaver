@@ -185,6 +185,69 @@ Options:
           Print help (see a summary with '-h')
 ```
 
+## registry diff
+
+```
+Generate a diff between two versions of a semantic convention registry.
+
+This diff can then be rendered in multiple formats:
+- a console-friendly format (default: ansi),
+- a structured document in JSON or YAML format,
+- ...
+
+Usage: weaver registry diff [OPTIONS] --baseline-registry <BASELINE_REGISTRY> [OUTPUT]
+
+Arguments:
+  [OUTPUT]
+          Path to the directory where the generated artifacts will be saved. Default is the `output` directory
+
+          [default: output]
+
+Options:
+      --debug...
+          Turn debugging information on
+
+  -r, --registry <REGISTRY>
+          Local folder, Git repo URL, or Git archive URL of the semantic convention registry. For Git URLs, a sub-folder can be specified using the `[sub-folder]` syntax after the URL
+
+          [default: https://github.com/open-telemetry/semantic-conventions.git[model]]
+
+      --baseline-registry <BASELINE_REGISTRY>
+          Parameters to specify the baseline semantic convention registry
+
+      --quiet
+          Turn the quiet mode on (i.e., minimal output)
+
+      --diff-format <DIFF_FORMAT>
+          Format used to render the schema changes. Predefined formats are: ansi, json, yaml, and markdown
+
+          [default: ansi]
+
+      --future
+          Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
+
+      --diff-template <DIFF_TEMPLATE>
+          Path to the directory where the schema changes templates are located
+
+          [default: diff_templates]
+
+      --diagnostic-format <DIAGNOSTIC_FORMAT>
+          Format used to render the diagnostic messages. Predefined formats are: ansi, json, gh_workflow_command
+
+          [default: ansi]
+
+      --diagnostic-template <DIAGNOSTIC_TEMPLATE>
+          Path to the directory where the diagnostic templates are located
+
+          [default: diagnostic_templates]
+
+  -s, --follow-symlinks
+          Boolean flag to specify whether to follow symlinks when loading the registry. Default is false
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
 ## registry update-markdown
 
 ```
