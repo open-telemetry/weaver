@@ -596,8 +596,7 @@ mod tests {
                 Attribute::string("attr2", "brief2", "note2"),
                 Attribute::int("attr3", "brief3", "note3"),
                 Attribute::double("attr4", "brief4", "note4"),
-                Attribute::double("attr5", "brief5", "note5")
-                    .deprecated(Deprecated::Deprecated),
+                Attribute::double("attr5", "brief5", "note5").deprecated(Deprecated::Deprecated),
             ],
         );
 
@@ -613,8 +612,7 @@ mod tests {
                     .deprecated(Deprecated::Deprecated)
                     .note("This attribute is deprecated."),
                 Attribute::double("attr4", "brief4", "note4"),
-                Attribute::double("attr5", "brief5", "note5")
-                    .deprecated(Deprecated::Deprecated),
+                Attribute::double("attr5", "brief5", "note5").deprecated(Deprecated::Deprecated),
             ],
         );
 
