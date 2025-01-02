@@ -291,6 +291,14 @@ impl ResolvedTelemetrySchema {
         // deprecated in the latest schema.
         for (attr_name, attr) in latest_attributes.iter() {
             if let Some(deprecated) = attr.deprecated.as_ref() {
+                // is this a change from the baseline?
+                if let Some(baseline_attr) = baseline_attributes.get(attr_name) {
+                    if let Some(baseline_deprecated) = baseline_attr.deprecated.as_ref() {
+                        if deprecated == baseline_deprecated {
+                            continue;
+                        }
+                    }
+                }
                 match deprecated {
                     Deprecated::Renamed {
                         renamed_to: rename_to,
@@ -409,6 +417,14 @@ impl ResolvedTelemetrySchema {
         // deprecated in the latest schema.
         for (signal_name, group) in latest_signals.iter() {
             if let Some(deprecated) = group.deprecated.as_ref() {
+                // is this a change from the baseline?
+                if let Some(baseline_group) = baseline_signals.get(signal_name) {
+                    if let Some(baseline_deprecated) = baseline_group.deprecated.as_ref() {
+                        if deprecated == baseline_deprecated {
+                            continue;
+                        }
+                    }
+                }
                 match deprecated {
                     Deprecated::Renamed {
                         renamed_to: rename_to,
