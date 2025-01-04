@@ -13,7 +13,7 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputDirective, TemplateEngine};
 
-use crate::registry::{CommonRegistryArgs, Error, RegistryArgs};
+use crate::registry::{Error, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -69,10 +69,6 @@ pub struct RegistryGenerateArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-
-    /// Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Utility function to parse key-value pairs from the command line.
@@ -104,14 +100,13 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
     let params = generate_params(args)?;
 
-    let registry_path = &args.registry.registry;
+    //let registry_path = &args.registry.registry;
 
     //let registry_id = "default";
 
     let (template_registry, _) = prepare_main_registry(
         logger.clone(),
-        registry_path,
-        args.common_registry_args.follow_symlinks,
+        &args.registry,
         args.skip_policies,
         &args.policies,
         false,
@@ -220,9 +215,7 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::generate::RegistryGenerateArgs;
-    use crate::registry::{
-        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
-    };
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
     use crate::run_command;
 
     #[test]
@@ -247,14 +240,12 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     policies: vec![],
                     skip_policies: true,
                     future: false,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };
@@ -321,14 +312,12 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     policies: vec![],
                     skip_policies: false,
                     future: false,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };
@@ -367,14 +356,12 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     policies: vec![],
                     skip_policies: true,
                     future: false,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };
@@ -471,12 +458,12 @@ mod tests {
                             registry: RegistryPath::LocalFolder {
                                 path: "data/symbolic_test/".to_owned(),
                             },
+                            follow_symlinks,
                         },
                         policies: vec![],
                         skip_policies: true,
                         future: false,
                         diagnostic: Default::default(),
-                        common_registry_args: CommonRegistryArgs { follow_symlinks },
                     }),
                 })),
             };

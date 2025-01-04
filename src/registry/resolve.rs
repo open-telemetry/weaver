@@ -10,7 +10,7 @@ use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
 
 use crate::format::{apply_format, Format};
-use crate::registry::{CommonRegistryArgs, RegistryArgs};
+use crate::registry::RegistryArgs;
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -52,10 +52,6 @@ pub struct RegistryResolveArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-
-    // Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Resolve a semantic convention registry and write the resolved schema to a
@@ -70,12 +66,11 @@ pub(crate) fn command(
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let registry_path = &args.registry.registry;
+    //    let registry_path = &args.registry.registry;
 
     let (registry, _) = prepare_main_registry(
         logger.clone(),
-        registry_path,
-        args.common_registry_args.follow_symlinks,
+        &args.registry,
         args.skip_policies,
         &args.policies,
         false,
@@ -159,9 +154,7 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{
-        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
-    };
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
     use crate::run_command;
 
     #[test]
@@ -177,6 +170,7 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     lineage: true,
                     output: None,
@@ -184,9 +178,6 @@ mod tests {
                     policies: vec![],
                     skip_policies: true,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };
@@ -206,6 +197,7 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     lineage: true,
                     output: None,
@@ -213,9 +205,6 @@ mod tests {
                     policies: vec![],
                     skip_policies: false,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };

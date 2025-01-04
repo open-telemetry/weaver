@@ -6,7 +6,6 @@
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
-use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
@@ -18,6 +17,8 @@ use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
+
+use crate::registry::RegistryArgs;
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -206,19 +207,23 @@ pub(crate) fn resolve_semconv_specs(
 
 pub(crate) fn prepare_main_registry(
     logger: impl Logger + Sync + Clone,
-    registry_path: &RegistryPath,
-    follow_symlinks: bool,
+    registry_args: &RegistryArgs,
     skip_policies: bool,
     policies: &[PathBuf],
     display_policy_coverage: bool,
     diag_msgs: &mut DiagnosticMessages,
 ) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
+    let registry_path = &registry_args.registry;
+
     let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
     // Load the semantic convention specs
-    let main_semconv_specs =
-        load_semconv_specs(&main_registry_repo, logger.clone(), follow_symlinks)
-            .capture_non_fatal_errors(diag_msgs)?;
+    let main_semconv_specs = load_semconv_specs(
+        &main_registry_repo,
+        logger.clone(),
+        registry_args.follow_symlinks,
+    )
+    .capture_non_fatal_errors(diag_msgs)?;
 
     // Optionally init policy engine
     let mut policy_engine = if !skip_policies {

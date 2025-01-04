@@ -12,7 +12,7 @@ use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
-    registry::{CommonRegistryArgs, RegistryArgs},
+    registry::RegistryArgs,
     util::{load_semconv_specs, resolve_semconv_specs},
     DiagnosticArgs, ExitDirectives,
 };
@@ -51,10 +51,6 @@ pub struct RegistrySearchArgs {
     /// An (optional) search string to use.  If specified, will return matching values on the command line.
     /// Otherwise, runs an interactive terminal UI.
     pub search_string: Option<String>,
-
-    /// Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
@@ -389,7 +385,7 @@ pub(crate) fn command(
     let semconv_specs = load_semconv_specs(
         &registry_repo,
         logger.clone(),
-        args.common_registry_args.follow_symlinks,
+        args.registry.follow_symlinks,
     )
     .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
     .into_result_failing_non_fatal()?;

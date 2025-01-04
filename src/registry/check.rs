@@ -13,7 +13,7 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{CommonRegistryArgs, RegistryArgs};
+use crate::registry::RegistryArgs;
 use crate::util::{
     check_policy_stage, load_semconv_specs, prepare_main_registry, resolve_semconv_specs,
 };
@@ -47,10 +47,6 @@ pub struct RegistryCheckArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-
-    /// Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Check a semantic convention registry.
@@ -76,8 +72,7 @@ pub(crate) fn command(
 
     let (main_resolved_registry, mut policy_engine) = prepare_main_registry(
         logger.clone(),
-        registry_path,
-        args.common_registry_args.follow_symlinks,
+        &args.registry,
         args.skip_policies,
         &args.policies,
         args.display_policy_coverage,
@@ -99,13 +94,9 @@ pub(crate) fn command(
             // Baseline registry resolution should allow non-future features
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
-            load_semconv_specs(
-                repo,
-                logger.clone(),
-                args.common_registry_args.follow_symlinks,
-            )
-            .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-            .capture_non_fatal_errors(&mut diag_msgs)
+            load_semconv_specs(repo, logger.clone(), args.registry.follow_symlinks)
+                .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+                .capture_non_fatal_errors(&mut diag_msgs)
         })
         .transpose()?;
 
@@ -236,8 +227,7 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath,
-        RegistrySubCommand,
+        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
     };
     use crate::run_command;
 
@@ -254,15 +244,13 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     baseline_registry: None,
                     policies: vec![],
                     skip_policies: true,
                     display_policy_coverage: false,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };
@@ -282,15 +270,13 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     baseline_registry: None,
                     policies: vec![],
                     skip_policies: false,
                     display_policy_coverage: false,
                     diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };
@@ -310,15 +296,13 @@ mod tests {
                     registry: RegistryPath::LocalFolder {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                     },
+                    follow_symlinks: false,
                 },
                 baseline_registry: None,
                 policies: vec![],
                 skip_policies: false,
                 display_policy_coverage: false,
                 diagnostic: Default::default(),
-                common_registry_args: CommonRegistryArgs {
-                    follow_symlinks: false,
-                },
             }),
         };
 
