@@ -6,12 +6,14 @@
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
 use weaver_common::Logger;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
@@ -200,4 +202,90 @@ pub(crate) fn resolve_semconv_specs(
 
     logger.success(&format!("`{}` semconv registry resolved", registry_id));
     Ok(resolved_schema)
+}
+
+pub(crate) fn prepare_main_registry(
+    logger: impl Logger + Sync + Clone,
+    registry_path: &RegistryPath,
+    follow_symlinks: bool,
+    skip_policies: bool,
+    policies: &[PathBuf],
+    display_policy_coverage: bool,
+    diag_msgs: &mut DiagnosticMessages,
+) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
+    let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+
+    // Load the semantic convention specs
+    let main_semconv_specs =
+        load_semconv_specs(&main_registry_repo, logger.clone(), follow_symlinks)
+            .capture_non_fatal_errors(diag_msgs)?;
+
+    // Optionally init policy engine
+    let mut policy_engine = if !skip_policies {
+        Some(init_policy_engine(
+            &main_registry_repo,
+            policies,
+            display_policy_coverage,
+        )?)
+    } else {
+        None
+    };
+
+    // Check pre-resolution policies
+    if let Some(engine) = policy_engine.as_ref() {
+        check_policy(engine, &main_semconv_specs)
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    logger.success(&format!(
+                        "All `before_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    logger.success("No `before_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+    }
+
+    // Resolve the main registry
+    let mut main_registry =
+        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
+    let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
+        .combine_diag_msgs_with(diag_msgs)?;
+
+    let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+        main_resolved_schema
+            .registry(main_registry_repo.id())
+            .expect("Failed to get the registry from the resolved schema"),
+        main_resolved_schema.catalog(),
+    )
+    .combine_diag_msgs_with(diag_msgs)?;
+
+    // Check post-resolution policies
+    if let Some(engine) = policy_engine.as_mut() {
+        check_policy_stage::<ResolvedRegistry, ()>(
+            engine,
+            PolicyStage::AfterResolution,
+            main_registry_repo.registry_path_repr(),
+            &main_resolved_registry,
+            &[],
+        )
+        .inspect(|_, violations| {
+            if let Some(violations) = violations {
+                logger.success(&format!(
+                    "All `after_resolution` policies checked ({} violations found)",
+                    violations.len()
+                ));
+            } else {
+                logger.success("No `after_resolution` policy violation");
+            }
+        })
+        .capture_non_fatal_errors(diag_msgs)?;
+    }
+
+    // if !diag_msgs.is_empty() {
+    //     return Err(diag_msgs);
+    // }
+
+    Ok((main_resolved_registry, policy_engine))
 }

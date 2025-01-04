@@ -6,17 +6,13 @@ use std::path::PathBuf;
 
 use clap::Args;
 
-use weaver_cache::RegistryRepo;
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
-use weaver_forge::registry::ResolvedRegistry;
-use weaver_semconv::registry::SemConvRegistry;
 
 use crate::format::{apply_format, Format};
 use crate::registry::{CommonRegistryArgs, RegistryArgs};
-use crate::util::{check_policy, init_policy_engine, load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, DiagnosticArgs, ExitDirectives};
-use miette::Diagnostic;
+use crate::util::prepare_main_registry;
+use crate::{DiagnosticArgs, ExitDirectives};
 
 /// Parameters for the `registry resolve` sub-command
 #[derive(Debug, Args)]
@@ -74,54 +70,59 @@ pub(crate) fn command(
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir (should be removed in the future)
-    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
+    let registry_path = &args.registry.registry;
 
-    let registry_id = "default";
-    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
-
-    // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(
-        &registry_repo,
+    let (registry, _) = prepare_main_registry(
         logger.clone(),
+        registry_path,
         args.common_registry_args.follow_symlinks,
+        args.skip_policies,
+        &args.policies,
+        false,
+        &mut diag_msgs,
     )
-    .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-    .into_result_failing_non_fatal()?;
+    .combine_diag_msgs_with(&diag_msgs)?;
 
-    if !args.skip_policies {
-        let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
-        check_policy(&policy_engine, &semconv_specs)
-            .inspect(|_, violations| {
-                if let Some(violations) = violations {
-                    logger.success(&format!(
-                        "All `before_resolution` policies checked ({} violations found)",
-                        violations.len()
-                    ));
-                } else {
-                    logger.success("No `before_resolution` policy violation");
-                }
-            })
-            .capture_non_fatal_errors(&mut diag_msgs)?;
-    }
+    // let registry_id = "default";
+    // let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
-    let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
+    // // Load the semantic convention registry into a local cache.
+    // let semconv_specs = load_semconv_specs(
+    //     &registry_repo,
+    //     logger.clone(),
+    //     args.common_registry_args.follow_symlinks,
+    // )
+    // .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+    // .into_result_failing_non_fatal()?;
 
-    // Serialize the resolved schema and write it
-    // to a file or print it to stdout.
-    let registry = ResolvedRegistry::try_from_resolved_registry(
-        schema
-            .registry(registry_id)
-            .expect("Failed to get the registry from the resolved schema"),
-        schema.catalog(),
-    )
-    .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
+    // if !args.skip_policies {
+    //     let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
+    //     check_policy(&policy_engine, &semconv_specs)
+    //         .inspect(|_, violations| {
+    //             if let Some(violations) = violations {
+    //                 logger.success(&format!(
+    //                     "All `before_resolution` policies checked ({} violations found)",
+    //                     violations.len()
+    //                 ));
+    //             } else {
+    //                 logger.success("No `before_resolution` policy violation");
+    //             }
+    //         })
+    //         .capture_non_fatal_errors(&mut diag_msgs)?;
+    // }
+
+    // let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    // let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
+
+    // // Serialize the resolved schema and write it
+    // // to a file or print it to stdout.
+    // let registry = ResolvedRegistry::try_from_resolved_registry(
+    //     schema
+    //         .registry(registry_id)
+    //         .expect("Failed to get the registry from the resolved schema"),
+    //     schema.catalog(),
+    // )
+    // .unwrap_or_else(|e| panic!("Failed to create the registry without catalog: {e:?}"));
 
     apply_format(&args.format, &registry)
         .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
@@ -176,7 +177,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     lineage: true,
                     output: None,
@@ -206,7 +206,6 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
                     },
                     lineage: true,
                     output: None,
