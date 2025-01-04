@@ -18,7 +18,7 @@ use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
 
-use crate::registry::RegistryArgs;
+use crate::registry::{PolicyArgs, RegistryArgs};
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -208,9 +208,7 @@ pub(crate) fn resolve_semconv_specs(
 pub(crate) fn prepare_main_registry(
     logger: impl Logger + Sync + Clone,
     registry_args: &RegistryArgs,
-    skip_policies: bool,
-    policies: &[PathBuf],
-    display_policy_coverage: bool,
+    policy_args: &PolicyArgs,
     diag_msgs: &mut DiagnosticMessages,
 ) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
     let registry_path = &registry_args.registry;
@@ -226,11 +224,11 @@ pub(crate) fn prepare_main_registry(
     .capture_non_fatal_errors(diag_msgs)?;
 
     // Optionally init policy engine
-    let mut policy_engine = if !skip_policies {
+    let mut policy_engine = if !policy_args.skip_policies {
         Some(init_policy_engine(
             &main_registry_repo,
-            policies,
-            display_policy_coverage,
+            &policy_args.policies,
+            policy_args.display_policy_coverage,
         )?)
     } else {
         None

@@ -4,7 +4,6 @@
 
 use clap::Args;
 use miette::Diagnostic;
-use std::path::PathBuf;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_checker::PolicyStage;
@@ -13,7 +12,7 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::RegistryArgs;
+use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
     check_policy_stage, load_semconv_specs, prepare_main_registry, resolve_semconv_specs,
 };
@@ -30,19 +29,9 @@ pub struct RegistryCheckArgs {
     #[arg(long)]
     baseline_registry: Option<RegistryPath>,
 
-    /// Optional list of policy files or directories to check against the files of the semantic
-    /// convention registry.  If a directory is provided all `.rego` files in the directory will be
-    /// loaded.
-    #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<PathBuf>,
-
-    /// Skip the policy checks.
-    #[arg(long, default_value = "false")]
-    pub skip_policies: bool,
-
-    /// Display the policy coverage report (useful for debugging).
-    #[arg(long, default_value = "false")]
-    pub display_policy_coverage: bool,
+    /// Policy parameters
+    #[command(flatten)]
+    policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -70,15 +59,9 @@ pub(crate) fn command(
         None
     };
 
-    let (main_resolved_registry, mut policy_engine) = prepare_main_registry(
-        logger.clone(),
-        &args.registry,
-        args.skip_policies,
-        &args.policies,
-        args.display_policy_coverage,
-        &mut diag_msgs,
-    )
-    .combine_diag_msgs_with(&diag_msgs)?;
+    let (main_resolved_registry, mut policy_engine) =
+        prepare_main_registry(logger.clone(), &args.registry, &args.policy, &mut diag_msgs)
+            .combine_diag_msgs_with(&diag_msgs)?;
 
     // Load the semantic convention registry into a local registry repo.
     // No parsing errors should be observed.
@@ -227,7 +210,8 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+        semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath,
+        RegistrySubCommand,
     };
     use crate::run_command;
 
@@ -247,9 +231,11 @@ mod tests {
                         follow_symlinks: false,
                     },
                     baseline_registry: None,
-                    policies: vec![],
-                    skip_policies: true,
-                    display_policy_coverage: false,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: true,
+                        display_policy_coverage: false,
+                    },
                     diagnostic: Default::default(),
                 }),
             })),
@@ -273,9 +259,11 @@ mod tests {
                         follow_symlinks: false,
                     },
                     baseline_registry: None,
-                    policies: vec![],
-                    skip_policies: false,
-                    display_policy_coverage: false,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: false,
+                        display_policy_coverage: false,
+                    },
                     diagnostic: Default::default(),
                 }),
             })),
@@ -299,9 +287,11 @@ mod tests {
                     follow_symlinks: false,
                 },
                 baseline_registry: None,
-                policies: vec![],
-                skip_policies: false,
-                display_policy_coverage: false,
+                policy: PolicyArgs {
+                    policies: vec![],
+                    skip_policies: false,
+                    display_policy_coverage: false,
+                },
                 diagnostic: Default::default(),
             }),
         };
@@ -321,3 +311,6 @@ mod tests {
         }
     }
 }
+
+//TODO - Check this on the released version:
+//       cargo run -- registry check -r crates/weaver_codegen_test/semconv_registry --skip-policies --future

@@ -10,7 +10,7 @@ use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
 
 use crate::format::{apply_format, Format};
-use crate::registry::RegistryArgs;
+use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -39,15 +39,9 @@ pub struct RegistryResolveArgs {
     #[arg(short, long, default_value = "yaml")]
     format: Format,
 
-    /// Optional list of policy files or directories to check against the files of the semantic
-    /// convention registry. If a directory is provided all `.rego` files in the directory will be
-    /// loaded.
-    #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<PathBuf>,
-
-    /// Skip the policy checks.
-    #[arg(long, default_value = "false")]
-    pub skip_policies: bool,
+    /// Policy parameters
+    #[command(flatten)]
+    policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -68,15 +62,9 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
     //    let registry_path = &args.registry.registry;
 
-    let (registry, _) = prepare_main_registry(
-        logger.clone(),
-        &args.registry,
-        args.skip_policies,
-        &args.policies,
-        false,
-        &mut diag_msgs,
-    )
-    .combine_diag_msgs_with(&diag_msgs)?;
+    let (registry, _) =
+        prepare_main_registry(logger.clone(), &args.registry, &args.policy, &mut diag_msgs)
+            .combine_diag_msgs_with(&diag_msgs)?;
 
     // let registry_id = "default";
     // let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
@@ -154,7 +142,9 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{
+        PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]
@@ -175,8 +165,11 @@ mod tests {
                     lineage: true,
                     output: None,
                     format: Format::Yaml,
-                    policies: vec![],
-                    skip_policies: true,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: true,
+                        display_policy_coverage: false,
+                    },
                     diagnostic: Default::default(),
                 }),
             })),
@@ -202,8 +195,11 @@ mod tests {
                     lineage: true,
                     output: None,
                     format: Format::Json,
-                    policies: vec![],
-                    skip_policies: false,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: false,
+                        display_policy_coverage: false,
+                    },
                     diagnostic: Default::default(),
                 }),
             })),

@@ -13,7 +13,7 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputDirective, TemplateEngine};
 
-use crate::registry::{Error, RegistryArgs};
+use crate::registry::{Error, PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -51,15 +51,9 @@ pub struct RegistryGenerateArgs {
     #[command(flatten)]
     registry: RegistryArgs,
 
-    /// Optional list of policy files or directories to check against the files of the semantic
-    /// convention registry. If a directory is provided all `.rego` files in the directory will be
-    /// loaded.
-    #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<PathBuf>,
-
-    /// Skip the policy checks.
-    #[arg(long, default_value = "false")]
-    pub skip_policies: bool,
+    /// Policy parameters
+    #[command(flatten)]
+    policy: PolicyArgs,
 
     /// Enable the most recent validation rules for the semconv registry. It is recommended
     /// to enable this flag when checking a new registry.
@@ -104,15 +98,9 @@ pub(crate) fn command(
 
     //let registry_id = "default";
 
-    let (template_registry, _) = prepare_main_registry(
-        logger.clone(),
-        &args.registry,
-        args.skip_policies,
-        &args.policies,
-        false,
-        &mut diag_msgs,
-    )
-    .combine_diag_msgs_with(&diag_msgs)?;
+    let (template_registry, _) =
+        prepare_main_registry(logger.clone(), &args.registry, &args.policy, &mut diag_msgs)
+            .combine_diag_msgs_with(&diag_msgs)?;
     // let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
 
     // // Load the semantic convention registry into a local cache.
@@ -215,7 +203,9 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::generate::RegistryGenerateArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{
+        PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
     use crate::run_command;
 
     #[test]
@@ -242,8 +232,11 @@ mod tests {
                         },
                         follow_symlinks: false,
                     },
-                    policies: vec![],
-                    skip_policies: true,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: true,
+                        display_policy_coverage: false,
+                    },
                     future: false,
                     diagnostic: Default::default(),
                 }),
@@ -314,8 +307,11 @@ mod tests {
                         },
                         follow_symlinks: false,
                     },
-                    policies: vec![],
-                    skip_policies: false,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: false,
+                        display_policy_coverage: false,
+                    },
                     future: false,
                     diagnostic: Default::default(),
                 }),
@@ -358,8 +354,11 @@ mod tests {
                         },
                         follow_symlinks: false,
                     },
-                    policies: vec![],
-                    skip_policies: true,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: true,
+                        display_policy_coverage: false,
+                    },
                     future: false,
                     diagnostic: Default::default(),
                 }),
@@ -460,8 +459,11 @@ mod tests {
                             },
                             follow_symlinks,
                         },
-                        policies: vec![],
-                        skip_policies: true,
+                        policy: PolicyArgs {
+                            policies: vec![],
+                            skip_policies: true,
+                            display_policy_coverage: false,
+                        },
                         future: false,
                         diagnostic: Default::default(),
                     }),
