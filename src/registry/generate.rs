@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Args;
 use serde_yaml::Value;
 
-use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
@@ -92,45 +92,11 @@ pub(crate) fn command(
     ));
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let params = generate_params(args)?;
-
-    //let registry_path = &args.registry.registry;
-
-    //let registry_id = "default";
 
     let (template_registry, _) =
-        prepare_main_registry(logger.clone(), &args.registry, &args.policy, &mut diag_msgs)
-            .combine_diag_msgs_with(&diag_msgs)?;
-    // let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
 
-    // // Load the semantic convention registry into a local cache.
-    // let semconv_specs = load_semconv_specs(
-    //     &registry_repo,
-    //     logger.clone(),
-    //     args.common_registry_args.follow_symlinks,
-    // )
-    // .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-    // .into_result_failing_non_fatal()?;
-
-    // if !args.skip_policies {
-    //     let policy_engine = init_policy_engine(&registry_repo, &args.policies, false)?;
-    //     check_policy(&policy_engine, &semconv_specs)
-    //         .inspect(|_, violations| {
-    //             if let Some(violations) = violations {
-    //                 logger.success(&format!(
-    //                     "All `before_resolution` policies checked ({} violations found)",
-    //                     violations.len()
-    //                 ));
-    //             } else {
-    //                 logger.success("No `before_resolution` policy violation");
-    //             }
-    //         })
-    //         .capture_non_fatal_errors(&mut diag_msgs)?;
-    // }
-
-    // let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-    // let schema = resolve_semconv_specs(&mut registry, logger.clone())?;
-
+    let params = generate_params(args)?;
     let loader = FileSystemFileLoader::try_new(args.templates.join("registry"), &args.target)?;
     let config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)
@@ -138,13 +104,6 @@ pub(crate) fn command(
         WeaverConfig::try_from_path(loader.root())
     }?;
     let engine = TemplateEngine::new(config, loader, params);
-
-    // let template_registry = ResolvedRegistry::try_from_resolved_registry(
-    //     schema
-    //         .registry(registry_id)
-    //         .expect("Failed to get the registry from the resolved schema"),
-    //     schema.catalog(),
-    // )?;
 
     engine.generate(
         logger.clone(),

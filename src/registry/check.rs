@@ -50,7 +50,8 @@ pub(crate) fn command(
     // Initialize the main registry.
     let registry_path = &args.registry.registry;
 
-    //let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+    let (main_resolved_registry, mut policy_engine) =
+        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
@@ -59,18 +60,6 @@ pub(crate) fn command(
         None
     };
 
-    let (main_resolved_registry, mut policy_engine) =
-        prepare_main_registry(logger.clone(), &args.registry, &args.policy, &mut diag_msgs)
-            .combine_diag_msgs_with(&diag_msgs)?;
-
-    // Load the semantic convention registry into a local registry repo.
-    // No parsing errors should be observed.
-    // let main_semconv_specs = load_semconv_specs(
-    //     &main_registry_repo,
-    //     logger.clone(),
-    //     args.common_registry_args.follow_symlinks,
-    // )
-    // .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
         .map(|repo| {
@@ -83,76 +72,7 @@ pub(crate) fn command(
         })
         .transpose()?;
 
-    // let mut policy_engine = if !args.skip_policies {
-    //     Some(init_policy_engine(
-    //         &main_registry_repo,
-    //         &args.policies,
-    //         args.display_policy_coverage,
-    //     )?)
-    // } else {
-    //     None
-    // };
-
-    // if let Some(policy_engine) = policy_engine.as_ref() {
-    //     // Check the policies against the semantic convention specifications before resolution.
-    //     // All violations should be captured into an ongoing list of diagnostic messages which
-    //     // will be combined with the final result of future stages.
-    //     check_policy(policy_engine, &main_semconv_specs)
-    //         .inspect(|_, violations| {
-    //             if let Some(violations) = violations {
-    //                 logger.success(&format!(
-    //                     "All `before_resolution` policies checked ({} violations found)",
-    //                     violations.len()
-    //                 ));
-    //             } else {
-    //                 logger.success("No `before_resolution` policy violation");
-    //             }
-    //         })
-    //         .capture_non_fatal_errors(&mut diag_msgs)?;
-    // }
-
-    // let mut main_registry =
-    //     SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
-    // Resolve the semantic convention specifications.
-    // If there are any resolution errors, they should be captured into the ongoing list of
-    // diagnostic messages and returned immediately because there is no point in continuing
-    // as the resolution is a prerequisite for the next stages.
-    // let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
-    //     .combine_diag_msgs_with(&diag_msgs)?;
-
     if let Some(policy_engine) = policy_engine.as_mut() {
-        // Convert the resolved schemas into a resolved registry.
-        // If there are any policy violations, they should be captured into the ongoing list of
-        // diagnostic messages and returned immediately because there is no point in continuing
-        // as the registry resolution is a prerequisite for the next stages.
-        // let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-        //     main_resolved_schema
-        //         .registry(main_registry_repo.id())
-        //         .expect("Failed to get the registry from the resolved schema"),
-        //     main_resolved_schema.catalog(),
-        // )
-        // .combine_diag_msgs_with(&diag_msgs)?;
-
-        // // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-        // check_policy_stage::<ResolvedRegistry, ()>(
-        //     policy_engine,
-        //     PolicyStage::AfterResolution,
-        //     &registry_path.to_string(),
-        //     &main_resolved_registry,
-        //     &[],
-        // )
-        // .inspect(|_, violations| {
-        //     if let Some(violations) = violations {
-        //         logger.success(&format!(
-        //             "All `after_resolution` policies checked ({} violations found)",
-        //             violations.len()
-        //         ));
-        //     } else {
-        //         logger.success("No `after_resolution` policy violation");
-        //     }
-        // })
-        // .capture_non_fatal_errors(&mut diag_msgs)?;
-
         if let (Some(baseline_registry_repo), Some(baseline_semconv_specs)) =
             (baseline_registry_repo, baseline_semconv_specs)
         {
@@ -171,7 +91,7 @@ pub(crate) fn command(
             )
             .combine_diag_msgs_with(&diag_msgs)?;
 
-            // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
+            // Check the policies against the resolved registry (`PolicyState::ComparisonAfterResolution`).
             check_policy_stage(
                 policy_engine,
                 PolicyStage::ComparisonAfterResolution,

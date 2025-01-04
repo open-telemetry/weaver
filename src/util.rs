@@ -205,10 +205,25 @@ pub(crate) fn resolve_semconv_specs(
     Ok(resolved_schema)
 }
 
+/// Resolves the main registry and optionally checks policies.
+/// This is a common starting point for some `registry` commands.
+/// e.g., `check`, `generate`, `resolve`
+///
+/// # Arguments
+///
+/// * `registry_args` - The common CLI args for the main registry.
+/// * `policy_args` - The common CLI args for policies.
+/// * `logger` - The logger for logging messages.
+/// * `diag_msgs` - The DiagnosticMessages to append to.
+///
+/// # Returns
+///
+/// A `Result` containing the `ResolvedRegistry` and `PolicyEngine` on success, or
+/// `DiagnosticMessages` on failure.
 pub(crate) fn prepare_main_registry(
-    logger: impl Logger + Sync + Clone,
     registry_args: &RegistryArgs,
     policy_args: &PolicyArgs,
+    logger: impl Logger + Sync + Clone,
     diag_msgs: &mut DiagnosticMessages,
 ) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
     let registry_path = &registry_args.registry;
@@ -285,10 +300,6 @@ pub(crate) fn prepare_main_registry(
         })
         .capture_non_fatal_errors(diag_msgs)?;
     }
-
-    // if !diag_msgs.is_empty() {
-    //     return Err(diag_msgs);
-    // }
 
     Ok((main_resolved_registry, policy_engine))
 }
