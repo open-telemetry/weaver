@@ -231,6 +231,3 @@ mod tests {
         }
     }
 }
-
-//TODO - Check this on the released version:
-//       cargo run -- registry check -r crates/weaver_codegen_test/semconv_registry --skip-policies --future
