@@ -111,10 +111,10 @@ pub(crate) fn command(
             })
             .capture_non_fatal_errors(&mut diag_msgs)?;
         }
+    }
 
-        if !diag_msgs.is_empty() {
-            return Err(diag_msgs);
-        }
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
     }
 
     Ok(ExitDirectives {

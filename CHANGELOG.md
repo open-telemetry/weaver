@@ -6,7 +6,10 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. Added missing `after_resolution` policy checks to `generate` and `resolve` through the common code. Removed the deprecated `--registry-git-sub-dir` option. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
+* Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
+  * Added missing `after_resolution` policy checks to `generate` and `resolve` through the common code.
+  * Removed the deprecated `--registry-git-sub-dir` option.
+  * Fixed bug in `check` if `--skip-policies` was specified then it would not fail for any validation errors.
 
 ## [0.12.0] - 2024-12-09
 
