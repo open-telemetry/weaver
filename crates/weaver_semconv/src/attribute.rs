@@ -205,6 +205,24 @@ pub enum AttributeType {
     },
 }
 
+impl AttributeType {
+    /// Returns true if the attribute type is array.
+    #[must_use]
+    pub fn is_array(&self) -> bool {
+        matches!(
+            self,
+            PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)
+                | PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints)
+                | PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles)
+                | PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans)
+                | Template(TemplateTypeSpec::Strings)
+                | Template(TemplateTypeSpec::Ints)
+                | Template(TemplateTypeSpec::Doubles)
+                | Template(TemplateTypeSpec::Booleans)
+        )
+    }
+}
+
 /// Implements a human readable display for AttributeType.
 impl Display for AttributeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -805,6 +823,31 @@ mod tests {
             ),
             "enum {id}"
         );
+    }
+
+    #[test]
+    fn test_attribute_type_is_array() {
+        assert!(!PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String).is_array());
+        assert!(PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings).is_array());
+        assert!(!PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int).is_array());
+        assert!(PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints).is_array());
+        assert!(!PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double).is_array());
+        assert!(PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles).is_array());
+        assert!(!PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean).is_array());
+        assert!(PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans).is_array());
+        assert!(!Template(TemplateTypeSpec::String).is_array());
+        assert!(Template(TemplateTypeSpec::Strings).is_array());
+        assert!(!Template(TemplateTypeSpec::Int).is_array());
+        assert!(Template(TemplateTypeSpec::Ints).is_array());
+        assert!(!Template(TemplateTypeSpec::Double).is_array());
+        assert!(Template(TemplateTypeSpec::Doubles).is_array());
+        assert!(!Template(TemplateTypeSpec::Boolean).is_array());
+        assert!(Template(TemplateTypeSpec::Booleans).is_array());
+        assert!(!Enum {
+            allow_custom_values: None,
+            members: vec![]
+        }
+        .is_array());
     }
 
     #[test]
