@@ -39,7 +39,7 @@ rust-version = "1.81.0"
 [workspace.dependencies]
 serde = { version = "1.0.217", features = ["derive"] }
 serde_yaml = "0.9.34"
-serde_json = { version = "1.0.134"}
+serde_json = { version = "1.0.135"}
 thiserror = "2.0.9"
 url = "2.5.4"
 ureq = "2.12.1"
@@ -80,7 +80,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 
-clap = { version = "4.5.23", features = ["derive"] }
+clap = { version = "4.5.24", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }

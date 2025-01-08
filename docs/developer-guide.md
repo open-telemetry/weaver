@@ -29,11 +29,11 @@ the Rego playground.
 
 ## Creating a JSON output for your registry
 
-Many times it's useful to have raw JSON output of your registry for debugging or tooling. To generate this
+Often it's useful to have raw JSON output of your registry for debugging or tooling. To generate this
 output, simply do the following:
 
 ```bash
-weaver registry resolve -r <registry> -o resolved-registry.json
+weaver registry resolve -r <registry> -o resolved-registry.json -f json
 ```
 
 ## Adding a new Semantic Convention Field
