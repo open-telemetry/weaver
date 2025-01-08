@@ -2,9 +2,9 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::{CommonRegistryArgs, RegistryArgs};
+use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
-use crate::{registry, DiagnosticArgs, ExitDirectives};
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use miette::Diagnostic;
 use weaver_cache::RegistryRepo;
@@ -25,10 +25,6 @@ pub struct RegistryStatsArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-
-    /// Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Compute stats on a semantic convention registry.
@@ -42,20 +38,15 @@ pub(crate) fn command(
     ));
 
     let registry_id = "default";
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir (should be removed in the future)
-    if let registry::RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
-    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+    let registry_path = &args.registry.registry;
+
+    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
     // Load the semantic convention registry into a local cache.
     let semconv_specs = load_semconv_specs(
         &registry_repo,
         logger.clone(),
-        args.common_registry_args.follow_symlinks,
+        args.registry.follow_symlinks,
     )
     .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
     .into_result_failing_non_fatal()?;
