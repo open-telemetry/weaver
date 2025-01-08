@@ -63,7 +63,7 @@ docker run --rm \
         --mount 'type=bind,source=$(PWD)/templates,target=/home/weaver/templates,readonly' \
         --mount 'type=bind,source=$(PWD)/my-doc-output,target=/home/weaver/target,readonly' \
         otel/weaver:latest \
-        registry generate \
+        registry update-markdown \
         --templates=/home/weaver/templates \
         --target=markdown \
         --dry-run \
