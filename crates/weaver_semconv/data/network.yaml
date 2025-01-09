@@ -159,6 +159,7 @@ groups:
   - id: peer
     stability: stable
     type: span
+    span_kind: client
     brief: "Operations that access some remote service."
     attributes:
       - id: peer.service
@@ -171,6 +172,7 @@ groups:
   - id: identity
     stability: stable
     type: span
+    span_kind: client
     brief: >
       These attributes may be used for any operation with an authenticated and/or authorized enduser.
     attributes:
@@ -196,6 +198,7 @@ groups:
   - id: thread
     stability: stable
     type: span
+    span_kind: internal
     brief: >
       These attributes may be used for any operation to store information about a thread that started a span.
     attributes:
@@ -215,6 +218,7 @@ groups:
   - id: code
     stability: stable
     type: span
+    span_kind: internal
     brief: >
       These attributes allow to report this unit of code and therefore to provide more context about the span.
     attributes:

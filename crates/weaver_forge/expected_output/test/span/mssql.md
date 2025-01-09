@@ -6,7 +6,7 @@
 Connection-level attributes for Microsoft SQL Server
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

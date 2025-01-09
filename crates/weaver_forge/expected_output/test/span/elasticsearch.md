@@ -6,7 +6,7 @@
 Call-level attributes for Elasticsearch
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

@@ -92,6 +92,7 @@ groups:
   - id: messaging
     stability: stable
     type: span
+    span_kind: client
     brief: >
       This document defines general attributes used in
       messaging systems.
