@@ -45,6 +45,7 @@ pub(crate) fn add_tests(env: &mut minijinja::Environment<'_>) {
     env.add_test("simple_type", is_simple_type);
     env.add_test("template_type", is_template_type);
     env.add_test("enum_type", is_enum_type);
+    env.add_test("array", is_array);
 }
 
 /// Filters the input value to only include the required "object".
@@ -452,6 +453,24 @@ pub(crate) fn is_enum(attr: &Value) -> bool {
         return is_enum_type(&attr_type);
     }
     false
+}
+
+/// Returns true if the input type is array
+pub(crate) fn is_array(attr_type: &Value) -> bool {
+    let Some(attr_type) = attr_type.as_str() else {
+        return false;
+    };
+    matches!(
+        attr_type,
+        "string[]"
+            | "int[]"
+            | "double[]"
+            | "boolean[]"
+            | "template[string[]]"
+            | "template[int[]]"
+            | "template[double[]]"
+            | "template[boolean[]]"
+    )
 }
 
 /// Returns a list of pairs {field, depth} from a body field in depth-first order
@@ -1364,6 +1383,50 @@ mod tests {
             .unwrap(),
             "false"
         );
+    }
+
+    #[test]
+    fn test_is_array() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
+
+        // (assert, result)
+        let test_cases = [
+            ("string", "false"),
+            ("string[]", "true"),
+            ("int", "false"),
+            ("int[]", "true"),
+            ("double", "false"),
+            ("double[]", "true"),
+            ("boolean", "false"),
+            ("boolean[]", "true"),
+            ("template[string]", "false"),
+            ("template[string[]]", "true"),
+            ("template[int]", "false"),
+            ("template[int[]]", "true"),
+            ("template[double]", "false"),
+            ("template[double[]]", "true"),
+            ("template[boolean]", "false"),
+            ("template[boolean[]]", "true"),
+            ("enum {id}", "false"),
+        ];
+
+        for case in test_cases {
+            assert_eq!(
+                env.render_str(
+                    &format!(
+                        "{{% if '{}' is array %}}true{{% else %}}false{{% endif %}}",
+                        case.0
+                    ),
+                    &ctx
+                )
+                .unwrap(),
+                case.1
+            );
+        }
     }
 
     /// Utility function to create an enum type from a list of member values.
