@@ -6,7 +6,7 @@
 Semantic convention group for specific technologies
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

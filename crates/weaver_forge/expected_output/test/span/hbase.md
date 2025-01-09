@@ -6,7 +6,7 @@
 Call-level attributes for HBase
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

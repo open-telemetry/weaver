@@ -186,7 +186,7 @@ mod tests {
     use super::*;
     use crate::Error::{
         InvalidAttribute, InvalidExampleWarning, InvalidGroupStability, InvalidSemConvSpec,
-        RegistryNotFound,
+        InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
     use weaver_common::test::ServeStaticFiles;
@@ -224,6 +224,7 @@ mod tests {
           - id: "group1"
             stability: "stable"
             brief: "description1"
+            span_kind: "client"
             attributes:
               - id: "attr1"
                 brief: "description1"
@@ -232,6 +233,7 @@ mod tests {
           - id: "group2"
             stability: "stable"
             brief: "description2"
+            span_kind: "server"
             attributes:
               - id: "attr2"
                 brief: "description2"
@@ -266,13 +268,14 @@ mod tests {
           - id: "group2"
             stability: "stable"
             brief: "description2"
+            span_kind: "server"
             attributes:
               - id: "attr2"
                 type: "int"
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
-            assert_eq!(errors.len(), 4);
+            assert_eq!(errors.len(), 5);
             assert_eq!(
                 errors,
                 vec![
@@ -280,6 +283,11 @@ mod tests {
                         path_or_url: "<str>".to_owned(),
                         group_id: "group1".to_owned(),
                         error: "This group does not contain a stability field.".to_owned(),
+                    },
+                    InvalidSpanMissingSpanKind {
+                        path_or_url: "<str>".to_owned(),
+                        group_id: "group1".to_owned(),
+                        error: "This group is a Span but the span_kind is not set.".to_owned(),
                     },
                     InvalidAttribute {
                         path_or_url: "<str>".to_owned(),
@@ -356,6 +364,7 @@ mod tests {
           - id: "group1"
             stability: "stable"
             brief: "description1"
+            span_kind: "client"
             attributes:
               - id: "attr1"
                 brief: "description1"
@@ -364,6 +373,7 @@ mod tests {
           - id: "group2"
             stability: "stable"
             brief: "description2"
+            span_kind: "server"
             attributes:
               - id: "attr2"
                 brief: "description2"
