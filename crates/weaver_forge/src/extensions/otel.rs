@@ -1427,6 +1427,9 @@ mod tests {
                 case.1
             );
         }
+
+        // invalid value should return false
+        assert!(!otel::is_array(&Value::from(())));
     }
 
     /// Utility function to create an enum type from a list of member values.

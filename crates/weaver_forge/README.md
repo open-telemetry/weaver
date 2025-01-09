@@ -4,19 +4,19 @@
 
 - [Introduction](#introduction)
 - [General Concepts](#general-concepts)
-    - [Template Directory Structure and Naming Conventions](#template-directory-structure-and-naming-conventions)
-    - [Configuration File - `weaver.yaml`](#configuration-file---weaveryaml)
-    - [Global Variables](#global-variables)
-    - [JQ Filters](#jq-filters)
+  - [Template Directory Structure and Naming Conventions](#template-directory-structure-and-naming-conventions)
+  - [Configuration File - `weaver.yaml`](#configuration-file---weaveryaml)
+  - [Global Variables](#global-variables)
+  - [JQ Filters](#jq-filters)
 - [Step-by-Step Guide](#step-by-step-guide)
-    - [Step 1: Setting Up Your Template Directory](#step-1-setting-up-your-template-directory)
-    - [Step 2: Creating and Configuring `weaver.yaml`](#step-2-creating-and-configuring-weaveryaml)
-    - [Step 3: Writing Your First Template](#step-3-writing-your-first-template)
+  - [Step 1: Setting Up Your Template Directory](#step-1-setting-up-your-template-directory)
+  - [Step 2: Creating and Configuring `weaver.yaml`](#step-2-creating-and-configuring-weaveryaml)
+  - [Step 3: Writing Your First Template](#step-3-writing-your-first-template)
 - [In-Depth Features](#in-depth-features)
-    - [JQ Filters Reference](#jq-filters-reference)
-    - [Jinja Filters Reference](#jinja-filters-reference)
-    - [Jinja Functions Reference](#jinja-functions-reference)
-    - [Jinja Tests Reference](#jinja-tests-reference)
+  - [JQ Filters Reference](#jq-filters-reference)
+  - [Jinja Filters Reference](#jinja-filters-reference)
+  - [Jinja Functions Reference](#jinja-functions-reference)
+  - [Jinja Tests Reference](#jinja-tests-reference)
 
 ## Introduction
 
@@ -133,7 +133,7 @@ each object in the array, i.e., to each group of attributes for a given root nam
 
 ```yaml
 templates:
-  - template: "attributes.j2"             # glob patterns are supported
+  - template: "attributes.j2" # glob patterns are supported
     filter: semconv_grouped_attributes
     application_mode: each
   - ...
@@ -185,7 +185,7 @@ params:
 
 # Jinja Engine Whitespace Control Settings
 # With both trim_blocks and lstrip_blocks enabled, you can put block tags on
-# their own lines, and the entire block line will be removed when rendered, 
+# their own lines, and the entire block line will be removed when rendered,
 # preserving the whitespace of the contents.
 whitespace_control:
   trim_blocks: true
@@ -236,6 +236,7 @@ More details on the JQ syntax and custom semconv filters [here](#jq-filters-refe
 1. **Create a template file `attributes.md.j2` in the appropriate directory:**
 
 The file generated from the evaluation of this template will be named `attributes/<root_namespace>.md`.
+
 ```jinja
 ...
 a valid jinja template
@@ -294,7 +295,7 @@ resolved semantic convention registry.
 
 Example configuration for JQ filters in `weaver.yaml`:
 
-```yaml  
+```yaml
 templates:
   - template: "attributes.j2"
     filter: semconv_grouped_attributes
@@ -302,8 +303,8 @@ templates:
   - template: "metrics.j2"
     filter: semconv_grouped_metrics
     application_mode: each
-  # ...  
-```  
+  # ...
+```
 
 In this example, the `attributes.j2` and `metrics.j2` templates are associated with the  
 `semconv_grouped_attributes` and `semconv_grouped_metrics` JQ filters respectively. These  
@@ -320,16 +321,16 @@ available to template authors.
 The following JQ filter extracts the registry attributes from the resolved registry and  
 returns a list of registry attributes grouped by root namespace and sorted by attribute names.
 
-```yaml  
+```yaml
 templates:
   - template: attributes.j2
     filter: semconv_grouped_attributes
-    application_mode: each  
-```  
+    application_mode: each
+```
 
 The output of the JQ filter has the following structure:
 
-```json5  
+```json5
 [
   {
     "root_namespace": "user_agent",
@@ -350,13 +351,13 @@ The output of the JQ filter has the following structure:
     ]
   },
   // ... other root namespaces
-]  
-```  
+]
+```
 
 The `semconv_grouped_attributes` function also supports options to exclude specified root namespaces,
 specific stability levels, and deprecated entities. The following syntax is supported:
 
-```yaml  
+```yaml
 templates:
   - template: attributes.j2
     filter: >
@@ -365,8 +366,8 @@ templates:
         "exclude_stability": ["development"],
         "exclude_deprecated": true
       })
-    application_mode: each 
-```  
+    application_mode: each
+```
 
 The structure of the output of `semconv_grouped_attributes` with these options is exactly the  
 same as without the options. The JSON object passed as a parameter describes a series of  
@@ -375,13 +376,13 @@ options that can easily be extended if needed. Each of these options is optional
 Technically, the `semconv_grouped_attributes` function is a combination of two semconv  
 JQ functions:
 
-```jq  
+```jq
 def semconv_grouped_attributes($options):
     semconv_attributes($options)
     | semconv_group_attributes_by_root_namespace;
 
-def semconv_grouped_attributes: semconv_grouped_attributes({});  
-```  
+def semconv_grouped_attributes: semconv_grouped_attributes({});
+```
 
 The `semconv_attributes` function extracts the registry attributes and applies the given options.  
 The `semconv_group_attributes_by_root_namespace` function groups the attributes by root namespace. It's  
@@ -392,16 +393,16 @@ possible to combine these two functions with your own JQ filters if needed.
 The following JQ filter extracts the metrics from the resolved registry, sorted by group  
 root namespace and sorted by metric names.
 
-```yaml  
+```yaml
 templates:
   - template: metrics.j2
     filter: semconv_grouped_metrics
     application_mode: each
-```  
+```
 
 The output of the JQ filter has the following structure:
 
-```json5  
+```json5
 [
   {
     "root_namespace": "jvm",
@@ -430,7 +431,7 @@ The output of the JQ filter has the following structure:
 
 The same options are supported by `semconv_grouped_metrics`, as shown in the following example:
 
-```yaml  
+```yaml
 templates:
   - template: metrics.j2
     filter: >
@@ -439,8 +440,8 @@ templates:
         "exclude_stability": ["development"],
         "exclude_deprecated": true
       })
-    application_mode: each  
-```  
+    application_mode: each
+```
 
 All the `semconv_grouped_<...>` functions are the composition of two functions:  
 `semconv_<...>` and `semconv_group_<...>_by_root_namespace`.
@@ -488,7 +489,7 @@ The following filters are available:
 - `split_id`: Splits a string by '.' creating a list of nested ids.
 - `regex_replace`: Replace all occurrences of a regex pattern (1st parameter) in the input string with the replacement
   string (2nd parameter). Under the hood, this filter uses the `regex` crate (see
-  [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details) 
+  [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details)
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix. This filter is deprecated, please use the more general `comment` filter.
 - `comment`: A generic comment formatter that uses the `comment_formats` section of the `weaver.yaml` configuration file (more details [here](#comment-filter)).
 - `flatten`: Converts a List of Lists into a single list with all elements.  
@@ -562,12 +563,11 @@ The following filters are available:
   {% for path, field, depth in body|body_fields %}
   Do something with {{ field }} at depth {{ depth }} with path {{ path }}
   {% endfor %}
-  
+
   {% for path, field, depth in body|body_fields(sort_by=`type`) %}
   Do something with {{ field }} at depth {{ depth }} with path {{ path }}
   {% endfor %}
   ```
-
 
 > Please open an issue if you have any suggestions for new filters. They are easy to implement.
 
@@ -585,40 +585,38 @@ general configuration template:
 
 ```yaml
 # weaver.yaml
-...
-comment_formats:           # optional
+---
+comment_formats: # optional
   <format-name>:
     format: markdown|html
 
     # Common fields for both markdown and html formats
-    header: <string>                  # The comment header line (e.g., `/**`)
-    prefix: <string>                  # The comment line prefix (e.g., ` * `)
-    footer: <string>                  # The comment line footer (e.g., ` */`)
-    indent_type: space | tab          # The type of indentation (default: space)
-    trim: <bool>                      # Flag to trim the comment content (default: true). 
-    remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
-    enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
+    header: <string> # The comment header line (e.g., `/**`)
+    prefix: <string> # The comment line prefix (e.g., ` * `)
+    footer: <string> # The comment line footer (e.g., ` */`)
+    indent_type: space | tab # The type of indentation (default: space)
+    trim: <bool> # Flag to trim the comment content (default: true).
+    remove_trailing_dots: <bool> # Flag to remove trailing dots from the comment content (default: false).
+    enforce_trailing_dots: <bool> # Flag to enforce trailing dots for the comment content (default: false).
     word_wrap:
-      line_length: <int>              # Maximum number of characters on a line (default: unlimited).
-      ignore_newlines: <bool>         # Whether newlines in comment should be ignored when a max line_length is set (default: false).
+      line_length: <int> # Maximum number of characters on a line (default: unlimited).
+      ignore_newlines: <bool> # Whether newlines in comment should be ignored when a max line_length is set (default: false).
 
     # Fields specific to 'markdown' format
-    escape_backslashes: <bool>            # Whether to escape backslashes in markdown (default: false).
-    escape_square_brackets: <bool>        # Whether to escape square brackets in markdown (default: false).
-    shortcut_reference_links: <bool>      # Convert inlined links into shortcut reference links (default: false).
+    escape_backslashes: <bool> # Whether to escape backslashes in markdown (default: false).
+    escape_square_brackets: <bool> # Whether to escape square brackets in markdown (default: false).
+    shortcut_reference_links: <bool> # Convert inlined links into shortcut reference links (default: false).
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").
-    use_go_style_list_indent: <bool>,     # Whether to use different indent spacing for ordered and unordered lists (default: false).
-    
+    use_go_style_list_indent: <bool>, # Whether to use different indent spacing for ordered and unordered lists (default: false).
+
     # Fields specific to 'html' format
-    old_style_paragraph: <bool>       # Use old-style HTML paragraphs (default: false).
-    omit_closing_li: <bool>           # Omit closing </li> tags in lists (default: false).
+    old_style_paragraph: <bool> # Use old-style HTML paragraphs (default: false).
+    omit_closing_li: <bool> # Omit closing </li> tags in lists (default: false).
     inline_code_snippet: <jinja-expr> # Jinja expression to render inline code (default: "<c>{{code}}</c>").
-    block_code_snippet: <jinja-expr>  # Jinja expression to render block code (default: "<pre>\n{{code}}\n</pre>").
-  <other-format-name>:
-    ...
+    block_code_snippet: <jinja-expr> # Jinja expression to render block code (default: "<pre>\n{{code}}\n</pre>").
+  <other-format-name>: ...
 default_comment_format: <format-name>
-...
 ```
 
 Here’s an example configuration for generating comments in Java:
@@ -681,7 +679,7 @@ brief: >
 type: int
 note: |
   This is a note about the attribute `attr`. It can be multiline.
-  
+
   It can contain a list:
   * item **1**,
   * lorem ipsum dolor sit amet, consectetur
@@ -691,29 +689,29 @@ note: |
   * lorem ipsum dolor sit amet, consectetur
     adipiscing elit sed do eiusmod tempor
   incididunt ut labore et dolore magna aliqua.
-  
+
   And an **inline code snippet**: `Attr.attr`.
-  
+
   # Summary
-  
+
   ## Examples
   1. Example 1
   1. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
      [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
   [labore](https://loremipsum.com) et dolore magna aliqua.
   1. Example 3      
-  
+
   ## Appendix
     * [Link 1](https://www.link1.com)
     * [Link 2](https://www.link2.com)
     * A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
       tempor incididunt ut labore et dolore magna aliqua.
-  
+
   > This is a blockquote.
   It can contain multiple lines.
   > Lorem ipsum dolor sit amet, consectetur adipiscing 
   > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-  
+
   > [!NOTE] Something very important here
 ```
 
@@ -806,11 +804,11 @@ The generated Go documentation would be:
 ```go
   // ATTR
   // This is a brief description of the attribute + a short link [OTEL].
-  // 
+  //
   // This is a note about the attribute `attr`. It can be multiline.
-  // 
+  //
   // It can contain a list:
-  // 
+  //
   //   - item **1**,
   //   - lorem ipsum dolor sit amet, consectetur
   //     adipiscing elit sed do eiusmod tempor
@@ -819,33 +817,33 @@ The generated Go documentation would be:
   //   - lorem ipsum dolor sit amet, consectetur
   //     adipiscing elit sed do eiusmod tempor
   //     incididunt ut labore et dolore magna aliqua.
-  // 
+  //
   // And an **inline code snippet**: `Attr.attr`.
-  // 
+  //
   // # Summary
-  // 
+  //
   // ## Examples
-  // 
+  //
   //   1. Example 1
   //   2. [Example] with lorem ipsum dolor sit amet, consectetur adipiscing elit
   //      [sed] do eiusmod tempor incididunt ut
   //      [labore] et dolore magna aliqua.
   //   3. Example 3
-  // 
+  //
   // ## Appendix
-  // 
+  //
   //   - [Link 1]
   //   - [Link 2]
   //   - A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
   //     tempor incididunt ut labore et dolore magna aliqua.
-  // 
+  //
   // > This is a blockquote.
   // > It can contain multiple lines.
   // > Lorem ipsum dolor sit amet, consectetur adipiscing
   // > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-  // 
+  //
   // > [!NOTE] Something very important here
-  // 
+  //
   // [OTEL]: https://www.opentelemetry.com
   // [incididunt]: https://www.loremipsum.com
   // [Example]: https://loremipsum.com
@@ -900,5 +898,6 @@ generation of assets.
   boolean[]).
 - `template_type`: Tests if a type is a template type (i.e.: template[]).
 - `enum_type`: Tests if a type is an enum type.
+- `array`: Tests if a type is an array type.
 
 > Please open an issue if you have any suggestions for new tests. They are easy to implement.
