@@ -19,7 +19,7 @@ COPY cross-arch-build.sh /build/cross-arch-build.sh
 RUN ./cross-arch-build.sh
 
 # The runtime image
-FROM docker.io/alpine:3.21.1
+FROM docker.io/alpine:3.21.2
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \
