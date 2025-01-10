@@ -22,6 +22,7 @@ mod diagnostic;
 mod format;
 mod registry;
 mod util;
+mod otlp_receiver;
 
 /// Set of parameters used to specify the diagnostic format.
 #[derive(Args, Debug, Clone)]
@@ -104,6 +105,7 @@ fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
+        Some(Commands::OtlpReceiver(params)) => otlp_receiver::otlp_receiver(log.clone(), params),
         None => {
             return ExitDirectives {
                 exit_code: 0,
