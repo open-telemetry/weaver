@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // - Commit the changes.
 
     // tonic_build::configure()
-    //     .build_server(false)
+    //     .build_client(false)
     //     .out_dir("src/otlp_receiver/receiver")
     //     .compile_protos(
     //         &[
@@ -23,6 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //         ],
     //         &["src/otlp_receiver/proto"],
     //     )?;
+
     Ok(())
 }
 

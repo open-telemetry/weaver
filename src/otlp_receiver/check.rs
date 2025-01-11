@@ -6,6 +6,7 @@ use clap::Args;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use crate::{DiagnosticArgs, ExitDirectives};
+use crate::otlp_receiver::listen_otlp_requests;
 use crate::registry::RegistryArgs;
 
 /// Parameters for the `otlp-receiver check-registry` sub-command
@@ -27,8 +28,10 @@ pub struct CheckRegistryArgs {
 /// Detect the gap between a semantic convention registry and an OTLP traffic.
 pub(crate) fn command(
     _logger: impl Logger + Sync + Clone,
-    _args: &CheckRegistryArgs,
+    args: &CheckRegistryArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    listen_otlp_requests(args.port);
+    
     Ok(ExitDirectives {
         exit_code: 0,
         quiet_mode: false,
