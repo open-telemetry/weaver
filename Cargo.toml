@@ -85,6 +85,9 @@ rayon = "1.10.0"
 ratatui = { version = "0.29.0", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
 tui-textarea = "0.7.0"
+tokio = { version = "1.43.0", features = ["rt", "net", "signal"]}
+prost = "0.13.4"
+tonic = { version = "0.12.3", default-features = false, features = ["server", "codegen", "prost", "tls", "tls-roots"] }
 
 # workspace dependencies
 serde.workspace = true
@@ -96,11 +99,15 @@ thiserror.workspace = true
 miette.workspace = true
 schemars.workspace = true
 itertools.workspace = true
+tracing = "0.1.41"
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
 tempdir.workspace = true
 assert_cmd = "2.0.16"
+
+[build-dependencies]
+tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }
 
 [profile.release]
 lto = true
