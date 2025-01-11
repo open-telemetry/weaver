@@ -16,16 +16,16 @@ use crate::CmdResult;
 use check::CheckRegistryArgs;
 use infer::InferRegistryArgs;
 use tonic::transport::Server;
-use receiver::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
-use receiver::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
-use receiver::proto::collector::metrics::v1::{ExportMetricsServiceRequest, ExportMetricsServiceResponse};
-use receiver::proto::collector::metrics::v1::metrics_service_server::{MetricsService, MetricsServiceServer};
-use crate::otlp_receiver::receiver::proto::collector::trace::v1::{ExportTraceServiceRequest, ExportTraceServiceResponse};
-use crate::otlp_receiver::receiver::proto::collector::trace::v1::trace_service_server::{TraceService, TraceServiceServer};
+use grpc_server::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
+use grpc_server::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
+use grpc_server::proto::collector::metrics::v1::{ExportMetricsServiceRequest, ExportMetricsServiceResponse};
+use grpc_server::proto::collector::metrics::v1::metrics_service_server::{MetricsService, MetricsServiceServer};
+use grpc_server::proto::collector::trace::v1::{ExportTraceServiceRequest, ExportTraceServiceResponse};
+use grpc_server::proto::collector::trace::v1::trace_service_server::{TraceService, TraceServiceServer};
 
 /// Expose the OTLP gRPC services.
 /// See the build.rs file for more information.
-pub mod receiver {
+pub mod grpc_server {
     #[path = ""]
     pub mod proto {
         #[path = ""]
@@ -143,13 +143,18 @@ pub enum OtlpRequest {
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
 /// and return an iterator of received OTLP requests.
-pub fn listen_otlp_requests(port: u16) -> impl Iterator<Item = OtlpRequest> {
+pub fn listen_otlp_requests(port: u16, logger: impl Logger + Sync + Clone) -> impl Iterator<Item = OtlpRequest> {
     let addr = format!("0.0.0.0:{port}").parse().expect("Failed to parse address");
     let (tx, rx) = mpsc::channel(100);
     let stop_tx = tx.clone();
     let logs_service = LogsServiceImpl { tx: tx.clone() };
     let metrics_service = MetricsServiceImpl {  tx: tx.clone() };
     let trace_service = TraceServiceImpl {  tx: tx.clone() };
+    
+    logger.info("To stop the OTLP receiver:");
+    logger.info("- press CTRL+C,");
+    logger.info("- send a SIGHUP signal to the process,");
+    logger.info("- or send a POST request to the /stop endpoint.");
     
     // Start an OS thread and run a single threaded Tokio runtime inside.
     // The async OTLP receiver sends the received OTLP messages to the Tokio channel.

@@ -36,10 +36,11 @@ pub(crate) fn command(
     let policy = PolicyArgs::skip();
     let (_resolved_registry, _) =
         prepare_main_registry(&args.registry, &policy, logger.clone(), &mut diag_msgs)?;
+    let otlp_requests = listen_otlp_requests(args.port, logger.clone());
+    
+    logger.loading(&format!("Checking OTLP traffic on port {}.", args.port));
 
-    logger.loading(&format!("Checking OTLP traffic on port {}. CTRL+C to stop.", args.port));
-
-    for otlp_request in listen_otlp_requests(args.port) {
+    for otlp_request in otlp_requests {
         match otlp_request {
             OtlpRequest::Logs(logs) => {
                 request_count += 1;

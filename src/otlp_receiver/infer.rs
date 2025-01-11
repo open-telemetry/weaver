@@ -25,7 +25,9 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &InferRegistryArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    for otlp_request in listen_otlp_requests(args.port) {
+    let otlp_requests = listen_otlp_requests(args.port, logger.clone());
+
+    for otlp_request in otlp_requests {
         match otlp_request {
             OtlpRequest::Logs(logs) => {
                 dbg!(logs);
