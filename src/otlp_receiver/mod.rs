@@ -10,7 +10,6 @@ use miette::Diagnostic;
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tonic::{Request, Response, Status};
-use tonic::codegen::tokio_stream;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 use crate::CmdResult;
@@ -21,7 +20,6 @@ use receiver::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsS
 use receiver::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use receiver::proto::collector::metrics::v1::{ExportMetricsServiceRequest, ExportMetricsServiceResponse};
 use receiver::proto::collector::metrics::v1::metrics_service_server::{MetricsService, MetricsServiceServer};
-use weaver_resolved_schema::signal;
 use crate::otlp_receiver::receiver::proto::collector::trace::v1::{ExportTraceServiceRequest, ExportTraceServiceResponse};
 use crate::otlp_receiver::receiver::proto::collector::trace::v1::trace_service_server::{TraceService, TraceServiceServer};
 
@@ -138,19 +136,21 @@ pub enum OtlpRequest {
     Logs(ExportLogsServiceRequest),
     Metrics(ExportMetricsServiceRequest),
     Traces(ExportTraceServiceRequest),
+    
+    Error(String),
     Stop,
 }
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
 /// and return an iterator of received OTLP requests.
 pub fn listen_otlp_requests(port: u16) -> impl Iterator<Item = OtlpRequest> {
-    let addr = format!("0.0.0.0:{port}").parse().unwrap();
+    let addr = format!("0.0.0.0:{port}").parse().expect("Failed to parse address");
     let (tx, rx) = mpsc::channel(100);
     let stop_tx = tx.clone();
     let logs_service = LogsServiceImpl { tx: tx.clone() };
     let metrics_service = MetricsServiceImpl {  tx: tx.clone() };
     let trace_service = TraceServiceImpl {  tx: tx.clone() };
-
+    
     // Start an OS thread and run a single threaded Tokio runtime inside.
     // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
     let _ = std::thread::spawn(move || {
@@ -163,18 +163,20 @@ pub fn listen_otlp_requests(port: u16) -> impl Iterator<Item = OtlpRequest> {
                 // Spawn a task to handle CTRL+C and send a stop signal.
                 let _ = tokio::spawn(async move {
                     tokio::signal::ctrl_c().await.expect("Failed to listen for CTRL+C");
-                    println!("CTRL+C pressed. Sending stop signal...");
                     let _ = stop_tx.send(OtlpRequest::Stop).await;
                 });
                 
-                // Start the OTLP service
-                println!("Starting the OTLP receiver on port {}", port);
-                Server::builder()
+                // Serve the OTLP services
+                let server = Server::builder()
                     .add_service(LogsServiceServer::new(logs_service))
                     .add_service(MetricsServiceServer::new(metrics_service))
                     .add_service(TraceServiceServer::new(trace_service))
                     .serve(addr)
-                    .await.unwrap();
+                    .await;
+
+                if let Err(e) = server {
+                    tx.send(OtlpRequest::Error(format!("OTLP server encountered an error: {e}"))).await;
+                }
             });
     });
 
@@ -194,6 +196,17 @@ impl<T> Iterator for SyncReceiver<T> {
     }
 }
 
+async fn forward_to_channel<T>(
+    sender: &mpsc::Sender<OtlpRequest>,
+    otlp_request: T,
+    wrapper: fn(T) -> OtlpRequest,
+) -> Result<(), Status> {
+    sender
+        .send(wrapper(otlp_request))
+        .await
+        .map_err(|e| Status::resource_exhausted(format!("Channel full: {}", e)))
+}
+
 pub struct LogsServiceImpl {
     tx: mpsc::Sender<OtlpRequest>,
 }
@@ -210,10 +223,7 @@ impl LogsService for LogsServiceImpl {
         &self,
         request: Request<ExportLogsServiceRequest>,
     ) -> Result<Response<ExportLogsServiceResponse>, Status> {
-        self.tx
-            .send(OtlpRequest::Logs(request.into_inner()))
-            .await
-            .unwrap();
+        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Logs).await?;
         Ok(Response::new(ExportLogsServiceResponse { partial_success: None }))
     }
 }
@@ -224,10 +234,7 @@ impl MetricsService for MetricsServiceImpl {
         &self,
         request: Request<ExportMetricsServiceRequest>,
     ) -> Result<Response<ExportMetricsServiceResponse>, Status> {
-        self.tx
-            .send(OtlpRequest::Metrics(request.into_inner()))
-            .await
-            .unwrap();
+        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Metrics).await?;
         Ok(Response::new(ExportMetricsServiceResponse { partial_success: None }))
     }
 }
@@ -238,10 +245,7 @@ impl TraceService for TraceServiceImpl {
         &self,
         request: Request<ExportTraceServiceRequest>,
     ) -> Result<Response<ExportTraceServiceResponse>, Status> {
-        self.tx
-            .send(OtlpRequest::Traces(request.into_inner()))
-            .await
-            .unwrap();
+        forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Traces).await?;
         Ok(Response::new(ExportTraceServiceResponse { partial_success: None }))
     }
 }

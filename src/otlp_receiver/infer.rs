@@ -22,7 +22,7 @@ pub struct InferRegistryArgs {
 
 /// Infer a semantic convention registry from an OTLP traffic.
 pub(crate) fn command(
-    _logger: impl Logger + Sync + Clone,
+    logger: impl Logger + Sync + Clone,
     args: &InferRegistryArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     for otlp_request in listen_otlp_requests(args.port) {
@@ -37,6 +37,10 @@ pub(crate) fn command(
                 dbg!(traces);
             }
             OtlpRequest::Stop => {
+                break;
+            }
+            OtlpRequest::Error(error) => {
+                logger.error(&error);
                 break;
             }
         }
