@@ -8,6 +8,8 @@ mod check;
 use clap::{Args, Subcommand};
 use miette::Diagnostic;
 use serde::Serialize;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -143,18 +145,18 @@ pub enum OtlpRequest {
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
 /// and return an iterator of received OTLP requests.
-pub fn listen_otlp_requests(port: u16, logger: impl Logger + Sync + Clone) -> impl Iterator<Item = OtlpRequest> {
-    let addr = format!("0.0.0.0:{port}").parse().expect("Failed to parse address");
+pub fn listen_otlp_requests(grpc_port: u16, logger: impl Logger + Sync + Clone) -> impl Iterator<Item = OtlpRequest> {
+    let addr = format!("0.0.0.0:{grpc_port}").parse().expect("Failed to parse address");
     let (tx, rx) = mpsc::channel(100);
     let stop_tx = tx.clone();
     let logs_service = LogsServiceImpl { tx: tx.clone() };
     let metrics_service = MetricsServiceImpl {  tx: tx.clone() };
     let trace_service = TraceServiceImpl {  tx: tx.clone() };
     
-    logger.info("To stop the OTLP receiver:");
-    logger.info("- press CTRL+C,");
-    logger.info("- send a SIGHUP signal to the process,");
-    logger.info("- or send a POST request to the /stop endpoint.");
+    logger.log("To stop the OTLP receiver:");
+    logger.log("  - press CTRL+C,");
+    logger.log(&format!("  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}", std::process::id()));
+    logger.log(&format!("  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.", grpc_port +1));
     
     // Start an OS thread and run a single threaded Tokio runtime inside.
     // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
@@ -165,11 +167,9 @@ pub fn listen_otlp_requests(port: u16, logger: impl Logger + Sync + Clone) -> im
             .build()
             .unwrap()
             .block_on(async {
-                // Spawn a task to handle CTRL+C and send a stop signal.
-                let _ = tokio::spawn(async move {
-                    tokio::signal::ctrl_c().await.expect("Failed to listen for CTRL+C");
-                    let _ = stop_tx.send(OtlpRequest::Stop).await;
-                });
+                // Spawn tasks to handle different stop signals
+                spawn_stop_signal_handlers(stop_tx.clone());
+                spawn_http_stop_handler(stop_tx.clone(), grpc_port + 1).await;
                 
                 // Serve the OTLP services
                 let server = Server::builder()
@@ -186,6 +186,78 @@ pub fn listen_otlp_requests(port: u16, logger: impl Logger + Sync + Clone) -> im
     });
 
     SyncReceiver { receiver: rx }
+}
+
+/// Spawn tasks to handle CTRL+C and SIGHUP signals
+fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>) {
+    // Handle CTRL+C
+    let ctrl_c_tx = stop_tx.clone();
+    let _ = tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.expect("Failed to listen for CTRL+C");
+        let _ = ctrl_c_tx.send(OtlpRequest::Stop).await.ok();
+    });
+
+    // Handle SIGHUP
+    let sighup_tx = stop_tx;
+    let _ = tokio::spawn(async move {
+        let mut sighup = tokio::signal::unix::signal(
+            tokio::signal::unix::SignalKind::hangup()
+        ).expect("Failed to create SIGHUP signal handler");
+
+        let _ = sighup.recv().await;
+        let _ = sighup_tx.send(OtlpRequest::Stop).await.ok();
+    });
+}
+
+/// Spawn a minimal HTTP server that handles the /stop endpoint
+async fn spawn_http_stop_handler(stop_tx: mpsc::Sender<OtlpRequest>, port: u16) {
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{port}")
+        .parse()
+        .expect("Failed to parse HTTP stop port");
+    
+    match TcpListener::bind(addr).await {
+        Ok(listener) => {
+            let _ = tokio::spawn(async move {
+                loop {
+                    match listener.accept().await {
+                        Ok((mut socket, _)) => {
+                            let mut buffer = [0; 1024];
+                            if let Ok(n) = socket.read(&mut buffer).await {
+                                let request = String::from_utf8_lossy(&buffer[..n]);
+
+                                // Parse the request - very basic HTTP parsing
+                                let lines: Vec<&str> = request.lines().collect();
+                                if let Some(first_line) = lines.first() {
+                                    let parts: Vec<&str> = first_line.split_whitespace().collect();
+                                    if parts.len() >= 2
+                                        && parts[0] == "POST"
+                                        && parts[1] == "/stop"
+                                    {
+                                        // Send stop signal
+                                        let _ = stop_tx.send(OtlpRequest::Stop).await.ok();
+
+                                        // Send HTTP 200 OK response
+                                        let response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
+                                        let _ = socket.write_all(response.as_bytes()).await.ok();
+                                    } else {
+                                        // Send HTTP 404 Not Found for any other request
+                                        let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found";
+                                        let _ = socket.write_all(response.as_bytes()).await.ok();
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to accept HTTP connection: {}", e);
+                        }
+                    }
+                }
+            });
+        }
+        Err(e) => {
+            eprintln!("Failed to bind HTTP stop port {}: {}", port, e);
+        }
+    }
 }
 
 // Synchronous iterator wrapping a Tokio mpsc::Receiver.
