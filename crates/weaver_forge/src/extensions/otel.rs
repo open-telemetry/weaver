@@ -460,17 +460,7 @@ pub(crate) fn is_array(attr_type: &Value) -> bool {
     let Some(attr_type) = attr_type.as_str() else {
         return false;
     };
-    matches!(
-        attr_type,
-        "string[]"
-            | "int[]"
-            | "double[]"
-            | "boolean[]"
-            | "template[string[]]"
-            | "template[int[]]"
-            | "template[double[]]"
-            | "template[boolean[]]"
-    )
+    matches!(attr_type, "string[]" | "int[]" | "double[]" | "boolean[]")
 }
 
 /// Returns a list of pairs {field, depth} from a body field in depth-first order
@@ -1404,13 +1394,13 @@ mod tests {
             ("boolean", "false"),
             ("boolean[]", "true"),
             ("template[string]", "false"),
-            ("template[string[]]", "true"),
+            ("template[string[]]", "false"),
             ("template[int]", "false"),
-            ("template[int[]]", "true"),
+            ("template[int[]]", "false"),
             ("template[double]", "false"),
-            ("template[double[]]", "true"),
+            ("template[double[]]", "false"),
             ("template[boolean]", "false"),
-            ("template[boolean[]]", "true"),
+            ("template[boolean[]]", "false"),
             ("enum {id}", "false"),
         ];
 
