@@ -14,6 +14,54 @@ use crate::CmdResult;
 use crate::otlp_receiver::check::CheckRegistryArgs;
 use crate::otlp_receiver::infer::InferRegistryArgs;
 
+/// Expose the OTLP gRPC services.
+/// See the build.rs file for more information.
+pub mod receiver {
+    #[path = ""]
+    pub mod proto {
+        #[path = ""]
+        pub mod collector {
+            #[path = ""]
+            pub mod logs {
+                #[allow(unused_qualifications)]
+                #[allow(unused_results)]
+                #[path = "opentelemetry.proto.collector.logs.v1.rs"]
+                pub mod v1;
+            }
+        }
+        
+        #[path = ""]
+        pub mod logs {
+            #[path = "opentelemetry.proto.logs.v1.rs"]
+            pub mod v1;
+        }
+
+        #[path = ""]
+        pub mod metrics {
+            #[path = "opentelemetry.proto.metrics.v1.rs"]
+            pub mod v1;
+        }
+
+        #[path = ""]
+        pub mod trace {
+            #[path = "opentelemetry.proto.trace.v1.rs"]
+            pub mod v1;
+        }
+
+        #[path = ""]
+        pub mod common {
+            #[path = "opentelemetry.proto.common.v1.rs"]
+            pub mod v1;
+        }
+
+        #[path = ""]
+        pub mod resource {
+            #[path = "opentelemetry.proto.resource.v1.rs"]
+            pub mod v1;
+        }
+    }
+}
+
 /// Errors emitted by the `otlp-receiver` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[non_exhaustive]
@@ -59,3 +107,4 @@ pub fn otlp_receiver(log: impl Logger + Sync + Clone, command: &OtlpReceiverComm
         ),
     }
 }
+

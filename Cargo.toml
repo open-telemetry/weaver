@@ -85,6 +85,9 @@ rayon = "1.10.0"
 ratatui = { version = "0.29.0", features=["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
 tui-textarea = "0.7.0"
+prost = "0.13.4"
+prost-types = "0.13.4"
+tonic = { version = "0.12.3", default-features = false, features = ["channel", "codegen", "prost", "tls", "tls-roots"] }
 
 # workspace dependencies
 serde.workspace = true
@@ -101,6 +104,9 @@ itertools.workspace = true
 weaver_diff = { path = "crates/weaver_diff" }
 tempdir.workspace = true
 assert_cmd = "2.0.16"
+
+[build-dependencies]
+tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }
 
 [profile.release]
 lto = true
