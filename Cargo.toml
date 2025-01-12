@@ -13,7 +13,7 @@ publish = false
 resolver = "2"
 
 [package.metadata.dist]
-dist=true
+dist = true
 
 [package.metadata.wix]
 upgrade-guid = "C9F6BF20-4C32-4AF3-8550-79653C00886C"
@@ -23,9 +23,7 @@ eula = false
 
 # Workspace definition ========================================================
 [workspace]
-members = [
-    "crates/*",
-]
+members = ["crates/*"]
 
 [workspace.package]
 version = "0.12.0"
@@ -39,7 +37,7 @@ rust-version = "1.81.0"
 [workspace.dependencies]
 serde = { version = "1.0.217", features = ["derive"] }
 serde_yaml = "0.9.34"
-serde_json = { version = "1.0.135"}
+serde_json = { version = "1.0.135" }
 thiserror = "2.0.9"
 url = "2.5.4"
 ureq = "2.12.1"
@@ -56,8 +54,16 @@ tempdir = "0.3.7"
 schemars = "0.8.21"
 dirs = "5.0.1"
 once_cell = "1.20.2"
-opentelemetry = { version = "0.27.1", features = ["trace", "metrics", "logs", "otel_unstable"] }
+opentelemetry = { version = "0.27.1", features = [
+    "trace",
+    "metrics",
+    "logs",
+    "otel_unstable",
+] }
+opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.27.0"
 rouille = "3.6.2"
+tokio = { version = "1.43.0", features = ["full"] }
 
 # Features definition =========================================================
 [features]
@@ -82,7 +88,7 @@ weaver_checker = { path = "crates/weaver_checker" }
 
 clap = { version = "4.5.24", features = ["derive"] }
 rayon = "1.10.0"
-ratatui = { version = "0.29.0", features=["serde"] }
+ratatui = { version = "0.29.0", features = ["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
 tui-textarea = "0.7.0"
 
@@ -96,6 +102,10 @@ thiserror.workspace = true
 miette.workspace = true
 schemars.workspace = true
 itertools.workspace = true
+opentelemetry.workspace = true
+opentelemetry_sdk.workspace = true
+opentelemetry-otlp.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
@@ -214,7 +224,12 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "msi"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+]
 # Which actions to run on pull requests
 pr-run-mode = "plan"
 # Whether to install an updater program
