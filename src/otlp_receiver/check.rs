@@ -2,6 +2,7 @@
 
 //! Detect the gap between a semantic convention registry and an OTLP traffic.
 
+use std::time::Duration;
 use crate::otlp_receiver::{listen_otlp_requests, OtlpRequest};
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
@@ -36,7 +37,11 @@ pub(crate) fn command(
     let policy = PolicyArgs::skip();
     let (_resolved_registry, _) =
         prepare_main_registry(&args.registry, &policy, logger.clone(), &mut diag_msgs)?;
-    let otlp_requests = listen_otlp_requests(args.port, logger.clone());
+    let otlp_requests = listen_otlp_requests(
+        args.port, 
+        Duration::from_secs(5),
+        logger.clone()
+    );
     
     logger.loading(&format!("Checking OTLP traffic on port {}.", args.port));
 

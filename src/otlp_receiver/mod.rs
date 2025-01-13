@@ -5,12 +5,14 @@
 mod infer;
 mod check;
 
+use std::time::{Duration, Instant};
 use clap::{Args, Subcommand};
 use miette::Diagnostic;
 use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
+use tokio::time::sleep;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
@@ -145,13 +147,15 @@ pub enum OtlpRequest {
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
 /// and return an iterator of received OTLP requests.
-pub fn listen_otlp_requests(grpc_port: u16, logger: impl Logger + Sync + Clone) -> impl Iterator<Item = OtlpRequest> {
+pub fn listen_otlp_requests(grpc_port: u16,  inactivity_timeout: Duration, logger: impl Logger + Sync + Clone) -> impl Iterator<Item = OtlpRequest> {
     let addr = format!("0.0.0.0:{grpc_port}").parse().expect("Failed to parse address");
     let (tx, rx) = mpsc::channel(100);
     let stop_tx = tx.clone();
-    let logs_service = LogsServiceImpl { tx: tx.clone() };
-    let metrics_service = MetricsServiceImpl {  tx: tx.clone() };
-    let trace_service = TraceServiceImpl {  tx: tx.clone() };
+    // Create a watch channel for the last activity timestamp
+    let (activity_tx, activity_rx) = watch::channel(Instant::now());
+    let logs_service = LogsServiceImpl { tx: tx.clone(), activity_tx: activity_tx.clone(), };
+    let metrics_service = MetricsServiceImpl {  tx: tx.clone(), activity_tx: activity_tx.clone(), };
+    let trace_service = TraceServiceImpl {  tx: tx.clone(), activity_tx: activity_tx.clone(), };
     
     logger.log("To stop the OTLP receiver:");
     logger.log("  - press CTRL+C,");
@@ -170,7 +174,8 @@ pub fn listen_otlp_requests(grpc_port: u16, logger: impl Logger + Sync + Clone) 
                 // Spawn tasks to handle different stop signals
                 spawn_stop_signal_handlers(stop_tx.clone());
                 spawn_http_stop_handler(stop_tx.clone(), grpc_port + 1).await;
-                
+                spawn_inactivity_monitor(stop_tx.clone(), activity_rx, inactivity_timeout);
+
                 // Serve the OTLP services
                 let server = Server::builder()
                     .add_service(LogsServiceServer::new(logs_service))
@@ -260,6 +265,33 @@ async fn spawn_http_stop_handler(stop_tx: mpsc::Sender<OtlpRequest>, port: u16) 
     }
 }
 
+/// Spawn a task that monitors for inactivity and triggers shutdown if timeout is reached
+fn spawn_inactivity_monitor(
+    stop_tx: mpsc::Sender<OtlpRequest>,
+    activity_rx: watch::Receiver<Instant>,
+    timeout: Duration,
+) {
+    let _ = tokio::spawn(async move {
+        loop {
+            // Wait for the timeout duration
+            sleep(timeout).await;
+
+            // Check if we've exceeded the inactivity timeout
+            let last_activity = *activity_rx.borrow();
+            if last_activity.elapsed() >= timeout {
+                eprintln!("Shutting down due to inactivity timeout");
+                let _ = stop_tx.send(OtlpRequest::Stop).await.ok();
+                break;
+            }
+
+            // Check if we should stop monitoring (channel closed)
+            if activity_rx.has_changed().is_err() {
+                break;
+            }
+        }
+    });
+}
+
 // Synchronous iterator wrapping a Tokio mpsc::Receiver.
 pub struct SyncReceiver<T> {
     receiver: mpsc::Receiver<T>,
@@ -286,12 +318,15 @@ async fn forward_to_channel<T>(
 
 pub struct LogsServiceImpl {
     tx: mpsc::Sender<OtlpRequest>,
+    activity_tx: watch::Sender<Instant>,
 }
 pub struct MetricsServiceImpl {
     tx: mpsc::Sender<OtlpRequest>,
+    activity_tx: watch::Sender<Instant>,
 }
 pub struct TraceServiceImpl {
     tx: mpsc::Sender<OtlpRequest>,
+    activity_tx: watch::Sender<Instant>,
 }
 
 #[tonic::async_trait]
@@ -300,6 +335,9 @@ impl LogsService for LogsServiceImpl {
         &self,
         request: Request<ExportLogsServiceRequest>,
     ) -> Result<Response<ExportLogsServiceResponse>, Status> {
+        // Update last activity time
+        self.activity_tx.send(Instant::now()).map_err(|_| Status::internal("Failed to update activity timestamp"))?;
+        
         forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Logs).await?;
         Ok(Response::new(ExportLogsServiceResponse { partial_success: None }))
     }
@@ -311,6 +349,9 @@ impl MetricsService for MetricsServiceImpl {
         &self,
         request: Request<ExportMetricsServiceRequest>,
     ) -> Result<Response<ExportMetricsServiceResponse>, Status> {
+        // Update last activity time
+        self.activity_tx.send(Instant::now()).map_err(|_| Status::internal("Failed to update activity timestamp"))?;
+
         forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Metrics).await?;
         Ok(Response::new(ExportMetricsServiceResponse { partial_success: None }))
     }
@@ -322,6 +363,9 @@ impl TraceService for TraceServiceImpl {
         &self,
         request: Request<ExportTraceServiceRequest>,
     ) -> Result<Response<ExportTraceServiceResponse>, Status> {
+        // Update last activity time
+        self.activity_tx.send(Instant::now()).map_err(|_| Status::internal("Failed to update activity timestamp"))?;
+
         forward_to_channel(&self.tx, request.into_inner(), OtlpRequest::Traces).await?;
         Ok(Response::new(ExportTraceServiceResponse { partial_success: None }))
     }

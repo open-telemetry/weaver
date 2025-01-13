@@ -2,6 +2,7 @@
 
 //! Infer a semantic convention registry from an OTLP traffic.
 
+use std::time::Duration;
 use clap::Args;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
@@ -25,7 +26,11 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &InferRegistryArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let otlp_requests = listen_otlp_requests(args.port, logger.clone());
+    let otlp_requests = listen_otlp_requests(
+        args.port,
+        Duration::from_secs(5),
+        logger.clone()
+    );
 
     for otlp_request in otlp_requests {
         match otlp_request {
