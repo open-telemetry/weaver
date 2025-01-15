@@ -37,6 +37,10 @@ pub struct RegistryEmitArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// Write the telemetry to standard output
+    #[arg(long)]
+    stdout: bool,
 }
 
 // For the given attribute, return a name/value pair.
@@ -144,7 +148,6 @@ fn otel_span_kind(span_kind: Option<&SpanKindSpec>) -> SpanKind {
 }
 
 fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
-    // First, create a OTLP exporter builder. Configure it as you need.
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .with_endpoint("http://localhost:4317")
@@ -153,6 +156,13 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
         .with_resource(Resource::new(vec![KeyValue::new("service.name", "weaver")])) // TODO meta semconv!
         .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
         .build())
+}
+
+fn init_stdout_tracer_provider() -> sdktrace::TracerProvider {
+    sdktrace::TracerProvider::builder()
+        .with_resource(Resource::new(vec![KeyValue::new("service.name", "weaver")])) // TODO meta semconv!
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+        .build()
 }
 
 /// Emit all spans in the resolved registry to the OTLP receiver.
@@ -170,7 +180,12 @@ pub(crate) fn command(
 
     let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
     rt.block_on(async {
-        let tracer_provider = init_tracer_provider().expect("OTLP Tracer Provider must be created");
+        let tracer_provider = if args.stdout {
+            logger.mute();
+            init_stdout_tracer_provider()
+        } else {
+            init_tracer_provider().expect("OTLP Tracer Provider must be created")
+        };
         let _ = global::set_tracer_provider(tracer_provider.clone());
         let tracer = global::tracer("weaver");
         // Start a parent span here and use this context to create child spans
@@ -203,7 +218,7 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        quiet_mode: args.stdout,
     })
 }
 
@@ -240,6 +255,7 @@ mod tests {
                         display_policy_coverage: false,
                     },
                     diagnostic: Default::default(),
+                    stdout: true,
                 }),
             })),
         };

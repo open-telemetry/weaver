@@ -4951,6 +4951,7 @@ dependencies = [
  "miette",
  "opentelemetry",
  "opentelemetry-otlp",
+ "opentelemetry-stdout",
  "opentelemetry_sdk",
  "ratatui",
  "rayon",
