@@ -19,7 +19,6 @@ gix = { version = "0.69.1", default-features = false, features = [
     "blocking-http-transport-reqwest-rust-tls",
 ] }
 semver = "1.0.24"
-serde_json.workspace = true
 toml = "0.8.19"
 
 #[lints]

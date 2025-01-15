@@ -100,7 +100,7 @@ fn create_single_generated_rs_file(root: &Path) {
         let path = entry.path();
 
         // Only process files with the .rs extension that contain the generated comment
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "rs") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
             let file_content = std::fs::read_to_string(path).expect("Failed to read file");
 
             // Only process files that have been generated
