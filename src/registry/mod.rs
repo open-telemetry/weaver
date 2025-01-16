@@ -10,6 +10,7 @@ use serde::Serialize;
 
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
+use crate::registry::live_check::CheckRegistryArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -19,17 +20,16 @@ use check::RegistryCheckArgs;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
-use crate::registry::live_check::CheckRegistryArgs;
 
 mod check;
 mod generate;
 mod json_schema;
+mod live_check;
+mod otlp;
 mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
-mod live_check;
-mod otlp;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
@@ -105,14 +105,14 @@ pub enum RegistrySubCommand {
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
 
-    /// Check the conformance level of an OTLP stream against a semantic convention registry. 
-    /// 
+    /// Check the conformance level of an OTLP stream against a semantic convention registry.
+    ///
     /// This command starts an OTLP listener and compares each received OTLP message with the
     /// registry provided as a parameter. When the command is stopped (see stop conditions),
     /// a conformance/coverage report is generated. The purpose of this command is to be used
     /// in a CI/CD pipeline to validate the telemetry stream from an application or service
     /// against a registry.
-    /// 
+    ///
     /// The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop
     /// endpoint, and a maximum duration of no OTLP message reception.
     #[clap(verbatim_doc_comment)]

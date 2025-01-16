@@ -2,7 +2,6 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 
-use std::fmt::{Display, Formatter};
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -19,10 +18,12 @@ use grpc_stubs::proto::collector::trace::v1::{
 };
 use miette::Diagnostic;
 use serde::Serialize;
+use std::fmt::{Display, Formatter};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, watch};
+use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
@@ -40,6 +41,7 @@ pub mod grpc_stubs {
             pub mod logs {
                 #[allow(unused_qualifications)]
                 #[allow(unused_results)]
+                #[allow(clippy::enum_variant_names)]
                 #[path = "opentelemetry.proto.collector.logs.v1.rs"]
                 pub mod v1;
             }
@@ -47,6 +49,7 @@ pub mod grpc_stubs {
             pub mod metrics {
                 #[allow(unused_qualifications)]
                 #[allow(unused_results)]
+                #[allow(clippy::enum_variant_names)]
                 #[path = "opentelemetry.proto.collector.metrics.v1.rs"]
                 pub mod v1;
             }
@@ -54,6 +57,7 @@ pub mod grpc_stubs {
             pub mod trace {
                 #[allow(unused_qualifications)]
                 #[allow(unused_results)]
+                #[allow(clippy::enum_variant_names)]
                 #[path = "opentelemetry.proto.collector.trace.v1.rs"]
                 pub mod v1;
             }
@@ -79,6 +83,7 @@ pub mod grpc_stubs {
 
         #[path = ""]
         pub mod common {
+            #[allow(clippy::enum_variant_names)]
             #[path = "opentelemetry.proto.common.v1.rs"]
             pub mod v1;
         }
@@ -95,11 +100,13 @@ pub mod grpc_stubs {
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
-    /// An OTLP error occurred. 
+    /// An OTLP error occurred.
     #[error("The following OTLP error occurred: {error}")]
-    OtlpError {
-        error: String,
-    }
+    OtlpError { error: String },
+
+    /// An HTTP error occurred on the admin port.
+    #[error("The following HTTP error occurred: {error}")]
+    HttpAdminError { error: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -107,7 +114,6 @@ impl From<Error> for DiagnosticMessages {
         DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
     }
 }
-
 
 // Enum to represent received OTLP requests.
 #[derive(Debug)]
@@ -191,12 +197,19 @@ pub fn listen_otlp_requests(
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .unwrap()
+            .expect("Failed to build Tokio Runtime")
             .block_on(async {
+                let mut tasks = JoinSet::new();
+
                 // Spawn tasks to handle different stop signals
-                spawn_stop_signal_handlers(stop_tx.clone());
-                spawn_http_stop_handler(stop_tx.clone(), admin_port).await;
-                spawn_inactivity_monitor(stop_tx.clone(), activity_rx, inactivity_timeout);
+                spawn_stop_signal_handlers(stop_tx.clone(), &mut tasks);
+                spawn_http_stop_handler(stop_tx.clone(), admin_port, &mut tasks).await;
+                spawn_inactivity_monitor(
+                    stop_tx.clone(),
+                    activity_rx,
+                    inactivity_timeout,
+                    &mut tasks,
+                );
 
                 // Serve the OTLP services
                 let server = Server::builder()
@@ -208,22 +221,28 @@ pub fn listen_otlp_requests(
 
                 if let Err(e) = server {
                     let _ = tx
-                        .send(OtlpRequest::Error(Error::OtlpError{error: format!(
-                            "The OTLP listener encountered an error: {e}"
-                        )}))
+                        .send(OtlpRequest::Error(Error::OtlpError {
+                            error: format!("The OTLP listener encountered an error: {e}"),
+                        }))
                         .await;
                 }
+
+                let _ = tasks.join_all().await;
             });
     });
 
     SyncReceiver { receiver: rx }
 }
 
-/// Spawn tasks to handle CTRL+C and SIGHUP signals
-fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>) {
+/// Spawn tasks to handle CTRL+C and SIGHUP signals.
+///
+/// Note: All the tasks created in this function are recorded into a
+/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
+/// ignore as we don't need to abort these tasks.
+fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut JoinSet<()>) {
     // Handle CTRL+C
     let ctrl_c_tx = stop_tx.clone();
-    let _ = tokio::spawn(async move {
+    let _ = tasks.spawn(async move {
         tokio::signal::ctrl_c()
             .await
             .expect("Failed to listen for CTRL+C");
@@ -235,7 +254,7 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>) {
 
     // Handle SIGHUP
     let sighup_tx = stop_tx;
-    let _ = tokio::spawn(async move {
+    let _ = tasks.spawn(async move {
         let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
             .expect("Failed to create SIGHUP signal handler");
 
@@ -248,15 +267,24 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>) {
 }
 
 /// Spawn a minimal HTTP server that handles the /stop endpoint
-async fn spawn_http_stop_handler(stop_tx: mpsc::Sender<OtlpRequest>, port: u16) {
+///
+/// Note: All the tasks created in this function are recorded into a
+/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
+/// ignore as we don't need to abort these tasks.
+async fn spawn_http_stop_handler(
+    stop_tx: mpsc::Sender<OtlpRequest>,
+    port: u16,
+    tasks: &mut JoinSet<()>,
+) {
     let addr: std::net::SocketAddr = format!("0.0.0.0:{port}")
         .parse()
         .expect("Failed to parse HTTP stop port");
 
     match TcpListener::bind(addr).await {
         Ok(listener) => {
-            let _ = tokio::spawn(async move {
-                loop {
+            let _ = tasks.spawn(async move {
+                let mut stop_signal_received = false;
+                while !stop_signal_received {
                     match listener.accept().await {
                         Ok((mut socket, _)) => {
                             let mut buffer = [0; 1024];
@@ -279,6 +307,7 @@ async fn spawn_http_stop_handler(stop_tx: mpsc::Sender<OtlpRequest>, port: u16) 
                                         let response =
                                             "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
                                         let _ = socket.write_all(response.as_bytes()).await.ok();
+                                        stop_signal_received = true;
                                     } else {
                                         // Send HTTP 404 Not Found for any other request
                                         let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found";
@@ -288,25 +317,38 @@ async fn spawn_http_stop_handler(stop_tx: mpsc::Sender<OtlpRequest>, port: u16) 
                             }
                         }
                         Err(e) => {
-                            eprintln!("Failed to accept HTTP connection: {}", e);
+                            stop_tx
+                                .send(OtlpRequest::Error(Error::HttpAdminError {error: format!("Failed to accept HTTP connection: {}", e)}))
+                                .await
+                                .expect("Failed to send an OtlpRequest::Error");
                         }
                     }
                 }
             });
         }
         Err(e) => {
-            eprintln!("Failed to bind HTTP stop port {}: {}", port, e);
+            stop_tx
+                .send(OtlpRequest::Error(Error::HttpAdminError {
+                    error: format!("Failed to bind HTTP stop port {}: {}", port, e),
+                }))
+                .await
+                .expect("Failed to send an OtlpRequest::Error");
         }
     }
 }
 
 /// Spawn a task that monitors for inactivity and triggers shutdown if timeout is reached
+///
+/// Note: All the tasks created in this function are recorded into a
+/// JoinSet. `JoinSet::spawn` returns a `AbortHandle` that we can
+/// ignore as we don't need to abort these tasks.
 fn spawn_inactivity_monitor(
     stop_tx: mpsc::Sender<OtlpRequest>,
     activity_rx: watch::Receiver<Instant>,
     timeout: Duration,
+    tasks: &mut JoinSet<()>,
 ) {
-    let _ = tokio::spawn(async move {
+    let _ = tasks.spawn(async move {
         loop {
             // Wait for the timeout duration
             sleep(timeout).await;
@@ -314,7 +356,6 @@ fn spawn_inactivity_monitor(
             // Check if we've exceeded the inactivity timeout
             let last_activity = *activity_rx.borrow();
             if last_activity.elapsed() >= timeout {
-                eprintln!("Shutting down due to inactivity timeout");
                 let _ = stop_tx
                     .send(OtlpRequest::Stop(StopSignal::Inactivity))
                     .await
@@ -424,11 +465,11 @@ impl TraceService for TraceServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
-    use weaver_common::TestLogger;
     use crate::registry::otlp::grpc_stubs::proto::collector::logs::v1::logs_service_client::LogsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
+    use std::thread;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_inactivity_stop_after_1_second() {
@@ -477,10 +518,9 @@ mod tests {
                     }
 
                     // Send 5 traces
-                    let mut traces_client =
-                        TraceServiceClient::connect(grpc_endpoint.clone())
-                            .await
-                            .unwrap();
+                    let mut traces_client = TraceServiceClient::connect(grpc_endpoint.clone())
+                        .await
+                        .unwrap();
                     for _ in 0..expected_traces_count {
                         let _ = traces_client
                             .export(ExportTraceServiceRequest::default())
@@ -495,7 +535,7 @@ mod tests {
         let mut metrics_count = 0;
         let mut logs_count = 0;
         let mut traces_count = 0;
-        
+
         loop {
             let request = receiver.next().unwrap();
             match request {
@@ -504,7 +544,7 @@ mod tests {
                 OtlpRequest::Traces(_) => traces_count += 1,
                 OtlpRequest::Stop(StopSignal::Inactivity) => {
                     break;
-                },
+                }
                 other => {
                     panic!("Unexpected request: {:?}", other);
                 }

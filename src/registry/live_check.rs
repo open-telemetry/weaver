@@ -2,12 +2,12 @@
 
 //! Check the gap between a semantic convention registry and an OTLP traffic.
 
-use std::time::Duration;
 use crate::registry::otlp::{listen_otlp_requests, OtlpRequest};
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use std::time::Duration;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 
@@ -21,7 +21,7 @@ pub struct CheckRegistryArgs {
     /// Port used by the gRPC OTLP listener.
     #[clap(long, default_value = "4317", short = 'p')]
     pub otlp_grpc_port: u16,
-    
+
     /// Port used by the HTTP admin port (endpoints: /stop).
     #[clap(long, default_value = "4320", short = 'a')]
     pub admin_port: u16,
@@ -29,13 +29,13 @@ pub struct CheckRegistryArgs {
     /// Max inactivity time in seconds before stopping the listener.
     #[clap(long, default_value = "10", short = 't')]
     pub inactivity_timeout: u64,
-    
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
 }
 
-/// Check the conformance level of an OTLP stream against a semantic convention registry. 
+/// Check the conformance level of an OTLP stream against a semantic convention registry.
 ///
 /// This command starts an OTLP listener and compares each received OTLP message with the
 /// registry provided as a parameter. When the command is stopped (see stop conditions),
@@ -55,15 +55,17 @@ pub(crate) fn command(
         args.otlp_grpc_port,
         args.admin_port,
         Duration::from_secs(args.inactivity_timeout),
-        logger.clone()
+        logger.clone(),
     );
-    
+
     // @ToDo Use the following resolved registry to check the level of compliance of the incoming OTLP messages
     let (_resolved_registry, _) =
         prepare_main_registry(&args.registry, &policy, logger.clone(), &mut diag_msgs)?;
 
-
-    logger.loading(&format!("Checking OTLP traffic on port {}.", args.otlp_grpc_port));
+    logger.loading(&format!(
+        "Checking OTLP traffic on port {}.",
+        args.otlp_grpc_port
+    ));
 
     // @ToDo Implement the checking logic
     for otlp_request in otlp_requests {
