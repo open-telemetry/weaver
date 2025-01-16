@@ -22,7 +22,6 @@ mod diagnostic;
 mod format;
 mod registry;
 mod util;
-mod otlp_receiver;
 
 /// Set of parameters used to specify the diagnostic format.
 #[derive(Args, Debug, Clone)]

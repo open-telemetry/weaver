@@ -2,6 +2,7 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 
+use std::fmt::{Display, Formatter};
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -93,7 +94,13 @@ pub mod grpc_stubs {
 /// Errors emitted by the `otlp-receiver` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
 #[non_exhaustive]
-pub enum Error {}
+pub enum Error {
+    /// An OTLP error occurred. 
+    #[error("The following OTLP error occurred: {error}")]
+    OtlpError {
+        error: String,
+    }
+}
 
 impl From<Error> for DiagnosticMessages {
     fn from(error: Error) -> Self {
@@ -109,7 +116,7 @@ pub enum OtlpRequest {
     Metrics(ExportMetricsServiceRequest),
     Traces(ExportTraceServiceRequest),
 
-    Error(String),
+    Error(Error),
     Stop(StopSignal),
 }
 
@@ -124,6 +131,17 @@ pub enum StopSignal {
     AdminStop,
     /// Inactivity timeout
     Inactivity,
+}
+
+impl Display for StopSignal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StopSignal::Sigint => f.write_str("SIGINT"),
+            StopSignal::Sighup => f.write_str("SIGHUP"),
+            StopSignal::AdminStop => f.write_str("ADMIN_STOP"),
+            StopSignal::Inactivity => f.write_str("INACTIVITY"),
+        }
+    }
 }
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
@@ -190,9 +208,9 @@ pub fn listen_otlp_requests(
 
                 if let Err(e) = server {
                     let _ = tx
-                        .send(OtlpRequest::Error(format!(
-                            "OTLP server encountered an error: {e}"
-                        )))
+                        .send(OtlpRequest::Error(Error::OtlpError{error: format!(
+                            "The OTLP listener encountered an error: {e}"
+                        )}))
                         .await;
                 }
             });
@@ -406,11 +424,11 @@ impl TraceService for TraceServiceImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::otlp_receiver::grpc_stubs::proto::collector::logs::v1::logs_service_client::LogsServiceClient;
-    use crate::otlp_receiver::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use std::thread;
     use weaver_common::TestLogger;
-    use crate::otlp_receiver::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
+    use crate::registry::otlp::grpc_stubs::proto::collector::logs::v1::logs_service_client::LogsServiceClient;
+    use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
+    use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
 
     #[test]
     fn test_inactivity_stop_after_1_second() {

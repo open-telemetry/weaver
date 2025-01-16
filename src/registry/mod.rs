@@ -29,6 +29,7 @@ mod search;
 mod stats;
 mod update_markdown;
 mod live_check;
+mod otlp;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
