@@ -211,7 +211,7 @@ mod tests {
         let rust_files: std::collections::HashSet<_> = walkdir::WalkDir::new(&temp_output)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
             .map(|e| {
                 e.path()
                     .strip_prefix(&temp_output)
@@ -333,7 +333,7 @@ mod tests {
         let rust_files: std::collections::HashSet<_> = walkdir::WalkDir::new(&temp_output)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
             .map(|e| {
                 e.path()
                     .strip_prefix(&temp_output)
@@ -437,7 +437,7 @@ mod tests {
             let rust_files: std::collections::HashSet<_> = walkdir::WalkDir::new(&temp_output)
                 .into_iter()
                 .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "rs"))
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
                 .map(|e| {
                     e.path()
                         .strip_prefix(&temp_output)
