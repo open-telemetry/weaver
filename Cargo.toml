@@ -100,11 +100,17 @@ miette.workspace = true
 schemars.workspace = true
 itertools.workspace = true
 tracing = "0.1.41"
+opentelemetry = "0.27.1"
+log = "0.4.22"
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
 tempdir.workspace = true
+ureq.workspace = true
 assert_cmd = "2.0.16"
+portpicker = "0.1.1"
+#opentelemetry_sdk = { version = "0.27.1", features = [] }
+#opentelemetry-otlp = { version ="0.27.0", features = ["metrics", "logs", "trace"] }
 
 [build-dependencies]
 tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }

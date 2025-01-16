@@ -12,9 +12,13 @@ use crate::otlp_receiver::{listen_otlp_requests, OtlpRequest};
 /// Parameters for the `otlp-receiver infer-registry` sub-command
 #[derive(Debug, Args)]
 pub struct InferRegistryArgs {
-    /// Port used by the OTLP receiver
-    #[clap(long, default_value = "4317")]
-    pub port: u16,
+    /// Port used by the gRPC OTLP receiver
+    #[clap(long, default_value = "4317", short = 'p')]
+    pub otlp_grpc_port: u16,
+
+    /// Port used by the admin port (endpoints: /stop)
+    #[clap(long, default_value = "4320", short = 'a')]
+    pub admin_port: u16,
     
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -27,7 +31,8 @@ pub(crate) fn command(
     args: &InferRegistryArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let otlp_requests = listen_otlp_requests(
-        args.port,
+        args.otlp_grpc_port,
+        args.admin_port,
         Duration::from_secs(5),
         logger.clone()
     );
@@ -43,7 +48,7 @@ pub(crate) fn command(
             OtlpRequest::Traces(traces) => {
                 dbg!(traces);
             }
-            OtlpRequest::Stop => {
+            OtlpRequest::Stop(_) => {
                 break;
             }
             OtlpRequest::Error(error) => {

@@ -18,9 +18,13 @@ pub struct CheckRegistryArgs {
     #[command(flatten)]
     registry: RegistryArgs,
 
-    /// Port used by the OTLP receiver
-    #[clap(long, default_value = "4317")]
-    pub port: u16,
+    /// Port used by the gRPC OTLP receiver
+    #[clap(long, default_value = "4317", short = 'p')]
+    pub otlp_grpc_port: u16,
+    
+    /// Port used by the admin port (endpoints: /stop)
+    #[clap(long, default_value = "4320", short = 'a')]
+    pub admin_port: u16,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -38,12 +42,13 @@ pub(crate) fn command(
     let (_resolved_registry, _) =
         prepare_main_registry(&args.registry, &policy, logger.clone(), &mut diag_msgs)?;
     let otlp_requests = listen_otlp_requests(
-        args.port, 
+        args.otlp_grpc_port,
+        args.admin_port,
         Duration::from_secs(5),
         logger.clone()
     );
     
-    logger.loading(&format!("Checking OTLP traffic on port {}.", args.port));
+    logger.loading(&format!("Checking OTLP traffic on port {}.", args.otlp_grpc_port));
 
     for otlp_request in otlp_requests {
         match otlp_request {
@@ -59,7 +64,7 @@ pub(crate) fn command(
                 request_count += 1;
                 dbg!(traces);
             }
-            OtlpRequest::Stop => {
+            OtlpRequest::Stop(_) => {
                 break;
             }
             OtlpRequest::Error(error) => {
