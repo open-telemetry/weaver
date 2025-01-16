@@ -259,17 +259,20 @@ fn spawn_stop_signal_handlers(stop_tx: mpsc::Sender<OtlpRequest>, tasks: &mut Jo
     });
 
     // Handle SIGHUP
-    let sighup_tx = stop_tx;
-    let _ = tasks.spawn(async move {
-        let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
-            .expect("Failed to create SIGHUP signal handler");
+    #[cfg(unix)]
+    {
+        let sighup_tx = stop_tx;
+        let _ = tasks.spawn(async move {
+            let mut sighup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())
+                .expect("Failed to create SIGHUP signal handler");
 
-        let _ = sighup.recv().await;
-        let _ = sighup_tx
-            .send(OtlpRequest::Stop(StopSignal::Sighup))
-            .await
-            .ok();
-    });
+            let _ = sighup.recv().await;
+            let _ = sighup_tx
+                .send(OtlpRequest::Stop(StopSignal::Sighup))
+                .await
+                .ok();
+        });
+    }
 }
 
 /// Spawn a minimal HTTP server that handles the /stop endpoint
