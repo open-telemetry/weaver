@@ -19,6 +19,7 @@ use check::RegistryCheckArgs;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
+use crate::registry::live_check::CheckRegistryArgs;
 
 mod check;
 mod generate;
@@ -27,6 +28,7 @@ mod resolve;
 mod search;
 mod stats;
 mod update_markdown;
+mod live_check;
 
 /// Errors emitted by the `registry` sub-commands
 #[derive(thiserror::Error, Debug, Serialize, Diagnostic)]
@@ -101,6 +103,19 @@ pub enum RegistrySubCommand {
     /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
+
+    /// Check the conformance level of an OTLP stream against a semantic convention registry. 
+    /// 
+    /// This command starts an OTLP listener and compares each received OTLP message with the
+    /// registry provided as a parameter. When the command is stopped (see stop conditions),
+    /// a conformance/coverage report is generated. The purpose of this command is to be used
+    /// in a CI/CD pipeline to validate the telemetry stream from an application or service
+    /// against a registry.
+    /// 
+    /// The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop
+    /// endpoint, and a maximum duration of no OTLP message reception.
+    #[clap(verbatim_doc_comment)]
+    LiveCheck(CheckRegistryArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -180,6 +195,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
             json_schema::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::LiveCheck(args) => CmdResult::new(
+            live_check::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }

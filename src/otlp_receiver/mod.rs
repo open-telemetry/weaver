@@ -2,12 +2,6 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 
-mod check;
-mod infer;
-
-use crate::CmdResult;
-use check::CheckRegistryArgs;
-use clap::{Args, Subcommand};
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -22,7 +16,6 @@ use grpc_stubs::proto::collector::trace::v1::trace_service_server::{
 use grpc_stubs::proto::collector::trace::v1::{
     ExportTraceServiceRequest, ExportTraceServiceResponse,
 };
-use infer::InferRegistryArgs;
 use miette::Diagnostic;
 use serde::Serialize;
 use std::time::{Duration, Instant};
@@ -108,39 +101,6 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// Parameters for the `otlp-receiver` command
-#[derive(Debug, Args)]
-pub struct OtlpReceiverCommand {
-    /// Define the sub-commands for the `otlp-receiver` command
-    #[clap(subcommand)]
-    pub command: OtlpReceiverSubCommand,
-}
-
-/// Sub-commands to manage a `otlp-receiver`.
-#[derive(Debug, Subcommand)]
-#[clap(verbatim_doc_comment)]
-pub enum OtlpReceiverSubCommand {
-    /// Infer a semantic convention registry from an OTLP traffic.
-    #[clap(verbatim_doc_comment)]
-    InferRegistry(InferRegistryArgs),
-    /// Detect the gap between a semantic convention registry and an OTLP traffic.
-    #[clap(verbatim_doc_comment)]
-    CheckRegistry(CheckRegistryArgs),
-}
-
-/// Start the OTLP receiver and process the sub-command.
-pub fn otlp_receiver(log: impl Logger + Sync + Clone, command: &OtlpReceiverCommand) -> CmdResult {
-    match &command.command {
-        OtlpReceiverSubCommand::InferRegistry(args) => CmdResult::new(
-            infer::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        OtlpReceiverSubCommand::CheckRegistry(args) => CmdResult::new(
-            check::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-    }
-}
 
 // Enum to represent received OTLP requests.
 #[derive(Debug)]

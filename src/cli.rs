@@ -5,7 +5,6 @@
 use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
 use clap::{Parser, Subcommand};
-use crate::otlp_receiver::OtlpReceiverCommand;
 
 /// Command line arguments.
 #[derive(Parser)]
@@ -45,6 +44,4 @@ pub enum Commands {
     Registry(RegistryCommand),
     /// Manage Diagnostic Messages
     Diagnostic(DiagnosticCommand),
-    /// Start an OTLP Receiver to infer or check a semantic convention registry from an OTLP traffic.
-    OtlpReceiver(OtlpReceiverCommand),
 }

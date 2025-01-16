@@ -1,51 +1,67 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Infer a semantic convention registry from an OTLP traffic.
+//! Check the gap between a semantic convention registry and an OTLP traffic.
 
 use std::time::Duration;
+use crate::otlp_receiver::{listen_otlp_requests, OtlpRequest};
+use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::util::prepare_main_registry;
+use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use crate::{DiagnosticArgs, ExitDirectives};
-use crate::otlp_receiver::{listen_otlp_requests, OtlpRequest};
 
-/// Parameters for the `otlp-receiver infer-registry` sub-command
+/// Parameters for the `registry live-check` sub-command
 #[derive(Debug, Args)]
-pub struct InferRegistryArgs {
-    /// Port used by the gRPC OTLP receiver
+pub struct CheckRegistryArgs {
+    /// Parameters to specify the semantic convention registry
+    #[command(flatten)]
+    registry: RegistryArgs,
+
+    /// Port used by the gRPC OTLP listener.
     #[clap(long, default_value = "4317", short = 'p')]
     pub otlp_grpc_port: u16,
-
-    /// Port used by the admin port (endpoints: /stop)
+    
+    /// Port used by the HTTP admin port (endpoints: /stop).
     #[clap(long, default_value = "4320", short = 'a')]
     pub admin_port: u16,
-    
+
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
 }
 
-/// Infer a semantic convention registry from an OTLP traffic.
+/// Detect the gap between a semantic convention registry and an OTLP traffic.
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    args: &InferRegistryArgs,
+    args: &CheckRegistryArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let mut diag_msgs = DiagnosticMessages::empty();
+    let mut request_count = 0;
+    let policy = PolicyArgs::skip();
+    let (_resolved_registry, _) =
+        prepare_main_registry(&args.registry, &policy, logger.clone(), &mut diag_msgs)?;
     let otlp_requests = listen_otlp_requests(
         args.otlp_grpc_port,
         args.admin_port,
         Duration::from_secs(5),
         logger.clone()
     );
+    
+    logger.loading(&format!("Checking OTLP traffic on port {}.", args.otlp_grpc_port));
 
     for otlp_request in otlp_requests {
         match otlp_request {
             OtlpRequest::Logs(logs) => {
+                request_count += 1;
                 dbg!(logs);
             }
             OtlpRequest::Metrics(metrics) => {
+                request_count += 1;
                 dbg!(metrics);
             }
             OtlpRequest::Traces(traces) => {
+                request_count += 1;
                 dbg!(traces);
             }
             OtlpRequest::Stop(_) => {
@@ -57,7 +73,14 @@ pub(crate) fn command(
             }
         }
     }
-    println!("Do something with the received OTLP request");
+
+    if diag_msgs.has_error() {
+        return Err(diag_msgs);
+    }
+
+    logger.success(&format!(
+        "{request_count} OTLP requests received and checked."
+    ));
 
     Ok(ExitDirectives {
         exit_code: 0,
