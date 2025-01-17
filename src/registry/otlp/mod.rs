@@ -542,6 +542,7 @@ mod tests {
                     let mut metrics_client =
                         MetricsServiceClient::connect(grpc_endpoint_clone.clone())
                             .await
+                            .inspect_err(|e| eprintln!("Unable to connect to {}. Error: {}", grpc_endpoint_clone, e))
                             .unwrap();
                     for _ in 0..expected_metrics_count {
                         let _ = metrics_client
