@@ -525,7 +525,7 @@ mod tests {
 
         let mut receiver =
             listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger).unwrap();
-        let grpc_endpoint = format!("http://0.0.0.0:{grpc_port}");
+        let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
         let expected_metrics_count = 3;
         let expected_logs_count = 4;
         let expected_traces_count = 5;
@@ -542,7 +542,12 @@ mod tests {
                     let mut metrics_client =
                         MetricsServiceClient::connect(grpc_endpoint_clone.clone())
                             .await
-                            .inspect_err(|e| eprintln!("Unable to connect to {}. Error: {}", grpc_endpoint_clone, e))
+                            .inspect_err(|e| {
+                                eprintln!(
+                                    "Unable to connect to {}. Error: {}",
+                                    grpc_endpoint_clone, e
+                                )
+                            })
                             .unwrap();
                     for _ in 0..expected_metrics_count {
                         let _ = metrics_client
