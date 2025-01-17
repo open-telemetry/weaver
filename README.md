@@ -147,6 +147,7 @@ Semantic Convention Registries. The following commands are available:
 |---------------------------------------------------------------------------|---------------------------------------------|
 | [weaver registry check](docs/usage.md#registry-check)                     | Check the validity of a semconv registry    |
 | [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolve a semconv registry                  |
+| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff report between two versions |
 | [weaver registry generate](docs/usage.md#registry-generate)               | Generate artifacts from a semconv registry  |
 | [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update semconv snippet-based markdown files |
 | [weaver registry stats](docs/usage.md#registry-stats)                     | Generate statistics on a semconv registry   |
@@ -162,6 +163,8 @@ Telemetry Schemas.
   documentation and code based on semantic conventions.
 - [Weaver Checker](crates/weaver_checker/README.md): An integrated policy
   engine for enforcing policies on semantic conventions.
+- [Schema Changes](docs/schema-changes.md): A document describing the data model
+  used to represent the differences between two versions of a semantic convention registry.
 - [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md):
   A vision and roadmap for the concept of Application Telemetry Schema.
 - Presentation slides from the Semantic Convention SIG meeting on October 23,

@@ -77,16 +77,14 @@ pub(crate) fn command(
             (baseline_registry_repo, baseline_semconv_specs)
         {
             let mut baseline_registry = SemConvRegistry::from_semconv_specs(
-                baseline_registry_repo.id(),
+                &baseline_registry_repo,
                 baseline_semconv_specs,
-            );
+            )?;
             let baseline_resolved_schema =
                 resolve_semconv_specs(&mut baseline_registry, logger.clone())
-                    .combine_diag_msgs_with(&diag_msgs)?;
+                    .capture_non_fatal_errors(&mut diag_msgs)?;
             let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-                baseline_resolved_schema
-                    .registry(baseline_registry_repo.id())
-                    .expect("Failed to get the registry from the baseline resolved schema"),
+                &baseline_resolved_schema.registry,
                 baseline_resolved_schema.catalog(),
             )
             .combine_diag_msgs_with(&diag_msgs)?;

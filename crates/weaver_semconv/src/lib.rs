@@ -5,12 +5,15 @@
 use crate::Error::CompoundError;
 use miette::Diagnostic;
 use serde::Serialize;
+use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
 pub mod any_value;
 pub mod attribute;
+pub mod deprecated;
 pub mod group;
+pub mod manifest;
 pub mod metric;
 pub mod registry;
 pub mod semconv;
@@ -201,6 +204,24 @@ pub enum Error {
         /// The id of the any_value
         value_id: String,
         /// The reason of the error.
+        error: String,
+    },
+
+    /// This error is raised when a registry manifest is not found.
+    #[error("The registry manifest at {path:?} is not found.")]
+    #[diagnostic(severity(Error))]
+    RegistryManifestNotFound {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+    },
+
+    /// This error is raised when a registry manifest is invalid.
+    #[error("The registry manifest at {path:?} is invalid. {error}")]
+    #[diagnostic(severity(Error))]
+    InvalidRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The error that occurred.
         error: String,
     },
 
