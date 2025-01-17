@@ -164,13 +164,14 @@ impl Display for StopSignal {
 /// This function guarantees that the OTLP server is started and ready when the
 /// result is Ok(iterator).
 pub fn listen_otlp_requests(
+    grpc_addr: &str,
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
     logger: impl Logger + Sync + Clone,
 ) -> Result<impl Iterator<Item = OtlpRequest>, Error> {
     let addr: SocketAddr =
-        format!("0.0.0.0:{grpc_port}")
+        format!("{grpc_addr}:{grpc_port}")
             .parse()
             .map_err(|e: AddrParseError| Error::OtlpError {
                 error: e.to_string(),
@@ -523,8 +524,14 @@ mod tests {
         let inactivity_timeout = Duration::from_millis(500);
         let logger = TestLogger::default();
 
-        let mut receiver =
-            listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger).unwrap();
+        let mut receiver = listen_otlp_requests(
+            "127.0.0.1",
+            grpc_port,
+            admin_port,
+            inactivity_timeout,
+            logger,
+        )
+        .unwrap();
         let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
         let expected_metrics_count = 3;
         let expected_logs_count = 4;
@@ -620,8 +627,14 @@ mod tests {
         let inactivity_timeout = Duration::from_secs(5);
         let logger = TestLogger::default();
 
-        let mut receiver =
-            listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger).unwrap();
+        let mut receiver = listen_otlp_requests(
+            "127.0.0.1",
+            grpc_port,
+            admin_port,
+            inactivity_timeout,
+            logger,
+        )
+        .unwrap();
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));

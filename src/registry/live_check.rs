@@ -18,6 +18,10 @@ pub struct CheckRegistryArgs {
     #[command(flatten)]
     registry: RegistryArgs,
 
+    /// Address used by the gRPC OTLP listener.
+    #[clap(long, default_value = "0.0.0.0")]
+    pub otlp_grpc_address: String,
+
     /// Port used by the gRPC OTLP listener.
     #[clap(long, default_value = "4317", short = 'p')]
     pub otlp_grpc_port: u16,
@@ -52,6 +56,7 @@ pub(crate) fn command(
     let mut diag_msgs = DiagnosticMessages::empty();
     let policy = PolicyArgs::skip();
     let otlp_requests = listen_otlp_requests(
+        args.otlp_grpc_address.as_str(),
         args.otlp_grpc_port,
         args.admin_port,
         Duration::from_secs(args.inactivity_timeout),
