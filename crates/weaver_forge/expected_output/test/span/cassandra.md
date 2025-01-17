@@ -6,7 +6,7 @@
 Call-level attributes for Cassandra
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

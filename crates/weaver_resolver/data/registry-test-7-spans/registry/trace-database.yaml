@@ -55,6 +55,7 @@ groups:
   - id: db.mssql
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Connection-level attributes for Microsoft SQL Server
@@ -65,6 +66,7 @@ groups:
   - id: db.cassandra
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for Cassandra
@@ -93,6 +95,7 @@ groups:
   - id: db.hbase
     stability: experimental 
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for HBase
@@ -107,6 +110,7 @@ groups:
   - id: db.couchdb
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for CouchDB
@@ -126,6 +130,7 @@ groups:
   - id: db.redis
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for Redis
@@ -146,6 +151,7 @@ groups:
   - id: db.mongodb
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for MongoDB
@@ -157,6 +163,7 @@ groups:
   - id: db.elasticsearch
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for Elasticsearch
@@ -203,6 +210,7 @@ groups:
   - id: db.sql
     stability: experimental
     type: span
+    span_kind: client
     extends: 'db'
     brief: >
       Call-level attributes for SQL databases
@@ -213,6 +221,7 @@ groups:
   - id: db.cosmosdb
     stability: experimental
     type: span
+    span_kind: client
     extends: db
     brief: >
       Call-level attributes for Cosmos DB.
@@ -264,6 +273,7 @@ groups:
   - id: db.tech
     stability: experimental
     type: span
+    span_kind: client
     brief: "Semantic convention group for specific technologies"
     constraints:
       - include: 'db.cassandra'

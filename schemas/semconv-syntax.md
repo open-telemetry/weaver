@@ -112,7 +112,7 @@ specificfields ::= spanfields
 
 attribute_group_fields ::= extends_or_attributes
 
-spanfields ::= [events] [span_kind] stability extends_or_attributes
+spanfields ::= [events] span_kind stability extends_or_attributes
 
 eventfields ::= name [body] stability
 
@@ -181,7 +181,7 @@ The field `semconv` represents a semantic convention and it is made by:
 
 The following is only valid if `type` is `span` (the default):
 
-- `span_kind`, optional enum, specifies the kind of the span.
+- `span_kind`, required enum, specifies the kind of the span.
 - `events`, optional list of strings that specify the ids of
   event semantic conventions associated with this span semantic convention.
 

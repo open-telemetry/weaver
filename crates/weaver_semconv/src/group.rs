@@ -154,6 +154,15 @@ impl GroupSpec {
             }
         }
 
+        // Span kind is required if type is span.
+        if self.r#type == GroupType::Span && self.span_kind.is_none() {
+            errors.push(Error::InvalidSpanMissingSpanKind {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group is a Span but the span_kind is not set.".to_owned(),
+            });
+        }
+
         // Field name is required if prefix is empty and if type is event.
         if self.r#type == GroupType::Event {
             if self.body.is_some() && self.name.is_none() {
@@ -456,7 +465,7 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeAllowCustomValues, InvalidExampleWarning, InvalidGroup,
         InvalidGroupMissingExtendsOrAttributes, InvalidGroupStability, InvalidGroupUsesPrefix,
-        InvalidMetric,
+        InvalidMetric, InvalidSpanMissingSpanKind,
     };
 
     use super::*;
@@ -510,8 +519,21 @@ mod tests {
             result
         );
 
-        // Span kind is set but the type is not span.
+        // Span kind is missing on a span group.
         group.prefix = "".to_owned();
+        group.span_kind = None;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidSpanMissingSpanKind {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group is a Span but the span_kind is not set.".to_owned(),
+            },),
+            result
+        );
+
+        // Span kind is set but the type is not span.
+        group.span_kind = Some(SpanKindSpec::Client);
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -978,6 +1000,7 @@ mod tests {
 
         // all other group types must have a stability field.
         group.r#type = GroupType::Span;
+        group.span_kind = Some(SpanKindSpec::Client);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -995,6 +1018,7 @@ mod tests {
 
         group.stability = None;
         group.r#type = GroupType::Resource;
+        group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1149,6 +1173,7 @@ mod tests {
 
         // Span must have extends or attributes.
         group.r#type = GroupType::Span;
+        group.span_kind = Some(SpanKindSpec::Client);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupMissingExtendsOrAttributes {
@@ -1175,6 +1200,7 @@ mod tests {
 
         // Resource must have extends or attributes.
         group.r#type = GroupType::Resource;
+        group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupMissingExtendsOrAttributes {

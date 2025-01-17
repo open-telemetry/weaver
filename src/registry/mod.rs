@@ -129,6 +129,29 @@ pub struct RegistryArgs {
         default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
     )]
     pub registry: RegistryPath,
+
+    /// Boolean flag to specify whether to follow symlinks when loading the registry.
+    /// Default is false.
+    #[arg(short = 's', long)]
+    pub(crate) follow_symlinks: bool,
+}
+
+/// Set of common parameters used for policy checks.
+#[derive(Args, Debug)]
+pub struct PolicyArgs {
+    /// Optional list of policy files or directories to check against the files of the semantic
+    /// convention registry.  If a directory is provided all `.rego` files in the directory will be
+    /// loaded.
+    #[arg(short = 'p', long = "policy")]
+    pub policies: Vec<PathBuf>,
+
+    /// Skip the policy checks.
+    #[arg(long, default_value = "false")]
+    pub skip_policies: bool,
+
+    /// Display the policy coverage report (useful for debugging).
+    #[arg(long, default_value = "false")]
+    pub display_policy_coverage: bool,
 }
 
 /// Manage a semantic convention registry and return the exit code.
@@ -167,15 +190,4 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
             Some(args.diagnostic.clone()),
         ),
     }
-}
-
-/// Set of Parameters used to specify the extra options for the `weaver registry` command.
-/// The CommonRegistryArgs will be shared across all `weaver registry` sub-commands. So only the general options should be
-/// included here.
-#[derive(Args, Debug)]
-pub struct CommonRegistryArgs {
-    /// Boolean flag to specify whether to follow symlinks when loading the registry.
-    /// Default is false.
-    #[arg(short = 's', long)]
-    pub(crate) follow_symlinks: bool,
 }

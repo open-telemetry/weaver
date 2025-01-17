@@ -155,6 +155,10 @@
 					"$ref": "#/$defs/SemanticConventionBase"
 				}
 			],
+			"required": [
+				"type",
+				"span_kind"
+			],
 			"properties": {
 				"type": {
 					"type": "string",
@@ -169,7 +173,7 @@
 						"consumer",
 						"internal"
 					],
-					"description": "specifies the kind of the span. Leaf semantic convention nodes (in the hierarchy tree) that do not have this field set will generate a warning."
+					"description": "specifies the kind of the span."
 				}
 			}
 		},

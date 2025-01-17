@@ -1021,6 +1021,7 @@ groups:
 groups:
     - id: span.one
       type: span
+      span_kind: internal
       stability: stable
       brief: 'Span one'
       attributes:
@@ -1047,6 +1048,7 @@ groups:
 groups:
     - id: span.one
       type: span
+      span_kind: internal
       stability: stable
       brief: 'Span one'
       constraints:

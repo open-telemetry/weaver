@@ -9,13 +9,16 @@ use std::path::PathBuf;
 use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
 use weaver_common::Logger;
+use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::semconv::SemConvSpec;
+
+use crate::registry::{PolicyArgs, RegistryArgs};
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -225,4 +228,103 @@ pub(crate) fn resolve_telemetry_schema(
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
     resolve_semconv_specs(&mut registry, logger.clone())
+}
+
+/// Resolves the main registry and optionally checks policies.
+/// This is a common starting point for some `registry` commands.
+/// e.g., `check`, `generate`, `resolve`
+///
+/// # Arguments
+///
+/// * `registry_args` - The common CLI args for the main registry.
+/// * `policy_args` - The common CLI args for policies.
+/// * `logger` - The logger for logging messages.
+/// * `diag_msgs` - The DiagnosticMessages to append to.
+///
+/// # Returns
+///
+/// A `Result` containing the `ResolvedRegistry` and `PolicyEngine` on success, or
+/// `DiagnosticMessages` on failure.
+pub(crate) fn prepare_main_registry(
+    registry_args: &RegistryArgs,
+    policy_args: &PolicyArgs,
+    logger: impl Logger + Sync + Clone,
+    diag_msgs: &mut DiagnosticMessages,
+) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
+    let registry_path = &registry_args.registry;
+
+    let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
+
+    // Load the semantic convention specs
+    let main_semconv_specs = load_semconv_specs(
+        &main_registry_repo,
+        logger.clone(),
+        registry_args.follow_symlinks,
+    )
+    .capture_non_fatal_errors(diag_msgs)?;
+
+    // Optionally init policy engine
+    let mut policy_engine = if !policy_args.skip_policies {
+        Some(init_policy_engine(
+            &main_registry_repo,
+            &policy_args.policies,
+            policy_args.display_policy_coverage,
+        )?)
+    } else {
+        None
+    };
+
+    // Check pre-resolution policies
+    if let Some(engine) = policy_engine.as_ref() {
+        check_policy(engine, &main_semconv_specs)
+            .inspect(|_, violations| {
+                if let Some(violations) = violations {
+                    logger.success(&format!(
+                        "All `before_resolution` policies checked ({} violations found)",
+                        violations.len()
+                    ));
+                } else {
+                    logger.success("No `before_resolution` policy violation");
+                }
+            })
+            .capture_non_fatal_errors(diag_msgs)?;
+    }
+
+    // Resolve the main registry
+    let mut main_registry =
+        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
+    let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
+        .combine_diag_msgs_with(diag_msgs)?;
+
+    let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
+        main_resolved_schema
+            .registry(main_registry_repo.id())
+            .expect("Failed to get the registry from the resolved schema"),
+        main_resolved_schema.catalog(),
+    )
+    .combine_diag_msgs_with(diag_msgs)?;
+
+    // Check post-resolution policies
+    if let Some(engine) = policy_engine.as_mut() {
+        check_policy_stage::<ResolvedRegistry, ()>(
+            engine,
+            PolicyStage::AfterResolution,
+            main_registry_repo.registry_path_repr(),
+            &main_resolved_registry,
+            &[],
+        )
+        .inspect(|_, violations| {
+            if let Some(violations) = violations {
+                logger.success(&format!(
+                    "All `after_resolution` policies checked ({} violations found)",
+                    violations.len()
+                ));
+            } else {
+                logger.success("No `after_resolution` policy violation");
+            }
+        })
+        .capture_non_fatal_errors(diag_msgs)?;
+    }
+
+    Ok((main_resolved_registry, policy_engine))
 }

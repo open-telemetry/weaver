@@ -3,7 +3,7 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::{CommonRegistryArgs, RegistryArgs};
+use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_cache::RegistryRepo;
@@ -49,10 +49,6 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-
-    /// Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Update markdown files.
@@ -78,13 +74,14 @@ pub(crate) fn command(
         TemplateEngine::new(config, loader, Params::default())
     };
 
-    let registry_path = args.registry.registry.clone();
-    let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+    let registry_path = &args.registry.registry;
+
+    let registry_repo = RegistryRepo::try_new("main", registry_path)?;
     let generator = SnippetGenerator::try_from_registry_repo(
         &registry_repo,
         generator,
         &mut diag_msgs,
-        args.common_registry_args.follow_symlinks,
+        args.registry.follow_symlinks,
     )?;
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
@@ -138,9 +135,7 @@ mod tests {
 
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    use crate::registry::{
-        CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
-    };
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
     use crate::run_command;
 
     #[test]
@@ -157,15 +152,13 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "data/update_markdown/registry".to_owned(),
                         },
+                        follow_symlinks: false,
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
                     templates: "data/update_markdown/templates".to_owned(),
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
-                    common_registry_args: CommonRegistryArgs {
-                        follow_symlinks: false,
-                    },
                 }),
             })),
         };

@@ -6,7 +6,7 @@
 Call-level attributes for SQL databases
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 
