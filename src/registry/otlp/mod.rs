@@ -19,12 +19,14 @@ use grpc_stubs::proto::collector::trace::v1::{
 use miette::Diagnostic;
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
+use std::net::{AddrParseError, SocketAddr};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinSet;
 use tokio::time::sleep;
+use tonic::codegen::tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -158,15 +160,31 @@ impl Display for StopSignal {
 
 /// Start an OTLP receiver listening to a specific port on all IPv4 interfaces
 /// and return an iterator of received OTLP requests.
+///
+/// This function guarantees that the OTLP server is started and ready when the
+/// result is Ok(iterator).
 pub fn listen_otlp_requests(
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
     logger: impl Logger + Sync + Clone,
-) -> impl Iterator<Item = OtlpRequest> {
-    let addr = format!("0.0.0.0:{grpc_port}")
-        .parse()
-        .expect("Failed to parse address");
+) -> Result<impl Iterator<Item = OtlpRequest>, Error> {
+    let addr: SocketAddr =
+        format!("0.0.0.0:{grpc_port}")
+            .parse()
+            .map_err(|e: AddrParseError| Error::OtlpError {
+                error: e.to_string(),
+            })?;
+
+    let listener = std::net::TcpListener::bind(addr).map_err(|e| Error::OtlpError {
+        error: e.to_string(),
+    })?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|e| Error::OtlpError {
+            error: e.to_string(),
+        })?;
+
     let (tx, rx) = mpsc::channel(100);
     let stop_tx = tx.clone();
     // Create a watch channel for the last activity timestamp
@@ -196,6 +214,8 @@ pub fn listen_otlp_requests(
         inactivity_timeout.as_secs()
     ));
 
+    let (ready_tx, ready_rx) = oneshot::channel();
+
     // Start an OS thread and run a single threaded Tokio runtime inside.
     // The async OTLP receiver sends the received OTLP messages to the Tokio channel.
     let _ = std::thread::spawn(move || {
@@ -217,15 +237,23 @@ pub fn listen_otlp_requests(
                     &mut tasks,
                 );
 
+                let tokio_listener = TcpListener::from_std(listener)
+                    .expect("Failed to convert std listener to tokio listener");
+                let inbound = TcpListenerStream::new(tokio_listener);
+
                 // Serve the OTLP services
-                let server = Server::builder()
+                let server_future = Server::builder()
                     .add_service(LogsServiceServer::new(logs_service))
                     .add_service(MetricsServiceServer::new(metrics_service))
                     .add_service(TraceServiceServer::new(trace_service))
-                    .serve(addr)
-                    .await;
+                    .serve_with_incoming(inbound);
 
-                if let Err(e) = server {
+                ready_tx
+                    .send(())
+                    .expect("Failed to signal that the server is ready");
+
+                let result = server_future.await;
+                if let Err(e) = result {
                     let _ = tx
                         .send(OtlpRequest::Error(Error::OtlpError {
                             error: format!("The OTLP listener encountered an error: {e}"),
@@ -237,7 +265,15 @@ pub fn listen_otlp_requests(
             });
     });
 
-    SyncReceiver { receiver: rx }
+    // Wait until the server is ready
+    ready_rx.blocking_recv().map_err(|e| Error::OtlpError {
+        error: format!(
+            "OTLP server dropped before signaling readiness (error: {})",
+            e
+        ),
+    })?;
+
+    Ok(SyncReceiver { receiver: rx })
 }
 
 /// Spawn tasks to handle CTRL+C and SIGHUP signals.
@@ -285,7 +321,7 @@ async fn spawn_http_stop_handler(
     port: u16,
     tasks: &mut JoinSet<()>,
 ) {
-    let addr: std::net::SocketAddr = format!("0.0.0.0:{port}")
+    let addr: SocketAddr = format!("0.0.0.0:{port}")
         .parse()
         .expect("Failed to parse HTTP stop port");
 
@@ -487,11 +523,8 @@ mod tests {
         let inactivity_timeout = Duration::from_millis(500);
         let logger = TestLogger::default();
 
-        let mut receiver = listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger);
-
-        // Give the server a little time to start up
-        thread::sleep(Duration::from_millis(100));
-
+        let mut receiver =
+            listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger).unwrap();
         let grpc_endpoint = format!("http://0.0.0.0:{grpc_port}");
         let expected_metrics_count = 3;
         let expected_logs_count = 4;
@@ -581,7 +614,8 @@ mod tests {
         let inactivity_timeout = Duration::from_secs(5);
         let logger = TestLogger::default();
 
-        let mut receiver = listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger);
+        let mut receiver =
+            listen_otlp_requests(grpc_port, admin_port, inactivity_timeout, logger).unwrap();
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));

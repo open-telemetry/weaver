@@ -56,7 +56,7 @@ pub(crate) fn command(
         args.admin_port,
         Duration::from_secs(args.inactivity_timeout),
         logger.clone(),
-    );
+    )?;
 
     // @ToDo Use the following resolved registry to check the level of compliance of the incoming OTLP messages
     let (_resolved_registry, _) =
