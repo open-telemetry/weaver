@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use weaver_cache::RegistryRepo;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
-use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
@@ -292,14 +292,16 @@ pub(crate) fn prepare_main_registry(
 
     // Resolve the main registry
     let mut main_registry =
-        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
+        SemConvRegistry::from_semconv_specs(&main_registry_repo, main_semconv_specs)?;
+    // Resolve the semantic convention specifications.
+    // If there are any resolution errors, they should be captured into the ongoing list of
+    // diagnostic messages and returned immediately because there is no point in continuing
+    // as the resolution is a prerequisite for the next stages.
     let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
-        .combine_diag_msgs_with(diag_msgs)?;
+        .capture_non_fatal_errors(diag_msgs)?;
 
     let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-        main_resolved_schema
-            .registry(main_registry_repo.id())
-            .expect("Failed to get the registry from the resolved schema"),
+        &main_resolved_schema.registry,
         main_resolved_schema.catalog(),
     )
     .combine_diag_msgs_with(diag_msgs)?;

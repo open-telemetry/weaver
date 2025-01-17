@@ -4829,7 +4829,7 @@ dependencies = [
  "miette",
  "serde",
  "serde_yaml",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
  "weaver_common",
  "weaver_version",
 ]

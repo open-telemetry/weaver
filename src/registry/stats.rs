@@ -37,9 +37,8 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
-    let registry_id = "default";
+    let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = &args.registry.registry;
-
     let registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
     // Load the semantic convention registry into a local cache.
