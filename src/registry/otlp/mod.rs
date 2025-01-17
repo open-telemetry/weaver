@@ -546,7 +546,7 @@ mod tests {
                                 eprintln!(
                                     "Unable to connect to {}. Error: {}",
                                     grpc_endpoint_clone, e
-                                )
+                                );
                             })
                             .unwrap();
                     for _ in 0..expected_metrics_count {
