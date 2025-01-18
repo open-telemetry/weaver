@@ -113,6 +113,7 @@ tokio.workspace = true
 weaver_diff = { path = "crates/weaver_diff" }
 tempdir.workspace = true
 assert_cmd = "2.0.16"
+futures-util = { version = "0.3", default-features = false }
 
 [profile.release]
 lto = true

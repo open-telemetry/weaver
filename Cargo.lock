@@ -4956,6 +4956,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "crossterm",
+ "futures-util",
  "include_dir",
  "itertools 0.13.0",
  "miette",
