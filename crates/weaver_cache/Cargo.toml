@@ -15,7 +15,7 @@ workspace = true
 weaver_common = { path = "../weaver_common" }
 
 tempdir = "0.3.7"
-dirs = "5.0.1"
+dirs = "6.0.0"
 gix = { version = "0.69.1", default-features = false, features = [
     "comfort",
     "blocking-http-transport-reqwest",
