@@ -103,7 +103,11 @@ pub enum RegistrySubCommand {
     /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
-    /// Emits the resolved registry to the OTLP receiver.
+    /// Emits a semantic convention registry as example spans to your OTLP receiver.
+    ///
+    /// This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4317.
+    /// Use the standard env vars e.g. `OTEL_EXPORTER_OTLP_ENDPOINT` to override.
+    #[clap(verbatim_doc_comment)]
     Emit(RegistryEmitArgs),
 }
 
