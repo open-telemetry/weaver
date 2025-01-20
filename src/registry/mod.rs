@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use emit::RegistryEmitArgs;
 use miette::Diagnostic;
 use serde::Serialize;
 
@@ -21,6 +22,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
 mod check;
+mod emit;
 mod generate;
 mod json_schema;
 mod resolve;
@@ -101,6 +103,12 @@ pub enum RegistrySubCommand {
     /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
+    /// Emits a semantic convention registry as example spans to your OTLP receiver.
+    ///
+    /// This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4317.
+    /// Use the standard env vars e.g. `OTEL_EXPORTER_OTLP_ENDPOINT` to override.
+    #[clap(verbatim_doc_comment)]
+    Emit(RegistryEmitArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -169,6 +177,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
             json_schema::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Emit(args) => CmdResult::new(
+            emit::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }
