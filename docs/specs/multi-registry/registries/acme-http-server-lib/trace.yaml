@@ -1,0 +1,19 @@
+groups:
+  - ref: otel:trace.http.server
+    brief: 'Trace reported by ACME HTTP Server library.'
+    attributes:
+      # The `requirement_level` of the following attributes is promoted to `required`
+      # Note: These 3 attributes are already attached to `trace.http.server`
+      - ref: otel:http.request.method
+        requirement_level: required
+      - ref: otel:client.address
+        requirement_level: required
+      - ref: otel:client.port
+        requirement_level: required
+      # A standard OTEL attribute is attached to the `trace.http.server`
+      # This attribute is not part of the OTEL definition of a `trace.http.server`
+      - ref: otel:thread.id
+        requirement_level: required
+      # Two locally defined attributes (see the attribute registry)
+      - ref: route.name
+      - ref: rate_limiter.type
