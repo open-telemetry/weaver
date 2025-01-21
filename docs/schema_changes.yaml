@@ -1,0 +1,101 @@
+head:
+  semconv_version: v1.27.0
+baseline:
+  semconv_version: v1.26.0
+changes:
+  attributes:
+    - name: db.connection_string
+      type: split
+      into: ["server.address", "server.port"]
+      forward: >
+        attributes['server.address'] = attributes['db.connection_string'].split(':')[0]
+        attributes['server.port'] = attributes['db.connection_string'].split(':')[1]
+      backward: >
+        attributes['server.address'] + ':' + attributes['server.port']
+      note: 'Deprecated, use `server.address`, `server.port` attributes instead.'
+    - name: net.peer.name
+      type: conditionally_renamed
+      forward: >
+        switch span_kind {
+          case 'client' => attributes['server.address'] = attributes['net.peer.name'],
+          case 'server' => attributes['client.address'] = attributes['net.peer.name']
+        }
+      backward: >
+        switch span_kind {
+          case 'client' => attributes['net.peer.name'] = attributes['server.address'],
+          case 'server' => attributes['net.peer.name'] = attributes['client.address']
+        }
+      note: Deprecated, use `server.address` on client spans and `client.address` on server spans.
+    - name: db.cassandra.table
+      type: merged
+      merged_to: db.collection.name
+      backward: >
+        if attributes['db.system'] == 'cassandra' then attributes['db.cassandra.table'] = attributes['db.collection.name']
+    - name: db.cosmosdb.container
+      type: merged
+      merged_to: db.collection.name
+      backward: >
+        if attributes['db.system'] == 'cosmosdb' then attributes['db.cosmosdb.container'] = attributes['db.collection.name']
+    - name: db.mongodb.collection
+      type: merged
+      merged_to: db.collection.name
+      backward: >
+        if attributes['db.system'] == 'mongodb' then attributes['db.mongodb.collection'] = attributes['db.collection.name']
+    - name: db.sql.table
+      type: merged
+      merged_to: db.collection.name
+      backward: >
+        if attributes['db.system'] == 'sql' then attributes['db.sql.table'] = attributes['db.collection.name']    
+    - name: db.client.connections.state
+      type: renamed
+      new_name: db.client.connection.state
+    - name: db.jdbc.driver_classname
+      type: deprecated
+      note: 'Removed, no replacement at this time.'
+    - name: db.instance.id
+      type: conditionally_deprecated
+      forward: >
+        if attributes['db.system'] == 'elasticsearch' then attributes['db.elasticsearch.node.name'] = attributes['db.instance.id']
+        else drop attributes['db.instance.id']
+      backward: >
+        if attributes['db.system'] == 'elasticsearch' then attributes['db.instance.id'] = attributes['db.elasticsearch.node.name']
+    - name: db.table.name
+      type: generalized
+      new_name: db.collection.name
+    - name: http.status.code
+      type: updated
+      fields:
+        - type: updated
+          name: type
+          old_value: string
+          new_value: int
+  metrics:
+    - name: messaging.publish.duration
+      type: merged
+      new_name: messaging.client.operation.duration
+      backward: >
+        if attributes['messaging.client.operation'] == 'publish' then attributes['metric.messaging.publish.duration'] = attributes['messaging.client.operation.duration']
+    - name: messaging.receive.duration
+      type: merged
+      backward: >
+        if attributes['messaging.client.operation'] == 'receive' then attributes['metric.messaging.receive.duration'] = attributes['messaging.client.operation.duration']
+    - name: db.client.connections.create_time
+      type: renamed
+      new_name: db.client.connection.create_time
+      fields:
+        - type: updated
+          name: unit
+          old_value: ms
+          new_value: s
+      forward: >
+        metrics['db.client.connection.create_time'].value = metrics['metric.db.client.connections.create_time'].value / 1000
+      backward: >
+        metrics['metric.db.client.connections.create_time'].value = metrics['db.client.connection.create_time'].value * 1000
+      note: "Deprecated, use `db.client.connection.create_time` instead. Note: the unit also changed from `ms` to `s`."
+    - name: rpc.server.duration
+      type: updated
+      fields:
+        - type: updated
+          name: instrument
+          old_value: gauge
+          new_value: histogram

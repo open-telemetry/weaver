@@ -1,0 +1,210 @@
+groups:
+  - id: registry.db.deprecated
+    type: attribute_group
+    display_name: Deprecated Database Attributes
+    brief: >
+      "Describes deprecated db attributes."
+    stability: experimental
+    attributes:
+      # In the following example, we are dealing with a SPLIT.
+      # However, when looking at the example, the split described in the brief is far from clear.
+      # In the precise definition of the deprecated field, I applied a purely logical split, but
+      # this may need to be adjusted after discussing the example.
+      - id: db.connection_string
+        type: string
+        brief: 'Deprecated, use `server.address`, `server.port` attributes instead.'
+        deprecated:
+          # The intent of the evolution is clearly expressed here. Having a such descriptive
+          # information is useful for generating migration guides
+          action: split
+          into: ["server.address", "server.port"]
+          # However, to precisely generate the backward and forward transformations
+          # on a such split action, we need to provide more details
+          forward: >
+            attributes['server.address'] = attributes['db.connection_string'].split(':')[0]
+            attributes['server.port'] = attributes['db.connection_string'].split(':')[1]
+          backward: attributes['server.address'] + ':' + attributes['server.port']
+        examples: Server=(localdb)\v11.0;Integrated Security=true;
+        stability: experimental
+
+  - id: registry.network.deprecated
+    type: attribute_group
+    display_name: Deprecated Network Attributes
+    brief: >
+      These attributes may be used for any network related operation.
+    attributes:
+      # In the following example, we are dealing with a CONTEXTUAL RENAMING.
+      - id: net.peer.name
+        type: string
+        brief: Deprecated, use `server.address` on client spans and `client.address` on server spans.
+        deprecated:
+          action: conditionally_renamed
+          forward: >
+            switch span_kind {
+              case 'client' => attributes['server.address'] = attributes['net.peer.name'],
+              case 'server' => attributes['client.address'] = attributes['net.peer.name']
+            }
+          backward: >
+            switch span_kind {
+              case 'client' => attributes['net.peer.name'] = attributes['server.address'],
+              case 'server' => attributes['net.peer.name'] = attributes['client.address']
+            }
+        stability: experimental
+        examples: ['example.com']
+
+  - id: registry.db.deprecated
+    type: attribute_group
+    display_name: Deprecated Database Attributes
+    brief: >
+      "Describes deprecated db attributes."
+    stability: experimental
+    attributes:
+      # In the following examples, we are dealing with a MERGING.
+      - id: "db.cassandra.table"
+        deprecated:
+          action: merged
+          merged_to: "db.collection.name"
+          backward: >
+            if attributes['db.system'] == 'cassandra' then attributes['db.cassandra.table'] = attributes['db.collection.name']
+      - id: "db.cosmosdb.container"
+        deprecated:
+          action: merged
+          merged_to: "db.collection.name"
+          backward: >
+            if attributes['db.system'] == 'cosmosdb' then attributes['db.cosmosdb.container'] = attributes['db.collection.name']
+      - id: "db.mongodb.collection"
+        deprecated:
+          action: merged
+          merged_to: "db.collection.name"
+          backward: >
+            if attributes['db.system'] == 'mongodb' then attributes['db.mongodb.collection'] = attributes['db.collection.name']
+      - id: "db.sql.table"
+        deprecated:
+          action: merged
+          merged_to: "db.collection.name"
+          backward: >
+            if attributes['db.system'] == 'sql' then attributes['db.sql.table'] = attributes['db.collection.name']
+
+  - id: registry.db.metrics.deprecated
+    type: attribute_group
+    display_name: Deprecated Database Metrics
+    brief: >
+      "Describes deprecated db metrics attributes."
+    stability: experimental
+    attributes:
+      # In the following example, we are dealing with a simple RENAMING
+      # No need to provide transformation details as the renaming is straightforward
+      - id: "db.client.connections.state"
+        brief: "Deprecated, use `db.client.connection.state` instead."
+        deprecated:
+          action: renamed
+          renamed_to: "db.client.connection.state"
+        examples: ["idle"]
+
+  - id: registry.db.metrics.deprecated
+    type: attribute_group
+    display_name: Deprecated Database Metrics
+    brief: >
+      "Describes deprecated db metrics attributes."
+    stability: experimental
+    attributes:
+      # In the following example, we are dealing with a simple deprecation
+      - id: db.jdbc.driver_classname
+        type: string
+        brief: 'Removed, no replacement at this time.'
+        deprecated:
+          action: deprecated
+        stability: experimental
+        examples: ['org.postgresql.Driver', 'com.microsoft.sqlserver.jdbc.SQLServerDriver']
+
+  - id: registry.db.deprecated
+    type: attribute_group
+    display_name: Deprecated Database Attributes
+    brief: >
+      "Describes deprecated db attributes."
+    stability: experimental
+    attributes:
+      # In the following example, we are dealing with a CONDITIONAL DEPRECATION.
+      - id: db.instance.id
+        type: string
+        brief: 'Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.'
+        deprecated:
+          action: conditionally_deprecated
+          forward: >
+            if attributes['db.system'] == 'elasticsearch' then attributes['db.elasticsearch.node.name'] = attributes['db.instance.id']
+            else drop attributes['db.instance.id']
+          backward: >
+            if attributes['db.system'] == 'elasticsearch' then attributes['db.instance.id'] = attributes['db.elasticsearch.node.name']
+        stability: experimental
+        examples: 'mysql-e26b99z.example.com'
+
+      # In the following example, the semantic of an existing attribute is
+      # becoming more general, so the semantic is not entirely preserved.
+      - id: "db.table.name"
+        note: Deprecated, db.collection.name now represents other entities too (indexes, views, table, etc).
+        deprecated:
+          action: generalized  # Other action name: expanded, repurposed, unified ?
+          generalized_to: "db.collection.name"
+          # In some cases, a backward transformation could be provided when some other
+          # attributes are used to distinguish the different entities.
+
+  # In the following example, we are dealing with a metric MERGING.
+  - id: metric.messaging.publish.duration
+    type: metric
+    metric_name: messaging.publish.duration
+    brief: "Deprecated. Use `messaging.client.operation.duration` instead."
+    deprecated:
+      action: merged
+      merged_to: "messaging.client.operation.duration"
+      backward: >
+        if attributes['messaging.client.operation'] == 'publish' then attributes['metric.messaging.publish.duration'] = attributes['messaging.client.operation.duration']
+    stability: experimental
+    instrument: histogram
+    unit: "s"
+    extends: attributes.messaging.common.minimal
+  - id: "metric.messaging.receive.duration"
+    type: metric
+    metric_name: messaging.receive.duration
+    deprecated:
+      action: merged
+      merged_to: "messaging.client.operation.duration"
+      backward: >
+        if attributes['messaging.client.operation'] == 'receive' then attributes['metric.messaging.receive.duration'] = attributes['messaging.client.operation.duration']
+
+  # In the following example, we are dealing with a metric RENAMING combined with a UNIT CHANGE.
+  - id: metric.db.client.connections.create_time.deprecated
+    type: metric
+    metric_name: db.client.connections.create_time
+    brief: "Deprecated, use `db.client.connection.create_time` instead. Note: the unit also changed from `ms` to `s`."
+    deprecated:
+      action: renamed
+      renamed_to: `db.client.connection.create_time`
+      forward: >
+        metrics['db.client.connection.create_time'].value = metrics['metric.db.client.connections.create_time'].value / 1000
+      backward: >
+        metrics['metric.db.client.connections.create_time'].value = metrics['db.client.connection.create_time'].value * 1000
+    stability: experimental
+    instrument: histogram
+    unit: "ms"
+
+  # In the following example, we are dealing an attribute TYPE CHANGE.
+  # No deprecated section for this type of changes.
+  # The schema diff will contain a description of this change inferred
+  # by the comparison of the two registry versions.
+  - id: "http.status.code"
+    type: int               # In this hypothetical example, the type of the attribute has changed from string to int
+
+  # In the following example, we are dealing with a METRIC TYPE CHANGE.
+  # In this specific case, the schema diff will show that the metric type
+  # has changed from gauge to histogram. The backward and forward transformation
+  # sections are not provided as the transformation is not straightforward.
+  - id: metric.rpc.server.duration
+    type: metric
+    metric_name: rpc.server.duration
+    stability: experimental
+    brief: Measures the duration of inbound RPC.
+    instrument: histogram     # It's a hypothetical change, the metric type has changed from gauge to histogram
+    unit: "ms"
+    note: |
+      While streaming RPCs may record this metric as start-of-batch
+      to end-of-batch, it's hard to interpret in practice.
