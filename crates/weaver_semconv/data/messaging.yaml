@@ -92,6 +92,7 @@ groups:
   - id: messaging
     stability: stable
     type: span
+    span_kind: client
     brief: >
       This document defines general attributes used in
       messaging systems.
@@ -103,7 +104,6 @@ groups:
         examples: ["kafka", "rabbitmq", "rocketmq", "activemq", "AmazonSQS"]
       - id: messaging.operation
         type:
-          allow_custom_values: true
           members:
             - id: publish
               value: "publish"
@@ -273,7 +273,6 @@ groups:
         examples: "myMessageGroup"
       - id: messaging.rocketmq.message.type
         type:
-          allow_custom_values: false
           members:
             - id: normal
               value: "normal"
@@ -301,7 +300,6 @@ groups:
         examples: [["keyA"], ["keyB"]]
       - id: messaging.rocketmq.consumption_model
         type:
-          allow_custom_values: false
           members:
             - id: clustering
               value: "clustering"

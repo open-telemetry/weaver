@@ -1,5 +1,5 @@
 # The build image
-FROM --platform=$BUILDPLATFORM docker.io/rust:1.83.0 AS weaver-build
+FROM --platform=$BUILDPLATFORM docker.io/rust:1.84.0 AS weaver-build
 WORKDIR /build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
@@ -19,7 +19,7 @@ COPY cross-arch-build.sh /build/cross-arch-build.sh
 RUN ./cross-arch-build.sh
 
 # The runtime image
-FROM docker.io/alpine:3.21.0
+FROM docker.io/alpine:3.21.2
 LABEL maintainer="The OpenTelemetry Authors"
 RUN addgroup weaver \
   && adduser \

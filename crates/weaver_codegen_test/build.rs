@@ -18,7 +18,7 @@ use weaver_common::{in_memory, Logger};
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_forge::{OutputDirective, TemplateEngine, SEMCONV_JQ};
+use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
 
@@ -58,10 +58,7 @@ fn main() {
         .unwrap_or_else(|e| process_error(&logger, e));
     let config = WeaverConfig::try_from_path("./templates/registry/rust")
         .unwrap_or_else(|e| process_error(&logger, e));
-    let mut engine = TemplateEngine::new(config, loader, Params::default());
-    engine
-        .import_jq_package(SEMCONV_JQ)
-        .unwrap_or_else(|e| process_error(&logger, e));
+    let engine = TemplateEngine::new(config, loader, Params::default());
     let template_registry = ResolvedRegistry::try_from_resolved_registry(
         schema
             .registry(REGISTRY_ID)
@@ -103,7 +100,7 @@ fn create_single_generated_rs_file(root: &Path) {
         let path = entry.path();
 
         // Only process files with the .rs extension that contain the generated comment
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "rs") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
             let file_content = std::fs::read_to_string(path).expect("Failed to read file");
 
             // Only process files that have been generated

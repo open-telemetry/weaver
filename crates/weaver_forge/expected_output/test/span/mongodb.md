@@ -6,7 +6,7 @@
 Call-level attributes for MongoDB
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

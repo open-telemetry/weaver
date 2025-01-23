@@ -2,6 +2,7 @@ groups:
   - id: rpc
     stability: stable
     type: span
+    span_kind: client
     brief: 'This document defines semantic conventions for remote procedure calls.'
     events: [rpc.message]
     attributes:
@@ -9,7 +10,6 @@ groups:
         requirement_level: required
         brief: 'A string identifying the remoting system. See below for a list of well-known identifiers.'
         type:
-          allow_custom_values: true
           members:
             - id: grpc
               value: 'grpc'
@@ -74,6 +74,7 @@ groups:
   - id: rpc.client
     stability: stable
     type: span
+    span_kind: client
     brief: 'This document defines semantic conventions for remote procedure call client spans.'
     extends: rpc
     attributes:
@@ -98,6 +99,7 @@ groups:
   - id: rpc.grpc
     stability: stable
     type: span
+    span_kind: client
     extends: rpc
     brief: 'Tech-specific attributes for gRPC.'
     attributes:
@@ -161,6 +163,7 @@ groups:
   - id: rpc.jsonrpc
     stability: stable
     type: span
+    span_kind: client
     extends: rpc
     brief: 'Tech-specific attributes for [JSON RPC](https://www.jsonrpc.org/).'
     attributes:
@@ -222,6 +225,7 @@ groups:
   - id: rpc.connect_rpc
     stability: stable
     type: span
+    span_kind: client
     extends: rpc
     brief: 'Tech-specific attributes for Connect RPC.'
     attributes:

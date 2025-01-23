@@ -98,9 +98,35 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention spec contains an invalid group definition. Span missing span_kind.
+    #[error("Invalid Span group '{group_id}', missing span_kind, detected while resolving '{path_or_url:?}'. {error}")]
+    #[diagnostic(severity(Warning))]
+    InvalidSpanMissingSpanKind {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id.
+        group_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention asset contains an invalid attribute definition.
     #[error("Invalid attribute definition detected while resolving '{path_or_url:?}' (group_id='{group_id}', attribute_id='{attribute_id}'). {error}")]
     InvalidAttribute {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
+    /// The semantic convention asset contains an invalid attribute definition.
+    #[error("The attribute `{attribute_id}` in the group `{group_id}` has `allow_custom_values`. This is no longer used. {error}.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    InvalidAttributeAllowCustomValues {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,
         /// The group id of the attribute.

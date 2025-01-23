@@ -149,6 +149,15 @@ impl GroupSpec {
             }
         }
 
+        // Span kind is required if type is span.
+        if self.r#type == GroupType::Span && self.span_kind.is_none() {
+            errors.push(Error::InvalidSpanMissingSpanKind {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group is a Span but the span_kind is not set.".to_owned(),
+            });
+        }
+
         // Field name is required if prefix is empty and if type is event.
         if self.r#type == GroupType::Event {
             if self.body.is_some() && self.name.is_none() {
@@ -280,6 +289,24 @@ impl GroupSpec {
                         });
                     }
                 }
+            }
+
+            // Produce a warning if `allow_custom_values` is Some.
+            if let AttributeSpec::Id {
+                r#type:
+                    AttributeType::Enum {
+                        allow_custom_values: Some(_),
+                        ..
+                    },
+                ..
+            } = attribute
+            {
+                errors.push(Error::InvalidAttributeAllowCustomValues {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    attribute_id: attribute.id(),
+                    error: "This attribute is an enum using allow_custom_values. This is no longer used.".to_owned(),
+                });
             }
         }
 
@@ -430,8 +457,9 @@ mod tests {
     use crate::any_value::AnyValueCommonSpec;
     use crate::attribute::{BasicRequirementLevelSpec, Examples, RequirementLevel};
     use crate::Error::{
-        CompoundError, InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
+        CompoundError, InvalidAttributeAllowCustomValues, InvalidExampleWarning, InvalidGroup,
+        InvalidGroupMissingExtendsOrAttributes, InvalidGroupStability, InvalidGroupUsesPrefix,
+        InvalidMetric, InvalidSpanMissingSpanKind,
     };
 
     use super::*;
@@ -485,8 +513,21 @@ mod tests {
             result
         );
 
-        // Span kind is set but the type is not span.
+        // Span kind is missing on a span group.
         group.prefix = "".to_owned();
+        group.span_kind = None;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidSpanMissingSpanKind {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group is a Span but the span_kind is not set.".to_owned(),
+            },),
+            result
+        );
+
+        // Span kind is set but the type is not span.
+        group.span_kind = Some(SpanKindSpec::Client);
         group.r#type = GroupType::Metric;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -639,6 +680,74 @@ mod tests {
             },),
             result
         );
+    }
+
+    #[test]
+    fn test_allow_custom_values() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::Span,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            attributes: vec![AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::Enum {
+                    members: vec![],
+                    allow_custom_values: Some(true),
+                },
+                brief: None,
+                stability: Some(Stability::Deprecated),
+                deprecated: Some("true".to_owned()),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+            }],
+            constraints: vec![],
+            span_kind: Some(SpanKindSpec::Client),
+            events: vec!["event".to_owned()],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            display_name: None,
+            body: None,
+        };
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidAttributeAllowCustomValues {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error:
+                    "This attribute is an enum using allow_custom_values. This is no longer used."
+                        .to_owned(),
+            },),
+            result
+        );
+        // Test that allow_custom_values is not set.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::Enum {
+                members: vec![],
+                allow_custom_values: None,
+            },
+            brief: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some("true".to_owned()),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+        }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -885,6 +994,7 @@ mod tests {
 
         // all other group types must have a stability field.
         group.r#type = GroupType::Span;
+        group.span_kind = Some(SpanKindSpec::Client);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -902,6 +1012,7 @@ mod tests {
 
         group.stability = None;
         group.r#type = GroupType::Resource;
+        group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1056,6 +1167,7 @@ mod tests {
 
         // Span must have extends or attributes.
         group.r#type = GroupType::Span;
+        group.span_kind = Some(SpanKindSpec::Client);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupMissingExtendsOrAttributes {
@@ -1082,6 +1194,7 @@ mod tests {
 
         // Resource must have extends or attributes.
         group.r#type = GroupType::Resource;
+        group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupMissingExtendsOrAttributes {

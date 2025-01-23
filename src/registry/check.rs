@@ -4,7 +4,6 @@
 
 use clap::Args;
 use miette::Diagnostic;
-use std::path::PathBuf;
 use weaver_cache::registry_path::RegistryPath;
 use weaver_cache::RegistryRepo;
 use weaver_checker::PolicyStage;
@@ -13,9 +12,9 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 
-use crate::registry::{CommonRegistryArgs, RegistryArgs};
+use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
-    check_policy, check_policy_stage, init_policy_engine, load_semconv_specs, resolve_semconv_specs,
+    check_policy_stage, load_semconv_specs, prepare_main_registry, resolve_semconv_specs,
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 
@@ -30,27 +29,13 @@ pub struct RegistryCheckArgs {
     #[arg(long)]
     baseline_registry: Option<RegistryPath>,
 
-    /// Optional list of policy files or directories to check against the files of the semantic
-    /// convention registry.  If a directory is provided all `.rego` files in the directory will be
-    /// loaded.
-    #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<PathBuf>,
-
-    /// Skip the policy checks.
-    #[arg(long, default_value = "false")]
-    pub skip_policies: bool,
-
-    /// Display the policy coverage report (useful for debugging).
-    #[arg(long, default_value = "false")]
-    pub display_policy_coverage: bool,
+    /// Policy parameters
+    #[command(flatten)]
+    policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
-
-    /// Common weaver registry parameters
-    #[command(flatten)]
-    pub common_registry_args: CommonRegistryArgs,
 }
 
 /// Check a semantic convention registry.
@@ -63,15 +48,10 @@ pub(crate) fn command(
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
 
     // Initialize the main registry.
-    let mut registry_path = args.registry.registry.clone();
-    // Support for --registry-git-sub-dir
-    // ToDo: This parameter is now deprecated and should be removed in the future
-    if let RegistryPath::GitRepo { sub_folder, .. } = &mut registry_path {
-        if sub_folder.is_none() {
-            sub_folder.clone_from(&args.registry.registry_git_sub_dir);
-        }
-    }
-    let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+    let registry_path = &args.registry.registry;
+
+    let (main_resolved_registry, mut policy_engine) =
+        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
@@ -80,100 +60,19 @@ pub(crate) fn command(
         None
     };
 
-    // Load the semantic convention registry into a local registry repo.
-    // No parsing errors should be observed.
-    let main_semconv_specs = load_semconv_specs(
-        &main_registry_repo,
-        logger.clone(),
-        args.common_registry_args.follow_symlinks,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_semconv_specs = baseline_registry_repo
         .as_ref()
         .map(|repo| {
             // Baseline registry resolution should allow non-future features
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
-            load_semconv_specs(
-                repo,
-                logger.clone(),
-                args.common_registry_args.follow_symlinks,
-            )
-            .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-            .capture_non_fatal_errors(&mut diag_msgs)
+            load_semconv_specs(repo, logger.clone(), args.registry.follow_symlinks)
+                .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+                .capture_non_fatal_errors(&mut diag_msgs)
         })
         .transpose()?;
 
-    let mut policy_engine = if !args.skip_policies {
-        Some(init_policy_engine(
-            &main_registry_repo,
-            &args.policies,
-            args.display_policy_coverage,
-        )?)
-    } else {
-        None
-    };
-
-    if let Some(policy_engine) = policy_engine.as_ref() {
-        // Check the policies against the semantic convention specifications before resolution.
-        // All violations should be captured into an ongoing list of diagnostic messages which
-        // will be combined with the final result of future stages.
-        check_policy(policy_engine, &main_semconv_specs)
-            .inspect(|_, violations| {
-                if let Some(violations) = violations {
-                    logger.success(&format!(
-                        "All `before_resolution` policies checked ({} violations found)",
-                        violations.len()
-                    ));
-                } else {
-                    logger.success("No `before_resolution` policy violation");
-                }
-            })
-            .capture_non_fatal_errors(&mut diag_msgs)?;
-    }
-
-    let mut main_registry =
-        SemConvRegistry::from_semconv_specs(main_registry_repo.id(), main_semconv_specs);
-    // Resolve the semantic convention specifications.
-    // If there are any resolution errors, they should be captured into the ongoing list of
-    // diagnostic messages and returned immediately because there is no point in continuing
-    // as the resolution is a prerequisite for the next stages.
-    let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
-        .combine_diag_msgs_with(&diag_msgs)?;
-
     if let Some(policy_engine) = policy_engine.as_mut() {
-        // Convert the resolved schemas into a resolved registry.
-        // If there are any policy violations, they should be captured into the ongoing list of
-        // diagnostic messages and returned immediately because there is no point in continuing
-        // as the registry resolution is a prerequisite for the next stages.
-        let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
-            main_resolved_schema
-                .registry(main_registry_repo.id())
-                .expect("Failed to get the registry from the resolved schema"),
-            main_resolved_schema.catalog(),
-        )
-        .combine_diag_msgs_with(&diag_msgs)?;
-
-        // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
-        check_policy_stage::<ResolvedRegistry, ()>(
-            policy_engine,
-            PolicyStage::AfterResolution,
-            &registry_path.to_string(),
-            &main_resolved_registry,
-            &[],
-        )
-        .inspect(|_, violations| {
-            if let Some(violations) = violations {
-                logger.success(&format!(
-                    "All `after_resolution` policies checked ({} violations found)",
-                    violations.len()
-                ));
-            } else {
-                logger.success("No `after_resolution` policy violation");
-            }
-        })
-        .capture_non_fatal_errors(&mut diag_msgs)?;
-
         if let (Some(baseline_registry_repo), Some(baseline_semconv_specs)) =
             (baseline_registry_repo, baseline_semconv_specs)
         {
@@ -192,7 +91,7 @@ pub(crate) fn command(
             )
             .combine_diag_msgs_with(&diag_msgs)?;
 
-            // Check the policies against the resolved registry (`PolicyState::AfterResolution`).
+            // Check the policies against the resolved registry (`PolicyState::ComparisonAfterResolution`).
             check_policy_stage(
                 policy_engine,
                 PolicyStage::ComparisonAfterResolution,
@@ -212,10 +111,10 @@ pub(crate) fn command(
             })
             .capture_non_fatal_errors(&mut diag_msgs)?;
         }
+    }
 
-        if !diag_msgs.is_empty() {
-            return Err(diag_msgs);
-        }
+    if !diag_msgs.is_empty() {
+        return Err(diag_msgs);
     }
 
     Ok(ExitDirectives {
@@ -231,7 +130,7 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, CommonRegistryArgs, RegistryArgs, RegistryCommand, RegistryPath,
+        semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath,
         RegistrySubCommand,
     };
     use crate::run_command;
@@ -249,16 +148,15 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
-                    },
-                    baseline_registry: None,
-                    policies: vec![],
-                    skip_policies: true,
-                    display_policy_coverage: false,
-                    diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
                         follow_symlinks: false,
                     },
+                    baseline_registry: None,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: true,
+                        display_policy_coverage: false,
+                    },
+                    diagnostic: Default::default(),
                 }),
             })),
         };
@@ -278,16 +176,15 @@ mod tests {
                         registry: RegistryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
-                        registry_git_sub_dir: None,
-                    },
-                    baseline_registry: None,
-                    policies: vec![],
-                    skip_policies: false,
-                    display_policy_coverage: false,
-                    diagnostic: Default::default(),
-                    common_registry_args: CommonRegistryArgs {
                         follow_symlinks: false,
                     },
+                    baseline_registry: None,
+                    policy: PolicyArgs {
+                        policies: vec![],
+                        skip_policies: false,
+                        display_policy_coverage: false,
+                    },
+                    diagnostic: Default::default(),
                 }),
             })),
         };
@@ -307,16 +204,15 @@ mod tests {
                     registry: RegistryPath::LocalFolder {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                     },
-                    registry_git_sub_dir: None,
-                },
-                baseline_registry: None,
-                policies: vec![],
-                skip_policies: false,
-                display_policy_coverage: false,
-                diagnostic: Default::default(),
-                common_registry_args: CommonRegistryArgs {
                     follow_symlinks: false,
                 },
+                baseline_registry: None,
+                policy: PolicyArgs {
+                    policies: vec![],
+                    skip_policies: false,
+                    display_policy_coverage: false,
+                },
+                diagnostic: Default::default(),
             }),
         };
 
@@ -327,7 +223,8 @@ mod tests {
             assert!(!diag_msgs.is_empty());
             assert_eq!(
                 diag_msgs.len(),
-                13 /* before resolution */
+                12 /* allow_custom_values */
+                + 13 /* before resolution */
                     + 3 /* metric after resolution */
                     + 9 /* http after resolution */
             );

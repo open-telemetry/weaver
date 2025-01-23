@@ -6,7 +6,7 @@
 Call-level attributes for CouchDB
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

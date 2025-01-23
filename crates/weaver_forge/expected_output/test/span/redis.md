@@ -6,7 +6,7 @@
 Call-level attributes for Redis
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 
