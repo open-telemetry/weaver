@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
+* For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability on: Attributes, Enum members in attributes, Event AnyValues, Enum members in AnyValues. ([#568](https://github.com/open-telemetry/weaver/pull/568) by @jerbly).
 * Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
 * Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
   * Added missing `after_resolution` policy checks to `generate` and `resolve` through the common code.
