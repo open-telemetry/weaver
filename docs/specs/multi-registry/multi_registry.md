@@ -218,11 +218,12 @@ following approach is proposed to reference a group:
 
 ```yaml
 groups:
-  - metric_ref: <reference_to_a_metric_group>
-  - event_ref: <reference_to_an_event_group>
-  - span_ref: <reference_to_a_span_group>
+  - ref: <reference_to_a_group>
   - ...
 ```
+
+The IDs of the groups representing signals are now prefixed with the signal type (e.g., metric., event., span.), making
+this new type of reference unambiguous.
 
 > [!IMPORTANT]
 > **Problem to solve in the semantic conventions**: Currently, a group’s ID is ensured to be unique (per group type)
