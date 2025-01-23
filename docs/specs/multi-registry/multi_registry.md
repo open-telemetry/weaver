@@ -231,8 +231,8 @@ this new type of reference unambiguous.
 > across multiple versions is not guaranteed, which poses an issue in the context of multi-registry setups. This problem
 > needs to be discussed and resolved.
 
-Similar to attribute references, group references cannot override the type, stability, or deprecation status of the
-imported group.
+Similar to attribute references, group references would have limitations on what can be updated within the scope of a
+group imported by reference.
 
 References to experimental telemetry objects across registries are allowed under certain conditions:
 
