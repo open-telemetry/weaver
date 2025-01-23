@@ -238,6 +238,7 @@ impl GroupSpec {
                     brief,
                     deprecated,
                     stability,
+                    r#type,
                     ..
                 } => {
                     if brief.is_none() && deprecated.is_none() {
@@ -256,6 +257,22 @@ impl GroupSpec {
                             attribute_id: attribute.id(),
                             error: "Missing stability field.".to_owned(),
                         });
+                    }
+
+                    if let AttributeType::Enum { members, .. } = r#type {
+                        for member in members {
+                            if member.stability.is_none() {
+                                errors.push(Error::InvalidAttributeWarning {
+                                    path_or_url: path_or_url.to_owned(),
+                                    group_id: self.id.clone(),
+                                    attribute_id: attribute.id(),
+                                    error: format!(
+                                        "Missing stability field on enum member {}.",
+                                        member.id
+                                    ),
+                                });
+                            }
+                        }
                     }
                 }
                 AttributeSpec::Ref { .. } => {}
@@ -523,7 +540,7 @@ mod tests {
         BasicRequirementLevelSpec, EnumEntriesSpec, Examples, RequirementLevel, ValueSpec,
     };
     use crate::Error::{
-        CompoundError, InvalidAnyValue, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
+        CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
         InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
     };
@@ -770,6 +787,40 @@ mod tests {
             },),
             result
         );
+
+        // Stability is missing on enum member.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::Enum {
+                allow_custom_values: None,
+                members: vec![EnumEntriesSpec {
+                    id: "member_id".to_owned(),
+                    value: ValueSpec::String("member_value".to_owned()),
+                    brief: None,
+                    note: None,
+                    stability: None,
+                    deprecated: None,
+                }],
+            },
+            brief: None,
+            stability: Some(Stability::Stable),
+            deprecated: Some("true".to_owned()),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+        }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidAttributeWarning {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error: "Missing stability field on enum member member_id.".to_owned(),
+            },),
+            result
+        );
     }
 
     #[test]
@@ -865,7 +916,7 @@ mod tests {
                     id: "id".to_owned(),
                     brief: "brief".to_owned(),
                     note: "note".to_owned(),
-                    stability: None,
+                    stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
                     requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
                 },
@@ -882,7 +933,7 @@ mod tests {
                 id: "string_id".to_owned(),
                 brief: "brief".to_owned(),
                 note: "note".to_owned(),
-                stability: None,
+                stability: Some(Stability::Stable),
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
             },
@@ -905,7 +956,7 @@ mod tests {
                 id: "string_array_id".to_owned(),
                 brief: "brief".to_owned(),
                 note: "note".to_owned(),
-                stability: None,
+                stability: Some(Stability::Stable),
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
             },
@@ -928,7 +979,7 @@ mod tests {
                 id: "map_id".to_owned(),
                 brief: "brief".to_owned(),
                 note: "note".to_owned(),
-                stability: None,
+                stability: Some(Stability::Stable),
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
             },
@@ -937,7 +988,7 @@ mod tests {
                     id: "string_id".to_owned(),
                     brief: "brief".to_owned(),
                     note: "note".to_owned(),
-                    stability: None,
+                    stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
                     requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
                 },
@@ -955,7 +1006,7 @@ mod tests {
                 id: "map_id".to_owned(),
                 brief: "brief".to_owned(),
                 note: "note".to_owned(),
-                stability: None,
+                stability: Some(Stability::Stable),
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
             },
@@ -964,7 +1015,7 @@ mod tests {
                     id: "string_id".to_owned(),
                     brief: "brief".to_owned(),
                     note: "note".to_owned(),
-                    stability: None,
+                    stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
                     requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
                 },
@@ -982,7 +1033,7 @@ mod tests {
                 id: "map_id".to_owned(),
                 brief: "brief".to_owned(),
                 note: "note".to_owned(),
-                stability: None,
+                stability: Some(Stability::Stable),
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
             },
@@ -991,7 +1042,7 @@ mod tests {
                     id: "nested_string_id".to_owned(),
                     brief: "brief".to_owned(),
                     note: "note".to_owned(),
-                    stability: None,
+                    stability: Some(Stability::Stable),
                     examples: None,
                     requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
                 },
@@ -1015,7 +1066,7 @@ mod tests {
                 id: "map_id".to_owned(),
                 brief: "brief".to_owned(),
                 note: "note".to_owned(),
-                stability: None,
+                stability: Some(Stability::Stable),
                 examples: None,
                 requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
             },
@@ -1024,7 +1075,7 @@ mod tests {
                     id: "nested_strings_id".to_owned(),
                     brief: "brief".to_owned(),
                     note: "note".to_owned(),
-                    stability: None,
+                    stability: Some(Stability::Stable),
                     examples: None,
                     requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
                 },

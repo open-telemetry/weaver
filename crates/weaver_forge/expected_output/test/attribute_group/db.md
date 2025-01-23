@@ -14,6 +14,8 @@ The consistency level of the query. Based on consistency values from [CQL](https
   
 - Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
   
+- Stability: Stable
+  
   
 #### Attribute `db.cassandra.coordinator.dc`
 
@@ -26,6 +28,8 @@ The data center of the coordinating node for a query.
   
 - Type: string
 - Examples: us-west-2
+  
+- Stability: Stable
   
   
 #### Attribute `db.cassandra.coordinator.id`
@@ -40,6 +44,8 @@ The ID of the coordinating node for a query.
 - Type: string
 - Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
   
+- Stability: Stable
+  
   
 #### Attribute `db.cassandra.idempotence`
 
@@ -51,6 +57,8 @@ Whether or not the query is idempotent.
 - Tag: tech-specific-cassandra
   
 - Type: boolean
+  
+- Stability: Stable
   
   
 #### Attribute `db.cassandra.page_size`
@@ -66,6 +74,8 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 - Examples: [
     5000,
 ]
+  
+- Stability: Stable
   
   
 #### Attribute `db.cassandra.speculative_execution_count`
@@ -83,6 +93,8 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
     2,
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.cassandra.table`
 
@@ -98,6 +110,8 @@ This mirrors the db.sql.table attribute but references cassandra rather than sql
 - Type: string
 - Examples: mytable
   
+- Stability: Stable
+  
   
 #### Attribute `db.connection_string`
 
@@ -110,6 +124,8 @@ The connection string used to connect to the database. It is recommended to remo
   
 - Type: string
 - Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
   
   
 #### Attribute `db.cosmosdb.client_id`
@@ -124,6 +140,8 @@ Unique Cosmos client instance id.
 - Type: string
 - Examples: 3ba4827d-4422-483f-b59f-85b74211c11d
   
+- Stability: Stable
+  
   
 #### Attribute `db.cosmosdb.connection_mode`
 
@@ -135,6 +153,8 @@ Cosmos client connection mode.
 - Tag: tech-specific-cosmosdb
   
 - Type: Enum [gateway, direct]
+  
+- Stability: Stable
   
   
 #### Attribute `db.cosmosdb.container`
@@ -149,6 +169,8 @@ Cosmos DB container name.
 - Type: string
 - Examples: anystring
   
+- Stability: Stable
+  
   
 #### Attribute `db.cosmosdb.operation_type`
 
@@ -160,6 +182,8 @@ CosmosDB Operation Type.
 - Tag: tech-specific-cosmosdb
   
 - Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
+  
+- Stability: Stable
   
   
 #### Attribute `db.cosmosdb.request_charge`
@@ -177,6 +201,8 @@ RU consumed for that operation
     1.0,
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.cosmosdb.request_content_length`
 
@@ -188,6 +214,8 @@ Request payload size in bytes
 - Tag: tech-specific-cosmosdb
   
 - Type: int
+  
+- Stability: Stable
   
   
 #### Attribute `db.cosmosdb.status_code`
@@ -205,6 +233,8 @@ Cosmos DB status code.
     201,
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.cosmosdb.sub_status_code`
 
@@ -221,6 +251,8 @@ Cosmos DB sub status code.
     1002,
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.elasticsearch.cluster.name`
 
@@ -236,6 +268,8 @@ Represents the identifier of an Elasticsearch cluster.
     "e9106fc68e3044f0b1475b04bf4ffd5f",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.elasticsearch.node.name`
 
@@ -250,6 +284,8 @@ Represents the human-readable identifier of the node/instance to which a request
 - Examples: [
     "instance-0000000001",
 ]
+  
+- Stability: Stable
   
   
 #### Attribute `db.elasticsearch.path_parts`
@@ -269,6 +305,8 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
     "db.elasticsearch.path_parts.doc_id=123",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.instance.id`
 
@@ -281,6 +319,8 @@ An identifier (address, unique name, or any other identifier) of the database in
   
 - Type: string
 - Examples: mysql-e26b99z.example.com
+  
+- Stability: Stable
   
   
 #### Attribute `db.jdbc.driver_classname`
@@ -298,6 +338,8 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.mongodb.collection`
 
@@ -314,6 +356,8 @@ The MongoDB collection being accessed within the database stated in `db.name`.
     "products",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.mssql.instance_name`
 
@@ -328,6 +372,8 @@ If setting a `db.mssql.instance_name`, `server.port` is no longer required (but 
   
 - Type: string
 - Examples: MSSQLSERVER
+  
+- Stability: Stable
   
   
 #### Attribute `db.name`
@@ -346,6 +392,8 @@ In some SQL databases, the database name to be used is called "schema name". In 
     "customers",
     "main",
 ]
+  
+- Stability: Stable
   
   
 #### Attribute `db.operation`
@@ -366,6 +414,8 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
     "SELECT",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.redis.database_index`
 
@@ -382,6 +432,8 @@ The index of the database being accessed as used in the [`SELECT` command](https
     1,
     15,
 ]
+  
+- Stability: Stable
   
   
 #### Attribute `db.sql.table`
@@ -401,6 +453,8 @@ It is not recommended to attempt any client-side parsing of `db.statement` just 
     "customers",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.statement`
 
@@ -417,6 +471,8 @@ The database statement being executed.
     "SET mykey \"WuValue\"",
 ]
   
+- Stability: Stable
+  
   
 #### Attribute `db.system`
 
@@ -428,6 +484,8 @@ An identifier for the database management system (DBMS) product being used. See 
 - Tag: db-generic
   
 - Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
+  
+- Stability: Stable
   
   
 #### Attribute `db.user`
@@ -444,5 +502,7 @@ Username for accessing the database.
     "readonly_user",
     "reporting_user",
 ]
+  
+- Stability: Stable
   
   

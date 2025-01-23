@@ -16,7 +16,8 @@
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
+              "note",
+              "stability"
             ],
             "locally_overridden_fields": [
               "requirement_level"

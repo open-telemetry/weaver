@@ -6,6 +6,7 @@
     "examples": [
       "8080"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   }
 ]

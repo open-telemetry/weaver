@@ -1,5 +1,6 @@
 groups:
   - id: otel.scope
+    stability: stable
     prefix: otel.scope
     type: resource
     brief: Attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.
@@ -15,17 +16,20 @@ groups:
         examples: ['1.0.0']
         stability: stable
   - id: otel.library
+    stability: stable
     prefix: otel.library
     type: resource
     brief: >
       Span attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.
     attributes:
       - id: name
+        stability: stable
         type: string
         deprecated: use the `otel.scope.name` attribute.
         brief:
         examples: ['io.opentelemetry.contrib.mongodb']
       - id: version
+        stability: stable
         type: string
         deprecated: use the `otel.scope.version` attribute.
         brief:

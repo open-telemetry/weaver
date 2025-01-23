@@ -11,6 +11,7 @@ groups:
       - ref: exception.message
       - ref: exception.stacktrace
       - id: exception.escaped
+        stability: stable
         type: boolean
         brief: >
           SHOULD be set to true if the exception event is recorded at a point where

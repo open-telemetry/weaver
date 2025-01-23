@@ -5,18 +5,23 @@ groups:
       These attributes may be used for any network related operation.
     attributes:
       - id: network.transport
+        stability: stable
         type:
           members:
             - id: tcp
+              stability: stable
               value: 'tcp'
               brief: "TCP"
             - id: udp
+              stability: stable
               value: 'udp'
               brief: "UDP"
             - id: pipe
+              stability: stable
               value: "pipe"
               brief: 'Named or anonymous pipe. See note below.'
             - id: unix
+              stability: stable
               value: 'unix'
               brief: "Unix domain socket"
         brief: >
@@ -25,12 +30,15 @@ groups:
           The value SHOULD be normalized to lowercase.
         examples: ['tcp', 'udp']
       - id: network.type
+        stability: stable
         type:
           members:
             - id: ipv4
+              stability: stable
               value: 'ipv4'
               brief: "IPv4"
             - id: ipv6
+              stability: stable
               value: 'ipv6'
               brief: "IPv6"
         brief: >
@@ -38,12 +46,14 @@ groups:
           The value SHOULD be normalized to lowercase.
         examples: ['ipv4', 'ipv6']
       - id: network.protocol.name
+        stability: stable
         type: string
         brief: >
           [OSI Application Layer](https://osi-model.com/application-layer/) or non-OSI equivalent.
           The value SHOULD be normalized to lowercase.
         examples: ['amqp', 'http', 'mqtt']
       - id: network.protocol.version
+        stability: stable
         type: string
         brief: 'Version of the application layer protocol used. See note below.'
         examples: '3.1.1'
@@ -58,101 +68,133 @@ groups:
       These attributes may be used for any network related operation.
     attributes:
       - id: network.connection.type
+        stability: stable
         type:
           members:
             - id: wifi
+              stability: stable
               value: "wifi"
             - id: wired
+              stability: stable
               value: "wired"
             - id: cell
+              stability: stable
               value: "cell"
             - id: unavailable
+              stability: stable
               value: "unavailable"
             - id: unknown
+              stability: stable
               value: "unknown"
         brief: 'The internet connection type.'
         examples: 'wifi'
       - id: network.connection.subtype
+        stability: stable
         type:
           members:
             - id: gprs
+              stability: stable
               brief: GPRS
               value: "gprs"
             - id: edge
+              stability: stable
               brief: EDGE
               value: "edge"
             - id: umts
+              stability: stable
               brief: UMTS
               value: "umts"
             - id: cdma
+              stability: stable
               brief: CDMA
               value: "cdma"
             - id: evdo_0
+              stability: stable
               brief: EVDO Rel. 0
               value: "evdo_0"
             - id: evdo_a
+              stability: stable
               brief: "EVDO Rev. A"
               value: "evdo_a"
             - id: cdma2000_1xrtt
+              stability: stable
               brief: CDMA2000 1XRTT
               value: "cdma2000_1xrtt"
             - id: hsdpa
+              stability: stable
               brief: HSDPA
               value: "hsdpa"
             - id: hsupa
+              stability: stable
               brief: HSUPA
               value: "hsupa"
             - id: hspa
+              stability: stable
               brief: HSPA
               value: "hspa"
             - id: iden
+              stability: stable
               brief: IDEN
               value: "iden"
             - id: evdo_b
+              stability: stable
               brief: "EVDO Rev. B"
               value: "evdo_b"
             - id: lte
+              stability: stable
               brief: LTE
               value: "lte"
             - id: ehrpd
+              stability: stable
               brief: EHRPD
               value: "ehrpd"
             - id: hspap
+              stability: stable
               brief: HSPAP
               value: "hspap"
             - id: gsm
+              stability: stable
               brief: GSM
               value: "gsm"
             - id: td_scdma
+              stability: stable
               brief: TD-SCDMA
               value: "td_scdma"
             - id: iwlan
+              stability: stable
               brief: IWLAN
               value: "iwlan"
             - id: nr
+              stability: stable
               brief: "5G NR (New Radio)"
               value: "nr"
             - id: nrnsa
+              stability: stable
               brief: "5G NRNSA (New Radio Non-Standalone)"
               value: "nrnsa"
             - id: lte_ca
+              stability: stable
               brief: LTE CA
               value: "lte_ca"
         brief: 'This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.'
         examples: 'LTE'
       - id: network.carrier.name
+        stability: stable
         type: string
         brief: "The name of the mobile carrier."
         examples: "sprint"
       - id: network.carrier.mcc
+        stability: stable
         type: string
         brief: "The mobile carrier country code."
         examples: "310"
       - id: network.carrier.mnc
+        stability: stable
         type: string
         brief: "The mobile carrier network code."
         examples: "001"
       - id: network.carrier.icc
+        stability: stable
         type: string
         brief: "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network."
         examples: "DE"
@@ -163,6 +205,7 @@ groups:
     brief: "Operations that access some remote service."
     attributes:
       - id: peer.service
+        stability: stable
         type: string
         brief: >
           The [`service.name`](/docs/resource/README.md#service)
@@ -177,6 +220,7 @@ groups:
       These attributes may be used for any operation with an authenticated and/or authorized enduser.
     attributes:
       - id: enduser.id
+        stability: stable
         type: string
         brief: >
           Username or client_id extracted from the access token or
@@ -184,10 +228,12 @@ groups:
           header in the inbound request from outside the system.
         examples: 'username'
       - id: enduser.role
+        stability: stable
         type: string
         brief: 'Actual/assumed role the client is making the request under extracted from token or application security context.'
         examples: 'admin'
       - id: enduser.scope
+        stability: stable
         type: string
         brief: >
           Scopes or granted authorities the client currently possesses extracted from token
@@ -203,16 +249,19 @@ groups:
       These attributes may be used for any operation to store information about a thread that started a span.
     attributes:
       - id: thread.id
+        stability: stable
         type: int
         brief: >
           Current "managed" thread ID (as opposed to OS thread ID).
         examples: 42
       - id: thread.name
+        stability: stable
         type: string
         brief: >
           Current thread name.
         examples: main
       - id: thread.daemon
+        stability: stable
         brief: "Whether the thread is daemon or not."
         type: boolean
   - id: code
@@ -223,27 +272,32 @@ groups:
       These attributes allow to report this unit of code and therefore to provide more context about the span.
     attributes:
       - id: code.function
+        stability: stable
         type: string
         brief: >
           The method or function name, or equivalent (usually rightmost part of the code unit's name).
         examples: serveRequest
       - id: code.namespace
+        stability: stable
         type: string
         brief: >
           The "namespace" within which `code.function` is defined. Usually the qualified class or module name,
           such that `code.namespace` + some separator + `code.function` form a unique identifier for the code unit.
         examples: com.example.MyHttpService
       - id: code.filepath
+        stability: stable
         type: string
         brief: >
           The source code file name that identifies the code unit as uniquely as possible (preferably an absolute file path).
         examples: /usr/local/MyApplication/content_root/app/index.php
       - id: code.lineno
+        stability: stable
         type: int
         brief: >
           The line number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.
         examples: 42
       - id: code.column
+        stability: stable
         type: int
         brief: >
           The column number in `code.filepath` best representing the operation. It SHOULD point within the code unit named in `code.function`.

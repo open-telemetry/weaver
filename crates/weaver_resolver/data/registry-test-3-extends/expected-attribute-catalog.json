@@ -9,7 +9,7 @@
           "value": "_OTHER",
           "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -55,7 +55,7 @@
           "value": "CONNECT",
           "brief": "CONNECT method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -63,7 +63,7 @@
           "value": "DELETE",
           "brief": "DELETE method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -71,7 +71,7 @@
           "value": "GET",
           "brief": "GET method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -79,7 +79,7 @@
           "value": "HEAD",
           "brief": "HEAD method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -87,7 +87,7 @@
           "value": "OPTIONS",
           "brief": "OPTIONS method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -95,7 +95,7 @@
           "value": "PATCH",
           "brief": "PATCH method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -103,7 +103,7 @@
           "value": "POST",
           "brief": "POST method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -111,7 +111,7 @@
           "value": "PUT",
           "brief": "PUT method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -119,7 +119,7 @@
           "value": "TRACE",
           "brief": "TRACE method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -127,7 +127,7 @@
           "value": "_OTHER",
           "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -215,7 +215,8 @@
       2
     ],
     "requirement_level": "recommended",
-    "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n"
+    "note": "Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans that operate with a single message. When a messaging client library supports both batch and single-message API for the same operation, instrumentations SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use it for single-message APIs.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.client_id",
@@ -225,7 +226,8 @@
       "client-5",
       "myhost@8742@s8083jm"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination.name",
@@ -236,7 +238,8 @@
       "MyTopic"
     ],
     "requirement_level": "recommended",
-    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
+    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination.template",
@@ -246,25 +249,29 @@
       "/customers/{customerId}"
     ],
     "requirement_level": "recommended",
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
+    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination.anonymous",
     "type": "boolean",
     "brief": "A boolean that is true if the message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination.temporary",
     "type": "boolean",
     "brief": "A boolean that is true if the message destination is temporary and might not exist anymore after messages are processed.",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination_publish.anonymous",
     "type": "boolean",
     "brief": "A boolean that is true if the publish message destination is anonymous (could be unnamed or have auto-generated name).",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination_publish.name",
@@ -275,21 +282,24 @@
       "MyTopic"
     ],
     "requirement_level": "recommended",
-    "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n"
+    "note": "The name SHOULD uniquely identify a specific queue, topic, or other entity within the broker. If\nthe broker doesn't have such notion, the original destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.kafka.consumer.group",
     "type": "string",
     "brief": "Name of the Kafka Consumer Group that is handling the message. Only applies to consumers, not producers.\n",
     "examples": "my-group",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.kafka.destination.partition",
     "type": "int",
     "brief": "Partition the message is sent to.\n",
     "examples": 2,
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.kafka.message.key",
@@ -297,27 +307,31 @@
     "brief": "Message keys in Kafka are used for grouping alike messages to ensure they're processed on the same partition. They differ from `messaging.message.id` in that they're not unique. If the key is `null`, the attribute MUST NOT be set.\n",
     "examples": "myKey",
     "requirement_level": "recommended",
-    "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n"
+    "note": "If the key type is not string, it's string representation has to be supplied for the attribute. If the key has no unambiguous, canonical string form, don't include its value.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.kafka.message.offset",
     "type": "int",
     "brief": "The offset of a record in the corresponding Kafka partition.\n",
     "examples": 42,
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.kafka.message.tombstone",
     "type": "boolean",
     "brief": "A boolean that is true if the message is a tombstone.",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.message.conversation_id",
     "type": "string",
     "brief": "The conversation ID identifying the conversation to which the message belongs, represented as a string. Sometimes called \"Correlation ID\".\n",
     "examples": "MyConversationId",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.message.envelope.size",
@@ -325,14 +339,16 @@
     "brief": "The size of the message body and metadata in bytes.\n",
     "examples": 2738,
     "requirement_level": "recommended",
-    "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n"
+    "note": "This can refer to both the compressed or uncompressed size. If both sizes are known, the uncompressed\nsize should be used.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.message.id",
     "type": "string",
     "brief": "A value used by the messaging system as an identifier for the message, represented as a string.",
     "examples": "452a7c7c7c7048c2f887f61572b18fc2",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.message.body.size",
@@ -340,7 +356,8 @@
     "brief": "The size of the message body in bytes.\n",
     "examples": 1439,
     "requirement_level": "recommended",
-    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n"
+    "note": "This can refer to both the compressed or uncompressed body size. If both sizes are known, the uncompressed\nbody size should be used.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.operation",
@@ -352,7 +369,7 @@
           "value": "publish",
           "brief": "One or more messages are provided for publishing to an intermediary. If a single message is published, the context of the \"Publish\" span can be used as the creation context and no \"Create\" span needs to be created.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -360,7 +377,7 @@
           "value": "create",
           "brief": "A message is created. \"Create\" spans always refer to a single message and are used to provide a unique creation context for messages in batch publishing scenarios.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -368,7 +385,7 @@
           "value": "receive",
           "brief": "One or more messages are requested by a consumer. This operation refers to pull-based scenarios, where consumers explicitly call methods of messaging SDKs to receive messages.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -376,28 +393,31 @@
           "value": "deliver",
           "brief": "One or more messages are passed to a consumer. This operation refers to push-based scenarios, where consumer register callbacks which get called by messaging SDKs.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "A string identifying the kind of messaging operation.\n",
     "requirement_level": "recommended",
-    "note": "If a custom value is used, it MUST be of low cardinality."
+    "note": "If a custom value is used, it MUST be of low cardinality.",
+    "stability": "stable"
   },
   {
     "name": "messaging.rabbitmq.destination.routing_key",
     "type": "string",
     "brief": "RabbitMQ message routing key.\n",
     "examples": "myKey",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.client_group",
     "type": "string",
     "brief": "Name of the RocketMQ producer/consumer group that is handling the message. The client type is identified by the SpanKind.\n",
     "examples": "myConsumerGroup",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.consumption_model",
@@ -409,7 +429,7 @@
           "value": "clustering",
           "brief": "Clustering consumption model",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -417,34 +437,38 @@
           "value": "broadcasting",
           "brief": "Broadcasting consumption model",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "Model of message consumption. This only applies to consumer spans.\n",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.message.delay_time_level",
     "type": "int",
     "brief": "The delay time level for delay message, which determines the message delay time.\n",
     "examples": 3,
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.message.delivery_timestamp",
     "type": "int",
     "brief": "The timestamp in milliseconds that the delay message is expected to be delivered to consumer.\n",
     "examples": 1665987217045,
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.message.group",
     "type": "string",
     "brief": "It is essential for FIFO message. Messages that belong to the same message group are always processed one by one within the same consumer group.\n",
     "examples": "myMessageGroup",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.message.keys",
@@ -458,14 +482,16 @@
         "keyB"
       ]
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.message.tag",
     "type": "string",
     "brief": "The secondary classifier of message besides topic.\n",
     "examples": "tagA",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.message.type",
@@ -477,7 +503,7 @@
           "value": "normal",
           "brief": "Normal message",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -485,7 +511,7 @@
           "value": "fifo",
           "brief": "FIFO message",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -493,7 +519,7 @@
           "value": "delay",
           "brief": "Delay message",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -501,27 +527,30 @@
           "value": "transaction",
           "brief": "Transaction message",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "Type of message.\n",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.rocketmq.namespace",
     "type": "string",
     "brief": "Namespace of RocketMQ resources, resources in different namespaces are individual.\n",
     "examples": "myNamespace",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.gcp_pubsub.message.ordering_key",
     "type": "string",
     "brief": "The ordering key for a given message. If the attribute is not present, the message does not have an ordering key.\n",
     "examples": "ordering_key",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "messaging.system",
@@ -533,7 +562,7 @@
           "value": "activemq",
           "brief": "Apache ActiveMQ",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -541,7 +570,7 @@
           "value": "aws_sqs",
           "brief": "Amazon Simple Queue Service (SQS)",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -549,7 +578,7 @@
           "value": "azure_eventgrid",
           "brief": "Azure Event Grid",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -557,7 +586,7 @@
           "value": "azure_eventhubs",
           "brief": "Azure Event Hubs",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -565,7 +594,7 @@
           "value": "azure_servicebus",
           "brief": "Azure Service Bus",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -573,7 +602,7 @@
           "value": "gcp_pubsub",
           "brief": "Google Cloud Pub/Sub",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -581,7 +610,7 @@
           "value": "jms",
           "brief": "Java Message Service",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -589,7 +618,7 @@
           "value": "kafka",
           "brief": "Apache Kafka",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -597,7 +626,7 @@
           "value": "rabbitmq",
           "brief": "RabbitMQ",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -605,41 +634,46 @@
           "value": "rocketmq",
           "brief": "Apache RocketMQ",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.carrier.icc",
     "type": "string",
     "brief": "The ISO 3166-1 alpha-2 2-character country code associated with the mobile carrier network.",
     "examples": "DE",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.carrier.mcc",
     "type": "string",
     "brief": "The mobile carrier country code.",
     "examples": "310",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.carrier.mnc",
     "type": "string",
     "brief": "The mobile carrier network code.",
     "examples": "001",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.carrier.name",
     "type": "string",
     "brief": "The name of the mobile carrier.",
     "examples": "sprint",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.connection.subtype",
@@ -651,7 +685,7 @@
           "value": "gprs",
           "brief": "GPRS",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -659,7 +693,7 @@
           "value": "edge",
           "brief": "EDGE",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -667,7 +701,7 @@
           "value": "umts",
           "brief": "UMTS",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -675,7 +709,7 @@
           "value": "cdma",
           "brief": "CDMA",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -683,7 +717,7 @@
           "value": "evdo_0",
           "brief": "EVDO Rel. 0",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -691,7 +725,7 @@
           "value": "evdo_a",
           "brief": "EVDO Rev. A",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -699,7 +733,7 @@
           "value": "cdma2000_1xrtt",
           "brief": "CDMA2000 1XRTT",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -707,7 +741,7 @@
           "value": "hsdpa",
           "brief": "HSDPA",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -715,7 +749,7 @@
           "value": "hsupa",
           "brief": "HSUPA",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -723,7 +757,7 @@
           "value": "hspa",
           "brief": "HSPA",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -731,7 +765,7 @@
           "value": "iden",
           "brief": "IDEN",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -739,7 +773,7 @@
           "value": "evdo_b",
           "brief": "EVDO Rev. B",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -747,7 +781,7 @@
           "value": "lte",
           "brief": "LTE",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -755,7 +789,7 @@
           "value": "ehrpd",
           "brief": "EHRPD",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -763,7 +797,7 @@
           "value": "hspap",
           "brief": "HSPAP",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -771,7 +805,7 @@
           "value": "gsm",
           "brief": "GSM",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -779,7 +813,7 @@
           "value": "td_scdma",
           "brief": "TD-SCDMA",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -787,7 +821,7 @@
           "value": "iwlan",
           "brief": "IWLAN",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -795,7 +829,7 @@
           "value": "nr",
           "brief": "5G NR (New Radio)",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -803,7 +837,7 @@
           "value": "nrnsa",
           "brief": "5G NRNSA (New Radio Non-Standalone)",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -811,14 +845,15 @@
           "value": "lte_ca",
           "brief": "LTE CA",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "This describes more details regarding the connection.type. It may be the type of cell technology connection, but it could be used for describing details about a wifi connection.",
     "examples": "LTE",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.connection.type",
@@ -830,7 +865,7 @@
           "value": "wifi",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -838,7 +873,7 @@
           "value": "wired",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -846,7 +881,7 @@
           "value": "cell",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -854,7 +889,7 @@
           "value": "unavailable",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -862,14 +897,15 @@
           "value": "unknown",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "The internet connection type.",
     "examples": "wifi",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.local.address",
@@ -945,7 +981,7 @@
           "value": "tcp",
           "brief": "TCP",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -953,7 +989,7 @@
           "value": "udp",
           "brief": "UDP",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -961,7 +997,7 @@
           "value": "pipe",
           "brief": "Named or anonymous pipe.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -969,7 +1005,7 @@
           "value": "unix",
           "brief": "Unix domain socket",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -993,7 +1029,7 @@
           "value": "ipv4",
           "brief": "IPv4",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1001,7 +1037,7 @@
           "value": "ipv6",
           "brief": "IPv6",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -1025,7 +1061,7 @@
           "value": "transmit",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1033,7 +1069,7 @@
           "value": "receive",
           "brief": null,
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -1042,7 +1078,8 @@
     "examples": [
       "transmit"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "server.address",
@@ -1135,7 +1172,7 @@
           "value": "CONNECT",
           "brief": "CONNECT method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1143,7 +1180,7 @@
           "value": "DELETE",
           "brief": "DELETE method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1151,7 +1188,7 @@
           "value": "GET",
           "brief": "GET method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1159,7 +1196,7 @@
           "value": "HEAD",
           "brief": "HEAD method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1167,7 +1204,7 @@
           "value": "OPTIONS",
           "brief": "OPTIONS method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1175,7 +1212,7 @@
           "value": "PATCH",
           "brief": "PATCH method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1183,7 +1220,7 @@
           "value": "POST",
           "brief": "POST method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1191,7 +1228,7 @@
           "value": "PUT",
           "brief": "PUT method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1199,7 +1236,7 @@
           "value": "TRACE",
           "brief": "TRACE method.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1207,7 +1244,7 @@
           "value": "_OTHER",
           "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -1244,7 +1281,7 @@
           "value": "_OTHER",
           "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -1391,7 +1428,7 @@
           "value": "activemq",
           "brief": "Apache ActiveMQ",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1399,7 +1436,7 @@
           "value": "aws_sqs",
           "brief": "Amazon Simple Queue Service (SQS)",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1407,7 +1444,7 @@
           "value": "azure_eventgrid",
           "brief": "Azure Event Grid",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1415,7 +1452,7 @@
           "value": "azure_eventhubs",
           "brief": "Azure Event Hubs",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1423,7 +1460,7 @@
           "value": "azure_servicebus",
           "brief": "Azure Service Bus",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1431,7 +1468,7 @@
           "value": "gcp_pubsub",
           "brief": "Google Cloud Pub/Sub",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1439,7 +1476,7 @@
           "value": "jms",
           "brief": "Java Message Service",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1447,7 +1484,7 @@
           "value": "kafka",
           "brief": "Apache Kafka",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1455,7 +1492,7 @@
           "value": "rabbitmq",
           "brief": "RabbitMQ",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -1463,13 +1500,14 @@
           "value": "rocketmq",
           "brief": "Apache RocketMQ",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "An identifier for the messaging system being used. See below for a list of well-known identifiers.\n",
-    "requirement_level": "required"
+    "requirement_level": "required",
+    "stability": "stable"
   },
   {
     "name": "error.type",
@@ -1481,7 +1519,7 @@
           "value": "_OTHER",
           "brief": "A fallback error value to be used when the instrumentation doesn't define a custom value.\n",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
@@ -1547,7 +1585,8 @@
     "requirement_level": {
       "conditionally_required": "if and only if `messaging.destination.name` is known to have low cardinality. Otherwise, `messaging.destination.template` MAY be populated."
     },
-    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n"
+    "note": "Destination name SHOULD uniquely identify a specific queue, topic or other entity within the broker. If\nthe broker doesn't have such notion, the destination name SHOULD uniquely identify the broker.\n",
+    "stability": "stable"
   },
   {
     "name": "messaging.destination.template",
@@ -1559,6 +1598,7 @@
     "requirement_level": {
       "conditionally_required": "if available."
     },
-    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n"
+    "note": "Destination names could be constructed from templates. An example would be a destination name involving a user name or product id. Although the destination name in this case is of high cardinality, the underlying template is of low cardinality and can be effectively used for grouping and aggregation.\n",
+    "stability": "stable"
   }
 ]

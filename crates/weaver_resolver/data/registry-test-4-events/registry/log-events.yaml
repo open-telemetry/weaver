@@ -35,6 +35,7 @@ groups:
       This event transmits the body as a JSON encoded string.
     body:
       id: some.string.body.event.fields
+      stability: stable
       type: string
       requirement_level: required
       brief: >
@@ -72,6 +73,7 @@ groups:
       mutually exclusive.
     body:
       id: device.app.lifecycle.fields
+      stability: stable
       type: map
       requirement_level: required
       fields:
@@ -87,24 +89,29 @@ groups:
           type: enum
           members:
             - id: active
+              stability: stable
               value: 'active'
               brief: >
                 The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.
             - id: inactive
+              stability: stable
               value: 'inactive'
               brief: >
                 The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.
             - id: background
+              stability: stable
               value: 'background'
               brief: >
                 The app is now in the background.
                 This value is associated with UIKit notification `applicationDidEnterBackground`.
             - id: foreground
+              stability: stable
               value: 'foreground'
               brief: >
                 The app is now in the foreground.
                 This value is associated with UIKit notification `applicationWillEnterForeground`.
             - id: terminate
+              stability: stable
               value: 'terminate'
               brief: >
                 The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.
@@ -120,16 +127,19 @@ groups:
           type: enum
           members:
             - id: created
+              stability: stable
               value: 'created'
               brief: >
                 Any time before Activity.onResume() or, if the app has no Activity, Context.startService()
                 has been called in the app for the first time.
             - id: background
+              stability: stable
               value: 'background'
               brief: >
                 Any time after Activity.onPause() or, if the app has no Activity,
                 Context.stopService() has been called when the app was in the foreground state.
             - id: foreground
+              stability: stable
               value: 'foreground'
               brief: >
                 Any time after Activity.onResume() or, if the app has no Activity,
@@ -143,21 +153,25 @@ groups:
       report a client exception.
     body:
       id: client.exception.event.fields
+      stability: stable
       type: map
       requirement_level: optional
       fields:
         - id: type
+          stability: stable
           type: string
           brief: >
             The type of the exception.
           examples: ["java.net.ConnectException","OSError"]
           requirement_level: optional
         - id: message
+          stability: stable
           type: string
           brief: The exception message.
           examples: ["Division by zero","Can't convert 'int' object to str implicitly"]
           requirement_level: optional
         - id: stacktrace
+          stability: stable
           type: string
           brief: >
             A stacktrace.
@@ -167,6 +181,7 @@ groups:
             at com.example.GenerateTrace.main(GenerateTrace.java:5)'
           requirement_level: optional
         - id: escaped
+          stability: stable
           type: boolean
           brief: >
             SHOULD be set to true if the exception event is recorded at a point where
@@ -176,6 +191,7 @@ groups:
           requirement_level: optional
     attributes:
       - id: client.name
+        stability: stable
         type: string
         brief: >
           The name of the client that reported the exception.
@@ -188,6 +204,7 @@ groups:
       An event that adds global attributes for reuse.
     attributes:
       - id: browser.brands
+        stability: stable
         type: string[]
         brief: 'Array of brand name and version separated by a space'
         note: >
@@ -196,6 +213,7 @@ groups:
           (`navigator.userAgentData.brands`).
         examples: [ [ " Not A;Brand 99", "Chromium 99", "Chrome 99" ] ]
       - id: browser.platform
+        stability: stable
         type: string
         brief: 'The platform on which the browser is running'
         note: >
@@ -204,6 +222,7 @@ groups:
           (`navigator.userAgentData.platform`). 
         examples: [ "Windows", "macOS", "Android", "iOS", "Linux" ]
       - id: browser.mobile
+        stability: stable
         type: boolean
         brief: 'A boolean that is true if the browser is running on a mobile device'
         note: >
@@ -212,6 +231,7 @@ groups:
           (`navigator.userAgentData.mobile`). If unavailable, this attribute
           SHOULD be left unset.
       - id: browser.language
+        stability: stable
         type: string
         brief: 'Preferred language of the user using the browser'
         note: >
@@ -220,10 +240,12 @@ groups:
         examples: [ "en", "en-US", "en-AU", "fr", "fr-FR" ]
     body:
       id: browser.test.event_with_body.fields
+      stability: stable
       type: map
       requirement_level: required
       fields:
         - id: some.field
+          stability: stable
           type: string
           brief: 'A field that is not referenced in the attributes'
           note: 'This field is not referenced in the attributes'
@@ -246,6 +268,7 @@ groups:
       requirement_level: required
       fields:
         - id: some.field
+          stability: stable
           type: string
           brief: 'A field that is not referenced in the attributes'
           note: 'This field is not referenced in the attributes'

@@ -24,6 +24,8 @@ Brief: Span attributes used by non-OTLP exporters to represent OpenTelemetry Sco
 ]
 - Deprecated: use the `otel.scope.name` attribute.
   
+- Stability: Stable
+  
   
 #### Attribute `otel.library.version`
 
@@ -37,6 +39,8 @@ Brief: Span attributes used by non-OTLP exporters to represent OpenTelemetry Sco
     "1.0.0",
 ]
 - Deprecated: use the `otel.scope.version` attribute.
+  
+- Stability: Stable
   
   
   
