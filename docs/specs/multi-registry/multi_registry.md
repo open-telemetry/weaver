@@ -256,7 +256,7 @@ choosing the imported registry to resolve the conflict.
 The process hinges on the **concept of mergeable telemetry objects** (attributes or groups). For two telemetry objects
 to be considered mergeable, they must, at least, meet the following basic criteria:
 1. Both telemetry objects must be of the same type (e.g., attribute, metric, event, span, etc.).
-2. They must share the same persistant identifier.
+2. They must share the same persistent identifier.
 3. They must have a common ancestor (i.e., both were originally defined in the same registry).
 
 Since telemetry objects are complex objects consisting of multiple fields, and override mechanisms are allowed, one of the
