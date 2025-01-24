@@ -178,11 +178,7 @@ impl GroupSpec {
                 });
             }
 
-            match validate_any_value(&mut errors, self.body.as_ref(), &self.id, path_or_url) {
-                WResult::Ok(_) => {}
-                WResult::OkWithNFEs(_, errs) => errors.extend(errs),
-                WResult::FatalErr(err) => return WResult::FatalErr(err),
-            }
+            validate_any_value(&mut errors, self.body.as_ref(), &self.id, path_or_url);
 
             match validate_any_value_examples(
                 &mut errors,
@@ -400,7 +396,7 @@ fn validate_any_value(
     any_value: Option<&AnyValueSpec>,
     group_id: &str,
     path_or_url: &str,
-) -> WResult<(), Error> {
+) {
     if let Some(value) = any_value {
         if value.common().stability.is_none() {
             errors.push(Error::InvalidAnyValue {
@@ -429,14 +425,12 @@ fn validate_any_value(
             }
             AnyValueSpec::Map { fields, .. } => {
                 for field in fields {
-                    let _ = validate_any_value(errors, Some(field), group_id, path_or_url);
+                    validate_any_value(errors, Some(field), group_id, path_or_url);
                 }
             }
             _ => {}
         };
     }
-
-    WResult::Ok(())
 }
 
 /// The different types of groups (specification).
