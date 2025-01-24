@@ -402,11 +402,17 @@ OTEL templates) can be reused for any registry.
 Similarly, the `--policies` parameter must support git URLs so community-based policies (including those defined by
 OTEL) can be applied to any registry.
 
-### OTEL Semantic Convention JSON Schema Changes
+### OTEL Semantic Conventions Changes and Problems to Solve
 
-The JSON Schema for specifying semantic convention groups must be updated to support group references. Additionally, 
-the reference format should be extended to optionally allow a reference to be prefixed by a registry name (e.g.,
-`otel:client.address`).
+- **Update JSON Schema**: The JSON Schema for specifying semantic convention groups needs to be updated to support group
+  references.
+- **Enhance Reference Format**: The reference format should be extended to optionally include a registry name/alias as a
+  prefix (e.g., otel:client.address).
+- **Group ID Persistence**: Group IDs are not guaranteed to remain consistent across different versions of a registry.
+  This creates challenges, particularly in multi-registry setups where one registry might extend or override an
+  attribute group defined in another registry.
+- **Revise Core Policies**: Core policies must be updated to address issues and scenarios arising in multi-registry
+  environments.
 
 ### OTEL Schema Changes
 
@@ -451,64 +457,7 @@ In addition to implementing the multi-registry feature in Weaver, the following 
 
 # Appendices
 
-## Appendix A - Core Policies
+## Useful Links
 
-These core policies aim to ensure consistency and backward compatibility across registries.
-
-### Group Policies
-
-- No group ID collisions
-- Only attribute groups are allowed in the attribute registry
-- Ref attributes are not allowed in the attribute registry
-- ID attributes are not allowed in groups outside of the attribute registry
-
-### Attribute Policies
-- No attribute name collisions
-- Attributes cannot be removed
-- Attributes cannot "degrade" in stability (e.g., stable -> experimental)
-- Stable attributes cannot change type
-- All attributes must be defined inside a semantic convention registry
-- Attribute names must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
-- Attributes with prefixes are not allowed; attributes must be fully qualified
-
-### Enum Member Policies
-- Stable members cannot change stability
-- Values cannot change
-- IDs cannot be removed
-- Enum IDs must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
-
-### Metrics
-- No metric name collisions
-- Metrics cannot be removed
-- Metrics cannot "degrade" in stability (e.g., stable -> experimental)
-- Stable metric units cannot change
-- Stable metric instruments cannot change
-- The set of required/recommended attributes must remain the same
-- Metric names must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
-
-### Events
-- No event name collisions
-- Events cannot be removed
-- Events cannot "degrade" in stability (e.g., stable -> experimental)
-- The set of required/recommended attributes must remain the same
-- Event names must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
-
-### Spans
-- No span name collisions
-- Spans cannot be removed
-- Spans cannot "degrade" in stability (e.g., stable -> experimental)
-- The set of required/recommended attributes must remain the same
-- Span names must match the following regular expression: `^[a-z][a-z0-9]*([._][a-z0-9]+)*$`
-
-Liudmila's feedback on the core policies (need to be discussed):
-```
-I think we need to come up with more nuanced rules. E.g.
-- it's ok to change recommended attribute to required.
-- it's ok to remove recommended (if you have good reasons not to populate recommended, this is your way to tell that
-  you don't populate it)
-- it's ok to change conditionally required to recommended or required (if condition is always true)
-- it might be ok to promote opt-in to recommended or even required
-
-maybe those rules are complex enough that we just want to start with a simple one that all required attributes should
-stay required
-```
+- [Official OpenTelemetry Semantic Convention Registry](https://github.com/open-telemetry/semantic-conventions/tree/main/model)
+- [Official OpenTelemetry Semantic Convention Policies](https://github.com/open-telemetry/semantic-conventions/tree/main/policies)
