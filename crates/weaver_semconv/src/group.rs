@@ -429,11 +429,7 @@ fn validate_any_value(
             }
             AnyValueSpec::Map { fields, .. } => {
                 for field in fields {
-                    if let WResult::FatalErr(err) =
-                        validate_any_value(errors, Some(field), group_id, path_or_url)
-                    {
-                        return WResult::FatalErr(err);
-                    }
+                    let _ = validate_any_value(errors, Some(field), group_id, path_or_url);
                 }
             }
             _ => {}
