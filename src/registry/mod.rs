@@ -119,10 +119,9 @@ pub enum RegistrySubCommand {
     /// endpoint, and a maximum duration of no OTLP message reception.
     #[clap(verbatim_doc_comment)]
     LiveCheck(CheckRegistryArgs),
-    /// Emits a semantic convention registry as example spans to your OTLP receiver.
+    /// Emits a semantic convention registry as example signals to your OTLP receiver.
     ///
     /// This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4317.
-    /// Use the standard env vars e.g. `OTEL_EXPORTER_OTLP_ENDPOINT` to override.
     #[clap(verbatim_doc_comment)]
     Emit(RegistryEmitArgs),
 }

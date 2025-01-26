@@ -13,6 +13,11 @@ use weaver_forge::registry::ResolvedRegistry;
 
 pub mod spans;
 
+/// The default OTLP endpoint.
+pub const DEFAULT_OTLP_ENDPOINT: &str = "http://localhost:4317";
+
+const WEAVER_SERVICE_NAME: &str = "weaver";
+
 /// An error that can occur while emitting a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
@@ -39,13 +44,16 @@ impl From<Error> for DiagnosticMessages {
 
 /// Initialise a grpc OTLP exporter, sends to by default http://localhost:4317
 /// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
-fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_tracer_provider(endpoint: &String) -> Result<sdktrace::TracerProvider, TraceError> {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:4317")
+        .with_endpoint(endpoint)
         .build()?;
     Ok(sdktrace::TracerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new("service.name", "weaver")]))
+        .with_resource(Resource::new(vec![KeyValue::new(
+            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+            WEAVER_SERVICE_NAME,
+        )]))
         .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
         .build())
 }
@@ -53,17 +61,24 @@ fn init_tracer_provider() -> Result<sdktrace::TracerProvider, TraceError> {
 /// Initialise a stdout exporter for debug
 fn init_stdout_tracer_provider() -> sdktrace::TracerProvider {
     sdktrace::TracerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new("service.name", "weaver")]))
+        .with_resource(Resource::new(vec![KeyValue::new(
+            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+            WEAVER_SERVICE_NAME,
+        )]))
         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
         .build()
 }
 
 /// The configuration for the tracer provider.
+#[derive(Debug)]
 pub enum ExporterConfig {
     /// Emit to stdout.
     Stdout,
     /// Emit to OTLP.
-    Otlp,
+    Otlp {
+        /// The endpoint to emit to.
+        endpoint: String,
+    },
 }
 
 /// Emit the signals from the registry to the configured exporter.
@@ -74,15 +89,15 @@ pub fn emit(
 ) -> Result<(), Error> {
     let rt = tokio::runtime::Runtime::new().map_err(|e| Error::EmitError {
         error: e.to_string(),
-    })?; //.expect("failed to create tokio runtime");
+    })?;
     rt.block_on(async {
         // Emit spans
         let tracer_provider = match tracer_provider_config {
             ExporterConfig::Stdout => init_stdout_tracer_provider(),
-            ExporterConfig::Otlp => {
-                init_tracer_provider().map_err(|e| Error::TracerProviderError {
+            ExporterConfig::Otlp { endpoint } => {
+                init_tracer_provider(endpoint).map_err(|e| Error::TracerProviderError {
                     error: e.to_string(),
-                })? //.expect("OTLP Tracer Provider must be created")
+                })?
             }
         };
         let _ = global::set_tracer_provider(tracer_provider.clone());

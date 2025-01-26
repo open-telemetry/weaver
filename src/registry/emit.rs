@@ -30,6 +30,10 @@ pub struct RegistryEmitArgs {
     /// Write the telemetry to standard output
     #[arg(long)]
     stdout: bool,
+
+    /// Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.
+    #[arg(long, default_value = weaver_emit::DEFAULT_OTLP_ENDPOINT)]
+    endpoint: String,
 }
 
 /// Emit all spans in the resolved registry.
@@ -53,7 +57,9 @@ pub(crate) fn command(
     let exporter_config = if args.stdout {
         ExporterConfig::Stdout
     } else {
-        ExporterConfig::Otlp
+        ExporterConfig::Otlp {
+            endpoint: args.endpoint.clone(),
+        }
     };
 
     // Emit the resolved registry - exit early if there are any errors.
@@ -110,6 +116,7 @@ mod tests {
                     },
                     diagnostic: Default::default(),
                     stdout: true,
+                    endpoint: "".to_owned(),
                 }),
             })),
         };
