@@ -4,7 +4,7 @@
 
 use clap::Args;
 
-use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
 use weaver_emit::{emit, ExporterConfig};
 
@@ -56,11 +56,13 @@ pub(crate) fn command(
         ExporterConfig::Otlp
     };
 
+    // Emit the resolved registry - exit early if there are any errors.
     emit(
         &registry,
         &args.registry.registry.to_string(),
         &exporter_config,
-    );
+    )
+    .combine_diag_msgs_with(&diag_msgs)?;
 
     logger.success(&format!("Emitted registry `{}`", args.registry.registry));
 
