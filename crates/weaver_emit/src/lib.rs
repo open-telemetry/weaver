@@ -113,6 +113,7 @@ pub fn emit(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
@@ -168,7 +169,7 @@ mod tests {
             }],
         };
 
-        let result = super::emit(&registry, "TEST", &super::ExporterConfig::Stdout);
+        let result = emit(&registry, "TEST", &ExporterConfig::Stdout);
         assert!(result.is_ok());
     }
 
@@ -178,13 +179,17 @@ mod tests {
             registry_url: "TEST_OTLP_INVALID".to_owned(),
             groups: vec![],
         };
-        let result = super::emit(
+        let result = emit(
             &registry,
             "TEST_OTLP_INVALID",
-            &super::ExporterConfig::Otlp {
+            &ExporterConfig::Otlp {
                 endpoint: "http:/invalid-endpoint:4317".to_owned(),
             },
         );
         assert!(result.is_err());
+
+        // Check the error converts to a diagnostic message
+        let diagnostic_messages = DiagnosticMessages::from(result.unwrap_err());
+        assert_eq!(diagnostic_messages.len(), 1);
     }
 }
