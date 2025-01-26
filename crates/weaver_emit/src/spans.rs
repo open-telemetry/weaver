@@ -17,7 +17,7 @@ use weaver_semconv::{
 /// Convert the Weaver span kind to an OTLP span kind.
 /// If the span kind is not specified, return `SpanKind::Internal`.
 #[must_use]
-pub fn otel_span_kind(span_kind: Option<&SpanKindSpec>) -> SpanKind {
+fn otel_span_kind(span_kind: Option<&SpanKindSpec>) -> SpanKind {
     match span_kind {
         Some(SpanKindSpec::Client) => SpanKind::Client,
         Some(SpanKindSpec::Server) => SpanKind::Server,
@@ -30,7 +30,7 @@ pub fn otel_span_kind(span_kind: Option<&SpanKindSpec>) -> SpanKind {
 /// For the given attribute, return a name/value pair.
 /// Values are generated based on the attribute type and examples where possible.
 #[must_use]
-pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
+fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
     let name = attribute.name.clone();
     match &attribute.r#type {
         AttributeType::PrimitiveOrArray(primitive_or_array) => {
@@ -123,7 +123,7 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
 
 /// Uses the global tracer_provider to emit a single trace for all the defined
 /// spans in the registry
-pub fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path: &str) {
+pub(crate) fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path: &str) {
     let tracer = global::tracer("weaver");
     // Start a parent span here and use this context to create child spans
     tracer.in_span("weaver.emit", |cx| {
