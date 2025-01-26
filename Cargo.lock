@@ -4956,14 +4956,10 @@ dependencies = [
  "assert_cmd",
  "clap",
  "crossterm",
- "futures-util",
  "include_dir",
  "itertools 0.13.0",
  "miette",
  "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry-stdout",
- "opentelemetry_sdk",
  "ratatui",
  "rayon",
  "schemars",
@@ -4972,13 +4968,13 @@ dependencies = [
  "serde_yaml",
  "tempdir",
  "thiserror 2.0.11",
- "tokio",
  "tui-textarea",
  "walkdir",
  "weaver_cache",
  "weaver_checker",
  "weaver_common",
  "weaver_diff",
+ "weaver_emit",
  "weaver_forge",
  "weaver_resolved_schema",
  "weaver_resolver",
@@ -5057,6 +5053,22 @@ dependencies = [
  "serde_json",
  "similar",
  "walkdir",
+]
+
+[[package]]
+name = "weaver_emit"
+version = "0.12.0"
+dependencies = [
+ "futures-util",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry-stdout",
+ "opentelemetry_sdk",
+ "ordered-float",
+ "tokio",
+ "weaver_forge",
+ "weaver_resolved_schema",
+ "weaver_semconv",
 ]
 
 [[package]]

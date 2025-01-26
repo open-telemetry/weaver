@@ -60,11 +60,7 @@ opentelemetry = { version = "0.27.1", features = [
     "logs",
     "otel_unstable",
 ] }
-opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
-opentelemetry-otlp = "0.27.0"
-opentelemetry-stdout = { version = "0.27.0", features = ["trace"] }
 rouille = "3.6.2"
-tokio = { version = "1.43.0", features = ["full"] }
 
 # Features definition =========================================================
 [features]
@@ -86,6 +82,7 @@ weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
 weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
+weaver_emit = { path = "crates/weaver_emit" }
 
 clap = { version = "4.5.24", features = ["derive"] }
 rayon = "1.10.0"
@@ -104,16 +101,11 @@ miette.workspace = true
 schemars.workspace = true
 itertools.workspace = true
 opentelemetry.workspace = true
-opentelemetry_sdk.workspace = true
-opentelemetry-otlp.workspace = true
-opentelemetry-stdout.workspace = true
-tokio.workspace = true
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
 tempdir.workspace = true
 assert_cmd = "2.0.16"
-futures-util = { version = "0.3", default-features = false }
 
 [profile.release]
 lto = true

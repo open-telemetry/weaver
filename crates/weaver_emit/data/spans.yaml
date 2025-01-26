@@ -27,7 +27,7 @@ groups:
         type: double
         brief: "Test double attribute"
         stability: stable
-        examples: [3.13, 2.718]
+        examples: [3.13, 2.71]
 
       - id: test.boolean
         type: boolean
