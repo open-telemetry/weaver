@@ -13,7 +13,7 @@ What's changed
   * Fixed bug in `check` if `--skip-policies` was specified then it would not fail for any validation errors.
 * Semantic Conventions Issue [#1513](https://github.com/open-telemetry/semantic-conventions/issues/1513) - Make span_kind required in yaml and break down multi-kind span definitions - ([#542](https://github.com/open-telemetry/weaver/pull/542) by @jerbly).
   * Updated the EBNF and JSON schema to define `span_kind` as mandatory for `span` group types. Added a group validity check as a warning.
-* First iteration of the new command: `registry emit`. Emits a semantic convention registry as example spans to your OTLP receiver. This may be useful in testing/simulation scenarios. Defaults to `http://localhost:4317` if the OpenTelemetry standard `OTEL_EXPORTER_OTLP_ENDPOINT` env var is unset. ([#549](https://github.com/open-telemetry/weaver/pull/549) by @jerbly)
+* First iteration of the new command: `registry emit`. Emits a semantic convention registry as example spans to your OTLP receiver. This may be useful in testing/simulation scenarios. ([#549](https://github.com/open-telemetry/weaver/pull/549) by @jerbly)
 
 
 
