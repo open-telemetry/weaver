@@ -110,3 +110,81 @@ pub fn emit(
         Ok(())
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
+    use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::{
+        attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
+        group::{GroupType, SpanKindSpec},
+        stability::Stability,
+    };
+
+    // Test the emit command for stdout
+    #[test]
+    fn test_emit_stdout() {
+        let registry = ResolvedRegistry {
+            registry_url: "TEST".to_owned(),
+            groups: vec![ResolvedGroup {
+                id: "test.comprehensive.internal".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                constraints: vec![],
+                attributes: vec![Attribute {
+                    name: "test.string".to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    examples: Some(Examples::Strings(vec![
+                        "value1".to_owned(),
+                        "value2".to_owned(),
+                    ])),
+                    brief: "".to_owned(),
+                    tag: None,
+                    requirement_level: RequirementLevel::Recommended {
+                        text: "".to_owned(),
+                    },
+                    sampling_relevant: None,
+                    note: "".to_owned(),
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    prefix: false,
+                    tags: None,
+                    value: None,
+                }],
+                span_kind: Some(SpanKindSpec::Internal),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+            }],
+        };
+
+        let result = super::emit(&registry, "TEST", &super::ExporterConfig::Stdout);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_emit_otlp_invalid_endpoint() {
+        let registry = ResolvedRegistry {
+            registry_url: "TEST_OTLP_INVALID".to_owned(),
+            groups: vec![],
+        };
+        let result = super::emit(
+            &registry,
+            "TEST_OTLP_INVALID",
+            &super::ExporterConfig::Otlp {
+                endpoint: "http:/invalid-endpoint:4317".to_owned(),
+            },
+        );
+        assert!(result.is_err());
+    }
+}
