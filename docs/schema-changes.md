@@ -27,30 +27,24 @@ The schema changes data model is composed of the following components:
   convention registry used in the diffing process.
 - `changes`: A dictionary of changes between the head and baseline registries.
   The dictionary is composed of the following keys (when applicable):
-  - `attributes`: A list of changes to attributes.
+  - `registry_attributes`: A list of changes to registry attributes.
   - `metrics`: A list of changes to metrics.
   - `events`: A list of changes to events.
   - `spans`: A list of changes to spans.
   - `resources`: A list of changes to resources.
 
 Each change in the changes dictionary for any key is represented as a list of
-schema changes, represented by one of the following types:
+schema changes, represented by one of the following change types:
 
-- `added`: A new schema item (e.g., attribute, metric, etc.) was added in the
-  head registry. The name of the new item is stored in the name attribute.
-- `renamed_to_new`: One or more schema items in the baseline registry were
-  renamed to the same new name in the head registry. The old names of the
-  items are stored in the old_names attribute, and the new name is stored in
-  the current_name attribute.
-- `renamed_to_existing`: One or more schema items in the baseline registry were
-  renamed to an existing item in the head registry. The old names of the items
-  are stored in the old_names attribute, and the existing item name is stored
-  in the current_name attribute.
-- `deprecated`: An item in the baseline registry was deprecated in the head
-  registry. The name of the deprecated item is stored in the name attribute,
-  and the deprecation note is stored in the note attribute.
-- `removed`: An item in the baseline registry was removed in the head
-  registry. The name of the removed item is stored in the name attribute.
+- `added`: A top-level telemetry object (e.g., attribute, metric, etc.) was added to the head registry. The new item’s
+  name is stored in the name attribute.
+- `renamed`: A top-level telemetry object from the baseline registry was renamed in the head registry.
+- `deprecated`: A top-level telemetry object from the baseline registry was marked as deprecated in the head registry.
+- `updated`: One or more fields in a top-level telemetry object have been updated in the head registry.
+- `removed`: A top-level telemetry object from the baseline registry was removed in the head registry.
+- `uncategorized`: A placeholder for complex or unclear schema changes that do not fit into existing types. This type
+  serves as a fallback when no specific category applies, with the expectation that some of these changes will be
+  reclassified into more precise schema types in the future.
 
 > Note: Although the removed schema change type is a valid output of the diffing
 process, it should never be present in the diff report between two versions of
@@ -65,12 +59,16 @@ head:
 baseline:
   semconv_version: v1.26.0
 changes:
-  attributes:
+  registry_attributes:
     - name: http.server_name      # attribute name
       type: deprecated            # change type
-      note: deprecated
+      note: This attribute is deprecated.
     - name: user.email            # attribute name
       type: added                 # change type
+    - name: http_target
+      type: renamed
+      new_name: http.target
+      note: Renamed to http.target
     - ...
   events:
     - name: exception
@@ -108,8 +106,21 @@ changes for attributes:
   - Attributes present in the baseline but missing in the latest schema are marked
     as removed. This should not happen if registry evolution processes are followed.
 
+1. Deprecations:
+  - If an attribute in the latest schema is now marked as deprecated and was not before, the schema change type is
+    directly derived from the `deprecated.action` field.
+  - A deprecated attribute can result in a `renamed`, `deprecated`, or `uncategorized` schema change event, depending
+    on the specified action.
+1. Additions:
+  - If an attribute exists in the latest schema but not in the baseline, it is classified as a new attribute (`added`).
+1. Removals:
+  - Attributes present in the baseline but missing in the latest schema are marked as removed (removed).
+  - This should not occur if registry evolution processes are properly followed.
+
 The diffing process for the signals (metrics, events, spans, resources) is similar
 to the attributes comparison.
+
+> Note: The change type `updated` is not currently implemented in the diffing process.
 
 ## Future Evolutions
 
