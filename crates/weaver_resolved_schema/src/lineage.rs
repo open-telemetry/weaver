@@ -11,7 +11,7 @@ use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::stability::Stability;
 
 /// Attribute lineage (at the field level).
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub struct AttributeLineage {
     /// The group id where the attribute is coming from.
@@ -29,7 +29,7 @@ pub struct AttributeLineage {
 }
 
 /// Group lineage.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, Eq, Hash)]
 #[must_use]
 pub struct GroupLineage {
     /// The path or URL of the source file where the group is defined.

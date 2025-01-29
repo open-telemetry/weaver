@@ -28,7 +28,7 @@ pub struct ResolvedRegistry {
 }
 
 /// Resolved group specification used in the context of the template engine.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, Eq, Hash)]
 pub struct ResolvedGroup {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
