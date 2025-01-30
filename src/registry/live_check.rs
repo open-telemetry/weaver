@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use weaver_forge::registry::ResolvedGroup;
 use std::time::Duration;
 use weaver_semconv::group::GroupType;
-use weaver_semconv::requirement_level::RequirementLevel;
+use weaver_semconv::attribute::{RequirementLevel, BasicRequirementLevelSpec};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 
@@ -81,10 +81,10 @@ pub(crate) fn command(
     // use a hashset to keep track of what registry items are seen in the OTLP stream
     let mut registry_set: HashSet<&ResolvedGroup> = HashSet::new();
     for registry_item in registry_data.iter() {
-        registry_set.insert(registry_item);
+        let _insert_result = registry_set.insert(registry_item);
     }
     let mut report: Vec<String> = Vec::new();
-    let registry_data_seen: HashSet<&ResolvedGroup> = HashSet::new();
+    let mut registry_data_seen: HashSet<&ResolvedGroup> = HashSet::new();
     // @ToDo Implement the checking logic d
     for otlp_request in otlp_requests {
         match otlp_request {
@@ -93,13 +93,13 @@ pub(crate) fn command(
                     for scope_logs in logs.scope_logs {
                         for log_data in scope_logs.log_records {
                             // Check if log attributes match registry definition
-                            if let Some(registry_log) = registry_data.iter().find(|m| m.r#type == GroupType::Event && m.name == Some(log_data.event_name)) {
+                            if let Some(registry_log) = registry_data.iter().find(|m| m.r#type == GroupType::Event && m.name == Some(log_data.event_name.clone())) {
                                 // compare the attributes stored in _registry_log.attributes to log_data.attributes
-                                registry_data_seen.insert(registry_log);
+                                let _insert_result = registry_data_seen.insert(registry_log);
                                 // Validate log event name matches registry definition
-                                let mut attrs: HashSet<String> = log_data.attributes.iter().map(|attribute_key_value| attribute_key_value.key ).collect();
+                                let attrs: HashSet<String> = log_data.attributes.iter().map(|attribute_key_value| attribute_key_value.key.clone() ).collect();
                                 for attribute in registry_log.attributes.iter() {
-                                    if (attribute.requirement_level == RequirementLevel::Basic) && !(attrs.contains(&attribute.name)) {
+                                    if (attribute.requirement_level == RequirementLevel::Basic(BasicRequirementLevelSpec::Required)) && !(attrs.contains(&attribute.name)) {
                                         report.push(format!("Log event'{}' has missing required attribute '{}'", log_data.event_name, attribute.name));
                                     }
                                 }
@@ -116,8 +116,8 @@ pub(crate) fn command(
                 for metric in _metrics.resource_metrics {
                     for scope_metric in metric.scope_metrics {
                         for metric_data in scope_metric.metrics {
-                            if let Some(registry_metric) = registry_data.iter().find(|m| m.r#type == GroupType::Metric && m.metric_name == Some(metric_data.name)) {
-                                registry_data_seen.insert(registry_metric);
+                            if let Some(registry_metric) = registry_data.iter().find(|m| m.r#type == GroupType::Metric && m.metric_name == Some(metric_data.name.clone())) {
+                                let _insert_result = registry_data_seen.insert(registry_metric);
                                 if registry_metric.unit != Some(metric_data.unit) {
                                     // Report mismatched unit
                                     report.push(format!("Metric {} has a mismatched unit", metric_data.name));
@@ -137,15 +137,15 @@ pub(crate) fn command(
                     for scope_traces in traces.scope_spans {
                         for span_data in scope_traces.spans {
                             // Check if span attributes match registry definition
-                            if let Some(registry_span) = registry_data.iter().find(|m| m.r#type == GroupType::Span && m.id.replace("span.", "") == Some(span_data.name)) {
+                            if let Some(registry_span) = registry_data.iter().find(|m| m.r#type == GroupType::Span && m.id.replace("span.", "") == Some(span_data.name.clone()).unwrap()) {
                                 // compare the attributes stored in _registry_span.attributes to span_data.attributes
                                 // if they do match mark the span as seen
-                                registry_data_seen.insert(registry_span);
+                                let _insert_result = registry_data_seen.insert(registry_span);
                                 // store all attributes in a hashset to quickly check for attribute existence
-                                let mut attrs = span_data.attributes.iter().map(|attribute_key_value| attribute_key_value.key ).collect();
+                                let attrs: HashSet<String> = span_data.attributes.iter().map(|attribute_key_value| attribute_key_value.key.clone() ).collect();
 
                                 for attribute in registry_span.attributes.iter() {
-                                    if (attribute.requirement_level == RequirementLevel::Basic) && !attrs.contains(&attribute.name) {
+                                    if (attribute.requirement_level == RequirementLevel::Basic(BasicRequirementLevelSpec::Required)) && !attrs.contains(&attribute.name) {
                                         report.push(format!("Span event '{}' has missing required attribute '{}'", span_data.name, attribute.name));
                                     }
                                 }
@@ -162,18 +162,19 @@ pub(crate) fn command(
             }
             OtlpRequest::Stop(reason) => {
                 logger.warn(&format!("Stopping the listener, reason: {}", reason));
-
-                // difference between hashset registry_set - registry_data_seen = missing items in registry_data_seen
-                // difference between registry_data_seen - registry_set = missing items in registry_set
-                
-                let registry_missing = registry_set.difference(&registry_data_seen).collect();
-                let missing_items_in_registry_data_seen: HashSet<&ResolvedGroup> =
-                    registry_data_seen.d
-                
-                // loop through registry_set to print out ids that are not in registry_data_seen
-                for registry_item in registry_set.iter() {
-                    println!("Registry item {} not found in registry", registry_item.id);
+ 
+                // remove seen registry to report the missing ones
+                for seen_registry in registry_data_seen.into_iter() {
+                    if registry_set.contains(seen_registry) {
+                        let _insert_result = registry_set.remove(seen_registry);
+                    }
                 }
+            
+                // update report with missing registry data
+                for registry in registry_set.into_iter() {
+                    report.push(format!("Registry item '{}' not seen", registry.id));
+                }
+
                 
                 // iter through _report and print out each error
                 for report in report {

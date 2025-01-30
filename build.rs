@@ -12,17 +12,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // - Comment the following lines.
     // - Commit the changes.
 
-    // tonic_build::configure()
-    //     // .build_client(false)
-    //     .out_dir("src/registry/otlp/grpc_stubs")
-    //     .compile_protos(
-    //         &[
-    //             "src/registry/otlp/proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
-    //             "src/registry/otlp/proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
-    //             "src/registry/otlp/proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
-    //         ],
-    //         &["src/registry/otlp/proto"],
-    //     )?;
+    tonic_build::configure()
+        .build_client(false)
+        .out_dir("src/registry/otlp/grpc_stubs")
+        .compile_protos(
+            &[
+                "src/registry/otlp/proto/opentelemetry/proto/collector/logs/v1/logs_service.proto",
+                "src/registry/otlp/proto/opentelemetry/proto/collector/metrics/v1/metrics_service.proto",
+                "src/registry/otlp/proto/opentelemetry/proto/collector/trace/v1/trace_service.proto",
+            ],
+            &["src/registry/otlp/proto"],
+        )?;
 
     Ok(())
 }
