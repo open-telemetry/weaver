@@ -214,6 +214,8 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::Diff(args) => CmdResult::new(
             diff::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
         RegistrySubCommand::LiveCheck(args) => CmdResult::new(
             live_check::command(log.clone(), args),
             Some(args.diagnostic.clone()),
