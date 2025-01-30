@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
+* For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly). 
+* Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
 * Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
   * Added missing `after_resolution` policy checks to `generate` and `resolve` through the common code.
   * Removed the deprecated `--registry-git-sub-dir` option.

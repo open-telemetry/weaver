@@ -11,6 +11,7 @@ use serde::Serialize;
 use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
+use crate::registry::live_check::CheckRegistryArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -25,6 +26,8 @@ mod check;
 mod diff;
 mod generate;
 mod json_schema;
+mod live_check;
+mod otlp;
 mod resolve;
 mod search;
 mod stats;
@@ -115,6 +118,19 @@ pub enum RegistrySubCommand {
     /// - ...
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),
+
+    /// Check the conformance level of an OTLP stream against a semantic convention registry.
+    ///
+    /// This command starts an OTLP listener and compares each received OTLP message with the
+    /// registry provided as a parameter. When the command is stopped (see stop conditions),
+    /// a conformance/coverage report is generated. The purpose of this command is to be used
+    /// in a CI/CD pipeline to validate the telemetry stream from an application or service
+    /// against a registry.
+    ///
+    /// The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop
+    /// endpoint, and a maximum duration of no OTLP message reception.
+    #[clap(verbatim_doc_comment)]
+    LiveCheck(CheckRegistryArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -154,6 +170,17 @@ pub struct PolicyArgs {
     pub display_policy_coverage: bool,
 }
 
+impl PolicyArgs {
+    /// Create a new empty `PolicyArgs` with the skip flag set to true.
+    pub fn skip() -> Self {
+        Self {
+            policies: Vec::new(),
+            skip_policies: true,
+            display_policy_coverage: false,
+        }
+    }
+}
+
 /// Manage a semantic convention registry and return the exit code.
 pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
     match &command.command {
@@ -187,6 +214,8 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::Diff(args) => CmdResult::new(
             diff::command(log.clone(), args),
+        RegistrySubCommand::LiveCheck(args) => CmdResult::new(
+            live_check::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }
