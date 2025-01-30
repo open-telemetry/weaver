@@ -169,16 +169,20 @@ impl Attribute {
     /// Creates a new boolean attribute.
     /// Note: This constructor is used for testing purposes.
     #[cfg(test)]
-    pub(crate) fn boolean<S: AsRef<str>>(name: S, brief: S, note: S) -> Self {
+    pub(crate) fn boolean(
+        name: impl Into<String>,
+        brief: impl Into<String>,
+        note: impl Into<String>,
+    ) -> Self {
         Self {
-            name: name.as_ref().to_owned(),
+            name: name.into().to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean),
-            brief: brief.as_ref().to_owned(),
+            brief: brief.into().to_owned(),
             examples: None,
             tag: None,
             requirement_level: Default::default(),
             sampling_relevant: None,
-            note: note.as_ref().to_owned(),
+            note: note.into().to_owned(),
             stability: None,
             deprecated: None,
             prefix: false,

@@ -204,12 +204,12 @@ impl ResolvedTelemetrySchema {
 
     /// Get the groups of a specific type from the resolved telemetry schema.
     #[must_use]
-    pub fn groups(&self, group_type: GroupType) -> HashMap<String, &Group> {
+    pub fn groups(&self, group_type: GroupType) -> HashMap<&str, &Group> {
         self.registry
             .groups
             .iter()
             .filter(|group| group.r#type == group_type)
-            .map(|group| (group.id.clone(), group))
+            .map(|group| (group.id.as_str(), group))
             .collect()
     }
 
@@ -351,8 +351,8 @@ impl ResolvedTelemetrySchema {
     fn diff_signals(
         &self,
         schema_item_type: SchemaItemType,
-        latest_signals: &HashMap<String, &Group>,
-        baseline_signals: &HashMap<String, &Group>,
+        latest_signals: &HashMap<&str, &Group>,
+        baseline_signals: &HashMap<&str, &Group>,
         changes: &mut SchemaChanges,
     ) {
         // Collect all the information related to the signals that have been
@@ -387,7 +387,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Deprecated {
-                                    name: signal_name.clone(),
+                                    name: (*signal_name).to_owned(),
                                     note: deprecated.to_string(),
                                 },
                             );
@@ -398,7 +398,7 @@ impl ResolvedTelemetrySchema {
                 changes.add_change(
                     schema_item_type,
                     SchemaItemChange::Added {
-                        name: signal_name.clone(),
+                        name: (*signal_name).to_owned(),
                     },
                 );
             }
@@ -413,7 +413,7 @@ impl ResolvedTelemetrySchema {
                 changes.add_change(
                     schema_item_type,
                     SchemaItemChange::Removed {
-                        name: signal_name.clone(),
+                        name: (*signal_name).to_owned(),
                     },
                 );
             }

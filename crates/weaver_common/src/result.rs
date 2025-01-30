@@ -63,7 +63,7 @@ where
     }
 
     /// Returns the number of non-fatal errors, or 1 if the result is a fatal error, 0 otherwise.
-    pub fn error_count(&self) -> usize {
+    pub fn num_errors(&self) -> usize {
         match self {
             WResult::Ok(_) => 0,
             WResult::OkWithNFEs(_, errors) => errors.len(),
