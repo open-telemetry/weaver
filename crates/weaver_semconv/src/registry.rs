@@ -116,6 +116,7 @@ impl SemConvRegistry {
         registry_repo: &RegistryRepo,
         semconv_specs: Vec<(String, SemConvSpec)>,
     ) -> Result<SemConvRegistry, Error> {
+        // ToDo We should use: https://docs.rs/semver/latest/semver/ and URL parser that can give us the last element of the path to send to the parser.
         static VERSION_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
