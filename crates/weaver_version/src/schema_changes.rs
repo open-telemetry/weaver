@@ -3,14 +3,14 @@
 //! Data structures and utilities for tracking schema changes between versions.
 
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// The type of schema item.
 #[derive(Debug, Serialize, Hash, Eq, PartialEq, Copy, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum SchemaItemType {
-    /// Attributes
-    Attributes,
+    /// Registry attributes
+    RegistryAttributes,
     /// Metrics
     Metrics,
     /// Events
@@ -47,43 +47,48 @@ pub struct RegistryManifest {
 
 /// Represents the different types of changes that can occur between
 /// two versions of a schema. This covers changes such as adding, removing,
-/// renaming, and deprecating schema items (attributes, metrics, etc.).
+/// renaming, and deprecating telemetry objects (attributes, metrics, etc.).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SchemaItemChange {
-    /// An item (e.g. attribute, metric, ...) has been added
-    /// into the most recent version of the schema.
+    /// A top-level telemetry object (e.g., attribute, metric, etc.) was added to the head registry.
     Added {
-        /// The name of the added item.
+        /// The name of the added telemetry object.
         name: String,
     },
-    /// One or more items have been renamed into a new item.
-    RenamedToNew {
-        /// The old names of the items that have been renamed.
-        old_names: HashSet<String>,
-        /// The new name of the items that have been renamed.
+    /// A top-level telemetry object from the baseline registry was renamed in the head registry.
+    Renamed {
+        /// The old name of the telemetry object that has been renamed.
+        old_name: String,
+        /// The new name of the telemetry object that has been renamed.
         new_name: String,
+        /// A note providing further context.
+        note: String,
     },
-    /// One or more items have been renamed into an existing item.
-    RenamedToExisting {
-        /// The old names of the items that have been renamed.
-        old_names: HashSet<String>,
-        /// The current name of the items that have been renamed.
-        current_name: String,
-    },
-    /// An item has been deprecated.
+    /// A top-level telemetry object from the baseline registry was marked as deprecated in the head
+    /// registry.
     Deprecated {
-        /// The name of the deprecated item.
+        /// The name of the deprecated telemetry object.
         name: String,
         /// A deprecation note providing further context.
         note: String,
     },
-    /// An item has been removed.
+    /// A top-level telemetry object from the baseline registry was removed in the head registry.
     Removed {
-        /// The name of the removed item.
+        /// The name of the removed telemetry object.
         name: String,
     },
+    /// A placeholder for complex or unclear schema changes that do not fit into existing types.
+    /// This type serves as a fallback when no specific category applies, with the expectation that
+    /// some of these changes will be reclassified into more precise schema types in the future.
+    Uncategorized {
+        /// A note providing further context.
+        note: String,
+    },
+    /// One or more fields in a top-level telemetry object have been updated in the head registry.
+    /// Note: This is a placeholder for future use.
+    Updated {},
 }
 
 impl SchemaChanges {
@@ -97,7 +102,7 @@ impl SchemaChanges {
         };
         let _ = schema_changes
             .changes
-            .insert(SchemaItemType::Attributes, Vec::new());
+            .insert(SchemaItemType::RegistryAttributes, Vec::new());
         let _ = schema_changes
             .changes
             .insert(SchemaItemType::Metrics, Vec::new());
@@ -127,20 +132,20 @@ impl SchemaChanges {
         self.changes.values().map(|v| v.len()).sum()
     }
 
-    /// Counts the number of attribute changes in the schema.
+    /// Counts the number of registry attribute changes in the schema.
     #[must_use]
-    pub fn count_attribute_changes(&self) -> usize {
+    pub fn count_registry_attribute_changes(&self) -> usize {
         self.changes
-            .get(&SchemaItemType::Attributes)
+            .get(&SchemaItemType::RegistryAttributes)
             .map(|v| v.len())
             .unwrap_or(0)
     }
 
-    /// Counts the number of added attributes in the schema.
+    /// Counts the number of added registry attributes in the schema.
     #[must_use]
-    pub fn count_added_attributes(&self) -> usize {
+    pub fn count_added_registry_attributes(&self) -> usize {
         self.changes
-            .get(&SchemaItemType::Attributes)
+            .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
                 v.iter()
                     .filter(|c| matches!(c, SchemaItemChange::Added { .. }))
@@ -149,11 +154,11 @@ impl SchemaChanges {
             .unwrap_or(0)
     }
 
-    /// Counts the number of deprecated attributes in the schema.
+    /// Counts the number of deprecated registry attributes in the schema.
     #[must_use]
-    pub fn count_deprecated_attributes(&self) -> usize {
+    pub fn count_deprecated_registry_attributes(&self) -> usize {
         self.changes
-            .get(&SchemaItemType::Attributes)
+            .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
                 v.iter()
                     .filter(|c| matches!(c, SchemaItemChange::Deprecated { .. }))
@@ -162,37 +167,24 @@ impl SchemaChanges {
             .unwrap_or(0)
     }
 
-    /// Counts the number of renamed to new attributes in the schema.
+    /// Counts the number of renamed registry attributes in the schema.
     #[must_use]
-    pub fn count_renamed_to_new_attributes(&self) -> usize {
+    pub fn count_renamed_registry_attributes(&self) -> usize {
         self.changes
-            .get(&SchemaItemType::Attributes)
+            .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
                 v.iter()
-                    .filter(|c| matches!(c, SchemaItemChange::RenamedToNew { .. }))
+                    .filter(|c| matches!(c, SchemaItemChange::Renamed { .. }))
                     .count()
             })
             .unwrap_or(0)
     }
 
-    /// Counts the number of renamed to existing attributes in the schema.
+    /// Counts the number of removed registry attributes in the schema.
     #[must_use]
-    pub fn count_renamed_to_existing_attributes(&self) -> usize {
+    pub fn count_removed_registry_attributes(&self) -> usize {
         self.changes
-            .get(&SchemaItemType::Attributes)
-            .map(|v| {
-                v.iter()
-                    .filter(|c| matches!(c, SchemaItemChange::RenamedToExisting { .. }))
-                    .count()
-            })
-            .unwrap_or(0)
-    }
-
-    /// Counts the number of removed attributes in the schema.
-    #[must_use]
-    pub fn count_removed_attributes(&self) -> usize {
-        self.changes
-            .get(&SchemaItemType::Attributes)
+            .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
                 v.iter()
                     .filter(|c| matches!(c, SchemaItemChange::Removed { .. }))
@@ -201,27 +193,14 @@ impl SchemaChanges {
             .unwrap_or(0)
     }
 
-    /// Returns all the renamed to existing attributes changes.
+    /// Returns all the renamed registry attributes changes.
     #[must_use]
-    pub fn renamed_to_existing_attributes(&self) -> Vec<&SchemaItemChange> {
+    pub fn renamed_registry_attributes(&self) -> Vec<&SchemaItemChange> {
         self.changes
-            .get(&SchemaItemType::Attributes)
+            .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
                 v.iter()
-                    .filter(|c| matches!(c, SchemaItemChange::RenamedToExisting { .. }))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    /// Returns all the renamed to new attributes changes.
-    #[must_use]
-    pub fn renamed_to_new_attributes(&self) -> Vec<&SchemaItemChange> {
-        self.changes
-            .get(&SchemaItemType::Attributes)
-            .map(|v| {
-                v.iter()
-                    .filter(|c| matches!(c, SchemaItemChange::RenamedToNew { .. }))
+                    .filter(|c| matches!(c, SchemaItemChange::Renamed { .. }))
                     .collect()
             })
             .unwrap_or_default()
@@ -266,14 +245,14 @@ impl SchemaChanges {
                     "  Renamed to new: {}\n",
                     changes
                         .iter()
-                        .filter(|c| matches!(c, SchemaItemChange::RenamedToNew { .. }))
+                        .filter(|c| matches!(c, SchemaItemChange::Renamed { .. }))
                         .count()
                 ));
                 result.push_str(&format!(
                     "  Renamed to existing: {}\n",
                     changes
                         .iter()
-                        .filter(|c| matches!(c, SchemaItemChange::RenamedToExisting { .. }))
+                        .filter(|c| matches!(c, SchemaItemChange::Renamed { .. }))
                         .count()
                 ));
                 result.push_str(&format!(
@@ -298,7 +277,7 @@ impl SchemaChanges {
         result.push_str("Schema Changes:\n");
 
         print_changes(
-            self.changes.get(&SchemaItemType::Attributes),
+            self.changes.get(&SchemaItemType::RegistryAttributes),
             "Attributes",
             &mut result,
         );
