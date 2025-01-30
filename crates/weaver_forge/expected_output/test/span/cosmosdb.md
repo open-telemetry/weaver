@@ -6,7 +6,7 @@
 Call-level attributes for Cosmos DB.
 
 Prefix: 
-Kind: none
+Kind: client
 
 ### Attributes
 

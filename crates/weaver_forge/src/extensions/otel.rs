@@ -279,7 +279,8 @@ pub(crate) fn is_stable(input: &Value) -> bool {
 }
 
 /// Checks if the input value is an object with a field named "stability" that has any value
-/// other than "stable". Otherwise, it returns false.
+/// other than "stable". Otherwise, it returns true. This implies that undefined stability
+/// is considered experimental for safety.
 #[must_use]
 pub(crate) fn is_experimental(input: &Value) -> bool {
     let result = input.get_attr("stability");
@@ -289,7 +290,7 @@ pub(crate) fn is_experimental(input: &Value) -> bool {
             return stability != "stable";
         }
     }
-    false
+    true
 }
 
 /// Checks if the input value is an object with a field named "stability" that has the value "deprecated".
@@ -762,7 +763,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: "test".to_owned(),
         });
-        assert!(!is_experimental(&object));
+        assert!(is_experimental(&object));
     }
 
     #[test]

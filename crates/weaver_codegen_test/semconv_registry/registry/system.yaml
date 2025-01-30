@@ -16,6 +16,7 @@ groups:
               value: 'nice'
             - id: idle
               value: 'idle'
+              stability: stable
             - id: iowait
               value: 'iowait'
               stability: experimental

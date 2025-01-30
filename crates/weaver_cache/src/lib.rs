@@ -537,7 +537,7 @@ mod tests {
         let count = walkdir::WalkDir::new(repo_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "yaml"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "yaml"))
             .count();
         count
     }
