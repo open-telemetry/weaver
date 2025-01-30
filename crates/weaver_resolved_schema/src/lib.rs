@@ -185,8 +185,7 @@ impl ResolvedTelemetrySchema {
         self.registry
             .groups
             .iter()
-            .filter(|group| group.r#type == GroupType::AttributeGroup)
-            .filter(|group| group.id.starts_with("registry."))
+            .filter(|group| group.is_registry_attribute_group())
             .flat_map(|group| {
                 group.attributes.iter().map(|attr_ref| {
                     // An attribute ref is a reference to an attribute in the catalog.
