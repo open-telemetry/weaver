@@ -1,4 +1,4 @@
-{%- set item_types = ["attributes", "metrics", "events", "spans", "resources"] %}
+{%- set item_types = ["registry_attributes", "metrics", "events", "spans", "resources"] %}
 
 {{ ("Schema Changes between `" ~ ctx.head.semconv_version ~ "` and `" ~ ctx.baseline.semconv_version ~ "`") | ansi_red | ansi_bold }}
 

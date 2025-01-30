@@ -14,8 +14,8 @@ registry, as well as the diffing process. This diff report can be used to:
 - And more.
 
 > Note: The current implementation of the diffing process focuses on the top-level
-items attributes, metrics, events, spans, resources and does not compare the fields
-of those top-level items.
+telemetry object attributes, metrics, events, spans, resources and does not compare
+the fields of those top-level items.
 
 ## Data Model
 
@@ -89,28 +89,10 @@ The following rules are applied during the diffing process to generate the schem
 changes for attributes:
 
 1. Deprecations:
-  - If an attribute in the latest schema is now marked as deprecated, it is
-    classified into the following cases:
-    - Renamed to new: Attributes in the deprecated metadata pointing to a new
-      attribute are marked as renamed_to_new.
-    - Renamed to existing: Attributes in the deprecated metadata pointing to an
-      already existing attribute are marked as renamed_to_existing.
-    - Deprecated without replacement: The attribute is marked as deprecated with
-      no replacement.
-1. Additions:
-  - If an attribute exists in the latest schema but not in the baseline, it is
-    classified as a new attribute.
-  - However, if this new attribute is referenced in the deprecated metadata of an
-    old attribute, it is considered a renamed attribute.
-1. Removals:
-  - Attributes present in the baseline but missing in the latest schema are marked
-    as removed. This should not happen if registry evolution processes are followed.
-
-1. Deprecations:
-  - If an attribute in the latest schema is now marked as deprecated and was not before, the schema change type is
-    directly derived from the `deprecated.action` field.
   - A deprecated attribute can result in a `renamed`, `deprecated`, or `uncategorized` schema change event, depending
     on the specified action.
+  - If an attribute in the latest schema is now marked as deprecated and was not before, the schema change type is
+    directly derived from the `deprecated.action` field.
 1. Additions:
   - If an attribute exists in the latest schema but not in the baseline, it is classified as a new attribute (`added`).
 1. Removals:

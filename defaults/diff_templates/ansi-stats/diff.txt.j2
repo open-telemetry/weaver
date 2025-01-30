@@ -1,7 +1,7 @@
 
 {{ ("Summary of Schema Changes between " ~ ctx.head.semconv_version ~ " and " ~ ctx.baseline.semconv_version) | ansi_red | ansi_bold }}
 
-{% set item_types = ["attributes", "metrics", "events", "spans", "resources"] %}
+{% set item_types = ["registry_attributes", "metrics", "events", "spans", "resources"] %}
 {% for item_type in item_types %}
 {% set added_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | count %}
 {% set renamed_to_new_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_new') | count %}

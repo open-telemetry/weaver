@@ -1,4 +1,4 @@
-{%- set item_types = ["attributes", "metrics", "events", "spans", "resources"] -%}
+{%- set item_types = ["registry_attributes", "metrics", "events", "spans", "resources"] -%}
 # Schema Changes between {{ ctx.baseline.semconv_version }} and {{ ctx.head.semconv_version }}
 {% for item_type in item_types %}
 {% if ctx.changes[item_type] %}
