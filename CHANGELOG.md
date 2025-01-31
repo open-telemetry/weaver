@@ -12,6 +12,9 @@ What's changed
   new `deprecated` structured format. ([#400](https://github.com/open-telemetry/weaver/pull/400/) by @lquerel).
   * The `deprecated` field is now a structured field defining the precise reason for deprecation. The semantic
     conventions must be updated to adopt this new format.
+  * The changes related to the `deprecated` field (i.e., string → struct) also have a potential impact on certain
+    templates that reference the `deprecated` field as containing text. These templates will need to be updated to use
+    the `brief` field, which provides a textual explanation of the reasons for the deprecation.
 * For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly). 
 * Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
 * Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
