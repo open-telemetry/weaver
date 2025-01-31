@@ -16,20 +16,25 @@ use std::fmt::{Display, Formatter};
 /// The different ways to deprecate an attribute, a metric, ...
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-#[serde(tag = "action")]
+#[serde(tag = "reason")]
 pub enum Deprecated {
-    /// The object containing the deprecated field has been renamed to an
-    /// existing object or to a new object.
+    /// The telemetry object containing the deprecated field has been renamed to an
+    /// existing or a new telemetry object.
     Renamed {
-        /// The new name of the field.
+        /// The new name of the telemetry object.
         renamed_to: String,
     },
-    /// The object containing the deprecated field has been deprecated
-    /// either because it no longer exists, has been split into multiple fields,
-    /// has been renamed in various ways across different contexts, or for any other reason.
+    /// The telemetry object containing the deprecated field has been obsoleted
+    /// because it no longer exists and has no valid replacement.
     ///
-    /// The `note` field should contain the reason why the field has been deprecated.
-    Deprecated,
+    /// The `brief` field should contain the reason why the field has been obsoleted.
+    Obsoleted,
+    /// The telemetry object containing the deprecated field has been deprecated for
+    /// complex reasons (split, merge, ...) which are currently not precisely define
+    /// in the supported deprecation reasons.
+    ///
+    /// The `brief` field should contain the reason why the field has been obsoleted.
+    Uncategorized,
 }
 
 /// Custom deserialization function to handle both old and new formats.
@@ -59,7 +64,7 @@ where
         where
             E: de::Error,
         {
-            Ok(Deprecated::Deprecated)
+            Ok(Deprecated::Obsoleted)
         }
 
         // Handle the new format (a map with action and optionally `rename_to` or `note`)
@@ -91,7 +96,7 @@ where
                         renamed_to: rename_to,
                     })
                 }
-                Some("deprecated") => Ok(Deprecated::Deprecated),
+                Some("deprecated") => Ok(Deprecated::Obsoleted),
                 _ => Err(de::Error::missing_field("action")),
             }
         }
@@ -154,8 +159,11 @@ impl Display for Deprecated {
             } => {
                 write!(f, "Replaced by `{}`.", rename_to)
             }
-            Deprecated::Deprecated => {
+            Deprecated::Obsoleted => {
                 write!(f, "Deprecated")
+            }
+            Deprecated::Uncategorized => {
+                write!(f, "Uncategorized")
             }
         }
     }
@@ -184,8 +192,8 @@ mod tests {
 
         let items: Vec<Item> = serde_yaml::from_str(yaml_data).unwrap();
         assert_eq!(items.len(), 3);
-        assert_eq!(items[0].deprecated, Some(Deprecated::Deprecated));
-        assert_eq!(items[1].deprecated, Some(Deprecated::Deprecated {}));
+        assert_eq!(items[0].deprecated, Some(Deprecated::Obsoleted));
+        assert_eq!(items[1].deprecated, Some(Deprecated::Obsoleted {}));
         assert_eq!(
             items[2].deprecated,
             Some(Deprecated::Renamed {

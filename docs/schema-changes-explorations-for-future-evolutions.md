@@ -1,9 +1,7 @@
 # Towards Better Support for Changes in Semantic Conventions
 
-> NOTE: This document aims to help finalize PR #400. It discusses the use cases we want to support, the design
+> NOTE: This document discusses the more advanced use cases that we could support in the future, the design
 > principles we want to follow, and the main concrete changes in the semantic conventions observed since version 1.26.
-> Following this conversation, I will create a multi-step plan and make the necessary changes to PR #400 to complete the
-> first step of this plan. 
 
 This document describes the different types of schema changes that can be made to a semantic convention registry and
 outlines how to handle them both within the semantic convention registry and in the schema changes format generated
@@ -92,32 +90,14 @@ Where `<change_type>` can be one of the following:
 - `conditionally_renamed`: An item was renamed based on specific conditions.
 - `split`: An item was split into multiple items.
 - `merged`: Multiple items were merged into a single item.
-- `deprecated`: An item was deprecated in the head registry.
-- `conditionally_deprecated`: An item was deprecated based on specific conditions.
+- `obsoleted`: An item was obsoleted in the head registry.
+- `conditionally_obsoleted`: An item was obsoleted based on specific conditions.
 - `generalized`: An item was replaced by a more general item.
 - `updated`: An item was updated in the head registry.
 
 Each `<change_type>` conveys a specific semantics of change. This list is not exhaustive. Each `<change_type>` is
 associated with a specific set of fields that characterize this type of change (see the next section and the examples
 to see a list of those fields).
-
-## Inventory of Decisions to Be Made
-
-Before diving into concrete case studies, the following list briefly outlines the types of decisions we aim to make by
-the end of this exercise:
-
-- We need to determine, among the types of changes observed in the registries, which “first-class” changes we want to
-  fully support, which are stretch goals, and which we do not want to support at all.
-- We need to finalize the structure of the deprecated field in the semantic conventions.
-- We need to define how the backward and forward migration scripts will be represented. The precise choice of the
-  language (e.g., CEL, OTTL) for the transformations is a stretch goal.
-- We need to finalize the structure of the schema_changes_hint field, used to specify changes that do not result in
-  deprecations in the semantic conventions (to be done).
-- We need to finalize the structure of the schema changes format.
-- We need to ensure that the chosen structures for all these artifacts are sufficiently flexible for future evolution.
-- We need to establish an implementation plan for all of this. For example, in phase 1, we could support the top-level
-  entities registry_attributes, metrics, events, etc.
-
 
 ## Examples of Real Changes Observed Since Version 1.26
 
@@ -175,7 +155,7 @@ groups:
       - id: process.cpu.state
         brief: "Deprecated, use `cpu.mode` instead."
         deprecated:
-          action: renamed
+          reason: renamed
           new_name: cpu.mode
         type: ...
         stability: experimental
@@ -240,7 +220,7 @@ groups:
         type: string
         brief: Deprecated, use `server.address` on client spans and `client.address` on server spans.
         deprecated:
-          action: conditionally_renamed
+          reason: conditionally_renamed
           forward: >
             switch span_kind {
               case 'client' => attributes['server.address'] = attributes['net.peer.name'],
@@ -313,7 +293,7 @@ groups:
         type: string
         brief: 'Deprecated, use `server.address`, `server.port` attributes instead.'
         deprecated:
-          action: split
+          reason: split
           into: ["server.address", "server.port"]
           forward: >
             attributes['server.address'] = attributes['db.connection_string'].split(':')[0]
@@ -380,25 +360,25 @@ groups:
     attributes:
       - id: "db.cassandra.table"
         deprecated:
-          type: merged
+          reason: merged
           merged_to: "db.collection.name"
           backward: >
             if attributes['db.system'] == 'cassandra' then attributes['db.cassandra.table'] = attributes['db.collection.name']
       - id: "db.cosmosdb.container"
         deprecated:
-          type: merged
+          reason: merged
           merged_to: "db.collection.name"
           backward: >
             if attributes['db.system'] == 'cosmosdb' then attributes['db.cosmosdb.container'] = attributes['db.collection.name']
       - id: "db.mongodb.collection"
         deprecated:
-          type: merged
+          reason: merged
           merged_to: "db.collection.name"
           backward: >
             if attributes['db.system'] == 'mongodb' then attributes['db.mongodb.collection'] = attributes['db.collection.name']
       - id: "db.sql.table"
         deprecated:
-          type: merged
+          reason: merged
           merged_to: "db.collection.name"
           backward: >
             if attributes['db.system'] == 'sql' then attributes['db.sql.table'] = attributes['db.collection.name']
@@ -479,7 +459,7 @@ groups:
         stability: experimental
 ```
 
-In the next version, the `db.jdbc.driver_classname` attribute is deprecated without a replacement:
+In the next version, the `db.jdbc.driver_classname` attribute is obsoleted without a replacement:
 
 ```yaml
 # Version n+1
@@ -492,7 +472,7 @@ groups:
         type: string
         brief: 'Removed, no replacement at this time.'
         deprecated:
-          action: deprecated
+          reason: obsoleted
         stability: experimental
 ```
 
@@ -506,7 +486,7 @@ baseline:
 changes:
   registry_attributes:
     - name: db.jdbc.driver_classname
-      type: deprecated
+      type: obsoleted
       note: Removed, no replacement at this time.
 ```
 
@@ -541,7 +521,7 @@ groups:
         type: string
         brief: 'Deprecated, no general replacement at this time. For Elasticsearch, use `db.elasticsearch.node.name` instead.'
         deprecated:
-          action: conditionally_deprecated
+          reason: conditionally_obsoleted
           forward: >
             if attributes['db.system'] == 'elasticsearch' then attributes['db.elasticsearch.node.name'] = attributes['db.instance.id']
             else drop attributes['db.instance.id']
@@ -563,7 +543,7 @@ baseline:
 changes:
   registry_attributes:
       - name: db.instance.id
-        type: conditionally_deprecated
+        type: conditionally_obsoleted
         forward: >
             if attributes['db.system'] == 'elasticsearch' then attributes['db.elasticsearch.node.name'] = attributes['db.instance.id']
             else drop attributes['db.instance.id']
@@ -593,7 +573,7 @@ groups:
   - id: "db.table.name"
     note: Deprecated, db.collection.name now represents other entities too (indexes, views, table, etc).
     deprecated:
-      action: generalized
+      reason: generalized
       generalized_to: "db.collection.name"
       # ...
   - id: "db.collection.name"
@@ -721,7 +701,7 @@ groups:
     metric_name: db.client.connections.create_time
     brief: "Deprecated, use `db.client.connection.create_time` instead. Note: the unit also changed from `ms` to `s`."
     deprecated:
-      action: renamed
+      reason: renamed
       renamed_to: `db.client.connection.create_time`
       fields:
         - name: unit

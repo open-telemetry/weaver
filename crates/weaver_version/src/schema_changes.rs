@@ -66,18 +66,16 @@ pub enum SchemaItemChange {
         /// A note providing further context.
         note: String,
     },
-    /// A top-level telemetry object from the baseline registry was marked as deprecated in the head
-    /// registry.
-    Deprecated {
-        /// The name of the deprecated telemetry object.
+    /// One or more fields in a top-level telemetry object have been updated in the head registry.
+    /// Note: This is a placeholder for future use.
+    Updated {},
+    /// A top-level telemetry object that is now discontinued without a valid replacement in the
+    /// head registry.
+    Obsoleted {
+        /// The name of the obsoleted telemetry object.
         name: String,
         /// A deprecation note providing further context.
         note: String,
-    },
-    /// A top-level telemetry object from the baseline registry was removed in the head registry.
-    Removed {
-        /// The name of the removed telemetry object.
-        name: String,
     },
     /// A placeholder for complex or unclear schema changes that do not fit into existing types.
     /// This type serves as a fallback when no specific category applies, with the expectation that
@@ -86,9 +84,11 @@ pub enum SchemaItemChange {
         /// A note providing further context.
         note: String,
     },
-    /// One or more fields in a top-level telemetry object have been updated in the head registry.
-    /// Note: This is a placeholder for future use.
-    Updated {},
+    /// A top-level telemetry object from the baseline registry was removed in the head registry.
+    Removed {
+        /// The name of the removed telemetry object.
+        name: String,
+    },
 }
 
 impl SchemaChanges {
@@ -161,7 +161,7 @@ impl SchemaChanges {
             .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
                 v.iter()
-                    .filter(|c| matches!(c, SchemaItemChange::Deprecated { .. }))
+                    .filter(|c| matches!(c, SchemaItemChange::Obsoleted { .. }))
                     .count()
             })
             .unwrap_or(0)
@@ -259,7 +259,7 @@ impl SchemaChanges {
                     "  Deprecated: {}\n",
                     changes
                         .iter()
-                        .filter(|c| matches!(c, SchemaItemChange::Deprecated { .. }))
+                        .filter(|c| matches!(c, SchemaItemChange::Obsoleted { .. }))
                         .count()
                 ));
                 result.push_str(&format!(
