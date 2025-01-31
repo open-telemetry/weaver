@@ -6,12 +6,12 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* **Breaking Change**: Added a new `weaver registry diff` command to generate a diff report between two versions of the
-  semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. Although the
-  text-based `deprecated` field is still supported for compatibility reason, it's now expected to use the new
-  `deprecated` structured format for future semantic conventions definitions. 
-  ([#400](https://github.com/open-telemetry/weaver/pull/400/) by @lquerel).
-  * The `deprecated` field is now a structured field defining the precise reason for a deprecation.
+* **Breaking Change**: Introduced a new `weaver registry diff` command to generate a diff report between two versions of
+  the semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. While the
+  text-based `deprecated` field is still supported for compatibility reasons, future semantic conventions should use the
+  new `deprecated` structured format. ([#400](https://github.com/open-telemetry/weaver/pull/400/) by @lquerel).
+  * The `deprecated` field is now a structured field defining the precise reason for deprecation. The semantic
+    conventions must be updated to adopt this new format.
 * For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly). 
 * Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
 * Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
