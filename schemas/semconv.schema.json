@@ -72,7 +72,7 @@
 				},
 				{
 					"type": "object",
-					"description": "The telemetry object containing the deprecated field has been deprecated for complex reasons (split, merge, ...) which are currently not precisely define in the supported deprecation reasons.",
+					"description": "The telemetry object containing the deprecated field has been deprecated for complex reasons (split, merge, ...) which are currently not precisely defined in the supported deprecation reasons.",
 					"properties": {
 						"reason": {
 							"const": "uncategorized"
