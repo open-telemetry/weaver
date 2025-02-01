@@ -30,10 +30,10 @@ pub enum Deprecated {
     /// The `brief` field should contain the reason why the field has been obsoleted.
     Obsoleted,
     /// The telemetry object containing the deprecated field has been deprecated for
-    /// complex reasons (split, merge, ...) which are currently not precisely define
+    /// complex reasons (split, merge, ...) which are currently not precisely defined
     /// in the supported deprecation reasons.
     ///
-    /// The `brief` field should contain the reason why the field has been obsoleted.
+    /// The `brief` field should contain the reason for this uncategorized deprecation.
     Uncategorized,
 }
 
