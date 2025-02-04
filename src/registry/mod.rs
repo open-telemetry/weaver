@@ -114,7 +114,7 @@ pub enum RegistrySubCommand {
     ///
     /// This diff can then be rendered in multiple formats:
     /// - a console-friendly format (default: ansi),
-    /// - a structured document in JSON or YAML format,
+    /// - a structured document in JSON format,
     /// - ...
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),

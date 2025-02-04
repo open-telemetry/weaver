@@ -34,7 +34,7 @@ pub struct RegistryDiffArgs {
     baseline_registry: RegistryPath,
 
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
-    /// yaml, and markdown.
+    /// and markdown.
     #[arg(long, default_value = "ansi")]
     diff_format: String,
 
@@ -43,9 +43,9 @@ pub struct RegistryDiffArgs {
     diff_template: PathBuf,
 
     /// Path to the directory where the generated artifacts will be saved.
-    /// Default is the `output` directory.
-    #[arg(default_value = "output")]
-    output: PathBuf,
+    /// If not specified, the diff report is printed to stdout
+    #[arg(short, long)]
+    output: Option<PathBuf>,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
@@ -78,6 +78,15 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &RegistryDiffArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let mut output = PathBuf::from("output");
+    let output_directive = if let Some(path_buf) = &args.output {
+        output = path_buf.clone();
+        OutputDirective::File
+    } else {
+        logger.mute();
+        OutputDirective::Stdout
+    };
+
     let mut diag_msgs = DiagnosticMessages::empty();
     logger.log("Weaver Registry Diff");
     logger.loading(&format!("Checking registry `{}`", args.registry.registry));
@@ -124,16 +133,11 @@ pub(crate) fn command(
     let config = WeaverConfig::try_from_loader(&loader)
         .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
     let engine = TemplateEngine::new(config, loader, Params::default());
-    let output_directive = if args.diff_format == "ansi" || args.diff_format == "ansi-stats" {
-        OutputDirective::Stdout
-    } else {
-        OutputDirective::File
-    };
 
     match engine.generate(
         logger.clone(),
         &changes,
-        args.output.as_path(),
+        output.as_path(),
         &output_directive,
     ) {
         Ok(_) => {}
@@ -146,12 +150,99 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        quiet_mode: args.output.is_none(),
     })
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::cli::{Cli, Commands};
+    use crate::registry::diff::RegistryDiffArgs;
+    use crate::registry::{
+        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+    };
+    use crate::run_command;
+    use std::fs::OpenOptions;
+    use tempdir::TempDir;
+    use weaver_common::TestLogger;
+    use weaver_version::schema_changes::SchemaChanges;
+
     #[test]
-    fn test_registry_diff() {}
+    fn test_registry_diff_exit_code() {
+        let logger = TestLogger::new();
+        let cli = Cli {
+            debug: 0,
+            quiet: false,
+            future: false,
+            command: Some(Commands::Registry(RegistryCommand {
+                command: RegistrySubCommand::Diff(RegistryDiffArgs {
+                    registry: RegistryArgs {
+                        registry: RegistryPath::LocalFolder {
+                            path: "tests/diff/registry_head/".to_owned(),
+                        },
+                        follow_symlinks: false,
+                    },
+                    baseline_registry: RegistryPath::LocalFolder {
+                        path: "tests/diff/registry_baseline/".to_owned(),
+                    },
+                    diff_format: "json".to_owned(),
+                    diff_template: Default::default(),
+                    output: None,
+                    diagnostic: Default::default(),
+                }),
+            })),
+        };
+
+        let exit_directive = run_command(&cli, logger.clone());
+        // The command should succeed.
+        assert_eq!(exit_directive.exit_code, 0);
+    }
+
+    #[test]
+    fn test_registry_diff_cmd() {
+        let temp_dir = TempDir::new("output").expect("Failed to create temp file");
+
+        let logger = TestLogger::new();
+        let registry_cmd = RegistryCommand {
+            command: RegistrySubCommand::Diff(RegistryDiffArgs {
+                registry: RegistryArgs {
+                    registry: RegistryPath::LocalFolder {
+                        path: "tests/diff/registry_head/".to_owned(),
+                    },
+                    follow_symlinks: false,
+                },
+                baseline_registry: RegistryPath::LocalFolder {
+                    path: "tests/diff/registry_baseline/".to_owned(),
+                },
+                diff_format: "json".to_owned(),
+                diff_template: Default::default(),
+                output: Some(temp_dir.path().to_path_buf()),
+                diagnostic: Default::default(),
+            }),
+        };
+
+        let cmd_result = semconv_registry(logger.clone(), &registry_cmd);
+        assert_eq!(cmd_result.command_result.ok().unwrap().exit_code, 0);
+
+        // Read the output file and check that it contains the expected JSON.
+        let output_file = temp_dir.path().join("diff.json");
+        let schema_changes: SchemaChanges = {
+            let file = OpenOptions::new()
+                .read(true)
+                .open(&output_file)
+                .expect("Failed to open file");
+            serde_json::from_reader(file).expect("Failed to parse JSON")
+        };
+        assert_eq!(schema_changes.count_changes(), 25);
+        assert_eq!(schema_changes.count_registry_attribute_changes(), 5);
+        assert_eq!(schema_changes.count_added_registry_attributes(), 1);
+        assert_eq!(schema_changes.count_removed_registry_attributes(), 1);
+        assert_eq!(schema_changes.count_obsoleted_registry_attributes(),1);
+        assert_eq!(schema_changes.count_uncategorized_registry_attributes(),1);
+        assert_eq!(schema_changes.count_renamed_registry_attributes(), 1);
+        assert_eq!(schema_changes.count_metric_changes(), 5);
+        assert_eq!(schema_changes.count_span_changes(), 5);
+        assert_eq!(schema_changes.count_event_changes(), 5);
+        assert_eq!(schema_changes.count_resource_changes(), 5);
+    }
 }

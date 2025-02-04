@@ -2,11 +2,11 @@
 
 //! Data structures and utilities for tracking schema changes between versions.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// The type of schema item.
-#[derive(Debug, Serialize, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Copy, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum SchemaItemType {
     /// Registry attributes
@@ -22,7 +22,7 @@ pub enum SchemaItemType {
 }
 
 /// A summary of schema changes between two versions of a schema.
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SchemaChanges {
     /// Information on the registry manifest for the most recent version of the schema.
@@ -38,7 +38,7 @@ pub struct SchemaChanges {
 }
 
 /// Represents the information of a semantic convention registry manifest.
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RegistryManifest {
     /// The version of the registry which will be used to define the semconv package version.
@@ -48,7 +48,7 @@ pub struct RegistryManifest {
 /// Represents the different types of changes that can occur between
 /// two versions of a schema. This covers changes such as adding, removing,
 /// renaming, and deprecating telemetry objects (attributes, metrics, etc.).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SchemaItemChange {
@@ -81,6 +81,8 @@ pub enum SchemaItemChange {
     /// This type serves as a fallback when no specific category applies, with the expectation that
     /// some of these changes will be reclassified into more precise schema types in the future.
     Uncategorized {
+        /// The name of the uncategorized telemetry object.
+        name: String,
         /// A note providing further context.
         note: String,
     },
@@ -154,9 +156,9 @@ impl SchemaChanges {
             .unwrap_or(0)
     }
 
-    /// Counts the number of deprecated registry attributes in the schema.
+    /// Counts the number of obsoleted registry attributes in the schema.
     #[must_use]
-    pub fn count_deprecated_registry_attributes(&self) -> usize {
+    pub fn count_obsoleted_registry_attributes(&self) -> usize {
         self.changes
             .get(&SchemaItemType::RegistryAttributes)
             .map(|v| {
@@ -167,6 +169,19 @@ impl SchemaChanges {
             .unwrap_or(0)
     }
 
+    /// Counts the number of uncategorized registry attributes in the schema.
+    #[must_use]
+    pub fn count_uncategorized_registry_attributes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::RegistryAttributes)
+            .map(|v| {
+                v.iter()
+                    .filter(|c| matches!(c, SchemaItemChange::Uncategorized { .. }))
+                    .count()
+            })
+            .unwrap_or(0)
+    }
+    
     /// Counts the number of renamed registry attributes in the schema.
     #[must_use]
     pub fn count_renamed_registry_attributes(&self) -> usize {
@@ -190,6 +205,42 @@ impl SchemaChanges {
                     .filter(|c| matches!(c, SchemaItemChange::Removed { .. }))
                     .count()
             })
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of metric changes in the schema.
+    #[must_use]
+    pub fn count_metric_changes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Metrics)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of event changes in the schema.
+    #[must_use]
+    pub fn count_event_changes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Events)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of resource changes in the schema.
+    #[must_use]
+    pub fn count_resource_changes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Resources)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
+
+    /// Counts the number of span changes in the schema.
+    #[must_use]
+    pub fn count_span_changes(&self) -> usize {
+        self.changes
+            .get(&SchemaItemType::Spans)
+            .map(|v| v.len())
             .unwrap_or(0)
     }
 

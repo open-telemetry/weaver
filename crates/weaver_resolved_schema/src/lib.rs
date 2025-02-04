@@ -323,6 +323,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 SchemaItemType::RegistryAttributes,
                                 SchemaItemChange::Uncategorized {
+                                    name: attr.name.clone(),
                                     note: attr.brief.clone(),
                                 },
                             );
@@ -384,7 +385,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Renamed {
-                                    old_name: baseline_group.name.clone().expect("The name should be present since the baseline group was retrieved using it."),
+                                    old_name: (*signal_name).to_owned(),
                                     new_name: rename_to.clone(),
                                     note: group.brief.clone(),
                                 },
@@ -395,7 +396,7 @@ impl ResolvedTelemetrySchema {
                                 schema_item_type,
                                 SchemaItemChange::Obsoleted {
                                     name: (*signal_name).to_owned(),
-                                    note: deprecated.to_string(),
+                                    note: group.brief.clone(),
                                 },
                             );
                         }
@@ -403,7 +404,8 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Uncategorized {
-                                    note: deprecated.to_string(),
+                                    name: (*signal_name).to_owned(),
+                                    note: group.brief.clone(),
                                 },
                             );
                         }
@@ -531,7 +533,7 @@ mod tests {
         let changes = latest_schema.diff(&prior_schema);
         assert_eq!(changes.count_changes(), 2);
         assert_eq!(changes.count_registry_attribute_changes(), 2);
-        assert_eq!(changes.count_deprecated_registry_attributes(), 2);
+        assert_eq!(changes.count_obsoleted_registry_attributes(), 2);
     }
 
     #[test]

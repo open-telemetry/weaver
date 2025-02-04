@@ -4,15 +4,15 @@
 {% set item_types = ["registry_attributes", "metrics", "events", "spans", "resources"] %}
 {% for item_type in item_types %}
 {% set added_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | count %}
-{% set renamed_to_new_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_new') | count %}
-{% set renamed_to_existing_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_existing') | count %}
-{% set deprecated_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'deprecated') | count %}
+{% set renamed_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed') | count %}
+{% set obsoleted_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'obsoleted') | count %}
+{% set uncategorized_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'uncategorized') | count %}
 {% set removed_count = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | count %}
 {{ ((item_type | title_case) ~ " Changes") | ansi_green }}
-    Added              : {{ added_count }}
-    Renamed to new     : {{ renamed_to_new_count }}
-    Renamed to existing: {{ renamed_to_existing_count }}
-    Deprecated         : {{ deprecated_count }}
-    Removed            : {{ removed_count }}
+    Added         : {{ added_count }}
+    Renamed       : {{ renamed_count }}
+    Obsoleted     : {{ obsoleted_count }}
+    Uncategorized : {{ uncategorized_count }}
+    Removed       : {{ removed_count }}
     
 {% endfor %}

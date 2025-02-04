@@ -1,37 +1,50 @@
 {%- set item_types = ["registry_attributes", "metrics", "events", "spans", "resources"] -%}
-# Schema Changes between {{ ctx.baseline.semconv_version }} and {{ ctx.head.semconv_version }}
+# Summary of Schema Changes
+## Registry versions
+Baseline: {{ ctx.baseline.semconv_version }}
+
+Head: {{ ctx.head.semconv_version }}
+
 {% for item_type in item_types %}
 {% if ctx.changes[item_type] %}
 ## {{ item_type | title_case }}
 {% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | sort(attribute='name') -%}
 {% if attributes -%}    
-### New {{ item_type }}:
+### Added
     {% for added in attributes %}
-- Add {{ added.name }}
+- {{ added.name }}
     {% endfor %}
 
 {% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_new') | sort(attribute='name') -%}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed') | sort(attribute='name') -%}
 {% if attributes -%}    
-### Rename to new {{ item_type }}:
+### Renamed
     {% for renamed in attributes %}
-- Rename {{ renamed.old_names | join(', ') }} to {{ renamed.new_name }}
+- {{ renamed.old_name }} --> {{ renamed.new_name }} (Note: {{ renamed.note }})
     {% endfor %}
 
 {% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_existing') | sort(attribute='name') -%}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'obsoleted') | sort(attribute='name') -%}
 {% if attributes -%}
-### Rename to existing {{ item_type }}:
-    {% for renamed in attributes %}
-- Rename {{ renamed.old_names | join(', ') }} to {{ renamed.current_name }}
+### Obsoleted
+    {% for obsoleted in attributes %}
+- {{ obsoleted.name }} (Note: {{ obsoleted.note }})
     {% endfor %}
 
 {% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'deprecated') | sort(attribute='name') -%}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'uncategorized') | sort(attribute='name') -%}
 {% if attributes -%}
-### Deprecated {{ item_type }}:
-    {% for deprecated in attributes %}
-- {{ deprecated.name }} (Note: {{ deprecated.note }})
+### Uncategorized
+    {% for uncategorized in attributes %}
+- {{ uncategorized.name }} (Note: {{ uncategorized.note }})
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | sort(attribute='name') -%}
+{% if attributes -%}
+### Removed
+    {% for removed in attributes %}
+- {{ removed.name }}
     {% endfor %}
 
 {% endif %}

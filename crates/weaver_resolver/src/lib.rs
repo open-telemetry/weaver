@@ -10,7 +10,7 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use serde::Serialize;
 use walkdir::DirEntry;
 
-use weaver_cache::RegistryRepo;
+use weaver_cache::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
@@ -299,6 +299,7 @@ impl SchemaResolver {
             path.is_file()
                 && (extension == "yaml" || extension == "yml")
                 && file_name != "schema-next.yaml"
+                && file_name != REGISTRY_MANIFEST
         }
 
         // Loads the semantic convention specifications from the git repo.

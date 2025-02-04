@@ -77,14 +77,9 @@ where
 
             while let Some(key) = map.next_key::<String>()? {
                 match key.as_str() {
-                    "action" => action = Some(map.next_value::<String>()?),
-                    "new_name" => new_name = Some(map.next_value()?),
-                    _ => {
-                        return Err(de::Error::unknown_field(
-                            &key,
-                            &["action", "new_name", "note"],
-                        ))
-                    }
+                    "reason" => action = Some(map.next_value::<String>()?),
+                    "renamed_to" => new_name = Some(map.next_value()?),
+                    _ => return Err(de::Error::unknown_field(&key, &["reason", "renamed_to"])),
                 }
             }
 
@@ -96,7 +91,8 @@ where
                         renamed_to: rename_to,
                     })
                 }
-                Some("deprecated") => Ok(Deprecated::Obsoleted),
+                Some("obsoleted") => Ok(Deprecated::Obsoleted),
+                Some("uncategorized") => Ok(Deprecated::Uncategorized),
                 _ => Err(de::Error::missing_field("action")),
             }
         }
@@ -184,14 +180,16 @@ mod tests {
         let yaml_data = r#"
 - deprecated: 'Replaced by `jvm.buffer.memory.used`.'
 - deprecated: 
-    action: deprecated
+    reason: obsoleted
 - deprecated:
-    action: renamed
-    new_name: foo.unique_id
+    reason: renamed
+    renamed_to: foo.unique_id
+- deprecated:
+    reason: uncategorized
 "#;
 
         let items: Vec<Item> = serde_yaml::from_str(yaml_data).unwrap();
-        assert_eq!(items.len(), 3);
+        assert_eq!(items.len(), 4);
         assert_eq!(items[0].deprecated, Some(Deprecated::Obsoleted));
         assert_eq!(items[1].deprecated, Some(Deprecated::Obsoleted {}));
         assert_eq!(
@@ -200,5 +198,6 @@ mod tests {
                 renamed_to: "foo.unique_id".to_owned(),
             })
         );
+        assert_eq!(items[3].deprecated, Some(Deprecated::Uncategorized {}));
     }
 }

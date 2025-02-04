@@ -106,10 +106,12 @@ log = "0.4.22"
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
+weaver_version = { path = "crates/weaver_version" }
 tempdir.workspace = true
 ureq.workspace = true
 assert_cmd = "2.0.16"
 portpicker = "0.1.1"
+tempfile = "3.16.0"
 #opentelemetry_sdk = { version = "0.27.1", features = [] }
 #opentelemetry-otlp = { version ="0.27.0", features = ["metrics", "logs", "trace"] }
 

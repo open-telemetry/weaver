@@ -7,33 +7,41 @@
 {{ ("List of Changes to " ~ (item_type | title_case)) | ansi_cyan | ansi_bold }}
 {% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | sort(attribute='name') -%}
 {% if attributes -%}    
-{{ ("New " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+{{ ("Added " ~ (item_type | title_case) ~ ":") | ansi_bold | ansi_green }}
     {% for added in attributes %}
   - Add {{ added.name | ansi_bright_white }}
     {% endfor %}
 
 {% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_new') | sort(attribute='name') -%}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed') | sort(attribute='name') -%}
 {% if attributes -%}    
-{{ ("Rename to new " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+{{ ("Renamed " ~ (item_type | title_case) ~ ":") | ansi_bold | ansi_green }}
     {% for renamed in attributes %}
-  - Rename {{ renamed.old_names | map('ansi_bright_white') | join(', ') }} to {{ renamed.new_name | ansi_bright_white }}
+  - Rename {{ renamed.old_name | ansi_bright_white }} to {{ renamed.new_name | ansi_bright_white }} (Note: {{ renamed.note }})
     {% endfor %}
 
 {% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed_to_existing') | sort(attribute='name') -%}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'obsoleted') | sort(attribute='name') -%}
 {% if attributes -%}    
-{{ ("Rename to existing " ~ item_type ~ ":") | ansi_bold | ansi_green }}
-    {% for renamed in attributes %}
-  - Rename {{ renamed.old_names | map('ansi_bright_white') | join(', ') }} to {{ renamed.current_name | ansi_bright_white }}
+{{ ("Obsoleted " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for obsoleted in attributes %}
+  - {{ obsoleted.name | ansi_bright_white }} (Note: {{ obsoleted.note }})
     {% endfor %}
 
 {% endif %}
-{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'deprecated') | sort(attribute='name') -%}
-{% if attributes -%}    
-{{ ("Deprecated " ~ item_type ~ ":") | ansi_bold | ansi_green }}
-    {% for deprecated in attributes %}
-  - {{ deprecated.name | ansi_bright_white }} (Note: {{ deprecated.note }})
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'uncategorized') | sort(attribute='name') -%}
+{% if attributes -%}
+{{ ("Uncategorized " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for uncategorized in attributes %}
+  - {{ uncategorized.name | ansi_bright_white }} (Note: {{ uncategorized.note }})
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | sort(attribute='name') -%}
+{% if attributes -%}
+{{ ("Removed " ~ item_type ~ ":") | ansi_bold | ansi_green }}
+    {% for removed in attributes %}
+  - {{ removed.name | ansi_bright_white }}
     {% endfor %}
 
 {% endif %}

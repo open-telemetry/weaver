@@ -1,0 +1,187 @@
+  groups:
+    - id: "registry.group1"
+      name: "registry.group1"
+      type: "attribute_group"
+      brief: "registry.group1"
+      attributes:
+        - id: "attr0"
+          type: boolean
+          brief: This attribute is split into multiple attributes.
+          requirement_level: "recommended"
+          note: "note0"
+          deprecated:
+            reason: uncategorized
+        - id: "attr1"
+          type: "boolean"
+          brief: This attribute has been renamed attr1_bis.
+          requirement_level: "recommended"
+          note: "note1"
+          deprecated:
+            reason: renamed
+            renamed_to: attr1_bis
+        - id: attr2
+          type: string
+          brief: This attribute is deprecated without replacement.
+          requirement_level: recommended
+          deprecated:
+            reason: obsoleted
+        - id: "attr4"
+          type: "double"
+          brief: "brief4"
+          requirement_level: "recommended"
+          note: "note4"
+        - id: attr5
+          type: double
+          brief: brief5
+          requirement_level: recommended
+          note: note5
+          deprecated:
+            reason: obsoleted
+    - id: metric2
+      type: metric
+      metric_name: metric2
+      brief: This metric has been deprecated without replacement.
+      instrument: updowncounter
+      unit: "By"
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: obsoleted
+    - id: metric3
+      type: metric
+      metric_name: metric3
+      brief: This metric has been split into 2 metrics.
+      instrument: updowncounter
+      unit: "By"
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: uncategorized
+    - id: metric4
+      type: metric
+      metric_name: metric4
+      brief: This metric has been renamed into metric4_bis.
+      instrument: updowncounter
+      unit: "By"
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: renamed
+        renamed_to: metric4_bis
+    - id: metric4_bis
+      type: metric
+      metric_name: metric4_bis
+      brief: Metric4 bis.
+      instrument: updowncounter
+      unit: "By"
+      attributes:
+        - ref: attr0
+      stability: experimental
+    - id: event2
+      type: event
+      name: event2
+      brief: This event has been deprecated without replacement.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: obsoleted
+    - id: event3
+      type: event
+      name: event3
+      brief: This event has been split into 2 events.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: uncategorized
+    - id: event4
+      type: event
+      name: event4
+      brief: This event has been renamed into event4_bis.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: renamed
+        renamed_to: event4_bis
+    - id: event4_bis
+      type: event
+      name: event4_bis
+      brief: Event4 bis.
+      attributes:
+        - ref: attr0
+      stability: experimental
+    - id: span2
+      type: span
+      name: span2
+      brief: This span has been deprecated without replacement.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: obsoleted
+    - id: span3
+      type: span
+      name: span3
+      brief: This span has been split into 2 spans.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: uncategorized
+    - id: span4
+      type: span
+      name: span4
+      brief: This span has been renamed into span4_bis.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: renamed
+        renamed_to: span4_bis
+    - id: span4_bis
+      type: span
+      name: span4_bis
+      brief: Span4 bis.
+      attributes:
+        - ref: attr0
+      stability: experimental
+    - id: resource2
+      type: resource
+      name: resource2
+      brief: This resource has been deprecated without replacement.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: obsoleted
+    - id: resource3
+      type: resource
+      name: resource3
+      brief: This resource has been split into 2 resources.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: uncategorized
+    - id: resource4
+      type: resource
+      name: resource4
+      brief: This resource has been renamed into resource4_bis.
+      attributes:
+        - ref: attr0
+      stability: experimental
+      deprecated:
+        reason: renamed
+        renamed_to: resource4_bis
+    - id: resource4_bis
+      type: resource
+      name: resource4_bis
+      brief: Resource4 bis.
+      attributes:
+        - ref: attr0
+      stability: experimental
