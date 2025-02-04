@@ -237,8 +237,8 @@ mod tests {
         assert_eq!(schema_changes.count_registry_attribute_changes(), 5);
         assert_eq!(schema_changes.count_added_registry_attributes(), 1);
         assert_eq!(schema_changes.count_removed_registry_attributes(), 1);
-        assert_eq!(schema_changes.count_obsoleted_registry_attributes(),1);
-        assert_eq!(schema_changes.count_uncategorized_registry_attributes(),1);
+        assert_eq!(schema_changes.count_obsoleted_registry_attributes(), 1);
+        assert_eq!(schema_changes.count_uncategorized_registry_attributes(), 1);
         assert_eq!(schema_changes.count_renamed_registry_attributes(), 1);
         assert_eq!(schema_changes.count_metric_changes(), 5);
         assert_eq!(schema_changes.count_span_changes(), 5);

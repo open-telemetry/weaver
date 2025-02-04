@@ -181,7 +181,7 @@ impl SchemaChanges {
             })
             .unwrap_or(0)
     }
-    
+
     /// Counts the number of renamed registry attributes in the schema.
     #[must_use]
     pub fn count_renamed_registry_attributes(&self) -> usize {
