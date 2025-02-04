@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
 use weaver_common::error::handle_errors;
+use weaver_common::result::WResult;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
@@ -73,16 +74,24 @@ pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
     registry: &SemConvRegistry,
-) -> Result<Registry, Error> {
+) -> WResult<Registry, Error> {
     let mut ureg = unresolved_registry_from_specs(registry_url, registry);
 
-    resolve_prefix_on_attributes(&mut ureg)?;
+    if let Err(e) = resolve_prefix_on_attributes(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
 
-    resolve_extends_references(&mut ureg)?;
+    if let Err(e) = resolve_extends_references(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
 
-    resolve_attribute_references(&mut ureg, attr_catalog)?;
+    if let Err(e) = resolve_attribute_references(&mut ureg, attr_catalog) {
+        return WResult::FatalErr(e);
+    }
 
-    resolve_include_constraints(&mut ureg)?;
+    if let Err(e) = resolve_include_constraints(&mut ureg) {
+        return WResult::FatalErr(e);
+    }
 
     // Sort the attribute internal references in each group.
     // This is needed to ensure that the resolved registry is easy to compare
@@ -96,9 +105,13 @@ pub fn resolve_semconv_registry(
         })
         .collect();
 
+    let mut errors = vec![];
+
     // Check the `any_of` constraints.
     let attr_name_index = attr_catalog.attribute_name_index();
-    check_any_of_constraints(&ureg.registry, &attr_name_index)?;
+    if let Err(e) = check_any_of_constraints(&ureg.registry, &attr_name_index) {
+        errors.push(e);
+    }
 
     // All constraints are satisfied.
     // Remove the constraints from the resolved registry.
@@ -107,7 +120,6 @@ pub fn resolve_semconv_registry(
     }
 
     // Other complementary checks.
-    let mut errors = vec![];
     // Check for duplicate group IDs.
     check_uniqueness(
         &ureg.registry,
@@ -140,9 +152,7 @@ pub fn resolve_semconv_registry(
     );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
-    handle_errors(errors)?;
-
-    Ok(ureg.registry)
+    WResult::OkWithNFEs(ureg.registry, errors)
 }
 
 /// Checks the `any_of` constraints in the given registry.
@@ -360,10 +370,7 @@ fn unresolved_registry_from_specs(
         .collect();
 
     UnresolvedRegistry {
-        registry: Registry {
-            registry_url: registry_url.to_owned(),
-            groups: vec![],
-        },
+        registry: Registry::new(registry_url),
         groups,
     }
 }
@@ -834,6 +841,7 @@ mod tests {
 
     use glob::glob;
     use serde::Serialize;
+    use weaver_common::result::WResult;
     use weaver_diff::canonicalize_json_string;
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::{Constraint, Registry};
@@ -900,7 +908,8 @@ mod tests {
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
-                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs);
+                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+                    .into_result_failing_non_fatal();
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
             let observed_attr_catalog = attr_catalog.drain_attributes();
@@ -968,7 +977,7 @@ mod tests {
         }
     }
 
-    fn create_registry_from_string(registry_spec: &str) -> Result<Registry, crate::Error> {
+    fn create_registry_from_string(registry_spec: &str) -> WResult<Registry, crate::Error> {
         let mut sc_specs = SemConvRegistry::new("default");
         sc_specs
             .add_semconv_spec_from_string("<str>", registry_spec)
@@ -993,7 +1002,8 @@ groups:
       type: attribute_group
       brief: \"Group two\"
       extends: group.non.existent.two",
-        );
+        )
+        .into_result_failing_non_fatal();
 
         assert!(result.is_err());
 
@@ -1019,7 +1029,8 @@ groups:
           requirement_level: opt_in
         - ref: non.existent.two
           requirement_level: opt_in",
-        );
+        )
+        .into_result_failing_non_fatal();
 
         assert!(result.is_err());
 
@@ -1044,7 +1055,8 @@ groups:
         - include: 'non.existent.one'
         - include: 'non.existent.two'
         - include: 'non.existent.three'",
-        );
+        )
+        .into_result_failing_non_fatal();
 
         assert!(result.is_err());
 
@@ -1125,10 +1137,11 @@ groups:
 
         // Resolve the semantic convention registry.
         let resolved_schema =
-            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry)?;
+            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry)
+                .into_result_failing_non_fatal()?;
 
         // Get the resolved registry by its ID.
-        let resolved_registry = resolved_schema.registry(registry_id).unwrap();
+        let resolved_registry = &resolved_schema.registry;
 
         // Get the catalog of the resolved telemetry schema.
         let catalog = resolved_schema.catalog();

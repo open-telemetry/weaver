@@ -721,13 +721,12 @@ mod tests {
         let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
             .into_result_failing_non_fatal()
             .expect("Failed to load registry");
-        prepare_test_with_registry(target, cli_params, registry_id, registry)
+        prepare_test_with_registry(target, cli_params, registry)
     }
 
     fn prepare_test_with_registry(
         target: &str,
         cli_params: Params,
-        registry_id: &str,
         mut registry: SemConvRegistry,
     ) -> (
         TestLogger,
@@ -741,18 +740,17 @@ mod tests {
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
         let engine = TemplateEngine::new(config, loader, cli_params);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
-        let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            schema.registry(registry_id).expect("registry not found"),
-            schema.catalog(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+        let template_registry =
+            ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to create the context for the template evaluation: {:?}",
+                        e
+                    )
+                });
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
@@ -920,18 +918,17 @@ mod tests {
             .into_result_failing_non_fatal()
             .expect("Failed to load registry");
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+            .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
-        let template_registry = ResolvedRegistry::try_from_resolved_registry(
-            schema.registry(registry_id).expect("registry not found"),
-            schema.catalog(),
-        )
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to create the context for the template evaluation: {:?}",
-                e
-            )
-        });
+        let template_registry =
+            ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "Failed to create the context for the template evaluation: {:?}",
+                        e
+                    )
+                });
 
         engine
             .generate(
@@ -1056,7 +1053,7 @@ mod tests {
         .into_result_failing_non_fatal()
         .expect("Failed to load registry");
         let (logger, engine, template_registry, observed_output, expected_output) =
-            prepare_test_with_registry("comment_format", Params::default(), registry_id, registry);
+            prepare_test_with_registry("comment_format", Params::default(), registry);
 
         engine
             .generate(

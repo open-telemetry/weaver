@@ -29,7 +29,6 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 #[test]
 fn test_cli_interface() {
     let log = TestLogger::new();
-    let registry_id = "default";
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
@@ -47,7 +46,7 @@ fn test_cli_interface() {
         .unwrap_or_else(|e| {
             panic!("Failed to load the semantic convention specs, error: {e}");
         });
-    let semconv_specs = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
+    let semconv_specs = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs).unwrap();
 
     // Check if the logger has reported any warnings or errors.
     assert_eq!(log.warn_count(), 0);
@@ -57,6 +56,7 @@ fn test_cli_interface() {
     let mut attr_catalog = AttributeCatalog::default();
     let resolved_registry =
         resolve_semconv_registry(&mut attr_catalog, SEMCONV_REGISTRY_URL, &semconv_specs)
+            .into_result_failing_non_fatal()
             .unwrap_or_else(|e| {
                 panic!("Failed to resolve the official semantic convention registry, error: {e}");
             });

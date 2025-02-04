@@ -29,6 +29,8 @@ pub mod registry_path;
 const TAR_GZ_EXT: &str = ".tar.gz";
 /// The extension for a zip archive.
 const ZIP_EXT: &str = ".zip";
+/// The name of the registry manifest file.
+pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
 /// An error that can occur while creating or using a cache.
 #[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
@@ -99,7 +101,7 @@ impl From<Error> for DiagnosticMessages {
 /// - A simple wrapper around a local directory
 /// - Initialized from a Git repository
 /// - Initialized from a Git archive
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RegistryRepo {
     // A unique identifier for the registry (e.g. main, baseline, etc.)
     id: String,
@@ -507,6 +509,17 @@ impl RegistryRepo {
     #[must_use]
     pub fn registry_path_repr(&self) -> &str {
         &self.registry_path
+    }
+
+    /// Returns the path to the `registry_manifest.yaml` file (if any).
+    #[must_use]
+    pub fn manifest_path(&self) -> Option<PathBuf> {
+        let manifest_path = self.path.join(REGISTRY_MANIFEST);
+        if manifest_path.exists() {
+            Some(manifest_path)
+        } else {
+            None
+        }
     }
 
     /// Creates a temporary directory for the registry repository and returns the path.

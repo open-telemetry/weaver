@@ -15,13 +15,13 @@ use weaver_semconv::stability::Stability;
 /// Attribute references are used to refer to attributes in the catalog.
 ///
 /// Note : In the future, this catalog could be extended with other entities.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default)]
 #[serde(deny_unknown_fields)]
 #[must_use]
 pub struct Catalog {
     /// Catalog of attributes used in the schema.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<Attribute>,
+    attributes: Vec<Attribute>,
 }
 
 /// Statistics on a catalog.
@@ -41,6 +41,24 @@ pub struct Stats {
 }
 
 impl Catalog {
+    /// Creates a catalog from a list of attributes.
+    pub fn from_attributes(attributes: Vec<Attribute>) -> Self {
+        Self { attributes }
+    }
+
+    /// Adds attributes to the catalog and returns a list of attribute references.
+    #[must_use]
+    pub fn add_attributes<const N: usize>(
+        &mut self,
+        attributes: [Attribute; N],
+    ) -> Vec<AttributeRef> {
+        let start_index = self.attributes.len();
+        self.attributes.extend(attributes.iter().cloned());
+        (start_index..self.attributes.len())
+            .map(|i| AttributeRef(i as u32))
+            .collect::<Vec<_>>()
+    }
+
     /// Returns the attribute name from an attribute ref if it exists
     /// in the catalog or None if it does not exist.
     #[must_use]
@@ -48,6 +66,17 @@ impl Catalog {
         self.attributes
             .get(attribute_ref.0 as usize)
             .map(|attr| attr.name.as_ref())
+    }
+
+    /// Counts the number of attributes in the catalog.
+    #[must_use]
+    pub fn count_attributes(&self) -> usize {
+        self.attributes.len()
+    }
+
+    /// Return an iterator over the attributes in the catalog.
+    pub fn iter(&self) -> impl Iterator<Item = &Attribute> {
+        self.attributes.iter()
     }
 
     /// Returns the attribute from an attribute ref if it exists.
