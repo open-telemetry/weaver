@@ -44,9 +44,9 @@ fn test_cli_interface() {
     let json_value: Vec<serde_json::Value> = serde_json::from_str(&stdout).expect("Invalid JSON");
     // We expect 41 policy violations.
     // - 12 allow_custom_values
-    // - 4 missing stability on enum members
+    // - 3 missing stability on enum members
     // - 13 violations before resolution
     // - 3 violations for metrics after resolution
     // - 9 violations for http after resolution
-    assert_eq!(json_value.len(), 41);
+    assert_eq!(json_value.len(), 40);
 }

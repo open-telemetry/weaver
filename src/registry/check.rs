@@ -222,7 +222,7 @@ mod tests {
             assert_eq!(
                 diag_msgs.len(),
                 12 /* allow_custom_values */
-                + 4 /* missing stability on enum members */
+                + 3 /* missing stability on enum members */
                 + 13 /* before resolution */
                     + 3 /* metric after resolution */
                     + 9 /* http after resolution */
