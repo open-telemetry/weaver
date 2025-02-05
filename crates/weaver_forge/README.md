@@ -362,7 +362,7 @@ templates:
     filter: >
       semconv_grouped_attributes({
         "exclude_root_namespace": ["url", "network"],
-        "stable_only": false,
+        "stable_only": true,
         "exclude_deprecated": true
       })
     application_mode: each

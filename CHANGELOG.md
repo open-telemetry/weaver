@@ -28,7 +28,7 @@ What's changed
   `semconv_signal`, `semconv_grouped_attributes`, and other `semconv_*` JQ semconv helpers. When `stable_only` is set to `true`,
   corresponding helper function returns stable conventions only. If the flag is not set or set to false, stability filtering does not apply.
   It's recommended to use `stable_only` flag instead of `exclude_stability` parameter.
-  ([TODO](https://github.com/open-telemetry/weaver/pull/TODO))
+  ([#569](https://github.com/open-telemetry/weaver/pull/569))
 
 ## [0.12.0] - 2024-12-09
 
