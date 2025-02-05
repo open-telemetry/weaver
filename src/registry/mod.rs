@@ -9,6 +9,7 @@ use emit::RegistryEmitArgs;
 use miette::Diagnostic;
 use serde::Serialize;
 
+use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::CheckRegistryArgs;
@@ -23,6 +24,7 @@ use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 
 mod check;
+mod diff;
 mod emit;
 mod generate;
 mod json_schema;
@@ -44,6 +46,10 @@ pub enum Error {
     /// Invalid params file passed to the command line
     #[error("The params file `{params_file}` is invalid. {error}")]
     InvalidParams { params_file: PathBuf, error: String },
+
+    /// Failed to render the registry diff
+    #[error("Failed to render the registry diff: {error}")]
+    DiffRender { error: String },
 }
 
 impl From<Error> for DiagnosticMessages {
@@ -106,6 +112,14 @@ pub enum RegistrySubCommand {
     /// The produced JSON Schema can be used to generate documentation of the resolved registry format or to generate code in your language of choice if you need to interact with the resolved registry format for any reason.
     #[clap(verbatim_doc_comment)]
     JsonSchema(RegistryJsonSchemaArgs),
+    /// Generate a diff between two versions of a semantic convention registry.
+    ///
+    /// This diff can then be rendered in multiple formats:
+    /// - a console-friendly format (default: ansi),
+    /// - a structured document in JSON format,
+    /// - ...
+    #[clap(verbatim_doc_comment)]
+    Diff(RegistryDiffArgs),
 
     /// Check the conformance level of an OTLP stream against a semantic convention registry.
     ///
@@ -203,6 +217,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::JsonSchema(args) => CmdResult::new(
             json_schema::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Diff(args) => CmdResult::new(
+            diff::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
         RegistrySubCommand::LiveCheck(args) => CmdResult::new(

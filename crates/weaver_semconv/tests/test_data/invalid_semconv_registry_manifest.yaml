@@ -1,0 +1,4 @@
+name: ""
+description: This registry contains the semantic conventions for the Acme vendor.
+semconv_version: ""
+schema_base_url: ""

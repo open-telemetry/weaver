@@ -22,6 +22,8 @@ An identifier for the database management system (DBMS) product being used. See 
   
 - Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
   
+- Stability: Stable
+  
 
 #### Attribute `db.connection_string`
 
@@ -35,6 +37,8 @@ The connection string used to connect to the database. It is recommended to remo
   
 - Type: string
 - Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
   
 
 #### Attribute `db.user`
@@ -53,6 +57,8 @@ Username for accessing the database.
     "reporting_user",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.jdbc.driver_classname`
 
@@ -70,6 +76,8 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.statement`
 
@@ -86,6 +94,8 @@ The database statement being executed.
     "SELECT * FROM wuser_table",
     "SET mykey \"WuValue\"",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.operation`
@@ -106,6 +116,8 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
     "HMSET",
     "SELECT",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `server.address`
@@ -244,6 +256,8 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Type: string
 - Examples: mysql-e26b99z.example.com
   
+- Stability: Stable
+  
 
 #### Attribute `db.name`
 
@@ -261,6 +275,8 @@ For HBase the `db.name` should be set to the HBase namespace.
 - Examples: [
     "mynamespace",
 ]
+  
+- Stability: Stable
   
 
  

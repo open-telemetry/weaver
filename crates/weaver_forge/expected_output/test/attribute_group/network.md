@@ -13,6 +13,8 @@ The ISO 3166-1 alpha-2 2-character country code associated with the mobile carri
 - Type: string
 - Examples: DE
   
+- Stability: Stable
+  
   
 #### Attribute `network.carrier.mcc`
 
@@ -23,6 +25,8 @@ The mobile carrier country code.
   
 - Type: string
 - Examples: 310
+  
+- Stability: Stable
   
   
 #### Attribute `network.carrier.mnc`
@@ -35,6 +39,8 @@ The mobile carrier network code.
 - Type: string
 - Examples: 001
   
+- Stability: Stable
+  
   
 #### Attribute `network.carrier.name`
 
@@ -45,6 +51,8 @@ The name of the mobile carrier.
   
 - Type: string
 - Examples: sprint
+  
+- Stability: Stable
   
   
 #### Attribute `network.connection.subtype`
@@ -57,6 +65,8 @@ This describes more details regarding the connection.type. It may be the type of
 - Type: Enum [gprs, edge, umts, cdma, evdo_0, evdo_a, cdma2000_1xrtt, hsdpa, hsupa, hspa, iden, evdo_b, lte, ehrpd, hspap, gsm, td_scdma, iwlan, nr, nrnsa, lte_ca]
 - Examples: LTE
   
+- Stability: Stable
+  
   
 #### Attribute `network.connection.type`
 
@@ -67,6 +77,8 @@ The internet connection type.
   
 - Type: Enum [wifi, wired, cell, unavailable, unknown]
 - Examples: wifi
+  
+- Stability: Stable
   
   
 #### Attribute `network.io.direction`
@@ -80,6 +92,8 @@ The network IO operation direction.
 - Examples: [
     "transmit",
 ]
+  
+- Stability: Stable
   
   
 #### Attribute `network.local.address`

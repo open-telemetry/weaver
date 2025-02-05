@@ -1,0 +1,148 @@
+groups:
+  - id: "registry.group1"
+    type: "attribute_group"
+    name: "registry.group1"
+    brief: "registry.group1"
+    attributes:
+      - id: "attr0"
+        type: boolean
+        brief: "brief0"
+        requirement_level: "recommended"
+      - id: "attr1"
+        type: boolean
+        brief: "brief1"
+        requirement_level: "recommended"
+      - id: "attr2"
+        type: string
+        brief: "brief2"
+        requirement_level: "recommended"
+      - id: attr3
+        type: int
+        brief: brief3
+        requirement_level: recommended
+      - id: attr5
+        type: double
+        brief: brief5
+        requirement_level: recommended
+        deprecated:
+          reason: obsoleted
+  - id: metric1
+    type: metric
+    metric_name: metric1
+    brief: Metric 1
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: metric2
+    type: metric
+    metric_name: metric2
+    brief: Metric 2
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: metric3
+    type: metric
+    metric_name: metric3
+    brief: Metric 3
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: metric4
+    type: metric
+    metric_name: metric4
+    brief: Metric4
+    instrument: updowncounter
+    unit: "By"
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: event1
+    type: event
+    name: event1
+    brief: Event 1
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: event2
+    type: event
+    name: event2
+    brief: Event 2
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: event3
+    type: event
+    name: event3
+    brief: Event 3
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: event4
+    type: event
+    name: event4
+    brief: EVent 4
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: span1
+    type: span
+    name: span1
+    brief: Span 1
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: span2
+    type: span
+    name: span2
+    brief: Span 2
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: span3
+    type: span
+    name: span3
+    brief: Span 3
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: span4
+    type: span
+    name: span4
+    brief: Span 4
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: resource1
+    type: resource
+    name: resource1
+    brief: Resource 1
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: resource2
+    type: resource
+    name: resource2
+    brief: Resource 2
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: resource3
+    type: resource
+    name: resource3
+    brief: Resource 3
+    attributes:
+      - ref: attr0
+    stability: experimental
+  - id: resource4
+    type: resource
+    name: resource4
+    brief: Resource 4
+    attributes:
+      - ref: attr0
+    stability: experimental

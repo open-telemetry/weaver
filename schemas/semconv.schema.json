@@ -41,6 +41,48 @@
 		}
 	},
 	"$defs": {
+		"Deprecated": {
+			"description": "Specifies if an attribute or a signal is deprecated.",
+			"oneOf": [
+				{
+					"type": "object",
+					"description": "The telemetry object containing the deprecated field has been renamed to an existing or a new telemetry object.",
+					"properties": {
+						"reason": {
+							"const": "renamed"
+						},
+						"renamed_to": {
+							"type": "string",
+							"description": "The new name of the telemetry object."
+						}
+					},
+					"required": ["reason", "renamed_to"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"description": "The telemetry object containing the deprecated field has been obsoleted because it no longer exists and has no valid replacement.",
+					"properties": {
+						"reason": {
+							"const": "obsoleted"
+						}
+					},
+					"required": ["reason"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"description": "The telemetry object containing the deprecated field has been deprecated for complex reasons (split, merge, ...) which are currently not precisely defined in the supported deprecation reasons.",
+					"properties": {
+						"reason": {
+							"const": "uncategorized"
+						}
+					},
+					"required": ["reason"],
+					"additionalProperties": false
+				}
+			]
+		},
 		"SemanticConventionBase": {
 			"type": "object",
 			"required": [
@@ -137,8 +179,7 @@
 					"description": "the display name / title of the attribute group."
 				},
 				"deprecated": {
-					"type": "string",
-					"description": "specifies if the attribute is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+					"$ref": "#/$defs/Deprecated"
 				},
 				"stability": {
 					"allOf": [
@@ -209,7 +250,8 @@
 			"required": [
 				"type",
 				"id",
-				"requirement_level"
+				"requirement_level",
+				"stability"
 			],
 			"properties": {
 				"id": {
@@ -307,8 +349,7 @@
 					"description": "sequence/dictionary of example values. They are optional for boolean, int, double, and enum attributes. Example values must be of the same type as the value. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary."
 				},
 				"deprecated": {
-					"type": "string",
-					"description": "specifies if the value is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+					"$ref": "#/$defs/Deprecated"
 				},
 				"fields": {
 					"type": "array",
@@ -349,8 +390,7 @@
 								"description": "longer description. It defaults to an empty string."
 							},
 							"deprecated": {
-								"type": "string",
-								"description": "specifies if the attribute is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+								"$ref": "#/$defs/Deprecated"
 							},
 							"stability": {
 								"allOf": [
@@ -457,8 +497,7 @@
 								"description": "longer description. It defaults to an empty string."
 							},
 							"deprecated": {
-								"type": "string",
-								"description": "specifies if the attribute is deprecated. The string provided as <description> MUST specify why it's deprecated and/or what to use instead."
+								"$ref": "#/$defs/Deprecated"
 							},
 							"stability": {
 								"allOf": [

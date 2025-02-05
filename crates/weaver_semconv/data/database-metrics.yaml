@@ -4,16 +4,20 @@ groups:
     brief: Describes Database attributes
     attributes:
       - id: state
+        stability: stable
         type:
           members:
             - id: idle
+              stability: stable
               value: 'idle'
             - id: used
+              stability: stable
               value: 'used'
         requirement_level: required
         brief: "The state of a connection in the pool"
         examples: ["idle"]
       - id: pool.name
+        stability: stable
         type: string
         requirement_level: required
         brief: >

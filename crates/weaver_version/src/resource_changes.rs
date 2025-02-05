@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Changes to apply to the resources for a specific version.
+//! Resource change definitions.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// Changes to apply to the resource for a specific version.
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResourceChanges {
+    /// Changes to apply to the resource for a specific version.
+    pub changes: Vec<ResourceChange>,
+}
 
 /// Changes to apply to the resources for a specific version.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]

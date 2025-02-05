@@ -9,15 +9,18 @@ groups:
       "user-facing" surface of the protocol / API does not expose a clear notion of client and server.
     attributes:
       - id: source.domain
+        stability: stable
         type: string
         brief: The domain name of the source system.
         examples: ['foo.example.com']
         note: This value may be a host name, a fully qualified domain name, or another host naming format.
       - id: source.address
+        stability: stable
         type: string
         brief: 'Source address, for example IP address or Unix socket name.'
         examples: ['10.5.3.2']
       - id: source.port
+        stability: stable
         type: int
         brief: 'Source port number'
         examples: [3389, 2888]

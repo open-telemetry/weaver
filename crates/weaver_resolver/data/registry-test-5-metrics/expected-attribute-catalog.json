@@ -9,7 +9,7 @@
           "value": "datasource",
           "brief": "A response to some data source operation such as a database or filesystem read/write",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -17,7 +17,7 @@
           "value": "http",
           "brief": "To provide an answer to an inbound HTTP request",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -25,7 +25,7 @@
           "value": "pubsub",
           "brief": "A function is set to be executed when messages are sent to a messaging system",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -33,7 +33,7 @@
           "value": "timer",
           "brief": "A function is scheduled to be executed regularly",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -41,13 +41,14 @@
           "value": "other",
           "brief": "If none of the others apply",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "Type of the trigger which caused this function invocation.",
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "faas.invoked_name",
@@ -55,7 +56,8 @@
     "brief": "The name of the invoked function.\n",
     "examples": "my-function",
     "requirement_level": "required",
-    "note": "SHOULD be equal to the `faas.name` resource attribute of the invoked function.\n"
+    "note": "SHOULD be equal to the `faas.name` resource attribute of the invoked function.\n",
+    "stability": "stable"
   },
   {
     "name": "faas.invoked_provider",
@@ -67,7 +69,7 @@
           "value": "alibaba_cloud",
           "brief": "Alibaba Cloud",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -75,7 +77,7 @@
           "value": "aws",
           "brief": "Amazon Web Services",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -83,7 +85,7 @@
           "value": "azure",
           "brief": "Microsoft Azure",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -91,7 +93,7 @@
           "value": "gcp",
           "brief": "Google Cloud Platform",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         },
         {
@@ -99,14 +101,15 @@
           "value": "tencent_cloud",
           "brief": "Tencent Cloud",
           "note": null,
-          "stability": null,
+          "stability": "stable",
           "deprecated": null
         }
       ]
     },
     "brief": "The cloud provider of the invoked function.\n",
     "requirement_level": "required",
-    "note": "SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.\n"
+    "note": "SHOULD be equal to the `cloud.provider` resource attribute of the invoked function.\n",
+    "stability": "stable"
   },
   {
     "name": "faas.invoked_region",
@@ -116,6 +119,7 @@
     "requirement_level": {
       "conditionally_required": "For some cloud providers, like AWS or GCP, the region in which a function is hosted is essential to uniquely identify the function and also part of its endpoint. Since it's part of the endpoint being called, the region is always known to clients. In these cases, `faas.invoked_region` MUST be set accordingly. If the region is unknown to the client or not required for identifying the invoked function, setting `faas.invoked_region` is optional.\n"
     },
-    "note": "SHOULD be equal to the `cloud.region` resource attribute of the invoked function.\n"
+    "note": "SHOULD be equal to the `cloud.region` resource attribute of the invoked function.\n",
+    "stability": "stable"
   }
 ]

@@ -8,6 +8,7 @@ groups:
       running in a web browser (regardless of whether running on a mobile or desktop device).
     attributes:
       - id: browser.brands
+        stability: stable
         type: string[]
         brief: "Array of brand name and version separated by a space"
         note: >
@@ -16,6 +17,7 @@ groups:
           (`navigator.userAgentData.brands`).
         examples: [["Not A;Brand 99"], ["Chromium 99"], ["Chrome 99"]]
       - id: browser.platform
+        stability: stable
         type: string
         brief: "The platform on which the browser is running"
         note: >
@@ -33,6 +35,7 @@ groups:
           should capture the exact value that the user agent provides.
         examples: ["Windows", "macOS", "Android"]
       - id: browser.mobile
+        stability: stable
         type: boolean
         brief: "A boolean that is true if the browser is running on a mobile device"
         note: >
@@ -41,6 +44,7 @@ groups:
           (`navigator.userAgentData.mobile`). If unavailable, this attribute
           SHOULD be left unset.
       - id: browser.language
+        stability: stable
         type: string
         brief: "Preferred language of the user using the browser"
         note: >

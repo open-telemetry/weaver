@@ -20,6 +20,7 @@ groups:
           nothing to do with the underlying transport used to make the API
           call to invoke the lambda, which is often HTTP).
       - id: faas.invocation_id
+        stability: stable
         type: string
         brief: 'The invocation ID of the current function invocation.'
         examples: 'af9d5aa4-a685-4c5f-a22b-444f80b3cc28'
@@ -34,6 +35,7 @@ groups:
       source operation such as a database or filesystem read/write.
     attributes:
       - id: faas.document.collection
+        stability: stable
         type: string
         requirement_level: required
         brief: >
@@ -42,20 +44,25 @@ groups:
           and in Cosmos DB to the database name.
         examples: ['myBucketName', 'myDbName']
       - id: faas.document.operation
+        stability: stable
         requirement_level: required
         type:
           members:
             - id: insert
+              stability: stable
               value: 'insert'
               brief: 'When a new object is created.'
             - id: edit
+              stability: stable
               value: 'edit'
               brief: 'When an object is modified.'
             - id: delete
+              stability: stable
               value: 'delete'
               brief: 'When an object is deleted.'
         brief: 'Describes the type of the operation that was performed on the data.'
       - id: faas.document.time
+        stability: stable
         type: string
         brief: >
           A string containing the time when the data was accessed in the
@@ -63,6 +70,7 @@ groups:
           format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
         examples: "2020-01-23T13:47:06Z"
       - id: faas.document.name
+        stability: stable
         type: string
         brief: >
           The document name/table subjected to the operation.
@@ -100,6 +108,7 @@ groups:
       Semantic Convention for FaaS scheduled to be executed regularly.
     attributes:
       - id: faas.time
+        stability: stable
         type: string
         brief: >
           A string containing the function invocation time in the
@@ -107,6 +116,7 @@ groups:
           format expressed in [UTC](https://www.w3.org/TR/NOTE-datetime).
         examples: "2020-01-23T13:47:06Z"
       - id: faas.cron
+        stability: stable
         type: string
         brief: >
           A string containing the schedule period as
@@ -121,6 +131,7 @@ groups:
       Contains additional attributes for incoming FaaS spans.
     attributes:
       - id: faas.coldstart
+        stability: stable
         type: boolean
         brief: >
           A boolean that is true if the serverless function is executed for the
