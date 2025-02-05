@@ -1,4 +1,9 @@
-# Telemetry Schema Versioning
+# Telemetry Schema Versioning and Schema Diff Data Model
 
-This crate describes the data model for the OpenTelemetry schema versioning
-(section `versions` in the Telemetry Schema v1.1.0).
+This document describes the data model for OpenTelemetry schema versioning
+(section `versions` in Telemetry Schema v1.1.0) and the schema changes data
+model used in the weaver tool to represent differences between two versions
+of a semantic convention registry.
+
+For more information about the schema diffing process, see this
+[document](/docs/schema-changes.md).

@@ -1,0 +1,52 @@
+{%- set item_types = ["registry_attributes", "metrics", "events", "spans", "resources"] -%}
+# Summary of Schema Changes
+## Registry versions
+Baseline: {{ ctx.baseline.semconv_version }}
+
+Head: {{ ctx.head.semconv_version }}
+
+{% for item_type in item_types %}
+{% if ctx.changes[item_type] %}
+## {{ item_type | title_case }}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'added') | sort(attribute='name') -%}
+{% if attributes -%}    
+### Added
+    {% for added in attributes %}
+- {{ added.name }}
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'renamed') | sort(attribute='name') -%}
+{% if attributes -%}    
+### Renamed
+    {% for renamed in attributes %}
+- {{ renamed.old_name }} --> {{ renamed.new_name }} (Note: {{ renamed.note }})
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'obsoleted') | sort(attribute='name') -%}
+{% if attributes -%}
+### Obsoleted
+    {% for obsoleted in attributes %}
+- {{ obsoleted.name }} (Note: {{ obsoleted.note }})
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'uncategorized') | sort(attribute='name') -%}
+{% if attributes -%}
+### Uncategorized
+    {% for uncategorized in attributes %}
+- {{ uncategorized.name }} (Note: {{ uncategorized.note }})
+    {% endfor %}
+
+{% endif %}
+{% set attributes = ctx.changes[item_type] | selectattr('type', 'equalto', 'removed') | sort(attribute='name') -%}
+{% if attributes -%}
+### Removed
+    {% for removed in attributes %}
+- {{ removed.name }}
+    {% endfor %}
+
+{% endif %}
+{% endif %}
+{% endfor %}

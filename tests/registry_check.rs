@@ -4,7 +4,7 @@
 
 use assert_cmd::Command;
 
-/// This test checks the CLI interface for the registry generate command.
+/// This test checks the CLI interface for the registry check command.
 /// This test doesn't count for the coverage report as it runs a separate process.
 #[test]
 fn test_cli_interface() {

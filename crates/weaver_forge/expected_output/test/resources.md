@@ -25,7 +25,7 @@ Brief: Span attributes used by non-OTLP exporters to represent OpenTelemetry Sco
 - Examples: [
     "io.opentelemetry.contrib.mongodb",
 ]
-- Deprecated: use the `otel.scope.name` attribute.
+- Deprecated: 
   
 - Stability: Stable
   
@@ -41,7 +41,7 @@ Brief: Span attributes used by non-OTLP exporters to represent OpenTelemetry Sco
 - Examples: [
     "1.0.0",
 ]
-- Deprecated: use the `otel.scope.version` attribute.
+- Deprecated: 
   
 - Stability: Stable
   

@@ -5,17 +5,17 @@
 //! poorly porting the code into RUST.  We expect to optimise and improve things over time.
 
 use miette::Diagnostic;
-use std::{fmt, fs};
-
 use serde::Serialize;
+use std::{fmt, fs};
 use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
+use weaver_common::result::WResult;
 use weaver_diff::diff_output;
 use weaver_forge::registry::ResolvedGroup;
 use weaver_forge::TemplateEngine;
 use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
@@ -324,7 +324,6 @@ impl SnippetGenerator {
 /// The resolved Semantic Convention repository that is used to drive snipper generation.
 struct ResolvedSemconvRegistry {
     schema: ResolvedTelemetrySchema,
-    registry_id: String,
 }
 
 impl ResolvedSemconvRegistry {
@@ -334,20 +333,29 @@ impl ResolvedSemconvRegistry {
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let registry_id = "semantic_conventions";
-        let semconv_specs = SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
-            .capture_non_fatal_errors(diag_msgs)?;
-        let mut registry = SemConvRegistry::from_semconv_specs(registry_id, semconv_specs);
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)?;
-        let lookup = ResolvedSemconvRegistry {
-            schema,
-            registry_id: registry_id.into(),
+        let semconv_specs = match SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
+        {
+            WResult::Ok(semconv_specs) => semconv_specs,
+            WResult::OkWithNFEs(semconv_specs, errs) => {
+                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                semconv_specs
+            }
+            WResult::FatalErr(err) => return Err(err.into()),
         };
-        Ok(lookup)
-    }
 
-    fn my_registry(&self) -> Option<&Registry> {
-        self.schema.registry(self.registry_id.as_str())
+        let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
+            Ok(registry) => registry,
+            Err(e) => return Err(e.into()),
+        };
+        let schema = match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+            WResult::Ok(schema) => schema,
+            WResult::OkWithNFEs(schema, errs) => {
+                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                schema
+            }
+            WResult::FatalErr(err) => return Err(err.into()),
+        };
+        Ok(ResolvedSemconvRegistry { schema })
     }
 
     fn catalog(&self) -> &Catalog {
@@ -355,8 +363,7 @@ impl ResolvedSemconvRegistry {
     }
 
     fn find_group(&self, id: &str) -> Option<&Group> {
-        self.my_registry()
-            .and_then(|r| r.groups.iter().find(|g| g.id == id))
+        self.schema.registry.groups.iter().find(|g| g.id == id)
     }
 }
 

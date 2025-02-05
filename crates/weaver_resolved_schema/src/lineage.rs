@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::stability::Stability;
 
 /// Attribute lineage (at the field level).
@@ -332,9 +333,9 @@ impl AttributeLineage {
     /// from the parent.
     pub fn deprecated(
         &mut self,
-        local_value: &Option<String>,
-        parent_value: &Option<String>,
-    ) -> Option<String> {
+        local_value: &Option<Deprecated>,
+        parent_value: &Option<Deprecated>,
+    ) -> Option<Deprecated> {
         if local_value.is_some() {
             _ = self
                 .locally_overridden_fields
