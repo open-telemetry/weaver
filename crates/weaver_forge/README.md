@@ -185,7 +185,7 @@ params:
 
 # Jinja Engine Whitespace Control Settings
 # With both trim_blocks and lstrip_blocks enabled, you can put block tags on
-# their own lines, and the entire block line will be removed when rendered, 
+# their own lines, and the entire block line will be removed when rendered,
 # preserving the whitespace of the contents.
 whitespace_control:
   trim_blocks: true
@@ -294,7 +294,7 @@ resolved semantic convention registry.
 
 Example configuration for JQ filters in `weaver.yaml`:
 
-```yaml  
+```yaml
 templates:
   - template: "attributes.j2"
     filter: semconv_grouped_attributes
@@ -302,34 +302,34 @@ templates:
   - template: "metrics.j2"
     filter: semconv_grouped_metrics
     application_mode: each
-  # ...  
-```  
+  # ...
+```
 
-In this example, the `attributes.j2` and `metrics.j2` templates are associated with the  
-`semconv_grouped_attributes` and `semconv_grouped_metrics` JQ filters respectively. These  
-filters are applied to each object selected by the JQ filter before being delivered to the  
-template. `semconv_grouped_attributes` returns an array of objects containing the attributes  
-grouped by root namespace. The `application_mode` is set to `each` so that the template is  
+In this example, the `attributes.j2` and `metrics.j2` templates are associated with the
+`semconv_grouped_attributes` and `semconv_grouped_metrics` JQ filters respectively. These
+filters are applied to each object selected by the JQ filter before being delivered to the
+template. `semconv_grouped_attributes` returns an array of objects containing the attributes
+grouped by root namespace. The `application_mode` is set to `each` so that the template is
 applied to each object in the array, i.e., to each group of attributes for a given root namespace.
 
-A series of JQ filters dedicated to the manipulation of semantic conventions registries is  
+A series of JQ filters dedicated to the manipulation of semantic conventions registries is
 available to template authors.
 
 **Process Registry Attributes**
 
-The following JQ filter extracts the registry attributes from the resolved registry and  
+The following JQ filter extracts the registry attributes from the resolved registry and
 returns a list of registry attributes grouped by root namespace and sorted by attribute names.
 
-```yaml  
+```yaml
 templates:
   - template: attributes.j2
     filter: semconv_grouped_attributes
-    application_mode: each  
-```  
+    application_mode: each
+```
 
 The output of the JQ filter has the following structure:
 
-```json5  
+```json5
 [
   {
     "root_namespace": "user_agent",
@@ -350,58 +350,58 @@ The output of the JQ filter has the following structure:
     ]
   },
   // ... other root namespaces
-]  
-```  
+]
+```
 
 The `semconv_grouped_attributes` function also supports options to exclude specified root namespaces,
-specific stability levels, and deprecated entities. The following syntax is supported:
+and deprecated entities or limit output to stable attributes only. The following syntax is supported:
 
-```yaml  
+```yaml
 templates:
   - template: attributes.j2
     filter: >
       semconv_grouped_attributes({
-        "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["development"],
+        "exclude_root_namespace": ["url", "network"],
+        "stable_only": false,
         "exclude_deprecated": true
       })
-    application_mode: each 
-```  
+    application_mode: each
+```
 
-The structure of the output of `semconv_grouped_attributes` with these options is exactly the  
-same as without the options. The JSON object passed as a parameter describes a series of  
+The structure of the output of `semconv_grouped_attributes` with these options is exactly the
+same as without the options. The JSON object passed as a parameter describes a series of
 options that can easily be extended if needed. Each of these options is optional.
 
-Technically, the `semconv_grouped_attributes` function is a combination of two semconv  
+Technically, the `semconv_grouped_attributes` function is a combination of two semconv
 JQ functions:
 
-```jq  
+```jq
 def semconv_grouped_attributes($options):
     semconv_attributes($options)
     | semconv_group_attributes_by_root_namespace;
 
-def semconv_grouped_attributes: semconv_grouped_attributes({});  
-```  
+def semconv_grouped_attributes: semconv_grouped_attributes({});
+```
 
-The `semconv_attributes` function extracts the registry attributes and applies the given options.  
-The `semconv_group_attributes_by_root_namespace` function groups the attributes by root namespace. It's  
+The `semconv_attributes` function extracts the registry attributes and applies the given options.
+The `semconv_group_attributes_by_root_namespace` function groups the attributes by root namespace. It's
 possible to combine these two functions with your own JQ filters if needed.
 
 **Process Metrics**
 
-The following JQ filter extracts the metrics from the resolved registry, sorted by group  
+The following JQ filter extracts the metrics from the resolved registry, sorted by group
 root namespace and sorted by metric names.
 
-```yaml  
+```yaml
 templates:
   - template: metrics.j2
     filter: semconv_grouped_metrics
     application_mode: each
-```  
+```
 
 The output of the JQ filter has the following structure:
 
-```json5  
+```json5
 [
   {
     "root_namespace": "jvm",
@@ -430,35 +430,35 @@ The output of the JQ filter has the following structure:
 
 The same options are supported by `semconv_grouped_metrics`, as shown in the following example:
 
-```yaml  
+```yaml
 templates:
   - template: metrics.j2
     filter: >
       semconv_grouped_metrics({
-        "exclude_root_namespace": ["url", "network"], 
-        "exclude_stability": ["development"],
+        "exclude_root_namespace": ["url", "network"],
+        "stable_only": true,
         "exclude_deprecated": true
       })
-    application_mode: each  
-```  
+    application_mode: each
+```
 
-All the `semconv_grouped_<...>` functions are the composition of two functions:  
+All the `semconv_grouped_<...>` functions are the composition of two functions:
 `semconv_<...>` and `semconv_group_<...>_by_root_namespace`.
 
-> Note: JQ is a language for querying and transforming structured data. For more  
-> information, see [JQ Manual](https://jqlang.github.io/jq/manual/). The  
-> integration into Weaver is done through the Rust library `jaq`, which is a  
-> reimplementation of JQ in Rust. Most JQ filters are supported. For more  
+> Note: JQ is a language for querying and transforming structured data. For more
+> information, see [JQ Manual](https://jqlang.github.io/jq/manual/). The
+> integration into Weaver is done through the Rust library `jaq`, which is a
+> reimplementation of JQ in Rust. Most JQ filters are supported. For more
 > information, see [jaq GitHub repository](https://github.com/01mf02/jaq).
 
 ### Jinja Filters Reference
 
-All the filters available in the MiniJinja template engine are available (see  
+All the filters available in the MiniJinja template engine are available (see
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/filters/index.html)) and
 the [py_compat](https://github.com/mitsuhiko/minijinja/blob/e8a7ec5198deef7638267f2667714198ef64a1db/minijinja-contrib/src/pycompat.rs)
 compatibility extensions that are also enabled in Weaver.
 
-In addition, OTel Weaver provides a set of custom filters to facilitate the  
+In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
 
 The following filters are available:
@@ -488,10 +488,10 @@ The following filters are available:
 - `split_id`: Splits a string by '.' creating a list of nested ids.
 - `regex_replace`: Replace all occurrences of a regex pattern (1st parameter) in the input string with the replacement
   string (2nd parameter). Under the hood, this filter uses the `regex` crate (see
-  [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details) 
+  [regex](https://docs.rs/regex/latest/regex/index.html#traits) for more details)
 - `comment_with_prefix(prefix)`: Outputs a multiline comment with the given prefix. This filter is deprecated, please use the more general `comment` filter.
 - `comment`: A generic comment formatter that uses the `comment_formats` section of the `weaver.yaml` configuration file (more details [here](#comment-filter)).
-- `flatten`: Converts a List of Lists into a single list with all elements.  
+- `flatten`: Converts a List of Lists into a single list with all elements.
   e.g. \[\[a,b\],\[c\]\] => \[a,b,c\]
 - `attribute_sort`: Sorts a list of `Attribute`s by requirement level, then name.
 - `metric_namespace`: Converts registry.{namespace}.{other}.{components} to {namespace}.
@@ -508,9 +508,9 @@ The following filters are available:
 - `instantiated_type`: Filters a type to return the instantiated type.
 - `enum_type`: Filters a type to return the enum type or an error if the type is not an enum.
 - `markdown_to_html`: Converts a markdown string to an HTML string.
-- `map_text`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file  
+- `map_text`: Converts an input into a string based on the `text_maps` section of the `weaver.yaml` configuration file
   and a named text_map. The first parameter is the name of the text_map (required). The second parameter is the
-  default  
+  default
   value if the name of the text map or the input are not found in the `text_maps` section (optional).
 - `ansi_black`: Format a text using the black ansi code.
 - `ansi_red`: Format a text using the red ansi code.
@@ -562,7 +562,7 @@ The following filters are available:
   {% for path, field, depth in body|body_fields %}
   Do something with {{ field }} at depth {{ depth }} with path {{ path }}
   {% endfor %}
-  
+
   {% for path, field, depth in body|body_fields(sort_by=`type`) %}
   Do something with {{ field }} at depth {{ depth }} with path {{ path }}
   {% endfor %}
@@ -595,7 +595,7 @@ comment_formats:           # optional
     prefix: <string>                  # The comment line prefix (e.g., ` * `)
     footer: <string>                  # The comment line footer (e.g., ` */`)
     indent_type: space | tab          # The type of indentation (default: space)
-    trim: <bool>                      # Flag to trim the comment content (default: true). 
+    trim: <bool>                      # Flag to trim the comment content (default: true).
     remove_trailing_dots: <bool>      # Flag to remove trailing dots from the comment content (default: false).
     enforce_trailing_dots: <bool>     # Flag to enforce trailing dots for the comment content (default: false).
     word_wrap:
@@ -609,7 +609,7 @@ comment_formats:           # optional
     indent_first_level_list_items: <bool> # Indent the first level of list items in markdown (default: false).
     default_block_code_language: <string> # Default language for block code snippets (default: "").
     use_go_style_list_indent: <bool>,     # Whether to use different indent spacing for ordered and unordered lists (default: false).
-    
+
     # Fields specific to 'html' format
     old_style_paragraph: <bool>       # Use old-style HTML paragraphs (default: false).
     omit_closing_li: <bool>           # Omit closing </li> tags in lists (default: false).
@@ -681,7 +681,7 @@ brief: >
 type: int
 note: |
   This is a note about the attribute `attr`. It can be multiline.
-  
+
   It can contain a list:
   * item **1**,
   * lorem ipsum dolor sit amet, consectetur
@@ -691,29 +691,29 @@ note: |
   * lorem ipsum dolor sit amet, consectetur
     adipiscing elit sed do eiusmod tempor
   incididunt ut labore et dolore magna aliqua.
-  
+
   And an **inline code snippet**: `Attr.attr`.
-  
+
   # Summary
-  
+
   ## Examples
   1. Example 1
   1. [Example](https://loremipsum.com) with lorem ipsum dolor sit amet, consectetur adipiscing elit
      [sed](https://loremipsum.com) do eiusmod tempor incididunt ut
   [labore](https://loremipsum.com) et dolore magna aliqua.
-  1. Example 3      
-  
+  1. Example 3
+
   ## Appendix
     * [Link 1](https://www.link1.com)
     * [Link 2](https://www.link2.com)
     * A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
       tempor incididunt ut labore et dolore magna aliqua.
-  
+
   > This is a blockquote.
   It can contain multiple lines.
-  > Lorem ipsum dolor sit amet, consectetur adipiscing 
+  > Lorem ipsum dolor sit amet, consectetur adipiscing
   > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-  
+
   > [!NOTE] Something very important here
 ```
 
@@ -806,11 +806,11 @@ The generated Go documentation would be:
 ```go
   // ATTR
   // This is a brief description of the attribute + a short link [OTEL].
-  // 
+  //
   // This is a note about the attribute `attr`. It can be multiline.
-  // 
+  //
   // It can contain a list:
-  // 
+  //
   //   - item **1**,
   //   - lorem ipsum dolor sit amet, consectetur
   //     adipiscing elit sed do eiusmod tempor
@@ -819,33 +819,33 @@ The generated Go documentation would be:
   //   - lorem ipsum dolor sit amet, consectetur
   //     adipiscing elit sed do eiusmod tempor
   //     incididunt ut labore et dolore magna aliqua.
-  // 
+  //
   // And an **inline code snippet**: `Attr.attr`.
-  // 
+  //
   // # Summary
-  // 
+  //
   // ## Examples
-  // 
+  //
   //   1. Example 1
   //   2. [Example] with lorem ipsum dolor sit amet, consectetur adipiscing elit
   //      [sed] do eiusmod tempor incididunt ut
   //      [labore] et dolore magna aliqua.
   //   3. Example 3
-  // 
+  //
   // ## Appendix
-  // 
+  //
   //   - [Link 1]
   //   - [Link 2]
   //   - A very long item in the list with lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod
   //     tempor incididunt ut labore et dolore magna aliqua.
-  // 
+  //
   // > This is a blockquote.
   // > It can contain multiple lines.
   // > Lorem ipsum dolor sit amet, consectetur adipiscing
   // > elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-  // 
+  //
   // > [!NOTE] Something very important here
-  // 
+  //
   // [OTEL]: https://www.opentelemetry.com
   // [incididunt]: https://www.loremipsum.com
   // [Example]: https://loremipsum.com
@@ -869,7 +869,7 @@ The `comment` filter accepts the following optional parameters:
 
 ### Jinja Functions Reference
 
-All the functions available in the MiniJinja template engine are available (see  
+All the functions available in the MiniJinja template engine are available (see
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/functions/index.html)).
 
 In addition, OTel Weaver provides the following custom function:
@@ -886,10 +886,10 @@ In addition, OTel Weaver provides the following custom function:
 
 ### Jinja Tests Reference
 
-All the tests available in the MiniJinja template engine are available (see  
+All the tests available in the MiniJinja template engine are available (see
 this online [documentation](https://docs.rs/minijinja/latest/minijinja/tests/index.html)).
 
-In addition, OTel Weaver provides a set of custom tests to facilitate the  
+In addition, OTel Weaver provides a set of custom tests to facilitate the
 generation of assets.
 
 - `stable`: Tests if an `Attribute` is stable.

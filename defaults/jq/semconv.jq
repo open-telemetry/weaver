@@ -6,10 +6,26 @@ def semconv_group_attributes_by_root_namespace:
 # Expands stability array that previously used "experimental" for equivalent new strings.
 def expand_stability($stability):
   if ($stability | index("experimental")) then
-    $stability + [ "development", "alpha", "beta", "release_candidate" ] 
+    $stability + [ "development", "alpha", "beta", "release_candidate", "", null ]
   else
-    $stability 
+    $stability
   end;
+
+# Filters the input based on the stability status and stability configuration options.
+# $options is an object that can contain:
+# - stable_only: a boolean to exclude all non-stable attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
+def stability_filter($options):
+    if $options.stable_only then
+        map(select(.stability == "stable"))
+    else
+        .
+    end
+    | if $options | has("exclude_stability") then
+        map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
+    else
+        .
+    end;
 
 #####################
 # Attribute functions
@@ -17,18 +33,15 @@ def expand_stability($stability):
 
 # Extracts and processes semantic convention attributes based on provided options.
 # $options is an object that can contain:
-# - exclude_stability: a list of stability statuses to exclude.
 # - exclude_deprecated: a boolean to exclude deprecated attributes.
 # - exclude_root_namespace: a list of root namespaces to exclude.
+# - stable_only: a boolean to exclude all non-stable attributes.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
 def semconv_attributes($options):
     .groups
     | map(select(.type == "attribute_group" and (.id | startswith("registry."))))
     | map(.attributes) | add
-    | if ($options | has("exclude_stability")) then
-        map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
-      else
-        .
-      end
+    | stability_filter($options)
     | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
         map(select(has("deprecated") | not))
       else
@@ -47,9 +60,10 @@ def semconv_attributes: semconv_attributes({});
 
 # Groups the processed attributes by their root namespace based on provided options.
 # $options is an object that can contain:
-# - exclude_stability: a list of stability statuses to exclude.
+# - stable_only: a boolean to exclude all non-stable attributes.
 # - exclude_deprecated: a boolean to exclude deprecated attributes.
 # - exclude_root_namespace: a list of root namespaces to exclude.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
 def semconv_grouped_attributes($options):
     semconv_attributes($options)
     | semconv_group_attributes_by_root_namespace;
@@ -63,17 +77,14 @@ def semconv_grouped_attributes: semconv_grouped_attributes({});
 # Extracts and processes semantic convention signals based on provided options.
 # $signal is the type of signal to process.
 # $options is an object that can contain:
-# - exclude_stability: a list of stability statuses to exclude.
+# - stable_only: a boolean to exclude all non-stable signals.
 # - exclude_deprecated: a boolean to exclude deprecated signals.
 # - exclude_root_namespace: a list of root namespaces to exclude.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable signals instead.
 def semconv_signal($signal; $options):
     .groups
     | map(select(.type == $signal))
-    | if ($options | has("exclude_stability")) then
-        map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
-      else
-        .
-      end
+    | stability_filter($options)
     | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
         map(select(.id | endswith(".deprecated") | not))
       else
@@ -95,9 +106,10 @@ def semconv_group_metrics_by_root_namespace:
 
 # Extracts and processes semantic convention metrics based on provided options.
 # $options is an object that can contain:
-# - exclude_stability: a list of stability statuses to exclude.
+# - stable_only: a boolean to exclude all non-stable metrics.
 # - exclude_deprecated: a boolean to exclude deprecated metrics.
 # - exclude_root_namespace: a list of root namespaces to exclude.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead.
 def semconv_metrics($options): semconv_signal("metric"; $options);
 
 # Convenience function to extract all metrics without any filtering options.
@@ -105,9 +117,10 @@ def semconv_metrics: semconv_metrics({});
 
 # Groups the processed metrics by their root namespace based on provided options.
 # $options is an object that can contain:
-# - exclude_stability: a list of stability statuses to exclude.
+# - stable_only: a boolean to exclude all non-stable metrics.
 # - exclude_deprecated: a boolean to exclude deprecated metrics.
 # - exclude_root_namespace: a list of root namespaces to exclude.
+# - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead.
 def semconv_grouped_metrics($options): semconv_metrics($options) | semconv_group_metrics_by_root_namespace;
 
 # Convenience function to group all metrics by their root namespace without any filtering options.
