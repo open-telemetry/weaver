@@ -5,12 +5,15 @@
 use crate::Error::CompoundError;
 use miette::Diagnostic;
 use serde::Serialize;
+use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
 pub mod any_value;
 pub mod attribute;
+pub mod deprecated;
 pub mod group;
+pub mod manifest;
 pub mod metric;
 pub mod registry;
 pub mod semconv;
@@ -124,6 +127,20 @@ pub enum Error {
     },
 
     /// The semantic convention asset contains an invalid attribute definition.
+    #[error("Invalid attribute definition detected while resolving '{path_or_url:?}' (group_id='{group_id}', attribute_id='{attribute_id}'). {error}")]
+    #[diagnostic(severity(Warning))]
+    InvalidAttributeWarning {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
+    /// The semantic convention asset contains an invalid attribute definition.
     #[error("The attribute `{attribute_id}` in the group `{group_id}` has `allow_custom_values`. This is no longer used. {error}.\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Warning))]
     InvalidAttributeAllowCustomValues {
@@ -190,6 +207,20 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates that any_value is invalid.
+    #[error("The value `{value_id}` in the group `{group_id}` is invalid. {error}\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    InvalidAnyValue {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the any_value
+        value_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// This indicates that a semantic convention asset contains an invalid example.
     #[error("The value `{value_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Error))]
@@ -201,6 +232,24 @@ pub enum Error {
         /// The id of the any_value
         value_id: String,
         /// The reason of the error.
+        error: String,
+    },
+
+    /// This error is raised when a registry manifest is not found.
+    #[error("The registry manifest at {path:?} is not found.")]
+    #[diagnostic(severity(Error))]
+    RegistryManifestNotFound {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+    },
+
+    /// This error is raised when a registry manifest is invalid.
+    #[error("The registry manifest at {path:?} is invalid. {error}")]
+    #[diagnostic(severity(Error))]
+    InvalidRegistryManifest {
+        /// The path to the registry manifest file.
+        path: PathBuf,
+        /// The error that occurred.
         error: String,
     },
 

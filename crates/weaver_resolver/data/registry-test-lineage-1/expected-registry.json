@@ -17,7 +17,8 @@
               "brief",
               "examples",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -39,7 +40,8 @@
               "brief",
               "examples",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }

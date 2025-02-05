@@ -10,7 +10,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::ops::Not;
+#[cfg(test)]
+use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::stability::Stability;
 
 /// An attribute definition.
@@ -60,11 +63,9 @@ pub struct Attribute {
     /// error.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
-    /// Specifies if the attribute is deprecated. The string
-    /// provided as <description> MUST specify why it's deprecated and/or what
-    /// to use instead. See also stability.
+    /// Specifies if the attribute is deprecated.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Specifies the prefix of the attribute.
     /// If this parameter is set, the resolved id of the referenced attribute will
     /// have group prefix added to it.
@@ -98,5 +99,111 @@ pub struct AttributeRef(pub u32);
 impl Display for AttributeRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "AttributeRef({})", self.0)
+    }
+}
+
+impl Attribute {
+    /// Creates a new string attribute.
+    /// Note: This constructor is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn string<S: AsRef<str>>(name: S, brief: S, note: S) -> Self {
+        Self {
+            name: name.as_ref().to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: brief.as_ref().to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: note.as_ref().to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
+        }
+    }
+
+    /// Creates a new integer attribute.
+    /// Note: This constructor is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn int<S: AsRef<str>>(name: S, brief: S, note: S) -> Self {
+        Self {
+            name: name.as_ref().to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            brief: brief.as_ref().to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: note.as_ref().to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
+        }
+    }
+
+    /// Creates a new double attribute.
+    /// Note: This constructor is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn double<S: AsRef<str>>(name: S, brief: S, note: S) -> Self {
+        Self {
+            name: name.as_ref().to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
+            brief: brief.as_ref().to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: note.as_ref().to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
+        }
+    }
+
+    /// Creates a new boolean attribute.
+    /// Note: This constructor is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn boolean(
+        name: impl Into<String>,
+        brief: impl Into<String>,
+        note: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into().to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean),
+            brief: brief.into().to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: note.into().to_owned(),
+            stability: None,
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
+        }
+    }
+
+    /// Sets the deprecated field of the attribute.
+    /// Note: This method is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn deprecated(mut self, deprecated: Deprecated) -> Self {
+        self.deprecated = Some(deprecated);
+        self
+    }
+
+    /// Sets the note field of the attribute.
+    /// Note: This method is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn note<S: AsRef<str>>(mut self, note: S) -> Self {
+        self.note = note.as_ref().to_owned();
+        self
     }
 }

@@ -5,6 +5,7 @@
 //! Attribute specification.
 
 use crate::any_value::AnyValueSpec;
+use crate::deprecated::Deprecated;
 use crate::stability::Stability;
 use crate::Error;
 use ordered_float::OrderedFloat;
@@ -66,11 +67,13 @@ pub enum AttributeSpec {
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
         stability: Option<Stability>,
-        /// Specifies if the attribute is deprecated. The string
-        /// provided as <description> MUST specify why it's deprecated and/or what
-        /// to use instead. See also stability.
+        /// Specifies if the attribute is deprecated.
         #[serde(skip_serializing_if = "Option::is_none")]
-        deprecated: Option<String>,
+        #[serde(
+            deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+            default
+        )]
+        deprecated: Option<Deprecated>,
         /// Specifies the prefix of the attribute.
         /// If this parameter is set, the resolved id of the referenced attribute will
         /// have group prefix added to it.
@@ -123,11 +126,13 @@ pub enum AttributeSpec {
         /// error.
         #[serde(skip_serializing_if = "Option::is_none")]
         stability: Option<Stability>,
-        /// Specifies if the attribute is deprecated. The string
-        /// provided as <description> MUST specify why it's deprecated and/or what
-        /// to use instead. See also stability.
+        /// Specifies if the attribute is deprecated.
         #[serde(skip_serializing_if = "Option::is_none")]
-        deprecated: Option<String>,
+        #[serde(
+            deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+            default
+        )]
+        deprecated: Option<Deprecated>,
     },
 }
 
@@ -887,7 +892,7 @@ mod tests {
             sampling_relevant: Some(true),
             note: "note".to_owned(),
             stability: Some(Stability::Stable),
-            deprecated: Some("deprecated".to_owned()),
+            deprecated: Some(Deprecated::Obsoleted),
         };
         assert_eq!(attr.id(), "id");
         assert_eq!(attr.brief(), "brief");
@@ -904,7 +909,7 @@ mod tests {
             sampling_relevant: Some(true),
             note: Some("note".to_owned()),
             stability: Some(Stability::Stable),
-            deprecated: Some("deprecated".to_owned()),
+            deprecated: Some(Deprecated::Obsoleted),
             prefix: false,
         };
         assert_eq!(attr.id(), "ref");

@@ -25,16 +25,19 @@ groups:
       feature flag evaluation as an event.
     attributes:
       - id: feature_flag.key
+        stability: stable
         type: string
         requirement_level: required
         brief: The unique identifier of the feature flag.
         examples: ["logo-color"]
       - id: feature_flag.provider_name
+        stability: stable
         type: string
         requirement_level: recommended
         brief: The name of the service provider that performs the flag evaluation.
         examples: ["Flag Manager"]
       - id: feature_flag.variant
+        stability: stable
         type: string
         requirement_level: recommended
         examples: ["red", "true", "on"]

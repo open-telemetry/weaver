@@ -8,12 +8,14 @@ groups:
       and various HTTP versions like 1.1, 2 and SPDY.
     attributes:
       - id: http.request.method_original
+        stability: stable
         type: string
         requirement_level:
           conditionally_required: If and only if it's different than `http.request.method`.
         brief: Original HTTP method sent by the client in the request line.
         examples: ["GeT", "ACL", "foo"]
       - id: http.request.body.size
+        stability: stable
         type: int
         brief: >
           The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and
@@ -21,6 +23,7 @@ groups:
           header. For requests using transport encoding, this should be the compressed size.
         examples: 3495
       - id: http.response.body.size
+        stability: stable
         type: int
         brief: >
           The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and
@@ -43,6 +46,7 @@ groups:
     brief: 'Semantic Convention for HTTP Client'
     attributes:
       - id: http.resend_count
+        stability: stable
         type: int
         brief: >
           The ordinal number of request resending attempt (for any reason, including redirects).

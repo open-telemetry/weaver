@@ -19,7 +19,7 @@
       "id": "metric.faas.invoke_duration",
       "type": "metric",
       "brief": "Measures the duration of the function's logic execution",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -34,7 +34,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -44,7 +45,7 @@
       "id": "metric.faas.init_duration",
       "type": "metric",
       "brief": "Measures the duration of the function's initialization, such as a cold start",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -59,7 +60,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -69,7 +71,7 @@
       "id": "metric.faas.coldstarts",
       "type": "metric",
       "brief": "Number of invocation cold starts",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -84,7 +86,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -94,7 +97,7 @@
       "id": "metric.faas.errors",
       "type": "metric",
       "brief": "Number of invocation errors",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -109,7 +112,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -119,7 +123,7 @@
       "id": "metric.faas.invocations",
       "type": "metric",
       "brief": "Number of successful invocations",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -134,7 +138,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -144,7 +149,7 @@
       "id": "metric.faas.timeouts",
       "type": "metric",
       "brief": "Number of invocation timeouts",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -159,7 +164,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -169,7 +175,7 @@
       "id": "metric.faas.mem_usage",
       "type": "metric",
       "brief": "Distribution of max memory usage per invocation",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -184,7 +190,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -194,7 +201,7 @@
       "id": "metric.faas.cpu_usage",
       "type": "metric",
       "brief": "Distribution of CPU usage per invocation",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -209,7 +216,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
@@ -219,7 +227,7 @@
       "id": "metric.faas.net_io",
       "type": "metric",
       "brief": "Distribution of net I/O usage per invocation",
-      "stability": "experimental",
+      "stability": "development",
       "attributes": [
         0
       ],
@@ -234,7 +242,8 @@
             "inherited_fields": [
               "brief",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           }
         }
