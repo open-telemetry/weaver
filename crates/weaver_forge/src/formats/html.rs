@@ -252,8 +252,16 @@ impl<'source> HtmlRenderer<'source> {
             ctx.add_newline = false;
         }
         if ctx.add_old_style_paragraph {
-            if matches!(md_node, Node::Paragraph(_)) {
-                ctx.push_unbroken_ln("<p>", indent)?;
+            if let Node::Paragraph(p) = md_node {
+                if let Some(Node::Text(text)) = p.children.first() {
+                    if text.value.starts_with('@') {
+                        ctx.push_unbroken_ln("", indent)?;
+                    } else {
+                        ctx.push_unbroken_ln("<p>", indent)?;
+                    }
+                } else {
+                    ctx.push_unbroken_ln("<p>", indent)?;
+                }
             }
             ctx.add_old_style_paragraph = false;
         }
@@ -543,7 +551,9 @@ it's RECOMMENDED to:
 * Use a domain-specific attribute
 * Set `error.type` to capture all errors, regardless of whether they are defined within the domain-specific set or not
 
-And something more."##;
+And something more.
+
+@see https://example.org"##;
         let html = renderer.render(markdown, "java", None)?;
         assert_string_eq!(
             &html,
@@ -568,7 +578,9 @@ it's RECOMMENDED to:
   <li>Set {@code error.type} to capture all errors, regardless of whether they are defined within the domain-specific set or not
 </ul>
 <p>
-And something more."##
+And something more.
+
+@see https://example.org"##
         );
         Ok(())
     }
