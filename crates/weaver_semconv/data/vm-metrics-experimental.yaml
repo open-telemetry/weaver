@@ -39,6 +39,7 @@ groups:
     brief: "Describes JVM buffer metric attributes."
     attributes:
       - id: jvm.buffer.pool.name
+        stability: stable
         type: string
         requirement_level: recommended
         brief: Name of the buffer pool.

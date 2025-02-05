@@ -4,18 +4,22 @@ groups:
     brief: "Describes JVM memory metric attributes."
     attributes:
       - id: jvm.memory.type
+        stability: stable
         type:
           members:
             - id: heap
+              stability: stable
               value: 'heap'
               brief: 'Heap memory.'
             - id: non_heap
+              stability: stable
               value: 'non_heap'
               brief: 'Non-heap memory'
         requirement_level: recommended
         brief: The type of memory.
         examples: ["heap", "non_heap"]
       - id: jvm.memory.pool.name
+        stability: stable
         type: string
         requirement_level: recommended
         brief: Name of the memory pool.
@@ -69,6 +73,7 @@ groups:
     unit: "s"
     attributes:
       - id: jvm.gc.name
+        stability: stable
         type: string
         requirement_level: recommended
         brief: Name of the garbage collector.
@@ -77,6 +82,7 @@ groups:
           Garbage collector name is generally obtained via
           [GarbageCollectionNotificationInfo#getGcName()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcName()).
       - id: jvm.gc.action
+        stability: stable
         type: string
         requirement_level: recommended
         brief: Name of the garbage collector action.

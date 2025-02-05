@@ -22,6 +22,8 @@ An identifier for the database management system (DBMS) product being used. See 
   
 - Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
   
+- Stability: Stable
+  
 
 #### Attribute `db.connection_string`
 
@@ -35,6 +37,8 @@ The connection string used to connect to the database. It is recommended to remo
   
 - Type: string
 - Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
   
 
 #### Attribute `db.user`
@@ -53,6 +57,8 @@ Username for accessing the database.
     "reporting_user",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.jdbc.driver_classname`
 
@@ -70,6 +76,8 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.statement`
 
@@ -86,6 +94,8 @@ The database statement being executed.
     "SELECT * FROM wuser_table",
     "SET mykey \"WuValue\"",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.operation`
@@ -106,6 +116,8 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
     "HMSET",
     "SELECT",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `server.address`
@@ -244,6 +256,8 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Type: string
 - Examples: mysql-e26b99z.example.com
   
+- Stability: Stable
+  
 
 #### Attribute `db.cassandra.consistency_level`
 
@@ -256,6 +270,8 @@ The consistency level of the query. Based on consistency values from [CQL](https
 - Tag: call-level-tech-specific-cassandra
   
 - Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
+  
+- Stability: Stable
   
 
 #### Attribute `db.cassandra.coordinator.dc`
@@ -271,6 +287,8 @@ The data center of the coordinating node for a query.
 - Type: string
 - Examples: us-west-2
   
+- Stability: Stable
+  
 
 #### Attribute `db.cassandra.coordinator.id`
 
@@ -285,6 +303,8 @@ The ID of the coordinating node for a query.
 - Type: string
 - Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
   
+- Stability: Stable
+  
 
 #### Attribute `db.cassandra.idempotence`
 
@@ -297,6 +317,8 @@ Whether or not the query is idempotent.
 - Tag: call-level-tech-specific-cassandra
   
 - Type: boolean
+  
+- Stability: Stable
   
 
 #### Attribute `db.cassandra.page_size`
@@ -313,6 +335,8 @@ The fetch size used for paging, i.e. how many rows will be returned at once.
 - Examples: [
     5000,
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.cassandra.speculative_execution_count`
@@ -331,6 +355,8 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
     2,
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.cassandra.table`
 
@@ -345,6 +371,8 @@ This mirrors the db.sql.table attribute but references cassandra rather than sql
   
 - Type: string
 - Examples: mytable
+  
+- Stability: Stable
   
 
 #### Attribute `db.name`
@@ -363,6 +391,8 @@ For Cassandra the `db.name` should be set to the Cassandra keyspace name.
 - Examples: [
     "mykeyspace",
 ]
+  
+- Stability: Stable
   
 
  

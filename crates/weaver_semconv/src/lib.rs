@@ -127,6 +127,20 @@ pub enum Error {
     },
 
     /// The semantic convention asset contains an invalid attribute definition.
+    #[error("Invalid attribute definition detected while resolving '{path_or_url:?}' (group_id='{group_id}', attribute_id='{attribute_id}'). {error}")]
+    #[diagnostic(severity(Warning))]
+    InvalidAttributeWarning {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the attribute.
+        attribute_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
+    /// The semantic convention asset contains an invalid attribute definition.
     #[error("The attribute `{attribute_id}` in the group `{group_id}` has `allow_custom_values`. This is no longer used. {error}.\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Warning))]
     InvalidAttributeAllowCustomValues {
@@ -189,6 +203,20 @@ pub enum Error {
         path_or_url: String,
         /// The group id of the metric.
         group_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
+    /// This indicates that any_value is invalid.
+    #[error("The value `{value_id}` in the group `{group_id}` is invalid. {error}\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    InvalidAnyValue {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+        /// The id of the any_value
+        value_id: String,
         /// The reason of the error.
         error: String,
     },

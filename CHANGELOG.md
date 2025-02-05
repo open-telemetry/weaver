@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
+* For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability on: Attributes, Enum members in attributes, Event AnyValues, Enum members in AnyValues. ([#568](https://github.com/open-telemetry/weaver/pull/568) by @jerbly).
 * **Breaking Change**: Introduced a new `weaver registry diff` command to generate a diff report between two versions of
   the semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. While the
   text-based `deprecated` field is still supported for compatibility reasons, future semantic conventions should use the

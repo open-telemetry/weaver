@@ -7,26 +7,33 @@ groups:
     events: [rpc.message]
     attributes:
       - id: rpc.system
+        stability: stable
         requirement_level: required
         brief: 'A string identifying the remoting system. See below for a list of well-known identifiers.'
         type:
           members:
             - id: grpc
+              stability: stable
               value: 'grpc'
               brief: 'gRPC'
             - id: java_rmi
+              stability: stable
               value: 'java_rmi'
               brief: 'Java RMI'
             - id: dotnet_wcf
+              stability: stable
               value: 'dotnet_wcf'
               brief: '.NET WCF'
             - id: apache_dubbo
+              stability: stable
               value: 'apache_dubbo'
               brief: 'Apache Dubbo'
             - id: connect_rpc
+              stability: stable
               value: 'connect_rpc'
               brief: 'Connect RPC'
       - id: rpc.service
+        stability: stable
         type: string
         requirement_level: recommended
         brief: 'The full (logical) name of the service being called, including its package name, if applicable.'
@@ -39,6 +46,7 @@ groups:
           RPC client stub class on the client side).
         examples: "myservice.EchoService"
       - id: rpc.method
+        stability: stable
         type: string
         requirement_level: recommended
         brief: 'The name of the (logical) method being called, must be equal to the $method part in the span name.'
@@ -104,57 +112,75 @@ groups:
     brief: 'Tech-specific attributes for gRPC.'
     attributes:
       - id: rpc.grpc.status_code
+        stability: stable
         type:
           members:
             - id: ok
+              stability: stable
               brief: OK
               value: 0
             - id: cancelled
+              stability: stable
               brief: CANCELLED
               value: 1
             - id: unknown
+              stability: stable
               brief: UNKNOWN
               value: 2
             - id: invalid_argument
+              stability: stable
               brief: INVALID_ARGUMENT
               value: 3
             - id: deadline_exceeded
+              stability: stable
               brief: DEADLINE_EXCEEDED
               value: 4
             - id: not_found
+              stability: stable
               brief: NOT_FOUND
               value: 5
             - id: already_exists
+              stability: stable
               brief: ALREADY_EXISTS
               value: 6
             - id: permission_denied
+              stability: stable
               brief: PERMISSION_DENIED
               value: 7
             - id: resource_exhausted
+              stability: stable
               brief: RESOURCE_EXHAUSTED
               value: 8
             - id: failed_precondition
+              stability: stable
               brief: FAILED_PRECONDITION
               value: 9
             - id: aborted
+              stability: stable
               brief: ABORTED
               value: 10
             - id: out_of_range
+              stability: stable
               brief: OUT_OF_RANGE
               value: 11
             - id: unimplemented
+              stability: stable
               brief: UNIMPLEMENTED
               value: 12
             - id: internal
+              stability: stable
               brief: INTERNAL
               value: 13
             - id: unavailable
+              stability: stable
               brief: UNAVAILABLE
               value: 14
             - id: data_loss
+              stability: stable
               brief: DATA_LOSS
               value: 15
             - id: unauthenticated
+              stability: stable
               brief: UNAUTHENTICATED
               value: 16
         requirement_level: required
@@ -168,12 +194,14 @@ groups:
     brief: 'Tech-specific attributes for [JSON RPC](https://www.jsonrpc.org/).'
     attributes:
       - id: rpc.jsonrpc.version
+        stability: stable
         type: string
         requirement_level:
           conditionally_required: If other than the default version (`1.0`)
         brief: "Protocol version as in `jsonrpc` property of request/response. Since JSON-RPC 1.0 does not specify this, the value can be omitted."
         examples: ['2.0', '1.0']
       - id: rpc.jsonrpc.request_id
+        stability: stable
         type: string
         brief: >
           `id` property of request or response.
@@ -182,12 +210,14 @@ groups:
           Use empty string in case of `null` value. Omit entirely if this is a notification.
         examples: ['10', 'request-7', '']
       - id: rpc.jsonrpc.error_code
+        stability: stable
         type: int
         requirement_level:
           conditionally_required: If response is not successful.
         brief: "`error.code` property of response if it is an error response."
         examples: [-32700, 100]
       - id: rpc.jsonrpc.error_message
+        stability: stable
         type: string
         brief: "`error.message` property of response if it is an error response."
         examples: ['Parse error', 'User already exists']
@@ -204,21 +234,27 @@ groups:
     name: message
     attributes:
       - id: message.type
+        stability: stable
         type:
           members:
             - id: sent
+              stability: stable
               value: "SENT"
             - id: received
+              stability: stable
               value: "RECEIVED"
         brief: "Whether this is a received or sent message."
       - id: message.id
+        stability: stable
         type: int
         brief: "MUST be calculated as two different counters starting from `1` one for sent messages and one for received message."
         note: "This way we guarantee that the values will be consistent between different implementations."
       - id: message.compressed_size
+        stability: stable
         type: int
         brief: "Compressed size of the message in bytes."
       - id: message.uncompressed_size
+        stability: stable
         type: int
         brief: "Uncompressed size of the message in bytes."
 
@@ -230,39 +266,56 @@ groups:
     brief: 'Tech-specific attributes for Connect RPC.'
     attributes:
       - id: rpc.connect_rpc.error_code
+        stability: stable
         type:
           members:
             - id: cancelled
+              stability: stable
               value: cancelled
             - id: unknown
+              stability: stable
               value: unknown
             - id: invalid_argument
+              stability: stable
               value: invalid_argument
             - id: deadline_exceeded
+              stability: stable
               value: deadline_exceeded
             - id: not_found
+              stability: stable
               value: not_found
             - id: already_exists
+              stability: stable
               value: already_exists
             - id: permission_denied
+              stability: stable
               value: permission_denied
             - id: resource_exhausted
+              stability: stable
               value: resource_exhausted
             - id: failed_precondition
+              stability: stable
               value: failed_precondition
             - id: aborted
+              stability: stable
               value: aborted
             - id: out_of_range
+              stability: stable
               value: out_of_range
             - id: unimplemented
+              stability: stable
               value: unimplemented
             - id: internal
+              stability: stable
               value: internal
             - id: unavailable
+              stability: stable
               value: unavailable
             - id: data_loss
+              stability: stable
               value: data_loss
             - id: unauthenticated
+              stability: stable
               value: unauthenticated
         requirement_level:
           conditionally_required: If response is not successful and if error code available.

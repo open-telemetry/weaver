@@ -4,36 +4,47 @@ groups:
     brief: "Describes HTTP attributes."
     attributes:
       - id: http.request.method
+        stability: stable
         type:
           members:
             - id: connect
+              stability: stable
               value: "CONNECT"
               brief: 'CONNECT method.'
             - id: delete
+              stability: stable
               value: "DELETE"
               brief: 'DELETE method.'
             - id: get
+              stability: stable
               value: "GET"
               brief: 'GET method.'
             - id: head
+              stability: stable
               value: "HEAD"
               brief: 'HEAD method.'
             - id: options
+              stability: stable
               value: "OPTIONS"
               brief: 'OPTIONS method.'
             - id: patch
+              stability: stable
               value: "PATCH"
               brief: 'PATCH method.'
             - id: post
+              stability: stable
               value: "POST"
               brief: 'POST method.'
             - id: put
+              stability: stable
               value: "PUT"
               brief: 'PUT method.'
             - id: trace
+              stability: stable
               value: "TRACE"
               brief: 'TRACE method.'
             - id: other
+              stability: stable
               value: "_OTHER"
               brief: 'Any HTTP method that the instrumentation has no prior knowledge of.'
         requirement_level: required
@@ -55,6 +66,7 @@ groups:
           Instrumentations for specific web frameworks that consider HTTP methods to be case insensitive, SHOULD populate a canonical equivalent.
           Tracing instrumentations that do so, MUST also set `http.request.method_original` to the original value.
       - id: http.response.status_code
+        stability: stable
         type: int
         requirement_level:
           conditionally_required: If and only if one was received/sent.
@@ -97,6 +109,7 @@ groups:
     brief: 'HTTP Server attributes'
     attributes:
       - id: http.route
+        stability: stable
         type: string
         requirement_level:
           conditionally_required: If and only if it's available

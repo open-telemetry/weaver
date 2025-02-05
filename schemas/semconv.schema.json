@@ -250,7 +250,8 @@
 			"required": [
 				"type",
 				"id",
-				"requirement_level"
+				"requirement_level",
+				"stability"
 			],
 			"properties": {
 				"id": {

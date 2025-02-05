@@ -185,8 +185,8 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::Error::{
-        InvalidAttribute, InvalidExampleWarning, InvalidGroupStability, InvalidSemConvSpec,
-        InvalidSpanMissingSpanKind, RegistryNotFound,
+        InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroupStability,
+        InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
     use weaver_common::test::ServeStaticFiles;
@@ -227,6 +227,7 @@ mod tests {
             span_kind: "client"
             attributes:
               - id: "attr1"
+                stability: "stable"
                 brief: "description1"
                 type: "string"
                 examples: "example1"
@@ -236,6 +237,7 @@ mod tests {
             span_kind: "server"
             attributes:
               - id: "attr2"
+                stability: "stable"
                 brief: "description2"
                 type: "int"
         "#;
@@ -264,6 +266,7 @@ mod tests {
             brief: "description1"
             attributes:
               - id: "attr1"
+                stability: "stable"
                 type: "string"
           - id: "group2"
             stability: "stable"
@@ -275,7 +278,7 @@ mod tests {
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
-            assert_eq!(errors.len(), 5);
+            assert_eq!(errors.len(), 6);
             assert_eq!(
                 errors,
                 vec![
@@ -311,6 +314,12 @@ mod tests {
                         error:
                             "This attribute is not deprecated and does not contain a brief field."
                                 .to_owned(),
+                    },
+                    InvalidAttributeWarning {
+                        path_or_url: "<str>".to_owned(),
+                        group_id: "group2".to_owned(),
+                        attribute_id: "attr2".to_owned(),
+                        error: "Missing stability field.".to_owned(),
                     },
                 ]
             );
@@ -367,6 +376,7 @@ mod tests {
             span_kind: "client"
             attributes:
               - id: "attr1"
+                stability: "stable"
                 brief: "description1"
                 type: "string"
                 examples: "example1"
@@ -376,6 +386,7 @@ mod tests {
             span_kind: "server"
             attributes:
               - id: "attr2"
+                stability: "stable"
                 brief: "description2"
                 type: "int"
         "#;
