@@ -14,6 +14,10 @@ use weaver_semconv::{
     group::{GroupType, SpanKindSpec},
 };
 
+// TODO These constants should be replaced with official semconvs when available.
+const WEAVER_EMIT_SPAN: &str = "otel.weaver.emit";
+const WEAVER_REGISTRY_PATH: &str = "otel.weaver.registry_path";
+
 /// Convert the Weaver span kind to an OTLP span kind.
 /// If the span kind is not specified, return `SpanKind::Internal`.
 #[must_use]
@@ -126,10 +130,10 @@ fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
 pub(crate) fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path: &str) {
     let tracer = global::tracer("weaver");
     // Start a parent span here and use this context to create child spans
-    tracer.in_span("weaver.emit", |cx| {
+    tracer.in_span(WEAVER_EMIT_SPAN, |cx| {
         let span = cx.span();
         span.set_attribute(KeyValue::new(
-            "weaver.registry_path",
+            WEAVER_REGISTRY_PATH,
             registry_path.to_owned(),
         ));
 
@@ -165,6 +169,8 @@ mod tests {
     };
     use weaver_semconv::group::{GroupType, SpanKindSpec};
     use weaver_semconv::stability::Stability;
+
+    use super::{WEAVER_EMIT_SPAN, WEAVER_REGISTRY_PATH};
 
     #[derive(Debug)]
     pub struct SpanExporter {
@@ -941,10 +947,10 @@ mod tests {
                 ],
             ),
             (
-                "weaver.emit",
+                WEAVER_EMIT_SPAN,
                 SpanKind::Internal,
                 vec![KeyValue::new(
-                    "weaver.registry_path",
+                    WEAVER_REGISTRY_PATH,
                     Value::String("TEST".into()),
                 )],
             ),
