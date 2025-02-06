@@ -10,6 +10,7 @@ groups:
       This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.
     attributes:
       - id: server.address
+        stability: stable
         type: string
         brief: Server address - domain name if available without reverse DNS lookup, otherwise IP address or Unix domain socket name.
         note: |
@@ -17,6 +18,7 @@ groups:
           the server address behind any intermediaries (e.g. proxies) if it's available.
         examples: ['example.com']
       - id: server.port
+        stability: stable
         type: int
         brief: Server port number
         note: >
@@ -24,6 +26,7 @@ groups:
           the server port behind any intermediaries (e.g. proxies) if it's available.
         examples: [80, 8080, 443]
       - id: server.socket.domain
+        stability: stable
         type: string
         brief: Immediate server peer's domain name if available without reverse DNS lookup
         examples: ['proxy.example.com']
@@ -31,6 +34,7 @@ groups:
         requirement_level:
           recommended: If different than `server.address`.
       - id: server.socket.address
+        stability: stable
         type: string
         brief: Server address of the socket connection - IP address or Unix domain socket name.
         note: >
@@ -41,6 +45,7 @@ groups:
         requirement_level:
           recommended: If different than `server.address`.
       - id: server.socket.port
+        stability: stable
         type: int
         brief: Server port number of the socket connection.
         note: >

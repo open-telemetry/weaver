@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Changes to apply to the logs for a specific version.
+//! Logs change definitions.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// Changes to apply to the logs for a specific version.
+#[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LogsChanges {
+    /// Changes to apply to the logs for a specific version.
+    pub changes: Vec<LogsChange>,
+}
 
 /// Changes to apply to the logs for a specific version.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, JsonSchema)]

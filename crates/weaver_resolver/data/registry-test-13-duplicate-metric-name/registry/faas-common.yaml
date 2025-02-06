@@ -4,25 +4,32 @@ groups:
     brief: "Describes FaaS attributes."
     attributes:
       - id: faas.trigger
+        stability: stable
         brief: 'Type of the trigger which caused this function invocation.'
         type:
           members:
             - id: datasource
+              stability: stable
               value: 'datasource'
               brief: 'A response to some data source operation such as a database or filesystem read/write'
             - id: http
+              stability: stable
               value: 'http'
               brief: 'To provide an answer to an inbound HTTP request'
             - id: pubsub
+              stability: stable
               value: 'pubsub'
               brief: 'A function is set to be executed when messages are sent to a messaging system'
             - id: timer
+              stability: stable
               value: 'timer'
               brief: 'A function is scheduled to be executed regularly'
             - id: other
+              stability: stable
               value: 'other'
               brief: 'If none of the others apply'
       - id: faas.invoked_name
+        stability: stable
         type: string
         requirement_level: required
         brief: >
@@ -32,21 +39,27 @@ groups:
           invoked function.
         examples: 'my-function'
       - id: faas.invoked_provider
+        stability: stable
         type:
           members:
             - id: 'alibaba_cloud'
+              stability: stable
               value: 'alibaba_cloud'
               brief: 'Alibaba Cloud'
             - id: 'aws'
+              stability: stable
               value: 'aws'
               brief: 'Amazon Web Services'
             - id: 'azure'
+              stability: stable
               value: 'azure'
               brief: 'Microsoft Azure'
             - id: 'gcp'
+              stability: stable
               value: 'gcp'
               brief: 'Google Cloud Platform'
             - id: 'tencent_cloud'
+              stability: stable
               value: 'tencent_cloud'
               brief: 'Tencent Cloud'
         requirement_level: required
@@ -56,6 +69,7 @@ groups:
           SHOULD be equal to the `cloud.provider` resource attribute of the
           invoked function.
       - id: faas.invoked_region
+        stability: stable
         type: string
         requirement_level:
           conditionally_required: >

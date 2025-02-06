@@ -1,1 +1,2609 @@
-{"registry_url":"https://127.0.0.1","groups":[{"id":"registry.db","type":"attribute_group","brief":"This document defines the attributes used to describe telemetry in the context of databases.\n","attributes":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29],"lineage":{"source_file":"data/registry-test-7-spans/registry/registry-db.yaml"}},{"id":"registry.http","type":"attribute_group","brief":"This document defines semantic convention attributes in the HTTP namespace.","attributes":[30,31,32,33,34,35,36,37,38],"lineage":{"source_file":"data/registry-test-7-spans/registry/registry-http.yaml"}},{"id":"registry.network","type":"attribute_group","brief":"These attributes may be used for any network related operation.\n","attributes":[39,40,41,42,43,44,45,46,47,48,49,50,51,52,53],"lineage":{"source_file":"data/registry-test-7-spans/registry/registry-network.yaml"}},{"id":"server","type":"attribute_group","brief":"These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n","attributes":[54,55],"lineage":{"source_file":"data/registry-test-7-spans/registry/registry-server.yaml"}},{"id":"registry.url","type":"attribute_group","brief":"Attributes describing URL.","attributes":[56,57,58,59,60],"lineage":{"source_file":"data/registry-test-7-spans/registry/registry-url.yaml"}},{"id":"registry.user_agent","type":"attribute_group","brief":"Describes user-agent attributes.","attributes":[61],"lineage":{"source_file":"data/registry-test-7-spans/registry/registry-user-agent.yaml"}},{"id":"db","type":"span","brief":"This document defines the attributes used to perform database client calls.\n","stability":"development","attributes":[62,63,64,65,66,67,68,69,70,71,72,73,74,75],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.mssql","type":"span","brief":"Connection-level attributes for Microsoft SQL Server\n","stability":"development","attributes":[62,63,64,65,66,67,68,69,70,71,72,73,74,75,76],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.mssql.instance_name":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.cassandra","type":"span","brief":"Call-level attributes for Cassandra\n","stability":"development","attributes":[62,63,64,65,67,68,69,70,71,72,73,74,75,77,78,79,80,81,82,83,84],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.cassandra.consistency_level":{"source_group":"registry.db","inherited_fields":["brief","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cassandra.coordinator.dc":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cassandra.coordinator.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cassandra.idempotence":{"source_group":"registry.db","inherited_fields":["brief","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cassandra.page_size":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cassandra.speculative_execution_count":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cassandra.table":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","locally_overridden_fields":["brief","examples","note","requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.hbase","type":"span","brief":"Call-level attributes for HBase\n","stability":"development","attributes":[62,63,64,65,67,68,69,70,71,72,73,74,75,85],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","locally_overridden_fields":["brief","examples","note","requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.couchdb","type":"span","brief":"Call-level attributes for CouchDB\n","stability":"development","attributes":[62,63,64,65,66,67,69,70,71,72,73,74,75,86],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","locally_overridden_fields":["brief","examples","note","requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.redis","type":"span","brief":"Call-level attributes for Redis\n","stability":"development","attributes":[62,63,64,65,66,68,69,70,71,72,73,74,75,87,88],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.redis.database_index":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","locally_overridden_fields":["brief","examples","note","requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.mongodb","type":"span","brief":"Call-level attributes for MongoDB\n","stability":"development","attributes":[62,63,64,65,66,67,68,69,70,71,72,73,74,75,89],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.mongodb.collection":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.elasticsearch","type":"span","brief":"Call-level attributes for Elasticsearch\n","stability":"development","attributes":[62,63,64,65,66,71,72,73,74,75,90,91,92,93,94,95,96,97,98],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.elasticsearch.cluster.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.elasticsearch.node.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.elasticsearch.path_parts":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["note"],"locally_overridden_fields":["brief","examples","requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["note"],"locally_overridden_fields":["brief","examples","requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"http.request.method":{"source_group":"registry.http","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"url.full":{"source_group":"registry.url","inherited_fields":["brief","note","stability"],"locally_overridden_fields":["examples","requirement_level","tag"]}}}},{"id":"db.sql","type":"span","brief":"Call-level attributes for SQL databases\n","stability":"development","attributes":[62,63,64,65,66,67,68,69,70,71,72,73,74,75,99],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.sql.table":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]}}}},{"id":"db.cosmosdb","type":"span","brief":"Call-level attributes for Cosmos DB.\n","stability":"development","attributes":[62,63,64,65,66,67,68,69,70,71,72,73,74,75,100,101,102,103,104,105,106,107,108],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml","attributes":{"db.connection_string":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cosmosdb.client_id":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cosmosdb.connection_mode":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.cosmosdb.container":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.cosmosdb.operation_type":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.cosmosdb.request_charge":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.cosmosdb.request_content_length":{"source_group":"registry.db","inherited_fields":["brief","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.cosmosdb.status_code":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.cosmosdb.sub_status_code":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.instance.id":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.jdbc.driver_classname":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"db.name":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.operation":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.statement":{"source_group":"registry.db","inherited_fields":["brief","examples","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.system":{"source_group":"registry.db","inherited_fields":["brief","note"],"locally_overridden_fields":["requirement_level","tag"]},"db.user":{"source_group":"registry.db","inherited_fields":["brief","examples","note","requirement_level"],"locally_overridden_fields":["tag"]},"network.peer.address":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.peer.port":{"source_group":"registry.network","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"network.transport":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"network.type":{"source_group":"registry.network","inherited_fields":["brief","examples","note","requirement_level","stability"],"locally_overridden_fields":["tag"]},"server.address":{"source_group":"server","inherited_fields":["examples","note","requirement_level","stability"],"locally_overridden_fields":["brief","tag"]},"server.port":{"source_group":"server","inherited_fields":["brief","examples","note","stability"],"locally_overridden_fields":["requirement_level","tag"]},"user_agent.original":{"source_group":"registry.user_agent","inherited_fields":["requirement_level","stability"],"locally_overridden_fields":["brief","examples","note","tag"]}}}},{"id":"db.tech","type":"span","brief":"Semantic convention group for specific technologies","stability":"development","attributes":[62,63,64,65,66,67,68,69,70,71,72,73,74,75,77,78,79,80,81,82,83,84,87,88,89,99,100,101,102,103,104,105,106,107,108],"span_kind":"client","lineage":{"source_file":"data/registry-test-7-spans/registry/trace-database.yaml"}}]}
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "registry.db",
+      "type": "attribute_group",
+      "brief": "This document defines the attributes used to describe telemetry in the context of databases.\n",
+      "attributes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/registry-db.yaml"
+      }
+    },
+    {
+      "id": "registry.http",
+      "type": "attribute_group",
+      "brief": "This document defines semantic convention attributes in the HTTP namespace.",
+      "attributes": [
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/registry-http.yaml"
+      }
+    },
+    {
+      "id": "registry.network",
+      "type": "attribute_group",
+      "brief": "These attributes may be used for any network related operation.\n",
+      "attributes": [
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/registry-network.yaml"
+      }
+    },
+    {
+      "id": "server",
+      "type": "attribute_group",
+      "brief": "These attributes may be used to describe the server in a connection-based network interaction where there is one side that initiates the connection (the client is the side that initiates the connection). This covers all TCP network interactions since TCP is connection-based and one side initiates the connection (an exception is made for peer-to-peer communication over TCP where the \"user-facing\" surface of the protocol / API doesn't expose a clear notion of client and server). This also covers UDP network interactions where one side initiates the interaction, e.g. QUIC (HTTP/3) and DNS.\n",
+      "attributes": [
+        54,
+        55
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/registry-server.yaml"
+      }
+    },
+    {
+      "id": "registry.url",
+      "type": "attribute_group",
+      "brief": "Attributes describing URL.",
+      "attributes": [
+        56,
+        57,
+        58,
+        59,
+        60
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/registry-url.yaml"
+      }
+    },
+    {
+      "id": "registry.user_agent",
+      "type": "attribute_group",
+      "brief": "Describes user-agent attributes.",
+      "attributes": [
+        61
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/registry-user-agent.yaml"
+      }
+    },
+    {
+      "id": "db",
+      "type": "span",
+      "brief": "This document defines the attributes used to perform database client calls.\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.mssql",
+      "type": "span",
+      "brief": "Connection-level attributes for Microsoft SQL Server\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.mssql.instance_name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.cassandra",
+      "type": "span",
+      "brief": "Call-level attributes for Cassandra\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.cassandra.consistency_level": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cassandra.coordinator.dc": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cassandra.coordinator.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cassandra.idempotence": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cassandra.page_size": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cassandra.speculative_execution_count": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cassandra.table": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.hbase",
+      "type": "span",
+      "brief": "Call-level attributes for HBase\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        85
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.couchdb",
+      "type": "span",
+      "brief": "Call-level attributes for CouchDB\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        86
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.redis",
+      "type": "span",
+      "brief": "Call-level attributes for Redis\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        87,
+        88
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.redis.database_index": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.mongodb",
+      "type": "span",
+      "brief": "Call-level attributes for MongoDB\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        89
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.mongodb.collection": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.elasticsearch",
+      "type": "span",
+      "brief": "Call-level attributes for Elasticsearch\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        71,
+        72,
+        73,
+        74,
+        75,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.elasticsearch.cluster.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.elasticsearch.node.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.elasticsearch.path_parts": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "http.request.method": {
+            "source_group": "registry.http",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "url.full": {
+            "source_group": "registry.url",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "examples",
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.sql",
+      "type": "span",
+      "brief": "Call-level attributes for SQL databases\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        99
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.sql.table": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.cosmosdb",
+      "type": "span",
+      "brief": "Call-level attributes for Cosmos DB.\n",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "attributes": {
+          "db.connection_string": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cosmosdb.client_id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cosmosdb.connection_mode": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.container": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.operation_type": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.request_charge": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.request_content_length": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.cosmosdb.status_code": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.cosmosdb.sub_status_code": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.instance.id": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.jdbc.driver_classname": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "db.name": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.operation": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.statement": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.system": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "db.user": {
+            "source_group": "registry.db",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.address": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.peer.port": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "network.transport": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "network.type": {
+            "source_group": "registry.network",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "tag"
+            ]
+          },
+          "server.address": {
+            "source_group": "server",
+            "inherited_fields": [
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "tag"
+            ]
+          },
+          "server.port": {
+            "source_group": "server",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "requirement_level",
+              "tag"
+            ]
+          },
+          "user_agent.original": {
+            "source_group": "registry.user_agent",
+            "inherited_fields": [
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "brief",
+              "examples",
+              "note",
+              "tag"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "db.tech",
+      "type": "span",
+      "brief": "Semantic convention group for specific technologies",
+      "stability": "development",
+      "attributes": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        87,
+        88,
+        89,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108
+      ],
+      "span_kind": "client",
+      "lineage": {
+        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml"
+      }
+    }
+  ]
+}

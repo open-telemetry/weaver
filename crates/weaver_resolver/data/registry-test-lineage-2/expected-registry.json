@@ -70,7 +70,8 @@
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
+              "note",
+              "stability"
             ],
             "locally_overridden_fields": [
               "requirement_level"
@@ -82,7 +83,8 @@
               "brief",
               "examples",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           },
           "network.protocol.version": {
@@ -90,7 +92,8 @@
             "inherited_fields": [
               "brief",
               "examples",
-              "note"
+              "note",
+              "stability"
             ],
             "locally_overridden_fields": [
               "requirement_level"
@@ -102,7 +105,8 @@
               "brief",
               "examples",
               "note",
-              "requirement_level"
+              "requirement_level",
+              "stability"
             ]
           },
           "server.port": {

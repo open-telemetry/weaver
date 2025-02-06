@@ -11,6 +11,7 @@ groups:
         type:
           members:
             - id: other
+              stability: stable
               value: "_OTHER"
               brief: >
                 A fallback error value to be used when the instrumentation doesn't define a custom value.

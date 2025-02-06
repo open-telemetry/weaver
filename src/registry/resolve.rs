@@ -60,7 +60,6 @@ pub(crate) fn command(
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let mut diag_msgs = DiagnosticMessages::empty();
-
     let (registry, _) =
         prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
 

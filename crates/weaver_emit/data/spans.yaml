@@ -1,0 +1,185 @@
+# This file defines a set of spans to test emission covering all possible attribute types and span kinds.
+groups:
+  - id: test.comprehensive.attr
+    type: attribute_group
+    brief: >
+      A comprehensive set of test attributes exercising all possible types.
+    note: >
+      This group contains examples of every possible attribute type supported by the schema.
+    attributes:
+      # Test basic attribute types
+      - id: test.string
+        type: string
+        brief: "Test string attribute"
+        note: "Additional notes about the string attribute"
+        requirement_level: required
+        stability: stable
+        sampling_relevant: true
+        examples: ["value1", "value2"]
+
+      - id: test.integer
+        type: int
+        brief: "Test integer attribute"
+        stability: stable
+        examples: [42, 123]
+
+      - id: test.double
+        type: double
+        brief: "Test double attribute"
+        stability: stable
+        examples: [3.13, 2.71]
+
+      - id: test.boolean
+        type: boolean
+        brief: "Test boolean attribute"
+        stability: stable
+        examples: [true, false]
+
+      # Test all array types
+      - id: test.string_array
+        type: string[]
+        brief: "Test string array attribute"
+        stability: stable
+        examples: [["val1", "val2"], ["val3", "val4"]]
+
+      - id: test.int_array
+        type: int[]
+        brief: "Test integer array attribute"
+        stability: stable
+        examples: [[1, 2], [3, 4]]
+
+      - id: test.double_array
+        type: double[]
+        brief: "Test double array attribute"
+        stability: stable
+        examples: [[1.1, 2.2], [3.3, 4.4]]
+
+      - id: test.boolean_array
+        type: boolean[]
+        brief: "Test boolean array attribute"
+        stability: stable
+        examples: [[true, false], [false, true]]
+
+      # Test all template types
+      - id: test.template_string
+        type: template[string]
+        brief: "Test string template attribute"
+        stability: stable
+        examples: ["test.template_string.key=\"hello\""]
+
+      # - id: test.template_int
+      #   type: template[int]
+      #   brief: "Test int template attribute"
+      #   stability: stable
+      #   examples: ["test.template_int.key=42"]
+
+      # - id: test.template_double
+      #   type: template[double]
+      #   brief: "Test double template attribute"
+      #   stability: stable
+      #   examples: ["test.template_double.key=3.14"]
+
+      # - id: test.template_boolean
+      #   type: template[boolean]
+      #   brief: "Test boolean template attribute"
+      #   stability: stable
+      #   examples: ["test.template_boolean.key=true"]
+
+      # Test template array types
+      - id: test.template_string_array
+        type: template[string[]]
+        brief: "Test string array template attribute"
+        stability: stable
+        examples: ["test.template_string_array.key=[\"val1\",\"val2\"]"]
+
+      # - id: test.template_int_array
+      #   type: template[int[]]
+      #   brief: "Test int array template attribute"
+      #   stability: stable
+      #   examples: ["test.template_int_array.key=[1,2,3]"]
+
+      # - id: test.template_double_array
+      #   type: template[double[]]
+      #   brief: "Test double array template attribute"
+      #   stability: stable
+      #   examples: ["test.template_double_array.key=[1.1,2.2,3.3]"]
+
+      # - id: test.template_boolean_array
+      #   type: template[boolean[]]
+      #   brief: "Test boolean array template attribute"
+      #   stability: stable
+      #   examples: ["test.template_boolean_array.key=[true,false,true]"]
+
+      # Test enum type
+      - id: test.enum
+        brief: "Test enum attribute"
+        stability: stable
+        type:
+          members:
+            - id: value1
+              value: "VALUE_1"
+              brief: "First enum value"
+              note: "Detailed description of first value"
+              stability: stable
+
+            - id: value2
+              value: "VALUE_2"
+              brief: "Second enum value"
+              stability: beta
+
+  # Now define spans for each span_kind with attribute references
+  - id: test.comprehensive.client
+    type: span
+    stability: development
+    brief: "Test span with client span_kind"
+    span_kind: client
+    attributes:
+      - ref: test.string
+      - ref: test.string_array
+      - ref: test.int_array
+      - ref: test.double_array
+      - ref: test.boolean_array
+      - ref: test.integer
+      - ref: test.double
+      - ref: test.boolean
+      - ref: test.template_string
+      # - ref: test.template_int
+      # - ref: test.template_double
+      # - ref: test.template_boolean
+      - ref: test.template_string_array
+      # - ref: test.template_int_array
+      # - ref: test.template_double_array
+      # - ref: test.template_boolean_array
+      - ref: test.enum
+
+  - id: test.comprehensive.server
+    type: span
+    stability: development
+    brief: "Test span with server span_kind"
+    span_kind: server
+    attributes:
+      - ref: test.string
+
+  - id: test.comprehensive.producer
+    type: span
+    stability: development
+    brief: "Test span with producer span_kind"
+    span_kind: producer
+    attributes:
+      - ref: test.string
+
+  - id: test.comprehensive.consumer
+    type: span
+    stability: development
+    brief: "Test span with consumer span_kind"
+    span_kind: consumer
+    attributes:
+      - ref: test.string
+
+  - id: test.comprehensive.internal
+    type: span
+    stability: development
+    brief: "Test span with internal span_kind"
+    span_kind: internal
+    attributes:
+      - ref: test.string

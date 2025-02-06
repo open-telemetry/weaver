@@ -6,38 +6,48 @@ groups:
       A cloud environment (e.g. GCP, Azure, AWS)
     attributes:
       - id: cloud.provider
+        stability: stable
         type:
           members:
             - id: 'alibaba_cloud'
+              stability: stable
               value: 'alibaba_cloud'
               brief: 'Alibaba Cloud'
             - id: 'aws'
+              stability: stable
               value: 'aws'
               brief: 'Amazon Web Services'
             - id: 'azure'
+              stability: stable
               value: 'azure'
               brief: 'Microsoft Azure'
             - id: 'gcp'
+              stability: stable
               value: 'gcp'
               brief: 'Google Cloud Platform'
             - id: 'heroku'
+              stability: stable
               value: 'heroku'
               brief: 'Heroku Platform as a Service'
             - id: 'ibm_cloud'
+              stability: stable
               value: 'ibm_cloud'
               brief: 'IBM Cloud'
             - id: 'tencent_cloud'
+              stability: stable
               value: 'tencent_cloud'
               brief: 'Tencent Cloud'
 
         brief: >
           Name of the cloud provider.
       - id: cloud.account.id
+        stability: stable
         type: string
         brief: >
           The cloud account ID the resource is assigned to.
         examples: ['111111111111', 'opentelemetry']
       - id: cloud.region
+        stability: stable
         type: string
         brief: >
           The geographical region the resource is running.
@@ -50,6 +60,7 @@ groups:
           or [Tencent Cloud regions](https://www.tencentcloud.com/document/product/213/6091).
         examples: ['us-central1', 'us-east-1']
       - id: cloud.resource_id
+        stability: stable
         type: string
         brief: >
           Cloud provider-specific native identifier of the monitored cloud resource
@@ -79,6 +90,7 @@ groups:
           - '//run.googleapis.com/projects/PROJECT_ID/locations/LOCATION_ID/services/SERVICE_ID'
           - '/subscriptions/<SUBSCIPTION_GUID>/resourceGroups/<RG>/providers/Microsoft.Web/sites/<FUNCAPP>/functions/<FUNC>'
       - id: cloud.availability_zone
+        stability: stable
         type: string
         brief: >
           Cloud regions often have multiple, isolated locations known as zones
@@ -88,87 +100,115 @@ groups:
           Availability zones are called "zones" on Alibaba Cloud and Google Cloud.
         examples: ['us-east-1c']
       - id: cloud.platform
+        stability: stable
         type:
           members:
             - id: alibaba_cloud_ecs
+              stability: stable
               value: 'alibaba_cloud_ecs'
               brief: Alibaba Cloud Elastic Compute Service
             - id: alibaba_cloud_fc
+              stability: stable
               value: 'alibaba_cloud_fc'
               brief: Alibaba Cloud Function Compute
             - id: alibaba_cloud_openshift
+              stability: stable
               value: 'alibaba_cloud_openshift'
               brief: Red Hat OpenShift on Alibaba Cloud
             - id: aws_ec2
+              stability: stable
               value: 'aws_ec2'
               brief: AWS Elastic Compute Cloud
             - id: aws_ecs
+              stability: stable
               value: 'aws_ecs'
               brief: AWS Elastic Container Service
             - id: aws_eks
+              stability: stable
               value: 'aws_eks'
               brief: AWS Elastic Kubernetes Service
             - id: aws_lambda
+              stability: stable
               value: 'aws_lambda'
               brief: AWS Lambda
             - id: aws_elastic_beanstalk
+              stability: stable
               value: 'aws_elastic_beanstalk'
               brief: AWS Elastic Beanstalk
             - id: aws_app_runner
+              stability: stable
               value: 'aws_app_runner'
               brief: AWS App Runner
             - id: aws_openshift
+              stability: stable
               value: 'aws_openshift'
               brief: Red Hat OpenShift on AWS (ROSA)
             - id: azure_vm
+              stability: stable
               value: 'azure_vm'
               brief: Azure Virtual Machines
             - id: azure_container_instances
+              stability: stable
               value: 'azure_container_instances'
               brief: Azure Container Instances
             - id: azure_aks
+              stability: stable
               value: 'azure_aks'
               brief: Azure Kubernetes Service
             - id: azure_functions
+              stability: stable
               value: 'azure_functions'
               brief: Azure Functions
             - id: azure_app_service
+              stability: stable
               value: 'azure_app_service'
               brief: Azure App Service
             - id: azure_openshift
+              stability: stable
               value: 'azure_openshift'
               brief: Azure Red Hat OpenShift
             - id: gcp_bare_metal_solution
+              stability: stable
               value: 'gcp_bare_metal_solution'
               brief: Google Bare Metal Solution (BMS)
             - id: gcp_compute_engine
+              stability: stable
               value: 'gcp_compute_engine'
               brief: Google Cloud Compute Engine (GCE)
             - id: gcp_cloud_run
+              stability: stable
               value: 'gcp_cloud_run'
               brief: Google Cloud Run
             - id: gcp_kubernetes_engine
+              stability: stable
               value: 'gcp_kubernetes_engine'
               brief: Google Cloud Kubernetes Engine (GKE)
             - id: gcp_cloud_functions
+              stability: stable
               value: 'gcp_cloud_functions'
               brief: Google Cloud Functions (GCF)
             - id: gcp_app_engine
+              stability: stable
               value: 'gcp_app_engine'
               brief: Google Cloud App Engine (GAE)
             - id: gcp_openshift
+              stability: stable
               value: 'gcp_openshift'
               brief: Red Hat OpenShift on Google Cloud
             - id: ibm_cloud_openshift
+              stability: stable
               value: 'ibm_cloud_openshift'
               brief: Red Hat OpenShift on IBM Cloud
             - id: tencent_cloud_cvm
+              stability: stable
               value: 'tencent_cloud_cvm'
               brief: Tencent Cloud Cloud Virtual Machine (CVM)
             - id: tencent_cloud_eks
+              stability: stable
               value: 'tencent_cloud_eks'
               brief: Tencent Cloud Elastic Kubernetes Service (EKS)
             - id: tencent_cloud_scf
+              stability: stable
               value: 'tencent_cloud_scf'
               brief: Tencent Cloud Serverless Cloud Function (SCF)
         brief: >

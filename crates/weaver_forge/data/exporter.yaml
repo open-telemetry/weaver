@@ -21,11 +21,13 @@ groups:
       Span attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.
     attributes:
       - id: otel.library.name
+        stability: stable
         type: string
         deprecated: use the `otel.scope.name` attribute.
         brief:
         examples: ['io.opentelemetry.contrib.mongodb']
       - id: otel.library.version
+        stability: stable
         type: string
         deprecated: use the `otel.scope.version` attribute.
         brief:

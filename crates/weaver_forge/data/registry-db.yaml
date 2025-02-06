@@ -5,63 +5,81 @@ groups:
       This document defines the attributes used to describe telemetry in the context of databases.
     attributes:
       - id: db.cassandra.coordinator.dc
+        stability: stable
         type: string
         brief: >
           The data center of the coordinating node for a query.
         examples: 'us-west-2'
         tag: tech-specific-cassandra
       - id: db.cassandra.coordinator.id
+        stability: stable
         type: string
         brief: >
           The ID of the coordinating node for a query.
         examples: 'be13faa2-8574-4d71-926d-27f16cf8a7af'
         tag: tech-specific-cassandra
       - id: db.cassandra.consistency_level
+        stability: stable
         brief: >
           The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
         type:
           members:
             - id: all
+              stability: stable
               value: 'all'
             - id: each_quorum
+              stability: stable
               value: 'each_quorum'
             - id: quorum
+              stability: stable
               value: 'quorum'
             - id: local_quorum
+              stability: stable
               value: 'local_quorum'
             - id: one
+              stability: stable
               value: 'one'
             - id: two
+              stability: stable
               value: 'two'
             - id: three
+              stability: stable
               value: 'three'
             - id: local_one
+              stability: stable
               value: 'local_one'
             - id: any
+              stability: stable
               value: 'any'
             - id: serial
+              stability: stable
               value: 'serial'
             - id: local_serial
+              stability: stable
               value: 'local_serial'
         tag: tech-specific-cassandra
       - id: db.cassandra.idempotence
+        stability: stable
         type: boolean
         brief: >
           Whether or not the query is idempotent.
         tag: tech-specific-cassandra
       - id: db.cassandra.page_size
+        stability: stable
         type: int
         brief: >
           The fetch size used for paging, i.e. how many rows will be returned at once.
         examples: [5000]
         tag: tech-specific-cassandra
       - id: db.cassandra.speculative_execution_count
+        stability: stable
         type: int
         brief: >
           The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.
         examples: [0, 2]
         tag: tech-specific-cassandra
       - id: db.cassandra.table
+        stability: stable
         type: string
         brief: The name of the primary Cassandra table that the operation is acting upon, including the keyspace name (if applicable).
         note: >
@@ -74,6 +92,7 @@ groups:
         examples: 'mytable'
         tag: tech-specific-cassandra
       - id: db.connection_string
+        stability: stable
         type: string
         brief: >
           The connection string used to connect to the database.
@@ -81,93 +100,121 @@ groups:
         examples: 'Server=(localdb)\v11.0;Integrated Security=true;'
         tag: db-generic
       - id: db.cosmosdb.client_id
+        stability: stable
         type: string
         brief: Unique Cosmos client instance id.
         examples: '3ba4827d-4422-483f-b59f-85b74211c11d'
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.connection_mode
+        stability: stable
         type:
           members:
             - id: gateway
+              stability: stable
               value: 'gateway'
               brief: Gateway (HTTP) connections mode
             - id: direct
+              stability: stable
               value: 'direct'
               brief: Direct connection.
         brief: Cosmos client connection mode.
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.container
+        stability: stable
         type: string
         brief: Cosmos DB container name.
         examples: 'anystring'
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.operation_type
+        stability: stable
         type:
           members:
             - id: invalid
+              stability: stable
               value: 'Invalid'
             - id: create
+              stability: stable
               value: 'Create'
             - id: patch
+              stability: stable
               value: 'Patch'
             - id: read
+              stability: stable
               value: 'Read'
             - id: read_feed
+              stability: stable
               value: 'ReadFeed'
             - id: delete
+              stability: stable
               value: 'Delete'
             - id: replace
+              stability: stable
               value: 'Replace'
             - id: execute
+              stability: stable
               value: 'Execute'
             - id: query
+              stability: stable
               value: 'Query'
             - id: head
+              stability: stable
               value: 'Head'
             - id: head_feed
+              stability: stable
               value: 'HeadFeed'
             - id: upsert
+              stability: stable
               value: 'Upsert'
             - id: batch
+              stability: stable
               value: 'Batch'
             - id: query_plan
+              stability: stable
               value: 'QueryPlan'
             - id: execute_javascript
+              stability: stable
               value: 'ExecuteJavaScript'
         brief: CosmosDB Operation Type.
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.request_charge
+        stability: stable
         type: double
         brief: RU consumed for that operation
         examples: [46.18, 1.0]
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.request_content_length
+        stability: stable
         type: int
         brief: Request payload size in bytes
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.status_code
+        stability: stable
         type: int
         brief: Cosmos DB status code.
         examples: [200, 201]
         tag: tech-specific-cosmosdb
       - id: db.cosmosdb.sub_status_code
+        stability: stable
         type: int
         brief: Cosmos DB sub status code.
         examples: [1000, 1002]
         tag: tech-specific-cosmosdb
       - id: db.elasticsearch.cluster.name
+        stability: stable
         type: string
         brief: >
           Represents the identifier of an Elasticsearch cluster.
         examples: ["e9106fc68e3044f0b1475b04bf4ffd5f"]
         tag: tech-specific-elasticsearch
       - id: db.elasticsearch.node.name
+        stability: stable
         type: string
         brief: >
           Represents the human-readable identifier of the node/instance to which a request was routed.
         examples: ["instance-0000000001"]
         tag: tech-specific-elasticsearch
       - id: db.elasticsearch.path_parts
+        stability: stable
         type: template[string]
         brief: >
           A dynamic value in the url path.
@@ -179,18 +226,21 @@ groups:
         examples: ['db.elasticsearch.path_parts.index=test-index', 'db.elasticsearch.path_parts.doc_id=123']
         tag: tech-specific-elasticsearch
       - id: db.jdbc.driver_classname
+        stability: stable
         type: string
         brief: >
           The fully-qualified class name of the [Java Database Connectivity (JDBC)](https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/) driver used to connect.
         examples: ['org.postgresql.Driver', 'com.microsoft.sqlserver.jdbc.SQLServerDriver']
         tag: tech-specific-jdbc
       - id: db.mongodb.collection
+        stability: stable
         type: string
         brief: >
           The MongoDB collection being accessed within the database stated in `db.name`.
         examples: [ 'customers', 'products' ]
         tag: tech-specific-mongodb
       - id: db.mssql.instance_name
+        stability: stable
         type: string
         note: >
           If setting a `db.mssql.instance_name`, `server.port` is no longer
@@ -201,6 +251,7 @@ groups:
         examples: 'MSSQLSERVER'
         tag: tech-specific-mssql
       - id: db.name
+        stability: stable
         type: string
         brief: >
           This attribute is used to report the name of the database being accessed.
@@ -214,6 +265,7 @@ groups:
         examples: [ 'customers', 'main' ]
         tag: db-generic
       - id: db.operation
+        stability: stable
         type: string
         brief: >
           The name of the operation being executed, e.g. the [MongoDB command name](https://docs.mongodb.com/manual/reference/command/#database-operations)
@@ -228,6 +280,7 @@ groups:
         examples: ['findAndModify', 'HMSET', 'SELECT']
         tag: db-generic
       - id: db.redis.database_index
+        stability: stable
         type: int
         brief: >
           The index of the database being accessed as used in the [`SELECT` command](https://redis.io/commands/select), provided as an integer.
@@ -235,6 +288,7 @@ groups:
         examples: [0, 1, 15]
         tag: tech-specific-redis
       - id: db.sql.table
+        stability: stable
         type: string
         brief: The name of the primary table that the operation is acting upon, including the database name (if applicable).
         note: >
@@ -246,179 +300,235 @@ groups:
         examples: ['public.users', 'customers']
         tag: tech-specific-sql
       - id: db.statement
+        stability: stable
         type: string
         brief: >
           The database statement being executed.
         examples: ['SELECT * FROM wuser_table', 'SET mykey "WuValue"']
         tag: db-generic
       - id: db.system
+        stability: stable
         brief: An identifier for the database management system (DBMS) product being used. See below for a list of well-known identifiers.
         type:
           members:
             - id: other_sql
+              stability: stable
               value: 'other_sql'
               brief: 'Some other SQL database. Fallback only. See notes.'
             - id: mssql
+              stability: stable
               value: 'mssql'
               brief: 'Microsoft SQL Server'
             - id: mssqlcompact
+              stability: stable
               value: 'mssqlcompact'
               brief: 'Microsoft SQL Server Compact'
             - id: mysql
+              stability: stable
               value: 'mysql'
               brief: 'MySQL'
             - id: oracle
+              stability: stable
               value: 'oracle'
               brief: 'Oracle Database'
             - id: db2
+              stability: stable
               value: 'db2'
               brief: 'IBM Db2'
             - id: postgresql
+              stability: stable
               value: 'postgresql'
               brief: 'PostgreSQL'
             - id: redshift
+              stability: stable
               value: 'redshift'
               brief: 'Amazon Redshift'
             - id: hive
+              stability: stable
               value: 'hive'
               brief: 'Apache Hive'
             - id: cloudscape
+              stability: stable
               value: 'cloudscape'
               brief: 'Cloudscape'
             - id: hsqldb
+              stability: stable
               value: 'hsqldb'
               brief: 'HyperSQL DataBase'
             - id: progress
+              stability: stable
               value: 'progress'
               brief: 'Progress Database'
             - id: maxdb
+              stability: stable
               value: 'maxdb'
               brief: 'SAP MaxDB'
             - id: hanadb
+              stability: stable
               value: 'hanadb'
               brief: 'SAP HANA'
             - id: ingres
+              stability: stable
               value: 'ingres'
               brief: 'Ingres'
             - id: firstsql
+              stability: stable
               value: 'firstsql'
               brief: 'FirstSQL'
             - id: edb
+              stability: stable
               value: 'edb'
               brief: 'EnterpriseDB'
             - id: cache
+              stability: stable
               value: 'cache'
               brief: 'InterSystems Caché'
             - id: adabas
+              stability: stable
               value: 'adabas'
               brief: 'Adabas (Adaptable Database System)'
             - id: firebird
+              stability: stable
               value: 'firebird'
               brief: 'Firebird'
             - id: derby
+              stability: stable
               value: 'derby'
               brief: 'Apache Derby'
             - id: filemaker
+              stability: stable
               value: 'filemaker'
               brief: 'FileMaker'
             - id: informix
+              stability: stable
               value: 'informix'
               brief: 'Informix'
             - id: instantdb
+              stability: stable
               value: 'instantdb'
               brief: 'InstantDB'
             - id: interbase
+              stability: stable
               value: 'interbase'
               brief: 'InterBase'
             - id: mariadb
+              stability: stable
               value: 'mariadb'
               brief: 'MariaDB'
             - id: netezza
+              stability: stable
               value: 'netezza'
               brief: 'Netezza'
             - id: pervasive
+              stability: stable
               value: 'pervasive'
               brief: 'Pervasive PSQL'
             - id: pointbase
+              stability: stable
               value: 'pointbase'
               brief: 'PointBase'
             - id: sqlite
+              stability: stable
               value: 'sqlite'
               brief: 'SQLite'
             - id: sybase
+              stability: stable
               value: 'sybase'
               brief: 'Sybase'
             - id: teradata
+              stability: stable
               value: 'teradata'
               brief: 'Teradata'
             - id: vertica
+              stability: stable
               value: 'vertica'
               brief: 'Vertica'
             - id: h2
+              stability: stable
               value: 'h2'
               brief: 'H2'
             - id: coldfusion
+              stability: stable
               value: 'coldfusion'
               brief: 'ColdFusion IMQ'
             - id: cassandra
+              stability: stable
               value: 'cassandra'
               brief: 'Apache Cassandra'
             - id: hbase
+              stability: stable
               value: 'hbase'
               brief: 'Apache HBase'
             - id: mongodb
+              stability: stable
               value: 'mongodb'
               brief: 'MongoDB'
             - id: redis
+              stability: stable
               value: 'redis'
               brief: 'Redis'
             - id: couchbase
+              stability: stable
               value: 'couchbase'
               brief: 'Couchbase'
             - id: couchdb
+              stability: stable
               value: 'couchdb'
               brief: 'CouchDB'
             - id: cosmosdb
+              stability: stable
               value: 'cosmosdb'
               brief: 'Microsoft Azure Cosmos DB'
             - id: dynamodb
+              stability: stable
               value: 'dynamodb'
               brief: 'Amazon DynamoDB'
             - id: neo4j
+              stability: stable
               value: 'neo4j'
               brief: 'Neo4j'
             - id: geode
+              stability: stable
               value: 'geode'
               brief: 'Apache Geode'
             - id: elasticsearch
+              stability: stable
               value: 'elasticsearch'
               brief: 'Elasticsearch'
             - id: memcached
+              stability: stable
               value: 'memcached'
               brief: 'Memcached'
             - id: cockroachdb
+              stability: stable
               value: 'cockroachdb'
               brief: 'CockroachDB'
             - id: opensearch
+              stability: stable
               value: 'opensearch'
               brief: 'OpenSearch'
             - id: clickhouse
+              stability: stable
               value: 'clickhouse'
               brief: 'ClickHouse'
             - id: spanner
+              stability: stable
               value: 'spanner'
               brief: 'Cloud Spanner'
             - id: trino
+              stability: stable
               value: 'trino'
               brief: 'Trino'
         tag: db-generic
       - id: db.user
+        stability: stable
         type: string
         brief: >
           Username for accessing the database.
         examples: ['readonly_user', 'reporting_user']
         tag: db-generic
       - id: db.instance.id
+        stability: stable
         tag: db-generic
         type: string
         brief: >

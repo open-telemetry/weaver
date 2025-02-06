@@ -22,6 +22,8 @@ An identifier for the database management system (DBMS) product being used. See 
   
 - Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
   
+- Stability: Stable
+  
 
 #### Attribute `db.connection_string`
 
@@ -35,6 +37,8 @@ The connection string used to connect to the database. It is recommended to remo
   
 - Type: string
 - Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
   
 
 #### Attribute `db.user`
@@ -53,6 +57,8 @@ Username for accessing the database.
     "reporting_user",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.jdbc.driver_classname`
 
@@ -69,6 +75,8 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
     "org.postgresql.Driver",
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.name`
@@ -89,6 +97,8 @@ In some SQL databases, the database name to be used is called "schema name". In 
     "main",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.statement`
 
@@ -105,6 +115,8 @@ The database statement being executed.
     "SELECT * FROM wuser_table",
     "SET mykey \"WuValue\"",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.operation`
@@ -125,6 +137,8 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
     "HMSET",
     "SELECT",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `server.address`
@@ -263,6 +277,8 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Type: string
 - Examples: mysql-e26b99z.example.com
   
+- Stability: Stable
+  
 
 #### Attribute `db.cosmosdb.client_id`
 
@@ -276,6 +292,8 @@ Unique Cosmos client instance id.
 - Type: string
 - Examples: 3ba4827d-4422-483f-b59f-85b74211c11d
   
+- Stability: Stable
+  
 
 #### Attribute `db.cosmosdb.connection_mode`
 
@@ -287,6 +305,8 @@ Cosmos client connection mode.
 - Tag: call-level-tech-specific
   
 - Type: Enum [gateway, direct]
+  
+- Stability: Stable
   
 
 #### Attribute `db.cosmosdb.container`
@@ -301,6 +321,8 @@ Cosmos DB container name.
 - Type: string
 - Examples: anystring
   
+- Stability: Stable
+  
 
 #### Attribute `db.cosmosdb.operation_type`
 
@@ -312,6 +334,8 @@ CosmosDB Operation Type.
 - Tag: call-level-tech-specific
   
 - Type: Enum [Invalid, Create, Patch, Read, ReadFeed, Delete, Replace, Execute, Query, Head, HeadFeed, Upsert, Batch, QueryPlan, ExecuteJavaScript]
+  
+- Stability: Stable
   
 
 #### Attribute `db.cosmosdb.request_charge`
@@ -329,6 +353,8 @@ RU consumed for that operation
     1.0,
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.cosmosdb.request_content_length`
 
@@ -340,6 +366,8 @@ Request payload size in bytes
 - Tag: call-level-tech-specific
   
 - Type: int
+  
+- Stability: Stable
   
 
 #### Attribute `db.cosmosdb.status_code`
@@ -357,6 +385,8 @@ Cosmos DB status code.
     201,
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.cosmosdb.sub_status_code`
 
@@ -372,6 +402,8 @@ Cosmos DB sub status code.
     1000,
     1002,
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `user_agent.original`

@@ -32,33 +32,43 @@ groups:
         type:
           members:
             - id: connect
+              stability: experimental
               value: "CONNECT"
               brief: 'CONNECT method.'
             - id: delete
+              stability: experimental
               value: "DELETE"
               brief: 'DELETE method.'
             - id: get
+              stability: experimental
               value: "GET"
               brief: 'GET method.'
             - id: head
+              stability: experimental
               value: "HEAD"
               brief: 'HEAD method.'
             - id: options
+              stability: experimental
               value: "OPTIONS"
               brief: 'OPTIONS method.'
             - id: patch
+              stability: experimental
               value: "PATCH"
               brief: 'PATCH method.'
             - id: post
+              stability: experimental
               value: "POST"
               brief: 'POST method.'
             - id: put
+              stability: experimental
               value: "PUT"
               brief: 'PUT method.'
             - id: trace
+              stability: experimental
               value: "TRACE"
               brief: 'TRACE method.'
             - id: other
+              stability: experimental
               value: "_OTHER"
               brief: 'Any HTTP method that the instrumentation has no prior knowledge of.'
         brief: 'HTTP request method.'

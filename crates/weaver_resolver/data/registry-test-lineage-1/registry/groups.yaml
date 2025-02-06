@@ -12,6 +12,7 @@ groups:
     brief: 'Base level'
     attributes:
       - id: server.port
+        stability: stable
         type: string
         brief: Server port
         examples: ['8080']
