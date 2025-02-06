@@ -1,0 +1,11 @@
+groups:
+  - id: registry.app
+    type: attribute_group
+    display_name: Enterprise Application Attributes
+    brief: 'A set of enterprise application attributes.'
+    attributes:
+      - id: tenant.id
+        brief: 'The customer tenant id.'
+        stability: stable
+        requirement_level: required
+        type: string

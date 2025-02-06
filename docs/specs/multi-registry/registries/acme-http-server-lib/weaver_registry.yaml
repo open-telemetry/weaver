@@ -1,0 +1,12 @@
+name: acme_http_server_lib
+version: 1.0.0
+schema_url: https://acme_server.com/schemas/1.0.0
+owner:
+  name: ACME HTTP Server Library
+  contact: contact@acme.com
+maintainers:
+  - name: Sarah Connor
+dependencies:
+  - name: otel
+    version: 1.27.0
+    repository: https://opentelemetry.io/registries/

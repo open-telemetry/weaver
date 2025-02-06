@@ -1,0 +1,23 @@
+groups:
+  - id: endpoint.error
+    type: event
+    name: endpoint.error
+    brief: "An endpoint error event."
+    stability: stable
+    attributes:
+      - ref: otel:user.roles
+        requirement_level: required
+      - ref: otel:client.address
+        requirement_level: required
+      - ref: otel:client.port
+        requirement_level: required
+      - ref: otel:http.request.method
+        requirement_level: required
+      - ref: otel:error.type
+        requirement_level: required
+      - ref: otel:thread.id
+        requirement_level: required
+      - ref: acme:route.name
+      - ref: tenant.id
+
+
