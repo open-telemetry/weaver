@@ -7,7 +7,8 @@
       "80",
       "443"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name",
@@ -17,7 +18,8 @@
       "http",
       "spdy"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
@@ -27,7 +29,8 @@
       "1.0",
       "2.0"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.type",
@@ -37,7 +40,8 @@
       "ipv4",
       "ipv6"
     ],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "server.port",
@@ -47,14 +51,16 @@
       "80",
       "443"
     ],
-    "requirement_level": "opt_in"
+    "requirement_level": "opt_in",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.name2",
     "type": "string",
     "brief": "Network protocol name",
     "examples": ["http", "spdy"],
-    "requirement_level": "recommended"
+    "requirement_level": "recommended",
+    "stability": "stable"
   },
   {
     "name": "network.protocol.version",
@@ -64,6 +70,7 @@
       "1.0",
       "2.0"
     ],
-    "requirement_level": "opt_in"
+    "requirement_level": "opt_in",
+    "stability": "stable"
   }
 ]

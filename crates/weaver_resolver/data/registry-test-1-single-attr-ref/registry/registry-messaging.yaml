@@ -4,6 +4,7 @@ groups:
     brief: 'Attributes describing telemetry around messaging systems and messaging activities.'
     attributes:
       - id: messaging.destination.name
+        stability: stable
         type: string
         brief: 'The message destination name'
         note: |

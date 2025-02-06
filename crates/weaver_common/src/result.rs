@@ -27,10 +27,50 @@ pub enum WResult<T, E> {
     FatalErr(E),
 }
 
+impl<T> WResult<T, DiagnosticMessage> {
+    /// Converts a [`WResult`] into a standard [`Result`], optionally capturing non-fatal errors.
+    pub fn capture_non_fatal_errors(
+        self,
+        diag_msgs: &mut DiagnosticMessages,
+    ) -> Result<T, DiagnosticMessage> {
+        match self {
+            WResult::Ok(result) => Ok(result),
+            WResult::OkWithNFEs(result, nfes) => {
+                diag_msgs.extend_from_vec(nfes);
+                Ok(result)
+            }
+            WResult::FatalErr(fatal_err) => Err(fatal_err),
+        }
+    }
+}
+
 impl<T, E> WResult<T, E>
 where
     E: WeaverError<E> + Error + Diagnostic + Serialize + Send + Sync + 'static,
 {
+    /// Returns `true` if the result is a fatal error.
+    pub fn is_fatal(&self) -> bool {
+        matches!(self, WResult::FatalErr(_))
+    }
+
+    /// Returns `true` if the result is not Ok.
+    pub fn has_errors(&self) -> bool {
+        match self {
+            WResult::Ok(_) => false,
+            WResult::OkWithNFEs(_, errors) => !errors.is_empty(),
+            WResult::FatalErr(_) => true,
+        }
+    }
+
+    /// Returns the number of non-fatal errors, or 1 if the result is a fatal error, 0 otherwise.
+    pub fn num_errors(&self) -> usize {
+        match self {
+            WResult::Ok(_) => 0,
+            WResult::OkWithNFEs(_, errors) => errors.len(),
+            WResult::FatalErr(_) => 1,
+        }
+    }
+
     /// Creates a new [`WResult`] with a successful result.
     pub fn with_non_fatal_errors(result: T, non_fatal_errors: Vec<E>) -> Self {
         if non_fatal_errors.is_empty() {

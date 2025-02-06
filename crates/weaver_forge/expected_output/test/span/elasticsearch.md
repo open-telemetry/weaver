@@ -22,6 +22,8 @@ An identifier for the database management system (DBMS) product being used. See 
   
 - Type: Enum [other_sql, mssql, mssqlcompact, mysql, oracle, db2, postgresql, redshift, hive, cloudscape, hsqldb, progress, maxdb, hanadb, ingres, firstsql, edb, cache, adabas, firebird, derby, filemaker, informix, instantdb, interbase, mariadb, netezza, pervasive, pointbase, sqlite, sybase, teradata, vertica, h2, coldfusion, cassandra, hbase, mongodb, redis, couchbase, couchdb, cosmosdb, dynamodb, neo4j, geode, elasticsearch, memcached, cockroachdb, opensearch, clickhouse, spanner, trino]
   
+- Stability: Stable
+  
 
 #### Attribute `db.connection_string`
 
@@ -35,6 +37,8 @@ The connection string used to connect to the database. It is recommended to remo
   
 - Type: string
 - Examples: Server=(localdb)\v11.0;Integrated Security=true;
+  
+- Stability: Stable
   
 
 #### Attribute `db.user`
@@ -53,6 +57,8 @@ Username for accessing the database.
     "reporting_user",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.jdbc.driver_classname`
 
@@ -69,6 +75,8 @@ The fully-qualified class name of the [Java Database Connectivity (JDBC)](https:
     "org.postgresql.Driver",
     "com.microsoft.sqlserver.jdbc.SQLServerDriver",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.name`
@@ -88,6 +96,8 @@ In some SQL databases, the database name to be used is called "schema name". In 
     "customers",
     "main",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `network.peer.address`
@@ -183,6 +193,8 @@ An identifier (address, unique name, or any other identifier) of the database in
 - Type: string
 - Examples: mysql-e26b99z.example.com
   
+- Stability: Stable
+  
 
 #### Attribute `db.elasticsearch.cluster.name`
 
@@ -199,6 +211,8 @@ Represents the identifier of an Elasticsearch cluster.
     "e9106fc68e3044f0b1475b04bf4ffd5f",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.elasticsearch.node.name`
 
@@ -214,6 +228,8 @@ Represents the human-readable identifier of the node/instance to which a request
 - Examples: [
     "instance-0000000001",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `db.elasticsearch.path_parts`
@@ -234,6 +250,8 @@ Many Elasticsearch url paths allow dynamic values. These SHOULD be recorded in s
     "db.elasticsearch.path_parts.doc_id=123",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.operation`
 
@@ -253,6 +271,8 @@ When setting this to an SQL keyword, it is not recommended to attempt any client
     "cat.aliases",
 ]
   
+- Stability: Stable
+  
 
 #### Attribute `db.statement`
 
@@ -267,6 +287,8 @@ The request body for a [search-type query](https://www.elastic.co/guide/en/elast
 - Examples: [
     "\"{\\\"query\\\":{\\\"term\\\":{\\\"user.id\\\":\\\"kimchy\\\"}}}\"",
 ]
+  
+- Stability: Stable
   
 
 #### Attribute `http.request.method`

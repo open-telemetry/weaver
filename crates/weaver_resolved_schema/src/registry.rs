@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
 
 use serde::{Deserialize, Serialize};
-
+use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::stability::Stability;
 
@@ -80,7 +80,7 @@ pub struct Group {
     /// provided as <description> MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Additional constraints.
     /// Allow to define additional requirements on the semantic convention.
     /// It defaults to an empty list.
@@ -237,6 +237,15 @@ impl CommonGroupStats {
 }
 
 impl Registry {
+    /// Creates a new registry.
+    #[must_use]
+    pub fn new<S: AsRef<str>>(registry_url: S) -> Self {
+        Self {
+            registry_url: registry_url.as_ref().to_owned(),
+            groups: Vec::new(),
+        }
+    }
+
     /// Returns the groups of the specified type.
     ///
     /// # Arguments
@@ -343,6 +352,16 @@ impl Registry {
 }
 
 impl Group {
+    /// Returns `true` if the group is a registry attribute group.
+    ///
+    /// Note: Currently, this method relies on the `registry.` prefix to identify  
+    /// registry attribute groups. Once issue [#580](https://github.com/open-telemetry/weaver/issues/580)  
+    /// is resolved, this method must be updated accordingly.
+    #[must_use]
+    pub fn is_registry_attribute_group(&self) -> bool {
+        matches!(self.r#type, GroupType::AttributeGroup) && self.id.starts_with("registry.")
+    }
+
     /// Returns the fully resolved attributes of the group.
     /// The attribute references are resolved via the provided catalog.
     /// If an attribute reference is not found in the catalog, an error is

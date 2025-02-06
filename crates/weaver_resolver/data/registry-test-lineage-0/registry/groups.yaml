@@ -4,6 +4,7 @@ groups:
     brief: Registry server
     attributes:
       - id: server.port
+        stability: stable
         type: string
         brief: Server port
         examples: ["80", "443"]
@@ -13,14 +14,17 @@ groups:
     brief: Registry network
     attributes:
       - id: network.protocol.name
+        stability: stable
         type: string
         brief: Network protocol name
         examples: ["http", "spdy"]
       - id: network.protocol.version
+        stability: stable
         type: string
         brief: Network protocol version
         examples: ["1.0", "2.0"]
       - id: network.type
+        stability: stable
         type: string
         brief: Network type
         examples: ["ipv4", "ipv6"]
@@ -32,6 +36,7 @@ groups:
       - ref: server.port
         requirement_level: opt_in
       - id: network.protocol.name2
+        stability: stable
         type: string
         brief: Network protocol name
         examples: ["http", "spdy"]

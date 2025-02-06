@@ -1,0 +1,2 @@
+# This an invalid semconv registry manifest file because the version and schema base url fields are missing.
+name: vendor_acme
