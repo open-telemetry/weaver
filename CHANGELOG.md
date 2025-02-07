@@ -2,11 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Next] - YYYY-MM-DD
+## [0.13.0] - 2025-02-07
 
 What's changed
 
-* For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability on: Attributes, Enum members in attributes, Event AnyValues, Enum members in AnyValues. ([#568](https://github.com/open-telemetry/weaver/pull/568) by @jerbly).
 * **Breaking Change**: Introduced a new `weaver registry diff` command to generate a diff report between two versions of
   the semantic convention registry. This PR introduces a breaking change in the semantic conventions schema. While the
   text-based `deprecated` field is still supported for compatibility reasons, future semantic conventions should use the
@@ -16,17 +15,26 @@ What's changed
   * The changes related to the `deprecated` field (i.e., string → struct) also have a potential impact on certain
     templates that reference the `deprecated` field as containing text. These templates will need to be updated to use
     the `brief` field, which provides a textual explanation of the reasons for the deprecation.
+
+
+* Improvement of comment generation: removal of `<p>` tags that precede `@` Javadoc tags. 
+  ([#574](https://github.com/open-telemetry/weaver/pull/574) by @trask).
+* For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability
+  on: Attributes, Enum members in attributes, Event AnyValues, Enum members in AnyValues. ([#568](https://github.com/open-telemetry/weaver/pull/568) by @jerbly).
 * For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly). 
 * Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
-* Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
+* Add is_array filter and test for AttributeType. ([#540](https://github.com/open-telemetry/weaver/pull/540) by @arthurDiff).
+* Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for
+  `generate`, `resolve` and `check`. ([#536](https://github.com/open-telemetry/weaver/pull/536) by @jerbly).
   * Added missing `after_resolution` policy checks to `generate` and `resolve` through the common code.
   * Removed the deprecated `--registry-git-sub-dir` option.
   * Fixed bug in `check` if `--skip-policies` was specified then it would not fail for any validation errors.
-* Semantic Conventions Issue [#1513](https://github.com/open-telemetry/semantic-conventions/issues/1513) - Make span_kind required in yaml and break down multi-kind span definitions - ([#542](https://github.com/open-telemetry/weaver/pull/542) by @jerbly).
-  * Updated the EBNF and JSON schema to define `span_kind` as mandatory for `span` group types. Added a group validity check as a warning.
-* First iteration of the new command: `registry emit`. Emits a semantic convention registry as example spans to your OTLP receiver. This may be useful in testing/simulation scenarios. ([#549](https://github.com/open-telemetry/weaver/pull/549) by @jerbly)
-
-
+* Semantic Conventions Issue [#1513](https://github.com/open-telemetry/semantic-conventions/issues/1513) - Make span_kind required in yaml and break down multi-kind span
+  definitions - ([#542](https://github.com/open-telemetry/weaver/pull/542) by @jerbly).
+  * Updated the EBNF and JSON schema to define `span_kind` as mandatory for `span` group types. Added a group validity
+    check as a warning.
+* First iteration of the new command: `registry emit`. Emits a semantic convention registry as example spans to your
+  OTLP receiver. This may be useful in testing/simulation scenarios. ([#549](https://github.com/open-telemetry/weaver/pull/549) by @jerbly)
 
 ## [0.12.0] - 2024-12-09
 
