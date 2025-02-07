@@ -17,6 +17,7 @@ What's changed
     the `brief` field, which provides a textual explanation of the reasons for the deprecation.
 
 
+
 * Improvement of comment generation: removal of `<p>` tags that precede `@` Javadoc tags. 
   ([#574](https://github.com/open-telemetry/weaver/pull/574) by @trask).
 * For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability
@@ -35,6 +36,11 @@ What's changed
     check as a warning.
 * First iteration of the new command: `registry emit`. Emits a semantic convention registry as example spans to your
   OTLP receiver. This may be useful in testing/simulation scenarios. ([#549](https://github.com/open-telemetry/weaver/pull/549) by @jerbly)
+* For issue [#569](Add include_stability config into semconv_grouped_attributes): added `stable_only` boolean flag as a parameter for
+  `semconv_signal`, `semconv_grouped_attributes`, and other `semconv_*` JQ semconv helpers. When `stable_only` is set to `true`,
+  corresponding helper function returns stable conventions only. If the flag is not set or set to false, stability filtering does not apply.
+  It's recommended to use `stable_only` flag instead of `exclude_stability` parameter.
+  ([#588](https://github.com/open-telemetry/weaver/pull/588) by @lmolkova)  
 
 ## [0.12.0] - 2024-12-09
 
@@ -192,7 +198,7 @@ The following new filters have been added to the Weaver Forge:
 
 * `semconv_group_attributes_by_root_namespace`: Groups the attributes by their root namespace.
 * `semconv_attributes($options)`: Extracts and processes semantic convention attributes based on provided options. $options is an object that can contain:
-  * `exclude_stability`: a list of stability statuses to exclude.
+  * `exclude_stability`: a list of stability levels to exclude.
   * `exclude_deprecated`: a boolean to exclude deprecated metrics.
   * `exclude_root_namespace`: a list of root namespaces to exclude.
 * `semconv_attributes`: Convenience function to extract all attributes without any filtering options.
@@ -217,7 +223,7 @@ The following new filters have been added to the Weaver Forge:
 
 What's Changed
 
-* Support for Hierarchical Weaver Config: We have added support for hierarchical configuration in Weaver. 
+* Support for Hierarchical Weaver Config: We have added support for hierarchical configuration in Weaver.
 This allows more flexible and powerful configuration management. For more details, please refer to the
 documentation on [configuration file loading order and overriding rules](https://github.com/open-telemetry/weaver/blob/main/docs/weaver-config.md#configuration-file-loading-order-and-overriding-rules). by @lquerel in https://github.com/open-telemetry/weaver/pull/231
 * Support for MiniJinja py_compat Extensions: This release includes support for MiniJinja py_compat
@@ -319,7 +325,7 @@ This is a PREVIEW release, and stability guarantees are loose prior to 1.0.
 What's Changed:
 
 - The Weaver project, initially hosted by F5, has been moved to open-telemetry/weaver. The project's objectives have
-been redefined into two main phases/focuses: 1) semconv support, 2) application telemetry support. 
+been redefined into two main phases/focuses: 1) semconv support, 2) application telemetry support.
 - A Jinja-compatible template engine and a snippet-based generator have been completed and tested to support the
 semantic-convention repository. The template engine can be used for both documentation and code generation.
 - A new policy engine (based on rego) has been added to the project to externalize the declaration of policies and to
