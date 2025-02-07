@@ -157,10 +157,10 @@ mod tests {
     use opentelemetry_sdk::{trace as sdktrace, Resource};
 
     use futures_util::future::BoxFuture;
-    use opentelemetry::trace::{SpanKind, TraceError};
+    use opentelemetry::trace::SpanKind;
     use opentelemetry_sdk::export::{self, trace::ExportResult};
     use ordered_float::OrderedFloat;
-    use std::sync::{atomic, Arc, Mutex};
+    use std::sync::{Arc, Mutex};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::{
@@ -174,8 +174,8 @@ mod tests {
 
     #[derive(Debug)]
     pub struct SpanExporter {
-        resource: Resource,
-        is_shutdown: atomic::AtomicBool,
+        // resource: Resource,
+        // is_shutdown: atomic::AtomicBool,
         spans: Arc<Mutex<Vec<export::trace::SpanData>>>,
     }
 
@@ -184,22 +184,8 @@ mod tests {
             &mut self,
             batch: Vec<export::trace::SpanData>,
         ) -> BoxFuture<'static, ExportResult> {
-            if self.is_shutdown.load(atomic::Ordering::SeqCst) {
-                Box::pin(std::future::ready(Err(TraceError::from(
-                    "exporter is shut down",
-                ))))
-            } else {
-                self.spans.lock().unwrap().extend(batch);
-                Box::pin(std::future::ready(Ok(())))
-            }
-        }
-
-        fn shutdown(&mut self) {
-            self.is_shutdown.store(true, atomic::Ordering::SeqCst);
-        }
-
-        fn set_resource(&mut self, res: &Resource) {
-            self.resource = res.clone();
+            self.spans.lock().unwrap().extend(batch);
+            Box::pin(std::future::ready(Ok(())))
         }
     }
 
@@ -207,8 +193,6 @@ mod tests {
     fn test_emit_trace_for_registry() {
         let spans = Arc::new(Mutex::new(Vec::new()));
         let span_exporter = SpanExporter {
-            resource: Resource::empty(),
-            is_shutdown: atomic::AtomicBool::new(false),
             spans: spans.clone(),
         };
         let tracer_provider = sdktrace::TracerProvider::builder()
@@ -843,9 +827,7 @@ mod tests {
                 },
             ],
         };
-
         super::emit_trace_for_registry(&registry, "TEST");
-
         global::shutdown_tracer_provider();
 
         // Now check the spans stored in the span exporter
