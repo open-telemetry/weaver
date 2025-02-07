@@ -174,8 +174,6 @@ mod tests {
 
     #[derive(Debug)]
     pub struct SpanExporter {
-        // resource: Resource,
-        // is_shutdown: atomic::AtomicBool,
         spans: Arc<Mutex<Vec<export::trace::SpanData>>>,
     }
 
