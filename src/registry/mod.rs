@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
+use emit::RegistryEmitArgs;
 use miette::Diagnostic;
 use serde::Serialize;
 
@@ -24,6 +25,7 @@ use weaver_common::Logger;
 
 mod check;
 mod diff;
+mod emit;
 mod generate;
 mod json_schema;
 mod live_check;
@@ -131,6 +133,11 @@ pub enum RegistrySubCommand {
     /// endpoint, and a maximum duration of no OTLP message reception.
     #[clap(verbatim_doc_comment)]
     LiveCheck(CheckRegistryArgs),
+    /// Emits a semantic convention registry as example signals to your OTLP receiver.
+    ///
+    /// This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4317.
+    #[clap(verbatim_doc_comment)]
+    Emit(RegistryEmitArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -218,6 +225,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::LiveCheck(args) => CmdResult::new(
             live_check::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Emit(args) => CmdResult::new(
+            emit::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }

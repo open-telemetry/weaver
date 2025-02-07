@@ -1,0 +1,20 @@
+groups:
+  - id: metric.waf.action.hit.count
+    type: metric
+    metric_name: waf.action.hit.count
+    brief: "The number of times the action was hit."
+    instrument: counter
+    unit: "{count}"
+    stability: stable
+    extends: registry.waf
+    attributes:
+      - ref: my_otel:http.request.method
+        requirement_level: required
+      - ref: my_otel:client.address
+        requirement_level: required
+      - ref: my_otel:client.port
+        requirement_level: required
+      - ref: waf.signature
+        requirement_level: required
+      - ref: waf.action.type
+        requirement_level: required

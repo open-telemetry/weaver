@@ -24,11 +24,13 @@ What's changed
   * Fixed bug in `check` if `--skip-policies` was specified then it would not fail for any validation errors.
 * Semantic Conventions Issue [#1513](https://github.com/open-telemetry/semantic-conventions/issues/1513) - Make span_kind required in yaml and break down multi-kind span definitions - ([#542](https://github.com/open-telemetry/weaver/pull/542) by @jerbly).
   * Updated the EBNF and JSON schema to define `span_kind` as mandatory for `span` group types. Added a group validity check as a warning.
+* First iteration of the new command: `registry emit`. Emits a semantic convention registry as example spans to your OTLP receiver. This may be useful in testing/simulation scenarios. ([#549](https://github.com/open-telemetry/weaver/pull/549) by @jerbly)
 * For issue [#569](Add include_stability config into semconv_grouped_attributes): added `stable_only` boolean flag as a parameter for
   `semconv_signal`, `semconv_grouped_attributes`, and other `semconv_*` JQ semconv helpers. When `stable_only` is set to `true`,
   corresponding helper function returns stable conventions only. If the flag is not set or set to false, stability filtering does not apply.
   It's recommended to use `stable_only` flag instead of `exclude_stability` parameter.
   ([#588](https://github.com/open-telemetry/weaver/pull/588))
+
 
 ## [0.12.0] - 2024-12-09
 

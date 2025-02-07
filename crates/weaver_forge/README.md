@@ -900,5 +900,6 @@ generation of assets.
   boolean[]).
 - `template_type`: Tests if a type is a template type (i.e.: template[]).
 - `enum_type`: Tests if a type is an enum type.
+- `array`: Tests if a type is an array type.
 
 > Please open an issue if you have any suggestions for new tests. They are easy to implement.

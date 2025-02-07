@@ -1,0 +1,28 @@
+groups:
+  - id: registry.acme_http_server
+    type: attribute_group
+    display_name: Custom attributes for ACME HTTP Server
+    brief: 'A set of specific attributes for ACME HTTP Server.'
+    attributes:
+      # The ACME HTTP server author does not use the standard `http.route` for an unknown reason.
+      # Unfortunately, we cannot avoid this. In the future, we could enhance Weaver to detect these
+      # types of similarities and report them as advice messages.
+      - id: route.name
+        brief: 'The name of the route.'
+        stability: stable
+        requirement_level: required
+        type: string
+      - id: rate_limiter.type
+        brief: 'The type of rate limiter.'
+        stability: stable
+        requirement_level: required
+        type:
+          members:
+            - id: sliding
+              value: "SLIDING"
+              brief: 'SLIDING policy.'
+              stability: stable
+            - id: token
+              value: "TOKEN"
+              brief: 'TOKEN policy.'
+              stability: stable

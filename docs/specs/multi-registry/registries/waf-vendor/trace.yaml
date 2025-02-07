@@ -1,0 +1,11 @@
+groups:
+  - ref: otel:trace.http.server
+    attributes:
+      - ref: otel:http.request.method
+        requirement_level: required
+      - ref: otel:client.address
+        requirement_level: required
+      - ref: otel:client.port
+        requirement_level: required
+      - ref: waf.action.type
+        requirement_level: required
