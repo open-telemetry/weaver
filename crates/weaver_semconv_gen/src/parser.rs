@@ -16,7 +16,7 @@ use nom::{
     combinator::{opt, recognize, value},
     multi::separated_list0,
     sequence::pair,
-    IResult,
+    IResult, Parser,
 };
 
 /// exact string we expect for starting a semconv snippet.
@@ -29,7 +29,7 @@ fn parse_value(input: &str) -> IResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
-    ))(input)
+    )).parse(input)
 }
 
 /// nom parser for tag={value}.
@@ -41,12 +41,12 @@ fn parse_markdown_gen_tag(input: &str) -> IResult<&str, MarkdownGenParameters> {
 
 /// nom parser for full.
 fn parse_markdown_full(input: &str) -> IResult<&str, MarkdownGenParameters> {
-    value(MarkdownGenParameters::Full, tag("full"))(input)
+    value(MarkdownGenParameters::Full, tag("full")).parse(input)
 }
 
 /// nom parser for metric_table.
 fn parse_markdown_metric_table(input: &str) -> IResult<&str, MarkdownGenParameters> {
-    value(MarkdownGenParameters::MetricTable, tag("metric_table"))(input)
+    value(MarkdownGenParameters::MetricTable, tag("metric_table")).parse(input)
 }
 
 /// nom parser for omit_requirement_level.
@@ -54,7 +54,7 @@ fn parse_markdown_omit(input: &str) -> IResult<&str, MarkdownGenParameters> {
     value(
         MarkdownGenParameters::OmitRequirementLevel,
         tag("omit_requirement_level"),
-    )(input)
+    ).parse(input)
 }
 
 /// nom parser for single parameters to semconv generation.
@@ -64,13 +64,13 @@ fn parse_markdown_gen_parameter(input: &str) -> IResult<&str, MarkdownGenParamet
         parse_markdown_metric_table,
         parse_markdown_omit,
         parse_markdown_gen_tag,
-    ))(input)
+    )).parse(input)
 }
 
 /// nom parser for arguments to semconv generation. ({arg},{arg},..)
 fn parse_markdown_gen_parameters(input: &str) -> IResult<&str, Vec<MarkdownGenParameters>> {
     let (input, _) = tag("(")(input)?;
-    let (input, result) = separated_list0(tag(","), parse_markdown_gen_parameter)(input)?;
+    let (input, result) = separated_list0(tag(","), parse_markdown_gen_parameter).parse(input)?;
     let (input, _) = tag(")")(input)?;
     Ok((input, result))
 }
@@ -80,7 +80,7 @@ fn parse_id(input: &str) -> IResult<&str, &str> {
     recognize(pair(
         alpha1, // First character must be alpha, then anything is accepted.
         many0_count(alt((alphanumeric1, tag("."), tag("_"), tag("-")))),
-    ))(input)
+    )).parse(input)
 }
 
 /// nom parser for HTML comments: `<!--{comment}-->
@@ -101,7 +101,7 @@ fn parse_semconv_snippet_directive(input: &str) -> IResult<&str, GenerateMarkdow
     let (input, _) = tag(SEMCONV_HEADER)(input)?;
     let (input, _) = multispace0(input)?;
     let (input, id) = parse_id(input)?;
-    let (input, opt_args) = opt(parse_markdown_gen_parameters)(input)?;
+    let (input, opt_args) = opt(parse_markdown_gen_parameters).parse(input)?;
     let (input, _) = multispace0(input)?;
     Ok((
         input,
