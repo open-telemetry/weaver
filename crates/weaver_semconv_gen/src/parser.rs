@@ -29,7 +29,8 @@ fn parse_value(input: &str) -> IResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
-    )).parse(input)
+    ))
+    .parse(input)
 }
 
 /// nom parser for tag={value}.
@@ -54,7 +55,8 @@ fn parse_markdown_omit(input: &str) -> IResult<&str, MarkdownGenParameters> {
     value(
         MarkdownGenParameters::OmitRequirementLevel,
         tag("omit_requirement_level"),
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 /// nom parser for single parameters to semconv generation.
@@ -64,7 +66,8 @@ fn parse_markdown_gen_parameter(input: &str) -> IResult<&str, MarkdownGenParamet
         parse_markdown_metric_table,
         parse_markdown_omit,
         parse_markdown_gen_tag,
-    )).parse(input)
+    ))
+    .parse(input)
 }
 
 /// nom parser for arguments to semconv generation. ({arg},{arg},..)
@@ -80,7 +83,8 @@ fn parse_id(input: &str) -> IResult<&str, &str> {
     recognize(pair(
         alpha1, // First character must be alpha, then anything is accepted.
         many0_count(alt((alphanumeric1, tag("."), tag("_"), tag("-")))),
-    )).parse(input)
+    ))
+    .parse(input)
 }
 
 /// nom parser for HTML comments: `<!--{comment}-->
