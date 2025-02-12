@@ -5189,7 +5189,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -5229,7 +5229,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_cache"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "dirs",
  "flate2",
@@ -5250,7 +5250,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "globset",
  "miette",
@@ -5265,7 +5265,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "dirs",
  "miette",
@@ -5280,7 +5280,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "miette",
  "paris",
@@ -5293,7 +5293,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "serde_json",
  "similar",
@@ -5302,7 +5302,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "futures-util",
  "miette",
@@ -5322,7 +5322,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "convert_case",
  "dirs",
@@ -5370,7 +5370,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -5383,7 +5383,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "glob",
  "itertools 0.13.0",
@@ -5402,7 +5402,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "glob",
  "miette",
@@ -5420,7 +5420,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "miette",
  "nom",
@@ -5437,7 +5437,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.13.0"
+version = "0.13.1"
 dependencies = [
  "schemars",
  "semver",
