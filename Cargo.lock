@@ -5204,7 +5204,7 @@ dependencies = [
  "clap",
  "crossterm",
  "include_dir",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "miette",
  "portpicker",
  "prost",
@@ -5338,7 +5338,7 @@ dependencies = [
  "globset",
  "include_dir",
  "indexmap 2.7.1",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "jaq-core",
  "jaq-json",
  "jaq-std",
@@ -5395,7 +5395,7 @@ name = "weaver_resolver"
 version = "0.13.1"
 dependencies = [
  "glob",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "miette",
  "rayon",
  "serde",
