@@ -5,21 +5,21 @@ groups:
       This document defines the attributes used to describe telemetry in the context of databases.
     attributes:
       - id: db.cassandra.coordinator.dc
-        stability: stable
+        stability: release_candidate
         type: string
         brief: >
           The data center of the coordinating node for a query.
         examples: 'us-west-2'
         tag: tech-specific-cassandra
       - id: db.cassandra.coordinator.id
-        stability: stable
+        stability: experimental
         type: string
         brief: >
           The ID of the coordinating node for a query.
         examples: 'be13faa2-8574-4d71-926d-27f16cf8a7af'
         tag: tech-specific-cassandra
       - id: db.cassandra.consistency_level
-        stability: stable
+        stability: development
         brief: >
           The consistency level of the query. Based on consistency values from [CQL](https://docs.datastax.com/en/cassandra-oss/3.0/cassandra/dml/dmlConfigConsistency.html).
         type:
@@ -59,7 +59,7 @@ groups:
               value: 'local_serial'
         tag: tech-specific-cassandra
       - id: db.cassandra.idempotence
-        stability: stable
+        stability: alpha
         type: boolean
         brief: >
           Whether or not the query is idempotent.
@@ -72,7 +72,7 @@ groups:
         examples: [5000]
         tag: tech-specific-cassandra
       - id: db.cassandra.speculative_execution_count
-        stability: stable
+        stability: beta
         type: int
         brief: >
           The number of times a query was speculatively executed. Not set or `0` if the query was not executed speculatively.

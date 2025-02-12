@@ -292,7 +292,7 @@ The consistency level of the query. Based on consistency values from [CQL](https
   
 - Type: Enum [all, each_quorum, quorum, local_quorum, one, two, three, local_one, any, serial, local_serial]
   
-- Stability: Stable
+- Stability: Development
   
 
 #### Attribute `db.cassandra.coordinator.dc`
@@ -308,7 +308,7 @@ The data center of the coordinating node for a query.
 - Type: string
 - Examples: us-west-2
   
-- Stability: Stable
+- Stability: Release_candidate
   
 
 #### Attribute `db.cassandra.coordinator.id`
@@ -324,7 +324,7 @@ The ID of the coordinating node for a query.
 - Type: string
 - Examples: be13faa2-8574-4d71-926d-27f16cf8a7af
   
-- Stability: Stable
+- Stability: Development
   
 
 #### Attribute `db.cassandra.idempotence`
@@ -339,7 +339,7 @@ Whether or not the query is idempotent.
   
 - Type: boolean
   
-- Stability: Stable
+- Stability: Alpha
   
 
 #### Attribute `db.cassandra.page_size`
@@ -376,7 +376,7 @@ The number of times a query was speculatively executed. Not set or `0` if the qu
     2,
 ]
   
-- Stability: Stable
+- Stability: Beta
   
 
 #### Attribute `db.cassandra.table`
