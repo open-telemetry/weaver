@@ -293,16 +293,14 @@ pub(crate) fn is_experimental(input: &Value) -> bool {
     true
 }
 
-/// Checks if the input value is an object with a field named "stability" that has the value "deprecated".
-/// Otherwise, it returns false.
+/// Returns `true` if the input object contains a populated `deprecated` field. If this field is
+/// not present, the test returns `false`.
 #[must_use]
 pub(crate) fn is_deprecated(input: &Value) -> bool {
     let result = input.get_attr("deprecated");
 
     if let Ok(deprecated) = result {
-        if let Some(deprecated) = deprecated.as_str() {
-            return !deprecated.is_empty();
-        }
+        return deprecated.as_object().is_some();
     }
     false
 }
@@ -540,8 +538,7 @@ mod tests {
     use crate::extensions::otel;
     use crate::extensions::otel::{
         attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
-        attribute_sort, is_deprecated, is_experimental, is_stable, metric_namespace,
-        print_member_value,
+        attribute_sort, is_experimental, is_stable, metric_namespace, print_member_value,
     };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
@@ -549,6 +546,7 @@ mod tests {
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
     use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
+    use weaver_semconv::deprecated::Deprecated;
 
     #[derive(Debug)]
     struct DynAttr {
@@ -768,38 +766,66 @@ mod tests {
 
     #[test]
     fn test_is_deprecated() {
-        // An attribute with stability "experimental" and a deprecated field with a value
-        let attr = Value::from_object(DynAttr {
-            id: "test".to_owned(),
-            r#type: "test".to_owned(),
-            stability: "experimental".to_owned(),
-            deprecated: Some("This is deprecated".to_owned()),
-        });
-        assert!(is_deprecated(&attr));
+        #[derive(Serialize)]
+        struct Ctx {
+            attr: Attribute,
+        }
 
-        // An attribute with stability "stable" and a deprecated field with a value
-        let attr = Value::from_object(DynAttr {
-            id: "test".to_owned(),
-            r#type: "test".to_owned(),
-            stability: "stable".to_owned(),
-            deprecated: Some("This is deprecated".to_owned()),
-        });
-        assert!(is_deprecated(&attr));
+        let mut env = Environment::new();
+        let attr = Attribute {
+            name: "attr1".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "A brief description".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: None,
+            note: "A note".to_owned(),
+            stability: None,
+            deprecated: Some(Deprecated::Renamed {
+                renamed_to: "new_name".to_owned(),
+            }),
+            tags: None,
+            value: None,
+            prefix: false,
+        };
 
-        // An object without a deprecated field
-        let object = Value::from_object(DynSomethingElse {
-            id: "test".to_owned(),
-            r#type: "test".to_owned(),
-        });
-        assert!(!is_deprecated(&object));
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
 
-        let attr = Value::from_object(DynAttr {
-            id: "test".to_owned(),
-            r#type: "test".to_owned(),
-            stability: "stable".to_owned(),
+        assert_eq!(
+            env.render_str(
+                "{% if attr is deprecated %}true{% else %}false{% endif %}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "true"
+        );
+
+        let attr = Attribute {
+            name: "attr1".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "A brief description".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            sampling_relevant: None,
+            note: "A note".to_owned(),
+            stability: None,
             deprecated: None,
-        });
-        assert!(!is_deprecated(&attr));
+            tags: None,
+            value: None,
+            prefix: false,
+        };
+
+        assert_eq!(
+            env.render_str(
+                "{% if attr is deprecated %}true{% else %}false{% endif %}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "false"
+        );
     }
 
     #[test]
