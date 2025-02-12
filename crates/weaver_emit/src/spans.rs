@@ -543,11 +543,26 @@ mod tests {
 
     #[test]
     fn test_span_kinds() {
-        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Client)), SpanKind::Client);
-        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Server)), SpanKind::Server);
-        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Producer)), SpanKind::Producer);
-        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Consumer)), SpanKind::Consumer);
-        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Internal)), SpanKind::Internal);
+        assert_eq!(
+            otel_span_kind(Some(&SpanKindSpec::Client)),
+            SpanKind::Client
+        );
+        assert_eq!(
+            otel_span_kind(Some(&SpanKindSpec::Server)),
+            SpanKind::Server
+        );
+        assert_eq!(
+            otel_span_kind(Some(&SpanKindSpec::Producer)),
+            SpanKind::Producer
+        );
+        assert_eq!(
+            otel_span_kind(Some(&SpanKindSpec::Consumer)),
+            SpanKind::Consumer
+        );
+        assert_eq!(
+            otel_span_kind(Some(&SpanKindSpec::Internal)),
+            SpanKind::Internal
+        );
         assert_eq!(otel_span_kind(None), SpanKind::Internal);
     }
 }
