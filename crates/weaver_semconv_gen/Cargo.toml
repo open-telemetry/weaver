@@ -16,7 +16,7 @@ weaver_forge = { path = "../weaver_forge" }
 weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
-nom = "7.1.3"
+nom = "8.0.0"
 
 thiserror.workspace = true
 serde.workspace = true
