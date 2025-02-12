@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 What's changed
 
 * For issue [#596](https://github.com/open-telemetry/weaver/issues/596) - Fix the Jinja deprecated test to accept the
-  new deprecated format. ([]() by @lquerel).
+  new deprecated format. ([#597](https://github.com/open-telemetry/weaver/pull/597) by @lquerel).
 
 ## [0.13.0] - 2025-02-07
 
