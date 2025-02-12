@@ -152,797 +152,402 @@ pub(crate) fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path
 
 #[cfg(test)]
 mod tests {
-    use opentelemetry::KeyValue;
-    use opentelemetry::{global, Array, Value};
-
-    use opentelemetry::trace::SpanKind;
-    use opentelemetry_sdk::error::OTelSdkResult;
-    use opentelemetry_sdk::trace::{SdkTracerProvider, SpanData, SpanExporter};
-    use opentelemetry_sdk::Resource;
-
-    use futures_util::future::BoxFuture;
+    use super::*;
+    use opentelemetry::{Array, KeyValue, Value};
     use ordered_float::OrderedFloat;
-    use std::sync::{Arc, Mutex};
-    use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::attribute::{
         AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
         TemplateTypeSpec, ValueSpec,
     };
-    use weaver_semconv::group::{GroupType, SpanKindSpec};
     use weaver_semconv::stability::Stability;
 
-    use super::{WEAVER_EMIT_SPAN, WEAVER_REGISTRY_PATH};
-
-    #[derive(Debug)]
-    pub struct TestSpanExporter {
-        spans: Arc<Mutex<Vec<SpanData>>>,
-    }
-
-    impl SpanExporter for TestSpanExporter {
-        fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
-            self.spans.lock().unwrap().extend(batch);
-            Box::pin(std::future::ready(Ok(())))
+    fn create_test_attribute(
+        name: &str,
+        attr_type: AttributeType,
+        examples: Option<Examples>,
+    ) -> Attribute {
+        Attribute {
+            name: name.to_owned(),
+            r#type: attr_type,
+            examples,
+            brief: "".to_owned(),
+            tag: None,
+            requirement_level: RequirementLevel::Recommended {
+                text: "".to_owned(),
+            },
+            sampling_relevant: None,
+            note: "".to_owned(),
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            prefix: false,
+            tags: None,
+            value: None,
         }
     }
 
     #[test]
-    fn test_emit_trace_for_registry() {
-        let spans = Arc::new(Mutex::new(Vec::new()));
-        let span_exporter = TestSpanExporter {
-            spans: spans.clone(),
-        };
-        let tracer_provider = SdkTracerProvider::builder()
-            .with_resource(Resource::builder().with_service_name("weaver").build())
-            .with_simple_exporter(span_exporter)
-            .build();
+    fn test_primitive_boolean() {
+        let attr = create_test_attribute(
+            "test.bool",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.bool", true));
+    }
 
-        let _ = global::set_tracer_provider(tracer_provider.clone());
+    #[test]
+    fn test_primitive_int_with_example() {
+        let attr = create_test_attribute(
+            "test.int",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            Some(Examples::Int(123)),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.int", 123_i64));
+    }
 
-        let registry = ResolvedRegistry {
-            registry_url: "TEST".to_owned(),
-            groups: vec![
-                ResolvedGroup {
-                    id: "test.comprehensive.client".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    constraints: vec![],
-                    attributes: vec![
-                        Attribute {
-                            name: "test.string".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::String,
-                            ),
-                            examples: Some(Examples::Strings(vec![
-                                "value1".to_owned(),
-                                "value2".to_owned(),
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.integer".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
-                            examples: Some(Examples::Ints(vec![42, 123])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.double".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Double,
-                            ),
-                            examples: Some(Examples::Doubles(vec![
-                                OrderedFloat(3.13),
-                                OrderedFloat(2.71),
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.boolean".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Boolean,
-                            ),
-                            examples: Some(Examples::Bools(vec![true, false])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.string_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Strings,
-                            ),
-                            examples: Some(Examples::ListOfStrings(vec![
-                                vec!["val1".to_owned(), "val2".to_owned()],
-                                vec!["val3".to_owned(), "val4".to_owned()],
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.int_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
-                            examples: Some(Examples::ListOfInts(vec![vec![1, 2], vec![3, 4]])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.double_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Doubles,
-                            ),
-                            examples: Some(Examples::ListOfDoubles(vec![
-                                vec![OrderedFloat(1.1), OrderedFloat(2.2)],
-                                vec![OrderedFloat(3.3), OrderedFloat(4.4)],
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.boolean_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Booleans,
-                            ),
-                            examples: Some(Examples::ListOfBools(vec![
-                                vec![true, false],
-                                vec![false, true],
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.template_string".to_owned(),
-                            r#type: AttributeType::Template(TemplateTypeSpec::String),
-                            examples: Some(Examples::Strings(vec![
-                                "test.template_string.key=\"hello\"".to_owned(),
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.template_string_array".to_owned(),
-                            r#type: AttributeType::Template(TemplateTypeSpec::Strings),
-                            examples: Some(Examples::Strings(vec![
-                                "test.template_string_array.key=[\"val1\",\"val2\"]".to_owned(),
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.enum".to_owned(),
-                            r#type: AttributeType::Enum {
-                                allow_custom_values: None,
-                                members: vec![
-                                    EnumEntriesSpec {
-                                        id: "value1".to_owned(),
-                                        value: ValueSpec::String("VALUE_1".to_owned()),
-                                        brief: None,
-                                        note: None,
-                                        stability: Some(Stability::Stable),
-                                        deprecated: None,
-                                    },
-                                    EnumEntriesSpec {
-                                        id: "value2".to_owned(),
-                                        value: ValueSpec::String("VALUE_2".to_owned()),
-                                        brief: None,
-                                        note: None,
-                                        stability: Some(Stability::Stable),
-                                        deprecated: None,
-                                    },
-                                ],
-                            },
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                    ],
-                    span_kind: Some(SpanKindSpec::Client),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                },
-                ResolvedGroup {
-                    id: "test.comprehensive.server".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    constraints: vec![],
-                    attributes: vec![Attribute {
-                        name: "test.string".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                        examples: Some(Examples::String("value1".to_owned())),
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Stable),
+    #[test]
+    fn test_primitive_int_with_ints_example() {
+        let attr = create_test_attribute(
+            "test.int",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            Some(Examples::Ints(vec![42, 43, 44])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.int", 42_i64));
+    }
+
+    #[test]
+    fn test_primitive_int_without_example() {
+        let attr = create_test_attribute(
+            "test.int",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.int", 42_i64));
+    }
+
+    #[test]
+    fn test_primitive_double_with_example() {
+        let attr = create_test_attribute(
+            "test.double",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
+            Some(Examples::Double(OrderedFloat(3.15))),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.double", 3.15));
+    }
+
+    #[test]
+    fn test_primitive_double_with_doubles_example() {
+        let attr = create_test_attribute(
+            "test.double",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
+            Some(Examples::Doubles(vec![
+                OrderedFloat(3.15),
+                OrderedFloat(2.71),
+            ])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.double", 3.15));
+    }
+
+    #[test]
+    fn test_primitive_double_without_example() {
+        let attr = create_test_attribute(
+            "test.double",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.double", 3.13));
+    }
+
+    #[test]
+    fn test_primitive_string_with_example() {
+        let attr = create_test_attribute(
+            "test.string",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            Some(Examples::String("example".to_owned())),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.string", "example"));
+    }
+
+    #[test]
+    fn test_primitive_string_without_example() {
+        let attr = create_test_attribute(
+            "test.string",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.string", "value"));
+    }
+
+    #[test]
+    fn test_array_boolean() {
+        let attr = create_test_attribute(
+            "test.bools",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::Bool(vec![true, false])));
+    }
+
+    #[test]
+    fn test_array_ints_with_example() {
+        let attr = create_test_attribute(
+            "test.ints",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
+            Some(Examples::Ints(vec![1, 2, 3])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::I64(vec![1, 2, 3])));
+    }
+
+    #[test]
+    fn test_array_ints_with_list_example() {
+        let attr = create_test_attribute(
+            "test.ints",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
+            Some(Examples::ListOfInts(vec![vec![1, 2, 3], vec![4, 5, 6]])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::I64(vec![1, 2, 3])));
+    }
+
+    #[test]
+    fn test_array_ints_without_example() {
+        let attr = create_test_attribute(
+            "test.ints",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::I64(vec![42, 43])));
+    }
+
+    #[test]
+    fn test_array_doubles_with_example() {
+        let attr = create_test_attribute(
+            "test.doubles",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
+            Some(Examples::Doubles(vec![
+                OrderedFloat(1.1),
+                OrderedFloat(2.2),
+            ])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::F64(vec![1.1, 2.2])));
+    }
+
+    #[test]
+    fn test_array_doubles_with_list_example() {
+        let attr = create_test_attribute(
+            "test.doubles",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
+            Some(Examples::ListOfDoubles(vec![
+                vec![OrderedFloat(1.1), OrderedFloat(2.2)],
+                vec![OrderedFloat(3.3), OrderedFloat(4.4)],
+            ])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::F64(vec![1.1, 2.2])));
+    }
+
+    #[test]
+    fn test_array_doubles_without_example() {
+        let attr = create_test_attribute(
+            "test.doubles",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::F64(vec![3.13, 3.15])));
+    }
+
+    #[test]
+    fn test_array_strings_with_example() {
+        let attr = create_test_attribute(
+            "test.strings",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
+            Some(Examples::Strings(vec!["one".to_owned(), "two".to_owned()])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(
+            kv.value,
+            Value::Array(Array::String(vec!["one".into(), "two".into()]))
+        );
+    }
+
+    #[test]
+    fn test_array_strings_with_list_example() {
+        let attr = create_test_attribute(
+            "test.strings",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
+            Some(Examples::ListOfStrings(vec![
+                vec!["a".to_owned(), "b".to_owned()],
+                vec!["c".to_owned(), "d".to_owned()],
+            ])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(
+            kv.value,
+            Value::Array(Array::String(vec!["a".into(), "b".into()]))
+        );
+    }
+
+    #[test]
+    fn test_array_strings_without_example() {
+        let attr = create_test_attribute(
+            "test.strings",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(
+            kv.value,
+            Value::Array(Array::String(vec!["value1".into(), "value2".into()]))
+        );
+    }
+
+    #[test]
+    fn test_enum() {
+        let attr = create_test_attribute(
+            "test.enum",
+            AttributeType::Enum {
+                allow_custom_values: None,
+                members: vec![
+                    EnumEntriesSpec {
+                        id: "first".to_owned(),
+                        value: ValueSpec::String("FIRST".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: None,
                         deprecated: None,
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                    }],
-                    span_kind: Some(SpanKindSpec::Server),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                },
-                ResolvedGroup {
-                    id: "test.comprehensive.producer".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    constraints: vec![],
-                    attributes: vec![Attribute {
-                        name: "test.int".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
-                        examples: Some(Examples::Int(42)),
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Stable),
+                    },
+                    EnumEntriesSpec {
+                        id: "second".to_owned(),
+                        value: ValueSpec::String("SECOND".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: None,
                         deprecated: None,
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                    }],
-                    span_kind: Some(SpanKindSpec::Producer),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                },
-                ResolvedGroup {
-                    id: "test.comprehensive.consumer".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    constraints: vec![],
-                    attributes: vec![Attribute {
-                        name: "test.double".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Double),
-                        examples: Some(Examples::Double(OrderedFloat(3.13))),
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Stable),
-                        deprecated: None,
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                    }],
-                    span_kind: Some(SpanKindSpec::Consumer),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                },
-                ResolvedGroup {
-                    id: "test.comprehensive.internal".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    constraints: vec![],
-                    attributes: vec![
-                        Attribute {
-                            name: "test.string_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Strings,
-                            ),
-                            examples: Some(Examples::Strings(vec![
-                                "val1".to_owned(),
-                                "val2".to_owned(),
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.int_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
-                            examples: Some(Examples::Ints(vec![1, 2])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.double_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Doubles,
-                            ),
-                            examples: Some(Examples::Doubles(vec![
-                                OrderedFloat(1.1),
-                                OrderedFloat(2.2),
-                            ])),
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                    ],
-                    span_kind: Some(SpanKindSpec::Internal),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                },
-                ResolvedGroup {
-                    id: "test.no.examples".to_owned(),
-                    r#type: GroupType::Span,
-                    brief: "".to_owned(),
-                    note: "".to_owned(),
-                    prefix: "".to_owned(),
-                    extends: None,
-                    stability: Some(Stability::Stable),
-                    deprecated: None,
-                    constraints: vec![],
-                    attributes: vec![
-                        Attribute {
-                            name: "test.string".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::String,
-                            ),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.integer".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Int),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.double".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Double,
-                            ),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.string_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Strings,
-                            ),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.int_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.double_array".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(
-                                PrimitiveOrArrayTypeSpec::Doubles,
-                            ),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.template_string".to_owned(),
-                            r#type: AttributeType::Template(TemplateTypeSpec::String),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                        Attribute {
-                            name: "test.template_string_array".to_owned(),
-                            r#type: AttributeType::Template(TemplateTypeSpec::Strings),
-                            examples: None,
-                            brief: "".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended {
-                                text: "".to_owned(),
-                            },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Stable),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                        },
-                    ],
-                    span_kind: Some(SpanKindSpec::Client),
-                    events: vec![],
-                    metric_name: None,
-                    instrument: None,
-                    unit: None,
-                    name: None,
-                    lineage: None,
-                    display_name: None,
-                    body: None,
-                },
-            ],
-        };
-        super::emit_trace_for_registry(&registry, "TEST");
-
-        // force all spans to flush
-        assert!(tracer_provider.force_flush().is_ok());
-
-        // Now check the spans stored in the span exporter
-        assert_eq!(spans.lock().unwrap().len(), 7);
-
-        let expected = vec![
-            (
-                "test.comprehensive.client",
-                SpanKind::Client,
-                vec![
-                    KeyValue::new("test.string", "value1".to_owned()),
-                    KeyValue::new("test.integer", Value::I64(42)),
-                    KeyValue::new("test.double", Value::F64(3.13)),
-                    KeyValue::new("test.boolean", Value::Bool(true)),
-                    KeyValue::new(
-                        "test.string_array",
-                        Value::Array(Array::String(vec!["val1".into(), "val2".into()])),
-                    ),
-                    KeyValue::new("test.int_array", Value::Array(Array::I64(vec![1, 2]))),
-                    KeyValue::new(
-                        "test.double_array",
-                        Value::Array(Array::F64(vec![1.1, 2.2])),
-                    ),
-                    KeyValue::new(
-                        "test.boolean_array",
-                        Value::Array(Array::Bool(vec![true, false])),
-                    ),
-                    KeyValue::new(
-                        "test.template_string.key",
-                        Value::String("template_value".into()),
-                    ),
-                    KeyValue::new(
-                        "test.template_string_array.key",
-                        Value::Array(Array::String(vec![
-                            "template_value1".into(),
-                            "template_value2".into(),
-                        ])),
-                    ),
-                    KeyValue::new("test.enum", Value::String("VALUE_1".into())),
+                    },
                 ],
-            ),
-            (
-                "test.comprehensive.server",
-                SpanKind::Server,
-                vec![KeyValue::new("test.string", Value::String("value1".into()))],
-            ),
-            (
-                "test.comprehensive.producer",
-                SpanKind::Producer,
-                vec![KeyValue::new("test.int", Value::I64(42))],
-            ),
-            (
-                "test.comprehensive.consumer",
-                SpanKind::Consumer,
-                vec![KeyValue::new("test.double", Value::F64(3.13))],
-            ),
-            (
-                "test.comprehensive.internal",
-                SpanKind::Internal,
-                vec![
-                    KeyValue::new(
-                        "test.string_array",
-                        Value::Array(Array::String(vec!["val1".into(), "val2".into()])),
-                    ),
-                    KeyValue::new("test.int_array", Value::Array(Array::I64(vec![1, 2]))),
-                    KeyValue::new(
-                        "test.double_array",
-                        Value::Array(Array::F64(vec![1.1, 2.2])),
-                    ),
-                ],
-            ),
-            (
-                "test.no.examples",
-                SpanKind::Client,
-                vec![
-                    KeyValue::new("test.string", "value".to_owned()),
-                    KeyValue::new("test.integer", Value::I64(42)),
-                    KeyValue::new("test.double", Value::F64(3.13)),
-                    KeyValue::new(
-                        "test.string_array",
-                        Value::Array(Array::String(vec!["value1".into(), "value2".into()])),
-                    ),
-                    KeyValue::new("test.int_array", Value::Array(Array::I64(vec![42, 43]))),
-                    KeyValue::new(
-                        "test.double_array",
-                        Value::Array(Array::F64(vec![3.13, 3.15])),
-                    ),
-                    KeyValue::new(
-                        "test.template_string.key",
-                        Value::String("template_value".into()),
-                    ),
-                    KeyValue::new(
-                        "test.template_string_array.key",
-                        Value::Array(Array::String(vec![
-                            "template_value1".into(),
-                            "template_value2".into(),
-                        ])),
-                    ),
-                ],
-            ),
-            (
-                WEAVER_EMIT_SPAN,
-                SpanKind::Internal,
-                vec![KeyValue::new(
-                    WEAVER_REGISTRY_PATH,
-                    Value::String("TEST".into()),
-                )],
-            ),
-        ];
-        for (i, span_data) in spans.lock().unwrap().iter().enumerate() {
-            assert_eq!(span_data.name, expected[i].0);
-            assert_eq!(span_data.span_kind, expected[i].1);
-            for (j, attr) in span_data.attributes.iter().enumerate() {
-                assert_eq!(attr.key, expected[i].2[j].key);
-                assert_eq!(attr.value, expected[i].2[j].value);
-            }
-        }
+            },
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.enum", "FIRST"));
+    }
+
+    #[test]
+    fn test_template_string() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::String),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.template.key", "template_value"));
+    }
+
+    #[test]
+    fn test_template_int() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Int),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.template.key", 42_i64));
+    }
+
+    #[test]
+    fn test_template_double() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Double),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.template.key", 3.13));
+    }
+
+    #[test]
+    fn test_template_boolean() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Boolean),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.template.key", true));
+    }
+
+    #[test]
+    fn test_template_strings() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Strings),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(
+            kv.value,
+            Value::Array(Array::String(vec![
+                "template_value1".into(),
+                "template_value2".into()
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_template_ints() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Ints),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::I64(vec![42, 43])));
+    }
+
+    #[test]
+    fn test_template_doubles() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Doubles),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::F64(vec![3.13, 3.15])));
+    }
+
+    #[test]
+    fn test_template_booleans() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Booleans),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv.value, Value::Array(Array::Bool(vec![true, false])));
+    }
+
+    #[test]
+    fn test_span_kinds() {
+        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Client)), SpanKind::Client);
+        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Server)), SpanKind::Server);
+        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Producer)), SpanKind::Producer);
+        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Consumer)), SpanKind::Consumer);
+        assert_eq!(otel_span_kind(Some(&SpanKindSpec::Internal)), SpanKind::Internal);
+        assert_eq!(otel_span_kind(None), SpanKind::Internal);
     }
 }
