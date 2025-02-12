@@ -3,9 +3,10 @@
 //! This crate provides the "emit" library for emitting OTLP signals generated from registries.
 
 use miette::Diagnostic;
-use opentelemetry::{global, trace::TraceError, KeyValue};
+use opentelemetry::{global, trace::TraceError};
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::{trace as sdktrace, Resource};
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::Resource;
 use serde::Serialize;
 use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -44,27 +45,29 @@ impl From<Error> for DiagnosticMessages {
 
 /// Initialise a grpc OTLP exporter, sends to by default http://localhost:4317
 /// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
-fn init_tracer_provider(endpoint: &String) -> Result<sdktrace::TracerProvider, TraceError> {
+fn init_tracer_provider(endpoint: &String) -> Result<SdkTracerProvider, TraceError> {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .with_endpoint(endpoint)
         .build()?;
-    Ok(sdktrace::TracerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new(
-            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-            WEAVER_SERVICE_NAME,
-        )]))
-        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+    Ok(SdkTracerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_service_name(WEAVER_SERVICE_NAME)
+                .build(),
+        )
+        .with_batch_exporter(exporter)
         .build())
 }
 
 /// Initialise a stdout exporter for debug
-fn init_stdout_tracer_provider() -> sdktrace::TracerProvider {
-    sdktrace::TracerProvider::builder()
-        .with_resource(Resource::new(vec![KeyValue::new(
-            opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-            WEAVER_SERVICE_NAME,
-        )]))
+fn init_stdout_tracer_provider() -> SdkTracerProvider {
+    SdkTracerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_service_name(WEAVER_SERVICE_NAME)
+                .build(),
+        )
         .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
         .build()
 }
@@ -104,7 +107,11 @@ pub fn emit(
 
         emit_trace_for_registry(registry, registry_path);
 
-        global::shutdown_tracer_provider();
+        tracer_provider
+            .force_flush()
+            .map_err(|e| Error::TracerProviderError {
+                error: e.to_string(),
+            })?;
 
         // TODO Emit metrics
         Ok(())

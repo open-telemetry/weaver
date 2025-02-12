@@ -154,11 +154,13 @@ pub(crate) fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path
 mod tests {
     use opentelemetry::KeyValue;
     use opentelemetry::{global, Array, Value};
-    use opentelemetry_sdk::{trace as sdktrace, Resource};
+
+    use opentelemetry::trace::SpanKind;
+    use opentelemetry_sdk::error::OTelSdkResult;
+    use opentelemetry_sdk::trace::{SdkTracerProvider, SpanData, SpanExporter};
+    use opentelemetry_sdk::Resource;
 
     use futures_util::future::BoxFuture;
-    use opentelemetry::trace::SpanKind;
-    use opentelemetry_sdk::export::{self, trace::ExportResult};
     use ordered_float::OrderedFloat;
     use std::sync::{Arc, Mutex};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
@@ -173,15 +175,12 @@ mod tests {
     use super::{WEAVER_EMIT_SPAN, WEAVER_REGISTRY_PATH};
 
     #[derive(Debug)]
-    pub struct SpanExporter {
-        spans: Arc<Mutex<Vec<export::trace::SpanData>>>,
+    pub struct TestSpanExporter {
+        spans: Arc<Mutex<Vec<SpanData>>>,
     }
 
-    impl export::trace::SpanExporter for SpanExporter {
-        fn export(
-            &mut self,
-            batch: Vec<export::trace::SpanData>,
-        ) -> BoxFuture<'static, ExportResult> {
+    impl SpanExporter for TestSpanExporter {
+        fn export(&mut self, batch: Vec<SpanData>) -> BoxFuture<'static, OTelSdkResult> {
             self.spans.lock().unwrap().extend(batch);
             Box::pin(std::future::ready(Ok(())))
         }
@@ -190,11 +189,11 @@ mod tests {
     #[test]
     fn test_emit_trace_for_registry() {
         let spans = Arc::new(Mutex::new(Vec::new()));
-        let span_exporter = SpanExporter {
+        let span_exporter = TestSpanExporter {
             spans: spans.clone(),
         };
-        let tracer_provider = sdktrace::TracerProvider::builder()
-            .with_resource(Resource::new(vec![KeyValue::new("service.name", "weaver")]))
+        let tracer_provider = SdkTracerProvider::builder()
+            .with_resource(Resource::builder().with_service_name("weaver").build())
             .with_simple_exporter(span_exporter)
             .build();
 
@@ -826,7 +825,9 @@ mod tests {
             ],
         };
         super::emit_trace_for_registry(&registry, "TEST");
-        global::shutdown_tracer_provider();
+
+        // force all spans to flush
+        assert!(tracer_provider.force_flush().is_ok());
 
         // Now check the spans stored in the span exporter
         assert_eq!(spans.lock().unwrap().len(), 7);
