@@ -202,8 +202,17 @@ impl Attribute {
     /// Sets the note field of the attribute.
     /// Note: This method is used for testing purposes.
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn note<S: AsRef<str>>(mut self, note: S) -> Self {
         self.note = note.as_ref().to_owned();
+        self
+    }
+
+    /// Sets the brief field of the attribute.
+    /// Note: This method is used for testing purposes.
+    #[cfg(test)]
+    pub(crate) fn brief<S: AsRef<str>>(mut self, brief: S) -> Self {
+        self.brief = brief.as_ref().to_owned();
         self
     }
 }

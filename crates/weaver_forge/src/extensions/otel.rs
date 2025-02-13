@@ -784,6 +784,7 @@ mod tests {
             stability: None,
             deprecated: Some(Deprecated::Renamed {
                 renamed_to: "new_name".to_owned(),
+                note: None,
             }),
             tags: None,
             value: None,
