@@ -306,7 +306,7 @@ impl ResolvedTelemetrySchema {
                                 SchemaItemChange::Renamed {
                                     old_name: baseline_attr.name.clone(),
                                     new_name: rename_to.clone(),
-                                    note: note.clone().unwrap_or_else(|| attr.brief.clone()),
+                                    note: note.clone(),
                                 },
                             );
                         }
@@ -315,7 +315,7 @@ impl ResolvedTelemetrySchema {
                                 SchemaItemType::RegistryAttributes,
                                 SchemaItemChange::Obsoleted {
                                     name: attr.name.clone(),
-                                    note: note.clone().unwrap_or_else(|| attr.brief.clone()),
+                                    note: note.clone(),
                                 },
                             );
                         }
@@ -324,7 +324,7 @@ impl ResolvedTelemetrySchema {
                                 SchemaItemType::RegistryAttributes,
                                 SchemaItemChange::Uncategorized {
                                     name: attr.name.clone(),
-                                    note: note.clone().unwrap_or_else(|| attr.brief.clone()),
+                                    note: note.clone(),
                                 },
                             );
                         }
@@ -387,7 +387,7 @@ impl ResolvedTelemetrySchema {
                                 SchemaItemChange::Renamed {
                                     old_name: (*signal_name).to_owned(),
                                     new_name: rename_to.clone(),
-                                    note: note.clone().unwrap_or_else(|| group.brief.clone()),
+                                    note: note.clone(),
                                 },
                             );
                         }
@@ -396,7 +396,7 @@ impl ResolvedTelemetrySchema {
                                 schema_item_type,
                                 SchemaItemChange::Obsoleted {
                                     name: (*signal_name).to_owned(),
-                                    note: note.clone().unwrap_or_else(|| group.brief.clone()),
+                                    note: note.clone(),
                                 },
                             );
                         }
@@ -405,7 +405,7 @@ impl ResolvedTelemetrySchema {
                                 schema_item_type,
                                 SchemaItemChange::Uncategorized {
                                     name: (*signal_name).to_owned(),
-                                    note: note.clone().unwrap_or_else(|| group.brief.clone()),
+                                    note: note.clone(),
                                 },
                             );
                         }
@@ -511,8 +511,9 @@ mod tests {
                 Attribute::string("attr2", "brief2", "note2"),
                 Attribute::int("attr3", "brief3", "note3"),
                 Attribute::double("attr4", "brief4", "note4"),
-                Attribute::double("attr5", "brief5", "note5")
-                    .deprecated(Deprecated::Obsoleted { note: None }),
+                Attribute::double("attr5", "brief5", "note5").deprecated(Deprecated::Obsoleted {
+                    note: "".to_owned(),
+                }),
             ],
         );
 
@@ -523,15 +524,18 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2")
                     .deprecated(Deprecated::Obsoleted {
-                        note: Some("This attribute is deprecated (deprecated).".to_owned()),
+                        note: "This attribute is deprecated (deprecated).".to_owned(),
                     })
                     .brief("This attribute is deprecated (brief)."),
                 Attribute::int("attr3", "brief3", "note3")
-                    .deprecated(Deprecated::Obsoleted { note: None })
+                    .deprecated(Deprecated::Obsoleted {
+                        note: "".to_owned(),
+                    })
                     .brief("This attribute is deprecated."),
                 Attribute::double("attr4", "brief4", "note4"),
-                Attribute::double("attr5", "brief5", "note5")
-                    .deprecated(Deprecated::Obsoleted { note: None }),
+                Attribute::double("attr5", "brief5", "note5").deprecated(Deprecated::Obsoleted {
+                    note: "".to_owned(),
+                }),
             ],
         );
 
@@ -548,7 +552,7 @@ mod tests {
                     if name == "attr2" {
                         assert_eq!(note, "This attribute is deprecated (deprecated).");
                     } else if name == "attr3" {
-                        assert_eq!(note, "This attribute is deprecated.");
+                        assert_eq!(note, "");
                     } else {
                         panic!("Unexpected attribute name.");
                     }
@@ -581,11 +585,11 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     renamed_to: "attr2_bis".to_owned(),
-                    note: None,
+                    note: "".to_owned(),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     renamed_to: "attr3_bis".to_owned(),
-                    note: None,
+                    note: "".to_owned(),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -627,11 +631,11 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: None,
+                    note: "".to_owned(),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: None,
+                    note: "".to_owned(),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],
@@ -665,11 +669,11 @@ mod tests {
                 Attribute::boolean("attr1", "brief1", "note1"),
                 Attribute::string("attr2", "brief2", "note2").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: None,
+                    note: "".to_owned(),
                 }),
                 Attribute::int("attr3", "brief3", "note3").deprecated(Deprecated::Renamed {
                     renamed_to: "attr5".to_owned(),
-                    note: None,
+                    note: "".to_owned(),
                 }),
                 Attribute::double("attr4", "brief4", "note4"),
             ],

@@ -892,7 +892,9 @@ mod tests {
             sampling_relevant: Some(true),
             note: "note".to_owned(),
             stability: Some(Stability::Stable),
-            deprecated: Some(Deprecated::Obsoleted { note: None }),
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "".to_owned(),
+            }),
         };
         assert_eq!(attr.id(), "id");
         assert_eq!(attr.brief(), "brief");
@@ -909,7 +911,9 @@ mod tests {
             sampling_relevant: Some(true),
             note: Some("note".to_owned()),
             stability: Some(Stability::Stable),
-            deprecated: Some(Deprecated::Obsoleted { note: None }),
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "".to_owned(),
+            }),
             prefix: false,
         };
         assert_eq!(attr.id(), "ref");

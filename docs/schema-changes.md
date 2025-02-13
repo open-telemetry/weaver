@@ -59,21 +59,21 @@ Variant 1
 deprecated:
   reason: renamed
   renamed_to: <name of the telemetry object>
-  note: <optional deprecation note, if not defined top-level brief is used>
+  note: <Optional deprecation note; if not defined, it defaults to "Replaced by `<renamed_to>`.">
 ```
 
 Variant 2
 ```yaml
 deprecated:
   reason: obsoleted
-  note: <optional deprecation note, if not defined top-level brief is used>
+  note: <Optional deprecation note; if not defined, it defaults to "Obsoleted.">
 ```
 
 Variant 3
 ```yaml
 deprecated:
   reason: uncategorized
-  note: <optional deprecation note, if not defined top-level brief is used>
+  note: <Optional deprecation note; if not defined, it defaults to "Uncategorized.">
 ```
 
 Example Schema Diff in YAML

@@ -23,16 +23,16 @@ pub enum Deprecated {
     Renamed {
         /// The new name of the telemetry object.
         renamed_to: String,
-        /// The optional note to provide more context about the deprecation.
-        note: Option<String>,
+        /// The note to provide more context about the deprecation.
+        note: String,
     },
     /// The telemetry object containing the deprecated field has been obsoleted
     /// because it no longer exists and has no valid replacement.
     ///
     /// The `brief` field should contain the reason why the field has been obsoleted.
     Obsoleted {
-        /// The optional note to provide more context about the deprecation.
-        note: Option<String>,
+        /// The note to provide more context about the deprecation.
+        note: String,
     },
     /// The telemetry object containing the deprecated field has been deprecated for
     /// complex reasons (split, merge, ...) which are currently not precisely defined
@@ -40,8 +40,8 @@ pub enum Deprecated {
     ///
     /// The `brief` field should contain the reason for this uncategorized deprecation.
     Uncategorized {
-        /// The optional note to provide more context about the deprecation.
-        note: Option<String>,
+        /// The note to provide more context about the deprecation.
+        note: String,
     },
 }
 
@@ -66,14 +66,14 @@ where
         /// Handle the old format (just a string)
         ///
         /// Note: The old format of the deprecated field is a string with the deprecation message.
-        /// The new format is a map with at least the `action` field and the deprecation message is
+        /// The new format is a map with at least the `reason` field and the deprecation message is
         /// expected to be in the standard `note` field.
         fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            Ok(Deprecated::Obsoleted {
-                note: Some(value.to_owned()),
+            Ok(Deprecated::Uncategorized {
+                note: value.to_owned(),
             })
         }
 
@@ -102,15 +102,17 @@ where
 
             match action.as_deref() {
                 Some("renamed") => {
-                    let rename_to =
+                    let renamed_to =
                         new_name.ok_or_else(|| de::Error::missing_field("rename_to"))?;
-                    Ok(Deprecated::Renamed {
-                        renamed_to: rename_to,
-                        note,
-                    })
+                    let note = note.unwrap_or_else(|| format!("Replaced by `{}`.", renamed_to));
+                    Ok(Deprecated::Renamed { renamed_to, note })
                 }
-                Some("obsoleted") => Ok(Deprecated::Obsoleted { note }),
-                Some("uncategorized") => Ok(Deprecated::Uncategorized { note }),
+                Some("obsoleted") => Ok(Deprecated::Obsoleted {
+                    note: note.unwrap_or_else(|| "Obsoleted.".to_owned()),
+                }),
+                Some("uncategorized") => Ok(Deprecated::Uncategorized {
+                    note: note.unwrap_or_else(|| "Uncategorized.".to_owned()),
+                }),
                 _ => Err(de::Error::missing_field("action")),
             }
         }
@@ -168,18 +170,9 @@ where
 impl Display for Deprecated {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let text = match self {
-            Deprecated::Renamed { renamed_to, note } => match note {
-                Some(note) => note.to_owned(),
-                None => format!("Replaced by `{}`.", renamed_to),
-            },
-            Deprecated::Obsoleted { note } => match note {
-                Some(note) => note.to_owned(),
-                None => "Obsoleted".to_owned(),
-            },
-            Deprecated::Uncategorized { note } => match note {
-                Some(note) => note.to_owned(),
-                None => "Uncategorized".to_owned(),
-            },
+            Deprecated::Renamed { note, .. }
+            | Deprecated::Obsoleted { note }
+            | Deprecated::Uncategorized { note } => note,
         };
         write!(f, "{}", text)
     }
@@ -207,31 +200,44 @@ mod tests {
 - deprecated:
     reason: uncategorized
     note: This field is deprecated for some complex reasons.   
+- deprecated:
+    reason: renamed
+    renamed_to: foo.unique_id
+    note: Replaced by a new attribute `foo.unique_id`.
 "#;
 
         let items: Vec<Item> = serde_yaml::from_str(yaml_data).unwrap();
-        assert_eq!(items.len(), 4);
+        assert_eq!(items.len(), 5);
         assert_eq!(
             items[0].deprecated,
-            Some(Deprecated::Obsoleted {
-                note: Some("Replaced by `jvm.buffer.memory.used`.".to_owned())
+            Some(Deprecated::Uncategorized {
+                note: "Replaced by `jvm.buffer.memory.used`.".to_owned()
             })
         );
         assert_eq!(
             items[1].deprecated,
-            Some(Deprecated::Obsoleted { note: None })
+            Some(Deprecated::Obsoleted {
+                note: "Obsoleted.".to_owned()
+            })
         );
         assert_eq!(
             items[2].deprecated,
             Some(Deprecated::Renamed {
                 renamed_to: "foo.unique_id".to_owned(),
-                note: None
+                note: "Replaced by `foo.unique_id`.".to_owned()
             })
         );
         assert_eq!(
             items[3].deprecated,
             Some(Deprecated::Uncategorized {
-                note: Some("This field is deprecated for some complex reasons.".to_owned())
+                note: "This field is deprecated for some complex reasons.".to_owned()
+            })
+        );
+        assert_eq!(
+            items[4].deprecated,
+            Some(Deprecated::Renamed {
+                renamed_to: "foo.unique_id".to_owned(),
+                note: "Replaced by a new attribute `foo.unique_id`.".to_owned()
             })
         );
     }
