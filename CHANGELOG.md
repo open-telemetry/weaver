@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.13.2] - 2025-02-13
+
+What's changed
+
+* Add a `note` field to all deprecated variants and generate a formatted value when
+  not provided in the semconv files. ([#602](https://github.com/open-telemetry/weaver/pull/602) by @lquerel).
+
 ## [0.13.1] - 2025-02-12
 
 What's changed
