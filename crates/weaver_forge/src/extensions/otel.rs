@@ -542,9 +542,9 @@ mod tests {
     };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
-    use weaver_semconv::attribute::BasicRequirementLevelSpec;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
     use weaver_semconv::attribute::RequirementLevel;
+    use weaver_semconv::attribute::{AttributeSpec, BasicRequirementLevelSpec};
     use weaver_semconv::attribute::{AttributeType, EnumEntriesSpec, TemplateTypeSpec, ValueSpec};
     use weaver_semconv::deprecated::Deprecated;
 
@@ -784,6 +784,7 @@ mod tests {
             stability: None,
             deprecated: Some(Deprecated::Renamed {
                 renamed_to: "new_name".to_owned(),
+                note: "".to_owned(),
             }),
             tags: None,
             value: None,
@@ -825,6 +826,162 @@ mod tests {
             )
             .unwrap(),
             "false"
+        );
+    }
+
+    #[test]
+    fn test_deprecated() {
+        #[derive(Serialize)]
+        struct Ctx {
+            attr: AttributeSpec,
+        }
+
+        let mut env = Environment::new();
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: This attribute is replaced by new_name.
+            note: A note.
+            requirement_level: required
+            deprecated: Replaced by new_name.
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+
+        otel::add_filters(&mut env);
+        otel::add_tests(&mut env);
+
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "uncategorized: Replaced by new_name."
+        );
+
+        // ---------------------------------------------------------------------
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: This attribute is replaced by new_name.
+            note: A note.
+            requirement_level: required
+            deprecated:
+                reason: renamed
+                renamed_to: new_name
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "renamed: Replaced by `new_name`."
+        );
+
+        // ---------------------------------------------------------------------
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: This attribute is replaced by new_name.
+            note: A note.
+            requirement_level: required
+            deprecated:
+                reason: renamed
+                renamed_to: new_name
+                note: This attribute is deprecated and replaced by `new_name`.
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "renamed: This attribute is deprecated and replaced by `new_name`."
+        );
+
+        // ---------------------------------------------------------------------
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: A brief.
+            note: A note.
+            requirement_level: required
+            deprecated:
+                reason: obsoleted
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "obsoleted: Obsoleted."
+        );
+
+        // ---------------------------------------------------------------------
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: A brief.
+            note: A note.
+            requirement_level: required
+            deprecated:
+                reason: obsoleted
+                note: This attribute is no longer used.
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "obsoleted: This attribute is no longer used."
+        );
+
+        // ---------------------------------------------------------------------
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: A brief.
+            note: A note.
+            requirement_level: required
+            deprecated:
+                reason: uncategorized
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "uncategorized: Uncategorized."
+        );
+
+        // ---------------------------------------------------------------------
+        let attr_yaml = r#"
+            id: attr
+            type: string
+            brief: A brief.
+            note: A note.
+            requirement_level: required
+            deprecated:
+                reason: uncategorized
+                note: This attribute is deprecated for complex reasons.
+        "#;
+        let attr: AttributeSpec = serde_yaml::from_str(attr_yaml).unwrap();
+        assert_eq!(
+            env.render_str(
+                "{{ attr.deprecated.reason }}: {{ attr.deprecated.note }}",
+                Ctx { attr },
+            )
+            .unwrap(),
+            "uncategorized: This attribute is deprecated for complex reasons."
         );
     }
 

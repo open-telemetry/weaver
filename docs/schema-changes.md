@@ -56,24 +56,24 @@ conventions. This field is now supporting one of the three variants:
 
 Variant 1
 ```yaml
-brief: <text explaining the reason of the renaming>
 deprecated:
   reason: renamed
   renamed_to: <name of the telemetry object>
+  note: <Optional deprecation note; if not defined, it defaults to "Replaced by `<renamed_to>`.">
 ```
 
 Variant 2
 ```yaml
-brief: <text explaining the reason of the obsolescence>
 deprecated:
   reason: obsoleted
+  note: <Optional deprecation note; if not defined, it defaults to "Obsoleted.">
 ```
 
 Variant 3
 ```yaml
-brief: <text explaining the reason of this complex deprecation>
 deprecated:
   reason: uncategorized
+  note: <Optional deprecation note; if not defined, it defaults to "Uncategorized.">
 ```
 
 Example Schema Diff in YAML

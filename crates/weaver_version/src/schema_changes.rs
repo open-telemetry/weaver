@@ -275,6 +275,12 @@ impl SchemaChanges {
         self.baseline = baseline;
     }
 
+    /// Return the list of changes for the specified schema item type.
+    #[must_use]
+    pub fn changes_by_type(&self, item_type: SchemaItemType) -> Option<&Vec<SchemaItemChange>> {
+        self.changes.get(&item_type)
+    }
+
     /// Return a string representation of the statistics on the schema changes.
     #[must_use]
     pub fn dump_stats(&self) -> String {

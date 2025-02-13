@@ -66,11 +66,11 @@ stability ::= "stable"
           |   "beta"
           |   "release_candidate"
 
-deprecated ::= renamed
-           |   obsoleted
-           |   uncategorized
+deprecated ::= renamed renamed_to [note]
+           |   obsoleted [note]
+           |   uncategorized [note]
           
-renamed ::= "renamed_to" string
+renamed_to ::= string
 
 display_name ::= string
 
