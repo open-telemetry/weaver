@@ -54,6 +54,10 @@
 						"renamed_to": {
 							"type": "string",
 							"description": "The new name of the telemetry object."
+						},
+						"note:": {
+							"type": "string",
+							"description": "A note explaining the reason for the deprecation."
 						}
 					},
 					"required": ["reason", "renamed_to"],
@@ -65,6 +69,10 @@
 					"properties": {
 						"reason": {
 							"const": "obsoleted"
+						},
+						"note:": {
+							"type": "string",
+							"description": "A note explaining the reason for the deprecation."
 						}
 					},
 					"required": ["reason"],
@@ -76,6 +84,10 @@
 					"properties": {
 						"reason": {
 							"const": "uncategorized"
+						},
+						"note:": {
+							"type": "string",
+							"description": "A note explaining the reason for the deprecation."
 						}
 					},
 					"required": ["reason"],
