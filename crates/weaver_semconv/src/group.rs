@@ -578,7 +578,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -586,7 +586,7 @@ mod tests {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -713,7 +713,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -721,7 +721,7 @@ mod tests {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -753,7 +753,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -781,7 +781,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -878,7 +878,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -889,7 +889,7 @@ mod tests {
                     allow_custom_values: Some(true),
                 },
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -931,7 +931,7 @@ mod tests {
                 allow_custom_values: None,
             },
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -956,7 +956,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -1317,7 +1317,7 @@ mod tests {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -1463,7 +1463,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),

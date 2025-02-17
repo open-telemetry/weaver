@@ -61,7 +61,6 @@ extends ::= string
 
 stability ::= "stable"
           |   "development"
-          |   "deprecated"
           |   "alpha"
           |   "beta"
           |   "release_candidate"
