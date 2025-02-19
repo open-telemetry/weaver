@@ -185,8 +185,8 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::Error::{
-        InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroupStability,
-        InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
+        InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroupMissingType,
+        InvalidGroupStability, InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
     use weaver_common::test::ServeStaticFiles;
@@ -279,10 +279,18 @@ mod tests {
             attributes:
               - id: "attr2"
                 type: "int"
+          - id: "group3"
+            stability: "stable"
+            brief: "description3"
+            attributes:
+              - id: "attr3"
+                type: "double"
+                stability: stable
+                brief: "Brief3"                
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
-            assert_eq!(errors.len(), 6);
+            assert_eq!(errors.len(), 7);
             assert_eq!(
                 errors,
                 vec![
@@ -324,6 +332,11 @@ mod tests {
                         group_id: "group2".to_owned(),
                         attribute_id: "attr2".to_owned(),
                         error: "Missing stability field.".to_owned(),
+                    },
+                    InvalidGroupMissingType {
+                        path_or_url: "<str>".to_owned(),
+                        group_id: "group3".to_owned(),
+                        error: "This group does not contain a type field.".to_owned(),
                     },
                 ]
             );
