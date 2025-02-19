@@ -11,11 +11,10 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::Hash;
-use weaver_common::error::handle_errors;
 use weaver_common::result::WResult;
 use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
-use weaver_resolved_schema::registry::{Constraint, Group, Registry};
+use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::GroupSpecWithProvenance;
 use weaver_semconv::registry::SemConvRegistry;
@@ -54,10 +53,6 @@ pub struct UnresolvedGroup {
 /// The resolution process consists of the following steps:
 /// - Resolve all attribute references and apply the overrides when needed.
 /// - Resolve all the `extends` references.
-/// - Resolve all the `include` constraints (i.e. inherit required attributes
-///   and any new `any_of` constraints).
-/// - Check the `any_of` constraints and return an error if the constraints
-///   are not satisfied.
 ///
 /// # Arguments
 ///
@@ -88,10 +83,6 @@ pub fn resolve_semconv_registry(
         return WResult::FatalErr(e);
     }
 
-    if let Err(e) = resolve_include_constraints(&mut ureg) {
-        return WResult::FatalErr(e);
-    }
-
     // Sort the attribute internal references in each group.
     // This is needed to ensure that the resolved registry is easy to compare
     // in unit tests.
@@ -106,17 +97,7 @@ pub fn resolve_semconv_registry(
 
     let mut errors = vec![];
 
-    // Check the `any_of` constraints.
     let attr_name_index = attr_catalog.attribute_name_index();
-    if let Err(e) = check_any_of_constraints(&ureg.registry, &attr_name_index) {
-        errors.push(e);
-    }
-
-    // All constraints are satisfied.
-    // Remove the constraints from the resolved registry.
-    for group in ureg.registry.groups.iter_mut() {
-        group.constraints.clear();
-    }
 
     // Other complementary checks.
     // Check for duplicate group IDs.
@@ -152,99 +133,6 @@ pub fn resolve_semconv_registry(
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
     WResult::OkWithNFEs(ureg.registry, errors)
-}
-
-/// Checks the `any_of` constraints in the given registry.
-///
-/// # Arguments
-///
-/// * `registry` - The registry to check.
-/// * `attr_name_index` - The index of attribute names (catalog).
-///
-/// # Returns
-///
-/// This function returns `Ok(())` if all the `any_of` constraints are satisfied.
-/// Otherwise, it returns the error `Error::UnsatisfiedAnyOfConstraint`.
-pub fn check_any_of_constraints(
-    registry: &Registry,
-    attr_name_index: &[String],
-) -> Result<(), Error> {
-    let mut errors = vec![];
-
-    for group in registry.groups.iter() {
-        // Build a list of attribute names for the group.
-        let mut group_attr_names = HashSet::new();
-        for attr_ref in group.attributes.iter() {
-            match attr_name_index.get(attr_ref.0 as usize) {
-                None => errors.push(Error::UnresolvedAttributeRef {
-                    group_id: group.id.clone(),
-                    attribute_ref: attr_ref.0.to_string(),
-                    provenance: group.provenance().to_owned(),
-                }),
-                Some(attr_name) => {
-                    _ = group_attr_names.insert(attr_name.clone());
-                }
-            }
-        }
-
-        if let Err(e) = check_group_any_of_constraints(
-            group.id.as_ref(),
-            group_attr_names,
-            group.constraints.as_ref(),
-        ) {
-            errors.push(e);
-        }
-    }
-
-    handle_errors(errors)?;
-    Ok(())
-}
-
-/// Checks the `any_of` constraints for the given group.
-fn check_group_any_of_constraints(
-    group_id: &str,
-    group_attr_names: HashSet<String>,
-    constraints: &[Constraint],
-) -> Result<(), Error> {
-    let mut unsatisfied_any_of_constraints: HashMap<&Constraint, UnsatisfiedAnyOfConstraint> =
-        HashMap::new();
-
-    for constraint in constraints.iter() {
-        if constraint.any_of.is_empty() {
-            continue;
-        }
-
-        // Check if the group satisfies the `any_of` constraint.
-        if let Some(attr) = constraint
-            .any_of
-            .iter()
-            .find(|name| !group_attr_names.contains(*name))
-        {
-            // The any_of constraint is not satisfied.
-            // Insert the attribute into the list of missing attributes for the
-            // constraint.
-            unsatisfied_any_of_constraints
-                .entry(constraint)
-                .or_insert_with(|| UnsatisfiedAnyOfConstraint {
-                    any_of: constraint.clone(),
-                    missing_attributes: vec![],
-                })
-                .missing_attributes
-                .push(attr.clone());
-        }
-    }
-    if !unsatisfied_any_of_constraints.is_empty() {
-        let errors = unsatisfied_any_of_constraints
-            .into_values()
-            .map(|v| Error::UnsatisfiedAnyOfConstraint {
-                group_id: group_id.to_owned(),
-                any_of: v.any_of,
-                missing_attributes: v.missing_attributes,
-            })
-            .collect();
-        return Err(Error::CompoundError(errors));
-    }
-    Ok(())
 }
 
 /// Generic function to check for duplicate keys in the given registry.
@@ -394,7 +282,6 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             extends: group.spec.extends,
             stability: group.spec.stability,
             deprecated: group.spec.deprecated,
-            constraints: resolve_constraints(&group.spec.constraints),
             attributes: vec![],
             span_kind: group.spec.span_kind,
             events: group.spec.events,
@@ -565,97 +452,6 @@ fn resolve_extends_references(ureg: &mut UnresolvedRegistry) -> Result<(), Error
         // It means that we have an issue with the semantic convention
         // specifications.
         if resolved_extends_count == 0 {
-            return Err(Error::CompoundError(errors));
-        }
-    }
-    Ok(())
-}
-
-/// Resolves the `include` constraints in the given registry.
-///
-/// Possible optimization: the current resolution process is a based on a naive
-/// and iterative algorithm that is most likely good enough for now. If the
-/// semconv registry becomes too large, we may need to revisit the resolution
-/// process to make it more efficient by using a topological sort algorithm.
-fn resolve_include_constraints(ureg: &mut UnresolvedRegistry) -> Result<(), Error> {
-    loop {
-        let mut errors = vec![];
-        let mut resolved_include_count = 0;
-
-        // Create a map group_id -> vector of attribute ref for groups
-        // that don't have an `include` clause.
-        let mut group_attrs_index = HashMap::new();
-        let mut group_any_of_index = HashMap::new();
-        for group in ureg.groups.iter() {
-            if !group.group.has_include() {
-                _ = group_attrs_index
-                    .insert(group.group.id.clone(), group.group.attributes.clone());
-                _ = group_any_of_index.insert(
-                    group.group.id.clone(),
-                    group
-                        .group
-                        .constraints
-                        .iter()
-                        .filter_map(|c| {
-                            if c.any_of.is_empty() {
-                                None
-                            } else {
-                                let mut any_of = c.clone();
-                                _ = any_of.include.take();
-                                Some(any_of)
-                            }
-                        })
-                        .collect::<Vec<Constraint>>(),
-                );
-            }
-        }
-
-        // Iterate over all groups and resolve the `include` constraints.
-        for unresolved_group in ureg.groups.iter_mut() {
-            let mut attributes_to_import = vec![];
-            let mut any_of_to_import = vec![];
-            let mut resolved_includes = HashSet::new();
-
-            for constraint in unresolved_group.group.constraints.iter() {
-                if let Some(include) = &constraint.include {
-                    if let Some(attributes) = group_attrs_index.get(include) {
-                        attributes_to_import.extend(attributes.iter().cloned());
-                        _ = resolved_includes.insert(include.clone());
-
-                        if let Some(any_of_constraints) = group_any_of_index.get(include) {
-                            any_of_to_import.extend(any_of_constraints.iter().cloned());
-                        }
-
-                        resolved_include_count += 1;
-                    } else {
-                        errors.push(Error::UnresolvedIncludeRef {
-                            group_id: unresolved_group.group.id.clone(),
-                            include_ref: include.clone(),
-                            provenance: unresolved_group.provenance.clone(),
-                        });
-                    }
-                }
-            }
-
-            if !attributes_to_import.is_empty() {
-                unresolved_group
-                    .group
-                    .import_attributes_from(attributes_to_import.as_slice());
-                unresolved_group
-                    .group
-                    .update_constraints(any_of_to_import, resolved_includes);
-            }
-        }
-
-        if errors.is_empty() {
-            break;
-        }
-
-        // If we still have unresolved `include` but we did not resolve any
-        // `include` in the last iteration, we are stuck in an infinite loop.
-        // It means that we have an issue with the semantic convention
-        // specifications.
-        if resolved_include_count == 0 {
             return Err(Error::CompoundError(errors));
         }
     }
@@ -840,7 +636,6 @@ fn resolve_inheritance_attr(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use std::error::Error;
     use std::path::PathBuf;
 
@@ -849,12 +644,12 @@ mod tests {
     use weaver_common::result::WResult;
     use weaver_diff::canonicalize_json_string;
     use weaver_resolved_schema::attribute;
-    use weaver_resolved_schema::registry::{Constraint, Registry};
+    use weaver_resolved_schema::registry::Registry;
     use weaver_semconv::group::GroupType;
     use weaver_semconv::registry::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
-    use crate::registry::{check_group_any_of_constraints, resolve_semconv_registry};
+    use crate::registry::resolve_semconv_registry;
     use crate::SchemaResolver;
 
     /// Test the resolution of semantic convention registries stored in the
@@ -862,9 +657,6 @@ mod tests {
     /// scenarios:
     /// - Attribute references.
     /// - Extends references.
-    /// - Include constraints.
-    /// - Provenance of the attributes (except for the attributes related to
-    ///   `include` constraints).
     ///
     /// Each test is stored in a directory named `registry-test-*` and contains
     /// the following directory and files:
@@ -1047,87 +839,6 @@ groups:
     }
 
     #[test]
-    fn test_registry_error_unresolved_includes() {
-        let result = create_registry_from_string(
-            "
-groups:
-    - id: span.one
-      type: span
-      span_kind: internal
-      stability: stable
-      brief: 'Span one'
-      constraints:
-        - include: 'non.existent.one'
-        - include: 'non.existent.two'
-        - include: 'non.existent.three'",
-        )
-        .into_result_failing_non_fatal();
-
-        assert!(result.is_err());
-
-        if let crate::Error::CompoundError(errors) = result.unwrap_err() {
-            assert!(errors.len() == 3);
-        } else {
-            panic!("Expected a CompoundError");
-        }
-    }
-
-    /// Test the validation of the `any_of` constraints in a group.
-    #[test]
-    fn test_check_group_any_of_constraints() -> Result<(), crate::Error> {
-        // No attribute and no constraint.
-        let group_attr_names = HashSet::new();
-        let constraints = vec![];
-        check_group_any_of_constraints("group", group_attr_names, &constraints)?;
-
-        // Attributes and no constraint.
-        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned()]
-            .into_iter()
-            .collect();
-        let constraints = vec![];
-        check_group_any_of_constraints("group", group_attr_names, &constraints)?;
-
-        // Attributes and multiple constraints (all satisfiable).
-        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned(), "attr3".to_owned()]
-            .into_iter()
-            .collect();
-        let constraints = vec![
-            Constraint {
-                any_of: vec!["attr1".to_owned(), "attr2".to_owned()],
-                include: None,
-            },
-            Constraint {
-                any_of: vec!["attr3".to_owned()],
-                include: None,
-            },
-            Constraint {
-                any_of: vec![],
-                include: None,
-            },
-        ];
-        check_group_any_of_constraints("group", group_attr_names, &constraints)?;
-
-        // Attributes and multiple constraints (one unsatisfiable).
-        let group_attr_names = vec!["attr1".to_owned(), "attr2".to_owned(), "attr3".to_owned()]
-            .into_iter()
-            .collect();
-        let constraints = vec![
-            Constraint {
-                any_of: vec!["attr4".to_owned()],
-                include: None,
-            },
-            Constraint {
-                any_of: vec![],
-                include: None,
-            },
-        ];
-        let result = check_group_any_of_constraints("group", group_attr_names, &constraints);
-        assert!(result.is_err());
-
-        Ok(())
-    }
-
-    #[test]
     fn test_api_usage() -> Result<(), Box<dyn Error>> {
         let registry_id = "local";
 
@@ -1170,7 +881,7 @@ groups:
             let _resolved_attributes = span.attributes(catalog)?;
             // Do something with the resolved attributes.
         }
-        assert_eq!(span_count, 11, "11 spans in the resolved registry expected");
+        assert_eq!(span_count, 10, "10 spans in the resolved registry expected");
 
         Ok(())
     }

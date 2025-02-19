@@ -198,7 +198,7 @@ mod tests {
         let semconv_spec = SemConvSpec::from_file(path)
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(semconv_spec.groups.len(), 11);
+        assert_eq!(semconv_spec.groups.len(), 10);
 
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
@@ -225,6 +225,7 @@ mod tests {
             stability: "stable"
             brief: "description1"
             span_kind: "client"
+            type: span
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -235,6 +236,7 @@ mod tests {
             stability: "stable"
             brief: "description2"
             span_kind: "server"
+            type: span
             attributes:
               - id: "attr2"
                 stability: "stable"
@@ -264,6 +266,7 @@ mod tests {
         groups:
           - id: "group1"
             brief: "description1"
+            type: span
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -272,6 +275,7 @@ mod tests {
             stability: "stable"
             brief: "description2"
             span_kind: "server"
+            type: span
             attributes:
               - id: "attr2"
                 type: "int"
@@ -361,7 +365,7 @@ mod tests {
         let semconv_spec = SemConvSpecWithProvenance::from_file(&path)
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(semconv_spec.spec.groups.len(), 11);
+        assert_eq!(semconv_spec.spec.groups.len(), 10);
         assert_eq!(semconv_spec.provenance, path.display().to_string());
     }
 
@@ -374,6 +378,7 @@ mod tests {
             stability: "stable"
             brief: "description1"
             span_kind: "client"
+            type: span           
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -384,6 +389,7 @@ mod tests {
             stability: "stable"
             brief: "description2"
             span_kind: "server"
+            type: span
             attributes:
               - id: "attr2"
                 stability: "stable"
