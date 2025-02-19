@@ -42,13 +42,13 @@ All attributes are lower case.
 groups ::= semconv
        | semconv groups
 
-semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] [attributes] specificfields
+semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes] specificfields
 
 extends_or_attributes ::= (extends | attributes | (extends attributes))
 
 id    ::= string
 
-convtype ::= "span" # Default if not specified
+convtype ::= "span"
          |   "resource" # see spansfields
          |   "event"    # see eventfields
          |   "metric"   # see metricfields
