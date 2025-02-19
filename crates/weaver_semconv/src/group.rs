@@ -5,6 +5,7 @@
 //! A group specification.
 
 use schemars::JsonSchema;
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
@@ -118,6 +119,9 @@ impl GroupSpec {
                 error: "This group does not contain a stability field.".to_owned(),
             });
         }
+
+        // Groups should only reference attributes once.
+        validate_duplicate_attribute_ref(&mut errors, &self.attributes, &self.id, path_or_url);
 
         // All types, except metric and event, must have extends or attributes or both.
         // For backward compatibility, if constraints are set, extends or attributes are not required.
@@ -345,6 +349,26 @@ impl GroupSpec {
         }
 
         WResult::with_non_fatal_errors((), errors)
+    }
+}
+
+fn validate_duplicate_attribute_ref(
+    errors: &mut Vec<Error>,
+    attributes: &[AttributeSpec],
+    group_id: &str,
+    path_or_url: &str,
+) {
+    let mut seen = HashSet::new();
+    for a in attributes.iter() {
+        if let AttributeSpec::Ref { r#ref, .. } = a {
+            if !seen.insert(r#ref.to_owned()) {
+                errors.push(Error::InvalidGroupDuplicateAttributeRef {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    attribute_ref: r#ref.to_owned(),
+                });
+            }
+        }
     }
 }
 
@@ -1533,6 +1557,68 @@ mod tests {
             .validate("<test>")
             .into_result_failing_non_fatal()
             .is_ok());
+    }
+
+    #[test]
+    fn test_validate_duplicate_attribute_ref() {
+        let bad_attributes = vec![
+            AttributeSpec::Ref {
+                r#ref: "attribute".to_owned(),
+                brief: None,
+                examples: None,
+                tag: None,
+                requirement_level: None,
+                sampling_relevant: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                prefix: false,
+            },
+            AttributeSpec::Ref {
+                r#ref: "attribute".to_owned(),
+                brief: None,
+                examples: None,
+                tag: None,
+                requirement_level: None,
+                sampling_relevant: None,
+                note: None,
+                stability: None,
+                deprecated: None,
+                prefix: false,
+            },
+        ];
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![],
+            constraints: vec![],
+            span_kind: None,
+            events: vec![],
+            metric_name: None,
+            instrument: None,
+            unit: None,
+            name: None,
+            display_name: None,
+            body: None,
+        };
+
+        // Check group with duplicate attributes.
+        group.attributes = bad_attributes.clone();
+        let result = group.validate("<test>");
+        assert_eq!(
+            Err(Error::InvalidGroupDuplicateAttributeRef {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_ref: "attribute".to_owned(),
+            }),
+            result.into_result_failing_non_fatal()
+        );
     }
 
     #[test]

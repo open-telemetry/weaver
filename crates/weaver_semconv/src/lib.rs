@@ -77,6 +77,18 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention spec contains a group with duplicate attribute references.
+    #[error("Duplicate attribute refs for '{attribute_ref}' found on group '{group_id}' detected while resolving '{path_or_url:?}'.")]
+    #[diagnostic(severity(Warning))]
+    InvalidGroupDuplicateAttributeRef {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// That path or URL of the semantic convention asset.
+        group_id: String,
+        /// The attribute being referenced twice.
+        attribute_ref: String,
+    },
+
     /// The semantic convention spec contains an invalid group stability definition.
     #[error("Invalid stability on group '{group_id}' detected while resolving '{path_or_url:?}'. {error}")]
     #[diagnostic(severity(Warning))]
