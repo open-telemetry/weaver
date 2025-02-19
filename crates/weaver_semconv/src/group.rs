@@ -1559,7 +1559,6 @@ mod tests {
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
-            constraints: vec![],
             span_kind: None,
             events: vec![],
             metric_name: None,
