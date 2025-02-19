@@ -249,7 +249,7 @@ impl Registry {
                 let group_type = group.r#type.clone();
 
                 _ =
-                    acc.entry(group_type.unwrap_or(GroupType::Span))
+                    acc.entry(group_type.unwrap())
                         .and_modify(|stats| match stats {
                             AttributeGroup { common_stats } => {
                                 common_stats.update_stats(group);
