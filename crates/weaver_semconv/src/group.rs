@@ -143,7 +143,7 @@ impl GroupSpec {
         }
 
         // Fields span_kind and events are only valid if type is span.
-        if self.r#type != Some(GroupType::Span) {
+        if self.r#type.is_some() && self.r#type != Some(GroupType::Span) {
             if self.span_kind.is_some() {
                 errors.push(Error::InvalidGroup {
                     path_or_url: path_or_url.to_owned(),
@@ -646,19 +646,11 @@ mod tests {
         group.r#type = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
-            Err(CompoundError(vec![
-                InvalidGroup {
-                    path_or_url: "<test>".to_owned(),
-                    group_id: "test".to_owned(),
-                    error: "This group contains an events field but the type is not set to span."
-                        .to_owned(),
-                },
-                InvalidGroupMissingType {
-                    path_or_url: "<test>".to_owned(),
-                    group_id: "test".to_owned(),
-                    error: "This group does not contain a type field.".to_owned(),
-                }
-            ],),),
+            Err(InvalidGroupMissingType {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a type field.".to_owned(),
+            }),
             result
         );
 
