@@ -50,7 +50,7 @@ pub struct Group {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the group including the specific fields for each type.
-    pub r#type: GroupType,
+    pub r#type: Option<GroupType>,
     /// A brief description of the semantic convention.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
@@ -234,7 +234,7 @@ impl Registry {
     /// # Arguments
     ///
     /// * `group_type` - The type of the groups to return.
-    pub fn groups(&self, group_type: GroupType) -> impl Iterator<Item = &Group> {
+    pub fn groups(&self, group_type: Option<GroupType>) -> impl Iterator<Item = &Group> {
         self.groups
             .iter()
             .filter(move |group| group_type == group.r#type)
@@ -249,7 +249,7 @@ impl Registry {
                 let group_type = group.r#type.clone();
 
                 _ =
-                    acc.entry(group_type)
+                    acc.entry(group_type.unwrap())
                         .and_modify(|stats| match stats {
                             AttributeGroup { common_stats } => {
                                 common_stats.update_stats(group);
@@ -301,7 +301,7 @@ impl Registry {
                                 }
                             }
                         })
-                        .or_insert_with(|| match group.r#type {
+                        .or_insert_with(|| match group.r#type.clone().unwrap() {
                             GroupType::AttributeGroup => AttributeGroup {
                                 common_stats: CommonGroupStats::default(),
                             },
@@ -342,7 +342,7 @@ impl Group {
     /// is resolved, this method must be updated accordingly.
     #[must_use]
     pub fn is_registry_attribute_group(&self) -> bool {
-        matches!(self.r#type, GroupType::AttributeGroup) && self.id.starts_with("registry.")
+        matches!(self.r#type, Some(GroupType::AttributeGroup)) && self.id.starts_with("registry.")
     }
 
     /// Returns the fully resolved attributes of the group.
