@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* Remove unused features: make `type` property required on groups (behind `--future` flag), remove `constrints`. ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
+* Remove unused features: make `type` property required on groups (behind `--future` flag), remove `constraints`. ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
 
 ## [0.13.2] - 2025-02-13
 

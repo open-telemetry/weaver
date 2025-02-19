@@ -244,7 +244,7 @@ impl SemConvRegistry {
                 .iter()
                 .flat_map(|sc| sc.spec.groups.iter().map(|g| g.r#type.clone()))
                 .fold(HashMap::new(), |mut acc, group_type| {
-                    *acc.entry(group_type.unwrap()).or_insert(0) += 1;
+                    *acc.entry(group_type.expect("group type is required")).or_insert(0) += 1;
                     acc
                 }),
             attribute_count: self.attributes.len(),

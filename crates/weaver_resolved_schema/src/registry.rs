@@ -245,7 +245,7 @@ impl Registry {
                 let group_type = group.r#type.clone();
 
                 _ =
-                    acc.entry(group_type.unwrap())
+                    acc.entry(group_type.expect("group type is required"))
                         .and_modify(|stats| match stats {
                             AttributeGroup { common_stats } => {
                                 common_stats.update_stats(group);
