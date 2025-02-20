@@ -13,7 +13,7 @@ groups:
       id: device_lifecycle
       stability: stable
       type: map
-      requirement_level: optional
+      requirement_level: recommended
       fields:
         - id: ios.state
           stability: experimental
