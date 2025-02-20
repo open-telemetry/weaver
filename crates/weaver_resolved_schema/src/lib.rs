@@ -118,7 +118,7 @@ impl ResolvedTelemetrySchema {
         let attr_refs = self.catalog.add_attributes(attrs);
         self.registry.groups.push(Group {
             id: group_id.to_owned(),
-            r#type: GroupType::AttributeGroup,
+            r#type: Some(GroupType::AttributeGroup),
             brief: "".to_owned(),
             note: "".to_owned(),
             prefix: "".to_owned(),
@@ -133,7 +133,6 @@ impl ResolvedTelemetrySchema {
             events: vec![],
             metric_name: None,
             instrument: None,
-            constraints: vec![],
             unit: None,
             body: None,
         });
@@ -159,7 +158,7 @@ impl ResolvedTelemetrySchema {
         self.registry
             .groups
             .iter()
-            .filter(|group| group.r#type == GroupType::AttributeGroup)
+            .filter(|group| group.r#type == Some(GroupType::AttributeGroup))
             .flat_map(|group| {
                 group.attributes.iter().map(|attr_ref| {
                     // An attribute ref is a reference to an attribute in the catalog.
@@ -207,7 +206,7 @@ impl ResolvedTelemetrySchema {
         self.registry
             .groups
             .iter()
-            .filter(|group| group.r#type == group_type)
+            .filter(|group| group.r#type == Some(group_type.clone()))
             .map(|group| (group.id.as_str(), group))
             .collect()
     }

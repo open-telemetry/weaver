@@ -2557,53 +2557,6 @@
           }
         }
       }
-    },
-    {
-      "id": "db.tech",
-      "type": "span",
-      "brief": "Semantic convention group for specific technologies",
-      "stability": "development",
-      "attributes": [
-        62,
-        63,
-        64,
-        65,
-        66,
-        67,
-        68,
-        69,
-        70,
-        71,
-        72,
-        73,
-        74,
-        75,
-        77,
-        78,
-        79,
-        80,
-        81,
-        82,
-        83,
-        84,
-        87,
-        88,
-        89,
-        99,
-        100,
-        101,
-        102,
-        103,
-        104,
-        105,
-        106,
-        107,
-        108
-      ],
-      "span_kind": "client",
-      "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml"
-      }
     }
   ]
 }
