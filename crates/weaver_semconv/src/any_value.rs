@@ -263,7 +263,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: None,
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![
                 AnyValueSpec::Enum {
@@ -274,7 +274,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                     members: vec![EnumEntriesSpec {
@@ -294,7 +294,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                     fields: vec![
@@ -330,7 +330,7 @@ mod tests {
                                 stability: None,
                                 examples: None,
                                 requirement_level: RequirementLevel::Basic(
-                                    BasicRequirementLevelSpec::Optional,
+                                    BasicRequirementLevelSpec::Recommended,
                                 ),
                             },
                         },
@@ -342,7 +342,7 @@ mod tests {
                                 stability: None,
                                 examples: None,
                                 requirement_level: RequirementLevel::Basic(
-                                    BasicRequirementLevelSpec::Optional,
+                                    BasicRequirementLevelSpec::Recommended,
                                 ),
                             },
                         },
@@ -354,7 +354,7 @@ mod tests {
                                 stability: None,
                                 examples: None,
                                 requirement_level: RequirementLevel::Basic(
-                                    BasicRequirementLevelSpec::Optional,
+                                    BasicRequirementLevelSpec::Recommended,
                                 ),
                             },
                             fields: vec![
@@ -366,7 +366,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -378,7 +378,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -390,7 +390,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -402,7 +402,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -416,7 +416,7 @@ mod tests {
                                 stability: None,
                                 examples: None,
                                 requirement_level: RequirementLevel::Basic(
-                                    BasicRequirementLevelSpec::Optional,
+                                    BasicRequirementLevelSpec::Recommended,
                                 ),
                             },
                             fields: vec![
@@ -428,7 +428,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -440,7 +440,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -452,7 +452,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -464,7 +464,7 @@ mod tests {
                                         stability: None,
                                         examples: None,
                                         requirement_level: RequirementLevel::Basic(
-                                            BasicRequirementLevelSpec::Optional,
+                                            BasicRequirementLevelSpec::Recommended,
                                         ),
                                     },
                                 },
@@ -480,7 +480,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                 },
@@ -492,7 +492,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                 },
@@ -516,7 +516,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                 },
@@ -528,7 +528,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                 },
@@ -540,7 +540,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional,
+                            BasicRequirementLevelSpec::Recommended,
                         ),
                     },
                 },
@@ -582,7 +582,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -600,7 +600,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -618,7 +618,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -636,7 +636,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -654,7 +654,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -672,7 +672,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -690,7 +690,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -708,7 +708,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -726,7 +726,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -744,7 +744,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     },
                     fields: vec![]
@@ -763,7 +763,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     }
                 }
@@ -781,7 +781,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     },
                     members: vec![EnumEntriesSpec {
@@ -808,7 +808,7 @@ mod tests {
                         stability: None,
                         examples: None,
                         requirement_level: RequirementLevel::Basic(
-                            BasicRequirementLevelSpec::Optional
+                            BasicRequirementLevelSpec::Recommended
                         ),
                     },
                     members: vec![EnumEntriesSpec {
