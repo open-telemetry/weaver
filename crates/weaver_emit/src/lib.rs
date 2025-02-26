@@ -136,14 +136,13 @@ mod tests {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
                 id: "test.comprehensive.internal".to_owned(),
-                r#type: GroupType::Span,
+                r#type: Some(GroupType::Span),
                 brief: "".to_owned(),
                 note: "".to_owned(),
                 prefix: "".to_owned(),
                 extends: None,
                 stability: Some(Stability::Stable),
                 deprecated: None,
-                constraints: vec![],
                 attributes: vec![Attribute {
                     name: "test.string".to_owned(),
                     r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),

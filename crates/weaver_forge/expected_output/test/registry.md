@@ -56,4 +56,3 @@ Url:
 - [db.elasticsearch](span/db_elasticsearch.md)
 - [db.sql](span/db_sql.md)
 - [db.cosmosdb](span/db_cosmosdb.md)
-- [db.tech](span/db_tech.md)
