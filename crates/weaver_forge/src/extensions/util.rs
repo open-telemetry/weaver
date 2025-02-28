@@ -19,6 +19,7 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
     env.add_filter("regex_replace", regex_replace);
+    env.add_filter("toyaml", to_yaml);
 }
 
 /// Add utility functions to the environment.
@@ -131,10 +132,20 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
     }
 }
 
+// Helper filter to dump value (1st parameter) in yaml format.
+fn to_yaml(value: Value) -> Result<String, minijinja::Error> {
+    let yaml = serde_yaml::to_string(&value)
+        .map_err(|e| minijinja::Error::new(ErrorKind::BadSerialization, e.to_string()))?;
+    Ok(yaml)
+}
+
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use crate::extensions::util::add_filters;
     use minijinja::Environment;
+    use serde_yaml::{Mapping, Number, Value};
 
     #[test]
     fn test_regex_replace() {
@@ -157,6 +168,52 @@ mod tests {
             )
             .unwrap(),
             "This A test with multiple A's"
+        );
+    }
+    #[test]
+    fn test_to_yaml() {
+        let mut env = Environment::new();
+        let mut inner_map = Mapping::new();
+        let _ = inner_map.insert(
+            Value::String("age".to_owned()),
+            Value::Number(Number::from(30u64)),
+        );
+        let mut details_map = Mapping::new();
+        let _ = details_map.insert(
+            Value::String("city".to_owned()),
+            Value::String("Wonderland".to_owned()),
+        );
+        let _ = details_map.insert(
+            Value::String("email".to_owned()),
+            Value::String("alice@example.com".to_owned()),
+        );
+        let _ = inner_map.insert(
+            Value::String("details".to_owned()),
+            Value::Mapping(details_map),
+        );
+        let _ = inner_map.insert(Value::String("is_active".to_owned()), Value::Bool(true));
+        let _ = inner_map.insert(
+            Value::String("name".to_owned()),
+            Value::String("Alice".to_owned()),
+        );
+        let _ = inner_map.insert(
+            Value::String("skills".to_owned()),
+            Value::Sequence(vec![
+                Value::String("Rust".to_owned()),
+                Value::String("JavaScript".to_owned()),
+            ]),
+        );
+        let mut map = Mapping::new();
+        let _ = map.insert(Value::String("user".to_owned()), Value::Mapping(inner_map));
+
+        let ctx = Value::Mapping(map);
+        let config = crate::config::WeaverConfig::default();
+
+        add_filters(&mut env, &config);
+        let expected_yaml = fs::read_to_string("expected_output/yaml/test.yaml").unwrap();
+        assert_eq!(
+            env.render_str("{{ user | toyaml }}", &ctx).unwrap(),
+            expected_yaml
         );
     }
 }
