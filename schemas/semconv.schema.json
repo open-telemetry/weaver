@@ -589,7 +589,6 @@
 			"enum": [
 				"stable",
 				"development",
-				"deprecated",
 				"alpha",
 				"beta",
 				"release_candidate"
