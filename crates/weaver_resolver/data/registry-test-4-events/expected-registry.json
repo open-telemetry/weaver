@@ -253,7 +253,7 @@
         "type": "map",
         "id": "client.exception.event.fields",
         "stability": "stable",
-        "requirement_level": "optional",
+        "requirement_level": "recommended",
         "fields": [
           {
             "type": "string",
@@ -264,7 +264,7 @@
               "java.net.ConnectException",
               "OSError"
             ],
-            "requirement_level": "optional"
+            "requirement_level": "recommended"
           },
           {
             "type": "string",
@@ -275,7 +275,7 @@
               "Division by zero",
               "Can't convert 'int' object to str implicitly"
             ],
-            "requirement_level": "optional"
+            "requirement_level": "recommended"
           },
           {
             "type": "string",
@@ -283,7 +283,7 @@
             "brief": "A stacktrace.\n",
             "stability": "stable",
             "examples": "Exception in thread \"main\" java.lang.RuntimeException: Test exception\\n at com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at com.example.GenerateTrace.main(GenerateTrace.java:5)",
-            "requirement_level": "optional"
+            "requirement_level": "recommended"
           },
           {
             "type": "boolean",
@@ -291,7 +291,7 @@
             "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
             "note": "An exception is considered to have escaped.",
             "stability": "stable",
-            "requirement_level": "optional"
+            "requirement_level": "recommended"
           }
         ]
       }
@@ -363,7 +363,7 @@
               "some value",
               "another value"
             ],
-            "requirement_level": "optional"
+            "requirement_level": "recommended"
           }
         ]
       }
