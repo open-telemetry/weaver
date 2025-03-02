@@ -8,7 +8,6 @@ pub mod in_memory;
 pub mod quiet;
 pub mod result;
 pub mod test;
-
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 

@@ -13,6 +13,7 @@ use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use weaver_cache::registry_path::RegistryPath;
 use weaver_common::error::handle_errors;
 
 /// Represents the information of a semantic convention registry manifest.
@@ -36,6 +37,22 @@ pub struct RegistryManifest {
 
     /// The base URL where the registry's schema files are hosted.
     pub schema_base_url: String,
+
+    /// List of the registry's dependencies.
+    /// Note: In the current phase, we only support zero or one dependency.
+    /// See this GH issue for more details: https://github.com/open-telemetry/weaver/issues/604
+    pub dependencies: Option<Vec<Dependency>>,
+}
+
+/// Represents a dependency of a semantic convention registry.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct Dependency {
+    /// The name of the dependency.
+    pub name: String,
+    /// The version of the dependency.
+    pub version: String,
+    /// The repository of the dependency.
+    pub repository: RegistryPath,
 }
 
 impl RegistryManifest {

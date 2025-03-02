@@ -30,10 +30,11 @@ zip = "2.2.2"
 thiserror.workspace = true
 serde.workspace = true
 miette.workspace = true
-once_cell.workspace = true
-regex.workspace = true
 url.workspace = true
 ureq.workspace = true
+schemars.workspace = true
+once_cell.workspace = true
+regex.workspace = true
 
 [dev-dependencies]
 walkdir.workspace = true

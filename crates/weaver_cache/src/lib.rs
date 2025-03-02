@@ -2,6 +2,8 @@
 
 //! A Semantic Convention Repository abstraction for OTel Weaver.
 
+pub mod registry_path;
+
 use std::default::Default;
 use std::fs::{create_dir_all, File};
 use std::io;
@@ -19,11 +21,8 @@ use tempdir::TempDir;
 use url::Url;
 
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-
-use crate::registry_path::RegistryPath;
 use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
-
-pub mod registry_path;
+use crate::registry_path::RegistryPath;
 
 /// The extension for a tar gz archive.
 const TAR_GZ_EXT: &str = ".tar.gz";
@@ -543,8 +542,10 @@ impl RegistryRepo {
 
 #[cfg(test)]
 mod tests {
+    use weaver_common::registry_path::RegistryPath;
     use super::*;
     use weaver_common::test::ServeStaticFiles;
+    use crate::registry_path::RegistryPath;
 
     fn count_yaml_files(repo_path: &Path) -> usize {
         let count = walkdir::WalkDir::new(repo_path)

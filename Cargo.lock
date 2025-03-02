@@ -5246,6 +5246,7 @@ dependencies = [
  "miette",
  "once_cell",
  "regex",
+ "schemars",
  "serde",
  "tar",
  "tempdir",

@@ -4,10 +4,10 @@
 
 use std::fmt::Display;
 use std::str::FromStr;
-
+use schemars::JsonSchema;
 use once_cell::sync::Lazy;
 use regex::Regex;
-
+use serde::{Deserialize, Serialize};
 use crate::Error;
 
 /// Regex to parse a registry path supporting the following formats:
@@ -22,7 +22,9 @@ static REGISTRY_REGEX: Lazy<Regex> = Lazy::new(|| {
 
 /// Path to a semantic convention registry.
 /// The path can be a local directory or a Git URL.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(try_from = "String")]
+#[serde(into = "String")]
 pub enum RegistryPath {
     /// Local folder path pointing to a semantic convention registry.
     LocalFolder {
@@ -52,6 +54,24 @@ pub enum RegistryPath {
         /// Sub-folder within the repository containing the semantic convention registry
         sub_folder: Option<String>,
     },
+}
+
+/// Implement `TryFrom<String>` for `RegistryPath`, so that it can be used to
+/// deserialize a `RegistryPath` via serde.
+impl TryFrom<String> for RegistryPath {
+    type Error = Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+/// Implement `From<RegistryPath>` for String, so that it can be serialized to a
+/// string via serde.
+impl From<RegistryPath> for String {
+    fn from(path: RegistryPath) -> Self {
+        path.to_string()
+    }
 }
 
 /// Implement the `FromStr` trait for `RegistryPath`, so that it can be used as

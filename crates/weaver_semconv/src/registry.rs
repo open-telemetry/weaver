@@ -146,6 +146,7 @@ impl SemConvRegistry {
                 description: None,
                 semconv_version,
                 schema_base_url: "".to_owned(),
+                dependencies: None,
             });
         }
 
