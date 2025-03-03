@@ -1,0 +1,7 @@
+name: acme
+description: This registry contains the semantic conventions for the Acme vendor.
+semconv_version: 0.1.0
+schema_base_url: https://acme.com/schemas/
+dependencies:
+  - name: otel
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.30.0.zip[model]

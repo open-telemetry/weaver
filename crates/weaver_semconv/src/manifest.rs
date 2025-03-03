@@ -49,10 +49,8 @@ pub struct RegistryManifest {
 pub struct Dependency {
     /// The name of the dependency.
     pub name: String,
-    /// The version of the dependency.
-    pub version: String,
-    /// The repository of the dependency.
-    pub repository: RegistryPath,
+    /// The registry path of the dependency.
+    pub registry_path: RegistryPath,
 }
 
 impl RegistryManifest {
