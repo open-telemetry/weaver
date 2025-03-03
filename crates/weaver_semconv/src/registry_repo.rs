@@ -2,8 +2,6 @@
 
 //! A Semantic Convention Repository abstraction for OTel Weaver.
 
-pub mod registry_path;
-
 use std::default::Default;
 use std::fs::{create_dir_all, File};
 use std::io;
@@ -15,12 +13,9 @@ use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
 use gix::{create, open, progress};
-use miette::Diagnostic;
-use serde::Serialize;
 use tempdir::TempDir;
 use url::Url;
-
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use crate::Error;
 use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
 use crate::registry_path::RegistryPath;
 
@@ -30,71 +25,6 @@ const TAR_GZ_EXT: &str = ".tar.gz";
 const ZIP_EXT: &str = ".zip";
 /// The name of the registry manifest file.
 pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
-
-/// An error that can occur while creating or using a cache.
-#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
-#[non_exhaustive]
-pub enum Error {
-    /// Home directory not found.
-    #[error("Home directory not found")]
-    HomeDirNotFound,
-
-    /// Cache directory not created.
-    #[error("Cache directory not created: {message}")]
-    CacheDirNotCreated {
-        /// The error message
-        message: String,
-    },
-
-    /// Git repo not created.
-    #[error("Git repo `{repo_url}` not created: {message}")]
-    GitRepoNotCreated {
-        /// The git repo URL
-        repo_url: String,
-        /// The error message
-        message: String,
-    },
-
-    /// A git error occurred.
-    #[error("Git error occurred while cloning `{repo_url}`: {message}")]
-    GitError {
-        /// The git repo URL
-        repo_url: String,
-        /// The error message
-        message: String,
-    },
-
-    /// An invalid registry path.
-    #[error("The registry path `{path}` is invalid: {error}")]
-    InvalidRegistryPath {
-        /// The registry path
-        path: String,
-        /// The error message
-        error: String,
-    },
-
-    /// An invalid registry archive.
-    #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
-    UnsupportedRegistryArchive {
-        /// The registry archive path
-        archive: String,
-    },
-
-    /// An invalid registry archive.
-    #[error("The registry archive `{archive}` is invalid: {error}")]
-    InvalidRegistryArchive {
-        /// The registry archive path
-        archive: String,
-        /// The error message
-        error: String,
-    },
-}
-
-impl From<Error> for DiagnosticMessages {
-    fn from(error: Error) -> Self {
-        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
-    }
-}
 
 /// A semantic convention registry repository that can be:
 /// - A simple wrapper around a local directory
@@ -175,13 +105,13 @@ impl RegistryRepo {
             },
             open::Options::isolated(),
         )
-        .map_err(|e| GitError {
-            repo_url: url.to_owned(),
-            message: e.to_string(),
-        })?
-        .with_shallow(Shallow::DepthAtRemote(
-            NonZeroU32::new(1).expect("1 is not zero"),
-        ));
+            .map_err(|e| GitError {
+                repo_url: url.to_owned(),
+                message: e.to_string(),
+            })?
+            .with_shallow(Shallow::DepthAtRemote(
+                NonZeroU32::new(1).expect("1 is not zero"),
+            ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -542,7 +472,6 @@ impl RegistryRepo {
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::registry_path::RegistryPath;
     use super::*;
     use weaver_common::test::ServeStaticFiles;
     use crate::registry_path::RegistryPath;
@@ -628,8 +557,8 @@ mod tests {
             "{}[model]",
             server.relative_path_to_url("semconv_registry_v1.26.0.tar.gz")
         )
-        .parse::<RegistryPath>()
-        .unwrap();
+            .parse::<RegistryPath>()
+            .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 
@@ -640,8 +569,8 @@ mod tests {
             "{}[model]",
             server.relative_path_to_url("semconv_registry_v1.26.0.zip")
         )
-        .parse::<RegistryPath>()
-        .unwrap();
+            .parse::<RegistryPath>()
+            .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 }

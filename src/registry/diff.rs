@@ -11,13 +11,13 @@ use include_dir::{include_dir, Dir};
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_semconv::registry_path::RegistryPath;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");

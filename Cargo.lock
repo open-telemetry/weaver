@@ -5223,7 +5223,6 @@ dependencies = [
  "tui-textarea",
  "ureq",
  "walkdir",
- "weaver_cache",
  "weaver_checker",
  "weaver_common",
  "weaver_diff",
@@ -5234,28 +5233,6 @@ dependencies = [
  "weaver_semconv",
  "weaver_semconv_gen",
  "weaver_version",
-]
-
-[[package]]
-name = "weaver_cache"
-version = "0.13.2"
-dependencies = [
- "dirs",
- "flate2",
- "gix",
- "miette",
- "once_cell",
- "regex",
- "schemars",
- "serde",
- "tar",
- "tempdir",
- "thiserror 2.0.11",
- "ureq",
- "url",
- "walkdir",
- "weaver_common",
- "zip",
 ]
 
 [[package]]
@@ -5281,7 +5258,6 @@ dependencies = [
  "miette",
  "opentelemetry",
  "walkdir",
- "weaver_cache",
  "weaver_common",
  "weaver_forge",
  "weaver_resolver",
@@ -5403,7 +5379,6 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.11",
  "walkdir",
- "weaver_cache",
  "weaver_common",
  "weaver_diff",
  "weaver_resolved_schema",
@@ -5414,18 +5389,26 @@ dependencies = [
 name = "weaver_semconv"
 version = "0.13.2"
 dependencies = [
+ "dirs",
+ "flate2",
+ "gix",
  "glob",
  "miette",
+ "once_cell",
  "ordered-float",
  "regex",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
+ "tar",
+ "tempdir",
  "thiserror 2.0.11",
  "ureq",
- "weaver_cache",
+ "url",
+ "walkdir",
  "weaver_common",
+ "zip",
 ]
 
 [[package]]
@@ -5436,7 +5419,6 @@ dependencies = [
  "nom 8.0.0",
  "serde",
  "thiserror 2.0.11",
- "weaver_cache",
  "weaver_common",
  "weaver_diff",
  "weaver_forge",

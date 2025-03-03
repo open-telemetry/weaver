@@ -5,7 +5,6 @@
 use clap::Args;
 use itertools::Itertools;
 use miette::Diagnostic;
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
@@ -31,6 +30,7 @@ use ratatui::{
 };
 use std::io::{stdout, IsTerminal};
 use tui_textarea::TextArea;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry search` sub-command
 #[derive(Debug, Args)]

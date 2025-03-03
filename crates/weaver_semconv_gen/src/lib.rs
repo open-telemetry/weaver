@@ -7,7 +7,6 @@
 use miette::Diagnostic;
 use serde::Serialize;
 use std::{fmt, fs};
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
@@ -19,6 +18,7 @@ use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 mod parser;
 
@@ -81,10 +81,6 @@ pub enum Error {
     #[error(transparent)]
     ResolverError(#[from] weaver_resolver::Error),
 
-    /// Errors from using weaver_cache.
-    #[error(transparent)]
-    CacheError(#[from] weaver_cache::Error),
-
     /// Errors from using weaver_forge.
     #[error(transparent)]
     ForgeError(#[from] weaver_forge::error::Error),
@@ -122,7 +118,6 @@ impl From<Error> for DiagnosticMessages {
             ),
             Error::SemconvError(e) => e.into(),
             Error::ResolverError(e) => e.into(),
-            Error::CacheError(e) => e.into(),
             Error::ForgeError(e) => e.into(),
             _ => DiagnosticMessages::new(vec![DiagnosticMessage::new(error)]),
         }
@@ -369,13 +364,12 @@ impl ResolvedSemconvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use weaver_cache::registry_path::RegistryPath;
-    use weaver_cache::RegistryRepo;
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
-
+    use weaver_semconv::registry_path::RegistryPath;
+    use weaver_semconv::registry_repo::RegistryRepo;
     use crate::{update_markdown, Error, SnippetGenerator};
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {

@@ -19,6 +19,8 @@ pub mod registry;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod registry_repo;
+pub mod registry_path;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -262,6 +264,60 @@ pub enum Error {
         /// The path to the registry manifest file.
         path: PathBuf,
         /// The error that occurred.
+        error: String,
+    },
+
+    /// Home directory not found.
+    #[error("Home directory not found")]
+    HomeDirNotFound,
+
+    /// Cache directory not created.
+    #[error("Cache directory not created: {message}")]
+    CacheDirNotCreated {
+        /// The error message
+        message: String,
+    },
+
+    /// Git repo not created.
+    #[error("Git repo `{repo_url}` not created: {message}")]
+    GitRepoNotCreated {
+        /// The git repo URL
+        repo_url: String,
+        /// The error message
+        message: String,
+    },
+
+    /// A git error occurred.
+    #[error("Git error occurred while cloning `{repo_url}`: {message}")]
+    GitError {
+        /// The git repo URL
+        repo_url: String,
+        /// The error message
+        message: String,
+    },
+
+    /// An invalid registry path.
+    #[error("The registry path `{path}` is invalid: {error}")]
+    InvalidRegistryPath {
+        /// The registry path
+        path: String,
+        /// The error message
+        error: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
+    UnsupportedRegistryArchive {
+        /// The registry archive path
+        archive: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("The registry archive `{archive}` is invalid: {error}")]
+    InvalidRegistryArchive {
+        /// The registry archive path
+        archive: String,
+        /// The error message
         error: String,
     },
 

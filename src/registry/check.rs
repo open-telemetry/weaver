@@ -4,14 +4,13 @@
 
 use clap::Args;
 use miette::Diagnostic;
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::RegistryRepo;
 use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
-
+use weaver_semconv::registry_path::RegistryPath;
+use weaver_semconv::registry_repo::RegistryRepo;
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
     check_policy_stage, load_semconv_specs, prepare_main_registry, resolve_semconv_specs,

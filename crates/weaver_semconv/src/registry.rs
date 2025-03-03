@@ -13,8 +13,8 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
-use weaver_cache::RegistryRepo;
 use weaver_common::result::WResult;
+use crate::registry_repo::RegistryRepo;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -260,9 +260,9 @@ mod tests {
     use crate::group::{GroupSpec, GroupType};
     use crate::registry::SemConvRegistry;
     use crate::Error;
-    use weaver_cache::registry_path::RegistryPath;
-    use weaver_cache::RegistryRepo;
     use weaver_common::test::ServeStaticFiles;
+    use crate::registry_path::RegistryPath;
+    use crate::registry_repo::RegistryRepo;
 
     #[test]
     fn test_try_from_path_pattern() {
