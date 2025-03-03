@@ -364,13 +364,13 @@ impl ResolvedSemconvRegistry {
 
 #[cfg(test)]
 mod tests {
+    use crate::{update_markdown, Error, SnippetGenerator};
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
     use weaver_semconv::registry_path::RegistryPath;
     use weaver_semconv::registry_repo::RegistryRepo;
-    use crate::{update_markdown, Error, SnippetGenerator};
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {

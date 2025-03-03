@@ -8,13 +8,13 @@
 //! In the future, this struct may be extended to include additional information
 //! such as the registry's owner, maintainers, and dependencies.
 
+use crate::registry_path::RegistryPath;
 use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use weaver_common::error::handle_errors;
-use crate::registry_path::RegistryPath;
 
 /// Represents the information of a semantic convention registry manifest.
 ///

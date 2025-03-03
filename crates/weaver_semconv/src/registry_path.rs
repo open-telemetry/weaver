@@ -2,13 +2,13 @@
 
 //! The representation of a semantic convention registry path/location.
 
-use std::fmt::Display;
-use std::str::FromStr;
-use schemars::JsonSchema;
+use crate::Error;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::Error;
+use std::fmt::Display;
+use std::str::FromStr;
 
 /// Regex to parse a registry path supporting the following formats:
 /// - source

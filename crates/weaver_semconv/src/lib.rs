@@ -16,11 +16,11 @@ pub mod group;
 pub mod manifest;
 pub mod metric;
 pub mod registry;
+pub mod registry_path;
+pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
-pub mod registry_repo;
-pub mod registry_path;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]

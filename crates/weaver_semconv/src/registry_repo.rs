@@ -9,15 +9,15 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 
+use crate::registry_path::RegistryPath;
+use crate::Error;
+use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
 use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
 use gix::{create, open, progress};
 use tempdir::TempDir;
 use url::Url;
-use crate::Error;
-use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
-use crate::registry_path::RegistryPath;
 
 /// The extension for a tar gz archive.
 const TAR_GZ_EXT: &str = ".tar.gz";
@@ -105,13 +105,13 @@ impl RegistryRepo {
             },
             open::Options::isolated(),
         )
-            .map_err(|e| GitError {
-                repo_url: url.to_owned(),
-                message: e.to_string(),
-            })?
-            .with_shallow(Shallow::DepthAtRemote(
-                NonZeroU32::new(1).expect("1 is not zero"),
-            ));
+        .map_err(|e| GitError {
+            repo_url: url.to_owned(),
+            message: e.to_string(),
+        })?
+        .with_shallow(Shallow::DepthAtRemote(
+            NonZeroU32::new(1).expect("1 is not zero"),
+        ));
 
         let (mut prepare, _outcome) = fetch
             .fetch_then_checkout(progress::Discard, &AtomicBool::new(false))
@@ -473,8 +473,8 @@ impl RegistryRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use weaver_common::test::ServeStaticFiles;
     use crate::registry_path::RegistryPath;
+    use weaver_common::test::ServeStaticFiles;
 
     fn count_yaml_files(repo_path: &Path) -> usize {
         let count = walkdir::WalkDir::new(repo_path)
@@ -557,8 +557,8 @@ mod tests {
             "{}[model]",
             server.relative_path_to_url("semconv_registry_v1.26.0.tar.gz")
         )
-            .parse::<RegistryPath>()
-            .unwrap();
+        .parse::<RegistryPath>()
+        .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 
@@ -569,8 +569,8 @@ mod tests {
             "{}[model]",
             server.relative_path_to_url("semconv_registry_v1.26.0.zip")
         )
-            .parse::<RegistryPath>()
-            .unwrap();
+        .parse::<RegistryPath>()
+        .unwrap();
         check_archive(registry_path, Some("general.yaml"));
     }
 }

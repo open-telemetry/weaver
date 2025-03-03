@@ -6,6 +6,7 @@ use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::GroupSpecWithProvenance;
 use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
+use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
@@ -14,7 +15,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 use weaver_common::result::WResult;
-use crate::registry_repo::RegistryRepo;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -259,10 +259,10 @@ mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
     use crate::registry::SemConvRegistry;
-    use crate::Error;
-    use weaver_common::test::ServeStaticFiles;
     use crate::registry_path::RegistryPath;
     use crate::registry_repo::RegistryRepo;
+    use crate::Error;
+    use weaver_common::test::ServeStaticFiles;
 
     #[test]
     fn test_try_from_path_pattern() {
