@@ -1,0 +1,28 @@
+groups:
+  - id: "registry.group1"
+    type: "attribute_group"
+    name: "registry.group1"
+    brief: "registry.group1"
+    attributes:
+      - id: "attr0"
+        type: boolean
+        brief: "brief0"
+        requirement_level: "recommended"
+      - id: "attr1"
+        type: boolean
+        brief: "brief1"
+        requirement_level: "recommended"
+      - id: "attr2"
+        type: string
+        brief: "brief2"
+        requirement_level: "recommended"
+      - id: attr3
+        type: int
+        brief: brief3
+        requirement_level: recommended
+      - id: attr5
+        type: double
+        brief: brief5
+        requirement_level: recommended
+        deprecated:
+          reason: obsoleted

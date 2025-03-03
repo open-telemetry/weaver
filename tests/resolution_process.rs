@@ -4,13 +4,13 @@
 
 use miette::Diagnostic;
 
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::RegistryRepo;
 use weaver_common::TestLogger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_path::RegistryPath;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 /// The URL of the official semantic convention registry.
 const SEMCONV_REGISTRY_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
