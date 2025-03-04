@@ -35,7 +35,7 @@ publish = false
 rust-version = "1.81.0"
 
 [workspace.dependencies]
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1.0.218", features = ["derive"] }
 serde_yaml = "0.9.34"
 serde_json = { version = "1.0.139" }
 thiserror = "2.0.9"
@@ -45,7 +45,7 @@ regex = "1.11.1"
 rayon = "1.10.0"
 ordered-float = { version = "4.6.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
-anyhow = "1.0.95"
+anyhow = "1.0.96"
 itertools = "0.14.0"
 globset = { version = "0.4.15", features = ["serde1"] }
 miette = { version = "7.5.0", features = ["fancy", "serde"] }
@@ -79,7 +79,7 @@ weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 
-clap = { version = "4.5.28", features = ["derive"] }
+clap = { version = "4.5.31", features = ["derive"] }
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
