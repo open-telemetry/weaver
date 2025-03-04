@@ -24,7 +24,7 @@ Validates a semantic convention registry.
 The validation process for a semantic convention registry involves several steps:
 - Loading the semantic convention specifications from a local directory or a git repository.
 - Parsing the loaded semantic convention specifications.
-- Resolving references, extends clauses, and constraints within the specifications.
+- Resolving references and extends clauses within the specifications.
 - Checking compliance with specified Rego policies, if provided.
 
 The process exits with a code of 0 if the registry validation is successful.

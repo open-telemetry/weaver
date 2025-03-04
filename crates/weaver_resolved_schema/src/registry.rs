@@ -50,7 +50,7 @@ pub struct Group {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the group including the specific fields for each type.
-    pub r#type: GroupType,
+    pub r#type: Option<GroupType>,
     /// A brief description of the semantic convention.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
@@ -64,8 +64,8 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "String::is_empty")]
     pub prefix: String,
-    /// Reference another semantic convention id. It inherits the prefix,
-    /// constraints, and all attributes defined in the specified semantic
+    /// Reference another semantic convention id. It inherits all
+    /// attributes defined in the specified semantic
     /// convention.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extends: Option<String>,
@@ -81,12 +81,6 @@ pub struct Group {
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
-    /// Additional constraints.
-    /// Allow to define additional requirements on the semantic convention.
-    /// It defaults to an empty list.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub constraints: Vec<Constraint>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeRef>,
@@ -200,21 +194,6 @@ pub enum GroupStats {
     },
 }
 
-/// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct Constraint {
-    /// any_of accepts a list of sequences. Each sequence contains a list of
-    /// attribute ids that are required. any_of enforces that all attributes
-    /// of at least one of the sequences are set.
-    #[serde(default)]
-    pub any_of: Vec<String>,
-    /// include accepts a semantic conventions id. It includes as part of this
-    /// semantic convention all constraints and required attributes that are
-    /// not already defined in the current semantic convention.
-    pub include: Option<String>,
-}
-
 impl CommonGroupStats {
     /// Update the statistics with the provided group.
     pub fn update_stats(&mut self, group: &Group) {
@@ -251,7 +230,7 @@ impl Registry {
     /// # Arguments
     ///
     /// * `group_type` - The type of the groups to return.
-    pub fn groups(&self, group_type: GroupType) -> impl Iterator<Item = &Group> {
+    pub fn groups(&self, group_type: Option<GroupType>) -> impl Iterator<Item = &Group> {
         self.groups
             .iter()
             .filter(move |group| group_type == group.r#type)
@@ -266,7 +245,7 @@ impl Registry {
                 let group_type = group.r#type.clone();
 
                 _ =
-                    acc.entry(group_type)
+                    acc.entry(group_type.expect("group type is required"))
                         .and_modify(|stats| match stats {
                             AttributeGroup { common_stats } => {
                                 common_stats.update_stats(group);
@@ -318,7 +297,7 @@ impl Registry {
                                 }
                             }
                         })
-                        .or_insert_with(|| match group.r#type {
+                        .or_insert_with(|| match group.r#type.clone().unwrap_or(GroupType::Span) {
                             GroupType::AttributeGroup => AttributeGroup {
                                 common_stats: CommonGroupStats::default(),
                             },
@@ -359,7 +338,7 @@ impl Group {
     /// is resolved, this method must be updated accordingly.
     #[must_use]
     pub fn is_registry_attribute_group(&self) -> bool {
-        matches!(self.r#type, GroupType::AttributeGroup) && self.id.starts_with("registry.")
+        matches!(self.r#type, Some(GroupType::AttributeGroup)) && self.id.starts_with("registry.")
     }
 
     /// Returns the fully resolved attributes of the group.
@@ -396,12 +375,6 @@ impl Group {
         Ok(attributes)
     }
 
-    /// Returns true if the group contains at least one `include` constraint.
-    #[must_use]
-    pub fn has_include(&self) -> bool {
-        self.constraints.iter().any(|c| c.include.is_some())
-    }
-
     /// Import attributes from the provided slice that do not exist in the
     /// current group.
     pub fn import_attributes_from(&mut self, attributes: &[AttributeRef]) {
@@ -410,23 +383,6 @@ impl Group {
                 self.attributes.push(*attr);
             }
         }
-    }
-
-    /// Update the group constraints according to the provided constraints to
-    /// add and the `include` constraints to remove.
-    pub fn update_constraints(
-        &mut self,
-        constraints_to_add: Vec<Constraint>,
-        include_to_remove: HashSet<String>,
-    ) {
-        // Add the new constraints
-        self.constraints.extend(constraints_to_add);
-
-        // Remove the include constraints
-        self.constraints.retain(|c| {
-            c.include.is_none()
-                || !include_to_remove.contains(c.include.as_ref().expect("include is not none"))
-        });
     }
 
     /// Returns the provenance of the group.

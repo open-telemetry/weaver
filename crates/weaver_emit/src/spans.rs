@@ -139,7 +139,7 @@ pub(crate) fn emit_trace_for_registry(registry: &ResolvedRegistry, registry_path
 
         // Emit each span to the OTLP receiver.
         for group in registry.groups.iter() {
-            if group.r#type == GroupType::Span {
+            if group.r#type == Some(GroupType::Span) {
                 let _span = tracer
                     .span_builder(group.id.clone())
                     .with_kind(otel_span_kind(group.span_kind.as_ref()))
