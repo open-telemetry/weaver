@@ -16,7 +16,7 @@ flowchart TD
     subgraph "Intermediary Format"
         VecAttr["Vec&lt;Attribute&gt;
         for structure-less data"]
-        ResGroup["Vec&lt;ResolvedGroup&gt;
+        ResGroup["Vec&lt;Group&gt;
         for structured data"]
     end
     
@@ -64,7 +64,7 @@ Two primary intermediary formats are used:
    - Contains attribute metadata with optional sample values
    - Supports basic attribute presence and value checks
 
-2. **Vec\<ResolvedGroup\>**
+2. **Vec\<Group\>**
    - Used for fully structured telemetry data
    - Handles multiple telemetry groups in a single ingestion
    - Contains complete metadata e.g. Spans, Metrics, ...
@@ -73,7 +73,7 @@ Two primary intermediary formats are used:
 ### 2.3 Data Flow
 
 1. Input data is received by an appropriate ingester
-2. The ingester transforms the input into its predetermined output format (either Vec\<Attribute\> or Vec\<ResolvedGroup\>)
+2. The ingester transforms the input into its predetermined output format (either Vec\<Attribute\> or Vec\<Group\>)
 3. The check system runs appropriate validations on the intermediary format
 4. Results are collected and reported
 
@@ -90,14 +90,14 @@ trait Ingester<I, O> {
 
 // The two possible output formats
 type AttributeOutput = Vec<Attribute>;
-type ResolvedGroupOutput = Vec<ResolvedGroup>;
+type GroupOutput = Vec<Group>;
 
 // Each ingester implementation declares its input and output types
 struct OtlpIngester;
-impl Ingester<&[u8], ResolvedGroupOutput> for OtlpIngester { /* ... */ }
+impl Ingester<&[u8], GroupOutput> for OtlpIngester { /* ... */ }
 
 struct JsonIngester;
-impl Ingester<&str, ResolvedGroupOutput> for JsonIngester { /* ... */ }
+impl Ingester<&str, GroupOutput> for JsonIngester { /* ... */ }
 
 struct TextFileIngester;
 impl Ingester<&str, AttributeOutput> for TextFileIngester { /* ... */ }
@@ -113,13 +113,13 @@ Each ingester is purpose-built for a specific input format and produces a predet
 
 #### 3.2.1 OTLP Ingester
 
-- Always produces Vec\<ResolvedGroup\> format
+- Always produces Vec\<Group\> format
 - Extracts full structure from OTLP protocol buffers
 - Maps OTLP data models to appropriate semantic convention structures
 
 #### 3.2.2 JSON Ingester
 
-- Produces Vec\<ResolvedGroup\> format
+- Produces Vec\<Group\> format
 - Interprets JSON structure and maps to semantic convention structures
 - Built specifically to handle JSON with known structure
 
@@ -160,7 +160,7 @@ Work with either intermediary format and are inspired by honey-health tool funct
 
 #### 4.1.2 Structural Checks
 
-Require Vec\<ResolvedGroup\> format:
+Require Vec\<Group\> format:
 
 - **Group Validity**: Verifies structural integrity of the group
   - Checks if span, event, or metric attributes conform to their defined type
@@ -314,20 +314,20 @@ This report shows attributes with enum type and any observed values not defined 
 
 ## 5. Implementation Details
 
-### 5.1 ResolvedGroup Creation
+### 5.1 Group Creation
 
-For generating sparse `ResolvedGroup` instances:
+For generating sparse `Group` instances:
 
 ```rust
-struct ResolvedGroupBuilder {
-    group: ResolvedGroup,
+struct GroupBuilder {
+    group: Group,
 }
 
-impl ResolvedGroupBuilder {
+impl GroupBuilder {
     fn new(id: &str) -> Self { /* ... */ }
     fn with_attributes(mut self, attributes: Vec<Attribute>) -> Self { /* ... */ }
     /* ... */
-    fn build(self) -> ResolvedGroup { /* ... */ }
+    fn build(self) -> Group { /* ... */ }
 }
 ```
 
@@ -377,7 +377,7 @@ The system is designed to be extendable in several ways:
 // Process with a JSON ingester (takes string data)
 let json_ingester = JsonIngester::new();
 let json_string = std::str::from_utf8(&json_bytes)?;
-let resolved_groups: Vec<ResolvedGroup> = json_ingester.ingest(json_string)?;
+let resolved_groups: Vec<Group> = json_ingester.ingest(json_string)?;
 
 // or, Process with a file path ingester
 use std::path::Path;
@@ -386,7 +386,7 @@ let attributes: Vec<Attribute> = file_ingester.ingest(Path::new("attributes.txt"
 
 // Run checks based on the data type
 let attribute_runner = AttributeCheckRunner::new();
-let group_runner = ResolvedGroupCheckRunner::new();
+let group_runner = GroupCheckRunner::new();
 
 // Run appropriate checks based on data type
 let results = group_runner.run_checks(&resolved_groups);
