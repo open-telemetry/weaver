@@ -8,6 +8,7 @@
 //! In the future, this struct may be extended to include additional information
 //! such as the registry's owner, maintainers, and dependencies.
 
+use crate::registry_path::RegistryPath;
 use crate::Error;
 use crate::Error::{InvalidRegistryManifest, RegistryManifestNotFound};
 use schemars::JsonSchema;
@@ -36,6 +37,20 @@ pub struct RegistryManifest {
 
     /// The base URL where the registry's schema files are hosted.
     pub schema_base_url: String,
+
+    /// List of the registry's dependencies.
+    /// Note: In the current phase, we only support zero or one dependency.
+    /// See this GH issue for more details: https://github.com/open-telemetry/weaver/issues/604
+    pub dependencies: Option<Vec<Dependency>>,
+}
+
+/// Represents a dependency of a semantic convention registry.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct Dependency {
+    /// The name of the dependency.
+    pub name: String,
+    /// The registry path of the dependency.
+    pub registry_path: RegistryPath,
 }
 
 impl RegistryManifest {
