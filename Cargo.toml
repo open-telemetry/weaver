@@ -78,6 +78,7 @@ weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
+weaver_health = { path = "crates/weaver_health" }
 
 clap = { version = "4.5.31", features = ["derive"] }
 rayon = "1.10.0"

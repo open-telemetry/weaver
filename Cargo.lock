@@ -5229,6 +5229,7 @@ dependencies = [
  "weaver_diff",
  "weaver_emit",
  "weaver_forge",
+ "weaver_health",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_semconv",
@@ -5364,6 +5365,10 @@ dependencies = [
  "weaver_resolver",
  "weaver_semconv",
 ]
+
+[[package]]
+name = "weaver_health"
+version = "0.13.2"
 
 [[package]]
 name = "weaver_otel_schema"
