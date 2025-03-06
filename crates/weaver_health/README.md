@@ -49,7 +49,7 @@ flowchart TD
 
 ### 2.1 Core Components
 
-The live-check system comprises three main components:
+The weaver-health system comprises three main components:
 
 1. **Ingesters**: Transform specific input formats into intermediary formats
 2. **Intermediary Formats**: Standardized representations of telemetry data 
