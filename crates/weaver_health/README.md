@@ -14,9 +14,9 @@ flowchart TD
     end
     
     subgraph "Intermediary Format"
-        VecAttr["Vec&lt;Attribute&gt;
+        VecAttr["Vec&lt;Attribute>
         for structure-less data"]
-        ResGroup["Vec&lt;Group&gt;
+        ResGroup["Vec&lt;Group>
         for structured data"]
     end
     
@@ -32,6 +32,13 @@ flowchart TD
         Results[Results]
     end
     
+    subgraph "Report Formats"
+        CoverageRep[Coverage Report]
+        StatsRep[Statistical Report]
+        YamlGen[SemConv YAML Generation]
+        HumanRep[Human-Readable Output]
+    end
+    
     OTLP --> ResGroup
     TextFile --> VecAttr
     JSON --> ResGroup
@@ -43,17 +50,28 @@ flowchart TD
     
     AttrChecks --> Results
     StructChecks --> Results
+    
+    Results --> CoverageRep
+    Results --> StatsRep
+    Results --> YamlGen
+    Results --> HumanRep
+    
+    CoverageRep -.-> CI[CI/CD Integration]
+    StatsRep -.-> Analytics[Analytics Systems]
+    YamlGen -.-> Registry[Registry Enhancement]
+    HumanRep -.-> UI[Dashboards/UI]
 ```
 
 ## 2. Architecture
 
 ### 2.1 Core Components
 
-The weaver-health system comprises three main components:
+The weaver-health system comprises four main components:
 
 1. **Ingesters**: Transform specific input formats into intermediary formats
-2. **Intermediary Formats**: Standardized representations of telemetry data 
+2. **Intermediary Formats**: Standardized representations of telemetry data
 3. **Check System**: Validates intermediary data against expected patterns
+4. **Report Formats**: Structured outputs for various downstream uses
 
 ### 2.2 Intermediary Formats
 
@@ -75,7 +93,8 @@ Two primary intermediary formats are used:
 1. Input data is received by an appropriate ingester
 2. The ingester transforms the input into its predetermined output format (either Vec\<Attribute\> or Vec\<Group\>)
 3. The check system runs appropriate validations on the intermediary format
-4. Results are collected and reported
+4. Results are collected into structured data models
+5. Results are transformed into various report formats for different downstream uses (coverage reports, statistical analysis, YAML generation, human-readable output)
 
 ## 3. Ingesters
 
@@ -246,30 +265,11 @@ impl CheckRunner<AttributeOutput, AttributeCheckReport> for AttributeCheckRunner
         // ...
     }
 }
-
-// Report structure similar to honey-health output
-struct AttributeCheckReport {
-    match_count: usize,
-    miss_count: usize,
-    bad_count: usize,
-    results: Vec<CheckResult>,
-}
-
-impl AttributeCheckReport {
-    // Methods to add results, calculate scores, and format reports
-    // ...
-    
-    // Format report similar to honey-health output
-    fn format_console_report(&self, dataset_name: &str) -> String {
-        // Generate formatted report similar to honey-health
-        // ...
-    }
-}
 ```
 
 ### 4.4 Example Check Results
 
-Below are examples of check results formatted similarly to the honey-health tool output:
+Below are examples of check results formatted similarly to the honey-health tool output. This formatting could be achieved using minijinja:
 
 #### Single Dataset Report
 
