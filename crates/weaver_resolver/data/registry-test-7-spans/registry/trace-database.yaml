@@ -269,16 +269,3 @@ groups:
         requirement_level:
           conditionally_required: when available
         tag: call-level-tech-specific
-
-  - id: db.tech
-    stability: experimental
-    type: span
-    span_kind: client
-    brief: "Semantic convention group for specific technologies"
-    constraints:
-      - include: 'db.cassandra'
-      - include: 'db.redis'
-      - include: 'db.mongodb'
-      - include: 'db.sql'
-      - include: 'db.cosmosdb'
-      - any_of: ['db.cassandra.page_size', 'db.cassandra.consistency_level', 'db.cassandra.table', 'db.cassandra.idempotence', 'db.cassandra.speculative_execution_count', 'db.cassandra.coordinator.id', 'db.cassandra.coordinator.dc']
