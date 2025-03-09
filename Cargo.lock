@@ -1671,7 +1671,7 @@ dependencies = [
  "gix-command",
  "gix-config-value",
  "parking_lot",
- "rustix",
+ "rustix 0.38.44",
  "thiserror 2.0.12",
 ]
 
@@ -5394,7 +5394,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "weaver_common",
  "weaver_forge",
  "weaver_resolved_schema",
