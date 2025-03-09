@@ -1,3 +1,4 @@
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -76,7 +77,7 @@ impl AttributeHealthChecker {
 }
 
 /// Represents a health attribute parsed from any source
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct HealthAttribute {
     /// The sample attribute
     pub sample_attribute: SampleAttribute,
@@ -97,7 +98,7 @@ impl HealthAttribute {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute_advice::{DeprecatedAdvisor, WrongCaseAdvisor};
+    use crate::attribute_advice::{DeprecatedAdvisor, CorrectCaseAdvisor};
 
     use super::*;
     use serde_json::Value;
@@ -195,7 +196,7 @@ mod tests {
         ];
 
         let advisors: Vec<Box<dyn Advisor>> =
-            vec![Box::new(DeprecatedAdvisor), Box::new(WrongCaseAdvisor)];
+            vec![Box::new(DeprecatedAdvisor), Box::new(CorrectCaseAdvisor)];
 
         let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 

@@ -24,6 +24,12 @@ pub enum Error {
         /// The error that occurred.
         error: String,
     },
+    /// Output error.
+    #[error("Output error. {error}")]
+    OutputError {
+        /// The error that occurred.
+        error: String,
+    },
 }
 
 impl From<Error> for DiagnosticMessages {

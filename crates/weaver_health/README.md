@@ -99,3 +99,59 @@ Intermediary formats are used for attributes and groups:
 3. The advice system runs appropriate comparisons on the intermediary format
 4. Advice is collected into a list for each entity
 5. Results are transformed into various report formats for different downstream uses (coverage reports, statistical analysis, YAML generation, human-readable output)
+
+### 2.4 Advice system
+
+Advisors implement a simple trait and are called during the health-check run. The design allows for simple and high-complexity advisors. For example, a simple snake_case checker or an LLM advisor. The advisors you wish to use are configured at the CLI for the run. Each advisor returns an `Option<Advice>` - None means there's nothing negative to advise on. Here is a JSON output for an attribute level health-check:
+
+```json
+[
+    {
+        "sample_attribute": {
+            "name": "aws.s3.bucket"
+        },
+        "all_advice": []
+    },
+    {
+        "sample_attribute": {
+            "name": "aws.s3.bucket.name"
+        },
+        "all_advice": [
+            {
+                "key": "attribute_match",
+                "value": false,
+                "message": "This attribute does not exist in the registry"
+            }
+        ]
+    },
+    {
+        "sample_attribute": {
+            "name": "task.id"
+        },
+        "all_advice": [
+            {
+                "key": "attribute_match",
+                "value": false,
+                "message": "This attribute does not exist in the registry"
+            }
+        ]
+    },
+    {
+        "sample_attribute": {
+            "name": "TaskId"
+        },
+        "all_advice": [
+            {
+                "key": "attribute_match",
+                "value": false,
+                "message": "This attribute does not exist in the registry"
+            },
+            {
+                "key": "correct_case",
+                "value": false,
+                "message": "This attribute is not in snake case"
+            }
+        ]
+    }
+]
+```

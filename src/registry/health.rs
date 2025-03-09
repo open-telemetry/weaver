@@ -8,7 +8,7 @@ use clap::Args;
 
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
-use weaver_health::attribute_advice::{Advisor, DeprecatedAdvisor, WrongCaseAdvisor};
+use weaver_health::attribute_advice::{Advisor, CorrectCaseAdvisor, DeprecatedAdvisor};
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
 use weaver_health::{Error, Ingester};
@@ -91,15 +91,17 @@ pub(crate) fn command(
     };
 
     let advisors: Vec<Box<dyn Advisor>> =
-        vec![Box::new(DeprecatedAdvisor), Box::new(WrongCaseAdvisor)];
+        vec![Box::new(DeprecatedAdvisor), Box::new(CorrectCaseAdvisor)];
 
     let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 
     let results = health_checker.check_attributes();
 
-    for result in results.iter() {
-        logger.log(&format!("{:?}", result));
-    }
+    // Print the results as JSON
+    let json_results = serde_json::to_string(&results).map_err(|e| Error::OutputError {
+        error: format!("Failed to serialize results to JSON: {}", e),
+    })?;
+    logger.log(&json_results);
 
     logger.success(&format!(
         "Performed health check for registry `{}`",

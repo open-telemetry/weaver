@@ -1,13 +1,14 @@
 // Pluggable advisors
 
 use convert_case::{Boundary, Case, Casing};
+use serde::Serialize;
 use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute};
 
 /// Represents a health check advice
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Advice {
     /// The key of the advice e.g. "is_deprecated"
     pub key: String,
@@ -54,8 +55,8 @@ impl Advisor for DeprecatedAdvisor {
 }
 
 /// An advisor that checks if an attribute is in snake case
-pub struct WrongCaseAdvisor;
-impl Advisor for WrongCaseAdvisor {
+pub struct CorrectCaseAdvisor;
+impl Advisor for CorrectCaseAdvisor {
     fn advise(
         &self,
         attribute: &SampleAttribute,
@@ -74,7 +75,7 @@ impl Advisor for WrongCaseAdvisor {
             == attribute.name;
         if !is_snake_case {
             Some(Advice {
-                key: "wrong_case".to_owned(),
+                key: "correct_case".to_owned(),
                 value: Value::Bool(false),
                 message: "This attribute is not in snake case".to_owned(),
             })
