@@ -98,7 +98,7 @@ impl HealthAttribute {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute_advice::{DeprecatedAdvisor, CorrectCaseAdvisor};
+    use crate::attribute_advice::{CorrectCaseAdvisor, DeprecatedAdvisor};
 
     use super::*;
     use serde_json::Value;
@@ -213,7 +213,7 @@ mod tests {
             results[1].all_advice[0].message,
             "This attribute does not exist in the registry"
         );
-        assert_eq!(results[1].all_advice[1].key, "wrong_case");
+        assert_eq!(results[1].all_advice[1].key, "correct_case");
         assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
         assert_eq!(
             results[1].all_advice[1].message,
