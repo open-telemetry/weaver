@@ -1,0 +1,4 @@
+aws.s3.bucket
+aws.s3.bucket.name
+task.id
+TaskId

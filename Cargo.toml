@@ -56,6 +56,7 @@ dirs = "6.0.0"
 once_cell = "1.20.3"
 opentelemetry = { version = "0.28.0", features = ["trace", "metrics", "logs"] }
 rouille = "3.6.2"
+convert_case = "0.7.1"
 
 # Features definition =========================================================
 [features]
