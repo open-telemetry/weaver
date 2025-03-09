@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
+use crate::registry::health::RegistryHealthArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
 use crate::registry::live_check::CheckRegistryArgs;
 use crate::registry::resolve::RegistryResolveArgs;
@@ -27,6 +28,7 @@ mod check;
 mod diff;
 mod emit;
 mod generate;
+mod health;
 mod json_schema;
 mod live_check;
 mod otlp;
@@ -138,6 +140,11 @@ pub enum RegistrySubCommand {
     /// This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4317.
     #[clap(verbatim_doc_comment)]
     Emit(RegistryEmitArgs),
+    /// Perform a health check on sample telemetry by comparing it to a semantic convention registry.
+    ///
+    /// Includes: Flexible input ingestion, configurable assessment, and template-based output.
+    #[clap(verbatim_doc_comment)]
+    Health(RegistryHealthArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -229,6 +236,10 @@ pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryComma
         ),
         RegistrySubCommand::Emit(args) => CmdResult::new(
             emit::command(log.clone(), args),
+            Some(args.diagnostic.clone()),
+        ),
+        RegistrySubCommand::Health(args) => CmdResult::new(
+            health::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }
