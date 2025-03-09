@@ -11,7 +11,7 @@ use crate::{
 
 /// Checks the health of attributes
 pub struct AttributeHealthChecker {
-    registry: ResolvedRegistry,
+    _registry: ResolvedRegistry, // Keeping this here for future use
     semconv_attributes: HashMap<String, Attribute>,
     sample_attributes: Vec<SampleAttribute>,
     advisors: Vec<Box<dyn Advisor>>,
@@ -34,7 +34,7 @@ impl AttributeHealthChecker {
             .collect();
         AttributeHealthChecker {
             sample_attributes: attributes,
-            registry,
+            _registry: registry,
             semconv_attributes,
             advisors,
         }

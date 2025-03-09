@@ -99,4 +99,3 @@ Intermediary formats are used for attributes and groups:
 3. The advice system runs appropriate comparisons on the intermediary format
 4. Advice is collected into a list for each entity
 5. Results are transformed into various report formats for different downstream uses (coverage reports, statistical analysis, YAML generation, human-readable output)
-

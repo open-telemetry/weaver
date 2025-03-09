@@ -2,20 +2,35 @@
 
 //! Perform a health check on sample telemetry by comparing it to a semantic convention registry.
 
-use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Args;
 
-use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_health::attribute_advice::{Advisor, DeprecatedAdvisor, WrongCaseAdvisor};
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
-use weaver_health::Ingester;
+use weaver_health::{Error, Ingester};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
+
+/// The type of ingester to use
+#[derive(Debug, Clone)]
+enum IngesterType {
+    AttributeFileIngester,
+}
+
+impl From<String> for IngesterType {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "attribute_file_ingester" | "AFI" | "afi" => IngesterType::AttributeFileIngester,
+            _ => IngesterType::AttributeFileIngester,
+        }
+    }
+}
 
 /// Parameters for the `registry health` sub-command
 #[derive(Debug, Args)]
@@ -31,6 +46,16 @@ pub struct RegistryHealthArgs {
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// The path to the file containing sample telemetry data.
+    #[arg(short = 'i', long)]
+    input_path: Option<PathBuf>,
+
+    /// Ingester type
+    ///
+    /// - `attribute_file_ingester` or `AFI` or `afi` (default)
+    #[arg(short = 'g', long)]
+    ingester: IngesterType,
 }
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
@@ -51,9 +76,19 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
-    let path = Path::new("crates/weaver_health/data/attributes.txt");
-    let ingester = AttributeFileIngester::new();
-    let attributes = ingester.ingest(path)?;
+    let attributes = match args.ingester {
+        IngesterType::AttributeFileIngester => {
+            let path = match &args.input_path {
+                Some(p) => Ok(p),
+                None => Err(Error::IngestError {
+                    error: "No input path provided".to_owned(),
+                }),
+            }?;
+
+            let ingester = AttributeFileIngester::new();
+            ingester.ingest(path)?
+        }
+    };
 
     let advisors: Vec<Box<dyn Advisor>> =
         vec![Box::new(DeprecatedAdvisor), Box::new(WrongCaseAdvisor)];

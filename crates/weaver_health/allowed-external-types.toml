@@ -6,4 +6,6 @@ allowed_external_types = [
     "serde::ser::Serialize",
     "miette::protocol::Diagnostic",
     "weaver_forge::registry::ResolvedRegistry",
+    "serde_json::value::Value",
+    "weaver_resolved_schema::attribute::Attribute",
 ]
