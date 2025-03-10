@@ -7,6 +7,17 @@ use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute};
 
+/// The severity of the advice
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum Severity {
+    /// An error
+    Error,
+    /// A warning
+    Warning,
+    /// Information
+    Info,
+}
+
 /// Represents a health check advice
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Advice {
@@ -16,6 +27,8 @@ pub struct Advice {
     pub value: Value,
     /// The message of the advice e.g. "This attribute is deprecated"
     pub message: String,
+    /// The severity of the advice e.g. "error"
+    pub severity: Severity,
 }
 
 /// Provides advice on a sample attribute
@@ -49,6 +62,7 @@ impl Advisor for DeprecatedAdvisor {
                     key: "is_deprecated".to_owned(),
                     value: Value::Bool(true),
                     message: "Is deprecated".to_owned(),
+                    severity: Severity::Error,
                 })
             } else {
                 None
@@ -83,6 +97,7 @@ impl Advisor for CorrectCaseAdvisor {
                 key: "correct_case".to_owned(),
                 value: Value::Bool(false),
                 message: "Is not in snake case".to_owned(),
+                severity: Severity::Error,
             })
         } else {
             None

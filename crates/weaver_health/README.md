@@ -155,3 +155,26 @@ Advisors implement a simple trait and are called during the health-check run. Th
     }
 ]
 ```
+
+## 3. Usage Examples
+
+Pipe a list of attributes to the `AttributeStdin` ingestor.
+
+```sh
+cat attributes.txt | weaver registry health --ingester as
+```
+
+Or a redirect
+
+```sh
+weaver registry health --ingester as < attributes.txt
+```
+
+Or a here-doc
+
+```sh
+weaver registry health --ingester as << EOF
+code.function
+thing.blah
+EOF
+```

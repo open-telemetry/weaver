@@ -15,6 +15,7 @@ use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{Advisor, CorrectCaseAdvisor, DeprecatedAdvisor};
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
+use weaver_health::attribute_stdin_ingester::AttributeStdinIngester;
 use weaver_health::{Error, Ingester};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
@@ -27,14 +28,16 @@ pub(crate) static DEFAULT_HEALTH_TEMPLATES: Dir<'_> = include_dir!("defaults/hea
 /// The type of ingester to use
 #[derive(Debug, Clone)]
 enum IngesterType {
-    AttributeFileIngester,
+    AttributeFile,
+    AttributeStdin,
 }
 
 impl From<String> for IngesterType {
     fn from(s: String) -> Self {
         match s.as_str() {
-            "attribute_file_ingester" | "AFI" | "afi" => IngesterType::AttributeFileIngester,
-            _ => IngesterType::AttributeFileIngester,
+            "attribute_file" | "AF" | "af" => IngesterType::AttributeFile,
+            "attribute_stdin" | "AS" | "as" => IngesterType::AttributeStdin,
+            _ => IngesterType::AttributeFile,
         }
     }
 }
@@ -106,7 +109,7 @@ pub(crate) fn command(
     ));
 
     let attributes = match args.ingester {
-        IngesterType::AttributeFileIngester => {
+        IngesterType::AttributeFile => {
             let path = match &args.input {
                 Some(p) => Ok(p),
                 None => Err(Error::IngestError {
@@ -116,6 +119,10 @@ pub(crate) fn command(
 
             let ingester = AttributeFileIngester::new();
             ingester.ingest(path)?
+        }
+        IngesterType::AttributeStdin => {
+            let ingester = AttributeStdinIngester::new();
+            ingester.ingest(())?
         }
     };
 

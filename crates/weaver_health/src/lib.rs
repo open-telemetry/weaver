@@ -11,6 +11,8 @@ pub mod attribute_advice;
 pub mod attribute_file_ingester;
 /// Attribute health checker
 pub mod attribute_health;
+/// An ingester that reads attribute names from standard input.
+pub mod attribute_stdin_ingester;
 /// The intermediary format
 pub mod sample;
 
