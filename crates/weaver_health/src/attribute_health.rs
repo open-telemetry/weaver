@@ -59,7 +59,7 @@ impl AttributeHealthChecker {
                 attribute_result.all_advice.push(Advice {
                     key: "attribute_match".to_owned(),
                     value: Value::Bool(false),
-                    message: "This attribute does not exist in the registry".to_owned(),
+                    message: "Does not exist in the registry".to_owned(),
                 });
             }
 
@@ -211,29 +211,23 @@ mod tests {
         assert_eq!(results[1].all_advice[0].value, Value::Bool(false));
         assert_eq!(
             results[1].all_advice[0].message,
-            "This attribute does not exist in the registry"
+            "Does not exist in the registry"
         );
         assert_eq!(results[1].all_advice[1].key, "correct_case");
         assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
-        assert_eq!(
-            results[1].all_advice[1].message,
-            "This attribute is not in snake case"
-        );
+        assert_eq!(results[1].all_advice[1].message, "Is not in snake case");
 
         assert!(results[2].all_advice.len() == 1);
         assert_eq!(results[2].all_advice[0].key, "is_deprecated");
         assert_eq!(results[2].all_advice[0].value, Value::Bool(true));
-        assert_eq!(
-            results[2].all_advice[0].message,
-            "This attribute is deprecated"
-        );
+        assert_eq!(results[2].all_advice[0].message, "Is deprecated");
 
         assert!(results[3].all_advice.len() == 1);
         assert_eq!(results[3].all_advice[0].key, "attribute_match");
         assert_eq!(results[3].all_advice[0].value, Value::Bool(false));
         assert_eq!(
             results[3].all_advice[0].message,
-            "This attribute does not exist in the registry"
+            "Does not exist in the registry"
         );
     }
 }

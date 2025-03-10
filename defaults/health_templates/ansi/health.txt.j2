@@ -1,0 +1,13 @@
+
+{{ ("Health Report") | ansi_bright_white | ansi_bold }}
+
+{% for result in ctx %}
+{% if result.all_advice|length == 0 %}
+{{ "✅" }} {{ result.sample_attribute.name | ansi_bright_green }} 
+{% else %}
+{{ "❌" }} {{ result.sample_attribute.name | ansi_bright_red }} 
+{% endif %}
+  {% for advice in result.all_advice %}
+   - {{ advice.key ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
+  {% endfor %} 
+{% endfor %}

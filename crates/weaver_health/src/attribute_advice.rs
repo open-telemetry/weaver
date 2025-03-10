@@ -27,6 +27,11 @@ pub trait Advisor {
         health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
     ) -> Option<Advice>;
+
+    //TODO conclude(&self) -> Option<Vec<Advice>>;
+    // Provide an overall summary of the advice e.g. LengthyAttributeNameAdvisor
+    // could provide statistics on the length of the attribute names: min, max, avg
+    // Each statistic would be an Advice with a key like "min_length", "max_length", "avg_length"
 }
 
 /// An advisor that checks if an attribute is deprecated
@@ -43,7 +48,7 @@ impl Advisor for DeprecatedAdvisor {
                 Some(Advice {
                     key: "is_deprecated".to_owned(),
                     value: Value::Bool(true),
-                    message: "This attribute is deprecated".to_owned(),
+                    message: "Is deprecated".to_owned(),
                 })
             } else {
                 None
@@ -77,7 +82,7 @@ impl Advisor for CorrectCaseAdvisor {
             Some(Advice {
                 key: "correct_case".to_owned(),
                 value: Value::Bool(false),
-                message: "This attribute is not in snake case".to_owned(),
+                message: "Is not in snake case".to_owned(),
             })
         } else {
             None

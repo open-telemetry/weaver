@@ -64,8 +64,8 @@ pub struct RegistryHealthArgs {
     #[arg(short = 'g', long)]
     ingester: IngesterType,
 
-    /// Format used to render the report. Predefined formats are: json
-    #[arg(long, default_value = "json")]
+    /// Format used to render the report. Predefined formats are: ansi, json
+    #[arg(long, default_value = "ansi")]
     format: String,
 
     /// Path to the directory where the templates are located.
