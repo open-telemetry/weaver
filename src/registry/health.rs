@@ -5,9 +5,13 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use include_dir::{include_dir, Dir};
 
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
+use weaver_forge::config::{Params, WeaverConfig};
+use weaver_forge::file_loader::EmbeddedFileLoader;
+use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{Advisor, CorrectCaseAdvisor, DeprecatedAdvisor};
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
@@ -16,6 +20,9 @@ use weaver_health::{Error, Ingester};
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
+
+/// Embedded default health templates
+pub(crate) static DEFAULT_HEALTH_TEMPLATES: Dir<'_> = include_dir!("defaults/health_templates");
 
 /// The type of ingester to use
 #[derive(Debug, Clone)]
@@ -48,14 +55,27 @@ pub struct RegistryHealthArgs {
     pub diagnostic: DiagnosticArgs,
 
     /// The path to the file containing sample telemetry data.
-    #[arg(short = 'i', long)]
-    input_path: Option<PathBuf>,
+    #[arg(short, long)]
+    input: Option<PathBuf>,
 
     /// Ingester type
     ///
     /// - `attribute_file_ingester` or `AFI` or `afi` (default)
     #[arg(short = 'g', long)]
     ingester: IngesterType,
+
+    /// Format used to render the report. Predefined formats are: json
+    #[arg(long, default_value = "json")]
+    format: String,
+
+    /// Path to the directory where the templates are located.
+    #[arg(long, default_value = "health_templates")]
+    templates: PathBuf,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// If not specified, the report is printed to stdout.
+    #[arg(short, long)]
+    output: Option<PathBuf>,
 }
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
@@ -63,6 +83,15 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &RegistryHealthArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let mut output = PathBuf::from("output");
+    let output_directive = if let Some(path_buf) = &args.output {
+        output = path_buf.clone();
+        OutputDirective::File
+    } else {
+        logger.mute();
+        OutputDirective::Stdout
+    };
+
     logger.log("Weaver Registry Health");
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
@@ -78,7 +107,7 @@ pub(crate) fn command(
 
     let attributes = match args.ingester {
         IngesterType::AttributeFileIngester => {
-            let path = match &args.input_path {
+            let path = match &args.input {
                 Some(p) => Ok(p),
                 None => Err(Error::IngestError {
                     error: "No input path provided".to_owned(),
@@ -97,16 +126,47 @@ pub(crate) fn command(
 
     let results = health_checker.check_attributes();
 
-    // Print the results as JSON
-    let json_results = serde_json::to_string(&results).map_err(|e| Error::OutputError {
-        error: format!("Failed to serialize results to JSON: {}", e),
-    })?;
-    logger.log(&json_results);
-
     logger.success(&format!(
         "Performed health check for registry `{}`",
         args.registry.registry
     ));
+
+    let loader = EmbeddedFileLoader::try_new(
+        &DEFAULT_HEALTH_TEMPLATES,
+        args.templates.clone(),
+        &args.format,
+    )
+    .map_err(|e| {
+        DiagnosticMessages::from(Error::OutputError {
+            error: format!(
+                "Failed to create the embedded file loader for the health templates: {}",
+                e
+            ),
+        })
+    })?;
+    let config = WeaverConfig::try_from_loader(&loader).map_err(|e| {
+        DiagnosticMessages::from(Error::OutputError {
+            error: format!(
+                "Failed to load `defaults/health_templates/weaver.yaml`: {}",
+                e
+            ),
+        })
+    })?;
+    let engine = TemplateEngine::new(config, loader, Params::default());
+
+    match engine.generate(
+        logger.clone(),
+        &results,
+        output.as_path(),
+        &output_directive,
+    ) {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(DiagnosticMessages::from(Error::OutputError {
+                error: e.to_string(),
+            }));
+        }
+    }
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -114,6 +174,6 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        quiet_mode: args.output.is_none(),
     })
 }

@@ -1,0 +1,9 @@
+# Whitespace control settings to simplify the definition of templates
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+  
+templates:
+  - template: health.json.j2
+    filter: .
+    application_mode: single
