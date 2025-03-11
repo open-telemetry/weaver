@@ -6,7 +6,7 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{
-    attribute_advice::{Advice, Advisor, Severity},
+    attribute_advice::{Advice, Advisor, Advisory},
     sample::SampleAttribute,
 };
 
@@ -60,7 +60,7 @@ impl AttributeHealthChecker {
                     key: "attribute_match".to_owned(),
                     value: Value::Bool(false),
                     message: "Does not exist in the registry".to_owned(),
-                    severity: Severity::Error,
+                    advisory: Advisory::Violation,
                 });
             }
 
