@@ -4,18 +4,20 @@ use convert_case::{Boundary, Case, Casing};
 use serde::Serialize;
 use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
+use weaver_semconv::stability::Stability;
 
 use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute};
 
 /// The advisory level of an advice
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, PartialOrd, Ord, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum Advisory {
-    /// Something that breaks compliance rules
-    Violation,
-    /// Suggested change that would improve things
-    Improvement,
     /// Useful context without action needed
     Information,
+    /// Suggested change that would improve things
+    Improvement,
+    /// Something that breaks compliance rules
+    Violation,
 }
 
 /// Represents a health check advice
@@ -66,6 +68,34 @@ impl Advisor for DeprecatedAdvisor {
                 })
             } else {
                 None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+/// An advisor that checks if an attribute is stable from the stability field in the semantic convention
+/// The value will be the stability level
+pub struct StabilityAdvisor;
+// TODO: Configurable Advisory level, strictly stable would mean Violation
+
+impl Advisor for StabilityAdvisor {
+    fn advise(
+        &self,
+        _attribute: &SampleAttribute,
+        _health_checker: &AttributeHealthChecker,
+        semconv_attribute: Option<&Attribute>,
+    ) -> Option<Advice> {
+        if let Some(attribute) = semconv_attribute {
+            match attribute.stability {
+                Some(ref stability) if *stability != Stability::Stable => Some(Advice {
+                    key: "is_stable".to_owned(),
+                    value: Value::String(stability.to_string()),
+                    message: "Is not stable".to_owned(),
+                    advisory: Advisory::Improvement,
+                }),
+                _ => None,
             }
         } else {
             None

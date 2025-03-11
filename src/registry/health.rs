@@ -12,7 +12,9 @@ use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
-use weaver_health::attribute_advice::{Advisor, CorrectCaseAdvisor, DeprecatedAdvisor};
+use weaver_health::attribute_advice::{
+    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, StabilityAdvisor,
+};
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
 use weaver_health::attribute_stdin_ingester::AttributeStdinIngester;
@@ -126,8 +128,11 @@ pub(crate) fn command(
         }
     };
 
-    let advisors: Vec<Box<dyn Advisor>> =
-        vec![Box::new(DeprecatedAdvisor), Box::new(CorrectCaseAdvisor)];
+    let advisors: Vec<Box<dyn Advisor>> = vec![
+        Box::new(DeprecatedAdvisor),
+        Box::new(CorrectCaseAdvisor),
+        Box::new(StabilityAdvisor),
+    ];
 
     let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 

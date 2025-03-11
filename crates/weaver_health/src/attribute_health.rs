@@ -56,7 +56,7 @@ impl AttributeHealthChecker {
             // find the attribute in the registry
             let semconv_attribute = self.find_attribute(&sample_attribute.name);
             if semconv_attribute.is_none() {
-                attribute_result.all_advice.push(Advice {
+                attribute_result.add_advice(Advice {
                     key: "attribute_match".to_owned(),
                     value: Value::Bool(false),
                     message: "Does not exist in the registry".to_owned(),
@@ -67,7 +67,7 @@ impl AttributeHealthChecker {
             // run advisors on the attribute
             for advisor in self.advisors.iter() {
                 if let Some(advice) = advisor.advise(sample_attribute, self, semconv_attribute) {
-                    attribute_result.all_advice.push(advice);
+                    attribute_result.add_advice(advice);
                 }
             }
 
@@ -84,6 +84,8 @@ pub struct HealthAttribute {
     pub sample_attribute: SampleAttribute,
     /// Advice on the attribute
     pub all_advice: Vec<Advice>,
+    /// The highest advisory level
+    pub highest_advisory: Option<Advisory>,
 }
 
 impl HealthAttribute {
@@ -93,13 +95,27 @@ impl HealthAttribute {
         HealthAttribute {
             sample_attribute,
             all_advice: Vec::new(),
+            highest_advisory: None,
         }
+    }
+
+    /// Add an advice to the attribute and update the highest advisory level
+    pub fn add_advice(&mut self, advice: Advice) {
+        let advisory = advice.advisory.clone();
+        if let Some(previous_highest) = &self.highest_advisory {
+            if previous_highest < &advisory {
+                self.highest_advisory = Some(advisory);
+            }
+        } else {
+            self.highest_advisory = Some(advisory);
+        }
+        self.all_advice.push(advice);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute_advice::{CorrectCaseAdvisor, DeprecatedAdvisor};
+    use crate::attribute_advice::{CorrectCaseAdvisor, DeprecatedAdvisor, StabilityAdvisor};
 
     use super::*;
     use serde_json::Value;
@@ -160,7 +176,7 @@ mod tests {
                         },
                         sampling_relevant: None,
                         note: "".to_owned(),
-                        stability: Some(Stability::Stable),
+                        stability: Some(Stability::Development),
                         deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
                             note: "".to_owned(),
                         }),
@@ -196,8 +212,11 @@ mod tests {
             },
         ];
 
-        let advisors: Vec<Box<dyn Advisor>> =
-            vec![Box::new(DeprecatedAdvisor), Box::new(CorrectCaseAdvisor)];
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(CorrectCaseAdvisor),
+            Box::new(StabilityAdvisor),
+        ];
 
         let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 
@@ -218,10 +237,17 @@ mod tests {
         assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
         assert_eq!(results[1].all_advice[1].message, "Is not in snake case");
 
-        assert!(results[2].all_advice.len() == 1);
+        assert!(results[2].all_advice.len() == 2);
         assert_eq!(results[2].all_advice[0].key, "is_deprecated");
         assert_eq!(results[2].all_advice[0].value, Value::Bool(true));
         assert_eq!(results[2].all_advice[0].message, "Is deprecated");
+        assert_eq!(results[2].all_advice[1].key, "is_stable");
+        assert_eq!(
+            results[2].all_advice[1].value,
+            Value::String("development".to_owned())
+        );
+        assert_eq!(results[2].all_advice[1].message, "Is not stable");
+        assert_eq!(results[2].highest_advisory, Some(Advisory::Violation));
 
         assert!(results[3].all_advice.len() == 1);
         assert_eq!(results[3].all_advice[0].key, "attribute_match");
