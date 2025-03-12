@@ -36,6 +36,8 @@ impl Ingester<(), Vec<SampleAttribute>> for AttributeStdinIngester {
             if !line.trim().is_empty() {
                 attributes.push(SampleAttribute {
                     name: line.trim().to_owned(),
+                    value: None,
+                    r#type: None,
                 });
             }
         }

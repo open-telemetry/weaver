@@ -115,7 +115,9 @@ impl HealthAttribute {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute_advice::{CorrectCaseAdvisor, DeprecatedAdvisor, StabilityAdvisor};
+    use crate::attribute_advice::{
+        CorrectCaseAdvisor, DeprecatedAdvisor, HasNamespaceAdvisor, StabilityAdvisor,
+    };
 
     use super::*;
     use serde_json::Value;
@@ -200,15 +202,23 @@ mod tests {
         let attributes = vec![
             SampleAttribute {
                 name: "test.string".to_owned(),
+                r#type: None,
+                value: None,
             },
             SampleAttribute {
                 name: "testString2".to_owned(),
+                r#type: None,
+                value: None,
             },
             SampleAttribute {
                 name: "test.deprecated".to_owned(),
+                r#type: None,
+                value: None,
             },
             SampleAttribute {
                 name: "aws.s3.bucket.name".to_owned(),
+                r#type: None,
+                value: None,
             },
         ];
 
@@ -216,6 +226,7 @@ mod tests {
             Box::new(DeprecatedAdvisor),
             Box::new(CorrectCaseAdvisor),
             Box::new(StabilityAdvisor),
+            Box::new(HasNamespaceAdvisor),
         ];
 
         let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
@@ -226,7 +237,7 @@ mod tests {
 
         assert!(results[0].all_advice.is_empty());
 
-        assert!(results[1].all_advice.len() == 2);
+        assert!(results[1].all_advice.len() == 3);
         assert_eq!(results[1].all_advice[0].key, "attribute_match");
         assert_eq!(results[1].all_advice[0].value, Value::Bool(false));
         assert_eq!(
@@ -236,6 +247,12 @@ mod tests {
         assert_eq!(results[1].all_advice[1].key, "correct_case");
         assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
         assert_eq!(results[1].all_advice[1].message, "Is not in snake case");
+        assert_eq!(results[1].all_advice[2].key, "has_namespace");
+        assert_eq!(results[1].all_advice[2].value, Value::Bool(false));
+        assert_eq!(
+            results[1].all_advice[2].message,
+            "Does not have a namespace"
+        );
 
         assert!(results[2].all_advice.len() == 2);
         assert_eq!(results[2].all_advice[0].key, "is_deprecated");

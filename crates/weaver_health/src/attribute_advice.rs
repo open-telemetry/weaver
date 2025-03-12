@@ -4,7 +4,10 @@ use convert_case::{Boundary, Case, Casing};
 use serde::Serialize;
 use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
-use weaver_semconv::stability::Stability;
+use weaver_semconv::{
+    attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec},
+    stability::Stability,
+};
 
 use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute};
 
@@ -131,6 +134,79 @@ impl Advisor for CorrectCaseAdvisor {
             })
         } else {
             None
+        }
+    }
+}
+
+/// An advisor that checks if an attribute has a namespace - a prefix before the first dot
+pub struct HasNamespaceAdvisor;
+impl Advisor for HasNamespaceAdvisor {
+    fn advise(
+        &self,
+        attribute: &SampleAttribute,
+        _health_checker: &AttributeHealthChecker,
+        semconv_attribute: Option<&Attribute>,
+    ) -> Option<Advice> {
+        // Don't provide advice if the attribute is a match
+        if semconv_attribute.is_some() {
+            return None;
+        }
+
+        let has_namespace = attribute.name.contains('.');
+        if !has_namespace {
+            Some(Advice {
+                key: "has_namespace".to_owned(),
+                value: Value::Bool(false),
+                message: "Does not have a namespace".to_owned(),
+                advisory: Advisory::Improvement,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+/// An advisor that checks if an attribute has the correct type
+pub struct TypeAdvisor;
+impl Advisor for TypeAdvisor {
+    fn advise(
+        &self,
+        attribute: &SampleAttribute,
+        _health_checker: &AttributeHealthChecker,
+        semconv_attribute: Option<&Attribute>,
+    ) -> Option<Advice> {
+        // Only provide advice if the attribute is a match and the type is present
+        match (semconv_attribute, attribute.r#type.as_ref()) {
+            (Some(semconv_attribute), Some(attribute_type)) => {
+                let semconv_attribute_type = match &semconv_attribute.r#type {
+                    AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
+                        primitive_or_array_type_spec
+                    }
+                    AttributeType::Template(template_type_spec) => &match template_type_spec {
+                        TemplateTypeSpec::Boolean => PrimitiveOrArrayTypeSpec::Boolean,
+                        TemplateTypeSpec::Int => PrimitiveOrArrayTypeSpec::Int,
+                        TemplateTypeSpec::Double => PrimitiveOrArrayTypeSpec::Double,
+                        TemplateTypeSpec::String => PrimitiveOrArrayTypeSpec::String,
+                        TemplateTypeSpec::Strings => PrimitiveOrArrayTypeSpec::Strings,
+                        TemplateTypeSpec::Ints => PrimitiveOrArrayTypeSpec::Ints,
+                        TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
+                        TemplateTypeSpec::Booleans => PrimitiveOrArrayTypeSpec::Booleans,
+                    },
+                    AttributeType::Enum { .. } => &PrimitiveOrArrayTypeSpec::String,
+                };
+
+                if semconv_attribute_type != attribute_type {
+                    Some(Advice {
+                        key: "type".to_owned(),
+                        value: Value::String(attribute_type.to_string()),
+                        message: format!("Type should be `{}`", semconv_attribute_type),
+                        advisory: Advisory::Violation,
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }

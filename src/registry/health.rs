@@ -13,10 +13,13 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{
-    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, StabilityAdvisor,
+    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, HasNamespaceAdvisor, StabilityAdvisor,
+    TypeAdvisor,
 };
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
+use weaver_health::attribute_json_file_ingester::AttributeJsonFileIngester;
+use weaver_health::attribute_json_stdin_ingester::AttributeJsonStdinIngester;
 use weaver_health::attribute_stdin_ingester::AttributeStdinIngester;
 use weaver_health::{Error, Ingester};
 
@@ -32,6 +35,9 @@ pub(crate) static DEFAULT_HEALTH_TEMPLATES: Dir<'_> = include_dir!("defaults/hea
 enum IngesterType {
     AttributeFile,
     AttributeStdin,
+    AttributeJsonFile,
+    AttributeJsonStdin,
+    GroupFile,
 }
 
 impl From<String> for IngesterType {
@@ -39,6 +45,9 @@ impl From<String> for IngesterType {
         match s.as_str() {
             "attribute_file" | "AF" | "af" => IngesterType::AttributeFile,
             "attribute_stdin" | "AS" | "as" => IngesterType::AttributeStdin,
+            "attribute_json_file" | "AJF" | "ajf" => IngesterType::AttributeJsonFile,
+            "attribute_json_stdin" | "AJS" | "ajs" => IngesterType::AttributeJsonStdin,
+            "group_file" | "GF" | "gf" => IngesterType::GroupFile,
             _ => IngesterType::AttributeFile,
         }
     }
@@ -126,12 +135,34 @@ pub(crate) fn command(
             let ingester = AttributeStdinIngester::new();
             ingester.ingest(())?
         }
+        IngesterType::AttributeJsonFile => {
+            let path = match &args.input {
+                Some(p) => Ok(p),
+                None => Err(Error::IngestError {
+                    error: "No input path provided".to_owned(),
+                }),
+            }?;
+
+            let ingester = AttributeJsonFileIngester::new();
+            ingester.ingest(path)?
+        }
+        IngesterType::AttributeJsonStdin => {
+            let ingester = AttributeJsonStdinIngester::new();
+            ingester.ingest(())?
+        }
+        IngesterType::GroupFile => {
+            return Err(DiagnosticMessages::from(Error::OutputError {
+                error: "Invalid ingester type".to_owned(),
+            }))
+        }
     };
 
     let advisors: Vec<Box<dyn Advisor>> = vec![
         Box::new(DeprecatedAdvisor),
         Box::new(CorrectCaseAdvisor),
+        Box::new(HasNamespaceAdvisor),
         Box::new(StabilityAdvisor),
+        Box::new(TypeAdvisor),
     ];
 
     let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);

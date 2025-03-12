@@ -34,6 +34,8 @@ impl Ingester<&Path, Vec<SampleAttribute>> for AttributeFileIngester {
             .filter(|line| !line.trim().is_empty())
             .map(|line| SampleAttribute {
                 name: line.trim().to_owned(),
+                value: None,
+                r#type: None,
             })
             .collect();
 
