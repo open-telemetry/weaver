@@ -90,7 +90,7 @@ impl Advisor for StabilityAdvisor {
         if let Some(attribute) = semconv_attribute {
             match attribute.stability {
                 Some(ref stability) if *stability != Stability::Stable => Some(Advice {
-                    key: "is_stable".to_owned(),
+                    key: "stability".to_owned(),
                     value: Value::String(stability.to_string()),
                     message: "Is not stable".to_owned(),
                     advisory: Advisory::Improvement,

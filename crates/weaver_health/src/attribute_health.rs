@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(results[2].all_advice[0].key, "is_deprecated");
         assert_eq!(results[2].all_advice[0].value, Value::Bool(true));
         assert_eq!(results[2].all_advice[0].message, "Is deprecated");
-        assert_eq!(results[2].all_advice[1].key, "is_stable");
+        assert_eq!(results[2].all_advice[1].key, "stability");
         assert_eq!(
             results[2].all_advice[1].value,
             Value::String("development".to_owned())

@@ -180,7 +180,8 @@ pub(crate) fn command(
         }
     }
 
-    if !diag_msgs.is_empty() {
+    // Only print warnings when the output is to a file
+    if !diag_msgs.is_empty() && args.output.is_some() {
         return Err(diag_msgs);
     }
 

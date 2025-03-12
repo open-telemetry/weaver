@@ -4,11 +4,11 @@
 {% for result in ctx %}
 {% set highest_advisory = result.highest_advisory %}
 {% if highest_advisory == "information" or not highest_advisory %}
-{{ ("✔️ " ~ result.sample_attribute.name) | ansi_bright_green }} 
+{{ result.sample_attribute.name | ansi_bright_green }} 
 {% elif highest_advisory == "improvement" %}
-{{ ("⚠ " ~ result.sample_attribute.name) | ansi_bright_yellow }} 
+{{ result.sample_attribute.name | ansi_bright_yellow }} 
 {% else %}
-{{ ("✗ " ~ result.sample_attribute.name) | ansi_bright_red }} 
+{{ result.sample_attribute.name | ansi_bright_red }} 
 {% endif %}
   {% for advice in result.all_advice %}
     {% if advice.advisory == "information" %}
@@ -19,5 +19,5 @@
        - {{ advice.key ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
     {% endif %}
   {% endfor %}
-  
+
 {% endfor %}
