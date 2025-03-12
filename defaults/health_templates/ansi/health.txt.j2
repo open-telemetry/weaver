@@ -4,12 +4,13 @@
 {% for result in ctx %}
 {% set highest_advisory = result.highest_advisory %}
 {% if highest_advisory == "information" or not highest_advisory %}
-{{ result.sample_attribute.name | ansi_bright_green }} 
+{{ result.sample_attribute.name | ansi_bright_green }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
 {% elif highest_advisory == "improvement" %}
-{{ result.sample_attribute.name | ansi_bright_yellow }} 
+{{ result.sample_attribute.name | ansi_bright_yellow }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
 {% else %}
-{{ result.sample_attribute.name | ansi_bright_red }} 
+{{ result.sample_attribute.name | ansi_bright_red }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
 {% endif %}
+
   {% for advice in result.all_advice %}
     {% if advice.advisory == "information" %}
        - {{ advice.key ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}

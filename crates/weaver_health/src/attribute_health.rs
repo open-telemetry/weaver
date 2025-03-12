@@ -116,7 +116,7 @@ impl HealthAttribute {
 #[cfg(test)]
 mod tests {
     use crate::attribute_advice::{
-        CorrectCaseAdvisor, DeprecatedAdvisor, HasNamespaceAdvisor, StabilityAdvisor,
+        CorrectCaseAdvisor, DeprecatedAdvisor, HasNamespaceAdvisor, StabilityAdvisor, TypeAdvisor,
     };
 
     use super::*;
@@ -199,11 +199,11 @@ mod tests {
             }],
         };
 
-        let attributes = vec![
+        let mut attributes = vec![
             SampleAttribute {
                 name: "test.string".to_owned(),
                 r#type: None,
-                value: None,
+                value: Some(Value::String("hello".to_owned())),
             },
             SampleAttribute {
                 name: "testString2".to_owned(),
@@ -213,7 +213,7 @@ mod tests {
             SampleAttribute {
                 name: "test.deprecated".to_owned(),
                 r#type: None,
-                value: None,
+                value: Some(Value::Number(42.into())),
             },
             SampleAttribute {
                 name: "aws.s3.bucket.name".to_owned(),
@@ -222,11 +222,16 @@ mod tests {
             },
         ];
 
+        for attribute in attributes.iter_mut() {
+            attribute.infer_type();
+        }
+
         let advisors: Vec<Box<dyn Advisor>> = vec![
             Box::new(DeprecatedAdvisor),
             Box::new(CorrectCaseAdvisor),
             Box::new(StabilityAdvisor),
             Box::new(HasNamespaceAdvisor),
+            Box::new(TypeAdvisor),
         ];
 
         let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
@@ -254,16 +259,25 @@ mod tests {
             "Does not have a namespace"
         );
 
-        assert!(results[2].all_advice.len() == 2);
+        assert_eq!(results[2].all_advice.len(), 3);
         assert_eq!(results[2].all_advice[0].key, "is_deprecated");
         assert_eq!(results[2].all_advice[0].value, Value::Bool(true));
         assert_eq!(results[2].all_advice[0].message, "Is deprecated");
+
         assert_eq!(results[2].all_advice[1].key, "stability");
         assert_eq!(
             results[2].all_advice[1].value,
             Value::String("development".to_owned())
         );
         assert_eq!(results[2].all_advice[1].message, "Is not stable");
+
+        assert_eq!(results[2].all_advice[2].key, "type");
+        assert_eq!(
+            results[2].all_advice[2].value,
+            Value::String("int".to_owned())
+        );
+        assert_eq!(results[2].all_advice[2].message, "Type should be `string`");
+
         assert_eq!(results[2].highest_advisory, Some(Advisory::Violation));
 
         assert!(results[3].all_advice.len() == 1);
