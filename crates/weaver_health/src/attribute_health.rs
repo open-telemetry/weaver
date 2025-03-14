@@ -116,7 +116,8 @@ impl HealthAttribute {
 #[cfg(test)]
 mod tests {
     use crate::attribute_advice::{
-        CorrectCaseAdvisor, DeprecatedAdvisor, HasNamespaceAdvisor, StabilityAdvisor, TypeAdvisor,
+        CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, HasNamespaceAdvisor, StabilityAdvisor,
+        TypeAdvisor,
     };
 
     use super::*;
@@ -124,7 +125,10 @@ mod tests {
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
-        attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
+        attribute::{
+            AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
+            ValueSpec,
+        },
         group::{GroupType, SpanKindSpec},
         stability::Stability,
     };
@@ -151,6 +155,43 @@ mod tests {
                             "value1".to_owned(),
                             "value2".to_owned(),
                         ])),
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                    },
+                    Attribute {
+                        name: "test.enum".to_owned(),
+                        r#type: AttributeType::Enum {
+                            allow_custom_values: None,
+                            members: vec![
+                                EnumEntriesSpec {
+                                    id: "test_enum_member".to_owned(),
+                                    value: ValueSpec::String("example_variant1".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Stable),
+                                    deprecated: None,
+                                },
+                                EnumEntriesSpec {
+                                    id: "test_enum_member2".to_owned(),
+                                    value: ValueSpec::String("example_variant2".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Stable),
+                                    deprecated: None,
+                                },
+                            ],
+                        },
+                        examples: None,
                         brief: "".to_owned(),
                         tag: None,
                         requirement_level: RequirementLevel::Recommended {
@@ -220,6 +261,16 @@ mod tests {
                 r#type: None,
                 value: None,
             },
+            SampleAttribute {
+                name: "test.enum".to_owned(),
+                r#type: None,
+                value: Some(Value::String("foo".to_owned())),
+            },
+            SampleAttribute {
+                name: "test.enum".to_owned(),
+                r#type: None,
+                value: Some(Value::String("example_variant1".to_owned())),
+            },
         ];
 
         for attribute in attributes.iter_mut() {
@@ -232,13 +283,14 @@ mod tests {
             Box::new(StabilityAdvisor),
             Box::new(HasNamespaceAdvisor),
             Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
         ];
 
         let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 
         let results = health_checker.check_attributes();
 
-        assert_eq!(results.len(), 4);
+        assert_eq!(results.len(), 6);
 
         assert!(results[0].all_advice.is_empty());
 
@@ -287,5 +339,14 @@ mod tests {
             results[3].all_advice[0].message,
             "Does not exist in the registry"
         );
+
+        assert_eq!(results[4].all_advice.len(), 1);
+        assert_eq!(results[4].all_advice[0].key, "enum");
+        assert_eq!(
+            results[4].all_advice[0].value,
+            Value::String("foo".to_owned())
+        );
+        assert_eq!(results[4].all_advice[0].message, "Is not a defined variant");
+        assert_eq!(results[4].highest_advisory, Some(Advisory::Information));
     }
 }

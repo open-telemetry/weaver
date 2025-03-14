@@ -4,15 +4,45 @@
         "value": "GET"
     },
     {
-        "name": "task.id",
-        "value": "12345"
-    },
-    {
         "name": "http.response.status_code",
         "value": "hello"
     },
     {
+        "name": "http.server_name",
+        "value": "example.com"
+    },
+    {
+        "name": "aws.s3.bucket",
+        "value": "my-bucket"
+    },
+    {
+        "name": "task.id",
+        "value": "12345"
+    },
+    {
         "name": "TaskId",
         "value": "12345"
+    },
+    {
+        "name": "host.arch",
+        "value": "aarch64"
+    },
+    {
+        "name": "host.name"
+    },
+    {
+        "name": "exception.message",
+        "type": "string[]"
+    },
+    {
+        "name": "aws.dynamodb.table_names",
+        "value": [
+            "table1",
+            "table2"
+        ]
+    },
+    {
+        "name": "http.request.method",
+        "value": "OPEN"
     }
 ]

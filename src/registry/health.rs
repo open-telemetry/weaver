@@ -13,8 +13,8 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{
-    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, HasNamespaceAdvisor, StabilityAdvisor,
-    TypeAdvisor,
+    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, HasNamespaceAdvisor,
+    StabilityAdvisor, TypeAdvisor,
 };
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::AttributeHealthChecker;
@@ -163,6 +163,7 @@ pub(crate) fn command(
         Box::new(HasNamespaceAdvisor),
         Box::new(StabilityAdvisor),
         Box::new(TypeAdvisor),
+        Box::new(EnumAdvisor),
     ];
 
     let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);

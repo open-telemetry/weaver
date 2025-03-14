@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
-    attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec},
+    attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec},
     stability::Stability,
 };
 
@@ -192,7 +192,7 @@ impl Advisor for TypeAdvisor {
                         TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
                         TemplateTypeSpec::Booleans => PrimitiveOrArrayTypeSpec::Booleans,
                     },
-                    AttributeType::Enum { .. } => &PrimitiveOrArrayTypeSpec::String,
+                    AttributeType::Enum { .. } => &PrimitiveOrArrayTypeSpec::String, //TODO: Enums can also be int
                 };
 
                 if semconv_attribute_type != attribute_type {
@@ -205,6 +205,63 @@ impl Advisor for TypeAdvisor {
                 } else {
                     None
                 }
+            }
+            _ => None,
+        }
+    }
+}
+
+/// An advisor that reports if the given value is not a defined variant in the enum
+pub struct EnumAdvisor;
+impl Advisor for EnumAdvisor {
+    fn advise(
+        &self,
+        attribute: &SampleAttribute,
+        _health_checker: &AttributeHealthChecker,
+        semconv_attribute: Option<&Attribute>,
+    ) -> Option<Advice> {
+        // Only provide advice if the semconv_attribute is an enum and the attribute has a value and type
+        match (
+            semconv_attribute,
+            attribute.value.as_ref(),
+            attribute.r#type.as_ref(),
+        ) {
+            (Some(semconv_attribute), Some(attribute_value), Some(attribute_type)) => {
+                if let AttributeType::Enum { members, .. } = &semconv_attribute.r#type {
+                    let mut is_found = false;
+                    for member in members {
+                        if match attribute_type {
+                            PrimitiveOrArrayTypeSpec::Int => {
+                                if let Some(int_value) = attribute_value.as_i64() {
+                                    member.value == ValueSpec::Int(int_value)
+                                } else {
+                                    false
+                                }
+                            }
+                            PrimitiveOrArrayTypeSpec::String => {
+                                if let Some(string_value) = attribute_value.as_str() {
+                                    member.value == ValueSpec::String(string_value.to_owned())
+                                } else {
+                                    false
+                                }
+                            }
+                            _ => false,
+                        } {
+                            is_found = true;
+                            break;
+                        }
+                    }
+
+                    if !is_found {
+                        return Some(Advice {
+                            key: "enum".to_owned(),
+                            value: attribute_value.clone(),
+                            message: "Is not a defined variant".to_owned(),
+                            advisory: Advisory::Information,
+                        });
+                    }
+                }
+                None
             }
             _ => None,
         }
