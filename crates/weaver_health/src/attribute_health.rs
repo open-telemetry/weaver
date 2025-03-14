@@ -121,7 +121,7 @@ mod tests {
     };
 
     use super::*;
-    use serde_json::Value;
+    use serde_json::{json, Value};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
@@ -271,6 +271,11 @@ mod tests {
                 r#type: None,
                 value: Some(Value::String("example_variant1".to_owned())),
             },
+            SampleAttribute {
+                name: "test.enum".to_owned(),
+                r#type: None,
+                value: Some(json!(42.42)),
+            },
         ];
 
         for attribute in attributes.iter_mut() {
@@ -290,11 +295,11 @@ mod tests {
 
         let results = health_checker.check_attributes();
 
-        assert_eq!(results.len(), 6);
+        assert_eq!(results.len(), 7);
 
         assert!(results[0].all_advice.is_empty());
 
-        assert!(results[1].all_advice.len() == 3);
+        assert_eq!(results[1].all_advice.len(), 3);
         assert_eq!(results[1].all_advice[0].key, "attribute_match");
         assert_eq!(results[1].all_advice[0].value, Value::Bool(false));
         assert_eq!(
@@ -332,7 +337,7 @@ mod tests {
 
         assert_eq!(results[2].highest_advisory, Some(Advisory::Violation));
 
-        assert!(results[3].all_advice.len() == 1);
+        assert_eq!(results[3].all_advice.len(), 1);
         assert_eq!(results[3].all_advice[0].key, "attribute_match");
         assert_eq!(results[3].all_advice[0].value, Value::Bool(false));
         assert_eq!(
@@ -348,5 +353,16 @@ mod tests {
         );
         assert_eq!(results[4].all_advice[0].message, "Is not a defined variant");
         assert_eq!(results[4].highest_advisory, Some(Advisory::Information));
+
+        assert_eq!(results[6].all_advice.len(), 1);
+        assert_eq!(results[6].all_advice[0].key, "type");
+        assert_eq!(
+            results[6].all_advice[0].value,
+            Value::String("double".to_owned())
+        );
+        assert_eq!(
+            results[6].all_advice[0].message,
+            "Type should be `string` or `int`"
+        );
     }
 }

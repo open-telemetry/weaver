@@ -192,10 +192,24 @@ impl Advisor for TypeAdvisor {
                         TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
                         TemplateTypeSpec::Booleans => PrimitiveOrArrayTypeSpec::Booleans,
                     },
-                    AttributeType::Enum { .. } => &PrimitiveOrArrayTypeSpec::String, //TODO: Enums can also be int
+                    AttributeType::Enum { .. } => {
+                        // Special case: Enum variants can be either string or int
+                        if attribute_type != &PrimitiveOrArrayTypeSpec::String
+                            && attribute_type != &PrimitiveOrArrayTypeSpec::Int
+                        {
+                            return Some(Advice {
+                                key: "type".to_owned(),
+                                value: Value::String(attribute_type.to_string()),
+                                message: "Type should be `string` or `int`".to_owned(),
+                                advisory: Advisory::Violation,
+                            });
+                        } else {
+                            return None;
+                        }
+                    }
                 };
 
-                if semconv_attribute_type != attribute_type {
+                if attribute_type != semconv_attribute_type {
                     Some(Advice {
                         key: "type".to_owned(),
                         value: Value::String(attribute_type.to_string()),
@@ -245,7 +259,10 @@ impl Advisor for EnumAdvisor {
                                     false
                                 }
                             }
-                            _ => false,
+                            _ => {
+                                // Any other type is not supported - the TypeAdvisor should have already caught this
+                                return None;
+                            }
                         } {
                             is_found = true;
                             break;
