@@ -27,7 +27,6 @@ minijinja = { version = "2.5.0", features = [
     "macros",
 ] }
 minijinja-contrib = { version = "2.7.0", features = ["pycompat"] }
-convert_case = "0.7.1"
 jaq-core = "2.1.1"
 jaq-std = "2.0.0"
 jaq-json = { version = "1.1.1", features = ["serde_json"] }
@@ -48,6 +47,7 @@ miette.workspace = true
 include_dir.workspace = true
 schemars.workspace = true
 dirs.workspace = true
+convert_case.workspace = true
 
 [dev-dependencies]
 opentelemetry.workspace = true

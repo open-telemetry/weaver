@@ -1,0 +1,24 @@
+
+{{ ("Health Report") | ansi_bright_white | ansi_bold }}
+
+{% for result in ctx %}
+{% set highest_advisory = result.highest_advisory %}
+{% if highest_advisory == "information" or not highest_advisory %}
+{{ result.sample_attribute.name | ansi_bright_green }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
+{% elif highest_advisory == "improvement" %}
+{{ result.sample_attribute.name | ansi_bright_yellow }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
+{% else %}
+{{ result.sample_attribute.name | ansi_bright_red }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
+{% endif %}
+
+  {% for advice in result.all_advice %}
+    {% if advice.advisory == "information" %}
+       - {{ advice.key ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
+    {% elif advice.advisory == "improvement" %}
+       - {{ advice.key ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
+    {% else %}
+       - {{ advice.key ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
+    {% endif %}
+  {% endfor %}
+
+{% endfor %}
