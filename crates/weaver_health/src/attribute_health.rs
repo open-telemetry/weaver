@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
@@ -14,6 +14,7 @@ use crate::{
 pub struct AttributeHealthChecker {
     _registry: ResolvedRegistry, // Keeping this here for future use
     semconv_attributes: HashMap<String, Attribute>,
+    semconv_namespaces: HashSet<String>,
     sample_attributes: Vec<SampleAttribute>,
     advisors: Vec<Box<dyn Advisor>>,
 }
@@ -27,22 +28,50 @@ impl AttributeHealthChecker {
         advisors: Vec<Box<dyn Advisor>>,
     ) -> Self {
         // Create a hashmap of attributes for quick lookup
-        let semconv_attributes = registry
-            .groups
-            .iter()
-            .flat_map(|group| group.attributes.iter())
-            .map(|attribute| (attribute.name.clone(), attribute.clone()))
-            .collect();
+        let mut semconv_attributes = HashMap::new();
+        let mut semconv_namespaces = HashSet::new();
+
+        for group in &registry.groups {
+            for attribute in &group.attributes {
+                let _ = semconv_attributes.insert(attribute.name.clone(), attribute.clone());
+
+                // Extract namespace (everything to the left of the last dot)
+                // repeat until the last dot is found
+                let mut name = attribute.name.clone();
+                while let Some(last_dot_pos) = name.rfind('.') {
+                    let namespace = name[..last_dot_pos].to_string();
+                    let _ = semconv_namespaces.insert(namespace);
+                    name = name[..last_dot_pos].to_string();
+                }
+            }
+        }
         AttributeHealthChecker {
-            sample_attributes: attributes,
             _registry: registry,
             semconv_attributes,
+            semconv_namespaces,
+            sample_attributes: attributes,
             advisors,
         }
     }
 
-    fn find_attribute(&self, name: &str) -> Option<&Attribute> {
+    /// Find an attribute in the registry
+    #[must_use]
+    pub fn find_attribute(&self, name: &str) -> Option<&Attribute> {
         self.semconv_attributes.get(name)
+    }
+
+    /// Find a namespace in the registry
+    #[must_use]
+    pub fn find_namespace(&self, namespace: &str) -> Option<String> {
+        let mut namespace = namespace.to_owned();
+        while !self.semconv_namespaces.contains(&namespace) {
+            if let Some(last_dot_pos) = namespace.rfind('.') {
+                namespace = namespace[..last_dot_pos].to_string();
+            } else {
+                return None;
+            }
+        }
+        Some(namespace)
     }
 
     /// Run advisors on every attribute in the list
@@ -116,7 +145,7 @@ impl HealthAttribute {
 #[cfg(test)]
 mod tests {
     use crate::attribute_advice::{
-        CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, HasNamespaceAdvisor, StabilityAdvisor,
+        CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, NamespaceAdvisor, StabilityAdvisor,
         TypeAdvisor,
     };
 
@@ -276,6 +305,16 @@ mod tests {
                 r#type: None,
                 value: Some(json!(42.42)),
             },
+            SampleAttribute {
+                name: "test.string.illegal".to_owned(),
+                r#type: None,
+                value: Some(Value::String("example_value".to_owned())),
+            },
+            SampleAttribute {
+                name: "test.extends".to_owned(),
+                r#type: None,
+                value: Some(Value::String("new_value".to_owned())),
+            },
         ];
 
         for attribute in attributes.iter_mut() {
@@ -286,7 +325,7 @@ mod tests {
             Box::new(DeprecatedAdvisor),
             Box::new(CorrectCaseAdvisor),
             Box::new(StabilityAdvisor),
-            Box::new(HasNamespaceAdvisor),
+            Box::new(NamespaceAdvisor),
             Box::new(TypeAdvisor),
             Box::new(EnumAdvisor),
         ];
@@ -295,7 +334,7 @@ mod tests {
 
         let results = health_checker.check_attributes();
 
-        assert_eq!(results.len(), 7);
+        assert_eq!(results.len(), 9);
 
         assert!(results[0].all_advice.is_empty());
 
@@ -309,7 +348,7 @@ mod tests {
         assert_eq!(results[1].all_advice[1].key, "correct_case");
         assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
         assert_eq!(results[1].all_advice[1].message, "Is not in snake case");
-        assert_eq!(results[1].all_advice[2].key, "has_namespace");
+        assert_eq!(results[1].all_advice[2].key, "namespace");
         assert_eq!(results[1].all_advice[2].value, Value::Bool(false));
         assert_eq!(
             results[1].all_advice[2].message,
@@ -363,6 +402,40 @@ mod tests {
         assert_eq!(
             results[6].all_advice[0].message,
             "Type should be `string` or `int`"
+        );
+
+        assert_eq!(results[7].all_advice.len(), 2);
+        assert_eq!(results[7].all_advice[0].key, "attribute_match");
+        assert_eq!(results[7].all_advice[0].value, Value::Bool(false));
+        assert_eq!(
+            results[7].all_advice[0].message,
+            "Does not exist in the registry"
+        );
+        assert_eq!(results[7].all_advice[1].key, "namespace");
+        assert_eq!(
+            results[7].all_advice[1].value,
+            Value::String("test.string".to_owned())
+        );
+        assert_eq!(
+            results[7].all_advice[1].message,
+            "Namespace matches existing attribute"
+        );
+
+        assert_eq!(results[8].all_advice.len(), 2);
+        assert_eq!(results[8].all_advice[0].key, "attribute_match");
+        assert_eq!(results[8].all_advice[0].value, Value::Bool(false));
+        assert_eq!(
+            results[8].all_advice[0].message,
+            "Does not exist in the registry"
+        );
+        assert_eq!(results[8].all_advice[1].key, "namespace");
+        assert_eq!(
+            results[8].all_advice[1].value,
+            Value::String("test".to_owned())
+        );
+        assert_eq!(
+            results[8].all_advice[1].message,
+            "Extends existing namespace"
         );
     }
 }

@@ -44,5 +44,13 @@
     {
         "name": "http.request.method",
         "value": "OPEN"
+    },
+    {
+        "name": "http.request.method.illegal",
+        "value": "GET"
+    },
+    {
+        "name": "http.request.extension",
+        "value": 42
     }
 ]

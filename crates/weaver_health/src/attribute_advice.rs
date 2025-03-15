@@ -139,12 +139,12 @@ impl Advisor for CorrectCaseAdvisor {
 }
 
 /// An advisor that checks if an attribute has a namespace - a prefix before the first dot
-pub struct HasNamespaceAdvisor;
-impl Advisor for HasNamespaceAdvisor {
+pub struct NamespaceAdvisor;
+impl Advisor for NamespaceAdvisor {
     fn advise(
         &self,
         attribute: &SampleAttribute,
-        _health_checker: &AttributeHealthChecker,
+        health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
     ) -> Option<Advice> {
         // Don't provide advice if the attribute is a match
@@ -152,17 +152,39 @@ impl Advisor for HasNamespaceAdvisor {
             return None;
         }
 
-        let has_namespace = attribute.name.contains('.');
-        if !has_namespace {
-            Some(Advice {
-                key: "has_namespace".to_owned(),
+        if let Some(last_dot_pos) = attribute.name.rfind('.') {
+            let namespace = attribute.name[..last_dot_pos].to_string();
+
+            // Has a namespace that matches an existing attribute
+            if health_checker.find_attribute(&namespace).is_some() {
+                return Some(Advice {
+                    key: "namespace".to_owned(),
+                    value: Value::String(namespace.clone()),
+                    message: "Namespace matches existing attribute".to_owned(),
+                    advisory: Advisory::Violation,
+                });
+            }
+
+            // Extends an existing namespace
+            if let Some(existing_namespace) = health_checker.find_namespace(&namespace) {
+                return Some(Advice {
+                    key: "namespace".to_owned(),
+                    value: Value::String(existing_namespace),
+                    message: "Extends existing namespace".to_owned(),
+                    advisory: Advisory::Information,
+                });
+            }
+        } else {
+            // Does not have a namespace
+            return Some(Advice {
+                key: "namespace".to_owned(),
                 value: Value::Bool(false),
                 message: "Does not have a namespace".to_owned(),
                 advisory: Advisory::Improvement,
-            })
-        } else {
-            None
+            });
         }
+
+        None
     }
 }
 

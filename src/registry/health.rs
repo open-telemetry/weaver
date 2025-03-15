@@ -13,7 +13,7 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{
-    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, HasNamespaceAdvisor,
+    Advisor, CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, NamespaceAdvisor,
     StabilityAdvisor, TypeAdvisor,
 };
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
@@ -160,7 +160,7 @@ pub(crate) fn command(
     let advisors: Vec<Box<dyn Advisor>> = vec![
         Box::new(DeprecatedAdvisor),
         Box::new(CorrectCaseAdvisor),
-        Box::new(HasNamespaceAdvisor),
+        Box::new(NamespaceAdvisor),
         Box::new(StabilityAdvisor),
         Box::new(TypeAdvisor),
         Box::new(EnumAdvisor),
