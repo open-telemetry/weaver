@@ -35,7 +35,7 @@ publish = false
 rust-version = "1.81.0"
 
 [workspace.dependencies]
-serde = { version = "1.0.218", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 serde_json = { version = "1.0.139" }
 thiserror = "2.0.12"
@@ -47,7 +47,7 @@ ordered-float = { version = "4.6.0", features = ["serde", "schemars"] }
 walkdir = "2.5.0"
 anyhow = "1.0.96"
 itertools = "0.14.0"
-globset = { version = "0.4.15", features = ["serde1"] }
+globset = { version = "0.4.16", features = ["serde1"] }
 miette = { version = "7.5.0", features = ["fancy", "serde"] }
 include_dir = "0.7.4"
 tempdir = "0.3.7"
@@ -114,7 +114,7 @@ tempdir.workspace = true
 ureq.workspace = true
 assert_cmd = "2.0.16"
 portpicker = "0.1.1"
-tempfile = "3.17.1"
+tempfile = "3.18.0"
 
 [build-dependencies]
 tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }
