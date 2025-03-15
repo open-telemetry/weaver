@@ -46,7 +46,7 @@
         "value": "OPEN"
     },
     {
-        "name": "http.request.method.illegal",
+        "name": "http.request.method.not.allowed",
         "value": "GET"
     },
     {

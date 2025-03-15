@@ -74,6 +74,19 @@ impl AttributeHealthChecker {
         Some(namespace)
     }
 
+    /// Find an attribute from a namespace search
+    #[must_use]
+    pub fn find_attribute_from_namespace(&self, namespace: &str) -> Option<&Attribute> {
+        if let Some(attribute) = self.find_attribute(namespace) {
+            Some(attribute)
+        } else if let Some(last_dot_pos) = namespace.rfind('.') {
+            let new_namespace = &namespace[..last_dot_pos];
+            self.find_attribute_from_namespace(new_namespace)
+        } else {
+            None
+        }
+    }
+
     /// Run advisors on every attribute in the list
     #[must_use]
     pub fn check_attributes(&self) -> Vec<HealthAttribute> {
@@ -306,7 +319,7 @@ mod tests {
                 value: Some(json!(42.42)),
             },
             SampleAttribute {
-                name: "test.string.illegal".to_owned(),
+                name: "test.string.not.allowed".to_owned(),
                 r#type: None,
                 value: Some(Value::String("example_value".to_owned())),
             },

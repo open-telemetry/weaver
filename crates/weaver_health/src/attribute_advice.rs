@@ -156,10 +156,10 @@ impl Advisor for NamespaceAdvisor {
             let namespace = attribute.name[..last_dot_pos].to_string();
 
             // Has a namespace that matches an existing attribute
-            if health_checker.find_attribute(&namespace).is_some() {
+            if let Some(found_attr) = health_checker.find_attribute_from_namespace(&namespace) {
                 return Some(Advice {
                     key: "namespace".to_owned(),
-                    value: Value::String(namespace.clone()),
+                    value: Value::String(found_attr.name.clone()),
                     message: "Namespace matches existing attribute".to_owned(),
                     advisory: Advisory::Violation,
                 });
