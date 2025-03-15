@@ -16,7 +16,7 @@
         "value": "my-bucket"
     },
     {
-        "name": "task.id",
+        "name": "task.my-id",
         "value": "12345"
     },
     {
@@ -52,5 +52,15 @@
     {
         "name": "http.request.extension",
         "value": 42
+    },
+    {
+        "name": "http.request.header.content-type",
+        "value": [
+            "application/json"
+        ]
+    },
+    {
+        "name": "http.request.header.content.type",
+        "value": "application/json"
     }
 ]

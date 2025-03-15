@@ -122,7 +122,7 @@ impl Advisor for CorrectCaseAdvisor {
 
         let is_snake_case = attribute
             .name
-            .without_boundaries(&Boundary::digits())
+            .without_boundaries(&Boundary::defaults())
             .to_case(Case::Snake)
             == attribute.name;
         if !is_snake_case {
