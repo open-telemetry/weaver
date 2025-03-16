@@ -11,4 +11,5 @@ allowed_external_types = [
     "weaver_resolved_schema::attribute::Attribute",
     "weaver_semconv::attribute::PrimitiveOrArrayTypeSpec",
     "weaver_common::Logger",
+    "weaver_semconv::registry_repo::RegistryRepo",
 ]
