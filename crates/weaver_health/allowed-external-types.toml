@@ -10,4 +10,5 @@ allowed_external_types = [
     "serde_json::value::Value",
     "weaver_resolved_schema::attribute::Attribute",
     "weaver_semconv::attribute::PrimitiveOrArrayTypeSpec",
+    "weaver_common::Logger",
 ]
