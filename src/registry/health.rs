@@ -99,6 +99,22 @@ pub struct RegistryHealthArgs {
     /// If not specified, the report is printed to stdout.
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Address used by the gRPC OTLP listener.
+    #[clap(long, default_value = "0.0.0.0")]
+    pub otlp_grpc_address: String,
+
+    /// Port used by the gRPC OTLP listener.
+    #[clap(long, default_value = "4317")]
+    pub otlp_grpc_port: u16,
+
+    /// Port used by the HTTP admin port (endpoints: /stop).
+    #[clap(long, default_value = "4320")]
+    pub admin_port: u16,
+
+    /// Max inactivity time in seconds before stopping the listener.
+    #[clap(long, default_value = "10")]
+    pub inactivity_timeout: u64,
 }
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
@@ -162,10 +178,10 @@ pub(crate) fn command(
         IngesterType::AttributeOtlp => {
             let ingester = AttributeOtlpIngester::new();
             let otlp_config = OtlpConfig {
-                otlp_grpc_address: "0.0.0.0".to_owned(),
-                otlp_grpc_port: 4317,
-                admin_port: 4320,
-                inactivity_timeout: 10,
+                otlp_grpc_address: args.otlp_grpc_address.clone(),
+                otlp_grpc_port: args.otlp_grpc_port,
+                admin_port: args.admin_port,
+                inactivity_timeout: args.inactivity_timeout,
             };
             ingester.ingest(&otlp_config, logger.clone())?
         }
