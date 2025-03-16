@@ -328,7 +328,27 @@ impl Ingester<&OtlpConfig, Vec<SampleAttribute>> for AttributeOtlpIngester {
                 }
                 OtlpRequest::Traces(trace) => {
                     for resource_span in trace.resource_spans {
+                        if let Some(resource) = resource_span.resource {
+                            for attribute in resource.attributes {
+                                result.push(SampleAttribute {
+                                    name: attribute.key,
+                                    value: Self::maybe_to_json(attribute.value),
+                                    r#type: None,
+                                });
+                            }
+                        }
+
                         for scope_span in resource_span.scope_spans {
+                            if let Some(scope) = scope_span.scope {
+                                for attribute in scope.attributes {
+                                    result.push(SampleAttribute {
+                                        name: attribute.key,
+                                        value: Self::maybe_to_json(attribute.value),
+                                        r#type: None,
+                                    });
+                                }
+                            }
+
                             for span in scope_span.spans {
                                 for attribute in span.attributes {
                                     result.push(SampleAttribute {
