@@ -1,5 +1,7 @@
 use std::io::{self, Read};
 
+use weaver_common::Logger;
+
 use crate::{sample::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attribute names and values from JSON input via standard input.
@@ -27,7 +29,11 @@ impl Default for AttributeJsonStdinIngester {
 }
 
 impl Ingester<(), Vec<SampleAttribute>> for AttributeJsonStdinIngester {
-    fn ingest(&self, _: ()) -> Result<Vec<SampleAttribute>, Error> {
+    fn ingest(
+        &self,
+        _: (),
+        _logger: impl Logger + Sync + Clone,
+    ) -> Result<Vec<SampleAttribute>, Error> {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
         let mut buffer = String::new();

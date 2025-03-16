@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::Path;
 
+use weaver_common::Logger;
+
 use crate::{sample::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attribute names and values from a JSON file.
@@ -28,7 +30,11 @@ impl Default for AttributeJsonFileIngester {
 }
 
 impl Ingester<&Path, Vec<SampleAttribute>> for AttributeJsonFileIngester {
-    fn ingest(&self, input: &Path) -> Result<Vec<SampleAttribute>, Error> {
+    fn ingest(
+        &self,
+        input: &Path,
+        _logger: impl Logger + Sync + Clone,
+    ) -> Result<Vec<SampleAttribute>, Error> {
         // Open the file and use a reader to deserialize
         let file = fs::File::open(input).map_err(|e| Error::IngestError {
             error: format!("Failed to open file {}: {}", input.display(), e),
@@ -56,6 +62,7 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
+    use weaver_common::TestLogger;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 
     #[test]
@@ -81,7 +88,9 @@ mod tests {
 
         // Create ingester and process the file
         let ingester = AttributeJsonFileIngester::new();
-        let result = ingester.ingest(&file_path).unwrap();
+
+        let logger = TestLogger::new();
+        let result = ingester.ingest(&file_path, logger).unwrap();
 
         // Verify the results
         assert_eq!(result.len(), 7);
@@ -126,7 +135,8 @@ mod tests {
 
         // Create ingester and process the file
         let ingester = AttributeJsonFileIngester::new();
-        let result = ingester.ingest(&file_path);
+        let logger = TestLogger::new();
+        let result = ingester.ingest(&file_path, logger);
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {
@@ -140,7 +150,8 @@ mod tests {
     fn test_file_not_found() {
         let non_existent_path = Path::new("/path/to/nonexistent/file.json");
         let ingester = AttributeJsonFileIngester::new();
-        let result = ingester.ingest(non_existent_path);
+        let logger = TestLogger::new();
+        let result = ingester.ingest(non_existent_path, logger);
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {

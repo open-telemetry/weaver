@@ -1,5 +1,7 @@
 use std::io::{self, BufRead};
 
+use weaver_common::Logger;
+
 use crate::{sample::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attribute names from standard input.
@@ -21,7 +23,11 @@ impl Default for AttributeStdinIngester {
 }
 
 impl Ingester<(), Vec<SampleAttribute>> for AttributeStdinIngester {
-    fn ingest(&self, _: ()) -> Result<Vec<SampleAttribute>, Error> {
+    fn ingest(
+        &self,
+        _: (),
+        _logger: impl Logger + Sync + Clone,
+    ) -> Result<Vec<SampleAttribute>, Error> {
         let stdin = io::stdin();
         let mut attributes = Vec::new();
 

@@ -3,7 +3,10 @@
 //! This crate provides the weaver-health library
 use miette::Diagnostic;
 use serde::Serialize;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::{
+    diagnostic::{DiagnosticMessage, DiagnosticMessages},
+    Logger,
+};
 
 /// Advisors for health checks
 pub mod attribute_advice;
@@ -47,5 +50,5 @@ impl From<Error> for DiagnosticMessages {
 /// Ingesters implement a generic trait that specifies both their input and output types
 pub trait Ingester<I, O> {
     /// Ingest data from the input type and return the output type
-    fn ingest(&self, input: I) -> Result<O, Error>;
+    fn ingest(&self, input: I, logger: impl Logger + Sync + Clone) -> Result<O, Error>;
 }
