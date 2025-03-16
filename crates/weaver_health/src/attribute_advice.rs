@@ -6,6 +6,7 @@ use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec},
+    deprecated::Deprecated,
     stability::Stability,
 };
 
@@ -62,16 +63,16 @@ impl Advisor for DeprecatedAdvisor {
         semconv_attribute: Option<&Attribute>,
     ) -> Option<Advice> {
         if let Some(attribute) = semconv_attribute {
-            if attribute.deprecated.is_some() {
-                Some(Advice {
-                    key: "is_deprecated".to_owned(),
-                    value: Value::Bool(true),
-                    message: "Is deprecated".to_owned(),
-                    advisory: Advisory::Violation,
-                })
-            } else {
-                None
-            }
+            attribute.deprecated.as_ref().map(|deprecated| Advice {
+                key: "deprecated".to_owned(),
+                value: match deprecated {
+                    Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
+                    Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
+                    Deprecated::Uncategorized { .. } => Value::String("uncategorized".to_owned()),
+                },
+                message: deprecated.to_string(),
+                advisory: Advisory::Violation,
+            })
         } else {
             None
         }

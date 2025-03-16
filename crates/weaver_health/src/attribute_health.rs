@@ -308,7 +308,7 @@ mod tests {
                         note: "".to_owned(),
                         stability: Some(Stability::Development),
                         deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
-                            note: "".to_owned(),
+                            note: "note".to_owned(),
                         }),
                         prefix: false,
                         tags: None,
@@ -439,9 +439,12 @@ mod tests {
         );
 
         assert_eq!(results[2].all_advice.len(), 3);
-        assert_eq!(results[2].all_advice[0].key, "is_deprecated");
-        assert_eq!(results[2].all_advice[0].value, Value::Bool(true));
-        assert_eq!(results[2].all_advice[0].message, "Is deprecated");
+        assert_eq!(results[2].all_advice[0].key, "deprecated");
+        assert_eq!(
+            results[2].all_advice[0].value,
+            Value::String("uncategorized".to_owned())
+        );
+        assert_eq!(results[2].all_advice[0].message, "note");
 
         assert_eq!(results[2].all_advice[1].key, "stability");
         assert_eq!(
