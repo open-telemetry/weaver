@@ -159,7 +159,7 @@ impl Advisor for NamespaceAdvisor {
             // Has a namespace that matches an existing attribute
             if let Some(found_attr) = health_checker.find_attribute_from_namespace(&namespace) {
                 return Some(Advice {
-                    key: "namespace".to_owned(),
+                    key: "illegal_namespace".to_owned(),
                     value: Value::String(found_attr.name.clone()),
                     message: "Namespace matches existing attribute".to_owned(),
                     advisory: Advisory::Violation,
@@ -169,7 +169,7 @@ impl Advisor for NamespaceAdvisor {
             // Extends an existing namespace
             if let Some(existing_namespace) = health_checker.find_namespace(&namespace) {
                 return Some(Advice {
-                    key: "namespace".to_owned(),
+                    key: "extends_namespace".to_owned(),
                     value: Value::String(existing_namespace),
                     message: "Extends existing namespace".to_owned(),
                     advisory: Advisory::Information,
@@ -178,8 +178,8 @@ impl Advisor for NamespaceAdvisor {
         } else {
             // Does not have a namespace
             return Some(Advice {
-                key: "namespace".to_owned(),
-                value: Value::Bool(false),
+                key: "missing_namespace".to_owned(),
+                value: Value::String(attribute.name.clone()),
                 message: "Does not have a namespace".to_owned(),
                 advisory: Advisory::Improvement,
             });
@@ -221,7 +221,7 @@ impl Advisor for TypeAdvisor {
                             && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                         {
                             return Some(Advice {
-                                key: "type".to_owned(),
+                                key: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
                                 message: "Type should be `string` or `int`".to_owned(),
                                 advisory: Advisory::Violation,
@@ -234,7 +234,7 @@ impl Advisor for TypeAdvisor {
 
                 if attribute_type != semconv_attribute_type {
                     Some(Advice {
-                        key: "type".to_owned(),
+                        key: "type_mismatch".to_owned(),
                         value: Value::String(attribute_type.to_string()),
                         message: format!("Type should be `{}`", semconv_attribute_type),
                         advisory: Advisory::Violation,
@@ -294,7 +294,7 @@ impl Advisor for EnumAdvisor {
 
                     if !is_found {
                         return Some(Advice {
-                            key: "enum".to_owned(),
+                            key: "undefined_enum_variant".to_owned(),
                             value: attribute_value.clone(),
                             message: "Is not a defined variant".to_owned(),
                             advisory: Advisory::Information,

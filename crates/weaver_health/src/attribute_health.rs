@@ -132,8 +132,8 @@ impl AttributeHealthChecker {
 
             if semconv_attribute.is_none() {
                 attribute_result.add_advice(Advice {
-                    key: "attribute_match".to_owned(),
-                    value: Value::Bool(false),
+                    key: "missing_attribute".to_owned(),
+                    value: Value::String(sample_attribute.name.clone()),
                     message: "Does not exist in the registry".to_owned(),
                     advisory: Advisory::Violation,
                 });
@@ -142,7 +142,7 @@ impl AttributeHealthChecker {
                 if let Some(attribute) = semconv_attribute {
                     if let AttributeType::Template(_) = attribute.r#type {
                         attribute_result.add_advice(Advice {
-                            key: "attribute_match".to_owned(),
+                            key: "template_attribute".to_owned(),
                             value: Value::String(attribute.name.clone()),
                             message: "Is a template".to_owned(),
                             advisory: Advisory::Information,
@@ -422,8 +422,11 @@ mod tests {
         assert!(results[0].all_advice.is_empty());
 
         assert_eq!(results[1].all_advice.len(), 3);
-        assert_eq!(results[1].all_advice[0].key, "attribute_match");
-        assert_eq!(results[1].all_advice[0].value, Value::Bool(false));
+        assert_eq!(results[1].all_advice[0].key, "missing_attribute");
+        assert_eq!(
+            results[1].all_advice[0].value,
+            Value::String("testString2".to_owned())
+        );
         assert_eq!(
             results[1].all_advice[0].message,
             "Does not exist in the registry"
@@ -431,8 +434,11 @@ mod tests {
         assert_eq!(results[1].all_advice[1].key, "correct_case");
         assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
         assert_eq!(results[1].all_advice[1].message, "Is not in snake case");
-        assert_eq!(results[1].all_advice[2].key, "namespace");
-        assert_eq!(results[1].all_advice[2].value, Value::Bool(false));
+        assert_eq!(results[1].all_advice[2].key, "missing_namespace");
+        assert_eq!(
+            results[1].all_advice[2].value,
+            Value::String("testString2".to_owned())
+        );
         assert_eq!(
             results[1].all_advice[2].message,
             "Does not have a namespace"
@@ -453,7 +459,7 @@ mod tests {
         );
         assert_eq!(results[2].all_advice[1].message, "Is not stable");
 
-        assert_eq!(results[2].all_advice[2].key, "type");
+        assert_eq!(results[2].all_advice[2].key, "type_mismatch");
         assert_eq!(
             results[2].all_advice[2].value,
             Value::String("int".to_owned())
@@ -463,15 +469,18 @@ mod tests {
         assert_eq!(results[2].highest_advisory, Some(Advisory::Violation));
 
         assert_eq!(results[3].all_advice.len(), 1);
-        assert_eq!(results[3].all_advice[0].key, "attribute_match");
-        assert_eq!(results[3].all_advice[0].value, Value::Bool(false));
+        assert_eq!(results[3].all_advice[0].key, "missing_attribute");
+        assert_eq!(
+            results[3].all_advice[0].value,
+            Value::String("aws.s3.bucket.name".to_owned())
+        );
         assert_eq!(
             results[3].all_advice[0].message,
             "Does not exist in the registry"
         );
 
         assert_eq!(results[4].all_advice.len(), 1);
-        assert_eq!(results[4].all_advice[0].key, "enum");
+        assert_eq!(results[4].all_advice[0].key, "undefined_enum_variant");
         assert_eq!(
             results[4].all_advice[0].value,
             Value::String("foo".to_owned())
@@ -480,7 +489,7 @@ mod tests {
         assert_eq!(results[4].highest_advisory, Some(Advisory::Information));
 
         assert_eq!(results[6].all_advice.len(), 1);
-        assert_eq!(results[6].all_advice[0].key, "type");
+        assert_eq!(results[6].all_advice[0].key, "type_mismatch");
         assert_eq!(
             results[6].all_advice[0].value,
             Value::String("double".to_owned())
@@ -491,13 +500,16 @@ mod tests {
         );
 
         assert_eq!(results[7].all_advice.len(), 2);
-        assert_eq!(results[7].all_advice[0].key, "attribute_match");
-        assert_eq!(results[7].all_advice[0].value, Value::Bool(false));
+        assert_eq!(results[7].all_advice[0].key, "missing_attribute");
+        assert_eq!(
+            results[7].all_advice[0].value,
+            Value::String("test.string.not.allowed".to_owned())
+        );
         assert_eq!(
             results[7].all_advice[0].message,
             "Does not exist in the registry"
         );
-        assert_eq!(results[7].all_advice[1].key, "namespace");
+        assert_eq!(results[7].all_advice[1].key, "illegal_namespace");
         assert_eq!(
             results[7].all_advice[1].value,
             Value::String("test.string".to_owned())
@@ -508,13 +520,16 @@ mod tests {
         );
 
         assert_eq!(results[8].all_advice.len(), 2);
-        assert_eq!(results[8].all_advice[0].key, "attribute_match");
-        assert_eq!(results[8].all_advice[0].value, Value::Bool(false));
+        assert_eq!(results[8].all_advice[0].key, "missing_attribute");
+        assert_eq!(
+            results[8].all_advice[0].value,
+            Value::String("test.extends".to_owned())
+        );
         assert_eq!(
             results[8].all_advice[0].message,
             "Does not exist in the registry"
         );
-        assert_eq!(results[8].all_advice[1].key, "namespace");
+        assert_eq!(results[8].all_advice[1].key, "extends_namespace");
         assert_eq!(
             results[8].all_advice[1].value,
             Value::String("test".to_owned())
@@ -526,13 +541,13 @@ mod tests {
 
         // test.template
         assert_eq!(results[9].all_advice.len(), 2);
-        assert_eq!(results[9].all_advice[0].key, "attribute_match");
+        assert_eq!(results[9].all_advice[0].key, "template_attribute");
         assert_eq!(
             results[9].all_advice[0].value,
             Value::String("test.template".to_owned())
         );
         assert_eq!(results[9].all_advice[0].message, "Is a template");
-        assert_eq!(results[9].all_advice[1].key, "type");
+        assert_eq!(results[9].all_advice[1].key, "type_mismatch");
         assert_eq!(
             results[9].all_advice[1].value,
             Value::String("int".to_owned())
