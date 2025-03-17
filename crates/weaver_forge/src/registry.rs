@@ -34,7 +34,7 @@ pub struct ResolvedGroup {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the group including the specific fields for each type.
-    pub r#type: Option<GroupType>,
+    pub r#type: GroupType,
     /// A brief description of the semantic convention.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub brief: String,
