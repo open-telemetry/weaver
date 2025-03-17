@@ -61,6 +61,8 @@ pub struct GroupSpec {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeSpec>,
+    /// List of constraints
+    pub constraints: Option<Vec<serde_yaml::Value>>,
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
     pub span_kind: Option<SpanKindSpec>,
@@ -597,6 +599,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Development),
+            constraints: None,
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -770,6 +773,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1002,6 +1006,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            constraints: None,
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1049,6 +1054,7 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Development),
+            constraints: None,
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -1286,6 +1292,7 @@ mod tests {
                 },
             }),
             annotations: None,
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1427,6 +1434,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1595,6 +1603,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            constraints: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1744,6 +1753,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            constraints: None,
         };
 
         // Check group with duplicate attributes.
