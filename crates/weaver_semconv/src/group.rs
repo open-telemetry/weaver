@@ -61,6 +61,8 @@ pub struct GroupSpec {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeSpec>,
+    /// List of constraints
+    pub constraints: Option<Vec<serde_yaml::Value>>,
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
     pub span_kind: Option<SpanKindSpec>,
@@ -567,6 +569,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
+            constraints: None,
             stability: Some(Stability::Deprecated),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
@@ -737,6 +740,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -898,6 +902,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            constraints: None,
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -966,6 +971,7 @@ mod tests {
                     ),
                 },
             }),
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1179,6 +1185,7 @@ mod tests {
                     ),
                 },
             }),
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1318,6 +1325,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1471,6 +1479,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            constraints: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1617,6 +1626,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            constraints: None,
         };
 
         // Check group with duplicate attributes.
