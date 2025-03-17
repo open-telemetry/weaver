@@ -110,6 +110,13 @@ impl GroupSpec {
             });
         }
 
+        if self.constraints.is_some() {
+            errors.push(Error::InvalidGroupUsesConstraints {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+            });
+        }
+
         // Field stability is required for all group types except attribute group.
         if self.r#type != GroupType::AttributeGroup && self.stability.is_none() {
             errors.push(Error::InvalidGroupStability {
@@ -583,7 +590,7 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
+        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidGroupUsesConstraints, InvalidMetric,
         InvalidSpanMissingSpanKind,
     };
 
@@ -644,8 +651,20 @@ mod tests {
             result
         );
 
-        // Span kind is missing on a span group.
+        // group has a constraints.
         group.prefix = "".to_owned();
+        group.constraints = Some(vec![serde_yaml::Value::String("test".to_owned())]);
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupUsesConstraints {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned()
+            }),
+            result
+        );
+
+        // Span kind is missing on a span group.
+        group.constraints = None;
         group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
