@@ -22,6 +22,7 @@ use weaver_common::result::WResult;
 /// metrics, events, spans, etc.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
+#[derive(Default)]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
@@ -62,7 +63,7 @@ pub struct GroupSpec {
     #[serde(default)]
     pub attributes: Vec<AttributeSpec>,
     /// List of constraints
-    pub constraints: Option<Vec<serde_yaml::Value>>,
+    pub constraints: Option<Vec<ConstraintSpec>>,
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
     pub span_kind: Option<SpanKindSpec>,
@@ -537,6 +538,11 @@ impl Default for GroupType {
     }
 }
 
+/// Allow to define additional requirements on the semantic convention.
+/// No longer supported
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ConstraintSpec(pub serde_yaml::Value);
+
 /// The span kind.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -590,8 +596,8 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidGroupUsesConstraints, InvalidMetric,
-        InvalidSpanMissingSpanKind,
+        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesConstraints,
+        InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
     };
 
     use super::*;
@@ -653,7 +659,9 @@ mod tests {
 
         // group has a constraints.
         group.prefix = "".to_owned();
-        group.constraints = Some(vec![serde_yaml::Value::String("test".to_owned())]);
+        group.constraints = Some(vec![ConstraintSpec(serde_yaml::Value::String(
+            "test".to_owned(),
+        ))]);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupUsesConstraints {
