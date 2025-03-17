@@ -541,7 +541,7 @@ impl Default for GroupType {
 /// Allow to define additional requirements on the semantic convention.
 /// No longer supported
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ConstraintSpec(pub serde_yaml::Value);
+pub struct ConstraintSpec(serde_yaml::Value);
 
 /// The span kind.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
