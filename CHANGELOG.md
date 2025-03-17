@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 What's changed
 
-* Remove unused features: make `type` property required on groups (behind `--future` flag), remove `constraints`. ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
+* Remove unused features (behind `--future` flag): make `type` property required on groups, remove `constraints`. ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
 
 ## [0.13.2] - 2025-02-13
 
@@ -38,11 +38,11 @@ What's changed
 
 
 
-* Improvement of comment generation: removal of `<p>` tags that precede `@` Javadoc tags. 
+* Improvement of comment generation: removal of `<p>` tags that precede `@` Javadoc tags.
   ([#574](https://github.com/open-telemetry/weaver/pull/574) by @trask).
 * For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability
   on: Attributes, Enum members in attributes, Event AnyValues, Enum members in AnyValues. ([#568](https://github.com/open-telemetry/weaver/pull/568) by @jerbly).
-* For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly). 
+* For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly).
 * Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
 * Add is_array filter and test for AttributeType. ([#540](https://github.com/open-telemetry/weaver/pull/540) by @arthurDiff).
 * Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for
@@ -60,7 +60,7 @@ What's changed
   `semconv_signal`, `semconv_grouped_attributes`, and other `semconv_*` JQ semconv helpers. When `stable_only` is set to `true`,
   corresponding helper function returns stable conventions only. If the flag is not set or set to false, stability filtering does not apply.
   It's recommended to use `stable_only` flag instead of `exclude_stability` parameter.
-  ([#588](https://github.com/open-telemetry/weaver/pull/588) by @lmolkova)  
+  ([#588](https://github.com/open-telemetry/weaver/pull/588) by @lmolkova)
 
 ## [0.12.0] - 2024-12-09
 
