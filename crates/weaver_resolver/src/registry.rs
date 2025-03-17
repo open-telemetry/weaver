@@ -198,7 +198,7 @@ pub fn check_root_attribute_id_duplicates(
     registry
         .groups
         .iter()
-        .filter(|group| group.r#type == Some(weaver_semconv::group::GroupType::AttributeGroup))
+        .filter(|group| group.r#type == weaver_semconv::group::GroupType::AttributeGroup)
         .for_each(|group| {
             // Iterate over all attribute references in the group.
             for attr_ref in group.attributes.iter() {
@@ -864,7 +864,7 @@ groups:
 
         // Scan over all the metrics
         let mut metric_count = 0;
-        for metric in resolved_registry.groups(Some(GroupType::Metric)) {
+        for metric in resolved_registry.groups(GroupType::Metric) {
             metric_count += 1;
             let _resolved_attributes = metric.attributes(catalog)?;
             // Do something with the resolved attributes.
@@ -876,7 +876,7 @@ groups:
 
         // Scan over all the spans
         let mut span_count = 0;
-        for span in resolved_registry.groups(Some(GroupType::Span)) {
+        for span in resolved_registry.groups(GroupType::Span) {
             span_count += 1;
             let _resolved_attributes = span.attributes(catalog)?;
             // Do something with the resolved attributes.

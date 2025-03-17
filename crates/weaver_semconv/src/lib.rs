@@ -117,7 +117,7 @@ pub enum Error {
     },
 
     /// The semantic convention spec contains an invalid group definition. Group missing type.
-    #[error("Invalid Span group '{group_id}', missing type, detected while resolving '{path_or_url:?}'. {error}")]
+    #[error("Invalid group '{group_id}', missing type, detected while resolving '{path_or_url:?}'. {error}")]
     #[diagnostic(severity(Warning))]
     InvalidGroupMissingType {
         /// The path or URL of the semantic convention asset.

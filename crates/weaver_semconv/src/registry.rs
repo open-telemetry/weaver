@@ -244,8 +244,7 @@ impl SemConvRegistry {
                 .iter()
                 .flat_map(|sc| sc.spec.groups.iter().map(|g| g.r#type.clone()))
                 .fold(HashMap::new(), |mut acc, group_type| {
-                    *acc.entry(group_type.expect("group type is required"))
-                        .or_insert(0) += 1;
+                    *acc.entry(group_type).or_insert(0) += 1;
                     acc
                 }),
             attribute_count: self.attributes.len(),
@@ -300,7 +299,7 @@ mod tests {
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
-                        r#type: Some(GroupType::AttributeGroup),
+                        r#type: GroupType::AttributeGroup,
                         attributes: vec![AttributeSpec::Id {
                             id: "attr1".to_owned(),
                             r#type: AttributeType::PrimitiveOrArray(
@@ -339,7 +338,7 @@ mod tests {
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
-                        r#type: Some(GroupType::AttributeGroup),
+                        r#type: GroupType::AttributeGroup,
                         attributes: vec![],
                         span_kind: None,
                         prefix: "".to_owned(),

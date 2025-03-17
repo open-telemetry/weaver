@@ -26,7 +26,8 @@ pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
     /// The type of the semantic convention.
-    pub r#type: Option<GroupType>,
+    #[serde(default)]
+    pub r#type: GroupType,
     /// A brief description of the semantic convention.
     pub brief: String,
     /// A more elaborate description of the semantic convention.
@@ -108,7 +109,7 @@ impl GroupSpec {
         }
 
         // Field stability is required for all group types except attribute group.
-        if self.r#type != Some(GroupType::AttributeGroup) && self.stability.is_none() {
+        if self.r#type != GroupType::AttributeGroup && self.stability.is_none() {
             errors.push(Error::InvalidGroupStability {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
@@ -130,8 +131,8 @@ impl GroupSpec {
         validate_duplicate_attribute_ref(&mut errors, &self.attributes, &self.id, path_or_url);
 
         // All types, except metric and event, must have extends or attributes or both.
-        if self.r#type != Some(GroupType::Metric)
-            && self.r#type != Some(GroupType::Event)
+        if self.r#type != GroupType::Metric
+            && self.r#type != GroupType::Event
             && self.extends.is_none()
             && self.attributes.is_empty()
         {
@@ -143,7 +144,7 @@ impl GroupSpec {
         }
 
         // Fields span_kind and events are only valid if type is span.
-        if self.r#type.is_some() && self.r#type != Some(GroupType::Span) {
+        if self.r#type != GroupType::Span && self.r#type != GroupType::Undefined {
             if self.span_kind.is_some() {
                 errors.push(Error::InvalidGroup {
                     path_or_url: path_or_url.to_owned(),
@@ -163,7 +164,7 @@ impl GroupSpec {
         }
 
         // Group type is required.
-        if self.r#type.is_none() {
+        if self.r#type == GroupType::Undefined {
             errors.push(Error::InvalidGroupMissingType {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
@@ -172,7 +173,7 @@ impl GroupSpec {
         }
 
         // Span kind is required if type is span.
-        if self.r#type == Some(GroupType::Span) && self.span_kind.is_none() {
+        if self.r#type == GroupType::Span && self.span_kind.is_none() {
             errors.push(Error::InvalidSpanMissingSpanKind {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
@@ -181,7 +182,7 @@ impl GroupSpec {
         }
 
         // Field name is required if prefix is empty and if type is event.
-        if self.r#type == Some(GroupType::Event) {
+        if self.r#type == GroupType::Event {
             if self.body.is_some() && self.name.is_none() {
                 // Must have a name which is assigned to event.name for log based events
                 errors.push(Error::InvalidGroup {
@@ -223,7 +224,7 @@ impl GroupSpec {
         }
 
         // Fields metric_name, instrument and unit are required if type is metric.
-        if self.r#type == Some(GroupType::Metric) {
+        if self.r#type == GroupType::Metric {
             if self.metric_name.is_none() {
                 errors.push(Error::InvalidMetric {
                     path_or_url: path_or_url.to_owned(),
@@ -514,6 +515,17 @@ pub enum GroupType {
     Resource,
     /// Scope.
     Scope,
+    /// Undefined group type.
+    Undefined,
+}
+
+impl Default for GroupType {
+    /// Returns the default convention type.
+    /// The Undefined type is used to indicate that the type is not set.
+    /// This is used for validation purposes.
+    fn default() -> Self {
+        Self::Undefined
+    }
 }
 
 /// The span kind.
@@ -579,7 +591,7 @@ mod tests {
     fn test_validate_group() {
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::Span),
+            r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
             prefix: "".to_owned(),
@@ -643,7 +655,7 @@ mod tests {
         );
 
         // Group type is missing on a group.
-        group.r#type = None;
+        group.r#type = GroupType::Undefined;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupMissingType {
@@ -656,7 +668,7 @@ mod tests {
 
         // Span kind is set but the type is not span.
         group.span_kind = Some(SpanKindSpec::Client);
-        group.r#type = Some(GroupType::Metric);
+        group.r#type = GroupType::Metric;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(CompoundError(vec![
@@ -694,7 +706,7 @@ mod tests {
         );
 
         // Field name is required if prefix is empty and if type is event.
-        group.r#type = Some(GroupType::Event);
+        group.r#type = GroupType::Event;
         "".clone_into(&mut group.prefix);
         group.name = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
@@ -725,7 +737,7 @@ mod tests {
     fn test_validate_attribute() {
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::Span),
+            r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
             prefix: "".to_owned(),
@@ -954,7 +966,7 @@ mod tests {
     fn test_allow_custom_values() {
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::Span),
+            r#type: GroupType::Span,
             brief: "test".to_owned(),
             note: "test".to_owned(),
             prefix: "".to_owned(),
@@ -1030,7 +1042,7 @@ mod tests {
     fn test_validate_event() {
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::Event),
+            r#type: GroupType::Event,
             name: Some("test_event".to_owned()),
             brief: "test".to_owned(),
             note: "test".to_owned(),
@@ -1246,7 +1258,7 @@ mod tests {
     fn test_validate_event_stability() {
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::Event),
+            r#type: GroupType::Event,
             name: Some("test_event".to_owned()),
             brief: "test".to_owned(),
             note: "test".to_owned(),
@@ -1384,7 +1396,7 @@ mod tests {
     fn test_validate_group_stability() {
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::AttributeGroup),
+            r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
             note: "test".to_owned(),
             prefix: "".to_owned(),
@@ -1422,7 +1434,7 @@ mod tests {
             .is_ok());
 
         // all other group types must have a stability field.
-        group.r#type = Some(GroupType::Span);
+        group.r#type = GroupType::Span;
         group.span_kind = Some(SpanKindSpec::Client);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1440,7 +1452,7 @@ mod tests {
             .is_ok());
 
         group.stability = None;
-        group.r#type = Some(GroupType::Resource);
+        group.r#type = GroupType::Resource;
         group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1459,7 +1471,7 @@ mod tests {
 
         group.stability = None;
 
-        group.r#type = Some(GroupType::Scope);
+        group.r#type = GroupType::Scope;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1477,7 +1489,7 @@ mod tests {
 
         group.stability = None;
 
-        group.r#type = Some(GroupType::Metric);
+        group.r#type = GroupType::Metric;
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
@@ -1498,7 +1510,7 @@ mod tests {
 
         group.stability = None;
 
-        group.r#type = Some(GroupType::Event);
+        group.r#type = GroupType::Event;
         group.name = Some("test".to_owned());
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1517,7 +1529,7 @@ mod tests {
 
         group.stability = None;
 
-        group.r#type = Some(GroupType::MetricGroup);
+        group.r#type = GroupType::MetricGroup;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1566,7 +1578,7 @@ mod tests {
         }];
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::AttributeGroup),
+            r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
             note: "test".to_owned(),
             prefix: "".to_owned(),
@@ -1611,7 +1623,7 @@ mod tests {
         group.extends = None;
 
         // Span must have extends or attributes.
-        group.r#type = Some(GroupType::Span);
+        group.r#type = GroupType::Span;
         group.span_kind = Some(SpanKindSpec::Client);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1638,7 +1650,7 @@ mod tests {
         group.extends = None;
 
         // Resource must have extends or attributes.
-        group.r#type = Some(GroupType::Resource);
+        group.r#type = GroupType::Resource;
         group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1665,7 +1677,7 @@ mod tests {
         group.extends = None;
 
         // Metrics DO NOT need extends or attributes.
-        group.r#type = Some(GroupType::Metric);
+        group.r#type = GroupType::Metric;
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
@@ -1675,7 +1687,7 @@ mod tests {
             .is_ok());
 
         // Events DO NOT need extends or attributes.
-        group.r#type = Some(GroupType::Event);
+        group.r#type = GroupType::Event;
         group.name = Some("test".to_owned());
         assert!(group
             .validate("<test>")
@@ -1715,7 +1727,7 @@ mod tests {
         ];
         let mut group = GroupSpec {
             id: "test".to_owned(),
-            r#type: Some(GroupType::AttributeGroup),
+            r#type: GroupType::AttributeGroup,
             brief: "test".to_owned(),
             note: "test".to_owned(),
             prefix: "".to_owned(),
