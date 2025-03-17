@@ -22,7 +22,6 @@ use weaver_common::result::WResult;
 /// metrics, events, spans, etc.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
-#[derive(Default)]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
