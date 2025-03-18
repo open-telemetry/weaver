@@ -10,6 +10,9 @@ use std::fmt::{Display, Formatter};
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Stability {
+    /// A deprecated definition.
+    #[deprecated(note = "This stability level is deprecated.")]
+    Deprecated,
     /// A stable definition.
     Stable,
     /// A definition in development. Formally known as experimental.
@@ -32,6 +35,7 @@ impl Display for Stability {
             Stability::Alpha => write!(f, "alpha"),
             Stability::Beta => write!(f, "beta"),
             Stability::ReleaseCandidate => write!(f, "release_candidate"),
+            Stability::Deprecated => write!(f, "deprecated"),
         }
     }
 }
@@ -43,6 +47,9 @@ mod tests {
 
     #[test]
     fn test_deserialize_stability() {
+        let deprecated: Stability = serde_json::from_str("\"deprecated\"").unwrap();
+        assert_eq!(deprecated, Stability::Deprecated);
+
         let stable: Stability = serde_json::from_str("\"stable\"").unwrap();
         assert_eq!(stable, Stability::Stable);
 
