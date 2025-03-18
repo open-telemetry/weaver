@@ -122,6 +122,7 @@ pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
     args: &RegistryHealthArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
+    let mut exit_code = 0;
     let mut output = PathBuf::from("output");
     let output_directive = if let Some(path_buf) = &args.output {
         output = path_buf.clone();
@@ -204,6 +205,10 @@ pub(crate) fn command(
     let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 
     let results = health_checker.check_attributes();
+    // Set the exit_code to a non-zero code if there are any violations
+    if results.has_violations() {
+        exit_code = 1;
+    }
 
     logger.success(&format!(
         "Performed health check for registry `{}`",
@@ -253,7 +258,7 @@ pub(crate) fn command(
     }
 
     Ok(ExitDirectives {
-        exit_code: 0,
+        exit_code,
         quiet_mode: args.output.is_none(),
     })
 }

@@ -13,7 +13,7 @@ use weaver_semconv::{
 use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute};
 
 /// The advisory level of an advice
-#[derive(Debug, Clone, PartialEq, Serialize, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, PartialEq, Serialize, PartialOrd, Ord, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Advisory {
     /// Useful context without action needed
@@ -51,6 +51,10 @@ pub trait Advisor {
     // Provide an overall summary of the advice e.g. LengthyAttributeNameAdvisor
     // could provide statistics on the length of the attribute names: min, max, avg
     // Each statistic would be an Advice with a key like "min_length", "max_length", "avg_length"
+
+    //TODO init(&self, health_checker: &AttributeHealthChecker) -> Result<(), Error>;
+    // Initialize the advisor with the health checker
+    // This could be used to precompute some data that is used in the advise method
 }
 
 /// An advisor that checks if an attribute is deprecated

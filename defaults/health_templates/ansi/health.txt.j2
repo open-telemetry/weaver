@@ -1,7 +1,22 @@
 
 {{ ("Health Report") | ansi_bright_white | ansi_bold }}
+{{ ("=============") | ansi_bright_white | ansi_bold }}
 
-{% for result in ctx %}
+{{ ("Attribute samples") | ansi_blue | ansi_bold }}
+  - total: {{ ctx.statistics.total_attributes }}
+  - no advice: {{ ctx.statistics.no_advice_count }}
+{% for key, value in ctx.statistics.highest_advisory_counts.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+
+{{ ("Advisories given") | ansi_blue | ansi_bold }}
+  - total: {{ ctx.statistics.total_advisories }}
+{% for key, value in ctx.statistics.advisory_counts.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+
+
+{% for result in ctx.attributes %}
 {% set highest_advisory = result.highest_advisory %}
 {% if highest_advisory == "information" or not highest_advisory %}
 {{ result.sample_attribute.name | ansi_bright_green }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}

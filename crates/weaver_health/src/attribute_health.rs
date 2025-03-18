@@ -115,8 +115,18 @@ impl AttributeHealthChecker {
 
     /// Run advisors on every attribute in the list
     #[must_use]
-    pub fn check_attributes(&self) -> Vec<HealthAttribute> {
-        let mut results = Vec::new();
+    pub fn check_attributes(&self) -> HealthReport {
+        let mut health_report = HealthReport {
+            attributes: Vec::new(),
+            statistics: HealthStatistics {
+                total_attributes: 0,
+                total_advisories: 0,
+                advisory_counts: HashMap::new(),
+                highest_advisory_counts: HashMap::new(),
+                no_advice_count: 0,
+            },
+        };
+
         for sample_attribute in self.sample_attributes.iter() {
             // clone the sample attribute into the result
             let mut attribute_result = HealthAttribute::new(sample_attribute.clone());
@@ -158,9 +168,39 @@ impl AttributeHealthChecker {
                 }
             }
 
-            results.push(attribute_result);
+            // Update statistics
+            health_report.statistics.total_attributes += 1;
+
+            // Count of advisories by type
+            for advice in &attribute_result.all_advice {
+                // Count of total advisories
+                health_report.statistics.total_advisories += 1;
+
+                let advisory_count = health_report
+                    .statistics
+                    .advisory_counts
+                    .entry(advice.advisory.clone())
+                    .or_insert(0);
+                *advisory_count += 1;
+            }
+
+            // Count of attributes with the highest advisory level
+            if let Some(highest_advisory) = &attribute_result.highest_advisory {
+                let highest_advisory_count = health_report
+                    .statistics
+                    .highest_advisory_counts
+                    .entry(highest_advisory.clone())
+                    .or_insert(0);
+                *highest_advisory_count += 1;
+            }
+
+            // Count of attributes with no advice
+            if attribute_result.all_advice.is_empty() {
+                health_report.statistics.no_advice_count += 1;
+            }
+            health_report.attributes.push(attribute_result);
         }
-        results
+        health_report
     }
 }
 
@@ -198,6 +238,42 @@ impl HealthAttribute {
         }
         self.all_advice.push(advice);
     }
+}
+
+/// A health report for a set of attributes
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct HealthReport {
+    /// The health attributes
+    pub attributes: Vec<HealthAttribute>,
+    /// The statistics for the report
+    pub statistics: HealthStatistics,
+    // The conclusion for each advisor
+    // TODO pub conclusions: Vec<Conclusion>,
+}
+
+impl HealthReport {
+    /// Return true if there are any violations in the report
+    #[must_use]
+    pub fn has_violations(&self) -> bool {
+        self.statistics
+            .highest_advisory_counts
+            .contains_key(&Advisory::Violation)
+    }
+}
+
+/// The statistics for a health report
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct HealthStatistics {
+    /// The total number of attributes
+    pub total_attributes: usize,
+    /// The total number of advisories
+    pub total_advisories: usize,
+    /// The number of each advisory level
+    pub advisory_counts: HashMap<Advisory, usize>,
+    /// The number of attributes with each highest advisory level
+    pub highest_advisory_counts: HashMap<Advisory, usize>,
+    /// The number of attributes with no advice
+    pub no_advice_count: usize,
 }
 
 #[cfg(test)]
@@ -415,7 +491,8 @@ mod tests {
 
         let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
 
-        let results = health_checker.check_attributes();
+        let report = health_checker.check_attributes();
+        let results = report.attributes;
 
         assert_eq!(results.len(), 10);
 
@@ -553,5 +630,18 @@ mod tests {
             Value::String("int".to_owned())
         );
         assert_eq!(results[9].all_advice[1].message, "Type should be `string`");
+
+        // Check statistics
+        let stats = report.statistics;
+        assert_eq!(stats.total_attributes, 10);
+        assert_eq!(stats.total_advisories, 15);
+        assert_eq!(stats.advisory_counts.len(), 3);
+        assert_eq!(stats.advisory_counts[&Advisory::Violation], 10);
+        assert_eq!(stats.advisory_counts[&Advisory::Information], 3);
+        assert_eq!(stats.advisory_counts[&Advisory::Improvement], 2);
+        assert_eq!(stats.highest_advisory_counts.len(), 2);
+        assert_eq!(stats.highest_advisory_counts[&Advisory::Violation], 7);
+        assert_eq!(stats.highest_advisory_counts[&Advisory::Information], 1);
+        assert_eq!(stats.no_advice_count, 2);
     }
 }
