@@ -274,7 +274,7 @@ impl GroupSpec {
                             attribute_id: attribute.id(),
                             error: "Missing stability field.".to_owned(),
                         });
-                    } else if stability.clone().unwrap() == Stability::Deprecated {
+                    } else if stability.clone() == Some(Stability::Deprecated) {
                         errors.push(Error::InvalidAttributeWarning {
                             path_or_url: path_or_url.to_owned(),
                             group_id: self.id.clone(),
