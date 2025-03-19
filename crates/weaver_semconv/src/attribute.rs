@@ -81,6 +81,10 @@ pub enum AttributeSpec {
         #[serde(default)]
         #[serde(skip_serializing_if = "<&bool>::not")]
         prefix: bool,
+        /// Specifies the rename of the attribute.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        rename: Option<String>,
+
     },
     /// Attribute definition.
     Id {
@@ -912,6 +916,7 @@ mod tests {
                 note: "".to_owned(),
             }),
             prefix: false,
+            rename: None,
         };
         assert_eq!(attr.id(), "ref");
         assert_eq!(attr.brief(), "brief");
