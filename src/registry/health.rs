@@ -378,6 +378,24 @@ impl Ingester<&OtlpConfig, Vec<SampleAttribute>> for AttributeOtlpIngester {
                                         r#type: None,
                                     });
                                 }
+                                for event in span.events {
+                                    for attribute in event.attributes {
+                                        result.push(SampleAttribute {
+                                            name: attribute.key,
+                                            value: Self::maybe_to_json(attribute.value),
+                                            r#type: None,
+                                        });
+                                    }
+                                }
+                                for link in span.links {
+                                    for attribute in link.attributes {
+                                        result.push(SampleAttribute {
+                                            name: attribute.key,
+                                            value: Self::maybe_to_json(attribute.value),
+                                            r#type: None,
+                                        });
+                                    }
+                                }
                             }
                         }
                     }
