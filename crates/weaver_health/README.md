@@ -178,3 +178,22 @@ code.function
 thing.blah
 EOF
 ```
+
+Using `emit` for a round-trip test:
+
+```sh
+weaver registry health --ingester ao -r ../semantic-conventions/model --output ./outdir &
+HEALTH_PID=$!
+sleep 3
+weaver registry emit -r ../semantic-conventions/model --skip-policies
+kill -HUP $HEALTH_PID
+wait $HEALTH_PID
+```
+
+Vendor example: Health check column names in a Honeycomb dataset
+
+```sh
+curl -s -X GET 'https://api.honeycomb.io/1/columns/{dataset}' -H 'X-Honeycomb-Team: {API_KEY}' \
+| jq -r '.[].key_name' \
+| weaver registry health --ingester as -r ../semantic-conventions/model
+```
