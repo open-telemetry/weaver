@@ -41,6 +41,10 @@
 		}
 	},
 	"$defs": {
+		"annotations": {
+			"type": "object",
+			"additionalProperties": true
+		},
 		"Deprecated": {
 			"description": "Specifies if an attribute or a signal is deprecated.",
 			"oneOf": [
@@ -199,6 +203,9 @@
 							"$ref": "#/$defs/StabilityLevel"
 						}
 					]
+				},
+				"annotations": {
+					"$ref": "#/$defs/annotations"
 				}
 			}
 		},
@@ -668,6 +675,9 @@
 								}
 							],
 							"description": "sequence/dictionary of example values for the attribute. They are optional for boolean, int, double, and enum attributes. Example values must be of the same type of the attribute. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary."
+						},
+						"annotations": {
+							"$ref": "#/$defs/annotations"
 						}
 					}
 				},

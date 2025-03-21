@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::YamlValue;
 
 /// Attribute lineage (at the field level).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -369,6 +370,32 @@ impl AttributeLineage {
         } else {
             if parent_value.is_some() {
                 _ = self.inherited_fields.insert("tag".to_owned());
+            }
+            parent_value.clone()
+        }
+    }
+
+    /// Determines the value of the annotations field by evaluating the presence of
+    /// a local value. If a local value is provided, it is used, and the annotations
+    /// field's lineage is marked as local. Otherwise, the specified parent
+    /// value is used, and the tag field's lineage is marked as inherited
+    /// from the parent.
+    /// This method updates the lineage information for the annotations field to
+    /// reflect the source of its value.
+    pub fn annotations(
+        &mut self,
+        local_value: &Option<BTreeMap<String, YamlValue>>,
+        parent_value: &Option<BTreeMap<String, YamlValue>>,
+    ) -> Option<BTreeMap<String, YamlValue>> {
+        if local_value.is_some() {
+            _ = self
+                .locally_overridden_fields
+                .insert("annotations".to_owned());
+            _ = self.inherited_fields.remove("annotations");
+            local_value.clone()
+        } else {
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("annotations".to_owned());
             }
             parent_value.clone()
         }

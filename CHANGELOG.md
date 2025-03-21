@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [TBD] - TBD
+
+What's changed
+
+* Add support for annotations on attributes and groups. ([#645](https://github.com/open-telemetry/weaver/pull/645) by @lquerel).
+
 ## [0.13.2] - 2025-02-13
 
 What's changed

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "attr1",
+    "type": "string",
+    "brief": "Brief",
+    "examples": "eu-central-1",
+    "requirement_level": "required",
+    "note": "Note",
+    "stability": "stable",
+    "annotations": {
+      "code_generation": {
+        "exclude": true
+      },
+      "privacy_sensitivity": "PII"
+    }
+  },
+  {
+    "name": "attr1",
+    "type": "string",
+    "brief": "Brief",
+    "examples": "eu-central-1",
+    "requirement_level": "required",
+    "note": "Note",
+    "stability": "stable",
+    "annotations": {
+      "code_generation": {
+        "exclude": true
+      },
+      "privacy_sensitivity": "PII + PHI",
+      "complex": {
+        "key1": "string",
+        "key2": 234,
+        "key3": true,
+        "key4": {
+          "key4.1": "string",
+          "key4.2": 234
+        },
+        "key5": [
+          12,
+          45,
+          67
+        ],
+        "key6": null
+      }
+    }
+  }
+]

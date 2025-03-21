@@ -183,6 +183,7 @@ mod tests {
             prefix: false,
             tags: None,
             value: None,
+            annotations: None,
         }
     }
 

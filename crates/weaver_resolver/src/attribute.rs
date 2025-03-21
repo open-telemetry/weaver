@@ -91,6 +91,7 @@ impl AttributeCatalog {
                 stability,
                 deprecated,
                 prefix,
+                annotations,
             } => {
                 let name;
                 let root_attr = self.root_attributes.get(r#ref);
@@ -129,6 +130,8 @@ impl AttributeCatalog {
                         tags: root_attr.attribute.tags.clone(),
                         value: root_attr.attribute.value.clone(),
                         prefix: *prefix,
+                        annotations: attr_lineage
+                            .annotations(annotations, &root_attr.attribute.annotations),
                     };
 
                     let attr_ref = self.attribute_ref(resolved_attr.clone());
@@ -167,6 +170,7 @@ impl AttributeCatalog {
                 note,
                 stability,
                 deprecated,
+                annotations,
             } => {
                 // Create a fully resolved attribute from an attribute spec (id),
                 // and check if it already exists in the catalog.
@@ -186,6 +190,7 @@ impl AttributeCatalog {
                     tags: None,
                     value: None,
                     prefix: false,
+                    annotations: annotations.clone(),
                 };
 
                 _ = self.root_attributes.insert(

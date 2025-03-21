@@ -7,10 +7,11 @@
 use crate::any_value::AnyValueSpec;
 use crate::deprecated::Deprecated;
 use crate::stability::Stability;
-use crate::Error;
+use crate::{Error, YamlValue};
 use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
 use weaver_common::result::WResult;
@@ -81,6 +82,8 @@ pub enum AttributeSpec {
         #[serde(default)]
         #[serde(skip_serializing_if = "<&bool>::not")]
         prefix: bool,
+        /// Annotations for the attribute.
+        annotations: Option<BTreeMap<String, YamlValue>>,
     },
     /// Attribute definition.
     Id {
@@ -133,6 +136,8 @@ pub enum AttributeSpec {
             default
         )]
         deprecated: Option<Deprecated>,
+        /// Annotations for the attribute.
+        annotations: Option<BTreeMap<String, YamlValue>>,
     },
 }
 
@@ -892,6 +897,7 @@ mod tests {
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
+            annotations: None,
         };
         assert_eq!(attr.id(), "id");
         assert_eq!(attr.brief(), "brief");
@@ -912,6 +918,7 @@ mod tests {
                 note: "".to_owned(),
             }),
             prefix: false,
+            annotations: None,
         };
         assert_eq!(attr.id(), "ref");
         assert_eq!(attr.brief(), "brief");
