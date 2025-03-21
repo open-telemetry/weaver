@@ -279,7 +279,7 @@ pub struct HealthStatistics {
 #[cfg(test)]
 mod tests {
     use crate::attribute_advice::{
-        CorrectCaseAdvisor, DeprecatedAdvisor, EnumAdvisor, NamespaceAdvisor, StabilityAdvisor,
+        DeprecatedAdvisor, EnumAdvisor, NameFormatAdvisor, NamespaceAdvisor, StabilityAdvisor,
         TypeAdvisor,
     };
 
@@ -482,7 +482,7 @@ mod tests {
 
         let advisors: Vec<Box<dyn Advisor>> = vec![
             Box::new(DeprecatedAdvisor),
-            Box::new(CorrectCaseAdvisor),
+            Box::new(NameFormatAdvisor::default()),
             Box::new(StabilityAdvisor),
             Box::new(NamespaceAdvisor),
             Box::new(TypeAdvisor),
@@ -508,9 +508,15 @@ mod tests {
             results[1].all_advice[0].message,
             "Does not exist in the registry"
         );
-        assert_eq!(results[1].all_advice[1].key, "correct_case");
-        assert_eq!(results[1].all_advice[1].value, Value::Bool(false));
-        assert_eq!(results[1].all_advice[1].message, "Is not in snake case");
+        assert_eq!(results[1].all_advice[1].key, "invalid_format");
+        assert_eq!(
+            results[1].all_advice[1].value,
+            Value::String("testString2".to_owned())
+        );
+        assert_eq!(
+            results[1].all_advice[1].message,
+            "Does not match name formatting rules"
+        );
         assert_eq!(results[1].all_advice[2].key, "missing_namespace");
         assert_eq!(
             results[1].all_advice[2].value,

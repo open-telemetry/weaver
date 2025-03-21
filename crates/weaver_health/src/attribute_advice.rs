@@ -1,6 +1,5 @@
 // Pluggable advisors
 
-use convert_case::{Boundary, Case, Casing};
 use serde::Serialize;
 use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
@@ -111,9 +110,27 @@ impl Advisor for StabilityAdvisor {
     }
 }
 
-/// An advisor that checks if an attribute is in snake case
-pub struct CorrectCaseAdvisor;
-impl Advisor for CorrectCaseAdvisor {
+/// An advisor that checks if an attribute matches name formatting rules
+pub struct NameFormatAdvisor {
+    regex: regex::Regex,
+}
+impl NameFormatAdvisor {
+    #[must_use]
+    /// Create a new NameFormatAdvisor
+    pub fn new() -> Self {
+        NameFormatAdvisor {
+            regex: regex::Regex::new(r"^[a-z][a-z0-9]*([._][a-z0-9]+)*$")
+                .expect("regex pattern must be valid"),
+        }
+    }
+}
+impl Default for NameFormatAdvisor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Advisor for NameFormatAdvisor {
     fn advise(
         &self,
         attribute: &SampleAttribute,
@@ -125,16 +142,11 @@ impl Advisor for CorrectCaseAdvisor {
             return None;
         }
 
-        let is_snake_case = attribute
-            .name
-            .without_boundaries(&Boundary::defaults())
-            .to_case(Case::Snake)
-            == attribute.name;
-        if !is_snake_case {
+        if !self.regex.is_match(&attribute.name) {
             Some(Advice {
-                key: "correct_case".to_owned(),
-                value: Value::Bool(false),
-                message: "Is not in snake case".to_owned(),
+                key: "invalid_format".to_owned(),
+                value: Value::String(attribute.name.clone()),
+                message: "Does not match name formatting rules".to_owned(),
                 advisory: Advisory::Violation,
             })
         } else {

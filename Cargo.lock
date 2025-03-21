@@ -5389,8 +5389,8 @@ dependencies = [
 name = "weaver_health"
 version = "0.13.2"
 dependencies = [
- "convert_case",
  "miette",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",
