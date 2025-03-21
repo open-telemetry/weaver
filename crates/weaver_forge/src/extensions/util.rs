@@ -19,6 +19,7 @@ pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfi
     env.add_filter("flatten", flatten);
     env.add_filter("split_id", split_id);
     env.add_filter("regex_replace", regex_replace);
+    env.add_filter("to_yaml", to_yaml);
 }
 
 /// Add utility functions to the environment.
@@ -131,6 +132,16 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
     }
 }
 
+fn to_yaml(value: Value) -> Result<String, minijinja::Error> {
+    let value = serde_json::to_value(value)
+        .map_err(|error| minijinja::Error::new(ErrorKind::BadSerialization, error.to_string()))?;
+
+    let yaml = serde_yaml::to_string(&value)
+        .map_err(|error| minijinja::Error::new(ErrorKind::BadSerialization, error.to_string()))?;
+
+    Ok(yaml)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::extensions::util::add_filters;
@@ -157,6 +168,43 @@ mod tests {
             )
             .unwrap(),
             "This A test with multiple A's"
+        );
+    }
+
+    #[test]
+    fn test_to_yaml() {
+        let mut env = Environment::new();
+        let ctx = serde_json::json!({
+            "user": {
+                "name": "Alice",
+                "age": 30,
+                "is_active": true,
+                "skills": ["Rust", "JavaScript"],
+                "details": {
+                    "city": "Wonderland",
+                    "email": "alice@example.com"
+                }
+            }
+        });
+        let config = crate::config::WeaverConfig::default();
+
+        add_filters(&mut env, &config);
+
+        let expected_yaml = "\
+age: 30
+details:
+  city: Wonderland
+  email: alice@example.com
+is_active: true
+name: Alice
+skills:
+- Rust
+- JavaScript
+";
+
+        assert_eq!(
+            env.render_str("{{ user | to_yaml }}", &ctx).unwrap(),
+            expected_yaml
         );
     }
 }
