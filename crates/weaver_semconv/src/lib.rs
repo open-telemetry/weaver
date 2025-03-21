@@ -113,6 +113,18 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention spec contains an invalid group definition. Group missing type.
+    #[error("Invalid group '{group_id}', missing type, detected while resolving '{path_or_url:?}'. {error}")]
+    #[diagnostic(severity(Warning))]
+    InvalidGroupMissingType {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id.
+        group_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention spec contains an invalid group definition. Span missing span_kind.
     #[error("Invalid Span group '{group_id}', missing span_kind, detected while resolving '{path_or_url:?}'. {error}")]
     #[diagnostic(severity(Warning))]
@@ -202,6 +214,17 @@ pub enum Error {
     #[error("The group `{group_id}` defines a prefix. These are no longer used.\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Warning))]
     InvalidGroupUsesPrefix {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        group_id: String,
+    },
+
+    /// This warning indicates usage of `constraint` on a group.
+    /// With the `--future` flag, this warning is elevated to an error.
+    #[error("The group `{group_id}` defines constraints. These are no longer used.\nProvenance: {path_or_url:?}")]
+    #[diagnostic(severity(Warning))]
+    InvalidGroupUsesConstraints {
         /// The path or URL of the semantic convention asset.
         path_or_url: String,
         /// The group id of the attribute.
