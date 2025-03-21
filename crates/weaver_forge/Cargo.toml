@@ -18,7 +18,7 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "2.5.0", features = [
+minijinja = { version = "2.8.0", features = [
     "loader",
     "custom_syntax",
     "debug",
@@ -26,7 +26,7 @@ minijinja = { version = "2.5.0", features = [
     "urlencode",
     "macros",
 ] }
-minijinja-contrib = { version = "2.7.0", features = ["pycompat"] }
+minijinja-contrib = { version = "2.8.0", features = ["pycompat"] }
 convert_case = "0.7.1"
 jaq-core = "2.1.1"
 jaq-std = "2.0.0"
