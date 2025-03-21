@@ -2,6 +2,10 @@
 
 //! Functions to resolve a semantic convention registry.
 
+use crate::attribute::AttributeCatalog;
+use crate::constraint::resolve_constraints;
+use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
+use crate::{Error, UnsatisfiedAnyOfConstraint};
 use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -15,11 +19,6 @@ use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::GroupSpecWithProvenance;
 use weaver_semconv::registry::SemConvRegistry;
-
-use crate::attribute::AttributeCatalog;
-use crate::constraint::resolve_constraints;
-use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
-use crate::{Error, UnsatisfiedAnyOfConstraint};
 
 /// A registry containing unresolved groups.
 #[derive(Debug, Deserialize)]
@@ -406,6 +405,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             lineage: Some(GroupLineage::new(&group.provenance)),
             display_name: group.spec.display_name,
             body: group.spec.body,
+            annotations: group.spec.annotations,
         },
         attributes: attrs,
         provenance: group.provenance,
@@ -766,6 +766,7 @@ fn resolve_inheritance_attr(
             stability,
             deprecated,
             prefix,
+            annotations,
         } => {
             match parent_attr {
                 AttributeSpec::Ref {
@@ -778,6 +779,7 @@ fn resolve_inheritance_attr(
                     stability: parent_stability,
                     deprecated: parent_deprecated,
                     prefix: parent_prefix,
+                    annotations: parent_annotations,
                     ..
                 } => {
                     // attr and attr_parent are both references.
@@ -796,6 +798,7 @@ fn resolve_inheritance_attr(
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
                         prefix: lineage.prefix(prefix, parent_prefix),
+                        annotations: lineage.annotations(annotations, parent_annotations),
                     }
                 }
                 AttributeSpec::Id {
@@ -808,6 +811,7 @@ fn resolve_inheritance_attr(
                     note: parent_note,
                     stability: parent_stability,
                     deprecated: parent_deprecated,
+                    annotations: parent_annotations,
                     ..
                 } => {
                     // attr is a reference and attr_parent is an id.
@@ -825,6 +829,7 @@ fn resolve_inheritance_attr(
                         note: lineage.note(note, parent_note),
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
+                        annotations: lineage.annotations(annotations, parent_annotations),
                     }
                 }
             }

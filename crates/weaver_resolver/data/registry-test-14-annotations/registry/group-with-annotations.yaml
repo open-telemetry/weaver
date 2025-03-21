@@ -1,0 +1,29 @@
+groups:
+  - id: attrs
+    type: attribute_group
+    brief: "Attributes"
+    attributes:
+      - id: attr1
+        stability: stable
+        type: string
+        requirement_level: required
+        brief: Brief
+        note: Note
+        examples: 'eu-central-1'
+        annotations:
+          code_generation:
+            exclude: true
+          privacy_sensitivity: PII
+    annotations:
+      code_generation:
+        exclude: true
+      privacy_sensitivity: PII
+  - id: attrs_ext
+    type: attribute_group
+    brief: "Attributes"
+    attributes:
+      - ref: attr1
+        annotations:
+          code_generation:
+            exclude: true
+          privacy_sensitivity: PII + PHI

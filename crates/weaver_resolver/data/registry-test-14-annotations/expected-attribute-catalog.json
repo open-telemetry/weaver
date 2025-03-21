@@ -1,0 +1,32 @@
+[
+  {
+    "name": "attr1",
+    "type": "string",
+    "brief": "Brief",
+    "examples": "eu-central-1",
+    "requirement_level": "required",
+    "note": "Note",
+    "stability": "stable",
+    "annotations": {
+      "code_generation": {
+        "exclude": true
+      },
+      "privacy_sensitivity": "PII"
+    }
+  },
+  {
+    "name": "attr1",
+    "type": "string",
+    "brief": "Brief",
+    "examples": "eu-central-1",
+    "requirement_level": "required",
+    "note": "Note",
+    "stability": "stable",
+    "annotations": {
+      "code_generation": {
+        "exclude": true
+      },
+      "privacy_sensitivity": "PII + PHI"
+    }
+  }
+]
