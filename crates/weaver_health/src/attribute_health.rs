@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use weaver_semconv::attribute::AttributeType;
 
 use weaver_forge::registry::ResolvedRegistry;
@@ -13,10 +13,10 @@ use crate::{
 
 /// Checks the health of attributes
 pub struct AttributeHealthChecker {
-    _registry: ResolvedRegistry, // Keeping this here for future use
+    /// The resolved registry
+    pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
     semconv_templates: HashMap<String, Attribute>,
-    semconv_namespaces: HashSet<String>,
     sample_attributes: Vec<SampleAttribute>,
     advisors: Vec<Box<dyn Advisor>>,
 }
@@ -32,7 +32,6 @@ impl AttributeHealthChecker {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
-        let mut semconv_namespaces = HashSet::new();
 
         for group in &registry.groups {
             for attribute in &group.attributes {
@@ -45,24 +44,20 @@ impl AttributeHealthChecker {
                             semconv_attributes.insert(attribute.name.clone(), attribute.clone());
                     }
                 }
-                // Extract namespace (everything to the left of the last dot)
-                // repeat until the last dot is found
-                let mut name = attribute.name.clone();
-                while let Some(last_dot_pos) = name.rfind('.') {
-                    let namespace = name[..last_dot_pos].to_string();
-                    let _ = semconv_namespaces.insert(namespace);
-                    name = name[..last_dot_pos].to_string();
-                }
             }
         }
         AttributeHealthChecker {
-            _registry: registry,
+            registry,
             semconv_attributes,
             semconv_templates,
-            semconv_namespaces,
             sample_attributes: attributes,
             advisors,
         }
+    }
+
+    /// Add an advisor
+    pub fn add_advisor(&mut self, advisor: Box<dyn Advisor>) {
+        self.advisors.push(advisor);
     }
 
     /// Find an attribute in the registry
@@ -74,48 +69,17 @@ impl AttributeHealthChecker {
     /// Find a template in the registry
     #[must_use]
     pub fn find_template(&self, attribute_name: &str) -> Option<&Attribute> {
-        if let Some(last_dot_pos) = attribute_name.rfind('.') {
-            let new_name = &attribute_name[..last_dot_pos];
-            if let Some(attribute) = self.semconv_templates.get(new_name) {
-                Some(attribute)
-            } else {
-                self.find_template(new_name)
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Find a namespace in the registry
-    #[must_use]
-    pub fn find_namespace(&self, namespace: &str) -> Option<String> {
-        let mut namespace = namespace.to_owned();
-        while !self.semconv_namespaces.contains(&namespace) {
-            if let Some(last_dot_pos) = namespace.rfind('.') {
-                namespace = namespace[..last_dot_pos].to_string();
-            } else {
-                return None;
+        for (template_name, attribute) in &self.semconv_templates {
+            if attribute_name.starts_with(template_name) {
+                return Some(attribute);
             }
         }
-        Some(namespace)
-    }
-
-    /// Find an attribute from a namespace search
-    #[must_use]
-    pub fn find_attribute_from_namespace(&self, namespace: &str) -> Option<&Attribute> {
-        if let Some(attribute) = self.find_attribute(namespace) {
-            Some(attribute)
-        } else if let Some(last_dot_pos) = namespace.rfind('.') {
-            let new_namespace = &namespace[..last_dot_pos];
-            self.find_attribute_from_namespace(new_namespace)
-        } else {
-            None
-        }
+        None
     }
 
     /// Run advisors on every attribute in the list
     #[must_use]
-    pub fn check_attributes(&self) -> HealthReport {
+    pub fn check_attributes(&mut self) -> HealthReport {
         let mut health_report = HealthReport {
             attributes: Vec::new(),
             statistics: HealthStatistics {
@@ -484,12 +448,13 @@ mod tests {
             Box::new(DeprecatedAdvisor),
             Box::new(NameFormatAdvisor::default()),
             Box::new(StabilityAdvisor),
-            Box::new(NamespaceAdvisor),
             Box::new(TypeAdvisor),
             Box::new(EnumAdvisor),
         ];
 
-        let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
+        let mut health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
+        let namespace_advisor = NamespaceAdvisor::new('.', &health_checker);
+        health_checker.add_advisor(Box::new(namespace_advisor));
 
         let report = health_checker.check_attributes();
         let results = report.attributes;

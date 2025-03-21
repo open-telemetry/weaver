@@ -1,5 +1,8 @@
 // Pluggable advisors
 
+use std::collections::HashSet;
+
+use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
 use weaver_resolved_schema::attribute::Attribute;
@@ -50,10 +53,6 @@ pub trait Advisor {
     // Provide an overall summary of the advice e.g. LengthyAttributeNameAdvisor
     // could provide statistics on the length of the attribute names: min, max, avg
     // Each statistic would be an Advice with a key like "min_length", "max_length", "avg_length"
-
-    //TODO init(&self, health_checker: &AttributeHealthChecker) -> Result<(), Error>;
-    // Initialize the advisor with the health checker
-    // This could be used to precompute some data that is used in the advise method
 }
 
 /// An advisor that checks if an attribute is deprecated
@@ -112,21 +111,20 @@ impl Advisor for StabilityAdvisor {
 
 /// An advisor that checks if an attribute matches name formatting rules
 pub struct NameFormatAdvisor {
-    regex: regex::Regex,
+    regex: Regex,
 }
 impl NameFormatAdvisor {
     #[must_use]
     /// Create a new NameFormatAdvisor
-    pub fn new() -> Self {
+    pub fn new(pattern: &str) -> Self {
         NameFormatAdvisor {
-            regex: regex::Regex::new(r"^[a-z][a-z0-9]*([._][a-z0-9]+)*$")
-                .expect("regex pattern must be valid"),
+            regex: Regex::new(pattern).expect("regex pattern must be valid"),
         }
     }
 }
 impl Default for NameFormatAdvisor {
     fn default() -> Self {
-        Self::new()
+        Self::new(r"^[a-z][a-z0-9]*([._][a-z0-9]+)*$")
     }
 }
 
@@ -155,8 +153,66 @@ impl Advisor for NameFormatAdvisor {
     }
 }
 
-/// An advisor that checks if an attribute has a namespace - a prefix before the first dot
-pub struct NamespaceAdvisor;
+/// An advisor that provides advice on the namespace of an attribute
+pub struct NamespaceAdvisor {
+    namespace_separator: char,
+    semconv_namespaces: HashSet<String>,
+}
+impl NamespaceAdvisor {
+    #[must_use]
+    /// Create a new NamespaceAdvisor
+    pub fn new(namespace_separator: char, health_checker: &AttributeHealthChecker) -> Self {
+        let mut semconv_namespaces = HashSet::new();
+        for group in &health_checker.registry.groups {
+            for attribute in &group.attributes {
+                // Extract namespace (everything to the left of the last separator)
+                // repeat until the last separator is found
+                let mut name = attribute.name.clone();
+                while let Some(last_separator_pos) = name.rfind(namespace_separator) {
+                    let namespace = name[..last_separator_pos].to_string();
+                    let _ = semconv_namespaces.insert(namespace);
+                    name = name[..last_separator_pos].to_string();
+                }
+            }
+        }
+        NamespaceAdvisor {
+            namespace_separator,
+            semconv_namespaces,
+        }
+    }
+
+    /// Find a namespace in the registry
+    #[must_use]
+    fn find_namespace(&self, namespace: &str) -> Option<String> {
+        let mut namespace = namespace.to_owned();
+        while !self.semconv_namespaces.contains(&namespace) {
+            if let Some(last_dot_pos) = namespace.rfind('.') {
+                namespace = namespace[..last_dot_pos].to_string();
+            } else {
+                return None;
+            }
+        }
+        Some(namespace)
+    }
+
+    /// Find an attribute from a namespace search
+    #[must_use]
+    fn find_attribute_from_namespace(
+        &self,
+        namespace: &str,
+        health_checker: &AttributeHealthChecker,
+    ) -> Option<Attribute> {
+        if let Some(attribute) = health_checker.find_attribute(namespace) {
+            Some(attribute.clone())
+        } else if let Some(last_separator_pos) = namespace.rfind(self.namespace_separator) {
+            let new_namespace = &namespace[..last_separator_pos];
+            self.find_attribute_from_namespace(new_namespace, health_checker)
+        } else {
+            None
+        }
+    }
+}
+
 impl Advisor for NamespaceAdvisor {
     fn advise(
         &self,
@@ -169,21 +225,22 @@ impl Advisor for NamespaceAdvisor {
             return None;
         }
 
-        if let Some(last_dot_pos) = attribute.name.rfind('.') {
-            let namespace = attribute.name[..last_dot_pos].to_string();
+        if let Some(last_separator_pos) = attribute.name.rfind(self.namespace_separator) {
+            let namespace = attribute.name[..last_separator_pos].to_string();
 
             // Has a namespace that matches an existing attribute
-            if let Some(found_attr) = health_checker.find_attribute_from_namespace(&namespace) {
+            if let Some(found_attr) = self.find_attribute_from_namespace(&namespace, health_checker)
+            {
                 return Some(Advice {
                     key: "illegal_namespace".to_owned(),
-                    value: Value::String(found_attr.name.clone()),
+                    value: Value::String(found_attr.name),
                     message: "Namespace matches existing attribute".to_owned(),
                     advisory: Advisory::Violation,
                 });
             }
 
             // Extends an existing namespace
-            if let Some(existing_namespace) = health_checker.find_namespace(&namespace) {
+            if let Some(existing_namespace) = self.find_namespace(&namespace) {
                 return Some(Advice {
                     key: "extends_namespace".to_owned(),
                     value: Value::String(existing_namespace),

@@ -27,9 +27,15 @@ pub mod sample;
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
-    /// Generic ingest error.
+    /// Ingest error.
     #[error("Fatal error during ingest. {error}")]
     IngestError {
+        /// The error that occurred.
+        error: String,
+    },
+    /// Advice error.
+    #[error("Fatal error from Advisor. {error}")]
+    AdviceError {
         /// The error that occurred.
         error: String,
     },

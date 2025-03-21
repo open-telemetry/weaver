@@ -196,13 +196,14 @@ pub(crate) fn command(
     let advisors: Vec<Box<dyn Advisor>> = vec![
         Box::new(DeprecatedAdvisor),
         Box::new(NameFormatAdvisor::default()),
-        Box::new(NamespaceAdvisor),
         Box::new(StabilityAdvisor),
         Box::new(TypeAdvisor),
         Box::new(EnumAdvisor),
     ];
 
-    let health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
+    let mut health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
+    let namespace_advisor = NamespaceAdvisor::new('.', &health_checker);
+    health_checker.add_advisor(Box::new(namespace_advisor));
 
     let results = health_checker.check_attributes();
     // Set the exit_code to a non-zero code if there are any violations
