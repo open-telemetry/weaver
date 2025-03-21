@@ -42,7 +42,7 @@ All attributes are lower case.
 groups ::= semconv
        | semconv groups
 
-semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] [attributes] specificfields
+semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
 
 extends_or_attributes ::= (extends | attributes | (extends attributes))
 
@@ -74,7 +74,9 @@ renamed_to ::= string
 
 display_name ::= string
 
-attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [requirement_level] [sampling_relevant] [note]
+annotations ::= string yaml
+                
+attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [requirement_level] [sampling_relevant] [note] [annotations]
 
 # ref MUST point to an existing attribute id
 ref ::= id
@@ -180,6 +182,8 @@ The field `semconv` represents a semantic convention and it is made by:
 - `deprecated`, optional, when present marks the semantic convention as deprecated.
    The string provided as `<description>` MUST specify why it's deprecated and/or what to use instead.
 - `attributes`, list of attributes that belong to the semantic convention.
+- `annotations`, optional map of annotations. Annotations are key-value pairs that provide additional information about
+  the group. The keys are strings and the values are any YAML value.
 
 #### Span semantic convention
 
@@ -353,6 +357,8 @@ An attribute is defined by:
    They are required only for string and string array attributes.
    Example values must be of the same type of the attribute.
    If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
+- `annotations`, optional map of annotations. Annotations are key-value pairs that provide additional information about
+  the attribute. The keys are strings and the values are any YAML value.
 
 #### Examples (for examples)
 
