@@ -28,12 +28,11 @@ impl Default for AttributeJsonStdinIngester {
     }
 }
 
-impl Ingester<(), Vec<SampleAttribute>> for AttributeJsonStdinIngester {
+impl Ingester<SampleAttribute> for AttributeJsonStdinIngester {
     fn ingest(
         &self,
-        _: (),
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Vec<SampleAttribute>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
         let mut buffer = String::new();
@@ -56,6 +55,6 @@ impl Ingester<(), Vec<SampleAttribute>> for AttributeJsonStdinIngester {
             attribute.infer_type();
         }
 
-        Ok(attributes)
+        Ok(Box::new(attributes.into_iter()))
     }
 }

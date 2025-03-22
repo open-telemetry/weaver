@@ -1,5 +1,5 @@
-use std::fs;
 use std::path::Path;
+use std::{fs, path::PathBuf};
 
 use weaver_common::Logger;
 
@@ -7,31 +7,28 @@ use crate::{sample::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attribute names from a text file.
 /// Each line in the file is treated as a separate attribute name.
-pub struct AttributeFileIngester;
+pub struct AttributeFileIngester {
+    path: PathBuf,
+}
 
 impl AttributeFileIngester {
     /// Create a new AttributeFileIngester
     #[must_use]
-    pub fn new() -> Self {
-        AttributeFileIngester
+    pub fn new(path: &Path) -> Self {
+        AttributeFileIngester {
+            path: path.to_path_buf(),
+        }
     }
 }
 
-impl Default for AttributeFileIngester {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Ingester<&Path, Vec<SampleAttribute>> for AttributeFileIngester {
+impl Ingester<SampleAttribute> for AttributeFileIngester {
     fn ingest(
         &self,
-        input: &Path,
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Vec<SampleAttribute>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
         // Read the file contents
-        let content = fs::read_to_string(input).map_err(|e| Error::IngestError {
-            error: format!("Failed to read file {}: {}", input.display(), e),
+        let content = fs::read_to_string(&self.path).map_err(|e| Error::IngestError {
+            error: format!("Failed to read file {}: {}", self.path.display(), e),
         })?;
 
         // Process each line into a SampleAttribute
@@ -43,9 +40,9 @@ impl Ingester<&Path, Vec<SampleAttribute>> for AttributeFileIngester {
                 value: None,
                 r#type: None,
             })
-            .collect();
+            .collect::<Vec<_>>();
 
-        Ok(attributes)
+        Ok(Box::new(attributes.into_iter()))
     }
 }
 
@@ -71,9 +68,9 @@ mod tests {
         writeln!(file, "TaskId").unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeFileIngester::new();
+        let ingester = AttributeFileIngester::new(&file_path);
         let logger = TestLogger::new();
-        let result = ingester.ingest(&file_path, logger).unwrap();
+        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 4);
@@ -93,10 +90,10 @@ mod tests {
         let _ = File::create(&file_path).unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeFileIngester::new();
+        let ingester = AttributeFileIngester::new(&file_path);
 
         let logger = TestLogger::new();
-        let result = ingester.ingest(&file_path, logger).unwrap();
+        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 0);
@@ -105,10 +102,10 @@ mod tests {
     #[test]
     fn test_file_not_found() {
         let non_existent_path = Path::new("/path/to/nonexistent/file.txt");
-        let ingester = AttributeFileIngester::new();
+        let ingester = AttributeFileIngester::new(non_existent_path);
 
         let logger = TestLogger::new();
-        let result = ingester.ingest(non_existent_path, logger);
+        let result = ingester.ingest(logger);
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {

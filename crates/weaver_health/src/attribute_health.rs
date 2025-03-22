@@ -17,18 +17,13 @@ pub struct AttributeHealthChecker {
     pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
     semconv_templates: HashMap<String, Attribute>,
-    sample_attributes: Vec<SampleAttribute>,
     advisors: Vec<Box<dyn Advisor>>,
 }
 
 impl AttributeHealthChecker {
     #[must_use]
     /// Create a new AttributeHealthChecker
-    pub fn new(
-        attributes: Vec<SampleAttribute>,
-        registry: ResolvedRegistry,
-        advisors: Vec<Box<dyn Advisor>>,
-    ) -> Self {
+    pub fn new(registry: ResolvedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
@@ -50,7 +45,6 @@ impl AttributeHealthChecker {
             registry,
             semconv_attributes,
             semconv_templates,
-            sample_attributes: attributes,
             advisors,
         }
     }
@@ -77,91 +71,65 @@ impl AttributeHealthChecker {
         None
     }
 
-    /// Run advisors on every attribute in the list
+    /// Create a health attribute from a sample attribute
     #[must_use]
-    pub fn check_attributes(&mut self) -> HealthReport {
-        let mut health_report = HealthReport {
-            attributes: Vec::new(),
-            statistics: HealthStatistics {
-                total_attributes: 0,
-                total_advisories: 0,
-                advisory_counts: HashMap::new(),
-                highest_advisory_counts: HashMap::new(),
-                no_advice_count: 0,
-            },
+    pub fn create_health_attribute(&self, sample_attribute: &SampleAttribute) -> HealthAttribute {
+        // clone the sample attribute into the result
+        let mut attribute_result = HealthAttribute::new(sample_attribute.clone());
+
+        // find the attribute in the registry
+        let semconv_attribute = {
+            if let Some(attribute) = self.find_attribute(&sample_attribute.name) {
+                Some(attribute)
+            } else {
+                self.find_template(&sample_attribute.name)
+            }
         };
 
-        for sample_attribute in self.sample_attributes.iter() {
-            // clone the sample attribute into the result
-            let mut attribute_result = HealthAttribute::new(sample_attribute.clone());
-
-            // find the attribute in the registry
-            let semconv_attribute = {
-                if let Some(attribute) = self.find_attribute(&sample_attribute.name) {
-                    Some(attribute)
-                } else {
-                    self.find_template(&sample_attribute.name)
-                }
-            };
-
-            if semconv_attribute.is_none() {
-                attribute_result.add_advice(Advice {
-                    key: "missing_attribute".to_owned(),
-                    value: Value::String(sample_attribute.name.clone()),
-                    message: "Does not exist in the registry".to_owned(),
-                    advisory: Advisory::Violation,
-                });
-            } else {
-                // Provide an info advice if the attribute is a template
-                if let Some(attribute) = semconv_attribute {
-                    if let AttributeType::Template(_) = attribute.r#type {
-                        attribute_result.add_advice(Advice {
-                            key: "template_attribute".to_owned(),
-                            value: Value::String(attribute.name.clone()),
-                            message: "Is a template".to_owned(),
-                            advisory: Advisory::Information,
-                        });
-                    }
+        if semconv_attribute.is_none() {
+            attribute_result.add_advice(Advice {
+                key: "missing_attribute".to_owned(),
+                value: Value::String(sample_attribute.name.clone()),
+                message: "Does not exist in the registry".to_owned(),
+                advisory: Advisory::Violation,
+            });
+        } else {
+            // Provide an info advice if the attribute is a template
+            if let Some(attribute) = semconv_attribute {
+                if let AttributeType::Template(_) = attribute.r#type {
+                    attribute_result.add_advice(Advice {
+                        key: "template_attribute".to_owned(),
+                        value: Value::String(attribute.name.clone()),
+                        message: "Is a template".to_owned(),
+                        advisory: Advisory::Information,
+                    });
                 }
             }
+        }
 
-            // run advisors on the attribute
-            for advisor in self.advisors.iter() {
-                if let Some(advice) = advisor.advise(sample_attribute, self, semconv_attribute) {
-                    attribute_result.add_advice(advice);
-                }
+        // run advisors on the attribute
+        for advisor in self.advisors.iter() {
+            if let Some(advice) = advisor.advise(sample_attribute, self, semconv_attribute) {
+                attribute_result.add_advice(advice);
             }
+        }
+
+        attribute_result
+    }
+
+    /// Run advisors on every attribute in the list
+    #[must_use]
+    pub fn check_attributes(&mut self, sample_attributes: Vec<SampleAttribute>) -> HealthReport {
+        let mut health_report = HealthReport {
+            attributes: Vec::new(),
+            statistics: HealthStatistics::new(),
+        };
+
+        for sample_attribute in sample_attributes.iter() {
+            let attribute_result = self.create_health_attribute(sample_attribute);
 
             // Update statistics
-            health_report.statistics.total_attributes += 1;
-
-            // Count of advisories by type
-            for advice in &attribute_result.all_advice {
-                // Count of total advisories
-                health_report.statistics.total_advisories += 1;
-
-                let advisory_count = health_report
-                    .statistics
-                    .advisory_counts
-                    .entry(advice.advisory.clone())
-                    .or_insert(0);
-                *advisory_count += 1;
-            }
-
-            // Count of attributes with the highest advisory level
-            if let Some(highest_advisory) = &attribute_result.highest_advisory {
-                let highest_advisory_count = health_report
-                    .statistics
-                    .highest_advisory_counts
-                    .entry(highest_advisory.clone())
-                    .or_insert(0);
-                *highest_advisory_count += 1;
-            }
-
-            // Count of attributes with no advice
-            if attribute_result.all_advice.is_empty() {
-                health_report.statistics.no_advice_count += 1;
-            }
+            health_report.statistics.update(&attribute_result);
             health_report.attributes.push(attribute_result);
         }
         health_report
@@ -238,6 +206,57 @@ pub struct HealthStatistics {
     pub highest_advisory_counts: HashMap<Advisory, usize>,
     /// The number of attributes with no advice
     pub no_advice_count: usize,
+}
+
+impl Default for HealthStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HealthStatistics {
+    /// Create a new empty HealthStatistics
+    #[must_use]
+    pub fn new() -> Self {
+        HealthStatistics {
+            total_attributes: 0,
+            total_advisories: 0,
+            advisory_counts: HashMap::new(),
+            highest_advisory_counts: HashMap::new(),
+            no_advice_count: 0,
+        }
+    }
+
+    /// Update statistics based on a health attribute
+    pub fn update(&mut self, attribute_result: &HealthAttribute) {
+        self.total_attributes += 1;
+
+        // Count of advisories by type
+        for advice in &attribute_result.all_advice {
+            // Count of total advisories
+            self.total_advisories += 1;
+
+            let advisory_count = self
+                .advisory_counts
+                .entry(advice.advisory.clone())
+                .or_insert(0);
+            *advisory_count += 1;
+        }
+
+        // Count of attributes with the highest advisory level
+        if let Some(highest_advisory) = &attribute_result.highest_advisory {
+            let highest_advisory_count = self
+                .highest_advisory_counts
+                .entry(highest_advisory.clone())
+                .or_insert(0);
+            *highest_advisory_count += 1;
+        }
+
+        // Count of attributes with no advice
+        if attribute_result.all_advice.is_empty() {
+            self.no_advice_count += 1;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -452,11 +471,11 @@ mod tests {
             Box::new(EnumAdvisor),
         ];
 
-        let mut health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
+        let mut health_checker = AttributeHealthChecker::new(registry, advisors);
         let namespace_advisor = NamespaceAdvisor::new('.', &health_checker);
         health_checker.add_advisor(Box::new(namespace_advisor));
 
-        let report = health_checker.check_attributes();
+        let report = health_checker.check_attributes(attributes);
         let results = report.attributes;
 
         assert_eq!(results.len(), 10);

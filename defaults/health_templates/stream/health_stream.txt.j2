@@ -1,0 +1,36 @@
+{% if ctx.total_attributes is defined %}
+{# This is a HealthStatistics object #}
+{{ ("Attribute samples") | ansi_blue | ansi_bold }}
+  - total: {{ ctx.total_attributes }}
+  - no advice: {{ ctx.no_advice_count }}
+{% for key, value in ctx.highest_advisory_counts.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+
+{{ ("Advisories given") | ansi_blue | ansi_bold }}
+  - total: {{ ctx.total_advisories }}
+{% for key, value in ctx.advisory_counts.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% else %}
+{# This is a HealthAttribute object #}
+{% set result = ctx %}
+{% set highest_advisory = result.highest_advisory %}
+{% if highest_advisory == "information" or not highest_advisory %}
+{{ result.sample_attribute.name | ansi_bright_green }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
+{% elif highest_advisory == "improvement" %}
+{{ result.sample_attribute.name | ansi_bright_yellow }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
+{% else %}
+{{ result.sample_attribute.name | ansi_bright_red }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
+{% endif %}
+
+  {% for advice in result.all_advice %}
+    {% if advice.advisory == "information" %}
+       - {{ advice.key ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
+    {% elif advice.advisory == "improvement" %}
+       - {{ advice.key ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
+    {% else %}
+       - {{ advice.key ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
+    {% endif %}
+  {% endfor %}
+{% endif %}

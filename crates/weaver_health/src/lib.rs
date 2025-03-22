@@ -53,8 +53,11 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// Ingesters implement a generic trait that specifies both their input and output types
-pub trait Ingester<I, O> {
-    /// Ingest data from the input type and return the output type
-    fn ingest(&self, input: I, logger: impl Logger + Sync + Clone) -> Result<O, Error>;
+/// Ingesters implement a generic trait that returns an iterator
+pub trait Ingester<T> {
+    /// Ingest data and return an iterator of the output type
+    fn ingest(
+        &self,
+        logger: impl Logger + Sync + Clone,
+    ) -> Result<Box<dyn Iterator<Item = T>>, Error>;
 }

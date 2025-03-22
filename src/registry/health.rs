@@ -15,11 +15,11 @@ use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{
-    Advisor, DeprecatedAdvisor, EnumAdvisor, NameFormatAdvisor, NamespaceAdvisor, StabilityAdvisor,
-    TypeAdvisor,
+    Advisor, Advisory, DeprecatedAdvisor, EnumAdvisor, NameFormatAdvisor, NamespaceAdvisor,
+    StabilityAdvisor, TypeAdvisor,
 };
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
-use weaver_health::attribute_health::AttributeHealthChecker;
+use weaver_health::attribute_health::{AttributeHealthChecker, HealthStatistics};
 use weaver_health::attribute_json_file_ingester::AttributeJsonFileIngester;
 use weaver_health::attribute_json_stdin_ingester::AttributeJsonStdinIngester;
 use weaver_health::attribute_stdin_ingester::AttributeStdinIngester;
@@ -133,6 +133,8 @@ pub(crate) fn command(
     };
 
     logger.log("Weaver Registry Health");
+
+    // Prepare the registry
     logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
 
     let mut diag_msgs = DiagnosticMessages::empty();
@@ -145,54 +147,7 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
-    let attributes = match args.ingester {
-        IngesterType::AttributeFile => {
-            let path = match &args.input {
-                Some(p) => Ok(p),
-                None => Err(Error::IngestError {
-                    error: "No input path provided".to_owned(),
-                }),
-            }?;
-
-            let ingester = AttributeFileIngester::new();
-            ingester.ingest(path, logger.clone())?
-        }
-        IngesterType::AttributeStdin => {
-            let ingester = AttributeStdinIngester::new();
-            ingester.ingest((), logger.clone())?
-        }
-        IngesterType::AttributeJsonFile => {
-            let path = match &args.input {
-                Some(p) => Ok(p),
-                None => Err(Error::IngestError {
-                    error: "No input path provided".to_owned(),
-                }),
-            }?;
-
-            let ingester = AttributeJsonFileIngester::new();
-            ingester.ingest(path, logger.clone())?
-        }
-        IngesterType::AttributeJsonStdin => {
-            let ingester = AttributeJsonStdinIngester::new();
-            ingester.ingest((), logger.clone())?
-        }
-        IngesterType::AttributeOtlp => {
-            let ingester = AttributeOtlpIngester::new();
-            let otlp_config = OtlpConfig {
-                otlp_grpc_address: args.otlp_grpc_address.clone(),
-                otlp_grpc_port: args.otlp_grpc_port,
-                admin_port: args.admin_port,
-                inactivity_timeout: args.inactivity_timeout,
-            };
-            ingester.ingest(&otlp_config, logger.clone())?
-        }
-        IngesterType::GroupFile => {
-            return Err(DiagnosticMessages::from(Error::OutputError {
-                error: "Invalid ingester type".to_owned(),
-            }))
-        }
-    };
-
+    // Create the health checker with advisors
     let advisors: Vec<Box<dyn Advisor>> = vec![
         Box::new(DeprecatedAdvisor),
         Box::new(NameFormatAdvisor::default()),
@@ -201,21 +156,11 @@ pub(crate) fn command(
         Box::new(EnumAdvisor),
     ];
 
-    let mut health_checker = AttributeHealthChecker::new(attributes, registry, advisors);
+    let mut health_checker = AttributeHealthChecker::new(registry, advisors);
     let namespace_advisor = NamespaceAdvisor::new('.', &health_checker);
     health_checker.add_advisor(Box::new(namespace_advisor));
 
-    let results = health_checker.check_attributes();
-    // Set the exit_code to a non-zero code if there are any violations
-    if results.has_violations() {
-        exit_code = 1;
-    }
-
-    logger.success(&format!(
-        "Performed health check for registry `{}`",
-        args.registry.registry
-    ));
-
+    // Prepare the template engine
     let loader = EmbeddedFileLoader::try_new(
         &DEFAULT_HEALTH_TEMPLATES,
         args.templates.clone(),
@@ -239,19 +184,106 @@ pub(crate) fn command(
     })?;
     let engine = TemplateEngine::new(config, loader, Params::default());
 
-    match engine.generate(
-        logger.clone(),
-        &results,
-        output.as_path(),
-        &output_directive,
-    ) {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(DiagnosticMessages::from(Error::OutputError {
-                error: e.to_string(),
-            }));
+    // Prepare the ingester
+    let ingester = match args.ingester {
+        IngesterType::AttributeFile => {
+            let path = match &args.input {
+                Some(p) => Ok(p),
+                None => Err(Error::IngestError {
+                    error: "No input path provided".to_owned(),
+                }),
+            }?;
+            AttributeFileIngester::new(path).ingest(logger.clone())?
         }
+
+        IngesterType::AttributeStdin => AttributeStdinIngester::new().ingest(logger.clone())?,
+
+        IngesterType::AttributeJsonFile => {
+            let path = match &args.input {
+                Some(p) => Ok(p),
+                None => Err(Error::IngestError {
+                    error: "No input path provided".to_owned(),
+                }),
+            }?;
+            AttributeJsonFileIngester::new(path).ingest(logger.clone())?
+        }
+
+        IngesterType::AttributeJsonStdin => {
+            AttributeJsonStdinIngester::new().ingest(logger.clone())?
+        }
+
+        IngesterType::AttributeOtlp => (AttributeOtlpIngester {
+            otlp_grpc_address: args.otlp_grpc_address.clone(),
+            otlp_grpc_port: args.otlp_grpc_port,
+            admin_port: args.admin_port,
+            inactivity_timeout: args.inactivity_timeout,
+        })
+        .ingest(logger.clone())?,
+
+        IngesterType::GroupFile => {
+            return Err(DiagnosticMessages::from(Error::OutputError {
+                error: "Invalid ingester type".to_owned(),
+            }))
+        }
+    };
+
+    // If this is a stream - process the attributes one by one
+    // TODO this should be a setting not a format and it must force STDOUT output
+    if args.format == "stream" {
+        let mut stats = HealthStatistics::default();
+        for attribute in ingester {
+            let health_attribute = health_checker.create_health_attribute(&attribute);
+            stats.update(&health_attribute);
+            // Set the exit_code to a non-zero code if there are any violations
+            if let Some(Advisory::Violation) = health_attribute.highest_advisory {
+                exit_code = 1;
+            }
+            engine
+                .generate(
+                    logger.clone(),
+                    &health_attribute,
+                    output.as_path(),
+                    &output_directive,
+                )
+                .map_err(|e| {
+                    DiagnosticMessages::from(Error::OutputError {
+                        error: e.to_string(),
+                    })
+                })?;
+        }
+        // Output the final statistics
+        engine
+            .generate(logger.clone(), &stats, output.as_path(), &output_directive)
+            .map_err(|e| {
+                DiagnosticMessages::from(Error::OutputError {
+                    error: e.to_string(),
+                })
+            })?;
+    } else {
+        let attributes = ingester.collect::<Vec<_>>();
+        let results = health_checker.check_attributes(attributes);
+        // Set the exit_code to a non-zero code if there are any violations
+        if results.has_violations() {
+            exit_code = 1;
+        }
+        engine
+            .generate(
+                logger.clone(),
+                &results,
+                output.as_path(),
+                &output_directive,
+            )
+            .map_err(|e| {
+                DiagnosticMessages::from(Error::OutputError {
+                    error: e.to_string(),
+                })
+            })?;
     }
+
+    logger.success(&format!(
+        "Performed health check for registry `{}`",
+        args.registry.registry
+    ));
 
     // Only print warnings when the output is to a file
     if !diag_msgs.is_empty() && args.output.is_some() {
@@ -265,7 +297,7 @@ pub(crate) fn command(
 }
 
 /// An ingester for OTLP data
-struct OtlpConfig {
+struct AttributeOtlpIngester {
     /// The address of the OTLP gRPC server
     otlp_grpc_address: String,
     /// The port of the OTLP gRPC server
@@ -275,14 +307,8 @@ struct OtlpConfig {
     /// The inactivity timeout
     inactivity_timeout: u64,
 }
-struct AttributeOtlpIngester;
-impl AttributeOtlpIngester {
-    /// Create a new AttributeOtlpIngester
-    #[must_use]
-    pub fn new() -> Self {
-        AttributeOtlpIngester
-    }
 
+impl AttributeOtlpIngester {
     fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
         if let Some(value) = value {
             if let Some(value) = value.value {
@@ -312,23 +338,16 @@ impl AttributeOtlpIngester {
     }
 }
 
-impl Default for AttributeOtlpIngester {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Ingester<&OtlpConfig, Vec<SampleAttribute>> for AttributeOtlpIngester {
+impl Ingester<SampleAttribute> for AttributeOtlpIngester {
     fn ingest(
         &self,
-        config: &OtlpConfig,
         logger: impl Logger + Sync + Clone,
-    ) -> Result<Vec<SampleAttribute>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
         let otlp_requests = listen_otlp_requests(
-            config.otlp_grpc_address.as_str(),
-            config.otlp_grpc_port,
-            config.admin_port,
-            Duration::from_secs(config.inactivity_timeout),
+            self.otlp_grpc_address.as_str(),
+            self.otlp_grpc_port,
+            self.admin_port,
+            Duration::from_secs(self.inactivity_timeout),
             logger.clone(),
         )
         .map_err(|e| Error::IngestError {
@@ -337,7 +356,6 @@ impl Ingester<&OtlpConfig, Vec<SampleAttribute>> for AttributeOtlpIngester {
 
         let mut result = Vec::new();
 
-        // @ToDo Implement the checking logic
         for otlp_request in otlp_requests {
             match otlp_request {
                 OtlpRequest::Logs(_logs) => {
@@ -412,6 +430,6 @@ impl Ingester<&OtlpConfig, Vec<SampleAttribute>> for AttributeOtlpIngester {
                 }
             }
         }
-        Ok(result)
+        Ok(Box::new(result.into_iter()))
     }
 }

@@ -4,12 +4,12 @@ use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
 
-/// An ingester that reads attribute names from standard input.
-/// Each line from stdin is treated as a separate attribute name.
+/// An ingester that streams attribute names from standard input.
+/// Implements the Ingester trait to return an iterator of SampleAttribute items.
 pub struct AttributeStdinIngester;
 
 impl AttributeStdinIngester {
-    /// Create a new AttributeStdinIngester
+    /// Create a new AttributeStreamStdInIngester
     #[must_use]
     pub fn new() -> Self {
         AttributeStdinIngester
@@ -22,32 +22,53 @@ impl Default for AttributeStdinIngester {
     }
 }
 
-impl Ingester<(), Vec<SampleAttribute>> for AttributeStdinIngester {
+impl Ingester<SampleAttribute> for AttributeStdinIngester {
     fn ingest(
         &self,
-        _: (),
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Vec<SampleAttribute>, Error> {
-        let stdin = io::stdin();
-        let mut attributes = Vec::new();
+    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
+        Ok(Box::new(StdinAttributeIterator::new()))
+    }
+}
 
+struct StdinAttributeIterator {
+    lines: io::Lines<io::StdinLock<'static>>,
+}
+
+impl StdinAttributeIterator {
+    fn new() -> Self {
+        let stdin = Box::leak(Box::new(io::stdin()));
         let handle = stdin.lock();
+        Self {
+            lines: handle.lines(),
+        }
+    }
+}
 
-        // Process each line into a SampleAttribute
-        for line_result in handle.lines() {
-            let line = line_result.map_err(|e| Error::IngestError {
-                error: format!("Failed to read from stdin: {}", e),
-            })?;
+impl Iterator for StdinAttributeIterator {
+    type Item = SampleAttribute;
 
-            if !line.trim().is_empty() {
-                attributes.push(SampleAttribute {
-                    name: line.trim().to_owned(),
-                    value: None,
-                    r#type: None,
-                });
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.lines.next() {
+                None => return None,
+                Some(line_result) => {
+                    match line_result {
+                        Err(_) => continue, // Skip lines with errors
+                        Ok(line) => {
+                            let trimmed = line.trim();
+                            if trimmed.is_empty() {
+                                continue;
+                            }
+                            return Some(SampleAttribute {
+                                name: trimmed.to_owned(),
+                                value: None,
+                                r#type: None,
+                            });
+                        }
+                    }
+                }
             }
         }
-
-        Ok(attributes)
     }
 }

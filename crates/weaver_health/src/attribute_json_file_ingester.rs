@@ -1,5 +1,5 @@
-use std::fs;
 use std::path::Path;
+use std::{fs, path::PathBuf};
 
 use weaver_common::Logger;
 
@@ -13,37 +13,38 @@ use crate::{sample::SampleAttribute, Error, Ingester};
 ///   {"name": "attr.name2"}
 /// ]
 /// ```
-pub struct AttributeJsonFileIngester;
+pub struct AttributeJsonFileIngester {
+    path: PathBuf,
+}
 
 impl AttributeJsonFileIngester {
     /// Create a new AttributeJsonFileIngester
     #[must_use]
-    pub fn new() -> Self {
-        AttributeJsonFileIngester
+    pub fn new(path: &Path) -> Self {
+        AttributeJsonFileIngester {
+            path: path.to_path_buf(),
+        }
     }
 }
 
-impl Default for AttributeJsonFileIngester {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Ingester<&Path, Vec<SampleAttribute>> for AttributeJsonFileIngester {
+impl Ingester<SampleAttribute> for AttributeJsonFileIngester {
     fn ingest(
         &self,
-        input: &Path,
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Vec<SampleAttribute>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
         // Open the file and use a reader to deserialize
-        let file = fs::File::open(input).map_err(|e| Error::IngestError {
-            error: format!("Failed to open file {}: {}", input.display(), e),
+        let file = fs::File::open(&self.path).map_err(|e| Error::IngestError {
+            error: format!("Failed to open file {}: {}", self.path.display(), e),
         })?;
 
         // Deserialize directly from the reader
         let mut attributes: Vec<SampleAttribute> =
             serde_json::from_reader(file).map_err(|e| Error::IngestError {
-                error: format!("Failed to parse JSON from file {}: {}", input.display(), e),
+                error: format!(
+                    "Failed to parse JSON from file {}: {}",
+                    self.path.display(),
+                    e
+                ),
             })?;
 
         // Infer the type of the attributes from the value
@@ -51,7 +52,7 @@ impl Ingester<&Path, Vec<SampleAttribute>> for AttributeJsonFileIngester {
             attribute.infer_type();
         }
 
-        Ok(attributes)
+        Ok(Box::new(attributes.into_iter()))
     }
 }
 
@@ -87,10 +88,10 @@ mod tests {
         file.write_all(json_content.as_bytes()).unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeJsonFileIngester::new();
+        let ingester = AttributeJsonFileIngester::new(&file_path);
 
         let logger = TestLogger::new();
-        let result = ingester.ingest(&file_path, logger).unwrap();
+        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 7);
@@ -134,9 +135,9 @@ mod tests {
         file.write_all(json_content.as_bytes()).unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeJsonFileIngester::new();
+        let ingester = AttributeJsonFileIngester::new(&file_path);
         let logger = TestLogger::new();
-        let result = ingester.ingest(&file_path, logger);
+        let result = ingester.ingest(logger);
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {
@@ -149,9 +150,9 @@ mod tests {
     #[test]
     fn test_file_not_found() {
         let non_existent_path = Path::new("/path/to/nonexistent/file.json");
-        let ingester = AttributeJsonFileIngester::new();
+        let ingester = AttributeJsonFileIngester::new(non_existent_path);
         let logger = TestLogger::new();
-        let result = ingester.ingest(non_existent_path, logger);
+        let result = ingester.ingest(logger);
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {
