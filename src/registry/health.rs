@@ -92,8 +92,8 @@ pub struct RegistryHealthArgs {
 
     /// Stream mode. Set to false to disable streaming output.
     ///
-    /// Ingesters that support streaming, STDIN and OTLP, by default output the health check
-    /// results for each entity as they are ingested.
+    /// When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP),
+    /// by default output the health check results for each entity as they are ingested.
     #[arg(long)]
     stream: Option<bool>,
 
@@ -244,6 +244,11 @@ pub(crate) fn command(
     };
 
     // If this is a stream - process the attributes one by one
+    // File output is not supported in stream mode
+    if let OutputDirective::File = output_directive {
+        stream_mode = false;
+    }
+
     if stream_mode {
         let mut stats = HealthStatistics::default();
         for attribute in ingester {
@@ -300,10 +305,10 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
-    // Only print warnings when the output is to a file
-    if !diag_msgs.is_empty() && args.output.is_some() {
-        return Err(diag_msgs);
-    }
+    // TODO Report warnings and errors but keep exit_code
+    // if !diag_msgs.has_error() {
+    //     return Err(diag_msgs);
+    // }
 
     Ok(ExitDirectives {
         exit_code,
