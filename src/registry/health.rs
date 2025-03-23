@@ -90,6 +90,13 @@ pub struct RegistryHealthArgs {
     #[arg(long, default_value = "health_templates")]
     templates: PathBuf,
 
+    /// Stream mode. Set to false to disable streaming output.
+    ///
+    /// Ingesters that support streaming, STDIN and OTLP, by default output the health check
+    /// results for each entity as they are ingested.
+    #[arg(long)]
+    stream: Option<bool>,
+
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the report is printed to stdout.
     #[arg(short, long)]
@@ -97,19 +104,19 @@ pub struct RegistryHealthArgs {
 
     /// Address used by the gRPC OTLP listener.
     #[clap(long, default_value = "0.0.0.0")]
-    pub otlp_grpc_address: String,
+    otlp_grpc_address: String,
 
     /// Port used by the gRPC OTLP listener.
     #[clap(long, default_value = "4317")]
-    pub otlp_grpc_port: u16,
+    otlp_grpc_port: u16,
 
     /// Port used by the HTTP admin port (endpoints: /stop).
     #[clap(long, default_value = "4320")]
-    pub admin_port: u16,
+    admin_port: u16,
 
     /// Max inactivity time in seconds before stopping the listener.
     #[clap(long, default_value = "10")]
-    pub inactivity_timeout: u64,
+    inactivity_timeout: u64,
 }
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
@@ -180,6 +187,7 @@ pub(crate) fn command(
     let engine = TemplateEngine::new(config, loader, Params::default());
 
     // Prepare the ingester
+    let mut stream_mode = false;
     let ingester = match args.ingester {
         IngesterType::AttributeFile => {
             let path = match &args.input {
@@ -191,7 +199,12 @@ pub(crate) fn command(
             AttributeFileIngester::new(path).ingest(logger.clone())?
         }
 
-        IngesterType::AttributeStdin => AttributeStdinIngester::new().ingest(logger.clone())?,
+        IngesterType::AttributeStdin => {
+            if args.stream.is_none() {
+                stream_mode = true;
+            }
+            AttributeStdinIngester::new().ingest(logger.clone())?
+        }
 
         IngesterType::AttributeJsonFile => {
             let path = match &args.input {
@@ -204,16 +217,24 @@ pub(crate) fn command(
         }
 
         IngesterType::AttributeJsonStdin => {
+            if args.stream.is_none() {
+                stream_mode = true;
+            }
             AttributeJsonStdinIngester::new().ingest(logger.clone())?
         }
 
-        IngesterType::AttributeOtlp => (AttributeOtlpIngester {
-            otlp_grpc_address: args.otlp_grpc_address.clone(),
-            otlp_grpc_port: args.otlp_grpc_port,
-            admin_port: args.admin_port,
-            inactivity_timeout: args.inactivity_timeout,
-        })
-        .ingest(logger.clone())?,
+        IngesterType::AttributeOtlp => {
+            if args.stream.is_none() {
+                stream_mode = true;
+            }
+            (AttributeOtlpIngester {
+                otlp_grpc_address: args.otlp_grpc_address.clone(),
+                otlp_grpc_port: args.otlp_grpc_port,
+                admin_port: args.admin_port,
+                inactivity_timeout: args.inactivity_timeout,
+            })
+            .ingest(logger.clone())?
+        }
 
         IngesterType::GroupFile => {
             return Err(DiagnosticMessages::from(Error::OutputError {
@@ -223,8 +244,7 @@ pub(crate) fn command(
     };
 
     // If this is a stream - process the attributes one by one
-    // TODO this should be a setting not a format and it must force STDOUT output
-    if args.format == "stream" {
+    if stream_mode {
         let mut stats = HealthStatistics::default();
         for attribute in ingester {
             let health_attribute = health_checker.create_health_attribute(&attribute);

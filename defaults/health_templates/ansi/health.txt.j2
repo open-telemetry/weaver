@@ -1,39 +1,18 @@
-
+{% import "health_macros.j2" as macros %}
+{% if ctx.attributes is defined %}
+{# This is a HealthReport object #}
 {{ ("Health Report") | ansi_bright_white | ansi_bold }}
 {{ ("=============") | ansi_bright_white | ansi_bold }}
 
-{{ ("Attribute samples") | ansi_blue | ansi_bold }}
-  - total: {{ ctx.statistics.total_attributes }}
-  - no advice: {{ ctx.statistics.no_advice_count }}
-{% for key, value in ctx.statistics.highest_advisory_counts.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
-
-{{ ("Advisories given") | ansi_blue | ansi_bold }}
-  - total: {{ ctx.statistics.total_advisories }}
-{% for key, value in ctx.statistics.advisory_counts.items() %}
-  - {{ key }}: {{ value }}
-{% endfor %}
-
+{{ macros.display_statistics(ctx.statistics) }}
 
 {% for result in ctx.attributes %}
-{% set highest_advisory = result.highest_advisory %}
-{% if highest_advisory == "information" or not highest_advisory %}
-{{ result.sample_attribute.name | ansi_bright_green }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
-{% elif highest_advisory == "improvement" %}
-{{ result.sample_attribute.name | ansi_bright_yellow }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
-{% else %}
-{{ result.sample_attribute.name | ansi_bright_red }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
-{% endif %}
-
-  {% for advice in result.all_advice %}
-    {% if advice.advisory == "information" %}
-       - {{ advice.key ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
-    {% elif advice.advisory == "improvement" %}
-       - {{ advice.key ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
-    {% else %}
-       - {{ advice.key ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
-    {% endif %}
-  {% endfor %}
-
+{{ macros.display_attribute_advice(result) }}
 {% endfor %}
+{% elif ctx.all_advice is defined %}
+{# This is a HealthAttribute object #}
+{{ macros.display_attribute_advice(ctx) }}
+{%- elif ctx.total_attributes is defined %}
+{# This is a HealthStatistics object #}
+{{ macros.display_statistics(ctx) }}
+{% endif %}

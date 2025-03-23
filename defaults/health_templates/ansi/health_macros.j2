@@ -1,20 +1,19 @@
-{% if ctx.total_attributes is defined %}
-{# This is a HealthStatistics object #}
+{% macro display_statistics(statistics) %}
 {{ ("Attribute samples") | ansi_blue | ansi_bold }}
-  - total: {{ ctx.total_attributes }}
-  - no advice: {{ ctx.no_advice_count }}
-{% for key, value in ctx.highest_advisory_counts.items() %}
+  - total: {{ statistics.total_attributes }}
+  - no advice: {{ statistics.no_advice_count }}
+{% for key, value in statistics.highest_advisory_counts.items() %}
   - {{ key }}: {{ value }}
 {% endfor %}
 
 {{ ("Advisories given") | ansi_blue | ansi_bold }}
-  - total: {{ ctx.total_advisories }}
-{% for key, value in ctx.advisory_counts.items() %}
+  - total: {{ statistics.total_advisories }}
+{% for key, value in statistics.advisory_counts.items() %}
   - {{ key }}: {{ value }}
 {% endfor %}
-{% else %}
-{# This is a HealthAttribute object #}
-{% set result = ctx %}
+{% endmacro %}
+
+{% macro display_attribute_advice(result) %}
 {% set highest_advisory = result.highest_advisory %}
 {% if highest_advisory == "information" or not highest_advisory %}
 {{ result.sample_attribute.name | ansi_bright_green }}{% if result.sample_attribute.value %} = {{ result.sample_attribute.value }}{% endif %}
@@ -33,4 +32,4 @@
        - {{ advice.key ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
     {% endif %}
   {% endfor %}
-{% endif %}
+{% endmacro %}
