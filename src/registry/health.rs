@@ -114,7 +114,7 @@ pub struct RegistryHealthArgs {
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
+    logger: impl Logger + Sync + Clone + 'static,
     args: &RegistryHealthArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;

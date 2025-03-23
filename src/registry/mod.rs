@@ -196,7 +196,10 @@ impl PolicyArgs {
 }
 
 /// Manage a semantic convention registry and return the exit code.
-pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
+pub fn semconv_registry(
+    log: impl Logger + Sync + Clone + 'static,
+    command: &RegistryCommand,
+) -> CmdResult {
     match &command.command {
         RegistrySubCommand::Check(args) => CmdResult::new(
             check::command(log.clone(), args),

@@ -170,7 +170,7 @@ pub fn listen_otlp_requests(
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
-    //    logger: impl Logger + Sync + Clone,
+    logger: impl Logger + Sync + Clone,
 ) -> Result<impl Iterator<Item = OtlpRequest>, Error> {
     let addr: SocketAddr =
         format!("{grpc_addr}:{grpc_port}")
@@ -205,17 +205,17 @@ pub fn listen_otlp_requests(
         activity_tx: activity_tx.clone(),
     };
 
-    // logger.log("To stop the OTLP receiver:");
-    // logger.log("  - press CTRL+C,");
-    // logger.log(&format!(
-    //     "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
-    //     std::process::id()
-    // ));
-    // logger.log(&format!("  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.", grpc_port + 1));
-    // logger.log(&format!(
-    //     "The OTLP receiver will stop after {} seconds of inactivity.",
-    //     inactivity_timeout.as_secs()
-    // ));
+    logger.log("To stop the OTLP receiver:");
+    logger.log("  - press CTRL+C,");
+    logger.log(&format!(
+        "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
+        std::process::id()
+    ));
+    logger.log(&format!("  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.", grpc_port + 1));
+    logger.log(&format!(
+        "The OTLP receiver will stop after {} seconds of inactivity.",
+        inactivity_timeout.as_secs()
+    ));
 
     let (ready_tx, ready_rx) = oneshot::channel();
 
@@ -524,14 +524,14 @@ mod tests {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_millis(500);
-        // let logger = TestLogger::default();
+        let logger = TestLogger::default();
 
         let mut receiver = listen_otlp_requests(
             "127.0.0.1",
             grpc_port,
             admin_port,
             inactivity_timeout,
-            // logger,
+            logger,
         )
         .unwrap();
         let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
@@ -627,14 +627,14 @@ mod tests {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_secs(5);
-        // let logger = TestLogger::default();
+        let logger = TestLogger::default();
 
         let mut receiver = listen_otlp_requests(
             "127.0.0.1",
             grpc_port,
             admin_port,
             inactivity_timeout,
-            // logger,
+            logger,
         )
         .unwrap();
 

@@ -173,22 +173,21 @@ impl Iterator for OtlpAttributeIterator {
 impl Ingester<SampleAttribute> for AttributeOtlpIngester {
     fn ingest(
         &self,
-        _logger: impl Logger + Sync + Clone,
+        logger: impl Logger + Sync + Clone + 'static,
     ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
         let otlp_requests = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
             Duration::from_secs(self.inactivity_timeout),
-            // logger.clone(),
+            logger.clone(),
         )
         .map_err(|e| Error::IngestError {
             error: format!("Failed to listen to OTLP requests: {}", e),
         })?;
 
-        Ok(Box::new(OtlpAttributeIterator::new(
-            Box::new(otlp_requests),
-            //logger.clone(),
-        )))
+        Ok(Box::new(OtlpAttributeIterator::new(Box::new(
+            otlp_requests,
+        ))))
     }
 }

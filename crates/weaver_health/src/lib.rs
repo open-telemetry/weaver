@@ -58,6 +58,6 @@ pub trait Ingester<T> {
     /// Ingest data and return an iterator of the output type
     fn ingest(
         &self,
-        logger: impl Logger + Sync + Clone,
+        logger: impl Logger + Sync + Clone + 'static,
     ) -> Result<Box<dyn Iterator<Item = T>>, Error>;
 }
