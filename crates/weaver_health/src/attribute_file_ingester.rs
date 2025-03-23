@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
+use serde_json::json;
 use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
@@ -31,16 +32,27 @@ impl Ingester<SampleAttribute> for AttributeFileIngester {
             error: format!("Failed to read file {}: {}", self.path.display(), e),
         })?;
 
+        let mut attributes = Vec::new();
         // Process each line into a SampleAttribute
-        let attributes = content
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .map(|line| SampleAttribute {
-                name: line.trim().to_owned(),
-                value: None,
-                r#type: None,
-            })
-            .collect::<Vec<_>>();
+        for line in content.lines() {
+            // If the line follows the pattern name=value, split it
+            if let Some((name, value)) = line.split_once('=') {
+                let mut sample_attribute = SampleAttribute {
+                    name: name.trim().to_owned(),
+                    value: Some(serde_json::from_str(value.trim()).unwrap_or(json!(value.trim()))),
+                    r#type: None,
+                };
+                sample_attribute.infer_type();
+                attributes.push(sample_attribute);
+            } else {
+                // If the line is just a name, push it
+                attributes.push(SampleAttribute {
+                    name: line.trim().to_owned(),
+                    value: None,
+                    r#type: None,
+                });
+            }
+        }
 
         Ok(Box::new(attributes.into_iter()))
     }
@@ -113,5 +125,50 @@ mod tests {
         } else {
             panic!("Expected IngestError");
         }
+    }
+
+    #[test]
+    fn test_name_value_parsing() {
+        // Create a temporary directory and file
+        let temp_dir = tempdir().unwrap();
+        let file_path = temp_dir.path().join("name_value.txt");
+
+        // Write test data to the file with name=value format
+        let mut file = File::create(&file_path).unwrap();
+        writeln!(file, "simple=value").unwrap();
+        writeln!(file, "number=123").unwrap();
+        writeln!(file, "boolean=true").unwrap();
+        writeln!(file, "string_array=[\"one\", \"two\", \"three\"]").unwrap();
+        writeln!(file, "equals_sign=test=test").unwrap();
+
+        // Create ingester and process the file
+        let ingester = AttributeFileIngester::new(&file_path);
+        let logger = TestLogger::new();
+        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
+
+        // Verify the results
+        assert_eq!(result.len(), 5);
+
+        assert_eq!(result[0].name, "simple");
+        assert_eq!(result[0].value.as_ref().unwrap().as_str().unwrap(), "value");
+
+        assert_eq!(result[1].name, "number");
+        assert_eq!(result[1].value.as_ref().unwrap().as_i64().unwrap(), 123);
+
+        assert_eq!(result[2].name, "boolean");
+        assert!(result[2].value.as_ref().unwrap().as_bool().unwrap());
+
+        assert_eq!(result[3].name, "string_array");
+        let array = result[3].value.as_ref().unwrap().as_array().unwrap();
+        assert_eq!(array.len(), 3);
+        assert_eq!(array[0].as_str().unwrap(), "one");
+        assert_eq!(array[1].as_str().unwrap(), "two");
+        assert_eq!(array[2].as_str().unwrap(), "three");
+
+        assert_eq!(result[4].name, "equals_sign");
+        assert_eq!(
+            result[4].value.as_ref().unwrap().as_str().unwrap(),
+            "test=test"
+        );
     }
 }

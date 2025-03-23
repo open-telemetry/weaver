@@ -1,4 +1,5 @@
-http.request.method
+http.request.method = GET
+http.response.status_code = foo
 aws.s3.bucket
 aws.s3.bucket.name
 task.id

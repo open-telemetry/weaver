@@ -78,7 +78,12 @@ pub struct RegistryHealthArgs {
 
     /// Ingester type
     ///
-    /// - `attribute_file_ingester` or `AFI` or `afi` (default)
+    /// - `attribute_file` or `AF` or `af` (default)
+    /// - `attribute_stdin` or `AS` or `as`
+    /// - `attribute_json_file` or `AJF` or `ajf`
+    /// - `attribute_json_stdin` or `AJS` or `ajs`
+    /// - `attribute_otlp` or `AO` or `ao`
+    #[clap(verbatim_doc_comment)]
     #[arg(short = 'g', long)]
     ingester: IngesterType,
 
