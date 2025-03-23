@@ -14,11 +14,11 @@ flowchart TD
     end
     
     subgraph "Intermediary Format"
-        VecAttr["Vec&lt;SampleAttribute>
+        Attr["SampleAttribute
         for structure-less data"]
-        SpanGroup["Vec&lt;SampleSpan>
+        SpanGroup["SampleSpan
         for structured data"]
-        MetricGroup["Vec&lt;SampleMetric>
+        MetricGroup["SampleMetric
         for structured data"]
     end
     
@@ -43,11 +43,11 @@ flowchart TD
     
     OTLP --> SpanGroup
     OTLP --> MetricGroup
-    TextFile --> VecAttr
+    TextFile --> Attr
     JSON --> SpanGroup
-    Other --> VecAttr
+    Other --> Attr
     
-    VecAttr --> AttrChecks
+    Attr --> AttrChecks
     SpanGroup --> AttrChecks
     SpanGroup --> StructChecks
     MetricGroup --> AttrChecks
@@ -82,12 +82,12 @@ The weaver-health system comprises four main components:
 
 Intermediary formats are used for attributes and groups:
 
-1. **Vec\<SampleAttribute\>**
+1. **SampleAttribute**
    - Used for structure-less or flat data
    - Contains attribute metadata with optional sample values
    - Supports basic attribute presence and value checks
 
-2. **Vec\<SampleSpan\>, Vec\<SampleMetric\>, ...**
+2. **SampleSpan, SampleMetric, ...**
    - Used for fully structured telemetry data
    - Contains complete metadata e.g. Spans, Metrics, ...
    - Supports comprehensive structural and relationship validation
@@ -158,7 +158,7 @@ Advisors implement a simple trait and are called during the health-check run. Th
 
 ## 3. Usage Examples
 
-Pipe a list of attributes to the `AttributeStdin` ingestor.
+Pipe a list of attribute names or name=value pairs to the `AttributeStdin` ingester.
 
 ```sh
 cat attributes.txt | weaver registry health --ingester as
@@ -179,6 +179,13 @@ thing.blah
 EOF
 ```
 
+Or enter text at the prompt, an empty line will exit
+
+```sh
+weaver registry health --ingester as
+code.line.number=42
+```
+
 Using `emit` for a round-trip test:
 
 ```sh
@@ -196,4 +203,22 @@ Vendor example: Health check column names in a Honeycomb dataset
 curl -s -X GET 'https://api.honeycomb.io/1/columns/{dataset}' -H 'X-Honeycomb-Team: {API_KEY}' \
 | jq -r '.[].key_name' \
 | weaver registry health --ingester as -r ../semantic-conventions/model
+```
+
+Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
+
+```sh
+weaver registry health --ingester ao -r ../semantic-conventions/model --inactivity-timeout 120
+```
+
+CI/CD - create a JSON report
+
+```sh
+weaver registry health --ingester ao -r ../semantic-conventions/model --format json --output ./outdir &
+HEALTH_PID=$!
+sleep 3
+# Run the code under test here.
+kill -HUP $HEALTH_PID
+wait $HEALTH_PID
+# Check the exit code and/or parse the JSON in outdir
 ```
