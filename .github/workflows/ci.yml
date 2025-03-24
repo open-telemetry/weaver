@@ -52,7 +52,7 @@ jobs:
       name: Check MSRV
       runs-on: ubuntu-latest
       env:
-        MSRV: "1.81.0"  # MSRV 
+        MSRV: "1.85.0"  # MSRV 
       steps:
         - name: Checkout repository
           uses: actions/checkout@v4
