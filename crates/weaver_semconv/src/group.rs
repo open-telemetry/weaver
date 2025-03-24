@@ -61,8 +61,6 @@ pub struct GroupSpec {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeSpec>,
-    /// List of constraints
-    pub constraints: Option<Vec<ConstraintSpec>>,
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
     pub span_kind: Option<SpanKindSpec>,
@@ -105,13 +103,6 @@ impl GroupSpec {
 
         if !self.prefix.is_empty() {
             errors.push(Error::InvalidGroupUsesPrefix {
-                path_or_url: path_or_url.to_owned(),
-                group_id: self.id.clone(),
-            });
-        }
-
-        if self.constraints.is_some() {
-            errors.push(Error::InvalidGroupUsesConstraints {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
             });
@@ -537,11 +528,6 @@ impl Default for GroupType {
     }
 }
 
-/// Allow to define additional requirements on the semantic convention.
-/// No longer supported
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ConstraintSpec(serde_yaml::Value);
-
 /// The span kind.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -595,8 +581,8 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesConstraints,
-        InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
+        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix,
+        InvalidMetric, InvalidSpanMissingSpanKind,
     };
 
     use super::*;
@@ -611,7 +597,6 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Development),
-            constraints: None,
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -656,22 +641,8 @@ mod tests {
             result
         );
 
-        // group has a constraints.
-        group.prefix = "".to_owned();
-        group.constraints = Some(vec![ConstraintSpec(serde_yaml::Value::String(
-            "test".to_owned(),
-        ))]);
-        let result = group.validate("<test>").into_result_failing_non_fatal();
-        assert_eq!(
-            Err(InvalidGroupUsesConstraints {
-                path_or_url: "<test>".to_owned(),
-                group_id: "test".to_owned()
-            }),
-            result
-        );
-
         // Span kind is missing on a span group.
-        group.constraints = None;
+        group.prefix = "".to_owned();
         group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -799,7 +770,6 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
-            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1032,7 +1002,6 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
-            constraints: None,
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1080,7 +1049,6 @@ mod tests {
             prefix: "".to_owned(),
             extends: None,
             stability: Some(Stability::Development),
-            constraints: None,
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -1318,7 +1286,6 @@ mod tests {
                 },
             }),
             annotations: None,
-            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1460,7 +1427,6 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
-            constraints: None,
         };
         assert!(group
             .validate("<test>")
@@ -1629,7 +1595,6 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
-            constraints: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1779,7 +1744,6 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
-            constraints: None,
         };
 
         // Check group with duplicate attributes.

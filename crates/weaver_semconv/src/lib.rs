@@ -223,17 +223,6 @@ pub enum Error {
         group_id: String,
     },
 
-    /// This warning indicates usage of `constraint` on a group.
-    /// With the `--future` flag, this warning is elevated to an error.
-    #[error("The group `{group_id}` defines constraints. These are no longer used.\nProvenance: {path_or_url:?}")]
-    #[diagnostic(severity(Warning))]
-    InvalidGroupUsesConstraints {
-        /// The path or URL of the semantic convention asset.
-        path_or_url: String,
-        /// The group id of the attribute.
-        group_id: String,
-    },
-
     /// The semantic convention asset contains an invalid metric definition.
     #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
     InvalidMetric {
