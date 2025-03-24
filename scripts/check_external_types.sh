@@ -13,7 +13,7 @@ for dir in crates/*/; do
   
   # Check if the public API is compliant with the allowed-external-types.toml
   echo "Checking the public API of $dir"
-  cargo +nightly-2024-06-30 check-external-types --all-features --manifest-path "$dir/Cargo.toml" --config "$dir/allowed-external-types.toml" || exit 1
+  cargo +nightly-2024-10-29 check-external-types --all-features --manifest-path "$dir/Cargo.toml" --config "$dir/allowed-external-types.toml" || exit 1
 done
 
 echo "The Cargo workspace is compliant with the 'allowed external types' policies."
