@@ -125,6 +125,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check formatting
         run: cargo fmt --all -- --check
+  check-external-types:
+    name: Check external types
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip check
+        run: echo "External types check skipped"
   #################################################################################
   # TODO Enable this once check-external-types support is available in a version
   #      that is compatible with our current MSRV.
