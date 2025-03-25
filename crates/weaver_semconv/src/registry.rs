@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 use weaver_common::result::WResult;
+use crate::source::Source;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -114,17 +115,17 @@ impl SemConvRegistry {
     /// * `semconv_specs` - The list of semantic convention specs to load.
     pub fn from_semconv_specs(
         registry_repo: &RegistryRepo,
-        semconv_specs: Vec<(String, SemConvSpec)>,
+        semconv_specs: Vec<(Source, SemConvSpec)>,
     ) -> Result<SemConvRegistry, Error> {
         // ToDo We should use: https://docs.rs/semver/latest/semver/ and URL parser that can give us the last element of the path to send to the parser.
         static VERSION_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id());
+        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
 
-        for (provenance, spec) in semconv_specs {
-            registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance });
+        for (source, spec) in semconv_specs {
+            registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance: source.path });
         }
 
         if let Some(manifest_path) = registry_repo.manifest_path() {
@@ -142,7 +143,7 @@ impl SemConvRegistry {
             }
 
             registry.set_manifest(RegistryManifest {
-                name: registry_repo.id().to_owned(),
+                name: registry_repo.id().as_ref().to_owned(),
                 description: None,
                 semconv_version,
                 schema_base_url: "".to_owned(),
@@ -256,6 +257,7 @@ impl SemConvRegistry {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
     use crate::registry::SemConvRegistry;
@@ -263,6 +265,7 @@ mod tests {
     use crate::registry_repo::RegistryRepo;
     use crate::Error;
     use weaver_common::test::ServeStaticFiles;
+    use crate::source::Source;
 
     #[test]
     fn test_try_from_path_pattern() {
@@ -296,7 +299,7 @@ mod tests {
     fn test_from_semconv_specs() {
         let semconv_specs = vec![
             (
-                "data/c1.yaml".to_owned(),
+                Source {registry_id: Arc::from("main"), path: "data/c1.yaml".to_owned()},
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
@@ -334,7 +337,7 @@ mod tests {
                 },
             ),
             (
-                "data/c2.yaml".to_owned(),
+                Source {registry_id: Arc::from("main"), path: "data/c2.yaml".to_owned()},
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),

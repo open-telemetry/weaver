@@ -7,6 +7,7 @@ use std::fs::{create_dir_all, File};
 use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use crate::registry_path::RegistryPath;
@@ -33,7 +34,7 @@ pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 #[derive(Default, Debug)]
 pub struct RegistryRepo {
     // A unique identifier for the registry (e.g. main, baseline, etc.)
-    id: String,
+    id: Arc<str>,
     registry_path: String,
     path: PathBuf,
     // Need to keep the tempdir live for the lifetime of the RegistryRepo.
@@ -48,7 +49,7 @@ impl RegistryRepo {
         let registry_path_repr = registry_path.to_string();
         match registry_path {
             RegistryPath::LocalFolder { path } => Ok(Self {
-                id: id.to_owned(),
+                id: Arc::from(id),
                 registry_path: registry_path_repr,
                 path: path.into(),
                 tmp_dir: None,
@@ -146,7 +147,7 @@ impl RegistryRepo {
         };
 
         Ok(Self {
-            id: id.to_owned(),
+            id: Arc::from(id),
             registry_path,
             path,
             tmp_dir: Some(tmp_dir),
@@ -197,7 +198,7 @@ impl RegistryRepo {
         };
 
         Ok(Self {
-            id: id.to_owned(),
+            id: Arc::from(id),
             registry_path,
             path: target_path_buf,
             tmp_dir: Some(target_dir),
@@ -206,8 +207,8 @@ impl RegistryRepo {
 
     /// Returns the unique identifier for the registry.
     #[must_use]
-    pub fn id(&self) -> &str {
-        &self.id
+    pub fn id(&self) -> Arc<str> {
+        self.id.clone()
     }
 
     /// Unpacks a tar.gz archive into the specified target directory.

@@ -1,0 +1,12 @@
+groups:
+  - id: otel.registry
+    type: attribute_group
+    brief: Attributes from the OTEL Registry.
+    attributes:
+      - id: error.type
+        type: string
+        brief: >
+          The error type.
+        stability: stable
+        examples:
+          "Ex"

@@ -21,7 +21,7 @@ use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpec;
-
+use weaver_semconv::source::Source;
 use crate::attribute::AttributeCatalog;
 use crate::registry::resolve_semconv_registry;
 
@@ -269,7 +269,7 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
-    ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
+    ) -> WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error> {
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -291,8 +291,90 @@ impl SchemaResolver {
         let local_path = registry_repo.path().to_path_buf();
         let registry_path_repr = registry_repo.registry_path_repr();
 
-        // Process registry dependency if a manifest is available.
-        let semconv_specs_dep = match registry_repo.manifest_path() {
+        // Loads the semantic convention specifications from the git repo.
+        // All yaml files are recursively loaded and parsed in parallel from
+        // the given path.
+        let result = walkdir::WalkDir::new(local_path.clone())
+            .follow_links(follow_symlinks)
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+            .par_bridge()
+            .flat_map(|entry| {
+                match entry {
+                    Ok(entry) => {
+                        if !is_semantic_convention_file(&entry) {
+                            return vec![].into_par_iter();
+                        }
+
+                        vec![SemConvRegistry::semconv_spec_from_file(entry.path()).map(
+                            |(path, spec)| {
+                                // Replace the local path with the git URL combined with the relative path
+                                // of the semantic convention file.
+                                let prefix = local_path
+                                    .to_str()
+                                    .map(|s| s.to_owned())
+                                    .unwrap_or_default();
+                                let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                    let relative_path = &path[prefix.len()..];
+                                    format!("{}{}", registry_path_repr, relative_path)
+                                } else {
+                                    let relative_path = &path[prefix.len() + 1..];
+                                    format!("{}/{}", registry_path_repr, relative_path)
+                                };
+                                (Source {registry_id: registry_repo.id(), path}, spec)
+                            },
+                        )]
+                        .into_par_iter()
+                    }
+                    Err(e) => vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                        error: e.to_string(),
+                    })]
+                    .into_par_iter(),
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let mut non_fatal_errors = vec![];
+        let mut specs = vec![];
+
+        // Process the registry dependencies (if any).
+        if let Some(dep_result) =
+            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks)
+        {
+            match dep_result {
+                WResult::Ok(t) => specs.extend(t),
+                WResult::OkWithNFEs(t, nfes) => {
+                    specs.extend(t);
+                    non_fatal_errors.extend(nfes);
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
+        // Process all the results of the previous parallel processing.
+        // The first fatal error will stop the processing and return the error.
+        // Otherwise, all non-fatal errors will be collected and returned along
+        // with the result.
+        for r in result {
+            match r {
+                WResult::Ok(t) => specs.push(t),
+                WResult::OkWithNFEs(t, nfes) => {
+                    specs.push(t);
+                    non_fatal_errors.extend(nfes);
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
+        WResult::OkWithNFEs(specs, non_fatal_errors)
+    }
+
+    fn process_registry_dependencies(
+        registry_repo: &RegistryRepo,
+        allow_registry_deps: bool,
+        follow_symlinks: bool,
+    ) -> Option<WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error>> {
+        match registry_repo.manifest_path() {
             Some(manifest_path) => {
                 match RegistryManifest::try_from_file(manifest_path) {
                     Ok(manifest) => {
@@ -346,84 +428,42 @@ impl SchemaResolver {
                 }
             }
             None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::SchemaResolver;
+    use weaver_common::result::WResult;
+    use weaver_semconv::registry_path::RegistryPath;
+    use weaver_semconv::registry_repo::RegistryRepo;
+
+    #[test]
+    fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
+        let registry_path = RegistryPath::LocalFolder {
+            path: "data/multi-registry/custom_registry".to_owned(),
         };
-
-        // Loads the semantic convention specifications from the git repo.
-        // All yaml files are recursively loaded and parsed in parallel from
-        // the given path.
-        let result = walkdir::WalkDir::new(local_path.clone())
-            .follow_links(follow_symlinks)
-            .into_iter()
-            .filter_entry(|e| !is_hidden(e))
-            .par_bridge()
-            .flat_map(|entry| {
-                match entry {
-                    Ok(entry) => {
-                        if !is_semantic_convention_file(&entry) {
-                            return vec![].into_par_iter();
-                        }
-
-                        vec![SemConvRegistry::semconv_spec_from_file(entry.path()).map(
-                            |(path, spec)| {
-                                // Replace the local path with the git URL combined with the relative path
-                                // of the semantic convention file.
-                                let prefix = local_path
-                                    .to_str()
-                                    .map(|s| s.to_owned())
-                                    .unwrap_or_default();
-                                let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
-                                    let relative_path = &path[prefix.len()..];
-                                    format!("{}{}", registry_path_repr, relative_path)
-                                } else {
-                                    let relative_path = &path[prefix.len() + 1..];
-                                    format!("{}/{}", registry_path_repr, relative_path)
-                                };
-                                (path, spec)
-                            },
-                        )]
-                        .into_par_iter()
-                    }
-                    Err(e) => vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
-                        error: e.to_string(),
-                    })]
-                    .into_par_iter(),
+        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+        match result {
+            WResult::Ok(semconv_specs) => {
+                for (path, spec) in semconv_specs {
+                    println!("Path: {path:?}, Spec: {spec:?}");
                 }
-            })
-            .collect::<Vec<_>>();
-
-        let mut non_fatal_errors = vec![];
-        let mut specs = vec![];
-
-        // Process all the results of the optional registry dependency.
-        // The first fatal error will stop the processing and return the error.
-        // Otherwise, all non-fatal errors will be collected and returned along
-        // with the result.
-        if let Some(dep_result) = semconv_specs_dep {
-            match dep_result {
-                WResult::Ok(t) => specs.extend(t),
-                WResult::OkWithNFEs(t, nfes) => {
-                    specs.extend(t);
-                    non_fatal_errors.extend(nfes);
+            }
+            WResult::OkWithNFEs(semconv_specs, nfe) => {
+                for (path, spec) in semconv_specs {
+                    println!("Path: {path:?}, Spec: {spec:?}");
                 }
-                WResult::FatalErr(e) => return WResult::FatalErr(e),
+                for error in nfe {
+                    panic!("Non-fatal error: {error}");
+                }
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Fatal error: {fatal}");
             }
         }
-
-        // Process all the results of the previous parallel processing.
-        // The first fatal error will stop the processing and return the error.
-        // Otherwise, all non-fatal errors will be collected and returned along
-        // with the result.
-        for r in result {
-            match r {
-                WResult::Ok(t) => specs.push(t),
-                WResult::OkWithNFEs(t, nfes) => {
-                    specs.push(t);
-                    non_fatal_errors.extend(nfes);
-                }
-                WResult::FatalErr(e) => return WResult::FatalErr(e),
-            }
-        }
-
-        WResult::OkWithNFEs(specs, non_fatal_errors)
+        Ok(())
     }
 }
