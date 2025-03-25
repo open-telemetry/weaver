@@ -581,8 +581,8 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix,
-        InvalidMetric, InvalidSpanMissingSpanKind,
+        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
+        InvalidSpanMissingSpanKind,
     };
 
     use super::*;
