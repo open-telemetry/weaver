@@ -48,7 +48,6 @@ miette.workspace = true
 include_dir.workspace = true
 schemars.workspace = true
 dirs.workspace = true
-convert_case.workspace = true
 
 [dev-dependencies]
 opentelemetry.workspace = true
