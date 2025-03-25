@@ -328,7 +328,7 @@ impl ResolvedSemconvRegistry {
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let semconv_specs = match SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
+        let semconv_specs = match SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks)
         {
             WResult::Ok(semconv_specs) => semconv_specs,
             WResult::OkWithNFEs(semconv_specs, errs) => {

@@ -40,7 +40,7 @@ fn test_cli_interface() {
     let registry_repo = RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| {
         panic!("Failed to create the registry repo, error: {e}");
     });
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, false)
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, true, false)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| {

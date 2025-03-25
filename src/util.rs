@@ -36,7 +36,7 @@ pub(crate) fn load_semconv_specs(
     log: impl Logger + Sync + Clone,
     follow_symlinks: bool,
 ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
-    SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks).inspect(
+    SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks).inspect(
         |semconv_specs, _| {
             log.success(&format!(
                 "`{}` semconv registry `{}` loaded ({} files)",

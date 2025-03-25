@@ -17,6 +17,7 @@ use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpec;
@@ -262,29 +263,74 @@ impl SchemaResolver {
     ///
     /// # Arguments
     /// * `registry_repo` - The registry repository containing the semantic convention files.
+    /// * `allow_registry_deps` - Whether to allow registry dependencies.
+    /// * `follow_symlinks` - Whether to follow symbolic links.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
+        allow_registry_deps: bool,
         follow_symlinks: bool,
     ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
-        Self::load_semconv_from_local_path(
-            registry_repo.path().to_path_buf(),
-            registry_repo.registry_path_repr(),
-            follow_symlinks,
-        )
-    }
+        let local_path = registry_repo.path().to_path_buf();
+        let registry_path_repr = registry_repo.registry_path_repr();
 
-    /// Loads the semantic convention specifications from the given local path.
-    /// Implementation note: semconv files are read and parsed in parallel and
-    /// all errors are collected and returned as a compound error.
-    ///
-    /// # Arguments
-    /// * `local_path` - The local path containing the semantic convention files.
-    /// * `registry_path_repr` - The representation of the registry path (URL or path).
-    fn load_semconv_from_local_path(
-        local_path: PathBuf,
-        registry_path_repr: &str,
-        follow_symlinks: bool,
-    ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
+        // Process registry dependency if a manifest is available.
+        let semconv_specs_dep = match registry_repo.manifest_path() {
+            Some(manifest_path) => {
+                match RegistryManifest::try_from_file(manifest_path) {
+                    Ok(manifest) => {
+                        if let Some(dependencies) =
+                            manifest.dependencies.filter(|deps| !deps.is_empty())
+                        {
+                            if !allow_registry_deps {
+                                Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                                    error: format!(
+                                        "Registry dependencies are not allowed for the `{}` registry. Weaver currently supports only two registry levels.",
+                                        registry_repo.registry_path_repr()
+                                    ),
+                                }))
+                            } else if dependencies.len() > 1 {
+                                Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                                    error: format!(
+                                        "Currently, Weaver supports only a single dependency per registry. Multiple dependencies have been found in the `{}` registry.",
+                                        registry_repo.registry_path_repr()
+                                    ),
+                                }))
+                            } else {
+                                let dependency = &dependencies[0];
+                                match RegistryRepo::try_new(
+                                    &dependency.name,
+                                    &dependency.registry_path,
+                                ) {
+                                    Ok(registry_repo_dep) => Some(Self::load_semconv_specs(
+                                        &registry_repo_dep,
+                                        false,
+                                        follow_symlinks,
+                                    )),
+                                    Err(e) => Some(WResult::FatalErr(
+                                        weaver_semconv::Error::SemConvSpecError {
+                                            error: format!(
+                                                "Failed to load the registry dependency `{}`: {}",
+                                                dependency.name, e
+                                            ),
+                                        },
+                                    )),
+                                }
+                            }
+                        } else {
+                            // Manifest has no dependencies or dependencies are empty
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        // Manifest file is not valid or not found
+                        Some(WResult::FatalErr(e))
+                    }
+                }
+            }
+            None => None,
+        };
+
+        // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()
@@ -345,12 +391,28 @@ impl SchemaResolver {
             })
             .collect::<Vec<_>>();
 
+        let mut non_fatal_errors = vec![];
+        let mut specs = vec![];
+
+        // Process all the results of the optional registry dependency.
+        // The first fatal error will stop the processing and return the error.
+        // Otherwise, all non-fatal errors will be collected and returned along
+        // with the result.
+        if let Some(dep_result) = semconv_specs_dep {
+            match dep_result {
+                WResult::Ok(t) => specs.extend(t),
+                WResult::OkWithNFEs(t, nfes) => {
+                    specs.extend(t);
+                    non_fatal_errors.extend(nfes);
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
         // Process all the results of the previous parallel processing.
         // The first fatal error will stop the processing and return the error.
         // Otherwise, all non-fatal errors will be collected and returned along
         // with the result.
-        let mut non_fatal_errors = vec![];
-        let mut specs = vec![];
         for r in result {
             match r {
                 WResult::Ok(t) => specs.push(t),

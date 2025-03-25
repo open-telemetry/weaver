@@ -1,0 +1,8 @@
+groups:
+    - id: my_metric
+      type: metric
+      name: my_metric
+      brief: My metric
+      attributes:
+      - ref: attr0
+      - ref: error.type
