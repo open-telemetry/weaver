@@ -962,7 +962,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }),
         };
@@ -979,7 +981,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
         });
 
@@ -1002,7 +1004,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
         });
         let result = group.validate("<test>").into_result_failing_non_fatal();
@@ -1025,7 +1027,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![AnyValueSpec::String {
                 common: AnyValueCommonSpec {
@@ -1034,7 +1036,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }],
         });
@@ -1052,7 +1056,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![AnyValueSpec::String {
                 common: AnyValueCommonSpec {
@@ -1061,7 +1065,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }],
         });
@@ -1079,7 +1085,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![AnyValueSpec::String {
                 common: AnyValueCommonSpec {
@@ -1088,7 +1094,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: None,
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }],
         });
@@ -1112,7 +1120,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![AnyValueSpec::Strings {
                 common: AnyValueCommonSpec {
@@ -1121,7 +1129,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: None,
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }],
         });
@@ -1166,7 +1176,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: Some(Examples::String("test".to_owned())),
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }),
         };
@@ -1183,7 +1195,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: None,
                 examples: Some(Examples::String("test".to_owned())),
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
         });
 
@@ -1206,7 +1218,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![AnyValueSpec::String {
                 common: AnyValueCommonSpec {
@@ -1215,7 +1227,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: None,
                     examples: Some(Examples::String("test".to_owned())),
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
             }],
         });
@@ -1238,7 +1252,7 @@ mod tests {
                 note: "note".to_owned(),
                 stability: Some(Stability::Stable),
                 examples: None,
-                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
             },
             fields: vec![AnyValueSpec::Enum {
                 common: AnyValueCommonSpec {
@@ -1247,7 +1261,9 @@ mod tests {
                     note: "note".to_owned(),
                     stability: Some(Stability::Stable),
                     examples: None,
-                    requirement_level: RequirementLevel::Basic(BasicRequirementLevelSpec::Optional),
+                    requirement_level: RequirementLevel::Basic(
+                        BasicRequirementLevelSpec::Recommended,
+                    ),
                 },
                 members: vec![EnumEntriesSpec {
                     id: "nested_enum_member".to_owned(),
