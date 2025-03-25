@@ -328,15 +328,16 @@ impl ResolvedSemconvRegistry {
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let semconv_specs = match SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks)
-        {
-            WResult::Ok(semconv_specs) => semconv_specs,
-            WResult::OkWithNFEs(semconv_specs, errs) => {
-                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
-                semconv_specs
-            }
-            WResult::FatalErr(err) => return Err(err.into()),
-        };
+        let semconv_specs =
+            match SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks) {
+                WResult::Ok(semconv_specs) => semconv_specs,
+                WResult::OkWithNFEs(semconv_specs, errs) => {
+                    diag_msgs
+                        .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                    semconv_specs
+                }
+                WResult::FatalErr(err) => return Err(err.into()),
+            };
 
         let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
             Ok(registry) => registry,

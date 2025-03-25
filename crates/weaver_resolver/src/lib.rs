@@ -270,6 +270,24 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
     ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
+        // Define helper functions for filtering files.
+        fn is_hidden(entry: &DirEntry) -> bool {
+            entry
+                .file_name()
+                .to_str()
+                .map(|s| s.starts_with('.'))
+                .unwrap_or(false)
+        }
+        fn is_semantic_convention_file(entry: &DirEntry) -> bool {
+            let path = entry.path();
+            let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
+            let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
+            path.is_file()
+                && (extension == "yaml" || extension == "yml")
+                && file_name != "schema-next.yaml"
+                && file_name != REGISTRY_MANIFEST
+        }
+
         let local_path = registry_repo.path().to_path_buf();
         let registry_path_repr = registry_repo.registry_path_repr();
 
@@ -329,24 +347,6 @@ impl SchemaResolver {
             }
             None => None,
         };
-
-        // Define helper functions for filtering files.
-        fn is_hidden(entry: &DirEntry) -> bool {
-            entry
-                .file_name()
-                .to_str()
-                .map(|s| s.starts_with('.'))
-                .unwrap_or(false)
-        }
-        fn is_semantic_convention_file(entry: &DirEntry) -> bool {
-            let path = entry.path();
-            let extension = path.extension().unwrap_or_else(|| std::ffi::OsStr::new(""));
-            let file_name = path.file_name().unwrap_or_else(|| std::ffi::OsStr::new(""));
-            path.is_file()
-                && (extension == "yaml" || extension == "yml")
-                && file_name != "schema-next.yaml"
-                && file_name != REGISTRY_MANIFEST
-        }
 
         // Loads the semantic convention specifications from the git repo.
         // All yaml files are recursively loaded and parsed in parallel from
