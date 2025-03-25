@@ -26,8 +26,9 @@ use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::sync::OnceLock;
 
-use convert_case::Boundary;
-use convert_case::{Converter, Pattern};
+use convert_case::pattern::Pattern;
+use convert_case::Converter;
+use convert_case::{pattern, Boundary};
 use dirs::home_dir;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
@@ -384,45 +385,45 @@ impl CaseConvention {
         match self {
             CaseConvention::LowerCase => LOWER_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Lowercase, " ").add_boundary(Boundary::SPACE)
+                    new_converter(pattern::lowercase, " ").add_boundary(Boundary::SPACE)
                 })
                 .convert(&text),
             CaseConvention::UpperCase => UPPER_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Uppercase, " ").add_boundary(Boundary::SPACE)
+                    new_converter(pattern::uppercase, " ").add_boundary(Boundary::SPACE)
                 })
                 .convert(&text),
             CaseConvention::TitleCase => TITLE_CASE
-                .get_or_init(|| new_converter(Pattern::Capital, " ").add_boundary(Boundary::SPACE))
+                .get_or_init(|| new_converter(pattern::capital, " ").add_boundary(Boundary::SPACE))
                 .convert(&text),
             CaseConvention::PascalCase => PASCAL_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Capital, "").add_boundary(Boundary::LOWER_UPPER)
+                    new_converter(pattern::capital, "").add_boundary(Boundary::LOWER_UPPER)
                 })
                 .convert(&text),
             CaseConvention::CamelCase => CAMEL_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Camel, "").add_boundary(Boundary::LOWER_UPPER)
+                    new_converter(pattern::camel, "").add_boundary(Boundary::LOWER_UPPER)
                 })
                 .convert(&text),
             CaseConvention::SnakeCase => SNAKE_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Lowercase, "_").add_boundary(Boundary::UNDERSCORE)
+                    new_converter(pattern::lowercase, "_").add_boundary(Boundary::UNDERSCORE)
                 })
                 .convert(&text),
             CaseConvention::ScreamingSnakeCase => SCREAMING_SNAKE_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Uppercase, "_").add_boundary(Boundary::UNDERSCORE)
+                    new_converter(pattern::uppercase, "_").add_boundary(Boundary::UNDERSCORE)
                 })
                 .convert(&text),
             CaseConvention::KebabCase => KEBAB_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Lowercase, "-").add_boundary(Boundary::HYPHEN)
+                    new_converter(pattern::lowercase, "-").add_boundary(Boundary::HYPHEN)
                 })
                 .convert(&text),
             CaseConvention::ScreamingKebabCase => SCREAMING_KEBAB_CASE
                 .get_or_init(|| {
-                    new_converter(Pattern::Uppercase, "-").add_boundary(Boundary::HYPHEN)
+                    new_converter(pattern::uppercase, "-").add_boundary(Boundary::HYPHEN)
                 })
                 .convert(&text),
         }

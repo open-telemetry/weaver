@@ -161,6 +161,7 @@ For github groups see the [codeowners](CODEOWNERS) file.
 
 - [Laurent Quérel](https://github.com/lquerel) F5 Networks
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
+- [Jeremy Blythe](https://github.com/jerbly) Evertz
 
 ### Approvers
 
