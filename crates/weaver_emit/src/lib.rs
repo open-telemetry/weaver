@@ -163,6 +163,7 @@ mod tests {
                     prefix: false,
                     tags: None,
                     value: None,
+                    annotations: None,
                 }],
                 span_kind: Some(SpanKindSpec::Internal),
                 events: vec![],

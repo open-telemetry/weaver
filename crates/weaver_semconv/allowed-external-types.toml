@@ -11,4 +11,5 @@ allowed_external_types = [
     "ordered_float::OrderedFloat",      # ToDo: Remove this dependency before version 1.0
     "miette::protocol::Diagnostic",
     "schemars::JsonSchema",
+    "serde_yaml::value::Value",
 ]
