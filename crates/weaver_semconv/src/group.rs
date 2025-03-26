@@ -872,6 +872,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -946,6 +947,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
