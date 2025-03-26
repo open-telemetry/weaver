@@ -1,0 +1,48 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "attrs",
+      "type": "attribute_group",
+      "brief": "Attributes",
+      "attributes": [
+        0
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-14-annotations/registry/group-with-annotations.yaml"
+      },
+      "annotations": {
+        "privacy_sensitivity": "PII",
+        "code_generation": {
+          "exclude": true
+        }
+      }
+    },
+    {
+      "id": "attrs_ext",
+      "type": "attribute_group",
+      "brief": "Attributes",
+      "attributes": [
+        1
+      ],
+      "lineage": {
+        "source_file": "data/registry-test-14-annotations/registry/group-with-annotations.yaml",
+        "attributes": {
+          "attr1": {
+            "source_group": "attrs",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "annotations"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

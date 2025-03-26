@@ -5,7 +5,7 @@
 //! A group specification.
 
 use schemars::JsonSchema;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
-use crate::Error;
+use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 
 /// Group Spec contain the list of semantic conventions for attributes,
@@ -97,6 +97,8 @@ pub struct GroupSpec {
     /// Note: only valid if type is event
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// Annotations for the group.
+    pub annotations: Option<HashMap<String, YamlValue>>,
 }
 
 impl GroupSpec {
@@ -593,6 +595,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
@@ -603,6 +606,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -726,6 +730,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
@@ -736,6 +741,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -756,6 +762,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -783,6 +790,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -810,6 +818,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -846,6 +855,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -888,6 +898,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
@@ -898,6 +909,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -928,6 +940,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert!(result.is_ok());
@@ -967,6 +980,7 @@ mod tests {
                     ),
                 },
             }),
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -1181,6 +1195,7 @@ mod tests {
                     ),
                 },
             }),
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -1311,6 +1326,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: None,
@@ -1321,6 +1337,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -1455,6 +1472,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let mut group = GroupSpec {
             id: "test".to_owned(),
@@ -1475,6 +1493,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1589,6 +1608,7 @@ mod tests {
                 stability: None,
                 deprecated: None,
                 prefix: false,
+                annotations: None,
             },
             AttributeSpec::Ref {
                 r#ref: "attribute".to_owned(),
@@ -1601,6 +1621,7 @@ mod tests {
                 stability: None,
                 deprecated: None,
                 prefix: false,
+                annotations: None,
             },
         ];
         let mut group = GroupSpec {
@@ -1622,6 +1643,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
 
         // Check group with duplicate attributes.
