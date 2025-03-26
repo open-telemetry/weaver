@@ -4,7 +4,7 @@ install:
     cargo install cargo-machete
     cargo install cargo-depgraph
     cargo install cargo-edit
-    rustup install nightly-2024-06-30   # used by cargo-check-external-types
+    rustup install nightly-2024-10-29   # used by cargo-check-external-types
     cargo install cargo-check-external-types
     cargo install git-cliff
     cargo install cargo-tarpaulin
@@ -39,4 +39,10 @@ validate-workspace:
     cargo xtask validate
 
 check-external-types:
-    scripts/check_external_types.sh
+  ##################################################################################
+  # TODO Enable this once check-external-types support is available in a version
+  #      that is compatible with our current MSRV.
+  # See: https://github.com/open-telemetry/weaver/pull/651#issuecomment-2747851893
+  ##################################################################################
+  #  scripts/check_external_types.sh
+  ##################################################################################

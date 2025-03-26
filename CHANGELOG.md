@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 What's changed
 
 * Add support for annotations on attributes and groups. ([#645](https://github.com/open-telemetry/weaver/pull/645) by @lquerel).
+* 💥 BREAKING CHANGE 💥 - Upgrade to version 0.4.0 of regorus [requires all v0 policies to be modified](https://github.com/microsoft/regorus/pull/373). Policy upgrade instructions [here](https://www.openpolicyagent.org/docs/latest/v0-upgrade/#upgrading-rego) may help. ([#651](https://github.com/open-telemetry/weaver/pull/651) by @jerbly). 
 
 ## [0.13.2] - 2025-02-13
 
