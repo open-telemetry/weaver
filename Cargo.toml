@@ -115,7 +115,7 @@ portpicker = "0.1.1"
 tempfile = "3.19.1"
 
 [build-dependencies]
-tonic-build = { version = "0.12.3", features = ["cleanup-markdown"] }
+tonic-build = { version = "0.13.0", features = ["cleanup-markdown"] }
 
 [profile.release]
 lto = true
