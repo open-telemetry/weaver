@@ -313,6 +313,7 @@ mod tests {
                         prefix: false,
                         tags: None,
                         value: None,
+                        annotations: None,
                     },
                     Attribute {
                         name: "test.enum".to_owned(),
@@ -350,6 +351,7 @@ mod tests {
                         prefix: false,
                         tags: None,
                         value: None,
+                        annotations: None,
                     },
                     Attribute {
                         name: "test.deprecated".to_owned(),
@@ -372,6 +374,7 @@ mod tests {
                         prefix: false,
                         tags: None,
                         value: None,
+                        annotations: None,
                     },
                     Attribute {
                         name: "test.template".to_owned(),
@@ -392,6 +395,7 @@ mod tests {
                         prefix: false,
                         tags: None,
                         value: None,
+                        annotations: None,
                     },
                 ],
                 span_kind: Some(SpanKindSpec::Internal),
