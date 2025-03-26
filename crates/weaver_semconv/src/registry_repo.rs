@@ -7,8 +7,8 @@ use std::fs::{create_dir_all, File};
 use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use crate::registry_path::RegistryPath;
 use crate::Error;

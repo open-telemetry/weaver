@@ -144,6 +144,12 @@ impl SemConvSpec {
 
         WResult::with_non_fatal_errors(self, errors)
     }
+
+    /// Returns the list of groups in the semantic convention spec.
+    #[must_use]
+    pub fn groups(&self) -> &[GroupSpec] {
+        &self.groups
+    }
 }
 
 impl SemConvSpecWithProvenance {

@@ -8,5 +8,6 @@ groups:
         brief: >
           The error type.
         stability: stable
+        requirement_level: recommended
         examples:
           "Ex"

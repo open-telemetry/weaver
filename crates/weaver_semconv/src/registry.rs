@@ -8,6 +8,7 @@ use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+use crate::source::Source;
 use crate::stats::Stats;
 use crate::Error;
 use regex::Regex;
@@ -15,7 +16,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 use weaver_common::result::WResult;
-use crate::source::Source;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -125,7 +125,10 @@ impl SemConvRegistry {
         let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
 
         for (source, spec) in semconv_specs {
-            registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance: source.path });
+            registry.add_semconv_spec(SemConvSpecWithProvenance {
+                spec,
+                provenance: source.path,
+            });
         }
 
         if let Some(manifest_path) = registry_repo.manifest_path() {
@@ -257,15 +260,15 @@ impl SemConvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
     use crate::registry::SemConvRegistry;
     use crate::registry_path::RegistryPath;
     use crate::registry_repo::RegistryRepo;
-    use crate::Error;
-    use weaver_common::test::ServeStaticFiles;
     use crate::source::Source;
+    use crate::Error;
+    use std::sync::Arc;
+    use weaver_common::test::ServeStaticFiles;
 
     #[test]
     fn test_try_from_path_pattern() {
@@ -299,7 +302,10 @@ mod tests {
     fn test_from_semconv_specs() {
         let semconv_specs = vec![
             (
-                Source {registry_id: Arc::from("main"), path: "data/c1.yaml".to_owned()},
+                Source {
+                    registry_id: Arc::from("main"),
+                    path: "data/c1.yaml".to_owned(),
+                },
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
@@ -337,7 +343,10 @@ mod tests {
                 },
             ),
             (
-                Source {registry_id: Arc::from("main"), path: "data/c2.yaml".to_owned()},
+                Source {
+                    registry_id: Arc::from("main"),
+                    path: "data/c2.yaml".to_owned(),
+                },
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),

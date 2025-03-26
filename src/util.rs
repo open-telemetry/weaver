@@ -3,6 +3,7 @@
 //! Utility functions for resolving a semantic convention registry and checking policies.
 //! This module supports the `schema` and `registry` commands.
 
+use crate::registry::{PolicyArgs, RegistryArgs};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -18,7 +19,6 @@ use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpec;
 use weaver_semconv::source::Source;
-use crate::registry::{PolicyArgs, RegistryArgs};
 
 /// Loads the semantic convention specifications from a registry path.
 ///

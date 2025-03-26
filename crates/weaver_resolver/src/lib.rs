@@ -10,6 +10,8 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use serde::Serialize;
 use walkdir::DirEntry;
 
+use crate::attribute::AttributeCatalog;
+use crate::registry::resolve_semconv_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
@@ -22,8 +24,6 @@ use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpec;
 use weaver_semconv::source::Source;
-use crate::attribute::AttributeCatalog;
-use crate::registry::resolve_semconv_registry;
 
 pub mod attribute;
 mod constraint;
@@ -321,7 +321,13 @@ impl SchemaResolver {
                                     let relative_path = &path[prefix.len() + 1..];
                                     format!("{}/{}", registry_path_repr, relative_path)
                                 };
-                                (Source {registry_id: registry_repo.id(), path}, spec)
+                                (
+                                    Source {
+                                        registry_id: registry_repo.id(),
+                                        path,
+                                    },
+                                    spec,
+                                )
                             },
                         )]
                         .into_par_iter()
@@ -436,28 +442,94 @@ impl SchemaResolver {
 mod tests {
     use crate::SchemaResolver;
     use weaver_common::result::WResult;
+    use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+    use weaver_semconv::group::GroupType;
+    use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_path::RegistryPath;
     use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::semconv::SemConvSpec;
+    use weaver_semconv::source::Source;
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
+        fn check_semconv_specs(
+            registry_repo: &RegistryRepo,
+            semconv_specs: Vec<(Source, SemConvSpec)>,
+        ) {
+            assert_eq!(semconv_specs.len(), 2);
+            for (source, semconv_spec) in semconv_specs.iter() {
+                match source.registry_id.as_ref() {
+                    "main" => {
+                        assert_eq!(
+                            source.path,
+                            "data/multi-registry/custom_registry/custom_registry.yaml"
+                        );
+                        assert_eq!(semconv_spec.groups().len(), 2);
+                        assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
+                        assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
+                    }
+                    "otel" => {
+                        assert_eq!(
+                            source.path,
+                            "data/multi-registry/otel_registry/otel_registry.yaml"
+                        );
+                        assert_eq!(semconv_spec.groups().len(), 1);
+                        assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
+                    }
+                    _ => panic!("Unexpected registry id: {}", source.registry_id),
+                }
+            }
+
+            let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
+                .expect("Failed to create the registry");
+            match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+                WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                    let metrics = resolved_registry.groups(GroupType::Metric);
+                    let metric = metrics
+                        .get("metric.auction.bid.count")
+                        .expect("Metric not found");
+                    let attributes = &metric.attributes;
+                    assert_eq!(attributes.len(), 3);
+                    for attr_ref in attributes {
+                        let attr = resolved_registry
+                            .catalog
+                            .attribute(attr_ref)
+                            .expect("Failed to resolve attribute");
+                        match attr.name.as_str() {
+                            "auction.name" => {}
+                            "auction.id" => {}
+                            "error.type" => {
+                                // Check requirement level is properly overridden.
+                                // Initially, it was set to `recommended` in the otel registry.
+                                // It should be overridden to `required` in the custom registry.
+                                assert_eq!(
+                                    attr.requirement_level,
+                                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+                                );
+                            }
+                            _ => {
+                                panic!("Unexpected attribute name: {}", attr.name);
+                            }
+                        }
+                    }
+                }
+                WResult::FatalErr(fatal) => {
+                    panic!("Fatal error: {fatal}");
+                }
+            }
+        }
+
         let registry_path = RegistryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
         match result {
-            WResult::Ok(semconv_specs) => {
-                for (path, spec) in semconv_specs {
-                    println!("Path: {path:?}, Spec: {spec:?}");
-                }
-            }
+            WResult::Ok(semconv_specs) => check_semconv_specs(&registry_repo, semconv_specs),
             WResult::OkWithNFEs(semconv_specs, nfe) => {
-                for (path, spec) in semconv_specs {
-                    println!("Path: {path:?}, Spec: {spec:?}");
-                }
-                for error in nfe {
-                    panic!("Non-fatal error: {error}");
+                check_semconv_specs(&registry_repo, semconv_specs);
+                if !nfe.is_empty() {
+                    panic!("Non-fatal errors: {nfe:?}");
                 }
             }
             WResult::FatalErr(fatal) => {
