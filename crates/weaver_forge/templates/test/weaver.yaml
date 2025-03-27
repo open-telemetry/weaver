@@ -54,27 +54,30 @@ templates:
   - template: "**/metrics.md"
     filter: semconv_grouped_metrics
     application_mode: single
+  - template: "**/metric_names.md"
+    filter: semconv_metrics
+    application_mode: single
   - template: "**/resource.md"
-    filter: > 
-      semconv_signal("resource"; {}) 
+    filter: >
+      semconv_signal("resource"; {})
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
     application_mode: each
   - template: "**/resources.md"
     filter: >
-      semconv_signal("resource"; {}) 
+      semconv_signal("resource"; {})
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, resources: . | sort_by(.id) })
     application_mode: single
   - template: "**/span.md"
     filter: >
-      semconv_signal("span"; {}) 
+      semconv_signal("span"; {})
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
     application_mode: each
   - template: "**/spans.md"
     filter: >
-      semconv_signal("span"; {}) 
+      semconv_signal("span"; {})
       | group_by(.root_namespace)
       | map({ root_namespace: .[0].root_namespace, spans: . | sort_by(.id) })
     application_mode: single
