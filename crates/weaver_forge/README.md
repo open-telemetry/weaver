@@ -387,6 +387,25 @@ The `semconv_attributes` function extracts the registry attributes and applies t
 The `semconv_group_attributes_by_root_namespace` function groups the attributes by root namespace. It's
 possible to combine these two functions with your own JQ filters if needed.
 
+The `semconv_grouped_attributes` helper applies code-generation annotations provided on attributes by default.
+The following annotations are supported:
+
+* exclude attribute
+
+  ```yaml
+    - id: some.attribute.name
+      stability: development
+      type: string
+      brief: Some attribute
+      examples: ["foo"]
+      annotations:
+        code_generation:
+          exclude: true
+  ```
+
+To ignore all code generation annotations, pass `ignore_code_generation_annotations = true` option to  
+the `semconv_grouped_attributes`.
+
 **Process Metrics**
 
 The following JQ filter extracts the metrics from the resolved registry, sorted by group
