@@ -536,3 +536,22 @@ groups:
           This is useful in cases where the database is running in a clustered environment and the instrumentation is able to record the node executing the query.
           The client may obtain this value in databases like MySQL using queries like `select @@hostname`.
         examples: 'mysql-e26b99z.example.com'
+      - id: db.excluded_attribute
+        stability: development
+        type: string
+        brief: >
+          An attribute that is excluded from code generation.
+        examples: ["foo"]
+        annotations:
+          code_generation:
+            exclude: true
+      - id: db.sensitive_attribute
+        stability: development
+        type: string
+        brief: >
+          An attribute that contains sensitive information.
+        examples: ["bar"]
+        annotations:
+          code_generation:
+            exclude: false # part of the test, do not remove
+          privacy_sensitivity: PII
