@@ -27,6 +27,14 @@ def stability_filter($options):
         .
     end;
 
+# TODO
+def code_generation_exclude_filter($options):
+    if ($options | has("ignore_code_generation_annotations")) then
+        .
+    else
+        . | select(.annotations?.code_generation?.exclude != true)
+    end;
+
 #####################
 # Attribute functions
 #####################
@@ -37,6 +45,7 @@ def stability_filter($options):
 # - exclude_root_namespace: a list of root namespaces to exclude.
 # - stable_only: a boolean to exclude all non-stable attributes.
 # - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
+# - ignore_code_generation_annotations: a boolean to ignore code generation annotations.
 def semconv_attributes($options):
     .groups
     | map(select(.type == "attribute_group" and (.id | startswith("registry."))))
