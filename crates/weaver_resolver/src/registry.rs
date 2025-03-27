@@ -3,8 +3,8 @@
 //! Functions to resolve a semantic convention registry.
 
 use crate::attribute::AttributeCatalog;
-use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use crate::Error;
+use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
 use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
