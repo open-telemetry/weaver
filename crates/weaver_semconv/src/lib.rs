@@ -116,6 +116,18 @@ pub enum Error {
         error: String,
     },
 
+    /// The semantic convention spec contains an invalid group definition. Group missing type.
+    #[error("Invalid group '{group_id}', missing type, detected while resolving '{path_or_url:?}'. {error}")]
+    #[diagnostic(severity(Warning))]
+    InvalidGroupMissingType {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id.
+        group_id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// The semantic convention spec contains an invalid group definition. Span missing span_kind.
     #[error("Invalid Span group '{group_id}', missing span_kind, detected while resolving '{path_or_url:?}'. {error}")]
     #[diagnostic(severity(Warning))]

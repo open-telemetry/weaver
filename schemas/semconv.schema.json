@@ -103,7 +103,8 @@
 			"type": "object",
 			"required": [
 				"id",
-				"brief"
+				"brief",
+				"type"
 			],
 			"allOf": [
 				{

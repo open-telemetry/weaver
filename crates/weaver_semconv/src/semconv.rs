@@ -185,8 +185,8 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::Error::{
-        InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroupStability,
-        InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
+        InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroupMissingType,
+        InvalidGroupStability, InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
     use weaver_common::test::ServeStaticFiles;
@@ -198,7 +198,7 @@ mod tests {
         let semconv_spec = SemConvSpec::from_file(path)
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(semconv_spec.groups.len(), 11);
+        assert_eq!(semconv_spec.groups.len(), 10);
 
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
@@ -225,6 +225,7 @@ mod tests {
             stability: "stable"
             brief: "description1"
             span_kind: "client"
+            type: span
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -235,6 +236,7 @@ mod tests {
             stability: "stable"
             brief: "description2"
             span_kind: "server"
+            type: span
             attributes:
               - id: "attr2"
                 stability: "stable"
@@ -264,6 +266,7 @@ mod tests {
         groups:
           - id: "group1"
             brief: "description1"
+            type: span
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -272,13 +275,22 @@ mod tests {
             stability: "stable"
             brief: "description2"
             span_kind: "server"
+            type: span
             attributes:
               - id: "attr2"
                 type: "int"
+          - id: "group3"
+            stability: "stable"
+            brief: "description3"
+            attributes:
+              - id: "attr3"
+                type: "double"
+                stability: stable
+                brief: "Brief3"                
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
-            assert_eq!(errors.len(), 6);
+            assert_eq!(errors.len(), 7);
             assert_eq!(
                 errors,
                 vec![
@@ -321,6 +333,11 @@ mod tests {
                         attribute_id: "attr2".to_owned(),
                         error: "Missing stability field.".to_owned(),
                     },
+                    InvalidGroupMissingType {
+                        path_or_url: "<str>".to_owned(),
+                        group_id: "group3".to_owned(),
+                        error: "This group does not contain a type field.".to_owned(),
+                    },
                 ]
             );
         } else {
@@ -361,7 +378,7 @@ mod tests {
         let semconv_spec = SemConvSpecWithProvenance::from_file(&path)
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(semconv_spec.spec.groups.len(), 11);
+        assert_eq!(semconv_spec.spec.groups.len(), 10);
         assert_eq!(semconv_spec.provenance, path.display().to_string());
     }
 
@@ -374,6 +391,7 @@ mod tests {
             stability: "stable"
             brief: "description1"
             span_kind: "client"
+            type: span           
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -384,6 +402,7 @@ mod tests {
             stability: "stable"
             brief: "description2"
             span_kind: "server"
+            type: span
             attributes:
               - id: "attr2"
                 stability: "stable"

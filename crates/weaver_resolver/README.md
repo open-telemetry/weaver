@@ -36,15 +36,13 @@ involves the following steps:
   of an unresolved semantic convention list and a resolved semantic convention
   list. The resolution process involves the following steps:
   - Resolve iteratively all `extends` parent/child clauses until no more
-    resolvable `extends` are found. The extended entity inherits prefix,
-    attributes, and constraints from the parent entity.
+    resolvable `extends` are found. The extended entity inherits attributes
+    from the parent entity.
   - Resolve iteratively all attributes `ref` until no more resolvable `ref` are
     found.
-- Apply constraints `any_of` and `include`.
 - Validate the resolved semantic conventions
   - No more unresolved `ref` or `extends` clauses. The unresolved list should
     be empty.
-  - All constraints satisfied.
 
 ## Lineage (experimental)
 
