@@ -110,7 +110,7 @@ def semconv_group_metrics_by_root_namespace:
 # - exclude_deprecated: a boolean to exclude deprecated metrics.
 # - exclude_root_namespace: a list of root namespaces to exclude.
 # - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable metrics instead.
-def semconv_metrics($options): semconv_signal("metric"; $options);
+def semconv_metrics($options): semconv_signal("metric"; $options) | sort_by(.metric_name);
 
 # Convenience function to extract all metrics without any filtering options.
 def semconv_metrics: semconv_metrics({});

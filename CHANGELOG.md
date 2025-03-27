@@ -9,6 +9,7 @@ What's changed
 * Add support for annotations on attributes and groups. ([#645](https://github.com/open-telemetry/weaver/pull/645) by @lquerel).
 * 💥 BREAKING CHANGE 💥 - Upgrade to version 0.4.0 of regorus [requires all v0 policies to be modified](https://github.com/microsoft/regorus/pull/373). Policy upgrade instructions [here](https://www.openpolicyagent.org/docs/latest/v0-upgrade/#upgrading-rego) may help. ([#651](https://github.com/open-telemetry/weaver/pull/651) by @jerbly).
 * Stability level `Deprecated` is deprecated. Conventions should be deprecated via `deprecated` field and should keep the original stability. ([#607](https://github.com/open-telemetry/weaver/pull/607) by @lmolkova).
+* Sort metrics by name in all JQ helpers. ([#573](https://github.com/open-telemetry/weaver/issues/573) by @lmolkova)
 
 ## [0.13.2] - 2025-02-13
 
