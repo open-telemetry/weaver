@@ -10,7 +10,8 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use serde::Serialize;
 use walkdir::DirEntry;
 
-use weaver_cache::{RegistryRepo, REGISTRY_MANIFEST};
+use crate::attribute::AttributeCatalog;
+use crate::registry::resolve_semconv_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
@@ -18,11 +19,11 @@ use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpec;
-
-use crate::attribute::AttributeCatalog;
-use crate::registry::resolve_semconv_registry;
+use weaver_semconv::source::Source;
 
 pub mod attribute;
 mod constraint;
@@ -262,29 +263,14 @@ impl SchemaResolver {
     ///
     /// # Arguments
     /// * `registry_repo` - The registry repository containing the semantic convention files.
+    /// * `allow_registry_deps` - Whether to allow registry dependencies.
+    /// * `follow_symlinks` - Whether to follow symbolic links.
     pub fn load_semconv_specs(
         registry_repo: &RegistryRepo,
+        allow_registry_deps: bool,
         follow_symlinks: bool,
-    ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
-        Self::load_semconv_from_local_path(
-            registry_repo.path().to_path_buf(),
-            registry_repo.registry_path_repr(),
-            follow_symlinks,
-        )
-    }
-
-    /// Loads the semantic convention specifications from the given local path.
-    /// Implementation note: semconv files are read and parsed in parallel and
-    /// all errors are collected and returned as a compound error.
-    ///
-    /// # Arguments
-    /// * `local_path` - The local path containing the semantic convention files.
-    /// * `registry_path_repr` - The representation of the registry path (URL or path).
-    fn load_semconv_from_local_path(
-        local_path: PathBuf,
-        registry_path_repr: &str,
-        follow_symlinks: bool,
-    ) -> WResult<Vec<(String, SemConvSpec)>, weaver_semconv::Error> {
+    ) -> WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error> {
+        // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
                 .file_name()
@@ -301,6 +287,9 @@ impl SchemaResolver {
                 && file_name != "schema-next.yaml"
                 && file_name != REGISTRY_MANIFEST
         }
+
+        let local_path = registry_repo.path().to_path_buf();
+        let registry_path_repr = registry_repo.registry_path_repr();
 
         // Loads the semantic convention specifications from the git repo.
         // All yaml files are recursively loaded and parsed in parallel from
@@ -332,7 +321,13 @@ impl SchemaResolver {
                                     let relative_path = &path[prefix.len() + 1..];
                                     format!("{}/{}", registry_path_repr, relative_path)
                                 };
-                                (path, spec)
+                                (
+                                    Source {
+                                        registry_id: registry_repo.id(),
+                                        path,
+                                    },
+                                    spec,
+                                )
                             },
                         )]
                         .into_par_iter()
@@ -345,12 +340,27 @@ impl SchemaResolver {
             })
             .collect::<Vec<_>>();
 
+        let mut non_fatal_errors = vec![];
+        let mut specs = vec![];
+
+        // Process the registry dependencies (if any).
+        if let Some(dep_result) =
+            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks)
+        {
+            match dep_result {
+                WResult::Ok(t) => specs.extend(t),
+                WResult::OkWithNFEs(t, nfes) => {
+                    specs.extend(t);
+                    non_fatal_errors.extend(nfes);
+                }
+                WResult::FatalErr(e) => return WResult::FatalErr(e),
+            }
+        }
+
         // Process all the results of the previous parallel processing.
         // The first fatal error will stop the processing and return the error.
         // Otherwise, all non-fatal errors will be collected and returned along
         // with the result.
-        let mut non_fatal_errors = vec![];
-        let mut specs = vec![];
         for r in result {
             match r {
                 WResult::Ok(t) => specs.push(t),
@@ -363,5 +373,169 @@ impl SchemaResolver {
         }
 
         WResult::OkWithNFEs(specs, non_fatal_errors)
+    }
+
+    fn process_registry_dependencies(
+        registry_repo: &RegistryRepo,
+        allow_registry_deps: bool,
+        follow_symlinks: bool,
+    ) -> Option<WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error>> {
+        match registry_repo.manifest_path() {
+            Some(manifest_path) => {
+                match RegistryManifest::try_from_file(manifest_path) {
+                    Ok(manifest) => {
+                        if let Some(dependencies) =
+                            manifest.dependencies.filter(|deps| !deps.is_empty())
+                        {
+                            if !allow_registry_deps {
+                                Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                                    error: format!(
+                                        "Registry dependencies are not allowed for the `{}` registry. Weaver currently supports only two registry levels.",
+                                        registry_repo.registry_path_repr()
+                                    ),
+                                }))
+                            } else if dependencies.len() > 1 {
+                                Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                                    error: format!(
+                                        "Currently, Weaver supports only a single dependency per registry. Multiple dependencies have been found in the `{}` registry.",
+                                        registry_repo.registry_path_repr()
+                                    ),
+                                }))
+                            } else {
+                                let dependency = &dependencies[0];
+                                match RegistryRepo::try_new(
+                                    &dependency.name,
+                                    &dependency.registry_path,
+                                ) {
+                                    Ok(registry_repo_dep) => Some(Self::load_semconv_specs(
+                                        &registry_repo_dep,
+                                        false,
+                                        follow_symlinks,
+                                    )),
+                                    Err(e) => Some(WResult::FatalErr(
+                                        weaver_semconv::Error::SemConvSpecError {
+                                            error: format!(
+                                                "Failed to load the registry dependency `{}`: {}",
+                                                dependency.name, e
+                                            ),
+                                        },
+                                    )),
+                                }
+                            }
+                        } else {
+                            // Manifest has no dependencies or dependencies are empty
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        // Manifest file is not valid or not found
+                        Some(WResult::FatalErr(e))
+                    }
+                }
+            }
+            None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::SchemaResolver;
+    use weaver_common::result::WResult;
+    use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
+    use weaver_semconv::group::GroupType;
+    use weaver_semconv::registry::SemConvRegistry;
+    use weaver_semconv::registry_path::RegistryPath;
+    use weaver_semconv::registry_repo::RegistryRepo;
+    use weaver_semconv::semconv::SemConvSpec;
+    use weaver_semconv::source::Source;
+
+    #[test]
+    fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
+        fn check_semconv_specs(
+            registry_repo: &RegistryRepo,
+            semconv_specs: Vec<(Source, SemConvSpec)>,
+        ) {
+            assert_eq!(semconv_specs.len(), 2);
+            for (source, semconv_spec) in semconv_specs.iter() {
+                match source.registry_id.as_ref() {
+                    "main" => {
+                        assert_eq!(
+                            source.path,
+                            "data/multi-registry/custom_registry/custom_registry.yaml"
+                        );
+                        assert_eq!(semconv_spec.groups().len(), 2);
+                        assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
+                        assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
+                    }
+                    "otel" => {
+                        assert_eq!(
+                            source.path,
+                            "data/multi-registry/otel_registry/otel_registry.yaml"
+                        );
+                        assert_eq!(semconv_spec.groups().len(), 1);
+                        assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
+                    }
+                    _ => panic!("Unexpected registry id: {}", source.registry_id),
+                }
+            }
+
+            let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
+                .expect("Failed to create the registry");
+            match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+                WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                    let metrics = resolved_registry.groups(GroupType::Metric);
+                    let metric = metrics
+                        .get("metric.auction.bid.count")
+                        .expect("Metric not found");
+                    let attributes = &metric.attributes;
+                    assert_eq!(attributes.len(), 3);
+                    for attr_ref in attributes {
+                        let attr = resolved_registry
+                            .catalog
+                            .attribute(attr_ref)
+                            .expect("Failed to resolve attribute");
+                        match attr.name.as_str() {
+                            "auction.name" => {}
+                            "auction.id" => {}
+                            "error.type" => {
+                                // Check requirement level is properly overridden.
+                                // Initially, it was set to `recommended` in the otel registry.
+                                // It should be overridden to `required` in the custom registry.
+                                assert_eq!(
+                                    attr.requirement_level,
+                                    RequirementLevel::Basic(BasicRequirementLevelSpec::Required)
+                                );
+                            }
+                            _ => {
+                                panic!("Unexpected attribute name: {}", attr.name);
+                            }
+                        }
+                    }
+                }
+                WResult::FatalErr(fatal) => {
+                    panic!("Fatal error: {fatal}");
+                }
+            }
+        }
+
+        let registry_path = RegistryPath::LocalFolder {
+            path: "data/multi-registry/custom_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
+        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+        match result {
+            WResult::Ok(semconv_specs) => check_semconv_specs(&registry_repo, semconv_specs),
+            WResult::OkWithNFEs(semconv_specs, nfe) => {
+                check_semconv_specs(&registry_repo, semconv_specs);
+                if !nfe.is_empty() {
+                    panic!("Non-fatal errors: {nfe:?}");
+                }
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Fatal error: {fatal}");
+            }
+        }
+        Ok(())
     }
 }

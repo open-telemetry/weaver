@@ -8,22 +8,17 @@ use std::io;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
+use crate::registry_path::RegistryPath;
+use crate::Error;
+use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
 use gix::clone::PrepareFetch;
 use gix::create::Kind;
 use gix::remote::fetch::Shallow;
 use gix::{create, open, progress};
-use miette::Diagnostic;
-use serde::Serialize;
 use tempdir::TempDir;
 use url::Url;
-
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-
-use crate::registry_path::RegistryPath;
-use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
-
-pub mod registry_path;
 
 /// The extension for a tar gz archive.
 const TAR_GZ_EXT: &str = ".tar.gz";
@@ -32,71 +27,6 @@ const ZIP_EXT: &str = ".zip";
 /// The name of the registry manifest file.
 pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
 
-/// An error that can occur while creating or using a cache.
-#[derive(thiserror::Error, Debug, Clone, Serialize, Diagnostic)]
-#[non_exhaustive]
-pub enum Error {
-    /// Home directory not found.
-    #[error("Home directory not found")]
-    HomeDirNotFound,
-
-    /// Cache directory not created.
-    #[error("Cache directory not created: {message}")]
-    CacheDirNotCreated {
-        /// The error message
-        message: String,
-    },
-
-    /// Git repo not created.
-    #[error("Git repo `{repo_url}` not created: {message}")]
-    GitRepoNotCreated {
-        /// The git repo URL
-        repo_url: String,
-        /// The error message
-        message: String,
-    },
-
-    /// A git error occurred.
-    #[error("Git error occurred while cloning `{repo_url}`: {message}")]
-    GitError {
-        /// The git repo URL
-        repo_url: String,
-        /// The error message
-        message: String,
-    },
-
-    /// An invalid registry path.
-    #[error("The registry path `{path}` is invalid: {error}")]
-    InvalidRegistryPath {
-        /// The registry path
-        path: String,
-        /// The error message
-        error: String,
-    },
-
-    /// An invalid registry archive.
-    #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
-    UnsupportedRegistryArchive {
-        /// The registry archive path
-        archive: String,
-    },
-
-    /// An invalid registry archive.
-    #[error("The registry archive `{archive}` is invalid: {error}")]
-    InvalidRegistryArchive {
-        /// The registry archive path
-        archive: String,
-        /// The error message
-        error: String,
-    },
-}
-
-impl From<Error> for DiagnosticMessages {
-    fn from(error: Error) -> Self {
-        DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
-    }
-}
-
 /// A semantic convention registry repository that can be:
 /// - A simple wrapper around a local directory
 /// - Initialized from a Git repository
@@ -104,7 +34,7 @@ impl From<Error> for DiagnosticMessages {
 #[derive(Default, Debug)]
 pub struct RegistryRepo {
     // A unique identifier for the registry (e.g. main, baseline, etc.)
-    id: String,
+    id: Arc<str>,
     registry_path: String,
     path: PathBuf,
     // Need to keep the tempdir live for the lifetime of the RegistryRepo.
@@ -119,7 +49,7 @@ impl RegistryRepo {
         let registry_path_repr = registry_path.to_string();
         match registry_path {
             RegistryPath::LocalFolder { path } => Ok(Self {
-                id: id.to_owned(),
+                id: Arc::from(id),
                 registry_path: registry_path_repr,
                 path: path.into(),
                 tmp_dir: None,
@@ -217,7 +147,7 @@ impl RegistryRepo {
         };
 
         Ok(Self {
-            id: id.to_owned(),
+            id: Arc::from(id),
             registry_path,
             path,
             tmp_dir: Some(tmp_dir),
@@ -268,7 +198,7 @@ impl RegistryRepo {
         };
 
         Ok(Self {
-            id: id.to_owned(),
+            id: Arc::from(id),
             registry_path,
             path: target_path_buf,
             tmp_dir: Some(target_dir),
@@ -277,8 +207,8 @@ impl RegistryRepo {
 
     /// Returns the unique identifier for the registry.
     #[must_use]
-    pub fn id(&self) -> &str {
-        &self.id
+    pub fn id(&self) -> Arc<str> {
+        self.id.clone()
     }
 
     /// Unpacks a tar.gz archive into the specified target directory.
@@ -544,6 +474,7 @@ impl RegistryRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::registry_path::RegistryPath;
     use weaver_common::test::ServeStaticFiles;
 
     fn count_yaml_files(repo_path: &Path) -> usize {
