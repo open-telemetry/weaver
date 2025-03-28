@@ -47,7 +47,7 @@ pub trait Advisor {
         attribute: &SampleAttribute,
         health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice>;
+    ) -> Vec<Advice>;
 
     //TODO conclude(&self) -> Option<Vec<Advice>>;
     // Provide an overall summary of the advice e.g. LengthyAttributeNameAdvisor
@@ -63,21 +63,25 @@ impl Advisor for DeprecatedAdvisor {
         _attribute: &SampleAttribute,
         _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice> {
+    ) -> Vec<Advice> {
+        let mut advices = Vec::new();
         if let Some(attribute) = semconv_attribute {
-            attribute.deprecated.as_ref().map(|deprecated| Advice {
-                key: "deprecated".to_owned(),
-                value: match deprecated {
-                    Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
-                    Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
-                    Deprecated::Uncategorized { .. } => Value::String("uncategorized".to_owned()),
-                },
-                message: deprecated.to_string(),
-                advisory: Advisory::Violation,
-            })
-        } else {
-            None
+            if let Some(deprecated) = &attribute.deprecated {
+                advices.push(Advice {
+                    key: "deprecated".to_owned(),
+                    value: match deprecated {
+                        Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
+                        Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
+                        Deprecated::Uncategorized { .. } => {
+                            Value::String("uncategorized".to_owned())
+                        }
+                    },
+                    message: deprecated.to_string(),
+                    advisory: Advisory::Violation,
+                });
+            }
         }
+        advices
     }
 }
 
@@ -92,20 +96,22 @@ impl Advisor for StabilityAdvisor {
         _attribute: &SampleAttribute,
         _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice> {
+    ) -> Vec<Advice> {
+        let mut advices = Vec::new();
         if let Some(attribute) = semconv_attribute {
             match attribute.stability {
-                Some(ref stability) if *stability != Stability::Stable => Some(Advice {
-                    key: "stability".to_owned(),
-                    value: Value::String(stability.to_string()),
-                    message: "Is not stable".to_owned(),
-                    advisory: Advisory::Improvement,
-                }),
-                _ => None,
+                Some(ref stability) if *stability != Stability::Stable => {
+                    advices.push(Advice {
+                        key: "stability".to_owned(),
+                        value: Value::String(stability.to_string()),
+                        message: "Is not stable".to_owned(),
+                        advisory: Advisory::Improvement,
+                    });
+                }
+                _ => {}
             }
-        } else {
-            None
         }
+        advices
     }
 }
 
@@ -134,21 +140,21 @@ impl Advisor for NameFormatAdvisor {
         attribute: &SampleAttribute,
         _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice> {
+    ) -> Vec<Advice> {
         // Don't provide advice if the attribute is a match
         if semconv_attribute.is_some() {
-            return None;
+            return Vec::new();
         }
 
         if !self.regex.is_match(&attribute.name) {
-            Some(Advice {
+            vec![Advice {
                 key: "invalid_format".to_owned(),
                 value: Value::String(attribute.name.clone()),
                 message: "Does not match name formatting rules".to_owned(),
                 advisory: Advisory::Violation,
-            })
+            }]
         } else {
-            None
+            Vec::new()
         }
     }
 }
@@ -219,10 +225,10 @@ impl Advisor for NamespaceAdvisor {
         attribute: &SampleAttribute,
         health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice> {
+    ) -> Vec<Advice> {
         // Don't provide advice if the attribute is a match
         if semconv_attribute.is_some() {
-            return None;
+            return Vec::new();
         }
 
         if let Some(last_separator_pos) = attribute.name.rfind(self.namespace_separator) {
@@ -231,34 +237,34 @@ impl Advisor for NamespaceAdvisor {
             // Has a namespace that matches an existing attribute
             if let Some(found_attr) = self.find_attribute_from_namespace(&namespace, health_checker)
             {
-                return Some(Advice {
+                return vec![Advice {
                     key: "illegal_namespace".to_owned(),
                     value: Value::String(found_attr.name),
                     message: "Namespace matches existing attribute".to_owned(),
                     advisory: Advisory::Violation,
-                });
+                }];
             }
 
             // Extends an existing namespace
             if let Some(existing_namespace) = self.find_namespace(&namespace) {
-                return Some(Advice {
+                return vec![Advice {
                     key: "extends_namespace".to_owned(),
                     value: Value::String(existing_namespace),
                     message: "Extends existing namespace".to_owned(),
                     advisory: Advisory::Information,
-                });
+                }];
             }
         } else {
             // Does not have a namespace
-            return Some(Advice {
+            return vec![Advice {
                 key: "missing_namespace".to_owned(),
                 value: Value::String(attribute.name.clone()),
                 message: "Does not have a namespace".to_owned(),
                 advisory: Advisory::Improvement,
-            });
+            }];
         }
 
-        None
+        Vec::new()
     }
 }
 
@@ -270,7 +276,7 @@ impl Advisor for TypeAdvisor {
         attribute: &SampleAttribute,
         _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice> {
+    ) -> Vec<Advice> {
         // Only provide advice if the attribute is a match and the type is present
         match (semconv_attribute, attribute.r#type.as_ref()) {
             (Some(semconv_attribute), Some(attribute_type)) => {
@@ -293,30 +299,30 @@ impl Advisor for TypeAdvisor {
                         if attribute_type != &PrimitiveOrArrayTypeSpec::String
                             && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                         {
-                            return Some(Advice {
+                            return vec![Advice {
                                 key: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
                                 message: "Type should be `string` or `int`".to_owned(),
                                 advisory: Advisory::Violation,
-                            });
+                            }];
                         } else {
-                            return None;
+                            return Vec::new();
                         }
                     }
                 };
 
                 if attribute_type != semconv_attribute_type {
-                    Some(Advice {
+                    vec![Advice {
                         key: "type_mismatch".to_owned(),
                         value: Value::String(attribute_type.to_string()),
                         message: format!("Type should be `{}`", semconv_attribute_type),
                         advisory: Advisory::Violation,
-                    })
+                    }]
                 } else {
-                    None
+                    Vec::new()
                 }
             }
-            _ => None,
+            _ => Vec::new(),
         }
     }
 }
@@ -329,7 +335,7 @@ impl Advisor for EnumAdvisor {
         attribute: &SampleAttribute,
         _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Option<Advice> {
+    ) -> Vec<Advice> {
         // Only provide advice if the semconv_attribute is an enum and the attribute has a value and type
         match (
             semconv_attribute,
@@ -357,7 +363,7 @@ impl Advisor for EnumAdvisor {
                             }
                             _ => {
                                 // Any other type is not supported - the TypeAdvisor should have already caught this
-                                return None;
+                                return Vec::new();
                             }
                         } {
                             is_found = true;
@@ -366,17 +372,17 @@ impl Advisor for EnumAdvisor {
                     }
 
                     if !is_found {
-                        return Some(Advice {
+                        return vec![Advice {
                             key: "undefined_enum_variant".to_owned(),
                             value: attribute_value.clone(),
                             message: "Is not a defined variant".to_owned(),
                             advisory: Advisory::Information,
-                        });
+                        }];
                     }
                 }
-                None
+                Vec::new()
             }
-            _ => None,
+            _ => Vec::new(),
         }
     }
 }

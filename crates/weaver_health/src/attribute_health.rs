@@ -109,7 +109,7 @@ impl AttributeHealthChecker {
 
         // run advisors on the attribute
         for advisor in self.advisors.iter() {
-            if let Some(advice) = advisor.advise(sample_attribute, self, semconv_attribute) {
+            for advice in advisor.advise(sample_attribute, self, semconv_attribute) {
                 attribute_result.add_advice(advice);
             }
         }
