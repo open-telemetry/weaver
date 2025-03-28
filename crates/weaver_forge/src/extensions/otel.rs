@@ -738,15 +738,6 @@ mod tests {
         });
         assert!(is_experimental(&attr));
 
-        // An attribute with stability "deprecated"
-        let attr = Value::from_object(DynAttr {
-            id: "test".to_owned(),
-            r#type: "test".to_owned(),
-            stability: "deprecated".to_owned(),
-            deprecated: None,
-        });
-        assert!(is_experimental(&attr));
-
         // An attribute with stability "stable"
         let attr = Value::from_object(DynAttr {
             id: "test".to_owned(),
@@ -789,6 +780,7 @@ mod tests {
             tags: None,
             value: None,
             prefix: false,
+            annotations: None,
         };
 
         otel::add_filters(&mut env);
@@ -817,6 +809,7 @@ mod tests {
             tags: None,
             value: None,
             prefix: false,
+            annotations: None,
         };
 
         assert_eq!(
@@ -1003,6 +996,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "rec.b".into(),
@@ -1018,6 +1012,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "crec.a".into(),
@@ -1033,6 +1028,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "crec.b".into(),
@@ -1048,6 +1044,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "rec.c".into(),
@@ -1063,6 +1060,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "rec.d".into(),
@@ -1078,6 +1076,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "opt.a".into(),
@@ -1093,6 +1092,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "opt.b".into(),
@@ -1108,6 +1108,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "req.a".into(),
@@ -1123,6 +1124,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "req.b".into(),
@@ -1138,6 +1140,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
         ];
         let json =
@@ -1196,6 +1199,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "attr2".to_owned(),
@@ -1211,6 +1215,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
             Attribute {
                 name: "attr3".to_owned(),
@@ -1226,6 +1231,7 @@ mod tests {
                 tags: None,
                 value: None,
                 prefix: false,
+                annotations: None,
             },
         ];
 
@@ -1516,6 +1522,7 @@ mod tests {
             tags: None,
             value: None,
             prefix: false,
+            annotations: None,
         };
 
         otel::add_filters(&mut env);
@@ -1544,6 +1551,7 @@ mod tests {
             tags: None,
             value: None,
             prefix: false,
+            annotations: None,
         };
 
         otel::add_filters(&mut env);

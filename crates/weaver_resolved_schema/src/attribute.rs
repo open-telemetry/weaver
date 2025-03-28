@@ -8,6 +8,7 @@ use crate::tags::Tags;
 use crate::value::Value;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::ops::Not;
 #[cfg(test)]
@@ -15,6 +16,7 @@ use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::YamlValue;
 
 /// An attribute definition.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
@@ -76,6 +78,10 @@ pub struct Attribute {
     /// A set of tags for the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Tags>,
+    /// Annotations for the group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
 
     /// The value of the attribute.
     /// Note: This is only used in a telemetry schema specification.
@@ -121,6 +127,7 @@ impl Attribute {
             prefix: false,
             tags: None,
             value: None,
+            annotations: None,
         }
     }
 
@@ -142,6 +149,7 @@ impl Attribute {
             prefix: false,
             tags: None,
             value: None,
+            annotations: None,
         }
     }
 
@@ -163,6 +171,7 @@ impl Attribute {
             prefix: false,
             tags: None,
             value: None,
+            annotations: None,
         }
     }
 
@@ -188,6 +197,7 @@ impl Attribute {
             prefix: false,
             tags: None,
             value: None,
+            annotations: None,
         }
     }
 

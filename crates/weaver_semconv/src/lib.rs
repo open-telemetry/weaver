@@ -4,7 +4,10 @@
 
 use crate::Error::CompoundError;
 use miette::Diagnostic;
-use serde::Serialize;
+use schemars::schema::{InstanceType, Schema};
+use schemars::{JsonSchema, SchemaGenerator};
+use serde::{Deserialize, Serialize};
+use std::hash::Hasher;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
@@ -353,6 +356,143 @@ impl From<Error> for DiagnosticMessages {
                 .collect(),
             _ => vec![DiagnosticMessage::new(error)],
         })
+    }
+}
+
+/// Create a newtype wrapper for serde_yaml::value::Value in order to implement
+/// JsonSchema for it.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(transparent)]
+pub struct YamlValue(pub serde_yaml::value::Value);
+
+impl JsonSchema for YamlValue {
+    fn schema_name() -> String {
+        "YamlValue".to_owned()
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        // Create a schema that accepts any type
+        let schema = schemars::schema::SchemaObject {
+            instance_type: Some(
+                vec![
+                    InstanceType::Null,
+                    InstanceType::Boolean,
+                    InstanceType::Object,
+                    InstanceType::Array,
+                    InstanceType::Number,
+                    InstanceType::String,
+                ]
+                .into(),
+            ),
+            ..Default::default()
+        };
+
+        Schema::Object(schema)
+    }
+}
+
+/// Implement Hash for YamlValue.
+/// Keys are sorted for consistent hashing in the case of mappings/objects.
+impl std::hash::Hash for YamlValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Convert the YAML value to a string representation for hashing
+        // This is a simplification that works for most cases
+        match &self.0 {
+            serde_yaml::Value::Null => {
+                0_u8.hash(state);
+                "null".hash(state);
+            }
+            serde_yaml::Value::Bool(b) => {
+                1_u8.hash(state);
+                b.hash(state);
+            }
+            serde_yaml::Value::Number(n) => {
+                2_u8.hash(state);
+                // Convert number to string for hashing as Number itself doesn't implement Hash
+                n.to_string().hash(state);
+            }
+            serde_yaml::Value::String(s) => {
+                3_u8.hash(state);
+                s.hash(state);
+            }
+            serde_yaml::Value::Sequence(seq) => {
+                4_u8.hash(state);
+                // Hash each element's string representation
+                for item in seq {
+                    YamlValue(item.clone()).hash(state);
+                }
+            }
+            serde_yaml::Value::Mapping(map) => {
+                5_u8.hash(state);
+                // Sort keys for consistent hashing
+                let mut keys: Vec<_> = map.keys().cloned().collect();
+
+                // Custom sort function that doesn't rely on to_string()
+                keys.sort_by(|a, b| {
+                    // Compare keys based on their variant first
+                    let type_order = |v: &serde_yaml::Value| -> u8 {
+                        match v {
+                            serde_yaml::Value::Null => 0,
+                            serde_yaml::Value::Bool(_) => 1,
+                            serde_yaml::Value::Number(_) => 2,
+                            serde_yaml::Value::String(_) => 3,
+                            serde_yaml::Value::Sequence(_) => 4,
+                            serde_yaml::Value::Mapping(_) => 5,
+                            serde_yaml::Value::Tagged(_) => 6,
+                        }
+                    };
+
+                    let a_order = type_order(a);
+                    let b_order = type_order(b);
+
+                    if a_order != b_order {
+                        return a_order.cmp(&b_order);
+                    }
+
+                    // If same type, do a specialized comparison
+                    match (a, b) {
+                        (serde_yaml::Value::Null, serde_yaml::Value::Null) => {
+                            std::cmp::Ordering::Equal
+                        }
+                        (serde_yaml::Value::Bool(a_val), serde_yaml::Value::Bool(b_val)) => {
+                            a_val.cmp(b_val)
+                        }
+                        (serde_yaml::Value::Number(a_val), serde_yaml::Value::Number(b_val)) => {
+                            // Compare as strings since we can't directly compare numbers
+                            a_val.to_string().cmp(&b_val.to_string())
+                        }
+                        (serde_yaml::Value::String(a_val), serde_yaml::Value::String(b_val)) => {
+                            a_val.cmp(b_val)
+                        }
+                        // For complex types, we'll use a hash-based comparison
+                        // This isn't ideal for sorting but ensures consistency
+                        _ => {
+                            // Create a hasher and hash both values
+                            let mut a_hasher = std::collections::hash_map::DefaultHasher::new();
+                            let mut b_hasher = std::collections::hash_map::DefaultHasher::new();
+
+                            YamlValue(a.clone()).hash(&mut a_hasher);
+                            YamlValue(b.clone()).hash(&mut b_hasher);
+
+                            a_hasher.finish().cmp(&b_hasher.finish())
+                        }
+                    }
+                });
+
+                // Hash each key-value pair
+                for key in keys {
+                    YamlValue(key.clone()).hash(state);
+                    if let Some(value) = map.get(&key) {
+                        YamlValue(value.clone()).hash(state);
+                    }
+                }
+            }
+            serde_yaml::Value::Tagged(tag) => {
+                6_u8.hash(state);
+                tag.tag.hash(state);
+                YamlValue(tag.value.clone()).hash(state);
+            }
+        }
     }
 }
 

@@ -8,11 +8,6 @@ use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
 
-use serde::{Deserialize, Serialize};
-use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
-use weaver_semconv::stability::Stability;
-
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
@@ -20,6 +15,11 @@ use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
     AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span,
 };
+use serde::{Deserialize, Serialize};
+use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::stability::Stability;
+use weaver_semconv::YamlValue;
 
 /// A semantic convention registry.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -131,6 +131,10 @@ pub struct Group {
     /// This fields is only used for event groups.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// Annotations for the group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<HashMap<String, YamlValue>>,
 }
 
 /// Common statistics for a group.

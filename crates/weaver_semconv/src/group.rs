@@ -5,7 +5,7 @@
 //! A group specification.
 
 use schemars::JsonSchema;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::stability::Stability;
-use crate::Error;
+use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 
 /// Group Spec contain the list of semantic conventions for attributes,
@@ -97,6 +97,8 @@ pub struct GroupSpec {
     /// Note: only valid if type is event
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// Annotations for the group.
+    pub annotations: Option<HashMap<String, YamlValue>>,
 }
 
 impl GroupSpec {
@@ -117,6 +119,16 @@ impl GroupSpec {
                 path_or_url: path_or_url.to_owned(),
                 group_id: self.id.clone(),
                 error: "This group does not contain a stability field.".to_owned(),
+            });
+        }
+
+        // `deprecated` stability is deprecated
+        if self.stability == Some(Stability::Deprecated) {
+            errors.push(Error::InvalidGroupStability {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "Group stability is set to 'deprecated' which is no longer supported."
+                    .to_owned(),
             });
         }
 
@@ -262,6 +274,13 @@ impl GroupSpec {
                             attribute_id: attribute.id(),
                             error: "Missing stability field.".to_owned(),
                         });
+                    } else if stability.clone() == Some(Stability::Deprecated) {
+                        errors.push(Error::InvalidAttributeWarning {
+                            path_or_url: path_or_url.to_owned(),
+                            group_id: self.id.clone(),
+                            attribute_id: attribute.id(),
+                            error: "Attribute stability is set to 'deprecated' which is no longer supported.".to_owned(),
+                        });
                     }
 
                     if let AttributeType::Enum { members, .. } = r#type {
@@ -273,6 +292,16 @@ impl GroupSpec {
                                     attribute_id: attribute.id(),
                                     error: format!(
                                         "Missing stability field on enum member {}.",
+                                        member.id
+                                    ),
+                                });
+                            } else if member.stability == Some(Stability::Deprecated) {
+                                errors.push(Error::InvalidAttributeWarning {
+                                    path_or_url: path_or_url.to_owned(),
+                                    group_id: self.id.clone(),
+                                    attribute_id: attribute.id(),
+                                    error: format!(
+                                        "Member {} stability is set to 'deprecated' which is no longer supported.",
                                         member.id
                                     ),
                                 });
@@ -576,7 +605,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -584,7 +613,7 @@ mod tests {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -593,6 +622,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
@@ -603,6 +633,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -709,7 +740,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -717,7 +748,7 @@ mod tests {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -726,6 +757,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
@@ -736,6 +768,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -747,7 +780,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -756,6 +789,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -774,7 +808,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings),
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -783,6 +817,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -810,6 +845,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -818,6 +854,34 @@ mod tests {
                 group_id: "test".to_owned(),
                 attribute_id: "test".to_owned(),
                 error: "Missing stability field.".to_owned(),
+            },),
+            result
+        );
+
+        // Stability is set to deprecated.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: None,
+            stability: Some(Stability::Deprecated),
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "".to_owned(),
+            }),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            annotations: None,
+        }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidAttributeWarning {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error: "Attribute stability is set to 'deprecated' which is no longer supported."
+                    .to_owned(),
             },),
             result
         );
@@ -846,6 +910,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -854,6 +919,43 @@ mod tests {
                 group_id: "test".to_owned(),
                 attribute_id: "test".to_owned(),
                 error: "Missing stability field on enum member member_id.".to_owned(),
+            },),
+            result
+        );
+
+        // Stability is set to deprecated on enum member.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::Enum {
+                allow_custom_values: None,
+                members: vec![EnumEntriesSpec {
+                    id: "member_id".to_owned(),
+                    value: ValueSpec::String("member_value".to_owned()),
+                    brief: None,
+                    note: None,
+                    stability: Some(Stability::Deprecated),
+                    deprecated: None,
+                }],
+            },
+            brief: None,
+            stability: Some(Stability::Stable),
+            deprecated: Some(Deprecated::Obsoleted {
+                note: "".to_owned(),
+            }),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            annotations: None,
+        }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidAttributeWarning {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                attribute_id: "test".to_owned(),
+                error: "Member member_id stability is set to 'deprecated' which is no longer supported.".to_owned(),
             },),
             result
         );
@@ -868,7 +970,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -879,7 +981,7 @@ mod tests {
                     allow_custom_values: Some(true),
                 },
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -888,6 +990,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
@@ -898,6 +1001,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -919,7 +1023,7 @@ mod tests {
                 allow_custom_values: None,
             },
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -928,6 +1032,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert!(result.is_ok());
@@ -943,7 +1048,7 @@ mod tests {
             note: "test".to_owned(),
             prefix: "".to_owned(),
             extends: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -967,6 +1072,7 @@ mod tests {
                     ),
                 },
             }),
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -1181,6 +1287,7 @@ mod tests {
                     ),
                 },
             }),
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -1302,7 +1409,7 @@ mod tests {
                 id: "test".to_owned(),
                 r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
                 brief: None,
-                stability: Some(Stability::Deprecated),
+                stability: Some(Stability::Development),
                 deprecated: Some(Deprecated::Obsoleted {
                     note: "".to_owned(),
                 }),
@@ -1311,6 +1418,7 @@ mod tests {
                 requirement_level: Default::default(),
                 sampling_relevant: None,
                 note: "".to_owned(),
+                annotations: None,
             }],
             constraints: vec![],
             span_kind: None,
@@ -1321,6 +1429,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
         assert!(group
             .validate("<test>")
@@ -1433,6 +1542,19 @@ mod tests {
             }),
             result
         );
+
+        group.stability = Some(Stability::Deprecated);
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupStability {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "Group stability is set to 'deprecated' which is no longer supported."
+                    .to_owned(),
+            }),
+            result
+        );
+
         group.stability = Some(Stability::Development);
         assert!(group
             .validate("<test>")
@@ -1446,7 +1568,7 @@ mod tests {
             id: "test".to_owned(),
             r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
             brief: None,
-            stability: Some(Stability::Deprecated),
+            stability: Some(Stability::Development),
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
@@ -1455,6 +1577,7 @@ mod tests {
             requirement_level: Default::default(),
             sampling_relevant: None,
             note: "".to_owned(),
+            annotations: None,
         }];
         let mut group = GroupSpec {
             id: "test".to_owned(),
@@ -1475,6 +1598,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1589,6 +1713,7 @@ mod tests {
                 stability: None,
                 deprecated: None,
                 prefix: false,
+                annotations: None,
             },
             AttributeSpec::Ref {
                 r#ref: "attribute".to_owned(),
@@ -1601,6 +1726,7 @@ mod tests {
                 stability: None,
                 deprecated: None,
                 prefix: false,
+                annotations: None,
             },
         ];
         let mut group = GroupSpec {
@@ -1622,6 +1748,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
+            annotations: None,
         };
 
         // Check group with duplicate attributes.

@@ -7,7 +7,7 @@ templates:
     application_mode: single
   - template: semconv_grouped_attributes.json
     filter: >
-      semconv_grouped_attributes({ "stable_only": false })
+      semconv_grouped_attributes({ "stable_only": false, "ignore_code_generation_annotations": true })
     application_mode: single
   - template: semconv_grouped_attributes_stable.json
     filter: >

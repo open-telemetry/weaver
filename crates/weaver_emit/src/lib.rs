@@ -3,8 +3,8 @@
 //! This crate provides the "emit" library for emitting OTLP signals generated from registries.
 
 use miette::Diagnostic;
-use opentelemetry::{global, trace::TraceError};
-use opentelemetry_otlp::WithExportConfig;
+use opentelemetry::global;
+use opentelemetry_otlp::{ExporterBuildError, WithExportConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
 use serde::Serialize;
@@ -45,7 +45,7 @@ impl From<Error> for DiagnosticMessages {
 
 /// Initialise a grpc OTLP exporter, sends to by default http://localhost:4317
 /// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
-fn init_tracer_provider(endpoint: &String) -> Result<SdkTracerProvider, TraceError> {
+fn init_tracer_provider(endpoint: &String) -> Result<SdkTracerProvider, ExporterBuildError> {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
         .with_endpoint(endpoint)
@@ -163,6 +163,7 @@ mod tests {
                     prefix: false,
                     tags: None,
                     value: None,
+                    annotations: None,
                 }],
                 span_kind: Some(SpanKindSpec::Internal),
                 events: vec![],
