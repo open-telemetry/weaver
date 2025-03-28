@@ -5208,6 +5208,7 @@ dependencies = [
  "weaver_diff",
  "weaver_emit",
  "weaver_forge",
+ "weaver_health",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_semconv",
@@ -5341,6 +5342,22 @@ dependencies = [
  "weaver_diff",
  "weaver_resolved_schema",
  "weaver_resolver",
+ "weaver_semconv",
+]
+
+[[package]]
+name = "weaver_health"
+version = "0.13.2"
+dependencies = [
+ "miette",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.12",
+ "weaver_common",
+ "weaver_forge",
+ "weaver_resolved_schema",
  "weaver_semconv",
 ]
 
