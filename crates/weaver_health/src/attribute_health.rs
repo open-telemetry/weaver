@@ -656,4 +656,114 @@ mod tests {
         assert_eq!(stats.highest_advisory_counts[&Advisory::Information], 1);
         assert_eq!(stats.no_advice_count, 2);
     }
+
+    #[test]
+    fn test_custom_rego() {
+        let registry = ResolvedRegistry {
+            registry_url: "TEST".to_owned(),
+            groups: vec![ResolvedGroup {
+                id: "custom.comprehensive.internal".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                constraints: vec![],
+                attributes: vec![Attribute {
+                    name: "custom.string".to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    examples: Some(Examples::Strings(vec![
+                        "value1".to_owned(),
+                        "value2".to_owned(),
+                    ])),
+                    brief: "".to_owned(),
+                    tag: None,
+                    requirement_level: RequirementLevel::Recommended {
+                        text: "".to_owned(),
+                    },
+                    sampling_relevant: None,
+                    note: "".to_owned(),
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    prefix: false,
+                    tags: None,
+                    value: None,
+                    annotations: None,
+                }],
+                span_kind: Some(SpanKindSpec::Internal),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+            }],
+        };
+
+        let mut attributes = vec![
+            SampleAttribute {
+                name: "custom.string".to_owned(),
+                r#type: None,
+                value: Some(Value::String("hello".to_owned())),
+            },
+            SampleAttribute {
+                name: "test.string".to_owned(),
+                r#type: None,
+                value: None,
+            },
+        ];
+
+        for attribute in attributes.iter_mut() {
+            attribute.infer_type();
+        }
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![];
+
+        let mut health_checker = AttributeHealthChecker::new(registry, advisors);
+        let rego_advisor = RegoAdvisor::new(&health_checker, &Some("data/policies/advice/".into()))
+            .expect("Failed to create Rego advisor");
+        health_checker.add_advisor(Box::new(rego_advisor));
+
+        let report = health_checker.check_attributes(attributes);
+        let results = report.attributes;
+
+        assert_eq!(results.len(), 2);
+
+        assert!(results[0].all_advice.is_empty());
+
+        assert_eq!(results[1].all_advice.len(), 2);
+
+        assert_eq!(results[1].all_advice[0].key, "missing_attribute");
+        assert_eq!(
+            results[1].all_advice[0].value,
+            Value::String("test.string".to_owned())
+        );
+        assert_eq!(
+            results[1].all_advice[0].message,
+            "Does not exist in the registry"
+        );
+        assert_eq!(results[1].all_advice[1].key, "contains_test");
+        assert_eq!(
+            results[1].all_advice[1].value,
+            Value::String("test.string".to_owned())
+        );
+        assert_eq!(
+            results[1].all_advice[1].message,
+            "Name must not contain 'test'"
+        );
+
+        // Check statistics
+        let stats = report.statistics;
+        assert_eq!(stats.total_attributes, 2);
+        assert_eq!(stats.total_advisories, 2);
+        assert_eq!(stats.advisory_counts.len(), 1);
+        assert_eq!(stats.advisory_counts[&Advisory::Violation], 2);
+        assert_eq!(stats.highest_advisory_counts.len(), 1);
+        assert_eq!(stats.highest_advisory_counts[&Advisory::Violation], 1);
+        assert_eq!(stats.no_advice_count, 1);
+    }
 }
