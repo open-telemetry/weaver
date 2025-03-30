@@ -7,14 +7,14 @@ use std::path::PathBuf;
 use clap::Args;
 use include_dir::{include_dir, Dir};
 
+use weaver_checker::violation::Advisory;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_health::attribute_advice::{
-    Advisor, Advisory, DeprecatedAdvisor, EnumAdvisor, NameFormatAdvisor, NamespaceAdvisor,
-    StabilityAdvisor, TypeAdvisor,
+    Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
 use weaver_health::attribute_file_ingester::AttributeFileIngester;
 use weaver_health::attribute_health::{AttributeHealthChecker, HealthStatistics};
@@ -157,15 +157,17 @@ pub(crate) fn command(
     // Create the health checker with advisors
     let advisors: Vec<Box<dyn Advisor>> = vec![
         Box::new(DeprecatedAdvisor),
-        Box::new(NameFormatAdvisor::default()),
         Box::new(StabilityAdvisor),
         Box::new(TypeAdvisor),
         Box::new(EnumAdvisor),
     ];
 
     let mut health_checker = AttributeHealthChecker::new(registry, advisors);
-    let namespace_advisor = NamespaceAdvisor::new('.', &health_checker);
-    health_checker.add_advisor(Box::new(namespace_advisor));
+    let rego_advisor = RegoAdvisor::new(
+        &health_checker,
+        "crates/weaver_health/data/policies/advice.rego",
+    );
+    health_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the template engine
     let loader = EmbeddedFileLoader::try_new(

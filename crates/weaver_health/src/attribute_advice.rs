@@ -1,10 +1,10 @@
-// Pluggable advisors
+// Builtin advisors
 
-use std::collections::HashSet;
-
-use regex::Regex;
-use serde::Serialize;
 use serde_json::Value;
+use weaver_checker::{
+    violation::{Advice, Advisory, Violation},
+    Engine,
+};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec},
@@ -12,42 +12,16 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute};
-
-/// The advisory level of an advice
-#[derive(Debug, Clone, PartialEq, Serialize, PartialOrd, Ord, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum Advisory {
-    /// Useful context without action needed
-    Information,
-    /// Suggested change that would improve things
-    Improvement,
-    /// Something that breaks compliance rules
-    Violation,
-}
-
-/// Represents a health check advice
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Advice {
-    /// The key of the advice e.g. "is_deprecated"
-    pub key: String,
-    /// The value of the advice e.g. "true"
-    pub value: Value,
-    /// The message of the advice e.g. "This attribute is deprecated"
-    pub message: String,
-    /// The advisory of the advice e.g. "violation"
-    pub advisory: Advisory,
-}
+use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute, Error};
 
 /// Provides advice on a sample attribute
 pub trait Advisor {
     /// Provide advice on a sample attribute
     fn advise(
-        &self,
+        &mut self,
         attribute: &SampleAttribute,
-        health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice>;
+    ) -> Result<Vec<Advice>, Error>;
 
     //TODO conclude(&self) -> Option<Vec<Advice>>;
     // Provide an overall summary of the advice e.g. LengthyAttributeNameAdvisor
@@ -59,11 +33,10 @@ pub trait Advisor {
 pub struct DeprecatedAdvisor;
 impl Advisor for DeprecatedAdvisor {
     fn advise(
-        &self,
+        &mut self,
         _attribute: &SampleAttribute,
-        _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice> {
+    ) -> Result<Vec<Advice>, Error> {
         let mut advices = Vec::new();
         if let Some(attribute) = semconv_attribute {
             if let Some(deprecated) = &attribute.deprecated {
@@ -81,7 +54,7 @@ impl Advisor for DeprecatedAdvisor {
                 });
             }
         }
-        advices
+        Ok(advices)
     }
 }
 
@@ -92,11 +65,10 @@ pub struct StabilityAdvisor;
 
 impl Advisor for StabilityAdvisor {
     fn advise(
-        &self,
+        &mut self,
         _attribute: &SampleAttribute,
-        _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice> {
+    ) -> Result<Vec<Advice>, Error> {
         let mut advices = Vec::new();
         if let Some(attribute) = semconv_attribute {
             match attribute.stability {
@@ -111,160 +83,7 @@ impl Advisor for StabilityAdvisor {
                 _ => {}
             }
         }
-        advices
-    }
-}
-
-/// An advisor that checks if an attribute matches name formatting rules
-pub struct NameFormatAdvisor {
-    regex: Regex,
-}
-impl NameFormatAdvisor {
-    #[must_use]
-    /// Create a new NameFormatAdvisor
-    pub fn new(pattern: &str) -> Self {
-        NameFormatAdvisor {
-            regex: Regex::new(pattern).expect("regex pattern must be valid"),
-        }
-    }
-}
-impl Default for NameFormatAdvisor {
-    fn default() -> Self {
-        Self::new(r"^[a-z][a-z0-9]*([._][a-z0-9]+)*$")
-    }
-}
-
-impl Advisor for NameFormatAdvisor {
-    fn advise(
-        &self,
-        attribute: &SampleAttribute,
-        _health_checker: &AttributeHealthChecker,
-        semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice> {
-        // Don't provide advice if the attribute is a match
-        if semconv_attribute.is_some() {
-            return Vec::new();
-        }
-
-        if !self.regex.is_match(&attribute.name) {
-            vec![Advice {
-                key: "invalid_format".to_owned(),
-                value: Value::String(attribute.name.clone()),
-                message: "Does not match name formatting rules".to_owned(),
-                advisory: Advisory::Violation,
-            }]
-        } else {
-            Vec::new()
-        }
-    }
-}
-
-/// An advisor that provides advice on the namespace of an attribute
-pub struct NamespaceAdvisor {
-    namespace_separator: char,
-    semconv_namespaces: HashSet<String>,
-}
-impl NamespaceAdvisor {
-    #[must_use]
-    /// Create a new NamespaceAdvisor
-    pub fn new(namespace_separator: char, health_checker: &AttributeHealthChecker) -> Self {
-        let mut semconv_namespaces = HashSet::new();
-        for group in &health_checker.registry.groups {
-            for attribute in &group.attributes {
-                // Extract namespace (everything to the left of the last separator)
-                // repeat until the last separator is found
-                let mut name = attribute.name.clone();
-                while let Some(last_separator_pos) = name.rfind(namespace_separator) {
-                    let namespace = name[..last_separator_pos].to_string();
-                    let _ = semconv_namespaces.insert(namespace);
-                    name = name[..last_separator_pos].to_string();
-                }
-            }
-        }
-        NamespaceAdvisor {
-            namespace_separator,
-            semconv_namespaces,
-        }
-    }
-
-    /// Find a namespace in the registry
-    #[must_use]
-    fn find_namespace(&self, namespace: &str) -> Option<String> {
-        let mut namespace = namespace.to_owned();
-        while !self.semconv_namespaces.contains(&namespace) {
-            if let Some(last_dot_pos) = namespace.rfind('.') {
-                namespace = namespace[..last_dot_pos].to_string();
-            } else {
-                return None;
-            }
-        }
-        Some(namespace)
-    }
-
-    /// Find an attribute from a namespace search
-    #[must_use]
-    fn find_attribute_from_namespace(
-        &self,
-        namespace: &str,
-        health_checker: &AttributeHealthChecker,
-    ) -> Option<Attribute> {
-        if let Some(attribute) = health_checker.find_attribute(namespace) {
-            Some(attribute.clone())
-        } else if let Some(last_separator_pos) = namespace.rfind(self.namespace_separator) {
-            let new_namespace = &namespace[..last_separator_pos];
-            self.find_attribute_from_namespace(new_namespace, health_checker)
-        } else {
-            None
-        }
-    }
-}
-
-impl Advisor for NamespaceAdvisor {
-    fn advise(
-        &self,
-        attribute: &SampleAttribute,
-        health_checker: &AttributeHealthChecker,
-        semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice> {
-        // Don't provide advice if the attribute is a match
-        if semconv_attribute.is_some() {
-            return Vec::new();
-        }
-
-        if let Some(last_separator_pos) = attribute.name.rfind(self.namespace_separator) {
-            let namespace = attribute.name[..last_separator_pos].to_string();
-
-            // Has a namespace that matches an existing attribute
-            if let Some(found_attr) = self.find_attribute_from_namespace(&namespace, health_checker)
-            {
-                return vec![Advice {
-                    key: "illegal_namespace".to_owned(),
-                    value: Value::String(found_attr.name),
-                    message: "Namespace matches existing attribute".to_owned(),
-                    advisory: Advisory::Violation,
-                }];
-            }
-
-            // Extends an existing namespace
-            if let Some(existing_namespace) = self.find_namespace(&namespace) {
-                return vec![Advice {
-                    key: "extends_namespace".to_owned(),
-                    value: Value::String(existing_namespace),
-                    message: "Extends existing namespace".to_owned(),
-                    advisory: Advisory::Information,
-                }];
-            }
-        } else {
-            // Does not have a namespace
-            return vec![Advice {
-                key: "missing_namespace".to_owned(),
-                value: Value::String(attribute.name.clone()),
-                message: "Does not have a namespace".to_owned(),
-                advisory: Advisory::Improvement,
-            }];
-        }
-
-        Vec::new()
+        Ok(advices)
     }
 }
 
@@ -272,11 +91,10 @@ impl Advisor for NamespaceAdvisor {
 pub struct TypeAdvisor;
 impl Advisor for TypeAdvisor {
     fn advise(
-        &self,
+        &mut self,
         attribute: &SampleAttribute,
-        _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice> {
+    ) -> Result<Vec<Advice>, Error> {
         // Only provide advice if the attribute is a match and the type is present
         match (semconv_attribute, attribute.r#type.as_ref()) {
             (Some(semconv_attribute), Some(attribute_type)) => {
@@ -299,30 +117,30 @@ impl Advisor for TypeAdvisor {
                         if attribute_type != &PrimitiveOrArrayTypeSpec::String
                             && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                         {
-                            return vec![Advice {
+                            return Ok(vec![Advice {
                                 key: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
                                 message: "Type should be `string` or `int`".to_owned(),
                                 advisory: Advisory::Violation,
-                            }];
+                            }]);
                         } else {
-                            return Vec::new();
+                            return Ok(Vec::new());
                         }
                     }
                 };
 
                 if attribute_type != semconv_attribute_type {
-                    vec![Advice {
+                    Ok(vec![Advice {
                         key: "type_mismatch".to_owned(),
                         value: Value::String(attribute_type.to_string()),
                         message: format!("Type should be `{}`", semconv_attribute_type),
                         advisory: Advisory::Violation,
-                    }]
+                    }])
                 } else {
-                    Vec::new()
+                    Ok(Vec::new())
                 }
             }
-            _ => Vec::new(),
+            _ => Ok(Vec::new()),
         }
     }
 }
@@ -331,11 +149,10 @@ impl Advisor for TypeAdvisor {
 pub struct EnumAdvisor;
 impl Advisor for EnumAdvisor {
     fn advise(
-        &self,
+        &mut self,
         attribute: &SampleAttribute,
-        _health_checker: &AttributeHealthChecker,
         semconv_attribute: Option<&Attribute>,
-    ) -> Vec<Advice> {
+    ) -> Result<Vec<Advice>, Error> {
         // Only provide advice if the semconv_attribute is an enum and the attribute has a value and type
         match (
             semconv_attribute,
@@ -363,7 +180,7 @@ impl Advisor for EnumAdvisor {
                             }
                             _ => {
                                 // Any other type is not supported - the TypeAdvisor should have already caught this
-                                return Vec::new();
+                                return Ok(Vec::new());
                             }
                         } {
                             is_found = true;
@@ -372,17 +189,68 @@ impl Advisor for EnumAdvisor {
                     }
 
                     if !is_found {
-                        return vec![Advice {
+                        return Ok(vec![Advice {
                             key: "undefined_enum_variant".to_owned(),
                             value: attribute_value.clone(),
                             message: "Is not a defined variant".to_owned(),
                             advisory: Advisory::Information,
-                        }];
+                        }]);
                     }
                 }
-                Vec::new()
+                Ok(Vec::new())
             }
-            _ => Vec::new(),
+            _ => Ok(Vec::new()),
         }
+    }
+}
+
+/// An advisor which runs a rego policy on the attribute
+pub struct RegoAdvisor {
+    engine: Engine,
+}
+impl RegoAdvisor {
+    /// Create a new RegoAdvisor
+    #[must_use]
+    pub fn new(health_checker: &AttributeHealthChecker, policy_path: &str) -> Self {
+        let mut engine = Engine::new();
+        let _ = engine
+            .add_policy_from_file(policy_path)
+            .expect("Failed to load policy file"); // TODO: handle error
+
+        engine
+            .add_data(health_checker)
+            .expect("Failed to add health checker data");
+
+        RegoAdvisor { engine }
+    }
+}
+impl Advisor for RegoAdvisor {
+    fn advise(
+        &mut self,
+        attribute: &SampleAttribute,
+        _semconv_attribute: Option<&Attribute>,
+    ) -> Result<Vec<Advice>, Error> {
+        self.engine
+            .set_input(attribute)
+            .map_err(|e| Error::AdviceError {
+                error: e.to_string(),
+            })?;
+        let violations = self
+            .engine
+            .check(weaver_checker::PolicyStage::BeforeResolution)
+            .map_err(|e| Error::AdviceError {
+                error: e.to_string(),
+            })?;
+        // Extract advice from violations
+        Ok(violations
+            .iter()
+            .filter_map(|violation| {
+                if let Violation::Advice(advice) = violation {
+                    Some(advice.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<Advice>>())
     }
 }

@@ -66,9 +66,10 @@ impl Iterator for StdinAttributeIterator {
                             // If the line follows the pattern name=value, split it
                             if let Some((name, value)) = trimmed.split_once('=') {
                                 let mut sample_attribute = SampleAttribute {
-                                    name: name.to_owned(),
+                                    name: name.trim().to_owned(),
                                     value: Some(
-                                        serde_json::from_str(value).unwrap_or(json!(value)),
+                                        serde_json::from_str(value.trim())
+                                            .unwrap_or(json!(value.trim())),
                                     ),
                                     r#type: None,
                                 };

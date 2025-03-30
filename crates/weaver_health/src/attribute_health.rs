@@ -1,22 +1,22 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
+use weaver_checker::violation::{Advice, Advisory};
 use weaver_semconv::attribute::AttributeType;
 
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
-use crate::{
-    attribute_advice::{Advice, Advisor, Advisory},
-    sample::SampleAttribute,
-};
+use crate::{attribute_advice::Advisor, sample::SampleAttribute};
 
 /// Checks the health of attributes
+#[derive(Serialize)]
 pub struct AttributeHealthChecker {
     /// The resolved registry
     pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
     semconv_templates: HashMap<String, Attribute>,
+    #[serde(skip)]
     advisors: Vec<Box<dyn Advisor>>,
 }
 
@@ -73,16 +73,19 @@ impl AttributeHealthChecker {
 
     /// Create a health attribute from a sample attribute
     #[must_use]
-    pub fn create_health_attribute(&self, sample_attribute: &SampleAttribute) -> HealthAttribute {
+    pub fn create_health_attribute(
+        &mut self,
+        sample_attribute: &SampleAttribute,
+    ) -> HealthAttribute {
         // clone the sample attribute into the result
         let mut attribute_result = HealthAttribute::new(sample_attribute.clone());
 
         // find the attribute in the registry
         let semconv_attribute = {
             if let Some(attribute) = self.find_attribute(&sample_attribute.name) {
-                Some(attribute)
+                Some(attribute.clone())
             } else {
-                self.find_template(&sample_attribute.name)
+                self.find_template(&sample_attribute.name).cloned()
             }
         };
 
@@ -95,7 +98,7 @@ impl AttributeHealthChecker {
             });
         } else {
             // Provide an info advice if the attribute is a template
-            if let Some(attribute) = semconv_attribute {
+            if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     attribute_result.add_advice(Advice {
                         key: "template_attribute".to_owned(),
@@ -108,9 +111,11 @@ impl AttributeHealthChecker {
         }
 
         // run advisors on the attribute
-        for advisor in self.advisors.iter() {
-            for advice in advisor.advise(sample_attribute, self, semconv_attribute) {
-                attribute_result.add_advice(advice);
+        for advisor in self.advisors.iter_mut() {
+            if let Ok(advices) = advisor.advise(sample_attribute, semconv_attribute.as_ref()) {
+                for advice in advices {
+                    attribute_result.add_advice(advice);
+                }
             }
         }
 
@@ -262,8 +267,7 @@ impl HealthStatistics {
 #[cfg(test)]
 mod tests {
     use crate::attribute_advice::{
-        DeprecatedAdvisor, EnumAdvisor, NameFormatAdvisor, NamespaceAdvisor, StabilityAdvisor,
-        TypeAdvisor,
+        DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
     };
 
     use super::*;
@@ -469,41 +473,42 @@ mod tests {
 
         let advisors: Vec<Box<dyn Advisor>> = vec![
             Box::new(DeprecatedAdvisor),
-            Box::new(NameFormatAdvisor::default()),
             Box::new(StabilityAdvisor),
             Box::new(TypeAdvisor),
             Box::new(EnumAdvisor),
         ];
 
         let mut health_checker = AttributeHealthChecker::new(registry, advisors);
-        let namespace_advisor = NamespaceAdvisor::new('.', &health_checker);
-        health_checker.add_advisor(Box::new(namespace_advisor));
+        let rego_advisor = RegoAdvisor::new(&health_checker, "data/policies/advice.rego");
+        health_checker.add_advisor(Box::new(rego_advisor));
 
         let report = health_checker.check_attributes(attributes);
-        let results = report.attributes;
+        let mut results = report.attributes;
 
         assert_eq!(results.len(), 10);
 
         assert!(results[0].all_advice.is_empty());
 
         assert_eq!(results[1].all_advice.len(), 3);
-        assert_eq!(results[1].all_advice[0].key, "missing_attribute");
+        // make a sort of the advice
+        results[1].all_advice.sort_by(|a, b| a.key.cmp(&b.key));
+        assert_eq!(results[1].all_advice[0].key, "invalid_format");
         assert_eq!(
             results[1].all_advice[0].value,
             Value::String("testString2".to_owned())
         );
         assert_eq!(
             results[1].all_advice[0].message,
-            "Does not exist in the registry"
+            "Does not match name formatting rules"
         );
-        assert_eq!(results[1].all_advice[1].key, "invalid_format");
+        assert_eq!(results[1].all_advice[1].key, "missing_attribute");
         assert_eq!(
             results[1].all_advice[1].value,
             Value::String("testString2".to_owned())
         );
         assert_eq!(
             results[1].all_advice[1].message,
-            "Does not match name formatting rules"
+            "Does not exist in the registry"
         );
         assert_eq!(results[1].all_advice[2].key, "missing_namespace");
         assert_eq!(

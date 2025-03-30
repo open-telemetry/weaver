@@ -5355,6 +5355,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.12",
+ "weaver_checker",
  "weaver_common",
  "weaver_forge",
  "weaver_resolved_schema",
