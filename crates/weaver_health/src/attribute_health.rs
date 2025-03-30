@@ -479,7 +479,8 @@ mod tests {
         ];
 
         let mut health_checker = AttributeHealthChecker::new(registry, advisors);
-        let rego_advisor = RegoAdvisor::new(&health_checker, "data/policies/advice.rego");
+        let rego_advisor = RegoAdvisor::new(&health_checker, "data/policies/advice")
+            .expect("Failed to create Rego advisor");
         health_checker.add_advisor(Box::new(rego_advisor));
 
         let report = health_checker.check_attributes(attributes);
@@ -575,15 +576,18 @@ mod tests {
             "Type should be `string` or `int`"
         );
 
-        assert_eq!(results[7].all_advice.len(), 2);
-        assert_eq!(results[7].all_advice[0].key, "missing_attribute");
+        // Make a sort of the advice
+        results[7].all_advice.sort_by(|a, b| a.key.cmp(&b.key));
+        assert_eq!(results[7].all_advice.len(), 3);
+
+        assert_eq!(results[7].all_advice[0].key, "extends_namespace");
         assert_eq!(
             results[7].all_advice[0].value,
-            Value::String("test.string.not.allowed".to_owned())
+            Value::String("test".to_owned())
         );
         assert_eq!(
             results[7].all_advice[0].message,
-            "Does not exist in the registry"
+            "Extends existing namespace"
         );
         assert_eq!(results[7].all_advice[1].key, "illegal_namespace");
         assert_eq!(
@@ -593,6 +597,15 @@ mod tests {
         assert_eq!(
             results[7].all_advice[1].message,
             "Namespace matches existing attribute"
+        );
+        assert_eq!(results[7].all_advice[2].key, "missing_attribute");
+        assert_eq!(
+            results[7].all_advice[2].value,
+            Value::String("test.string.not.allowed".to_owned())
+        );
+        assert_eq!(
+            results[7].all_advice[2].message,
+            "Does not exist in the registry"
         );
 
         assert_eq!(results[8].all_advice.len(), 2);
@@ -633,10 +646,10 @@ mod tests {
         // Check statistics
         let stats = report.statistics;
         assert_eq!(stats.total_attributes, 10);
-        assert_eq!(stats.total_advisories, 15);
+        assert_eq!(stats.total_advisories, 16);
         assert_eq!(stats.advisory_counts.len(), 3);
         assert_eq!(stats.advisory_counts[&Advisory::Violation], 10);
-        assert_eq!(stats.advisory_counts[&Advisory::Information], 3);
+        assert_eq!(stats.advisory_counts[&Advisory::Information], 4);
         assert_eq!(stats.advisory_counts[&Advisory::Improvement], 2);
         assert_eq!(stats.highest_advisory_counts.len(), 2);
         assert_eq!(stats.highest_advisory_counts[&Advisory::Violation], 7);

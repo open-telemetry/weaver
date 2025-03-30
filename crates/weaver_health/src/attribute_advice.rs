@@ -210,18 +210,21 @@ pub struct RegoAdvisor {
 }
 impl RegoAdvisor {
     /// Create a new RegoAdvisor
-    #[must_use]
-    pub fn new(health_checker: &AttributeHealthChecker, policy_path: &str) -> Self {
+    pub fn new(health_checker: &AttributeHealthChecker, policy_dir: &str) -> Result<Self, Error> {
         let mut engine = Engine::new();
         let _ = engine
-            .add_policy_from_file(policy_path)
-            .expect("Failed to load policy file"); // TODO: handle error
+            .add_policies(policy_dir, "*.rego")
+            .map_err(|e| Error::AdviceError {
+                error: e.to_string(),
+            })?;
 
         engine
             .add_data(health_checker)
-            .expect("Failed to add health checker data");
+            .map_err(|e| Error::AdviceError {
+                error: e.to_string(),
+            })?;
 
-        RegoAdvisor { engine }
+        Ok(RegoAdvisor { engine })
     }
 }
 impl Advisor for RegoAdvisor {
@@ -237,7 +240,7 @@ impl Advisor for RegoAdvisor {
             })?;
         let violations = self
             .engine
-            .check(weaver_checker::PolicyStage::BeforeResolution)
+            .check(weaver_checker::PolicyStage::Advice)
             .map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?;

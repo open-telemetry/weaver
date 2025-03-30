@@ -163,10 +163,8 @@ pub(crate) fn command(
     ];
 
     let mut health_checker = AttributeHealthChecker::new(registry, advisors);
-    let rego_advisor = RegoAdvisor::new(
-        &health_checker,
-        "crates/weaver_health/data/policies/advice.rego",
-    );
+    let rego_advisor =
+        RegoAdvisor::new(&health_checker, "crates/weaver_health/data/policies/advice")?;
     health_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the template engine

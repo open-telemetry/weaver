@@ -152,6 +152,8 @@ pub enum PolicyStage {
     AfterResolution,
     /// Policies that are evaluated between two registries the resolution phase.
     ComparisonAfterResolution,
+    /// Policies that are evaluated to provide advice on samples.
+    Advice,
 }
 
 impl Display for PolicyStage {
@@ -166,6 +168,9 @@ impl Display for PolicyStage {
             }
             PolicyStage::ComparisonAfterResolution => {
                 write!(f, "comparison_after_resolution")
+            }
+            PolicyStage::Advice => {
+                write!(f, "advice")
             }
         }
     }

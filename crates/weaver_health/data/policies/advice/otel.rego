@@ -1,9 +1,9 @@
-package before_resolution
+package advice
 
 import rego.v1
 
 # checks attribute name format
-deny contains advice(key, advisory, value, message) if {
+deny contains make_advice(key, advisory, value, message) if {
 	not regex.match(name_regex, input.name)
 	key := "invalid_format"
 	advisory := "violation"
@@ -12,7 +12,7 @@ deny contains advice(key, advisory, value, message) if {
 }
 
 # checks attribute has a namespace
-deny contains advice(key, advisory, value, message) if {
+deny contains make_advice(key, advisory, value, message) if {
 	not contains(input.name, ".")
 	key := "missing_namespace"
 	advisory := "improvement"
@@ -21,8 +21,8 @@ deny contains advice(key, advisory, value, message) if {
 }
 
 # checks attribute namespace doesn't collide with existing attributes
-deny contains advice(key, advisory, value, message) if {
-	some attr, _ in data.semconv_attributes
+deny contains make_advice(key, advisory, value, message) if {
+	some attr in object.keys(data.semconv_attributes)
 
 	namespaces := [ns |
 		some i, _ in split(input.name, ".")
@@ -39,7 +39,7 @@ deny contains advice(key, advisory, value, message) if {
 }
 
 # provides advice if the attribute extends an existing namespace
-deny contains advice(key, advisory, value, message) if {
+deny contains make_advice(key, advisory, value, message) if {
 	# Skip this rule if the attribute is a template type
 	not is_template_type(input.name)
 
@@ -79,7 +79,7 @@ deny contains advice(key, advisory, value, message) if {
 	message := "Extends existing namespace"
 }
 
-advice(key, advisory, value, message) := {
+make_advice(key, advisory, value, message) := {
 	"type": "advice",
 	"key": key,
 	"advisory": advisory,
@@ -93,12 +93,12 @@ name_regex := "^[a-z][a-z0-9]*([._][a-z0-9]+)*$"
 
 # Helper function to check if name is a template type
 is_template_type(name) if {
-	some templates, _ in data.semconv_templates
+	some templates in object.keys(data.semconv_templates)
 	startswith(name, templates)
 }
 
 # Helper function to check if name is a registry attribute
 is_registry_attribute(name) if {
-	some attr, _ in data.semconv_attributes
-	startswith(name, attr)
+	some attr in object.keys(data.semconv_attributes)
+	name == attr
 }
