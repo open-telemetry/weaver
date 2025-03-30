@@ -122,6 +122,10 @@ pub struct RegistryHealthArgs {
     /// Max inactivity time in seconds before stopping the listener.
     #[clap(long, default_value = "10")]
     inactivity_timeout: u64,
+
+    /// Advice policies directory. Set this to override the default policies.
+    #[arg(long)]
+    advice_policies: Option<PathBuf>,
 }
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
@@ -163,8 +167,8 @@ pub(crate) fn command(
     ];
 
     let mut health_checker = AttributeHealthChecker::new(registry, advisors);
-    let rego_advisor =
-        RegoAdvisor::new(&health_checker, "crates/weaver_health/data/policies/advice")?;
+
+    let rego_advisor = RegoAdvisor::new(&health_checker, &args.advice_policies)?;
     health_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the template engine

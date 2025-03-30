@@ -479,8 +479,8 @@ mod tests {
         ];
 
         let mut health_checker = AttributeHealthChecker::new(registry, advisors);
-        let rego_advisor = RegoAdvisor::new(&health_checker, "data/policies/advice")
-            .expect("Failed to create Rego advisor");
+        let rego_advisor =
+            RegoAdvisor::new(&health_checker, &None).expect("Failed to create Rego advisor");
         health_checker.add_advisor(Box::new(rego_advisor));
 
         let report = health_checker.check_attributes(attributes);

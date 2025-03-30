@@ -1,5 +1,7 @@
 // Builtin advisors
 
+use std::path::PathBuf;
+
 use serde_json::Value;
 use weaver_checker::{
     violation::{Advice, Advisory, Violation},
@@ -13,6 +15,9 @@ use weaver_semconv::{
 };
 
 use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute, Error};
+
+/// Embedded default health rego policies
+pub const DEFAULT_HEALTH_REGO: &str = include_str!("../../../defaults/policies/advice/otel.rego");
 
 /// Provides advice on a sample attribute
 pub trait Advisor {
@@ -210,13 +215,24 @@ pub struct RegoAdvisor {
 }
 impl RegoAdvisor {
     /// Create a new RegoAdvisor
-    pub fn new(health_checker: &AttributeHealthChecker, policy_dir: &str) -> Result<Self, Error> {
+    pub fn new(
+        health_checker: &AttributeHealthChecker,
+        policy_dir: &Option<PathBuf>,
+    ) -> Result<Self, Error> {
         let mut engine = Engine::new();
-        let _ = engine
-            .add_policies(policy_dir, "*.rego")
-            .map_err(|e| Error::AdviceError {
-                error: e.to_string(),
-            })?;
+        if let Some(path) = policy_dir {
+            let _ = engine
+                .add_policies(path, "*.rego")
+                .map_err(|e| Error::AdviceError {
+                    error: e.to_string(),
+                })?;
+        } else {
+            let _ = engine
+                .add_policy("defaults/policies/advice/otel.rego", DEFAULT_HEALTH_REGO)
+                .map_err(|e| Error::AdviceError {
+                    error: e.to_string(),
+                })?;
+        }
 
         engine
             .add_data(health_checker)
