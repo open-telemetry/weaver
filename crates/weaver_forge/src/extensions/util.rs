@@ -8,7 +8,6 @@ use minijinja::{Environment, ErrorKind, Value};
 use regex::Regex;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::OnceLock;
 
 /// Add utility filters and tests to the environment.
 pub(crate) fn add_filters(env: &mut Environment<'_>, target_config: &WeaverConfig) {
@@ -112,35 +111,36 @@ fn regex_replace(
 /// A function that takes an input string and returns a new string with the
 /// acronyms replaced.
 pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
-    static RE: OnceLock<Regex> = OnceLock::new();
     let acronym_map = acronyms
         .iter()
         .map(|acronym| (acronym.to_lowercase(), acronym.clone()))
         .collect::<HashMap<String, String>>();
 
     move |input: &str| -> String {
-        // Pattern to match sequences of whitespace (\s+), non-whitespace
-        // non-punctuation (\w+), or any punctuation ([^\w\s]+)
-        let re = RE.get_or_init(|| Regex::new(r"(\s+|\w+|[^\w\s]+)").expect("Invalid regex"));
-        re.find_iter(input)
-            .map(|mat| match acronym_map.get(&mat.as_str().to_lowercase()) {
-                Some(acronym) => acronym.clone(),
-                None => mat.as_str().to_owned(),
-            })
-            .collect()
+        // Arbitrarily replace all existence of an acronym.
+        // Note: This assumes lower + upper case have the same length.
+        // This may not be true for i18n strings.
+        let mut result = input.to_owned();
+        let input_matcher = input.to_lowercase();
+        for (matcher, replacement) in acronym_map.iter() {
+            for (idx, _) in input_matcher.match_indices(matcher) {
+                result.replace_range(idx..(idx + replacement.len()), replacement);
+            }
+        }
+        result
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::extensions::util::add_filters;
+    use crate::{config::WeaverConfig, extensions::util::add_filters};
     use minijinja::Environment;
 
     #[test]
     fn test_regex_replace() {
         let mut env = Environment::new();
         let ctx = serde_json::Value::Null;
-        let config = crate::config::WeaverConfig::default();
+        let config = WeaverConfig::default();
 
         add_filters(&mut env, &config);
 
@@ -157,6 +157,27 @@ mod tests {
             )
             .unwrap(),
             "This A test with multiple A's"
+        );
+    }
+
+    #[test]
+    fn test_acronym_filter() {
+        let mut env = Environment::new();
+        let ctx = serde_json::Value::Null;
+        let config = WeaverConfig {
+            acronyms: Some(vec!["Html".to_owned(), "iOS".to_owned(), "API".to_owned()]),
+            ..Default::default()
+        };
+        add_filters(&mut env, &config);
+        assert_eq!(
+            env.render_str("{{ 'api' | acronym }}", &ctx).unwrap(),
+            "API"
+        );
+
+        assert_eq!(
+            env.render_str("{{ 'iosapplyhtmlthings' | acronym }}", &ctx)
+                .unwrap(),
+            "iOSapplyHtmlthings"
         );
     }
 }
