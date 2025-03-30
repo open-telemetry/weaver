@@ -7,7 +7,10 @@ All notable changes to this project will be documented in this file.
 What's changed
 
 * Add support for annotations on attributes and groups. ([#645](https://github.com/open-telemetry/weaver/pull/645) by @lquerel).
-* 💥 BREAKING CHANGE 💥 - Upgrade to version 0.4.0 of regorus [requires all v0 policies to be modified](https://github.com/microsoft/regorus/pull/373). Policy upgrade instructions [here](https://www.openpolicyagent.org/docs/latest/v0-upgrade/#upgrading-rego) may help. ([#651](https://github.com/open-telemetry/weaver/pull/651) by @jerbly). 
+* 💥 BREAKING CHANGE 💥 - Upgrade to version 0.4.0 of regorus [requires all v0 policies to be modified](https://github.com/microsoft/regorus/pull/373). Policy upgrade instructions [here](https://www.openpolicyagent.org/docs/latest/v0-upgrade/#upgrading-rego) may help. ([#651](https://github.com/open-telemetry/weaver/pull/651) by @jerbly).
+* Stability level `Deprecated` is deprecated. Conventions should be deprecated via `deprecated` field and should keep the original stability. ([#607](https://github.com/open-telemetry/weaver/pull/607) by @lmolkova).
+* Exclude attributes declared with `code_generation.exclude` annotations in `semconv_attributes` and other JQ attribute helpers. ([#662](https://github.com/open-telemetry/weaver/pull/662) by @lmolkova)
+* Sort metrics by name in all JQ helpers. ([#573](https://github.com/open-telemetry/weaver/issues/573) by @lmolkova)
 
 ## [0.13.2] - 2025-02-13
 
@@ -39,11 +42,11 @@ What's changed
 
 
 
-* Improvement of comment generation: removal of `<p>` tags that precede `@` Javadoc tags. 
+* Improvement of comment generation: removal of `<p>` tags that precede `@` Javadoc tags.
   ([#574](https://github.com/open-telemetry/weaver/pull/574) by @trask).
 * For Issue [#564](https://github.com/open-telemetry/weaver/issues/564) - Require attributes and event fields to have stability: Added warnings for missing stability
   on: Attributes, Enum members in attributes, Event AnyValues, Enum members in AnyValues. ([#568](https://github.com/open-telemetry/weaver/pull/568) by @jerbly).
-* For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly). 
+* For issue [#569](Add include_stability config into semconv_grouped_attributes): `is_experimental` returns `true` by default. ([#570](https://github.com/open-telemetry/weaver/pull/570) by @jerbly).
 * Added an OTLP receiver to Weaver to prepare for the `weaver registry live-check` command. (see [#548](https://github.com/open-telemetry/weaver/pull/548) by @lquerel)
 * Add is_array filter and test for AttributeType. ([#540](https://github.com/open-telemetry/weaver/pull/540) by @arthurDiff).
 * Refactored CLI registry commands to remove some duplication. Resolving the registry with policy checks is common for
@@ -61,7 +64,7 @@ What's changed
   `semconv_signal`, `semconv_grouped_attributes`, and other `semconv_*` JQ semconv helpers. When `stable_only` is set to `true`,
   corresponding helper function returns stable conventions only. If the flag is not set or set to false, stability filtering does not apply.
   It's recommended to use `stable_only` flag instead of `exclude_stability` parameter.
-  ([#588](https://github.com/open-telemetry/weaver/pull/588) by @lmolkova)  
+  ([#588](https://github.com/open-telemetry/weaver/pull/588) by @lmolkova)
 
 ## [0.12.0] - 2024-12-09
 

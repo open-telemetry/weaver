@@ -11,6 +11,7 @@ use std::fmt::{Display, Formatter};
 #[serde(rename_all = "snake_case")]
 pub enum Stability {
     /// A deprecated definition.
+    #[deprecated(note = "This stability level is deprecated.")]
     Deprecated,
     /// A stable definition.
     Stable,
@@ -29,12 +30,12 @@ pub enum Stability {
 impl Display for Stability {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Stability::Deprecated => write!(f, "deprecated"),
             Stability::Stable => write!(f, "stable"),
             Stability::Development => write!(f, "development"),
             Stability::Alpha => write!(f, "alpha"),
             Stability::Beta => write!(f, "beta"),
             Stability::ReleaseCandidate => write!(f, "release_candidate"),
+            Stability::Deprecated => write!(f, "deprecated"),
         }
     }
 }
@@ -70,7 +71,6 @@ mod tests {
 
     #[test]
     fn test_display() {
-        assert_eq!(Stability::Deprecated.to_string(), "deprecated");
         assert_eq!(Stability::Stable.to_string(), "stable");
         assert_eq!(Stability::Development.to_string(), "development");
         assert_eq!(Stability::Alpha.to_string(), "alpha");
