@@ -18,7 +18,7 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
 weaver_semconv = { path = "../weaver_semconv" }
 
-minijinja = { version = "2.8.0", features = [
+minijinja = { version = "2.9.0", features = [
     "loader",
     "custom_syntax",
     "debug",
