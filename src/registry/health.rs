@@ -314,10 +314,9 @@ pub(crate) fn command(
         args.registry.registry
     ));
 
-    // TODO Report warnings and errors but keep exit_code
-    // if !diag_msgs.has_error() {
-    //     return Err(diag_msgs);
-    // }
+    if diag_msgs.has_error() {
+        return Err(diag_msgs);
+    }
 
     Ok(ExitDirectives {
         exit_code,

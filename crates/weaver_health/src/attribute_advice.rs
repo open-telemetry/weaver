@@ -27,11 +27,6 @@ pub trait Advisor {
         attribute: &SampleAttribute,
         semconv_attribute: Option<&Attribute>,
     ) -> Result<Vec<Advice>, Error>;
-
-    //TODO conclude(&self) -> Option<Vec<Advice>>;
-    // Provide an overall summary of the advice e.g. LengthyAttributeNameAdvisor
-    // could provide statistics on the length of the attribute names: min, max, avg
-    // Each statistic would be an Advice with a key like "min_length", "max_length", "avg_length"
 }
 
 /// An advisor that checks if an attribute is deprecated

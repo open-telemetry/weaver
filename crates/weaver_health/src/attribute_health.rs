@@ -184,8 +184,6 @@ pub struct HealthReport {
     pub attributes: Vec<HealthAttribute>,
     /// The statistics for the report
     pub statistics: HealthStatistics,
-    // The conclusion for each advisor
-    // TODO pub conclusions: Vec<Conclusion>,
 }
 
 impl HealthReport {
