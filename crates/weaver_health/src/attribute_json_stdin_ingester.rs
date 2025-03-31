@@ -10,6 +10,7 @@ use crate::{sample::SampleAttribute, Error, Ingester};
 /// [
 ///   {"name": "attr.name", "value": "val", "type": "string"},
 ///   {"name": "attr.name2"}
+///   {"name": "attr.name3", "type": "string"},
 /// ]
 /// ```
 pub struct AttributeJsonStdinIngester;
