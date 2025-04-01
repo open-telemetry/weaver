@@ -42,13 +42,13 @@ All attributes are lower case.
 groups ::= semconv
        | semconv groups
 
-semconv ::= id [convtype] brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
+semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
 
 extends_or_attributes ::= (extends | attributes | (extends attributes))
 
 id    ::= string
 
-convtype ::= "span" # Default if not specified
+convtype ::= "span"
          |   "resource" # see spansfields
          |   "event"    # see eventfields
          |   "metric"   # see metricfields
@@ -68,13 +68,13 @@ stability ::= "stable"
 deprecated ::= renamed renamed_to [note]
            |   obsoleted [note]
            |   uncategorized [note]
-          
+
 renamed_to ::= string
 
 display_name ::= string
 
 annotations ::= string yaml
-                
+
 attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [requirement_level] [sampling_relevant] [note] [annotations]
 
 # ref MUST point to an existing attribute id
@@ -200,7 +200,7 @@ The following is only valid if `type` is `event`:
 - `body`, optional, [`any value`](#any-value-semantic-convention). Describes the body of the event as an any_value type.
 
 ##### Event semantic convention example
-  
+
   ```yaml
   - id: event.some_event
     name: the.event.name

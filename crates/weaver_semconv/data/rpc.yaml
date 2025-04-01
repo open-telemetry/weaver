@@ -74,10 +74,6 @@ groups:
       - ref: server.port
         requirement_level:
           conditionally_required: See below
-    constraints:
-      - any_of:
-          - server.socket.address
-          - server.address
 
   - id: rpc.client
     stability: stable
