@@ -9,7 +9,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-6-resources/registry/registry-user-agent.yaml"
+        }
       }
     },
     {
@@ -25,7 +28,10 @@
         5
       ],
       "lineage": {
-        "source_file": "data/registry-test-6-resources/registry/resource-browser.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-6-resources/registry/resource-browser.yaml"
+        },
         "attributes": {
           "user_agent.original": {
             "source_group": "registry.user_agent",

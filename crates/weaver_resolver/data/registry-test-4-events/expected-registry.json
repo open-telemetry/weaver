@@ -11,7 +11,10 @@
       ],
       "name": "some.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml",
+        "provenance": {
+          "path": "data/registry-test-4-events/registry/log-events.yaml",
+          "registry_id": "default"
+        },
         "attributes": {
           "test_attr.event.attr": {
             "source_group": "referenced.attributes",
@@ -34,7 +37,10 @@
       "attributes": [],
       "name": "empty.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "path": "data/registry-test-4-events/registry/log-events.yaml",
+          "registry_id": "default"
+        }
       }
     },
     {
@@ -49,7 +55,10 @@
       ],
       "name": "feature_flag",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        },
         "attributes": {
           "feature_flag.key": {
             "source_group": "feature_flag",
@@ -93,7 +102,10 @@
       "attributes": [],
       "name": "string.body.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        }
       },
       "body": {
         "type": "string",
@@ -115,7 +127,10 @@
       "attributes": [],
       "name": "string.body.detailed.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        }
       },
       "body": {
         "type": "string",
@@ -138,7 +153,10 @@
       "attributes": [],
       "name": "device.app.lifecycle",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        }
       },
       "body": {
         "type": "map",
@@ -247,7 +265,10 @@
       ],
       "name": "client.exception.event",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        }
       },
       "body": {
         "type": "map",
@@ -309,7 +330,10 @@
       ],
       "name": "browser.test.event_with_fields",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        }
       },
       "body": {
         "type": "map",
@@ -340,7 +364,10 @@
       "attributes": [],
       "name": "browser.test.event_with_body_details",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/log-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
+        }
       },
       "body": {
         "type": "map",
@@ -378,7 +405,10 @@
       ],
       "name": "ios.device.app.lifecycle",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/mobile-events.yaml"
+        }
       }
     },
     {
@@ -391,7 +421,10 @@
       ],
       "name": "android.device.app.lifecycle",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/mobile-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/mobile-events.yaml"
+        }
       }
     },
     {
@@ -405,7 +438,10 @@
         10
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/referenced-attributes.yaml"
+        }
       }
     },
     {
@@ -417,7 +453,10 @@
         12
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/referenced-attributes.yaml"
+        }
       }
     },
     {
@@ -431,7 +470,10 @@
         16
       ],
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/referenced-attributes.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/referenced-attributes.yaml"
+        }
       }
     },
     {
@@ -447,7 +489,10 @@
       ],
       "name": "exception",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/trace-events.yaml"
+        },
         "attributes": {
           "exception.escaped": {
             "source_group": "registry.exception",
@@ -507,7 +552,10 @@
       ],
       "name": "trace_feature_flag",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-events.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/trace-events.yaml"
+        }
       }
     },
     {
@@ -520,7 +568,10 @@
       ],
       "name": "test_evt.with_attr",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/trace-events.yaml"
+        },
         "attributes": {
           "test_attr.event.attr": {
             "source_group": "referenced.attributes",
@@ -547,7 +598,10 @@
       ],
       "name": "test_evt.session",
       "lineage": {
-        "source_file": "data/registry-test-4-events/registry/trace-events.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/trace-events.yaml"
+        },
         "attributes": {
           "test_attr.session.id": {
             "source_group": "referenced.attributes",

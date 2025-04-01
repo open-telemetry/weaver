@@ -3,11 +3,13 @@
 //! Semantic convention specification.
 
 use crate::group::GroupSpec;
+use crate::provenance::Provenance;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use std::sync::Arc;
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
@@ -25,7 +27,7 @@ pub struct SemConvSpecWithProvenance {
     /// The semantic convention spec.
     pub(crate) spec: SemConvSpec,
     /// The provenance of the semantic convention spec (path or URL).
-    pub(crate) provenance: String,
+    pub(crate) provenance: Provenance,
 }
 
 impl SemConvSpec {
@@ -163,8 +165,14 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> WResult<SemConvSpecWithProvenance, Error> {
-        let provenance = path.as_ref().display().to_string();
+    pub fn from_file<P: AsRef<Path>>(
+        registry_id: &str,
+        path: P,
+    ) -> WResult<SemConvSpecWithProvenance, Error> {
+        let provenance = Provenance {
+            registry_id: Arc::from(registry_id),
+            path: path.as_ref().display().to_string(),
+        };
         SemConvSpec::from_file(path).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 
@@ -179,11 +187,11 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub fn from_string(provenance: &str, spec: &str) -> WResult<SemConvSpecWithProvenance, Error> {
-        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance {
-            spec,
-            provenance: provenance.to_owned(),
-        })
+    pub fn from_string(
+        provenance: Provenance,
+        spec: &str,
+    ) -> WResult<SemConvSpecWithProvenance, Error> {
+        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 }
 
@@ -195,6 +203,7 @@ mod tests {
         InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
+    use std::process::id;
     use weaver_common::test::ServeStaticFiles;
 
     #[test]
@@ -364,16 +373,16 @@ mod tests {
     #[test]
     fn test_semconv_spec_with_provenance_from_file() {
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file(&path)
+        let semconv_spec = SemConvSpecWithProvenance::from_file("main", &path)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 11);
-        assert_eq!(semconv_spec.provenance, path.display().to_string());
+        assert_eq!(semconv_spec.provenance.path, path.display().to_string());
     }
 
     #[test]
     fn test_semconv_spec_with_provenance_from_string() {
-        let provenance = "<str>";
+        let provenance = Provenance::new("main", "<str>");
         let spec = r#"
         groups:
           - id: "group1"
@@ -397,7 +406,7 @@ mod tests {
                 type: "int"
         "#;
 
-        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance, spec)
+        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance.clone(), spec)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 2);

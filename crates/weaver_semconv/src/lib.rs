@@ -18,11 +18,11 @@ pub mod deprecated;
 pub mod group;
 pub mod manifest;
 pub mod metric;
+pub mod provenance;
 pub mod registry;
 pub mod registry_path;
 pub mod registry_repo;
 pub mod semconv;
-pub mod source;
 pub mod stability;
 pub mod stats;
 
@@ -538,7 +538,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file(yaml)
+                .add_semconv_spec_from_file("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
@@ -551,7 +551,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file(yaml)
+                .add_semconv_spec_from_file("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

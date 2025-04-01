@@ -20,10 +20,10 @@ use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::manifest::RegistryManifest;
+use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpec;
-use weaver_semconv::source::Source;
 
 pub mod attribute;
 mod constraint;
@@ -90,7 +90,7 @@ pub enum Error {
         /// The unresolved attribute reference.
         attribute_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: String,
+        provenance: Provenance,
     },
 
     /// An unresolved `extends` clause reference.
@@ -101,7 +101,7 @@ pub enum Error {
         /// The unresolved `extends` clause reference.
         extends_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: String,
+        provenance: Provenance,
     },
 
     /// An unresolved `include` reference.
@@ -112,7 +112,7 @@ pub enum Error {
         /// The unresolved `include` reference.
         include_ref: String,
         /// The provenance of the reference (URL or path).
-        provenance: String,
+        provenance: Provenance,
     },
 
     /// An `any_of` constraint that is not satisfied for a group.
@@ -140,7 +140,7 @@ pub enum Error {
         /// The group id.
         group_id: String,
         /// The provenances where this group is duplicated.
-        provenances: Vec<String>,
+        provenances: Vec<Provenance>,
     },
 
     /// A duplicate group id error.
@@ -150,7 +150,7 @@ pub enum Error {
         /// The group name.
         group_name: String,
         /// The provenances where this group is duplicated.
-        provenances: Vec<String>,
+        provenances: Vec<Provenance>,
     },
 
     /// A duplicate group id error.
@@ -160,7 +160,7 @@ pub enum Error {
         /// The metric name.
         metric_name: String,
         /// The provenances where this metric name is duplicated.
-        provenances: Vec<String>,
+        provenances: Vec<Provenance>,
     },
 
     /// A duplicate attribute id error.
@@ -269,7 +269,7 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
-    ) -> WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error> {
+    ) -> WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error> {
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -322,7 +322,7 @@ impl SchemaResolver {
                                     format!("{}/{}", registry_path_repr, relative_path)
                                 };
                                 (
-                                    Source {
+                                    Provenance {
                                         registry_id: registry_repo.id(),
                                         path,
                                     },
@@ -379,7 +379,7 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
-    ) -> Option<WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error>> {
+    ) -> Option<WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error>> {
         match registry_repo.manifest_path() {
             Some(manifest_path) => {
                 match RegistryManifest::try_from_file(manifest_path) {
@@ -444,17 +444,17 @@ mod tests {
     use weaver_common::result::WResult;
     use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
     use weaver_semconv::group::GroupType;
+    use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_path::RegistryPath;
     use weaver_semconv::registry_repo::RegistryRepo;
     use weaver_semconv::semconv::SemConvSpec;
-    use weaver_semconv::source::Source;
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
         fn check_semconv_specs(
             registry_repo: &RegistryRepo,
-            semconv_specs: Vec<(Source, SemConvSpec)>,
+            semconv_specs: Vec<(Provenance, SemConvSpec)>,
         ) {
             assert_eq!(semconv_specs.len(), 2);
             for (source, semconv_spec) in semconv_specs.iter() {

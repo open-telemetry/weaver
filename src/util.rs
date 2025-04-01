@@ -15,10 +15,10 @@ use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
+use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpec;
-use weaver_semconv::source::Source;
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -35,7 +35,7 @@ pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
     log: impl Logger + Sync + Clone,
     follow_symlinks: bool,
-) -> WResult<Vec<(Source, SemConvSpec)>, weaver_semconv::Error> {
+) -> WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error> {
     SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks).inspect(
         |semconv_specs, _| {
             log.success(&format!(
@@ -151,7 +151,7 @@ pub(crate) fn check_policy_stage<T: Serialize, U: Serialize>(
 /// if any policy violations occur.
 pub(crate) fn check_policy(
     policy_engine: &Engine,
-    semconv_specs: &[(Source, SemConvSpec)],
+    semconv_specs: &[(Provenance, SemConvSpec)],
 ) -> WResult<(), Error> {
     // Check policies in parallel
     let results = semconv_specs
@@ -216,7 +216,7 @@ pub(crate) fn resolve_semconv_specs(
 /// Resolves the telemetry schema from the given semantic convention specifications.
 pub(crate) fn resolve_telemetry_schema(
     registry_repo: &RegistryRepo,
-    semconv_specs: Vec<(Source, SemConvSpec)>,
+    semconv_specs: Vec<(Provenance, SemConvSpec)>,
     logger: impl Logger + Sync + Clone,
 ) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
