@@ -41,7 +41,7 @@ What's changed
     conventions must be updated to adopt this new format.
   * The changes related to the `deprecated` field (i.e., string → struct) also have a potential impact on certain
     templates that reference the `deprecated` field as containing text. These templates will need to be updated to use
-    the `brief` field, which provides a textual explanation of the reasons for the deprecation.
+    the `note` field, which provides a textual explanation of the reasons for the deprecation.
 
 
 
