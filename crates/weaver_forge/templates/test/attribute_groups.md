@@ -43,5 +43,8 @@
   {% if attribute.stability %}
 - Stability: {{ attribute.stability | capitalize }}
   {% endif %}
+  {%- if attribute.annotations %}
+- Annotations: {{ attribute.annotations }}
+  {%- endif %}
   {% endfor %}
   {% endfor %}

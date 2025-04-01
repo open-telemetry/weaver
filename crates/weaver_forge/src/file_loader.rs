@@ -317,9 +317,9 @@ mod tests {
 
         // Test all files
         let embedded_files: HashSet<PathBuf> = embedded_loader.all_files().into_iter().collect();
-        assert_eq!(embedded_files.len(), 17);
+        assert_eq!(embedded_files.len(), 18);
         let fs_files: HashSet<PathBuf> = fs_loader.all_files().into_iter().collect();
-        assert_eq!(fs_files.len(), 17);
+        assert_eq!(fs_files.len(), 18);
         // Test that the files are the same between the embedded and file system loaders
         assert_eq!(embedded_files, fs_files);
         // Test that all the files can be loaded from the embedded loader

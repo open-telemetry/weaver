@@ -459,6 +459,23 @@ The index of the database being accessed as used in the [`SELECT` command](https
 - Stability: Stable
   
   
+#### Attribute `db.sensitive_attribute`
+
+An attribute that contains sensitive information.
+
+
+
+- Requirement Level: Recommended
+  
+- Type: string
+- Examples: [
+    "bar",
+]
+  
+- Stability: Development
+  
+- Annotations: {"code_generation": {"exclude": false}, "privacy_sensitivity": "PII"}
+  
 #### Attribute `db.sql.table`
 
 The name of the primary table that the operation is acting upon, including the database name (if applicable).

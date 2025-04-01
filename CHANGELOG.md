@@ -12,6 +12,8 @@ What's changed
 * 💥 BREAKING CHANGE 💥 The `constraints` feature is no longer supported in semantic conventions yaml schema.
   The earliest version of semantic convention weaver is able to read has moved to 1.26.0. ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
 * Make `type` property required on the semantic convention group (behind `--future` flag). ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
+* Exclude attributes declared with `code_generation.exclude` annotations in `semconv_attributes` and other JQ attribute helpers. ([#662](https://github.com/open-telemetry/weaver/pull/662) by @lmolkova)
+* Sort metrics by name in all JQ helpers. ([#573](https://github.com/open-telemetry/weaver/issues/573) by @lmolkova)
 
 ## [0.13.2] - 2025-02-13
 
