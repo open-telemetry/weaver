@@ -1,12 +1,13 @@
 // Builtin advisors
 
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use serde_json::Value;
 use weaver_checker::{
     violation::{Advice, Advisory, Violation},
     Engine,
 };
+use weaver_forge::jq;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec},
@@ -18,6 +19,9 @@ use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute, E
 
 /// Embedded default health rego policies
 pub const DEFAULT_HEALTH_REGO: &str = include_str!("../../../defaults/policies/advice/otel.rego");
+
+/// Embedded default health jq preprocessor
+pub const DEFAULT_HEALTH_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
 /// Provides advice on a sample attribute
 pub trait Advisor {
@@ -213,6 +217,7 @@ impl RegoAdvisor {
     pub fn new(
         health_checker: &AttributeHealthChecker,
         policy_dir: &Option<PathBuf>,
+        jq_preprocessor: &Option<PathBuf>,
     ) -> Result<Self, Error> {
         let mut engine = Engine::new();
         if let Some(path) = policy_dir {
@@ -229,8 +234,29 @@ impl RegoAdvisor {
                 })?;
         }
 
+        // If there is a jq preprocessor then pass the health_checker data through it before adding it to the engine
+        // Otherwise use the default jq preprocessor
+        let jq_filter = if let Some(path) = jq_preprocessor {
+            std::fs::read_to_string(path).map_err(|e| Error::AdviceError {
+                error: e.to_string(),
+            })?
+        } else {
+            DEFAULT_HEALTH_JQ.to_owned()
+        };
+
+        let jq_result = jq::execute_jq(
+            &serde_json::to_value(health_checker).map_err(|e| Error::AdviceError {
+                error: e.to_string(),
+            })?,
+            &jq_filter,
+            &BTreeMap::new(),
+        )
+        .map_err(|e| Error::AdviceError {
+            error: e.to_string(),
+        })?;
+
         engine
-            .add_data(health_checker)
+            .add_data(&jq_result)
             .map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?;

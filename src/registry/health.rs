@@ -126,6 +126,14 @@ pub struct RegistryHealthArgs {
     /// Advice policies directory. Set this to override the default policies.
     #[arg(long)]
     advice_policies: Option<PathBuf>,
+
+    /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
+    ///
+    /// Rego policies are run for each sample as it arrives in a stream. The preprocessor
+    /// can be used to create a new data structure that is more efficient for the rego policies
+    /// versus processing the data for every sample.
+    #[arg(long)]
+    advice_preprocessor: Option<PathBuf>,
 }
 
 /// Perform a health check on sample data by comparing it to a semantic convention registry.
@@ -168,7 +176,11 @@ pub(crate) fn command(
 
     let mut health_checker = AttributeHealthChecker::new(registry, advisors);
 
-    let rego_advisor = RegoAdvisor::new(&health_checker, &args.advice_policies)?;
+    let rego_advisor = RegoAdvisor::new(
+        &health_checker,
+        &args.advice_policies,
+        &args.advice_preprocessor,
+    )?;
     health_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the template engine

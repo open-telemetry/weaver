@@ -2,14 +2,23 @@ package advice
 
 import rego.v1
 
-# checks attribute name format
-deny contains make_advice(key, advisory, value, message) if {
-	not regex.match(name_regex, input.name)
-	key := "invalid_format"
-	advisory := "violation"
-	value := input.name
-	message := "Does not match name formatting rules"
-}
+# Use pre-computed sets from jq
+attributes_set := data.attributes_set
+
+templates_set := data.templates_set
+
+namespaces_to_check_set := data.namespaces_to_check_set
+
+name_regex := "^[a-z][a-z0-9]*([._][a-z0-9]+)*$"
+
+derive_namespaces(name) := [
+concat(".", array.slice(parts, 0, i)) |
+	parts := split(name, ".")
+	count(parts) > 1 # Only derive namespaces if there are at least 2 parts
+
+	# Stop at count(parts)-1 to exclude the full attribute name
+	some i in numbers.range(1, count(parts) - 1)
+]
 
 # checks attribute has a namespace
 deny contains make_advice(key, advisory, value, message) if {
@@ -20,18 +29,26 @@ deny contains make_advice(key, advisory, value, message) if {
 	message := "Does not have a namespace"
 }
 
+# checks attribute name format
+deny contains make_advice(key, advisory, value, message) if {
+	not regex.match(name_regex, input.name)
+	key := "invalid_format"
+	advisory := "violation"
+	value := input.name
+	message := "Does not match name formatting rules"
+}
+
 # checks attribute namespace doesn't collide with existing attributes
 deny contains make_advice(key, advisory, value, message) if {
-	some attr in object.keys(data.semconv_attributes)
+	# Skip if no namespace
+	contains(input.name, ".")
 
-	namespaces := [ns |
-		some i, _ in split(input.name, ".")
-		i > 0
-		ns := concat(".", array.slice(split(input.name, "."), 0, i))
-	]
+	# Get input namespaces
+	namespaces := derive_namespaces(input.name)
 
+	# Find collision
 	some value in namespaces
-	attr == value
+	attributes_set[value] != null
 
 	key := "illegal_namespace"
 	advisory := "violation"
@@ -40,38 +57,19 @@ deny contains make_advice(key, advisory, value, message) if {
 
 # provides advice if the attribute extends an existing namespace
 deny contains make_advice(key, advisory, value, message) if {
-	# Skip this rule if the attribute is a template type
+	# Skip checks first (fail fast)
+	contains(input.name, ".") # Must have at least one namespace
 	not is_template_type(input.name)
-
-	# Skip this rule if the attribute is a registry attribute
 	not is_registry_attribute(input.name)
 
-	namespaces_to_check := {ns |
-		some attr_name, _ in data.semconv_attributes
-		some i, _ in split(attr_name, ".")
-		i > 0
-		ns := concat(".", array.slice(split(attr_name, "."), 0, i))
-	}
+	# Get input namespaces
+	namespaces := derive_namespaces(input.name)
 
-	namespaces := [ns |
-		some i, _ in split(input.name, ".")
-		i > 0
-		ns := concat(".", array.slice(split(input.name, "."), 0, i))
-	]
-
-	count(namespaces) > 0
-
-	# Find all matching namespaces
-	matches := [ns_value |
-		some ns_value in namespaces
-		some ns in namespaces_to_check
-		ns_value == ns
-	]
-
-	# Only continue if there are matches
+	# Find matches - check keys in set
+	matches := [ns | some ns in namespaces; namespaces_to_check_set[ns] != null]
 	count(matches) > 0
 
-	# Set value to the last match
+	# Get the last match (most specific namespace)
 	value := matches[count(matches) - 1]
 
 	key := "extends_namespace"
@@ -87,18 +85,13 @@ make_advice(key, advisory, value, message) := {
 	"message": message,
 }
 
-# not valid: '1foo.bar', 'foo.bar.', 'foo.bar_', 'foo..bar', 'foo._bar' ...
-# valid: 'foo.bar', 'foo.1bar', 'foo.1_bar'
-name_regex := "^[a-z][a-z0-9]*([._][a-z0-9]+)*$"
-
 # Helper function to check if name is a template type
 is_template_type(name) if {
-	some templates in object.keys(data.semconv_templates)
-	startswith(name, templates)
+	some template in object.keys(templates_set)
+	startswith(name, template)
 }
 
 # Helper function to check if name is a registry attribute
 is_registry_attribute(name) if {
-	some attr in object.keys(data.semconv_attributes)
-	name == attr
+	attributes_set[name] != null
 }
