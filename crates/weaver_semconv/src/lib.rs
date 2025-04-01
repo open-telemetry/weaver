@@ -18,7 +18,10 @@ pub mod deprecated;
 pub mod group;
 pub mod manifest;
 pub mod metric;
+pub mod provenance;
 pub mod registry;
+pub mod registry_path;
+pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
@@ -268,6 +271,60 @@ pub enum Error {
         error: String,
     },
 
+    /// Home directory not found.
+    #[error("Home directory not found")]
+    HomeDirNotFound,
+
+    /// Cache directory not created.
+    #[error("Cache directory not created: {message}")]
+    CacheDirNotCreated {
+        /// The error message
+        message: String,
+    },
+
+    /// Git repo not created.
+    #[error("Git repo `{repo_url}` not created: {message}")]
+    GitRepoNotCreated {
+        /// The git repo URL
+        repo_url: String,
+        /// The error message
+        message: String,
+    },
+
+    /// A git error occurred.
+    #[error("Git error occurred while cloning `{repo_url}`: {message}")]
+    GitError {
+        /// The git repo URL
+        repo_url: String,
+        /// The error message
+        message: String,
+    },
+
+    /// An invalid registry path.
+    #[error("The registry path `{path}` is invalid: {error}")]
+    InvalidRegistryPath {
+        /// The registry path
+        path: String,
+        /// The error message
+        error: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
+    UnsupportedRegistryArchive {
+        /// The registry archive path
+        archive: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("The registry archive `{archive}` is invalid: {error}")]
+    InvalidRegistryArchive {
+        /// The registry archive path
+        archive: String,
+        /// The error message
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -481,7 +538,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file(yaml)
+                .add_semconv_spec_from_file("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
@@ -494,7 +551,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file(yaml)
+                .add_semconv_spec_from_file("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

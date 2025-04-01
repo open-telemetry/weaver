@@ -9,7 +9,10 @@
         1
       ],
       "lineage": {
-        "source_file": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
+        "provenance": {
+          "path": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
+          "registry_id": "default"
+        },
         "attributes": {
           "messaging.destination.name": {
             "source_group": "registry.messaging",
@@ -34,7 +37,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-1-single-attr-ref/registry/registry-messaging.yaml"
+        "provenance": {
+            "path": "data/registry-test-1-single-attr-ref/registry/registry-messaging.yaml",
+            "registry_id": "default"
+        }
       }
     }
   ]

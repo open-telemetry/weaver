@@ -6,6 +6,8 @@ use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::GroupSpecWithProvenance;
 use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
+use crate::provenance::Provenance;
+use crate::registry_repo::RegistryRepo;
 use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
@@ -13,7 +15,6 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
-use weaver_cache::RegistryRepo;
 use weaver_common::result::WResult;
 
 /// A semantic convention registry is a collection of semantic convention
@@ -89,8 +90,9 @@ impl SemConvRegistry {
                     path_pattern: path_pattern.to_owned(),
                     error: e.to_string(),
                 })?;
-                let (semconv_spec, nfes) = SemConvSpecWithProvenance::from_file(path_buf.as_path())
-                    .into_result_with_non_fatal()?;
+                let (semconv_spec, nfes) =
+                    SemConvSpecWithProvenance::from_file(registry_id, path_buf.as_path())
+                        .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
                 non_fatal_errors.extend(nfes);
             }
@@ -114,14 +116,14 @@ impl SemConvRegistry {
     /// * `semconv_specs` - The list of semantic convention specs to load.
     pub fn from_semconv_specs(
         registry_repo: &RegistryRepo,
-        semconv_specs: Vec<(String, SemConvSpec)>,
+        semconv_specs: Vec<(Provenance, SemConvSpec)>,
     ) -> Result<SemConvRegistry, Error> {
         // ToDo We should use: https://docs.rs/semver/latest/semver/ and URL parser that can give us the last element of the path to send to the parser.
         static VERSION_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r".*(v\d+\.\d+\.\d+).*").expect("Invalid regex"));
 
         // Load all the semantic convention registry.
-        let mut registry = SemConvRegistry::new(registry_repo.id());
+        let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
 
         for (provenance, spec) in semconv_specs {
             registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance });
@@ -142,10 +144,11 @@ impl SemConvRegistry {
             }
 
             registry.set_manifest(RegistryManifest {
-                name: registry_repo.id().to_owned(),
+                name: registry_repo.id().as_ref().to_owned(),
                 description: None,
                 semconv_version,
                 schema_base_url: "".to_owned(),
+                dependencies: None,
             });
         }
 
@@ -182,15 +185,17 @@ impl SemConvRegistry {
     /// Load and add a semantic convention file to the semantic convention registry.
     pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
         &mut self,
+        registry_id: &str,
         path: P,
     ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_file(path.clone()).map(|spec| self.add_semconv_spec(spec))
+        SemConvSpecWithProvenance::from_file(registry_id, path.clone())
+            .map(|spec| self.add_semconv_spec(spec))
     }
 
     /// Load and add a semantic convention string to the semantic convention registry.
     pub fn add_semconv_spec_from_string(
         &mut self,
-        provenance: &str,
+        provenance: Provenance,
         spec: &str,
     ) -> WResult<(), Error> {
         SemConvSpecWithProvenance::from_string(provenance, spec)
@@ -257,10 +262,12 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
+    use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
+    use crate::registry_path::RegistryPath;
+    use crate::registry_repo::RegistryRepo;
     use crate::Error;
-    use weaver_cache::registry_path::RegistryPath;
-    use weaver_cache::RegistryRepo;
+    use std::sync::Arc;
     use weaver_common::test::ServeStaticFiles;
 
     #[test]
@@ -295,7 +302,10 @@ mod tests {
     fn test_from_semconv_specs() {
         let semconv_specs = vec![
             (
-                "data/c1.yaml".to_owned(),
+                Provenance {
+                    registry_id: Arc::from("main"),
+                    path: "data/c1.yaml".to_owned(),
+                },
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
@@ -335,7 +345,10 @@ mod tests {
                 },
             ),
             (
-                "data/c2.yaml".to_owned(),
+                Provenance {
+                    registry_id: Arc::from("main"),
+                    path: "data/c2.yaml".to_owned(),
+                },
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
@@ -386,7 +399,7 @@ mod tests {
         assert_eq!(registry.semconv_spec_count(), 3);
 
         registry
-            .add_semconv_spec_from_file("data/database.yaml")
+            .add_semconv_spec_from_file("main", "data/database.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(registry.semconv_spec_count(), 4);

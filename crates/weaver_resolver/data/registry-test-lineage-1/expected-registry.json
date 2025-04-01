@@ -9,7 +9,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-lineage-1/registry/groups.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-1/registry/groups.yaml"
+        },
         "attributes": {
           "server.port": {
             "source_group": "intermediate.level",
@@ -32,7 +35,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-lineage-1/registry/groups.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-1/registry/groups.yaml"
+        },
         "attributes": {
           "server.port": {
             "source_group": "base.level",
@@ -55,7 +61,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-lineage-1/registry/groups.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-1/registry/groups.yaml"
+        }
       }
     }
   ]

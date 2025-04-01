@@ -1,0 +1,31 @@
+groups:
+  - id: shared.attributes
+    type: attribute_group
+    brief: Attributes shared between our signals.
+    attributes:
+      - id: auction.id
+        type: int
+        brief: >
+          The id of the auction.
+        stability: stable
+      - id: auction.name
+        type: string
+        brief: >
+          The name of the auction
+        stability: stable
+        examples: ["Fish for sale"]
+
+  - id: metric.auction.bid.count
+    type: metric
+    metric_name: auction.bid.count
+    stability: stable
+    brief: "Count of all bids we've seen"
+    instrument: counter
+    unit: "{bid}"
+    attributes:
+      - ref: auction.id
+        requirement_level: required
+      - ref: auction.name
+        requirement_level: recommended
+      - ref: error.type
+        requirement_level: required

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
+use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -34,8 +35,8 @@ pub struct AttributeLineage {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[must_use]
 pub struct GroupLineage {
-    /// The path or URL of the source file where the group is defined.
-    source_file: String,
+    /// The provenance of the source file where the group is defined.
+    provenance: Provenance,
 
     /// The lineage per attribute.
     ///
@@ -445,9 +446,9 @@ impl AttributeLineage {
 
 impl GroupLineage {
     /// Creates a new group lineage.
-    pub fn new(provenance: &str) -> Self {
+    pub fn new(provenance: Provenance) -> Self {
         Self {
-            source_file: provenance.replace('\\', "/"),
+            provenance,
             attributes: Default::default(),
         }
     }
@@ -465,7 +466,7 @@ impl GroupLineage {
 
     /// Returns the source file of the group (path or URL).
     #[must_use]
-    pub fn source_file(&self) -> &str {
-        &self.source_file
+    pub fn provenance(&self) -> &Provenance {
+        &self.provenance
     }
 }

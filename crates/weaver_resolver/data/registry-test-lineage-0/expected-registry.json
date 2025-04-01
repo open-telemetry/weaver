@@ -9,7 +9,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-lineage-0/registry/groups.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-0/registry/groups.yaml"
+        }
       }
     },
     {
@@ -22,7 +25,10 @@
         3
       ],
       "lineage": {
-        "source_file": "data/registry-test-lineage-0/registry/groups.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-0/registry/groups.yaml"
+        }
       }
     },
     {
@@ -36,7 +42,10 @@
         6
       ],
       "lineage": {
-        "source_file": "data/registry-test-lineage-0/registry/groups.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-0/registry/groups.yaml"
+        },
         "attributes": {
           "network.protocol.version": {
             "source_group": "registry.network",

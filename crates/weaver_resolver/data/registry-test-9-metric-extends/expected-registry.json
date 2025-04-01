@@ -10,7 +10,10 @@
         1
       ],
       "lineage": {
-        "source_file": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml"
+        }
       }
     },
     {
@@ -26,7 +29,10 @@
       "instrument": "updowncounter",
       "unit": "By",
       "lineage": {
-        "source_file": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-9-metric-extends/registry/jvm-metrics.yaml"
+        },
         "attributes": {
           "jvm.memory.pool.name": {
             "source_group": "attributes.jvm.memory",

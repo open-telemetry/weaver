@@ -12,7 +12,10 @@
         3
       ],
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-common.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-common.yaml"
+        }
       }
     },
     {
@@ -27,7 +30,10 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -53,7 +59,10 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -79,7 +88,10 @@
       "instrument": "counter",
       "unit": "{coldstart}",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -105,7 +117,10 @@
       "instrument": "counter",
       "unit": "{error}",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -131,7 +146,10 @@
       "instrument": "counter",
       "unit": "{invocation}",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -157,7 +175,10 @@
       "instrument": "counter",
       "unit": "{timeout}",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -183,7 +204,10 @@
       "instrument": "histogram",
       "unit": "By",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -209,7 +233,10 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",
@@ -235,7 +262,10 @@
       "instrument": "histogram",
       "unit": "By",
       "lineage": {
-        "source_file": "data/registry-test-5-metrics/registry/faas-metrics.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-5-metrics/registry/faas-metrics.yaml"
+        },
         "attributes": {
           "faas.trigger": {
             "source_group": "attributes.faas.common",

@@ -18,6 +18,7 @@ use crate::registry::GroupStats::{
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -435,10 +436,10 @@ impl Group {
 
     /// Returns the provenance of the group.
     #[must_use]
-    pub fn provenance(&self) -> &str {
+    pub fn provenance(&self) -> Provenance {
         match &self.lineage {
-            Some(lineage) => lineage.source_file(),
-            None => "unknown",
+            Some(lineage) => lineage.provenance().to_owned(),
+            None => Provenance::undefined(),
         }
     }
 }
