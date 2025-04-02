@@ -33,7 +33,7 @@ The following diagram shows how a Component Telemetry Schema is structured.
 >
 > Note 3: For all the elements that make up the Component Telemetry Schema, a
 > general mechanism of annotation or tagging will be integrated in order to
-> attach additional traits, characteristics, or constraints, allowing vendors
+> attach additional traits or characteristics, allowing vendors
 > and companies to extend the definition of concepts defined by OpenTelemetry.
 >
 > Note 4: Annotations and Tags can also be employed to modify schemas for
