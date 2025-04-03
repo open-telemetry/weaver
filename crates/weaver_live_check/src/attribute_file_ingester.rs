@@ -5,7 +5,6 @@
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
-use serde_json::json;
 use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
@@ -39,22 +38,8 @@ impl Ingester<SampleAttribute> for AttributeFileIngester {
         let mut attributes = Vec::new();
         // Process each line into a SampleAttribute
         for line in content.lines() {
-            // If the line follows the pattern name=value, split it
-            if let Some((name, value)) = line.split_once('=') {
-                let mut sample_attribute = SampleAttribute {
-                    name: name.trim().to_owned(),
-                    value: Some(serde_json::from_str(value.trim()).unwrap_or(json!(value.trim()))),
-                    r#type: None,
-                };
-                sample_attribute.infer_type();
+            if let Ok(sample_attribute) = SampleAttribute::try_from(line) {
                 attributes.push(sample_attribute);
-            } else {
-                // If the line is just a name, push it
-                attributes.push(SampleAttribute {
-                    name: line.trim().to_owned(),
-                    value: None,
-                    r#type: None,
-                });
             }
         }
 

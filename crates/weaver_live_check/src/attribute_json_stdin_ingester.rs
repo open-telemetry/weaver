@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! An ingester that reads attribute names and values from JSON input via standard input.
+//! An ingester that reads sample attributes from JSON input via standard input.
+//! This implementation currently reads until EOF and then deserializes the JSON
+//! rather than reading fragments and streaming.
 
 use std::io::{self, Read};
 
@@ -8,7 +10,7 @@ use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
 
-/// An ingester that reads attribute names and values from JSON input via standard input.
+/// An ingester that reads sample attributes from JSON input via standard input.
 /// The JSON should contain an array of objects with at least a "name" field:
 /// ```json
 /// [
@@ -50,15 +52,10 @@ impl Ingester<SampleAttribute> for AttributeJsonStdinIngester {
             })?;
 
         // Deserialize JSON from the buffer
-        let mut attributes: Vec<SampleAttribute> =
+        let attributes: Vec<SampleAttribute> =
             serde_json::from_str(&buffer).map_err(|e| Error::IngestError {
                 error: format!("Failed to parse JSON from stdin: {}", e),
             })?;
-
-        // Infer the type of the attributes from the value
-        for attribute in &mut attributes {
-            attribute.infer_type();
-        }
 
         Ok(Box::new(attributes.into_iter()))
     }

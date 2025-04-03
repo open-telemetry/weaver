@@ -28,18 +28,24 @@ pub mod sample;
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {
-    /// Ingest error.
+    /// Generic ingest error.
     #[error("Fatal error during ingest. {error}")]
     IngestError {
         /// The error that occurred.
         error: String,
     },
+
+    /// Attempt to Ingest an empty line.
+    #[error("Attempt to ingest an empty line.")]
+    IngestEmptyLine,
+
     /// Advice error.
     #[error("Fatal error from Advisor. {error}")]
     AdviceError {
         /// The error that occurred.
         error: String,
     },
+
     /// Output error.
     #[error("Output error. {error}")]
     OutputError {

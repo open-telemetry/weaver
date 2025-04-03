@@ -273,7 +273,7 @@ mod tests {
     };
 
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::Value;
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
@@ -415,62 +415,18 @@ mod tests {
             }],
         };
 
-        let mut attributes = vec![
-            SampleAttribute {
-                name: "test.string".to_owned(),
-                r#type: None,
-                value: Some(Value::String("hello".to_owned())),
-            },
-            SampleAttribute {
-                name: "testString2".to_owned(),
-                r#type: None,
-                value: None,
-            },
-            SampleAttribute {
-                name: "test.deprecated".to_owned(),
-                r#type: None,
-                value: Some(Value::Number(42.into())),
-            },
-            SampleAttribute {
-                name: "aws.s3.bucket.name".to_owned(),
-                r#type: None,
-                value: None,
-            },
-            SampleAttribute {
-                name: "test.enum".to_owned(),
-                r#type: None,
-                value: Some(Value::String("foo".to_owned())),
-            },
-            SampleAttribute {
-                name: "test.enum".to_owned(),
-                r#type: None,
-                value: Some(Value::String("example_variant1".to_owned())),
-            },
-            SampleAttribute {
-                name: "test.enum".to_owned(),
-                r#type: None,
-                value: Some(json!(42.42)),
-            },
-            SampleAttribute {
-                name: "test.string.not.allowed".to_owned(),
-                r#type: None,
-                value: Some(Value::String("example_value".to_owned())),
-            },
-            SampleAttribute {
-                name: "test.extends".to_owned(),
-                r#type: None,
-                value: Some(Value::String("new_value".to_owned())),
-            },
-            SampleAttribute {
-                name: "test.template.my.key".to_owned(),
-                r#type: None,
-                value: Some(Value::Number(42.into())),
-            },
+        let attributes = vec![
+            SampleAttribute::try_from("test.string=value").unwrap(),
+            SampleAttribute::try_from("testString2").unwrap(),
+            SampleAttribute::try_from("test.deprecated=42").unwrap(),
+            SampleAttribute::try_from("aws.s3.bucket.name").unwrap(),
+            SampleAttribute::try_from("test.enum=foo").unwrap(),
+            SampleAttribute::try_from("test.enum=example_variant1").unwrap(),
+            SampleAttribute::try_from("test.enum=42.42").unwrap(),
+            SampleAttribute::try_from("test.string.not.allowed=example_value").unwrap(),
+            SampleAttribute::try_from("test.extends=new_value").unwrap(),
+            SampleAttribute::try_from("test.template.my.key=42").unwrap(),
         ];
-
-        for attribute in attributes.iter_mut() {
-            attribute.infer_type();
-        }
 
         let advisors: Vec<Box<dyn Advisor>> = vec![
             Box::new(DeprecatedAdvisor),
@@ -704,22 +660,10 @@ mod tests {
             }],
         };
 
-        let mut attributes = vec![
-            SampleAttribute {
-                name: "custom.string".to_owned(),
-                r#type: None,
-                value: Some(Value::String("hello".to_owned())),
-            },
-            SampleAttribute {
-                name: "test.string".to_owned(),
-                r#type: None,
-                value: None,
-            },
+        let attributes = vec![
+            SampleAttribute::try_from("custom.string=hello").unwrap(),
+            SampleAttribute::try_from("test.string").unwrap(),
         ];
-
-        for attribute in attributes.iter_mut() {
-            attribute.infer_type();
-        }
 
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 

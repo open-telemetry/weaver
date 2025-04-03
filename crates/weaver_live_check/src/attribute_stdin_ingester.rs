@@ -4,7 +4,6 @@
 
 use std::io::{self, BufRead};
 
-use serde_json::json;
 use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
@@ -61,34 +60,8 @@ impl<R: BufRead> Iterator for AttributeIterator<R> {
                 None => return None,
                 Some(line_result) => {
                     match line_result {
-                        // TODO Perhaps exit on error?
                         Err(_) => continue, // Skip lines with errors
-                        Ok(line) => {
-                            let trimmed = line.trim();
-                            if trimmed.is_empty() {
-                                // exit on empty line
-                                return None;
-                            }
-                            // If the line follows the pattern name=value, split it
-                            if let Some((name, value)) = trimmed.split_once('=') {
-                                let mut sample_attribute = SampleAttribute {
-                                    name: name.trim().to_owned(),
-                                    value: Some(
-                                        serde_json::from_str(value.trim())
-                                            .unwrap_or(json!(value.trim())),
-                                    ),
-                                    r#type: None,
-                                };
-                                sample_attribute.infer_type();
-                                return Some(sample_attribute);
-                            }
-                            // If the line is just a name, return it
-                            return Some(SampleAttribute {
-                                name: trimmed.to_owned(),
-                                value: None,
-                                r#type: None,
-                            });
-                        }
+                        Ok(line) => return SampleAttribute::try_from(line.as_str()).ok(),
                     }
                 }
             }

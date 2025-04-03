@@ -42,7 +42,7 @@ impl Ingester<SampleAttribute> for AttributeJsonFileIngester {
         })?;
 
         // Deserialize directly from the reader
-        let mut attributes: Vec<SampleAttribute> =
+        let attributes: Vec<SampleAttribute> =
             serde_json::from_reader(file).map_err(|e| Error::IngestError {
                 error: format!(
                     "Failed to parse JSON from file {}: {}",
@@ -50,11 +50,6 @@ impl Ingester<SampleAttribute> for AttributeJsonFileIngester {
                     e
                 ),
             })?;
-
-        // Infer the type of the attributes from the value
-        for attribute in &mut attributes {
-            attribute.infer_type();
-        }
 
         Ok(Box::new(attributes.into_iter()))
     }
