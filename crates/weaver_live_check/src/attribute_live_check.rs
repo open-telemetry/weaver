@@ -298,7 +298,6 @@ mod tests {
                 extends: None,
                 stability: Some(Stability::Stable),
                 deprecated: None,
-                constraints: vec![],
                 attributes: vec![
                     Attribute {
                         name: "test.string".to_owned(),
@@ -672,7 +671,6 @@ mod tests {
                 extends: None,
                 stability: Some(Stability::Stable),
                 deprecated: None,
-                constraints: vec![],
                 attributes: vec![Attribute {
                     name: "custom.string".to_owned(),
                     r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
