@@ -59,9 +59,8 @@ impl<R: BufRead> Iterator for AttributeIterator<R> {
             match self.lines.next() {
                 None => return None,
                 Some(line_result) => {
-                    match line_result {
-                        Err(_) => continue, // Skip lines with errors
-                        Ok(line) => return SampleAttribute::try_from(line.as_str()).ok(),
+                    if let Ok(line) = line_result {
+                        return SampleAttribute::try_from(line.as_str()).ok();
                     }
                 }
             }
