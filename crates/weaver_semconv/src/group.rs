@@ -25,7 +25,7 @@ use weaver_common::result::WResult;
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
     pub id: String,
-    /// The type of the semantic convention (default to span).
+    /// The type of the semantic convention.
     #[serde(default)]
     pub r#type: GroupType,
     /// A brief description of the semantic convention.
@@ -38,8 +38,8 @@ pub struct GroupSpec {
     /// It defaults to an empty string.
     #[serde(default)]
     pub prefix: String,
-    /// Reference another semantic convention id. It inherits the prefix,
-    /// constraints, and all attributes defined in the specified semantic
+    /// Reference another semantic convention id. It inherits all
+    /// attributes defined in the specified semantic
     /// convention.
     pub extends: Option<String>,
     /// Specifies the stability of the semantic convention.
@@ -61,17 +61,12 @@ pub struct GroupSpec {
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeSpec>,
-    /// Additional constraints.
-    /// Allow to define additional requirements on the semantic convention.
-    /// It defaults to an empty list.
-    #[serde(default)]
-    pub constraints: Vec<ConstraintSpec>,
     /// Specifies the kind of the span.
-    /// Note: only valid if type is span (the default)
+    /// Note: only valid if type is span
     pub span_kind: Option<SpanKindSpec>,
     /// List of strings that specify the ids of event semantic conventions
     /// associated with this span semantic convention.
-    /// Note: only valid if type is span (the default)
+    /// Note: only valid if type is span
     #[serde(default)]
     pub events: Vec<String>,
     /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
@@ -136,12 +131,10 @@ impl GroupSpec {
         validate_duplicate_attribute_ref(&mut errors, &self.attributes, &self.id, path_or_url);
 
         // All types, except metric and event, must have extends or attributes or both.
-        // For backward compatibility, if constraints are set, extends or attributes are not required.
         if self.r#type != GroupType::Metric
             && self.r#type != GroupType::Event
             && self.extends.is_none()
             && self.attributes.is_empty()
-            && self.constraints.is_empty()
         {
             errors.push(Error::InvalidGroupMissingExtendsOrAttributes {
                 path_or_url: path_or_url.to_owned(),
@@ -150,8 +143,8 @@ impl GroupSpec {
             });
         }
 
-        // Fields span_kind and events are only valid if type is span (the default).
-        if self.r#type != GroupType::Span {
+        // Fields span_kind and events are only valid if type is span.
+        if self.r#type != GroupType::Span && self.r#type != GroupType::Undefined {
             if self.span_kind.is_some() {
                 errors.push(Error::InvalidGroup {
                     path_or_url: path_or_url.to_owned(),
@@ -168,6 +161,15 @@ impl GroupSpec {
                         .to_owned(),
                 });
             }
+        }
+
+        // Group type is required.
+        if self.r#type == GroupType::Undefined {
+            errors.push(Error::InvalidGroupMissingType {
+                path_or_url: path_or_url.to_owned(),
+                group_id: self.id.clone(),
+                error: "This group does not contain a type field.".to_owned(),
+            });
         }
 
         // Span kind is required if type is span.
@@ -513,13 +515,16 @@ pub enum GroupType {
     Resource,
     /// Scope.
     Scope,
+    /// Undefined group type.
+    Undefined,
 }
 
 impl Default for GroupType {
-    /// Returns the default convention type that is span based on
-    /// the OpenTelemetry specification.
+    /// Returns the default convention type.
+    /// The Undefined type is used to indicate that the type is not set.
+    /// This is used for validation purposes.
     fn default() -> Self {
-        Self::Span
+        Self::Undefined
     }
 }
 
@@ -537,21 +542,6 @@ pub enum SpanKindSpec {
     Producer,
     /// A consumer span.
     Consumer,
-}
-
-/// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct ConstraintSpec {
-    /// any_of accepts a list of sequences. Each sequence contains a list of
-    /// attribute ids that are required. any_of enforces that all attributes
-    /// of at least one of the sequences are set.
-    #[serde(default)]
-    pub any_of: Vec<String>,
-    /// include accepts a semantic conventions id. It includes as part of this
-    /// semantic convention all constraints and required attributes that are
-    /// not already defined in the current semantic convention.
-    pub include: Option<String>,
 }
 
 /// The type of the metric.
@@ -591,7 +581,8 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
+        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
+        InvalidSpanMissingSpanKind,
     };
 
     use super::*;
@@ -624,7 +615,6 @@ mod tests {
                 note: "".to_owned(),
                 annotations: None,
             }],
-            constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
             events: vec!["event".to_owned()],
             metric_name: None,
@@ -661,6 +651,18 @@ mod tests {
                 group_id: "test".to_owned(),
                 error: "This group is a Span but the span_kind is not set.".to_owned(),
             },),
+            result
+        );
+
+        // Group type is missing on a group.
+        group.r#type = GroupType::Undefined;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroupMissingType {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "This group does not contain a type field.".to_owned(),
+            }),
             result
         );
 
@@ -759,7 +761,6 @@ mod tests {
                 note: "".to_owned(),
                 annotations: None,
             }],
-            constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
             events: vec!["event".to_owned()],
             metric_name: None,
@@ -992,7 +993,6 @@ mod tests {
                 note: "".to_owned(),
                 annotations: None,
             }],
-            constraints: vec![],
             span_kind: Some(SpanKindSpec::Client),
             events: vec!["event".to_owned()],
             metric_name: None,
@@ -1052,7 +1052,6 @@ mod tests {
             deprecated: Some(Deprecated::Obsoleted {
                 note: "".to_owned(),
             }),
-            constraints: vec![],
             span_kind: None,
             events: vec![],
             metric_name: None,
@@ -1267,7 +1266,6 @@ mod tests {
             extends: None,
             stability: Some(Stability::Stable),
             deprecated: None,
-            constraints: vec![],
             span_kind: None,
             events: vec![],
             metric_name: None,
@@ -1420,7 +1418,6 @@ mod tests {
                 note: "".to_owned(),
                 annotations: None,
             }],
-            constraints: vec![],
             span_kind: None,
             events: vec![],
             metric_name: None,
@@ -1589,7 +1586,6 @@ mod tests {
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
-            constraints: vec![],
             span_kind: None,
             events: vec![],
             metric_name: None,
@@ -1739,7 +1735,6 @@ mod tests {
             stability: Some(Stability::Stable),
             deprecated: None,
             attributes: vec![],
-            constraints: vec![],
             span_kind: None,
             events: vec![],
             metric_name: None,

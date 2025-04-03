@@ -85,8 +85,7 @@ groups:
     brief: >
       Semantic Convention for FaaS triggered as a response to some data
       source operation such as a database or filesystem read/write.
-    constraints:
-      - include: trace.http.server
+    extends: trace.http.server
     attributes: []
 
   - id: faas_span.pubsub
@@ -96,8 +95,7 @@ groups:
     brief: >
       Semantic Convention for FaaS set to be executed when messages are
       sent to a messaging system.
-    constraints:
-      - include: messaging
+    extends: messaging
     attributes: []
 
   - id: faas_span.timer
