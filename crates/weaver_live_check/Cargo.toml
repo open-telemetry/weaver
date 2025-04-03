@@ -1,5 +1,5 @@
 [package]
-name = "weaver_health"
+name = "weaver_live_check"
 version.workspace = true
 authors.workspace = true
 repository.workspace = true

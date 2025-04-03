@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! An ingester that reads attribute names or name=value pairs from a text file.
+
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
@@ -6,8 +10,8 @@ use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
 
-/// An ingester that reads attribute names from a text file.
-/// Each line in the file is treated as a separate attribute name.
+/// An ingester that reads attributes from a text file.
+/// Each line in the file is treated as a separate attribute.
 pub struct AttributeFileIngester {
     path: PathBuf,
 }

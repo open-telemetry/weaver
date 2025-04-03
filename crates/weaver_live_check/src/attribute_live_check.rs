@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! Runs advisors on attributes to check for compliance with the registry
+
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -9,9 +13,9 @@ use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{attribute_advice::Advisor, sample::SampleAttribute};
 
-/// Checks the health of attributes
+/// Provides advice for telemetry samples
 #[derive(Serialize)]
-pub struct AttributeHealthChecker {
+pub struct AttributeLiveChecker {
     /// The resolved registry
     pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
@@ -20,9 +24,9 @@ pub struct AttributeHealthChecker {
     advisors: Vec<Box<dyn Advisor>>,
 }
 
-impl AttributeHealthChecker {
+impl AttributeLiveChecker {
     #[must_use]
-    /// Create a new AttributeHealthChecker
+    /// Create a new AttributeLiveChecker
     pub fn new(registry: ResolvedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
@@ -41,7 +45,7 @@ impl AttributeHealthChecker {
                 }
             }
         }
-        AttributeHealthChecker {
+        AttributeLiveChecker {
             registry,
             semconv_attributes,
             semconv_templates,
@@ -71,14 +75,14 @@ impl AttributeHealthChecker {
         None
     }
 
-    /// Create a health attribute from a sample attribute
+    /// Create a live check attribute from a sample attribute
     #[must_use]
-    pub fn create_health_attribute(
+    pub fn create_live_check_attribute(
         &mut self,
         sample_attribute: &SampleAttribute,
-    ) -> HealthAttribute {
+    ) -> LiveCheckAttribute {
         // clone the sample attribute into the result
-        let mut attribute_result = HealthAttribute::new(sample_attribute.clone());
+        let mut attribute_result = LiveCheckAttribute::new(sample_attribute.clone());
 
         // find the attribute in the registry
         let semconv_attribute = {
@@ -124,26 +128,26 @@ impl AttributeHealthChecker {
 
     /// Run advisors on every attribute in the list
     #[must_use]
-    pub fn check_attributes(&mut self, sample_attributes: Vec<SampleAttribute>) -> HealthReport {
-        let mut health_report = HealthReport {
+    pub fn check_attributes(&mut self, sample_attributes: Vec<SampleAttribute>) -> LiveCheckReport {
+        let mut live_check_report = LiveCheckReport {
             attributes: Vec::new(),
-            statistics: HealthStatistics::new(),
+            statistics: LiveCheckStatistics::new(),
         };
 
         for sample_attribute in sample_attributes.iter() {
-            let attribute_result = self.create_health_attribute(sample_attribute);
+            let attribute_result = self.create_live_check_attribute(sample_attribute);
 
             // Update statistics
-            health_report.statistics.update(&attribute_result);
-            health_report.attributes.push(attribute_result);
+            live_check_report.statistics.update(&attribute_result);
+            live_check_report.attributes.push(attribute_result);
         }
-        health_report
+        live_check_report
     }
 }
 
-/// Represents a health attribute parsed from any source
+/// Represents a live check attribute parsed from any source
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct HealthAttribute {
+pub struct LiveCheckAttribute {
     /// The sample attribute
     pub sample_attribute: SampleAttribute,
     /// Advice on the attribute
@@ -152,11 +156,11 @@ pub struct HealthAttribute {
     pub highest_advisory: Option<Advisory>,
 }
 
-impl HealthAttribute {
-    /// Create a new HealthAttribute
+impl LiveCheckAttribute {
+    /// Create a new LiveCheckAttribute
     #[must_use]
     pub fn new(sample_attribute: SampleAttribute) -> Self {
-        HealthAttribute {
+        LiveCheckAttribute {
             sample_attribute,
             all_advice: Vec::new(),
             highest_advisory: None,
@@ -177,16 +181,16 @@ impl HealthAttribute {
     }
 }
 
-/// A health report for a set of attributes
+/// A live check report for a set of attributes
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct HealthReport {
-    /// The health attributes
-    pub attributes: Vec<HealthAttribute>,
+pub struct LiveCheckReport {
+    /// The live check attributes
+    pub attributes: Vec<LiveCheckAttribute>,
     /// The statistics for the report
-    pub statistics: HealthStatistics,
+    pub statistics: LiveCheckStatistics,
 }
 
-impl HealthReport {
+impl LiveCheckReport {
     /// Return true if there are any violations in the report
     #[must_use]
     pub fn has_violations(&self) -> bool {
@@ -196,9 +200,9 @@ impl HealthReport {
     }
 }
 
-/// The statistics for a health report
+/// The statistics for a live check report
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct HealthStatistics {
+pub struct LiveCheckStatistics {
     /// The total number of attributes
     pub total_attributes: usize,
     /// The total number of advisories
@@ -211,17 +215,17 @@ pub struct HealthStatistics {
     pub no_advice_count: usize,
 }
 
-impl Default for HealthStatistics {
+impl Default for LiveCheckStatistics {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl HealthStatistics {
-    /// Create a new empty HealthStatistics
+impl LiveCheckStatistics {
+    /// Create a new empty LiveCheckStatistics
     #[must_use]
     pub fn new() -> Self {
-        HealthStatistics {
+        LiveCheckStatistics {
             total_attributes: 0,
             total_advisories: 0,
             advisory_counts: HashMap::new(),
@@ -230,8 +234,8 @@ impl HealthStatistics {
         }
     }
 
-    /// Update statistics based on a health attribute
-    pub fn update(&mut self, attribute_result: &HealthAttribute) {
+    /// Update statistics based on a live check attribute
+    pub fn update(&mut self, attribute_result: &LiveCheckAttribute) {
         self.total_attributes += 1;
 
         // Count of advisories by type
@@ -282,7 +286,7 @@ mod tests {
     };
 
     #[test]
-    fn test_attribute_health_checker() {
+    fn test_attribute_live_checker() {
         let registry = ResolvedRegistry {
             registry_url: "TEST".to_owned(),
             groups: vec![ResolvedGroup {
@@ -476,12 +480,12 @@ mod tests {
             Box::new(EnumAdvisor),
         ];
 
-        let mut health_checker = AttributeHealthChecker::new(registry, advisors);
+        let mut live_checker = AttributeLiveChecker::new(registry, advisors);
         let rego_advisor =
-            RegoAdvisor::new(&health_checker, &None, &None).expect("Failed to create Rego advisor");
-        health_checker.add_advisor(Box::new(rego_advisor));
+            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
 
-        let report = health_checker.check_attributes(attributes);
+        let report = live_checker.check_attributes(attributes);
         let mut results = report.attributes;
 
         assert_eq!(results.len(), 10);
@@ -721,16 +725,16 @@ mod tests {
 
         let advisors: Vec<Box<dyn Advisor>> = vec![];
 
-        let mut health_checker = AttributeHealthChecker::new(registry, advisors);
+        let mut live_checker = AttributeLiveChecker::new(registry, advisors);
         let rego_advisor = RegoAdvisor::new(
-            &health_checker,
+            &live_checker,
             &Some("data/policies/advice/".into()),
             &Some("data/jq/test.jq".into()),
         )
         .expect("Failed to create Rego advisor");
-        health_checker.add_advisor(Box::new(rego_advisor));
+        live_checker.add_advisor(Box::new(rego_advisor));
 
-        let report = health_checker.check_attributes(attributes);
+        let report = live_checker.check_attributes(attributes);
         let results = report.attributes;
 
         assert_eq!(results.len(), 2);

@@ -80,7 +80,7 @@ pub enum Advisory {
     Violation,
 }
 
-/// Represents a health check advice
+/// Represents a live check advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Advice {
     /// The key of the advice e.g. "is_deprecated"

@@ -5208,7 +5208,7 @@ dependencies = [
  "weaver_diff",
  "weaver_emit",
  "weaver_forge",
- "weaver_health",
+ "weaver_live_check",
  "weaver_resolved_schema",
  "weaver_resolver",
  "weaver_semconv",
@@ -5346,7 +5346,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "weaver_health"
+name = "weaver_live_check"
 version = "0.13.2"
 dependencies = [
  "miette",

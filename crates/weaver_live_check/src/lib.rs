@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! This crate provides the weaver-health library
+//! This crate provides the weaver_live_check library
+
 use miette::Diagnostic;
 use serde::Serialize;
 use weaver_common::{
@@ -8,22 +9,22 @@ use weaver_common::{
     Logger,
 };
 
-/// Advisors for health checks
+/// Advisors for live checks
 pub mod attribute_advice;
 /// An ingester that reads attribute names from a text file.
 pub mod attribute_file_ingester;
-/// Attribute health checker
-pub mod attribute_health;
 /// An ingester that reads attribute names and values from a JSON file.
 pub mod attribute_json_file_ingester;
 /// An ingester that reads attribute names and values from standard input.
 pub mod attribute_json_stdin_ingester;
+/// Attribute live checker
+pub mod attribute_live_check;
 /// An ingester that reads attribute names from standard input.
 pub mod attribute_stdin_ingester;
 /// The intermediary format
 pub mod sample;
 
-/// Weaver health errors
+/// Weaver live check errors
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
 #[non_exhaustive]
 pub enum Error {

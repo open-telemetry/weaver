@@ -2,8 +2,8 @@
 whitespace_control:
   trim_blocks: true
   lstrip_blocks: true
-  
+
 templates:
-  - template: health.json.j2
+  - template: live_check.txt.j2
     filter: .
     application_mode: single

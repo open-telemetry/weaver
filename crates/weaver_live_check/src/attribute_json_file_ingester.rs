@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! An ingester that reads attribute names and values from a JSON file.
+
 use std::path::Path;
 use std::{fs, path::PathBuf};
 

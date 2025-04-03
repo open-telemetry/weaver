@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 use weaver_common::Logger;
-use weaver_health::{sample::SampleAttribute, Error, Ingester};
+use weaver_live_check::{sample::SampleAttribute, Error, Ingester};
 
 use super::{grpc_stubs::proto::common::v1::AnyValue, listen_otlp_requests, OtlpRequest};
 

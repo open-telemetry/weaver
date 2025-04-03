@@ -11,9 +11,8 @@ use serde::Serialize;
 
 use crate::registry::diff::RegistryDiffArgs;
 use crate::registry::generate::RegistryGenerateArgs;
-use crate::registry::health::RegistryHealthArgs;
 use crate::registry::json_schema::RegistryJsonSchemaArgs;
-use crate::registry::live_check::CheckRegistryArgs;
+use crate::registry::live_check::RegistryLiveCheckArgs;
 use crate::registry::resolve::RegistryResolveArgs;
 use crate::registry::search::RegistrySearchArgs;
 use crate::registry::stats::RegistryStatsArgs;
@@ -28,7 +27,6 @@ mod check;
 mod diff;
 mod emit;
 mod generate;
-mod health;
 mod json_schema;
 mod live_check;
 mod otlp;
@@ -123,28 +121,16 @@ pub enum RegistrySubCommand {
     #[clap(verbatim_doc_comment)]
     Diff(RegistryDiffArgs),
 
-    /// Check the conformance level of an OTLP stream against a semantic convention registry.
-    ///
-    /// This command starts an OTLP listener and compares each received OTLP message with the
-    /// registry provided as a parameter. When the command is stopped (see stop conditions),
-    /// a conformance/coverage report is generated. The purpose of this command is to be used
-    /// in a CI/CD pipeline to validate the telemetry stream from an application or service
-    /// against a registry.
-    ///
-    /// The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop
-    /// endpoint, and a maximum duration of no OTLP message reception.
-    #[clap(verbatim_doc_comment)]
-    LiveCheck(CheckRegistryArgs),
     /// Emits a semantic convention registry as example signals to your OTLP receiver.
     ///
     /// This uses the standard OpenTelemetry SDK, defaulting to OTLP gRPC on localhost:4317.
     #[clap(verbatim_doc_comment)]
     Emit(RegistryEmitArgs),
-    /// Perform a health check on sample telemetry by comparing it to a semantic convention registry.
+    /// Perform a live check on sample telemetry by comparing it to a semantic convention registry.
     ///
     /// Includes: Flexible input ingestion, configurable assessment, and template-based output.
     #[clap(verbatim_doc_comment)]
-    Health(RegistryHealthArgs),
+    LiveCheck(RegistryLiveCheckArgs),
 }
 
 /// Set of parameters used to specify a semantic convention registry.
@@ -239,10 +225,6 @@ pub fn semconv_registry(
         ),
         RegistrySubCommand::Emit(args) => CmdResult::new(
             emit::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Health(args) => CmdResult::new(
-            health::command(log.clone(), args),
             Some(args.diagnostic.clone()),
         ),
     }

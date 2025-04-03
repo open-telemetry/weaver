@@ -1,4 +1,6 @@
-// Builtin advisors
+// SPDX-License-Identifier: Apache-2.0
+
+//! Builtin advisors
 
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -15,13 +17,14 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{attribute_health::AttributeHealthChecker, sample::SampleAttribute, Error};
+use crate::{attribute_live_check::AttributeLiveChecker, sample::SampleAttribute, Error};
 
-/// Embedded default health rego policies
-pub const DEFAULT_HEALTH_REGO: &str = include_str!("../../../defaults/policies/advice/otel.rego");
+/// Embedded default live check rego policies
+pub const DEFAULT_LIVE_CHECK_REGO: &str =
+    include_str!("../../../defaults/policies/advice/otel.rego");
 
-/// Embedded default health jq preprocessor
-pub const DEFAULT_HEALTH_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
+/// Embedded default live check jq preprocessor
+pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
 /// Provides advice on a sample attribute
 pub trait Advisor {
@@ -215,7 +218,7 @@ pub struct RegoAdvisor {
 impl RegoAdvisor {
     /// Create a new RegoAdvisor
     pub fn new(
-        health_checker: &AttributeHealthChecker,
+        live_checker: &AttributeLiveChecker,
         policy_dir: &Option<PathBuf>,
         jq_preprocessor: &Option<PathBuf>,
     ) -> Result<Self, Error> {
@@ -228,24 +231,27 @@ impl RegoAdvisor {
                 })?;
         } else {
             let _ = engine
-                .add_policy("defaults/policies/advice/otel.rego", DEFAULT_HEALTH_REGO)
+                .add_policy(
+                    "defaults/policies/advice/otel.rego",
+                    DEFAULT_LIVE_CHECK_REGO,
+                )
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
                 })?;
         }
 
-        // If there is a jq preprocessor then pass the health_checker data through it before adding it to the engine
+        // If there is a jq preprocessor then pass the live_checker data through it before adding it to the engine
         // Otherwise use the default jq preprocessor
         let jq_filter = if let Some(path) = jq_preprocessor {
             std::fs::read_to_string(path).map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?
         } else {
-            DEFAULT_HEALTH_JQ.to_owned()
+            DEFAULT_LIVE_CHECK_JQ.to_owned()
         };
 
         let jq_result = jq::execute_jq(
-            &serde_json::to_value(health_checker).map_err(|e| Error::AdviceError {
+            &serde_json::to_value(live_checker).map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?,
             &jq_filter,

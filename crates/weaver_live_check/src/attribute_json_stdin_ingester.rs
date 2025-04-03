@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! An ingester that reads attribute names and values from JSON input via standard input.
+
 use std::io::{self, Read};
 
 use weaver_common::Logger;

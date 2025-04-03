@@ -1,8 +1,8 @@
-{% import "health_macros.j2" as macros %}
+{% import "live_check_macros.j2" as macros %}
 {% if ctx.attributes is defined %}
-{# This is a HealthReport object #}
-{{ ("Health Report") | ansi_bright_white | ansi_bold }}
-{{ ("=============") | ansi_bright_white | ansi_bold }}
+{# This is a LiveCheckReport object #}
+{{ ("Live Check Report") | ansi_bright_white | ansi_bold }}
+{{ ("=================") | ansi_bright_white | ansi_bold }}
 
 {{ macros.display_statistics(ctx.statistics) }}
 
@@ -10,9 +10,9 @@
 {{ macros.display_attribute_advice(result) }}
 {% endfor %}
 {% elif ctx.all_advice is defined %}
-{# This is a HealthAttribute object #}
+{# This is a LiveCheckAttribute object #}
 {{ macros.display_attribute_advice(ctx) }}
 {%- elif ctx.total_attributes is defined %}
-{# This is a HealthStatistics object #}
+{# This is a LiveCheckStatistics object #}
 {{ macros.display_statistics(ctx) }}
 {% endif %}

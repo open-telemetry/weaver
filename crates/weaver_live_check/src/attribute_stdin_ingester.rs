@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! An ingester that reads attribute names or name=value pairs from standard input.
+
 use std::io::{self, BufRead};
 
 use serde_json::json;
@@ -5,12 +9,12 @@ use weaver_common::Logger;
 
 use crate::{sample::SampleAttribute, Error, Ingester};
 
-/// An ingester that streams attribute names from standard input.
+/// An ingester that streams attribute names or name=value pairs from standard input.
 /// Implements the Ingester trait to return an iterator of SampleAttribute items.
 pub struct AttributeStdinIngester;
 
 impl AttributeStdinIngester {
-    /// Create a new AttributeStreamStdInIngester
+    /// Create a new AttributeStdInIngester
     #[must_use]
     pub fn new() -> Self {
         AttributeStdinIngester
