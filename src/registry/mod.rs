@@ -170,17 +170,6 @@ pub struct PolicyArgs {
     pub display_policy_coverage: bool,
 }
 
-impl PolicyArgs {
-    /// Create a new empty `PolicyArgs` with the skip flag set to true.
-    pub fn skip() -> Self {
-        Self {
-            policies: Vec::new(),
-            skip_policies: true,
-            display_policy_coverage: false,
-        }
-    }
-}
-
 /// Manage a semantic convention registry and return the exit code.
 pub fn semconv_registry(
     log: impl Logger + Sync + Clone + 'static,
