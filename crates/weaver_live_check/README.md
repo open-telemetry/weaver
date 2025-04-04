@@ -62,13 +62,13 @@ Some `Ingesters`, like `attribute_stdin` and `attribute_otlp`, can stream the in
 
 Sample entities are assessed by the set of `Advisors` to produce a list of `Advice` for each one. Built-ins check for fundamental compliance with the `Registry` supplied, for example `missing_attribute` and `type_mismatch`.
 
-Beyond the fundamentals, external `Advisors` can be defined in Rego policies. The OpenTelemetry Semantic Conventions rules are included out-of-the-box by default providing `Advice` on name-spacing and formatting aligned with the standard. These default policies can be overridden at the command line with your own.
+Beyond the fundamentals, external `Advisors` can be defined in Rego policies. The OpenTelemetry Semantic Conventions rules are included out-of-the-box by default. They provide `Advice` on name-spacing and formatting aligned with the standard. These default policies can be overridden at the command line with your own.
 
 ### Advice
 
 As mentioned, a list of `Advice` is returned in the report for each sample entity. The snippet below shows `Advice` from two `Advisors`. A builtin is providing `missing_attribute` and a default Otel Rego policy is providing `extends_namespace`. The fields of `Advice` are intended to be used like so:
 
-- `advisory`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with an non-zero exit-code if there is any `violation` in the report.
+- `advisory`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `key`: _string_ - a simple machine readable string key to represent the advice type
 - `message`: _string_ - a verbose string describing the advice
 - `value`: _any_ - a pertinent entity associated with the advice
