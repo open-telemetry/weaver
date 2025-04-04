@@ -8,9 +8,16 @@
 
 {{ ("Advisories given") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_advisories }}
+{%- if statistics.total_advisories > 0 %}  
+  by advisory:
 {% for key, value in statistics.advisory_counts.items() %}
   - {{ key }}: {{ value }}
 {% endfor %}
+  by key:
+{% for key, value in statistics.advice_key_counts.items() %}
+  - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
 {% endmacro %}
 
 {% macro display_attribute_advice(result) %}

@@ -213,6 +213,8 @@ pub struct LiveCheckStatistics {
     pub highest_advisory_counts: HashMap<Advisory, usize>,
     /// The number of attributes with no advice
     pub no_advice_count: usize,
+    /// The number of attributes with each advice key
+    pub advice_key_counts: HashMap<String, usize>,
 }
 
 impl Default for LiveCheckStatistics {
@@ -231,6 +233,7 @@ impl LiveCheckStatistics {
             advisory_counts: HashMap::new(),
             highest_advisory_counts: HashMap::new(),
             no_advice_count: 0,
+            advice_key_counts: HashMap::new(),
         }
     }
 
@@ -248,6 +251,13 @@ impl LiveCheckStatistics {
                 .entry(advice.advisory.clone())
                 .or_insert(0);
             *advisory_count += 1;
+
+            // Count of advisories by key
+            let advice_key_count = self
+                .advice_key_counts
+                .entry(advice.key.clone())
+                .or_insert(0);
+            *advice_key_count += 1;
         }
 
         // Count of attributes with the highest advisory level
