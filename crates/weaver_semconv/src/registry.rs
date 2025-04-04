@@ -129,9 +129,7 @@ impl SemConvRegistry {
             registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance });
         }
 
-        if let Some(manifest_path) = registry_repo.manifest_path() {
-            registry.set_manifest(RegistryManifest::try_from_file(manifest_path)?);
-        } else {
+        if registry_repo.manifest().is_none() {
             let mut semconv_version = "unversioned".to_owned();
 
             // No registry manifest found.

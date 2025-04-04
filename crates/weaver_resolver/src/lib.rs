@@ -380,57 +380,48 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
     ) -> Option<WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error>> {
-        match registry_repo.manifest_path() {
-            Some(manifest_path) => {
-                match RegistryManifest::try_from_file(manifest_path) {
-                    Ok(manifest) => {
-                        if let Some(dependencies) =
-                            manifest.dependencies.filter(|deps| !deps.is_empty())
-                        {
-                            if !allow_registry_deps {
+        match registry_repo.manifest() {
+            Some(manifest) => {
+                if let Some(dependencies) = manifest
+                    .dependencies
+                    .as_ref()
+                    .filter(|deps| !deps.is_empty())
+                {
+                    if !allow_registry_deps {
+                        Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                            error: format!(
+                                "Registry dependencies are not allowed for the `{}` registry. Weaver currently supports only two registry levels.",
+                                registry_repo.registry_path_repr()
+                            ),
+                        }))
+                    } else if dependencies.len() > 1 {
+                        Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                            error: format!(
+                                "Currently, Weaver supports only a single dependency per registry. Multiple dependencies have been found in the `{}` registry.",
+                                registry_repo.registry_path_repr()
+                            ),
+                        }))
+                    } else {
+                        let dependency = &dependencies[0];
+                        match RegistryRepo::try_new(&dependency.name, &dependency.registry_path) {
+                            Ok(registry_repo_dep) => Some(Self::load_semconv_specs(
+                                &registry_repo_dep,
+                                false,
+                                follow_symlinks,
+                            )),
+                            Err(e) => {
                                 Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
                                     error: format!(
-                                        "Registry dependencies are not allowed for the `{}` registry. Weaver currently supports only two registry levels.",
-                                        registry_repo.registry_path_repr()
+                                        "Failed to load the registry dependency `{}`: {}",
+                                        dependency.name, e
                                     ),
                                 }))
-                            } else if dependencies.len() > 1 {
-                                Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
-                                    error: format!(
-                                        "Currently, Weaver supports only a single dependency per registry. Multiple dependencies have been found in the `{}` registry.",
-                                        registry_repo.registry_path_repr()
-                                    ),
-                                }))
-                            } else {
-                                let dependency = &dependencies[0];
-                                match RegistryRepo::try_new(
-                                    &dependency.name,
-                                    &dependency.registry_path,
-                                ) {
-                                    Ok(registry_repo_dep) => Some(Self::load_semconv_specs(
-                                        &registry_repo_dep,
-                                        false,
-                                        follow_symlinks,
-                                    )),
-                                    Err(e) => Some(WResult::FatalErr(
-                                        weaver_semconv::Error::SemConvSpecError {
-                                            error: format!(
-                                                "Failed to load the registry dependency `{}`: {}",
-                                                dependency.name, e
-                                            ),
-                                        },
-                                    )),
-                                }
                             }
-                        } else {
-                            // Manifest has no dependencies or dependencies are empty
-                            None
                         }
                     }
-                    Err(e) => {
-                        // Manifest file is not valid or not found
-                        Some(WResult::FatalErr(e))
-                    }
+                } else {
+                    // Manifest has no dependencies or dependencies are empty
+                    None
                 }
             }
             None => None,

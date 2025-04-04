@@ -203,7 +203,6 @@ mod tests {
         InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
-    use std::process::id;
     use weaver_common::test::ServeStaticFiles;
 
     #[test]

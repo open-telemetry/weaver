@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use crate::manifest::RegistryManifest;
 use crate::registry_path::RegistryPath;
 use crate::Error;
 use crate::Error::{GitError, InvalidRegistryArchive, UnsupportedRegistryArchive};
@@ -37,6 +38,9 @@ pub struct RegistryRepo {
     id: Arc<str>,
     registry_path: String,
     path: PathBuf,
+    // The registry manifest definition.
+    manifest: Option<RegistryManifest>,
+
     // Need to keep the tempdir live for the lifetime of the RegistryRepo.
     #[allow(dead_code)]
     tmp_dir: Option<TempDir>,
@@ -45,24 +49,33 @@ pub struct RegistryRepo {
 impl RegistryRepo {
     /// Creates a new `RegistryRepo` from a `RegistryPath` object that
     /// specifies the location of the registry.
-    pub fn try_new(id: &str, registry_path: &RegistryPath) -> Result<Self, Error> {
+    pub fn try_new(
+        registry_id_if_no_manifest: &str,
+        registry_path: &RegistryPath,
+    ) -> Result<Self, Error> {
         let registry_path_repr = registry_path.to_string();
-        match registry_path {
+        let mut registry_repo = match registry_path {
             RegistryPath::LocalFolder { path } => Ok(Self {
-                id: Arc::from(id),
+                id: Arc::from(registry_id_if_no_manifest),
                 registry_path: registry_path_repr,
                 path: path.into(),
+                manifest: None,
                 tmp_dir: None,
             }),
             RegistryPath::GitRepo {
                 url, sub_folder, ..
-            } => Self::try_from_git_url(id, url, sub_folder, registry_path_repr),
+            } => Self::try_from_git_url(
+                registry_id_if_no_manifest,
+                url,
+                sub_folder,
+                registry_path_repr,
+            ),
             RegistryPath::LocalArchive { path, sub_folder } => {
                 // Create a temporary directory for the repo that will be deleted
                 // when the RegistryRepo goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
                 Self::try_from_local_archive(
-                    id,
+                    registry_id_if_no_manifest,
                     path,
                     sub_folder.as_ref(),
                     tmp_dir,
@@ -74,14 +87,22 @@ impl RegistryRepo {
                 // when the RegistryRepo goes out of scope.
                 let tmp_dir = Self::create_tmp_repo()?;
                 Self::try_from_remote_archive(
-                    id,
+                    registry_id_if_no_manifest,
                     url,
                     sub_folder.as_ref(),
                     tmp_dir,
                     registry_path_repr,
                 )
             }
+        };
+        if let Ok(registry_repo) = &mut registry_repo {
+            if let Some(manifest) = registry_repo.manifest_path() {
+                let registry_manifest = RegistryManifest::try_from_file(manifest)?;
+                registry_repo.id = Arc::from(registry_manifest.name.as_str());
+                registry_repo.manifest = Some(registry_manifest);
+            }
         }
+        registry_repo
     }
 
     /// Creates a new `RegistryRepo` from a Git URL.
@@ -150,6 +171,7 @@ impl RegistryRepo {
             id: Arc::from(id),
             registry_path,
             path,
+            manifest: None,
             tmp_dir: Some(tmp_dir),
         })
     }
@@ -201,6 +223,7 @@ impl RegistryRepo {
             id: Arc::from(id),
             registry_path,
             path: target_path_buf,
+            manifest: None,
             tmp_dir: Some(target_dir),
         })
     }
@@ -439,6 +462,12 @@ impl RegistryRepo {
     #[must_use]
     pub fn registry_path_repr(&self) -> &str {
         &self.registry_path
+    }
+
+    /// Returns the registry manifest specified in the registry repo.
+    #[must_use]
+    pub fn manifest(&self) -> Option<&RegistryManifest> {
+        self.manifest.as_ref()
     }
 
     /// Returns the path to the `registry_manifest.yaml` file (if any).
