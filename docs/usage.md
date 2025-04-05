@@ -8,6 +8,7 @@ Usage: weaver [OPTIONS] <COMMAND>
 Commands:
   registry    Manage Semantic Convention Registry
   diagnostic  Manage Diagnostic Messages
+  completion  Generate shell completions
   help        Print this message or the help of the given subcommand(s)
 
 Options:
@@ -611,4 +612,21 @@ Options:
           Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
   -h, --help
           Print help
+```
+
+## completion
+
+```text
+Generate shell completions
+
+Usage: weaver completion [OPTIONS] <SHELL>
+
+Arguments:
+  <SHELL>  The shell to generate the completions for [possible values: bash, elvish, fish, powershell, zsh]
+
+Options:
+      --debug...  Turn debugging information on
+      --quiet     Turn the quiet mode on (i.e., minimal output)
+      --future    Enable the most recent validation rules for the semconv registry. It is recommended to enable this flag when checking a new registry. Note: `semantic_conventions` main branch should always enable this flag
+  -h, --help      Print help
 ```
