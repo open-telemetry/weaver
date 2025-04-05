@@ -97,7 +97,7 @@ fn main() {
 }
 
 /// Run the command specified by the CLI arguments and return the exit directives.
-fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
+fn run_command(cli: &Cli, log: impl Logger + Sync + Clone + 'static) -> ExitDirectives {
     if cli.future {
         enable_future_mode();
     }
