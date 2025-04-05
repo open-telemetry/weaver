@@ -463,7 +463,7 @@ impl RegistryRepo {
         })?;
         let file_name = parsed_url
             .path_segments()
-            .and_then(|segments| segments.last())
+            .and_then(|mut segments| segments.next_back())
             .and_then(|name| if name.is_empty() { None } else { Some(name) })
             .ok_or("Failed to extract file name from URL")
             .map_err(|e| InvalidRegistryArchive {
