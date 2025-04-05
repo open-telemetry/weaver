@@ -203,7 +203,7 @@ file-level and template-level parameters.
 
 Imagine we have two slightly different variants for generating the semconv Python code.
 
-```
+```text
 templates
 ├── registry
 │   ├── python

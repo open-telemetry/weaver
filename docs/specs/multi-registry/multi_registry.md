@@ -133,7 +133,7 @@ The directory structure of a registry remains mostly unchanged, with the additio
 `registry_manifest.yaml`. This file contains the registry metadata, such as the name, version, and description.
 It is required for published registries or registries with dependencies on other registries.
 
-```plaintext
+```text
 registry_root/
   domain_1/
   domain_2/
