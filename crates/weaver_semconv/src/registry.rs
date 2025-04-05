@@ -148,6 +148,8 @@ impl SemConvRegistry {
                 schema_base_url: "".to_owned(),
                 dependencies: None,
             });
+        } else {
+            registry.manifest = registry_repo.manifest().cloned();
         }
 
         Ok(registry)

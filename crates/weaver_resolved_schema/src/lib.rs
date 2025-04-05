@@ -213,6 +213,15 @@ impl ResolvedTelemetrySchema {
             .collect()
     }
 
+    /// Get the group by its ID.
+    #[must_use]
+    pub fn group(&self, group_id: &str) -> Option<&Group> {
+        self.registry
+            .groups
+            .iter()
+            .find(|group| group.id == group_id)
+    }
+    
     /// Generate a diff between the current schema (must be the most recent one)
     /// and a baseline schema.
     #[must_use]
