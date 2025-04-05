@@ -4,7 +4,10 @@
 
 use std::path::PathBuf;
 
+use clap::CommandFactory;
 use clap::{Args, Parser};
+use clap_complete::{generate, Shell};
+use std::io;
 
 use registry::semconv_registry;
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
@@ -77,6 +80,11 @@ impl CmdResult {
 fn main() {
     let cli = Cli::parse();
 
+    if let Some(Commands::Completion(completions)) = &cli.command {
+        generate_completion(&completions.shell);
+        return;
+    }
+
     let start = std::time::Instant::now();
     let exit_directives = if cli.quiet {
         let log = QuietLogger::new();
@@ -104,6 +112,12 @@ fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
+        Some(Commands::Completion(_)) => {
+            return ExitDirectives {
+                exit_code: 0,
+                quiet_mode: cli.quiet,
+            };
+        }
         None => {
             return ExitDirectives {
                 exit_code: 0,
@@ -163,4 +177,10 @@ fn process_diagnostics(
     }
 
     exit_directives
+}
+
+fn generate_completion(shell: &Shell) {
+    let mut app = Cli::command();
+    let bin_name = app.get_name().to_owned();
+    generate(*shell, &mut app, bin_name, &mut io::stdout());
 }
