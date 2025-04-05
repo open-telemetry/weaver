@@ -17,7 +17,7 @@ use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Constraint, Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{GroupSpecWithProvenance, GroupType};
+use weaver_semconv::group::GroupSpecWithProvenance;
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
@@ -166,10 +166,8 @@ fn gc_unreferenced_objects(manifest: Option<&RegistryManifest>, registry: &mut R
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
             // This registry has dependencies.
             let current_reg_id = manifest.name.clone();
-            println!("current registry id: {}", current_reg_id);
             registry.groups.retain(|group| {
                 if let Some(lineage) = &group.lineage {
-                    println!("group registry id: {}", lineage.provenance().registry_id);
                     lineage.provenance().registry_id.as_ref() == current_reg_id
                 } else {
                     true

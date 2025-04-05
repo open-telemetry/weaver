@@ -19,7 +19,6 @@ use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
-use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
@@ -450,7 +449,7 @@ mod tests {
             assert_eq!(semconv_specs.len(), 2);
             for (source, semconv_spec) in semconv_specs.iter() {
                 match source.registry_id.as_ref() {
-                    "main" => {
+                    "acme" => {
                         assert_eq!(
                             source.path,
                             "data/multi-registry/custom_registry/custom_registry.yaml"
