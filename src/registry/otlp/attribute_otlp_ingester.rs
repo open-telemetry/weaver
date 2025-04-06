@@ -66,12 +66,10 @@ impl OtlpAttributeIterator {
         match request {
             OtlpRequest::Logs(_logs) => {
                 // TODO Implement the checking logic for logs
-                // self.logger.error("Logs Request received");
                 self.next()
             }
             OtlpRequest::Metrics(_metrics) => {
                 // TODO Implement the checking logic for metrics
-                // self.logger.error("Metrics Request received");
                 self.next()
             }
             OtlpRequest::Traces(trace) => {
@@ -139,16 +137,8 @@ impl OtlpAttributeIterator {
                     self.next()
                 }
             }
-            OtlpRequest::Stop(_reason) => {
-                // self.logger
-                //     .warn(&format!("Stopping the listener, reason: {}", reason));
-                None
-            }
-            OtlpRequest::Error(_error) => {
-                // self.logger
-                //     .error(&format!("Error in OTLP request: {}", error));
-                None
-            }
+            OtlpRequest::Stop(_reason) => None,
+            OtlpRequest::Error(_error) => None,
         }
     }
 }
@@ -173,18 +163,29 @@ impl Iterator for OtlpAttributeIterator {
 impl Ingester<SampleAttribute> for AttributeOtlpIngester {
     fn ingest(
         &self,
-        logger: impl Logger + Sync + Clone + 'static,
+        logger: impl Logger + Sync + Clone,
     ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
         let otlp_requests = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
             self.admin_port,
             Duration::from_secs(self.inactivity_timeout),
-            logger.clone(),
         )
         .map_err(|e| Error::IngestError {
             error: format!("Failed to listen to OTLP requests: {}", e),
         })?;
+
+        logger.log("To stop the OTLP receiver:");
+        logger.log("  - press CTRL+C,");
+        logger.log(&format!(
+            "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
+            std::process::id()
+        ));
+        logger.log(&format!("  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.", self.admin_port));
+        logger.log(&format!(
+            "The OTLP receiver will stop after {} seconds of inactivity.",
+            self.inactivity_timeout
+        ));
 
         Ok(Box::new(OtlpAttributeIterator::new(Box::new(
             otlp_requests,

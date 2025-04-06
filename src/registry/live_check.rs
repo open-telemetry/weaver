@@ -167,7 +167,7 @@ pub struct RegistryLiveCheckArgs {
 
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(
-    logger: impl Logger + Sync + Clone + 'static,
+    logger: impl Logger + Sync + Clone,
     args: &RegistryLiveCheckArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
