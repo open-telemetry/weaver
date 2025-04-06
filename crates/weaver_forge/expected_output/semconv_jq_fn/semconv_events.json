@@ -159,6 +159,9 @@
       }
     ],
     "brief": "This document defines the attributes used to report a single exception associated with a span.\n",
+    "entity_associations": [
+      "service"
+    ],
     "event_namespace": "other",
     "events": [],
     "id": "trace-exception",

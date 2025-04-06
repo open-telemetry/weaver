@@ -362,6 +362,9 @@
           }
         ],
         "brief": "Measure of memory used.",
+        "entity_associations": [
+          "service"
+        ],
         "events": [],
         "id": "metric.jvm.memory.used",
         "instrument": "updowncounter",
