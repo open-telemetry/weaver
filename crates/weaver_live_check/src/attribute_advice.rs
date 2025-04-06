@@ -6,7 +6,7 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use serde_json::Value;
 use weaver_checker::{
-    violation::{Advice, Advisory, Violation},
+    violation::{Advice, AdviceLevel, Violation},
     Engine,
 };
 use weaver_forge::jq;
@@ -21,7 +21,7 @@ use crate::{attribute_live_check::AttributeLiveChecker, sample::SampleAttribute,
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
-    include_str!("../../../defaults/policies/advice/otel.rego");
+    include_str!("../../../defaults/policies/live_check_advice/otel.rego");
 
 /// Embedded default live check jq preprocessor
 pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
@@ -48,7 +48,7 @@ impl Advisor for DeprecatedAdvisor {
         if let Some(attribute) = semconv_attribute {
             if let Some(deprecated) = &attribute.deprecated {
                 advices.push(Advice {
-                    key: "deprecated".to_owned(),
+                    advice_type: "deprecated".to_owned(),
                     value: match deprecated {
                         Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
                         Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
@@ -57,7 +57,7 @@ impl Advisor for DeprecatedAdvisor {
                         }
                     },
                     message: deprecated.to_string(),
-                    advisory: Advisory::Violation,
+                    advice_level: AdviceLevel::Violation,
                 });
             }
         }
@@ -81,10 +81,10 @@ impl Advisor for StabilityAdvisor {
             match attribute.stability {
                 Some(ref stability) if *stability != Stability::Stable => {
                     advices.push(Advice {
-                        key: "stability".to_owned(),
+                        advice_type: "stability".to_owned(),
                         value: Value::String(stability.to_string()),
                         message: "Is not stable".to_owned(),
-                        advisory: Advisory::Improvement,
+                        advice_level: AdviceLevel::Improvement,
                     });
                 }
                 _ => {}
@@ -125,10 +125,10 @@ impl Advisor for TypeAdvisor {
                             && attribute_type != &PrimitiveOrArrayTypeSpec::Int
                         {
                             return Ok(vec![Advice {
-                                key: "type_mismatch".to_owned(),
+                                advice_type: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
                                 message: "Type should be `string` or `int`".to_owned(),
-                                advisory: Advisory::Violation,
+                                advice_level: AdviceLevel::Violation,
                             }]);
                         } else {
                             return Ok(Vec::new());
@@ -138,10 +138,10 @@ impl Advisor for TypeAdvisor {
 
                 if attribute_type != semconv_attribute_type {
                     Ok(vec![Advice {
-                        key: "type_mismatch".to_owned(),
+                        advice_type: "type_mismatch".to_owned(),
                         value: Value::String(attribute_type.to_string()),
                         message: format!("Type should be `{}`", semconv_attribute_type),
-                        advisory: Advisory::Violation,
+                        advice_level: AdviceLevel::Violation,
                     }])
                 } else {
                     Ok(Vec::new())
@@ -197,10 +197,10 @@ impl Advisor for EnumAdvisor {
 
                     if !is_found {
                         return Ok(vec![Advice {
-                            key: "undefined_enum_variant".to_owned(),
+                            advice_type: "undefined_enum_variant".to_owned(),
                             value: attribute_value.clone(),
                             message: "Is not a defined variant".to_owned(),
-                            advisory: Advisory::Information,
+                            advice_level: AdviceLevel::Information,
                         }]);
                     }
                 }
@@ -283,7 +283,7 @@ impl Advisor for RegoAdvisor {
             })?;
         let violations = self
             .engine
-            .check(weaver_checker::PolicyStage::Advice)
+            .check(weaver_checker::PolicyStage::LiveCheckAdvice)
             .map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?;

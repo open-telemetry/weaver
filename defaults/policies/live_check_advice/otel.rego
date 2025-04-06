@@ -1,4 +1,4 @@
-package advice
+package live_check_advice
 
 import rego.v1
 
@@ -21,25 +21,25 @@ concat(".", array.slice(parts, 0, i)) |
 ]
 
 # checks attribute has a namespace
-deny contains make_advice(key, advisory, value, message) if {
+deny contains make_advice(advice_type, advice_level, value, message) if {
 	not contains(input.name, ".")
-	key := "missing_namespace"
-	advisory := "improvement"
+	advice_type := "missing_namespace"
+	advice_level := "improvement"
 	value := input.name
 	message := "Does not have a namespace"
 }
 
 # checks attribute name format
-deny contains make_advice(key, advisory, value, message) if {
+deny contains make_advice(advice_type, advice_level, value, message) if {
 	not regex.match(name_regex, input.name)
-	key := "invalid_format"
-	advisory := "violation"
+	advice_type := "invalid_format"
+	advice_level := "violation"
 	value := input.name
 	message := "Does not match name formatting rules"
 }
 
 # checks attribute namespace doesn't collide with existing attributes
-deny contains make_advice(key, advisory, value, message) if {
+deny contains make_advice(advice_type, advice_level, value, message) if {
 	# Skip if no namespace
 	contains(input.name, ".")
 
@@ -50,13 +50,13 @@ deny contains make_advice(key, advisory, value, message) if {
 	some value in namespaces
 	attributes_set[value] != null
 
-	key := "illegal_namespace"
-	advisory := "violation"
+	advice_type := "illegal_namespace"
+	advice_level := "violation"
 	message := "Namespace matches existing attribute"
 }
 
 # provides advice if the attribute extends an existing namespace
-deny contains make_advice(key, advisory, value, message) if {
+deny contains make_advice(advice_type, advice_level, value, message) if {
 	# Skip checks first (fail fast)
 	contains(input.name, ".") # Must have at least one namespace
 	not is_template_type(input.name)
@@ -72,15 +72,15 @@ deny contains make_advice(key, advisory, value, message) if {
 	# Get the last match (most specific namespace)
 	value := matches[count(matches) - 1]
 
-	key := "extends_namespace"
-	advisory := "information"
+	advice_type := "extends_namespace"
+	advice_level := "information"
 	message := "Extends existing namespace"
 }
 
-make_advice(key, advisory, value, message) := {
+make_advice(advice_type, advice_level, value, message) := {
 	"type": "advice",
-	"key": key,
-	"advisory": advisory,
+	"advice_type": advice_type,
+	"advice_level": advice_level,
 	"value": value,
 	"message": message,
 }

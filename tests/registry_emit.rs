@@ -22,8 +22,8 @@ fn test_emit_with_live_check() {
         .args([
             "registry",
             "live-check",
-            "--ingester",
-            "ao",
+            "--input-source",
+            "otlp",
             "-r",
             "crates/weaver_emit/data",
             "--format",
@@ -78,11 +78,11 @@ fn test_emit_with_live_check() {
         serde_json::from_str(&live_check_report).expect("Failed to parse live check report JSON");
     /*
     "statistics": {
-        "advisory_counts": {
+        "advice_level_counts": {
             "improvement": 1,
             "information": 2
         },
-        "highest_advisory_counts": {
+        "highest_advice_level_counts": {
             "improvement": 1,
             "information": 2
         },

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use clap::Args;
 use include_dir::{include_dir, Dir};
 
-use weaver_checker::violation::Advisory;
+use weaver_checker::violation::AdviceLevel;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -21,9 +21,9 @@ use weaver_live_check::attribute_advice::{
 use weaver_live_check::attribute_file_ingester::AttributeFileIngester;
 use weaver_live_check::attribute_json_file_ingester::AttributeJsonFileIngester;
 use weaver_live_check::attribute_json_stdin_ingester::AttributeJsonStdinIngester;
-use weaver_live_check::attribute_live_check::{AttributeLiveChecker, LiveCheckStatistics};
+use weaver_live_check::attribute_live_check::AttributeLiveChecker;
 use weaver_live_check::attribute_stdin_ingester::AttributeStdinIngester;
-use weaver_live_check::{Error, Ingester};
+use weaver_live_check::{Error, Ingester, LiveCheckStatistics};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
@@ -35,27 +35,52 @@ use super::otlp::attribute_otlp_ingester::AttributeOtlpIngester;
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
     include_dir!("defaults/live_check_templates");
 
-/// The type of ingester to use
+/// The input source
 #[derive(Debug, Clone)]
-enum IngesterType {
-    AttributeFile,
-    AttributeStdin,
-    AttributeJsonFile,
-    AttributeJsonStdin,
-    AttributeOtlp,
-    GroupFile,
+enum InputSource {
+    File(PathBuf),
+    Stdin,
+    Otlp,
 }
 
-impl From<String> for IngesterType {
+impl From<String> for InputSource {
     fn from(s: String) -> Self {
-        match s.as_str() {
-            "attribute_file" | "AF" | "af" => IngesterType::AttributeFile,
-            "attribute_stdin" | "AS" | "as" => IngesterType::AttributeStdin,
-            "attribute_json_file" | "AJF" | "ajf" => IngesterType::AttributeJsonFile,
-            "attribute_json_stdin" | "AJS" | "ajs" => IngesterType::AttributeJsonStdin,
-            "attribute_otlp" | "AO" | "ao" => IngesterType::AttributeOtlp,
-            "group_file" | "GF" | "gf" => IngesterType::GroupFile,
-            _ => IngesterType::AttributeFile,
+        match s.to_lowercase().as_str() {
+            "stdin" | "s" => InputSource::Stdin,
+            "otlp" | "o" => InputSource::Otlp,
+            _ => InputSource::File(PathBuf::from(s)),
+        }
+    }
+}
+
+/// The input format
+#[derive(Debug, Clone)]
+enum InputFormat {
+    Text,
+    Json,
+}
+
+impl From<String> for InputFormat {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "json" | "js" => InputFormat::Json,
+            _ => InputFormat::Text,
+        }
+    }
+}
+
+/// The scope for the live check
+#[derive(Debug, Clone)]
+enum AdviceScope {
+    Attributes,
+    Signals,
+}
+
+impl From<String> for AdviceScope {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "signals" | "signal" | "s" => AdviceScope::Signals,
+            _ => AdviceScope::Attributes,
         }
     }
 }
@@ -75,20 +100,21 @@ pub struct RegistryLiveCheckArgs {
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
 
-    /// The path to the file containing sample telemetry data.
-    #[arg(short, long)]
-    input: Option<PathBuf>,
+    /// Where to read the input telemetry from. <file path> | stdin | otlp
+    #[arg(long, default_value = "stdin")]
+    input_source: InputSource,
 
-    /// Ingester type
+    /// The format of the input telemetry. (Not required for OTLP). text | json
+    #[arg(long, default_value = "text")]
+    input_format: InputFormat,
+
+    /// Whether to provide advice on attributes or whole signals. attributes | signals
     ///
-    /// - `attribute_file` or `AF` or `af` (default)
-    /// - `attribute_stdin` or `AS` or `as`
-    /// - `attribute_json_file` or `AJF` or `ajf`
-    /// - `attribute_json_stdin` or `AJS` or `ajs`
-    /// - `attribute_otlp` or `AO` or `ao`
-    #[clap(verbatim_doc_comment)]
-    #[arg(short = 'g', long)]
-    ingester: IngesterType,
+    /// If set to `signals`, the advice is provided on the whole signal (e.g. span, event, etc.)
+    /// If set to `attributes`, the advice is provided on each attribute.
+    /// The scope must be set to match what is present in the input as well as the desired output.
+    #[arg(long, default_value = "attributes")]
+    advice_scope: AdviceScope,
 
     /// Format used to render the report. Predefined formats are: ansi, json
     #[arg(long, default_value = "ansi")]
@@ -212,42 +238,30 @@ pub(crate) fn command(
 
     // Prepare the ingester
     let mut stream_mode = false;
-    let ingester = match args.ingester {
-        IngesterType::AttributeFile => {
-            let path = match &args.input {
-                Some(p) => Ok(p),
-                None => Err(Error::IngestError {
-                    error: "No input path provided".to_owned(),
-                }),
-            }?;
+    let ingester = match (&args.input_source, &args.input_format) {
+        (InputSource::File(path), InputFormat::Text) => {
             AttributeFileIngester::new(path).ingest(logger.clone())?
         }
 
-        IngesterType::AttributeStdin => {
+        (InputSource::Stdin, InputFormat::Text) => {
             if args.stream.is_none() {
                 stream_mode = true;
             }
             AttributeStdinIngester::new().ingest(logger.clone())?
         }
 
-        IngesterType::AttributeJsonFile => {
-            let path = match &args.input {
-                Some(p) => Ok(p),
-                None => Err(Error::IngestError {
-                    error: "No input path provided".to_owned(),
-                }),
-            }?;
+        (InputSource::File(path), InputFormat::Json) => {
             AttributeJsonFileIngester::new(path).ingest(logger.clone())?
         }
 
-        IngesterType::AttributeJsonStdin => {
+        (InputSource::Stdin, InputFormat::Json) => {
             if args.stream.is_none() {
                 stream_mode = true;
             }
             AttributeJsonStdinIngester::new().ingest(logger.clone())?
         }
 
-        IngesterType::AttributeOtlp => {
+        (InputSource::Otlp, _) => {
             if args.stream.is_none() {
                 stream_mode = true;
             }
@@ -258,12 +272,6 @@ pub(crate) fn command(
                 inactivity_timeout: args.inactivity_timeout,
             })
             .ingest(logger.clone())?
-        }
-
-        IngesterType::GroupFile => {
-            return Err(DiagnosticMessages::from(Error::OutputError {
-                error: "Invalid ingester type".to_owned(),
-            }))
         }
     };
 
@@ -279,7 +287,7 @@ pub(crate) fn command(
             let live_check_attribute = live_checker.create_live_check_attribute(&attribute);
             stats.update(&live_check_attribute);
             // Set the exit_code to a non-zero code if there are any violations
-            if let Some(Advisory::Violation) = live_check_attribute.highest_advisory {
+            if let Some(AdviceLevel::Violation) = live_check_attribute.highest_advice_level {
                 exit_code = 1;
             }
             engine

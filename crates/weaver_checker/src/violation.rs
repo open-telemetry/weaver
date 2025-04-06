@@ -42,15 +42,15 @@ impl Display for Violation {
                 )
             }
             Violation::Advice(Advice {
-                key,
+                advice_type: r#type,
                 value,
                 message,
-                advisory,
+                advice_level,
             }) => {
                 write!(
                     f,
-                    "key={}, value={}, message={}, advisory={:?}",
-                    key, value, message, advisory
+                    "type={}, value={}, message={}, advice_level={:?}",
+                    r#type, value, message, advice_level
                 )
             }
         }
@@ -63,15 +63,18 @@ impl Violation {
     pub fn id(&self) -> &str {
         match self {
             Violation::SemconvAttribute { id, .. } => id,
-            Violation::Advice(Advice { key, .. }) => key,
+            Violation::Advice(Advice {
+                advice_type: r#type,
+                ..
+            }) => r#type,
         }
     }
 }
 
-/// The advisory level of an advice
+/// The level of an advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
-pub enum Advisory {
+pub enum AdviceLevel {
     /// Useful context without action needed
     Information,
     /// Suggested change that would improve things
@@ -83,12 +86,12 @@ pub enum Advisory {
 /// Represents a live check advice
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Advice {
-    /// The key of the advice e.g. "is_deprecated"
-    pub key: String,
+    /// The type of advice e.g. "is_deprecated"
+    pub advice_type: String,
     /// The value of the advice e.g. "true"
     pub value: Value,
     /// The message of the advice e.g. "This attribute is deprecated"
     pub message: String,
-    /// The advisory of the advice e.g. "violation"
-    pub advisory: Advisory,
+    /// The level of the advice e.g. "violation"
+    pub advice_level: AdviceLevel,
 }

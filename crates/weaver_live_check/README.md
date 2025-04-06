@@ -48,15 +48,30 @@ flowchart LR
 
 ## Ingesters
 
-Sample data can have various levels of detail; from a simple list of attribute names, to a full OTLP signal structure. This data can come from different sources: files, stdin, OTLP. Therefore you need to choose the appropriate `Ingester` for your job:
+Sample data can have various levels of detail; from a simple list of attribute names, to a full OTLP signal structure. This data can come from different sources: files, stdin, OTLP. Therefore you need to choose the appropriate `Ingester` for your job by setting three parameters: `--input-source`, `--input-format`, `--advice-scope`
 
-- `attribute_file | AF | af` => for attribute name or name=value pair text files
-- `attribute_stdin | AS | as` => for attribute name or name=value pairs on stdin
-- `attribute_json_file | AJF | ajf` => for an array of attribute samples in a json file
-- `attribute_json_stdin | AJS | ajs` => for an array of attribute samples in json on stdin
-- `attribute_otlp | AO | ao` => for attributes extracted from OTLP signals
+| Input Source   | Input Format | Advice Scope | Outcome                                                 |
+| -------------- | ------------ | ------------ | ------------------------------------------------------- |
+| &lt;file path> | `text`       | `attributes` | Text file with attribute names or name=value pairs      |
+| `stdin`        | `text`       | `attributes` | Standard input with attribute names or name=value pairs |
+| &lt;file path> | `json`       | `attributes` | JSON file with an array of attribute samples            |
+| `stdin`        | `json`       | `attributes` | Standard input with JSON array of attribute samples     |
+| `otlp`         | N/A          | `attributes` | OTLP signals with extracted attributes                  |
 
-Some `Ingesters`, like `attribute_stdin` and `attribute_otlp`, can stream the input data so you receive output at the command line as it comes in. This is really useful in live debugging sessions allowing you to breakpoint, step through your code and see live assessment as the data is received in Weaver.
+Some `Ingesters`, like `stdin` and `otlp`, can stream the input data so you receive output at the command line as it comes in. This is really useful in live debugging sessions allowing you to breakpoint, step through your code and see live assessment as the data is received in Weaver.
+
+### OTLP
+
+OTLP live-check is particularly useful in CI/CD pipelines to evaluate the quality of instrumentation observed from all unit tests, integration tests and so on.
+
+This `Ingester` starts an OTLP listener and streams each received OTLP message to the `Advisors`. The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop endpoint, and a maximum duration of no OTLP message reception. See the usage examples later in this document.
+
+Options for OTLP ingest:
+
+- `--otlp-grpc-address`: Address used by the gRPC OTLP listener
+- `--otlp-grpc-port`: Port used by the gRPC OTLP listener
+- `--admin-port`: Port used by the HTTP admin port (endpoints: /stop)
+- `--inactivity-timeout`: Max inactivity time in seconds before stopping the listener
 
 ## Advisors
 
@@ -68,8 +83,8 @@ Beyond the fundamentals, external `Advisors` can be defined in Rego policies. Th
 
 As mentioned, a list of `Advice` is returned in the report for each sample entity. The snippet below shows `Advice` from two `Advisors`. A builtin is providing `missing_attribute` and a default Otel Rego policy is providing `extends_namespace`. The fields of `Advice` are intended to be used like so:
 
-- `advisory`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
-- `key`: _string_ - a simple machine readable string key to represent the advice type
+- `advice_level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
+- `advice_type`: _string_ - a simple machine readable string to represent the advice type
 - `message`: _string_ - a verbose string describing the advice
 - `value`: _any_ - a pertinent entity associated with the advice
 
@@ -77,19 +92,19 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 {
   "all_advice": [
     {
-      "advisory": "violation",
-      "key": "missing_attribute",
+      "advice_level": "violation",
+      "advice_type": "missing_attribute",
       "message": "Does not exist in the registry",
       "value": "aws.s3.extension.name"
     },
     {
-      "advisory": "information",
-      "key": "extends_namespace",
+      "advice_level": "information",
+      "advice_type": "extends_namespace",
       "message": "Extends existing namespace",
       "value": "aws.s3"
     }
   ],
-  "highest_advisory": "violation",
+  "highest_advice_level": "violation",
   "sample_attribute": {
     "name": "aws.s3.extension.name",
     "type": "string",
@@ -100,26 +115,26 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 
 ### Custom advisors
 
-Use the `--advice-policies` command line option to provide a path to a directory containing Rego policies with the `advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
+Use the `--advice-policies` command line option to provide a path to a directory containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
 
 ```rego
-package advice
+package live_check_advice
 
 import rego.v1
 
 # checks attribute name contains the word "test"
-deny contains make_advice(key, advisory, value, message) if {
+deny contains make_advice(advice_type, advice_level, value, message) if {
 	contains(input.name, "test")
-	key := "contains_test"
-	advisory := "violation"
+	advice_type := "contains_test"
+	advice_level := "violation"
 	value := input.name
 	message := "Name must not contain 'test'"
 }
 
-make_advice(key, advisory, value, message) := {
+make_advice(advice_type, advice_level, value, message) := {
 	"type": "advice",
-	"key": key,
-	"advisory": advisory,
+	"advice_type": advice_type,
+	"advice_level": advice_level,
 	"value": value,
 	"message": message,
 }
@@ -145,7 +160,7 @@ A statistics entity is produced when the input is closed like this snippet:
 
 ```json
 {
-  "advice_key_counts": {
+  "advice_type_counts": {
     "extends_namespace": 2,
     "illegal_namespace": 1,
     "invalid_format": 1,
@@ -154,12 +169,12 @@ A statistics entity is produced when the input is closed like this snippet:
     "stability": 1,
     "type_mismatch": 1
   },
-  "advisory_counts": {
+  "advice_level_counts": {
     "improvement": 2,
     "information": 2,
     "violation": 7
   },
-  "highest_advisory_counts": {
+  "highest_advice_level_counts": {
     "improvement": 1,
     "violation": 5
   },
@@ -176,19 +191,19 @@ This could be parsed for a more sophisticated way to determine pass/fail in CI f
 Pipe a list of attribute names or name=value pairs
 
 ```sh
-cat attributes.txt | weaver registry live-check --ingester as
+cat attributes.txt | weaver registry live-check
 ```
 
 Or a redirect
 
 ```sh
-weaver registry live-check --ingester as < attributes.txt
+weaver registry live-check < attributes.txt
 ```
 
 Or a here-doc
 
 ```sh
-weaver registry live-check --ingester as << EOF
+weaver registry live-check << EOF
 code.function
 thing.blah
 EOF
@@ -197,14 +212,14 @@ EOF
 Or enter text at the prompt, an empty line will exit
 
 ```sh
-weaver registry live-check --ingester as
+weaver registry live-check
 code.line.number=42
 ```
 
 Using `emit` for a round-trip test:
 
 ```sh
-weaver registry live-check --ingester ao -r ../semantic-conventions/model --output ./outdir &
+weaver registry live-check --input-source otlp -r ../semantic-conventions/model --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
 weaver registry emit -r ../semantic-conventions/model --skip-policies
@@ -217,19 +232,19 @@ Vendor example: Live check column names in a Honeycomb dataset
 ```sh
 curl -s -X GET 'https://api.honeycomb.io/1/columns/{dataset}' -H 'X-Honeycomb-Team: {API_KEY}' \
 | jq -r '.[].key_name' \
-| weaver registry live-check --ingester as -r ../semantic-conventions/model
+| weaver registry live-check -r ../semantic-conventions/model
 ```
 
 Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
 
 ```sh
-weaver registry live-check --ingester ao -r ../semantic-conventions/model --inactivity-timeout 120
+weaver registry live-check --input-source otlp -r ../semantic-conventions/model --inactivity-timeout 120
 ```
 
 CI/CD - create a JSON report
 
 ```sh
-weaver registry live-check --ingester ao -r ../semantic-conventions/model --format json --output ./outdir &
+weaver registry live-check --input-source otlp -r ../semantic-conventions/model --format json --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
 # Run the code under test here.

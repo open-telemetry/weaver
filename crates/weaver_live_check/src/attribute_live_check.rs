@@ -5,13 +5,16 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use weaver_checker::violation::{Advice, Advisory};
+use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::AttributeType;
 
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
-use crate::{attribute_advice::Advisor, sample::SampleAttribute};
+use crate::{
+    attribute_advice::Advisor, sample::SampleAttribute, LiveCheckAttribute, LiveCheckReport,
+    LiveCheckStatistics,
+};
 
 /// Provides advice for telemetry samples
 #[derive(Serialize)]
@@ -95,20 +98,20 @@ impl AttributeLiveChecker {
 
         if semconv_attribute.is_none() {
             attribute_result.add_advice(Advice {
-                key: "missing_attribute".to_owned(),
+                advice_type: "missing_attribute".to_owned(),
                 value: Value::String(sample_attribute.name.clone()),
                 message: "Does not exist in the registry".to_owned(),
-                advisory: Advisory::Violation,
+                advice_level: AdviceLevel::Violation,
             });
         } else {
             // Provide an info advice if the attribute is a template
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     attribute_result.add_advice(Advice {
-                        key: "template_attribute".to_owned(),
+                        advice_type: "template_attribute".to_owned(),
                         value: Value::String(attribute.name.clone()),
                         message: "Is a template".to_owned(),
-                        advisory: Advisory::Information,
+                        advice_level: AdviceLevel::Information,
                     });
                 }
             }
@@ -142,137 +145,6 @@ impl AttributeLiveChecker {
             live_check_report.attributes.push(attribute_result);
         }
         live_check_report
-    }
-}
-
-/// Represents a live check attribute parsed from any source
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LiveCheckAttribute {
-    /// The sample attribute
-    pub sample_attribute: SampleAttribute,
-    /// Advice on the attribute
-    pub all_advice: Vec<Advice>,
-    /// The highest advisory level
-    pub highest_advisory: Option<Advisory>,
-}
-
-impl LiveCheckAttribute {
-    /// Create a new LiveCheckAttribute
-    #[must_use]
-    pub fn new(sample_attribute: SampleAttribute) -> Self {
-        LiveCheckAttribute {
-            sample_attribute,
-            all_advice: Vec::new(),
-            highest_advisory: None,
-        }
-    }
-
-    /// Add an advice to the attribute and update the highest advisory level
-    pub fn add_advice(&mut self, advice: Advice) {
-        let advisory = advice.advisory.clone();
-        if let Some(previous_highest) = &self.highest_advisory {
-            if previous_highest < &advisory {
-                self.highest_advisory = Some(advisory);
-            }
-        } else {
-            self.highest_advisory = Some(advisory);
-        }
-        self.all_advice.push(advice);
-    }
-}
-
-/// A live check report for a set of attributes
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LiveCheckReport {
-    /// The live check attributes
-    pub attributes: Vec<LiveCheckAttribute>,
-    /// The statistics for the report
-    pub statistics: LiveCheckStatistics,
-}
-
-impl LiveCheckReport {
-    /// Return true if there are any violations in the report
-    #[must_use]
-    pub fn has_violations(&self) -> bool {
-        self.statistics
-            .highest_advisory_counts
-            .contains_key(&Advisory::Violation)
-    }
-}
-
-/// The statistics for a live check report
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LiveCheckStatistics {
-    /// The total number of attributes
-    pub total_attributes: usize,
-    /// The total number of advisories
-    pub total_advisories: usize,
-    /// The number of each advisory level
-    pub advisory_counts: HashMap<Advisory, usize>,
-    /// The number of attributes with each highest advisory level
-    pub highest_advisory_counts: HashMap<Advisory, usize>,
-    /// The number of attributes with no advice
-    pub no_advice_count: usize,
-    /// The number of attributes with each advice key
-    pub advice_key_counts: HashMap<String, usize>,
-}
-
-impl Default for LiveCheckStatistics {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl LiveCheckStatistics {
-    /// Create a new empty LiveCheckStatistics
-    #[must_use]
-    pub fn new() -> Self {
-        LiveCheckStatistics {
-            total_attributes: 0,
-            total_advisories: 0,
-            advisory_counts: HashMap::new(),
-            highest_advisory_counts: HashMap::new(),
-            no_advice_count: 0,
-            advice_key_counts: HashMap::new(),
-        }
-    }
-
-    /// Update statistics based on a live check attribute
-    pub fn update(&mut self, attribute_result: &LiveCheckAttribute) {
-        self.total_attributes += 1;
-
-        // Count of advisories by type
-        for advice in &attribute_result.all_advice {
-            // Count of total advisories
-            self.total_advisories += 1;
-
-            let advisory_count = self
-                .advisory_counts
-                .entry(advice.advisory.clone())
-                .or_insert(0);
-            *advisory_count += 1;
-
-            // Count of advisories by key
-            let advice_key_count = self
-                .advice_key_counts
-                .entry(advice.key.clone())
-                .or_insert(0);
-            *advice_key_count += 1;
-        }
-
-        // Count of attributes with the highest advisory level
-        if let Some(highest_advisory) = &attribute_result.highest_advisory {
-            let highest_advisory_count = self
-                .highest_advisory_counts
-                .entry(highest_advisory.clone())
-                .or_insert(0);
-            *highest_advisory_count += 1;
-        }
-
-        // Count of attributes with no advice
-        if attribute_result.all_advice.is_empty() {
-            self.no_advice_count += 1;
-        }
     }
 }
 
@@ -459,8 +331,10 @@ mod tests {
 
         assert_eq!(results[1].all_advice.len(), 3);
         // make a sort of the advice
-        results[1].all_advice.sort_by(|a, b| a.key.cmp(&b.key));
-        assert_eq!(results[1].all_advice[0].key, "invalid_format");
+        results[1]
+            .all_advice
+            .sort_by(|a, b| a.advice_type.cmp(&b.advice_type));
+        assert_eq!(results[1].all_advice[0].advice_type, "invalid_format");
         assert_eq!(
             results[1].all_advice[0].value,
             Value::String("testString2".to_owned())
@@ -469,7 +343,7 @@ mod tests {
             results[1].all_advice[0].message,
             "Does not match name formatting rules"
         );
-        assert_eq!(results[1].all_advice[1].key, "missing_attribute");
+        assert_eq!(results[1].all_advice[1].advice_type, "missing_attribute");
         assert_eq!(
             results[1].all_advice[1].value,
             Value::String("testString2".to_owned())
@@ -478,7 +352,7 @@ mod tests {
             results[1].all_advice[1].message,
             "Does not exist in the registry"
         );
-        assert_eq!(results[1].all_advice[2].key, "missing_namespace");
+        assert_eq!(results[1].all_advice[2].advice_type, "missing_namespace");
         assert_eq!(
             results[1].all_advice[2].value,
             Value::String("testString2".to_owned())
@@ -489,31 +363,34 @@ mod tests {
         );
 
         assert_eq!(results[2].all_advice.len(), 3);
-        assert_eq!(results[2].all_advice[0].key, "deprecated");
+        assert_eq!(results[2].all_advice[0].advice_type, "deprecated");
         assert_eq!(
             results[2].all_advice[0].value,
             Value::String("uncategorized".to_owned())
         );
         assert_eq!(results[2].all_advice[0].message, "note");
 
-        assert_eq!(results[2].all_advice[1].key, "stability");
+        assert_eq!(results[2].all_advice[1].advice_type, "stability");
         assert_eq!(
             results[2].all_advice[1].value,
             Value::String("development".to_owned())
         );
         assert_eq!(results[2].all_advice[1].message, "Is not stable");
 
-        assert_eq!(results[2].all_advice[2].key, "type_mismatch");
+        assert_eq!(results[2].all_advice[2].advice_type, "type_mismatch");
         assert_eq!(
             results[2].all_advice[2].value,
             Value::String("int".to_owned())
         );
         assert_eq!(results[2].all_advice[2].message, "Type should be `string`");
 
-        assert_eq!(results[2].highest_advisory, Some(Advisory::Violation));
+        assert_eq!(
+            results[2].highest_advice_level,
+            Some(AdviceLevel::Violation)
+        );
 
         assert_eq!(results[3].all_advice.len(), 1);
-        assert_eq!(results[3].all_advice[0].key, "missing_attribute");
+        assert_eq!(results[3].all_advice[0].advice_type, "missing_attribute");
         assert_eq!(
             results[3].all_advice[0].value,
             Value::String("aws.s3.bucket.name".to_owned())
@@ -524,16 +401,19 @@ mod tests {
         );
 
         assert_eq!(results[4].all_advice.len(), 1);
-        assert_eq!(results[4].all_advice[0].key, "undefined_enum_variant");
+        assert_eq!(results[4].all_advice[0].advice_type, "undefined_enum_variant");
         assert_eq!(
             results[4].all_advice[0].value,
             Value::String("foo".to_owned())
         );
         assert_eq!(results[4].all_advice[0].message, "Is not a defined variant");
-        assert_eq!(results[4].highest_advisory, Some(Advisory::Information));
+        assert_eq!(
+            results[4].highest_advice_level,
+            Some(AdviceLevel::Information)
+        );
 
         assert_eq!(results[6].all_advice.len(), 1);
-        assert_eq!(results[6].all_advice[0].key, "type_mismatch");
+        assert_eq!(results[6].all_advice[0].advice_type, "type_mismatch");
         assert_eq!(
             results[6].all_advice[0].value,
             Value::String("double".to_owned())
@@ -544,10 +424,12 @@ mod tests {
         );
 
         // Make a sort of the advice
-        results[7].all_advice.sort_by(|a, b| a.key.cmp(&b.key));
+        results[7]
+            .all_advice
+            .sort_by(|a, b| a.advice_type.cmp(&b.advice_type));
         assert_eq!(results[7].all_advice.len(), 3);
 
-        assert_eq!(results[7].all_advice[0].key, "extends_namespace");
+        assert_eq!(results[7].all_advice[0].advice_type, "extends_namespace");
         assert_eq!(
             results[7].all_advice[0].value,
             Value::String("test".to_owned())
@@ -556,7 +438,7 @@ mod tests {
             results[7].all_advice[0].message,
             "Extends existing namespace"
         );
-        assert_eq!(results[7].all_advice[1].key, "illegal_namespace");
+        assert_eq!(results[7].all_advice[1].advice_type, "illegal_namespace");
         assert_eq!(
             results[7].all_advice[1].value,
             Value::String("test.string".to_owned())
@@ -565,7 +447,7 @@ mod tests {
             results[7].all_advice[1].message,
             "Namespace matches existing attribute"
         );
-        assert_eq!(results[7].all_advice[2].key, "missing_attribute");
+        assert_eq!(results[7].all_advice[2].advice_type, "missing_attribute");
         assert_eq!(
             results[7].all_advice[2].value,
             Value::String("test.string.not.allowed".to_owned())
@@ -576,7 +458,7 @@ mod tests {
         );
 
         assert_eq!(results[8].all_advice.len(), 2);
-        assert_eq!(results[8].all_advice[0].key, "missing_attribute");
+        assert_eq!(results[8].all_advice[0].advice_type, "missing_attribute");
         assert_eq!(
             results[8].all_advice[0].value,
             Value::String("test.extends".to_owned())
@@ -585,7 +467,7 @@ mod tests {
             results[8].all_advice[0].message,
             "Does not exist in the registry"
         );
-        assert_eq!(results[8].all_advice[1].key, "extends_namespace");
+        assert_eq!(results[8].all_advice[1].advice_type, "extends_namespace");
         assert_eq!(
             results[8].all_advice[1].value,
             Value::String("test".to_owned())
@@ -597,13 +479,13 @@ mod tests {
 
         // test.template
         assert_eq!(results[9].all_advice.len(), 2);
-        assert_eq!(results[9].all_advice[0].key, "template_attribute");
+        assert_eq!(results[9].all_advice[0].advice_type, "template_attribute");
         assert_eq!(
             results[9].all_advice[0].value,
             Value::String("test.template".to_owned())
         );
         assert_eq!(results[9].all_advice[0].message, "Is a template");
-        assert_eq!(results[9].all_advice[1].key, "type_mismatch");
+        assert_eq!(results[9].all_advice[1].advice_type, "type_mismatch");
         assert_eq!(
             results[9].all_advice[1].value,
             Value::String("int".to_owned())
@@ -614,13 +496,19 @@ mod tests {
         let stats = report.statistics;
         assert_eq!(stats.total_attributes, 10);
         assert_eq!(stats.total_advisories, 16);
-        assert_eq!(stats.advisory_counts.len(), 3);
-        assert_eq!(stats.advisory_counts[&Advisory::Violation], 10);
-        assert_eq!(stats.advisory_counts[&Advisory::Information], 4);
-        assert_eq!(stats.advisory_counts[&Advisory::Improvement], 2);
-        assert_eq!(stats.highest_advisory_counts.len(), 2);
-        assert_eq!(stats.highest_advisory_counts[&Advisory::Violation], 7);
-        assert_eq!(stats.highest_advisory_counts[&Advisory::Information], 1);
+        assert_eq!(stats.advice_level_counts.len(), 3);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 10);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 4);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Improvement], 2);
+        assert_eq!(stats.highest_advice_level_counts.len(), 2);
+        assert_eq!(
+            stats.highest_advice_level_counts[&AdviceLevel::Violation],
+            7
+        );
+        assert_eq!(
+            stats.highest_advice_level_counts[&AdviceLevel::Information],
+            1
+        );
         assert_eq!(stats.no_advice_count, 2);
     }
 
@@ -680,7 +568,7 @@ mod tests {
         let mut live_checker = AttributeLiveChecker::new(registry, advisors);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
-            &Some("data/policies/advice/".into()),
+            &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
         )
         .expect("Failed to create Rego advisor");
@@ -695,7 +583,7 @@ mod tests {
 
         assert_eq!(results[1].all_advice.len(), 2);
 
-        assert_eq!(results[1].all_advice[0].key, "missing_attribute");
+        assert_eq!(results[1].all_advice[0].advice_type, "missing_attribute");
         assert_eq!(
             results[1].all_advice[0].value,
             Value::String("test.string".to_owned())
@@ -704,7 +592,7 @@ mod tests {
             results[1].all_advice[0].message,
             "Does not exist in the registry"
         );
-        assert_eq!(results[1].all_advice[1].key, "contains_test");
+        assert_eq!(results[1].all_advice[1].advice_type, "contains_test");
         assert_eq!(
             results[1].all_advice[1].value,
             Value::String("test.string".to_owned())
@@ -718,10 +606,13 @@ mod tests {
         let stats = report.statistics;
         assert_eq!(stats.total_attributes, 2);
         assert_eq!(stats.total_advisories, 2);
-        assert_eq!(stats.advisory_counts.len(), 1);
-        assert_eq!(stats.advisory_counts[&Advisory::Violation], 2);
-        assert_eq!(stats.highest_advisory_counts.len(), 1);
-        assert_eq!(stats.highest_advisory_counts[&Advisory::Violation], 1);
+        assert_eq!(stats.advice_level_counts.len(), 1);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 2);
+        assert_eq!(stats.highest_advice_level_counts.len(), 1);
+        assert_eq!(
+            stats.highest_advice_level_counts[&AdviceLevel::Violation],
+            1
+        );
         assert_eq!(stats.no_advice_count, 1);
     }
 }
