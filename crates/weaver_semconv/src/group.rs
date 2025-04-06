@@ -1860,8 +1860,7 @@ mod tests {
             Err(InvalidGroup {
                 path_or_url: "<test>".to_owned(),
                 group_id: "test".to_owned(),
-                error: "Group with entity_associations cannot have type: AttributeGroup"
-                    .to_owned(),
+                error: "Group with entity_associations cannot have type: AttributeGroup".to_owned(),
             }),
             result
         );
