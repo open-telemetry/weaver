@@ -94,6 +94,11 @@ pub struct GroupSpec {
     pub body: Option<AnyValueSpec>,
     /// Annotations for the group.
     pub annotations: Option<HashMap<String, YamlValue>>,
+    /// Which resources this group should be associated with.
+    /// Note: this is only viable for span, metric and event groups.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
 }
 
 impl GroupSpec {
@@ -379,6 +384,18 @@ impl GroupSpec {
             }
         }
 
+        // Ensure entity associations show up on the right groups.
+        if !self.entity_associations.is_empty() {
+            match &self.r#type {
+                GroupType::Event | GroupType::Metric | GroupType::Span => (), // Everything is fine.
+                t => errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    error: format!("Group with entity_associations cannot have type: {:?}", t),
+                }),
+            }
+        }
+
         WResult::with_non_fatal_errors((), errors)
     }
 }
@@ -624,6 +641,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -770,6 +788,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1002,6 +1021,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1072,6 +1092,7 @@ mod tests {
                 },
             }),
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1286,6 +1307,7 @@ mod tests {
                 },
             }),
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1427,6 +1449,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1595,6 +1618,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
 
         // Attribute Group must have extends or attributes.
@@ -1744,6 +1768,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
 
         // Check group with duplicate attributes.
