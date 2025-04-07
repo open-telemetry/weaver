@@ -100,7 +100,7 @@ pub struct RegistryLiveCheckArgs {
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
 
-    /// Where to read the input telemetry from. <file path> | stdin | otlp
+    /// Where to read the input telemetry from. {file path} | stdin | otlp
     #[arg(long, default_value = "stdin")]
     input_source: InputSource,
 
