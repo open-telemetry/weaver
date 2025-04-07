@@ -173,6 +173,7 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                entity_associations: vec![],
             }],
         };
 
