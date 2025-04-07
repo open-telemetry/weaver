@@ -94,6 +94,11 @@ pub struct GroupSpec {
     pub body: Option<AnyValueSpec>,
     /// Annotations for the group.
     pub annotations: Option<HashMap<String, YamlValue>>,
+    /// Which resources this group should be associated with.
+    /// Note: this is only viable for span, metric and event groups.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
 }
 
 impl GroupSpec {
@@ -379,6 +384,19 @@ impl GroupSpec {
             }
         }
 
+        // Ensure entity associations show up on the right groups.
+        if !self.entity_associations.is_empty() {
+            match &self.r#type {
+                GroupType::Event | GroupType::Metric | GroupType::Span => (), // Everything is fine.
+                t => errors.push(Error::InvalidGroup {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: self.id.clone(),
+                    // TODO - use JSON/YAML friendly render of t.
+                    error: format!("Group with entity_associations cannot have type: {:?}", t),
+                }),
+            }
+        }
+
         WResult::with_non_fatal_errors((), errors)
     }
 }
@@ -624,6 +642,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -770,6 +789,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1002,6 +1022,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1072,6 +1093,7 @@ mod tests {
                 },
             }),
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1286,6 +1308,7 @@ mod tests {
                 },
             }),
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1427,6 +1450,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
         assert!(group
             .validate("<test>")
@@ -1595,6 +1619,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
 
         // Attribute Group must have extends or attributes.
@@ -1744,6 +1769,7 @@ mod tests {
             display_name: None,
             body: None,
             annotations: None,
+            entity_associations: Vec::new(),
         };
 
         // Check group with duplicate attributes.
@@ -1765,6 +1791,79 @@ mod tests {
         assert_eq!(Gauge.to_string(), "gauge");
         assert_eq!(Histogram.to_string(), "histogram");
         assert_eq!(UpDownCounter.to_string(), "updowncounter");
+    }
+
+    #[test]
+    fn test_validate_entity_associations() {
+        let mut group = GroupSpec {
+            id: "test".to_owned(),
+            r#type: GroupType::Metric,
+            brief: "test".to_owned(),
+            note: "test".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: Some(Stability::Stable),
+            deprecated: None,
+            attributes: vec![AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: None,
+                stability: Some(Stability::Development),
+                deprecated: Some(Deprecated::Obsoleted {
+                    note: "".to_owned(),
+                }),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                annotations: None,
+            }],
+            span_kind: None,
+            events: vec![],
+            metric_name: Some("metric".to_owned()),
+            instrument: Some(Gauge),
+            unit: Some("{thing}".to_owned()),
+            name: None,
+            display_name: None,
+            body: None,
+            annotations: None,
+            entity_associations: vec!["test".to_owned()],
+        };
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+
+        // Span should allow associations.
+        group.r#type = GroupType::Span;
+        group.metric_name = None;
+        group.instrument = None;
+        group.unit = None;
+        group.span_kind = Some(SpanKindSpec::Client);
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        // Event should allow associations.
+        group.r#type = GroupType::Event;
+        group.span_kind = None;
+        group.name = Some("event".to_owned());
+        assert!(group
+            .validate("<test>")
+            .into_result_failing_non_fatal()
+            .is_ok());
+        // All other types should not allow associations
+        group.r#type = GroupType::AttributeGroup;
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(InvalidGroup {
+                path_or_url: "<test>".to_owned(),
+                group_id: "test".to_owned(),
+                error: "Group with entity_associations cannot have type: AttributeGroup".to_owned(),
+            }),
+            result
+        );
     }
 }
 

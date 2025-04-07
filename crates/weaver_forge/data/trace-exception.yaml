@@ -15,3 +15,5 @@ groups:
           conditionally_required: Required if `exception.type` is not set, recommended otherwise.
       - ref: exception.stacktrace
       - ref: exception.escaped
+    entity_associations:
+      - service

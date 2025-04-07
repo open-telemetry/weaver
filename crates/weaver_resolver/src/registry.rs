@@ -292,6 +292,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             display_name: group.spec.display_name,
             body: group.spec.body,
             annotations: group.spec.annotations,
+            entity_associations: group.spec.entity_associations,
         },
         attributes: attrs,
         provenance: group.provenance,

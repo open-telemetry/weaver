@@ -36,6 +36,8 @@ groups:
     instrument: updowncounter
     unit: "By"
     stability: stable
+    entity_associations:
+      - service
 
   - id: metric.jvm.memory.committed
     type: metric
