@@ -124,12 +124,12 @@ pub struct RegistryLiveCheckArgs {
     #[arg(long, default_value = "live_check_templates")]
     templates: PathBuf,
 
-    /// Stream mode. Set to false to disable streaming output.
+    /// Disable stream mode. Use this flag to disable streaming output.
     ///
     /// When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP),
     /// by default output the live check results for each entity as they are ingested.
-    #[arg(long)]
-    stream: Option<bool>,
+    #[arg(long, default_value = "false")]
+    no_stream: bool,
 
     /// Path to the directory where the generated artifacts will be saved.
     /// If not specified, the report is printed to stdout.
@@ -165,6 +165,15 @@ pub struct RegistryLiveCheckArgs {
     advice_preprocessor: Option<PathBuf>,
 }
 
+fn default_advisors() -> Vec<Box<dyn Advisor>> {
+    vec![
+        Box::new(DeprecatedAdvisor),
+        Box::new(StabilityAdvisor),
+        Box::new(TypeAdvisor),
+        Box::new(EnumAdvisor),
+    ]
+}
+
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
@@ -196,14 +205,7 @@ pub(crate) fn command(
     ));
 
     // Create the live checker with advisors
-    let advisors: Vec<Box<dyn Advisor>> = vec![
-        Box::new(DeprecatedAdvisor),
-        Box::new(StabilityAdvisor),
-        Box::new(TypeAdvisor),
-        Box::new(EnumAdvisor),
-    ];
-
-    let mut live_checker = AttributeLiveChecker::new(registry, advisors);
+    let mut live_checker = AttributeLiveChecker::new(registry, default_advisors());
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
@@ -237,16 +239,12 @@ pub(crate) fn command(
     let engine = TemplateEngine::new(config, loader, Params::default());
 
     // Prepare the ingester
-    let mut stream_mode = false;
     let ingester = match (&args.input_source, &args.input_format) {
         (InputSource::File(path), InputFormat::Text) => {
             AttributeFileIngester::new(path).ingest(logger.clone())?
         }
 
         (InputSource::Stdin, InputFormat::Text) => {
-            if args.stream.is_none() {
-                stream_mode = true;
-            }
             AttributeStdinIngester::new().ingest(logger.clone())?
         }
 
@@ -255,31 +253,25 @@ pub(crate) fn command(
         }
 
         (InputSource::Stdin, InputFormat::Json) => {
-            if args.stream.is_none() {
-                stream_mode = true;
-            }
             AttributeJsonStdinIngester::new().ingest(logger.clone())?
         }
 
-        (InputSource::Otlp, _) => {
-            if args.stream.is_none() {
-                stream_mode = true;
-            }
-            (AttributeOtlpIngester {
-                otlp_grpc_address: args.otlp_grpc_address.clone(),
-                otlp_grpc_port: args.otlp_grpc_port,
-                admin_port: args.admin_port,
-                inactivity_timeout: args.inactivity_timeout,
-            })
-            .ingest(logger.clone())?
-        }
+        (InputSource::Otlp, _) => (AttributeOtlpIngester {
+            otlp_grpc_address: args.otlp_grpc_address.clone(),
+            otlp_grpc_port: args.otlp_grpc_port,
+            admin_port: args.admin_port,
+            inactivity_timeout: args.inactivity_timeout,
+        })
+        .ingest(logger.clone())?,
     };
 
     // If this is a stream - process the attributes one by one
     // File output is not supported in stream mode
-    if let OutputDirective::File = output_directive {
-        stream_mode = false;
-    }
+    let stream_mode = if let OutputDirective::File = output_directive {
+        false
+    } else {
+        !args.no_stream
+    };
 
     if stream_mode {
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);

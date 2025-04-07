@@ -96,12 +96,6 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
       "advice_type": "missing_attribute",
       "message": "Does not exist in the registry",
       "value": "aws.s3.extension.name"
-    },
-    {
-      "advice_level": "information",
-      "advice_type": "extends_namespace",
-      "message": "Extends existing namespace",
-      "value": "aws.s3"
     }
   ],
   "highest_advice_level": "violation",
@@ -140,7 +134,7 @@ make_advice(advice_type, advice_level, value, message) := {
 }
 ```
 
-`input` contains the sample entity for assessment. `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream. Preprocessing for the default otel policies lead to a ~10x speed-up.
+`input` contains the sample entity for assessment. `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
@@ -148,7 +142,7 @@ To override the default Otel jq preprocessor provide a path to the jq file throu
 
 The output follows existing Weaver paradigms providing overridable jinja template based processing.
 
-Out-of-the-box the output is streamed (when available) to templates providing `ansi` (default) or `json` output via the `--format` option. To override streaming and only produce a report when the input is closed, use `--stream false`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
+Out-of-the-box the output is streamed (when available) to templates providing `ansi` (default) or `json` output via the `--format` option. To override streaming and only produce a report when the input is closed, use `--no-stream`. Streaming is automatically disabled if your `--output` is a path to a directory; by default, output is printed to stdout.
 
 To provide your own custom templates use the `--templates` option.
 

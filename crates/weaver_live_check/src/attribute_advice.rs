@@ -23,6 +23,10 @@ use crate::{attribute_live_check::AttributeLiveChecker, sample::SampleAttribute,
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
     include_str!("../../../defaults/policies/live_check_advice/otel.rego");
 
+/// Default live check rego policy path - used in error messages
+pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
+    "defaults/policies/live_check_advice/otel.rego";
+
 /// Embedded default live check jq preprocessor
 pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
@@ -231,10 +235,7 @@ impl RegoAdvisor {
                 })?;
         } else {
             let _ = engine
-                .add_policy(
-                    "defaults/policies/advice/otel.rego",
-                    DEFAULT_LIVE_CHECK_REGO,
-                )
+                .add_policy(DEFAULT_LIVE_CHECK_REGO_POLICY_PATH, DEFAULT_LIVE_CHECK_REGO)
                 .map_err(|e| Error::AdviceError {
                     error: e.to_string(),
                 })?;
