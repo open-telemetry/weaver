@@ -103,6 +103,10 @@ pub struct ResolvedGroup {
     /// The body specification used for event semantic conventions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// The associated entities of this group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
 }
 
 impl ResolvedGroup {
@@ -155,6 +159,7 @@ impl ResolvedGroup {
             lineage,
             display_name: group.display_name.clone(),
             body: group.body.clone(),
+            entity_associations: group.entity_associations.clone(),
         })
     }
 }
@@ -214,6 +219,7 @@ impl ResolvedRegistry {
                     lineage,
                     display_name: group.display_name.clone(),
                     body: group.body.clone(),
+                    entity_associations: group.entity_associations.clone(),
                 }
             })
             .collect();

@@ -129,6 +129,11 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<HashMap<String, YamlValue>>,
+    /// Which resources this group should be associated with.
+    /// Note: this is only viable for span, metric and event groups.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
 }
 
 /// Common statistics for a group.
