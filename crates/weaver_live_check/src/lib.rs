@@ -164,9 +164,9 @@ impl LiveCheckStatistics {
         let mut seen_attributes = HashMap::new();
         for group in &registry.groups {
             for attribute in &group.attributes {
-                // Initialize the seen attributes with the attribute name
-                let attribute_name = attribute.name.clone();
-                let _ = seen_attributes.insert(attribute_name, 0);
+                if attribute.deprecated.is_none() {
+                    let _ = seen_attributes.insert(attribute.name.clone(), 0);
+                }
             }
         }
         LiveCheckStatistics {

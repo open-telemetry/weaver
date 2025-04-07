@@ -524,9 +524,9 @@ mod tests {
             1
         );
         assert_eq!(stats.no_advice_count, 2);
-        assert_eq!(stats.seen_registry_attributes.len(), 4);
+        assert_eq!(stats.seen_registry_attributes.len(), 3);
         assert_eq!(stats.seen_registry_attributes["test.enum"], 3);
-        assert_eq!(stats.seen_non_registry_attributes.len(), 4);
+        assert_eq!(stats.seen_non_registry_attributes.len(), 5);
         assert_eq!(stats.registry_coverage, 1.0);
     }
 
