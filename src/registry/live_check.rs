@@ -282,7 +282,7 @@ pub(crate) fn command(
     }
 
     if stream_mode {
-        let mut stats = LiveCheckStatistics::default();
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for attribute in ingester {
             let live_check_attribute = live_checker.create_live_check_attribute(&attribute);
             stats.update(&live_check_attribute);
@@ -303,6 +303,7 @@ pub(crate) fn command(
                     })
                 })?;
         }
+        stats.finalize();
         // Output the final statistics
         engine
             .generate(logger.clone(), &stats, output.as_path(), &output_directive)

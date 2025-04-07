@@ -95,10 +95,12 @@ fn test_emit_with_live_check() {
     let no_advice_count = statistics["no_advice_count"].as_u64().unwrap();
     let total_advisories = statistics["total_advisories"].as_u64().unwrap();
     let total_attributes = statistics["total_attributes"].as_u64().unwrap();
+    let registry_coverage = statistics["registry_coverage"].as_f64().unwrap();
 
     assert_eq!(no_advice_count, 17);
     assert_eq!(total_advisories, 3);
     assert_eq!(total_attributes, 20);
+    assert!(registry_coverage > 0.0);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope
 }

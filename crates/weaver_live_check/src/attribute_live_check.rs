@@ -13,7 +13,7 @@ use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{
     attribute_advice::Advisor, sample::SampleAttribute, LiveCheckAttribute, LiveCheckReport,
-    LiveCheckStatistics,
+    LiveCheckStatistics, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Provides advice for telemetry samples
@@ -25,6 +25,8 @@ pub struct AttributeLiveChecker {
     semconv_templates: HashMap<String, Attribute>,
     #[serde(skip)]
     advisors: Vec<Box<dyn Advisor>>,
+    #[serde(skip)]
+    templates_by_length: Vec<(String, Attribute)>,
 }
 
 impl AttributeLiveChecker {
@@ -34,11 +36,13 @@ impl AttributeLiveChecker {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
+        let mut templates_by_length = Vec::new();
 
         for group in &registry.groups {
             for attribute in &group.attributes {
                 match attribute.r#type {
                     AttributeType::Template(_) => {
+                        templates_by_length.push((attribute.name.clone(), attribute.clone()));
                         let _ = semconv_templates.insert(attribute.name.clone(), attribute.clone());
                     }
                     _ => {
@@ -48,11 +52,16 @@ impl AttributeLiveChecker {
                 }
             }
         }
+
+        // Sort templates by name length in descending order
+        templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
+
         AttributeLiveChecker {
             registry,
             semconv_attributes,
             semconv_templates,
             advisors,
+            templates_by_length,
         }
     }
 
@@ -70,7 +79,8 @@ impl AttributeLiveChecker {
     /// Find a template in the registry
     #[must_use]
     pub fn find_template(&self, attribute_name: &str) -> Option<&Attribute> {
-        for (template_name, attribute) in &self.semconv_templates {
+        // Use the pre-sorted list to find the first (longest) matching template
+        for (template_name, attribute) in &self.templates_by_length {
             if attribute_name.starts_with(template_name) {
                 return Some(attribute);
             }
@@ -98,7 +108,7 @@ impl AttributeLiveChecker {
 
         if semconv_attribute.is_none() {
             attribute_result.add_advice(Advice {
-                advice_type: "missing_attribute".to_owned(),
+                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                 value: Value::String(sample_attribute.name.clone()),
                 message: "Does not exist in the registry".to_owned(),
                 advice_level: AdviceLevel::Violation,
@@ -108,7 +118,7 @@ impl AttributeLiveChecker {
             if let Some(attribute) = &semconv_attribute {
                 if let AttributeType::Template(_) = attribute.r#type {
                     attribute_result.add_advice(Advice {
-                        advice_type: "template_attribute".to_owned(),
+                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
                         value: Value::String(attribute.name.clone()),
                         message: "Is a template".to_owned(),
                         advice_level: AdviceLevel::Information,
@@ -134,7 +144,7 @@ impl AttributeLiveChecker {
     pub fn check_attributes(&mut self, sample_attributes: Vec<SampleAttribute>) -> LiveCheckReport {
         let mut live_check_report = LiveCheckReport {
             attributes: Vec::new(),
-            statistics: LiveCheckStatistics::new(),
+            statistics: LiveCheckStatistics::new(&self.registry),
         };
 
         for sample_attribute in sample_attributes.iter() {
@@ -144,6 +154,7 @@ impl AttributeLiveChecker {
             live_check_report.statistics.update(&attribute_result);
             live_check_report.attributes.push(attribute_result);
         }
+        live_check_report.statistics.finalize();
         live_check_report
     }
 }
@@ -401,7 +412,10 @@ mod tests {
         );
 
         assert_eq!(results[4].all_advice.len(), 1);
-        assert_eq!(results[4].all_advice[0].advice_type, "undefined_enum_variant");
+        assert_eq!(
+            results[4].all_advice[0].advice_type,
+            "undefined_enum_variant"
+        );
         assert_eq!(
             results[4].all_advice[0].value,
             Value::String("foo".to_owned())
@@ -510,6 +524,10 @@ mod tests {
             1
         );
         assert_eq!(stats.no_advice_count, 2);
+        assert_eq!(stats.seen_registry_attributes.len(), 4);
+        assert_eq!(stats.seen_registry_attributes["test.enum"], 3);
+        assert_eq!(stats.seen_non_registry_attributes.len(), 4);
+        assert_eq!(stats.registry_coverage, 1.0);
     }
 
     #[test]

@@ -4,7 +4,10 @@ use serde_json::{json, Value};
 use weaver_common::Logger;
 use weaver_live_check::{sample::SampleAttribute, Error, Ingester};
 
-use super::{grpc_stubs::proto::common::v1::AnyValue, listen_otlp_requests, OtlpRequest};
+use super::{
+    grpc_stubs::proto::common::v1::{AnyValue, KeyValue},
+    listen_otlp_requests, OtlpRequest,
+};
 
 /// An ingester for OTLP data
 pub struct AttributeOtlpIngester {
@@ -18,7 +21,20 @@ pub struct AttributeOtlpIngester {
     pub inactivity_timeout: u64,
 }
 
-impl AttributeOtlpIngester {
+/// Iterator for OTLP attributes
+struct OtlpAttributeIterator {
+    otlp_requests: Box<dyn Iterator<Item = OtlpRequest>>,
+    buffer: Vec<SampleAttribute>,
+}
+
+impl OtlpAttributeIterator {
+    fn new(otlp_requests: Box<dyn Iterator<Item = OtlpRequest>>) -> Self {
+        Self {
+            otlp_requests,
+            buffer: Vec::new(),
+        }
+    }
+
     fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
         if let Some(value) = value {
             if let Some(value) = value.value {
@@ -46,96 +62,71 @@ impl AttributeOtlpIngester {
             None
         }
     }
-}
 
-/// Iterator for OTLP attributes
-struct OtlpAttributeIterator {
-    otlp_requests: Box<dyn Iterator<Item = OtlpRequest>>,
-    buffer: Vec<SampleAttribute>,
-}
-
-impl OtlpAttributeIterator {
-    fn new(otlp_requests: Box<dyn Iterator<Item = OtlpRequest>>) -> Self {
-        Self {
-            otlp_requests,
-            buffer: Vec::new(),
+    // TODO Ideally this would be a TryFrom in the SampleAttribute but requires
+    // the grpc_stubs to be in another crate
+    fn sample_attribute_from_key_value(key_value: &KeyValue) -> SampleAttribute {
+        let value = Self::maybe_to_json(key_value.value.clone());
+        let r#type = match value {
+            Some(ref val) => SampleAttribute::infer_type(val),
+            None => None,
+        };
+        SampleAttribute {
+            name: key_value.key.clone(),
+            value,
+            r#type,
         }
     }
 
-    fn extract_attributes_from_request(&mut self, request: OtlpRequest) -> Option<SampleAttribute> {
+    fn fill_buffer_from_request(&mut self, request: OtlpRequest) -> Option<usize> {
         match request {
             OtlpRequest::Logs(_logs) => {
                 // TODO Implement the checking logic for logs
-                self.next()
+                Some(0)
             }
             OtlpRequest::Metrics(_metrics) => {
                 // TODO Implement the checking logic for metrics
-                self.next()
+                Some(0)
             }
             OtlpRequest::Traces(trace) => {
-                // Process and buffer all attributes from the trace
+                // Process and buffer all attributes from all spans
                 for resource_span in trace.resource_spans {
                     if let Some(resource) = resource_span.resource {
                         for attribute in resource.attributes {
-                            self.buffer.push(SampleAttribute {
-                                name: attribute.key,
-                                value: AttributeOtlpIngester::maybe_to_json(attribute.value),
-                                r#type: None,
-                            });
+                            self.buffer
+                                .push(Self::sample_attribute_from_key_value(&attribute));
                         }
                     }
 
                     for scope_span in resource_span.scope_spans {
                         if let Some(scope) = scope_span.scope {
                             for attribute in scope.attributes {
-                                self.buffer.push(SampleAttribute {
-                                    name: attribute.key,
-                                    value: AttributeOtlpIngester::maybe_to_json(attribute.value),
-                                    r#type: None,
-                                });
+                                self.buffer
+                                    .push(Self::sample_attribute_from_key_value(&attribute));
                             }
                         }
 
                         for span in scope_span.spans {
                             for attribute in span.attributes {
-                                self.buffer.push(SampleAttribute {
-                                    name: attribute.key,
-                                    value: AttributeOtlpIngester::maybe_to_json(attribute.value),
-                                    r#type: None,
-                                });
+                                self.buffer
+                                    .push(Self::sample_attribute_from_key_value(&attribute));
                             }
                             for event in span.events {
                                 for attribute in event.attributes {
-                                    self.buffer.push(SampleAttribute {
-                                        name: attribute.key,
-                                        value: AttributeOtlpIngester::maybe_to_json(
-                                            attribute.value,
-                                        ),
-                                        r#type: None,
-                                    });
+                                    self.buffer
+                                        .push(Self::sample_attribute_from_key_value(&attribute));
                                 }
                             }
                             for link in span.links {
                                 for attribute in link.attributes {
-                                    self.buffer.push(SampleAttribute {
-                                        name: attribute.key,
-                                        value: AttributeOtlpIngester::maybe_to_json(
-                                            attribute.value,
-                                        ),
-                                        r#type: None,
-                                    });
+                                    self.buffer
+                                        .push(Self::sample_attribute_from_key_value(&attribute));
                                 }
                             }
                         }
                     }
                 }
-
-                // Return the first buffered attribute if available
-                if !self.buffer.is_empty() {
-                    Some(self.buffer.remove(0))
-                } else {
-                    self.next()
-                }
+                Some(self.buffer.len())
             }
             OtlpRequest::Stop(_reason) => None,
             OtlpRequest::Error(_error) => None,
@@ -147,16 +138,16 @@ impl Iterator for OtlpAttributeIterator {
     type Item = SampleAttribute;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // First check if we have buffered items
-        if !self.buffer.is_empty() {
-            return Some(self.buffer.remove(0));
+        while self.buffer.is_empty() {
+            match self.otlp_requests.next() {
+                Some(request) => {
+                    let _bufsize = self.fill_buffer_from_request(request)?;
+                }
+                None => return None,
+            }
         }
 
-        // Otherwise process the next OTLP request
-        match self.otlp_requests.next() {
-            Some(request) => self.extract_attributes_from_request(request),
-            None => None,
-        }
+        Some(self.buffer.remove(0))
     }
 }
 

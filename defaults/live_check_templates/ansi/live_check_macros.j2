@@ -9,15 +9,18 @@
 {{ ("Advisories given") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_advisories }}
 {%- if statistics.total_advisories > 0 %}  
-  by advice level:
+  - advice level:
 {% for key, value in statistics.advice_level_counts.items() %}
-  - {{ key }}: {{ value }}
+    - {{ key }}: {{ value }}
 {% endfor %}
-  by type:
+  - advice type:
 {% for key, value in statistics.advice_type_counts.items() %}
-  - {{ key }}: {{ value }}
+    - {{ key }}: {{ value }}
 {% endfor %}
 {% endif %}
+
+{{ ("Registry coverage") | ansi_blue | ansi_bold }}
+  - attributes seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
 {% endmacro %}
 
 {% macro display_attribute_advice(result) %}
@@ -32,11 +35,11 @@
 
   {% for advice in result.all_advice %}
     {% if advice.advice_level == "information" %}
-       - {{ advice.type ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
+       - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
     {% elif advice.advice_level == "improvement" %}
-       - {{ advice.type ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
+       - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
     {% else %}
-       - {{ advice.type ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
+       - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
     {% endif %}
   {% endfor %}
 {% endmacro %}

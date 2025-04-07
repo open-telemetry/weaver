@@ -42,8 +42,8 @@ flowchart LR
     builtin --> advice
     external --> advice
 
-    advice -- "Transformed via" --> templates
-    templates --> output
+    advice --> templates
+    templates -- "Transformed to" --> output
 ```
 
 ## Ingesters
@@ -124,19 +124,19 @@ import rego.v1
 
 # checks attribute name contains the word "test"
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	contains(input.name, "test")
-	advice_type := "contains_test"
-	advice_level := "violation"
-	value := input.name
-	message := "Name must not contain 'test'"
+  contains(input.name, "test")
+  advice_type := "contains_test"
+  advice_level := "violation"
+  value := input.name
+  message := "Name must not contain 'test'"
 }
 
 make_advice(advice_type, advice_level, value, message) := {
-	"type": "advice",
-	"advice_type": advice_type,
-	"advice_level": advice_level,
-	"value": value,
-	"message": message,
+  "type": "advice",
+  "advice_type": advice_type,
+  "advice_level": advice_level,
+  "value": value,
+  "message": message,
 }
 ```
 
@@ -179,10 +179,29 @@ A statistics entity is produced when the input is closed like this snippet:
     "violation": 5
   },
   "no_advice_count": 1,
+  "registry_coverage": 0.013138686306774616,
+  "seen_non_registry_attributes": {
+    "TaskId": 1,
+    "http.request.extension": 1,
+    ...
+  },
+  "seen_registry_attributes": {
+    "android.app.state": 0,
+    "android.os.api_level": 0,
+    ...
+  },
   "total_advisories": 11,
   "total_attributes": 7
 }
 ```
+
+These should be self-explanatory, but:
+
+- `highest_advice_level_counts` is a per advice level count of the highest advice level given to each attribute
+- `no_advice_count` is the number of attributes that received no advice
+- `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
+- `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
+- `registry_coverage` is the fraction of seen registry attributes over the total registry attributes
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 

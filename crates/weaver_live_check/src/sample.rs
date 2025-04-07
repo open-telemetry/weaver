@@ -77,7 +77,8 @@ impl TryFrom<&str> for SampleAttribute {
 
 impl SampleAttribute {
     /// Infer the type of the attribute from the value
-    fn infer_type(value: &Value) -> Option<PrimitiveOrArrayTypeSpec> {
+    #[must_use]
+    pub fn infer_type(value: &Value) -> Option<PrimitiveOrArrayTypeSpec> {
         match value {
             Value::Null => None,
             Value::Bool(_) => Some(PrimitiveOrArrayTypeSpec::Boolean),
