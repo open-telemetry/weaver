@@ -93,15 +93,13 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{
-        PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
-    };
+    use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_resolve() {
@@ -113,7 +111,7 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
@@ -143,7 +141,7 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Resolve(RegistryResolveArgs {
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,

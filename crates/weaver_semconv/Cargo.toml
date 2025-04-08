@@ -26,20 +26,5 @@ ordered-float.workspace = true
 miette.workspace = true
 schemars.workspace = true
 regex.workspace = true
-url.workspace = true
-once_cell.workspace = true
 
 glob = "0.3.2"
-tempdir = "0.3.7"
-dirs = "6.0.0"
-gix = { version = "0.70.0", default-features = false, features = [
-    "comfort",
-    "blocking-http-transport-reqwest",
-    "max-performance-safe",
-    "worktree-mutation",
-    "blocking-http-transport-reqwest-rust-tls",
-] }
-flate2 = "1.0.35"
-tar = "0.4.43"
-zip = "2.2.2"
-

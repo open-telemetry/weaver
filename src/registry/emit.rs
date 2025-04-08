@@ -84,14 +84,12 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::registry::emit::RegistryEmitArgs;
-    use crate::registry::{
-        PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
-    };
+    use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_emit() {
@@ -104,7 +102,7 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Emit(RegistryEmitArgs {
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_emit/data/".to_owned(),
                         },
                         follow_symlinks: false,

@@ -432,11 +432,11 @@ impl SchemaResolver {
 mod tests {
     use crate::SchemaResolver;
     use weaver_common::result::WResult;
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
     use weaver_semconv::group::GroupType;
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
-    use weaver_semconv::registry_path::RegistryPath;
     use weaver_semconv::registry_repo::RegistryRepo;
     use weaver_semconv::semconv::SemConvSpec;
 
@@ -478,7 +478,7 @@ mod tests {
                     // The group `otel.unused` should be garbage collected
                     let group = resolved_registry.group("otel.unused");
                     assert!(group.is_none());
-                    
+
                     let metrics = resolved_registry.groups(GroupType::Metric);
                     let metric = metrics
                         .get("metric.auction.bid.count")
@@ -514,7 +514,7 @@ mod tests {
             }
         }
 
-        let registry_path = RegistryPath::LocalFolder {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/custom_registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
@@ -531,8 +531,7 @@ mod tests {
                 panic!("Fatal error: {fatal}");
             }
         }
-        
-        
+
         Ok(())
     }
 }

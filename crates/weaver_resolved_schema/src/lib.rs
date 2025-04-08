@@ -221,7 +221,7 @@ impl ResolvedTelemetrySchema {
             .iter()
             .find(|group| group.id == group_id)
     }
-    
+
     /// Generate a diff between the current schema (must be the most recent one)
     /// and a baseline schema.
     #[must_use]

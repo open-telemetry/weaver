@@ -367,10 +367,10 @@ impl ResolvedSemconvRegistry {
 mod tests {
     use crate::{update_markdown, Error, SnippetGenerator};
     use weaver_common::diagnostic::DiagnosticMessages;
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
-    use weaver_semconv::registry_path::RegistryPath;
     use weaver_semconv::registry_repo::RegistryRepo;
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
@@ -385,7 +385,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         let template = TemplateEngine::new(config, loader, Params::default());
-        let registry_path = RegistryPath::LocalFolder {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
         let mut diag_msgs = DiagnosticMessages::empty();

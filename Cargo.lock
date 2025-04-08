@@ -5247,13 +5247,23 @@ dependencies = [
 name = "weaver_common"
 version = "0.13.2"
 dependencies = [
+ "dirs",
+ "flate2",
+ "gix",
  "miette",
+ "once_cell",
  "paris",
+ "regex",
  "rouille",
+ "schemars",
  "serde",
  "serde_json",
+ "tar",
+ "tempdir",
  "thiserror 2.0.12",
  "ureq",
+ "walkdir",
+ "zip",
 ]
 
 [[package]]
@@ -5369,26 +5379,18 @@ dependencies = [
 name = "weaver_semconv"
 version = "0.13.2"
 dependencies = [
- "dirs",
- "flate2",
- "gix",
  "glob",
  "miette",
- "once_cell",
  "ordered-float",
  "regex",
  "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
- "tar",
- "tempdir",
  "thiserror 2.0.12",
  "ureq",
- "url",
  "walkdir",
  "weaver_common",
- "zip",
 ]
 
 [[package]]

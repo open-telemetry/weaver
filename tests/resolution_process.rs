@@ -4,12 +4,12 @@
 
 use miette::Diagnostic;
 
+use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::TestLogger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::registry_path::RegistryPath;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// The URL of the official semantic convention registry.
@@ -32,7 +32,7 @@ fn test_cli_interface() {
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
-    let registry_path = RegistryPath::GitRepo {
+    let registry_path = VirtualDirectoryPath::GitRepo {
         url: SEMCONV_REGISTRY_URL.to_owned(),
         sub_folder: Some(SEMCONV_REGISTRY_MODEL.to_owned()),
         refspec: None,

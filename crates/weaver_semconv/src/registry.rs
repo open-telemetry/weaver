@@ -264,11 +264,11 @@ mod tests {
     use crate::group::{GroupSpec, GroupType};
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
-    use crate::registry_path::RegistryPath;
     use crate::registry_repo::RegistryRepo;
     use crate::Error;
     use std::sync::Arc;
     use weaver_common::test::ServeStaticFiles;
+    use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
     fn test_try_from_path_pattern() {
@@ -374,7 +374,7 @@ mod tests {
                 },
             ),
         ];
-        let registry_path = RegistryPath::LocalFolder {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("test", &registry_path).unwrap();

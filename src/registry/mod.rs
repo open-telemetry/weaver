@@ -20,8 +20,8 @@ use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::Logger;
-use weaver_semconv::registry_path::RegistryPath;
 
 mod check;
 mod diff;
@@ -151,7 +151,7 @@ pub struct RegistryArgs {
         long,
         default_value = "https://github.com/open-telemetry/semantic-conventions.git[model]"
     )]
-    pub registry: RegistryPath,
+    pub registry: VirtualDirectoryPath,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
     /// Default is false.

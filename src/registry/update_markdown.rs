@@ -131,12 +131,12 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_update_markdown() {
@@ -149,7 +149,7 @@ mod tests {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: "data/update_markdown/markdown".to_owned(),
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "data/update_markdown/registry".to_owned(),
                         },
                         follow_symlinks: false,

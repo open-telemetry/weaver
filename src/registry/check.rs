@@ -11,10 +11,10 @@ use clap::Args;
 use miette::Diagnostic;
 use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
-use weaver_semconv::registry_path::RegistryPath;
 use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry check` sub-command
@@ -26,7 +26,7 @@ pub struct RegistryCheckArgs {
 
     /// Parameters to specify the baseline semantic convention registry
     #[arg(long)]
-    baseline_registry: Option<RegistryPath>,
+    baseline_registry: Option<VirtualDirectoryPath>,
 
     /// Policy parameters
     #[command(flatten)]
@@ -122,15 +122,14 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
     use crate::registry::{
-        semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath,
-        RegistrySubCommand,
+        semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand,
     };
     use crate::run_command;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_check_exit_code() {
@@ -142,7 +141,7 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
@@ -170,7 +169,7 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Check(RegistryCheckArgs {
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
@@ -198,7 +197,7 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Check(RegistryCheckArgs {
                 registry: RegistryArgs {
-                    registry: RegistryPath::LocalFolder {
+                    registry: VirtualDirectoryPath::LocalFolder {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                     },
                     follow_symlinks: false,
