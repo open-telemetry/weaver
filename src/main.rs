@@ -80,11 +80,6 @@ impl CmdResult {
 fn main() {
     let cli = Cli::parse();
 
-    if let Some(Commands::Completion(completions)) = &cli.command {
-        generate_completion(&completions.shell);
-        return;
-    }
-
     let start = std::time::Instant::now();
     let exit_directives = if cli.quiet {
         let log = QuietLogger::new();
@@ -112,7 +107,8 @@ fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
-        Some(Commands::Completion(_)) => {
+        Some(Commands::Completion(completions)) => {
+            generate_completion(&completions.shell);
             return ExitDirectives {
                 exit_code: 0,
                 quiet_mode: cli.quiet,
