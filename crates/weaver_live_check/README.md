@@ -240,14 +240,6 @@ kill -HUP $LIVE_CHECK_PID
 wait $LIVE_CHECK_PID
 ```
 
-Vendor example: Live check column names in a Honeycomb dataset
-
-```sh
-curl -s -X GET 'https://api.honeycomb.io/1/columns/{dataset}' -H 'X-Honeycomb-Team: {API_KEY}' \
-| jq -r '.[].key_name' \
-| weaver registry live-check -r ../semantic-conventions/model
-```
-
 Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
 
 ```sh
