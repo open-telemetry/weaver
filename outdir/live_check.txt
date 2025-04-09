@@ -1,0 +1,1412 @@
+[1m[97mLive Check Report[0m[0m
+[1m[97m=================[0m[0m
+
+[92mtelemetry.sdk.version[0m = 0.29.0
+
+[92mservice.name[0m = weaver
+
+[92mtelemetry.sdk.name[0m = opentelemetry
+
+[92mtelemetry.sdk.language[0m = rust
+
+[93mfaas.document.time[0m = 2020-01-23T13:47:06Z
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.document.name[0m = myFile.txt
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.document.collection[0m = myBucketName
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.document.operation[0m = insert
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.time[0m = 2020-01-23T13:47:06Z
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.cron[0m = 0/5 * * * ? *
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.coldstart[0m = true
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.trigger[0m = datasource
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.invoked_name[0m = my-function
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.invoked_provider[0m = alibaba_cloud
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mfaas.invoked_region[0m = eu-central-1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92murl.full[0m = https://www.foo.bar/search?q=OpenTelemetry#SemConv
+
+[92murl.scheme[0m = http
+
+[93murl.template[0m = /users/{id}
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92muser_agent.original[0m = CERN-LineMode/2.15 libwww/2.17b3
+
+[93muser_agent.synthetic.type[0m = bot
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[92mhttp.request.method[0m = CONNECT
+
+[92mhttp.response.status_code[0m = 200
+
+[92mnetwork.protocol.name[0m = http
+
+[92mnetwork.protocol.version[0m = 1.0
+
+[93mhttp.request.body.size[0m = 3495
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mhttp.request.header.key[0m = ["template_value1", "template_value2"]
+       - template_attribute: [32mhttp.request.header[0m - Is a template
+
+[92mhttp.request.method_original[0m = GeT
+
+[92mhttp.request.resend_count[0m = 3
+
+[93mhttp.request.size[0m = 1437
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mhttp.response.body.size[0m = 3495
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mhttp.response.header.key[0m = ["template_value1", "template_value2"]
+       - template_attribute: [32mhttp.response.header[0m - Is a template
+
+[93mhttp.response.size[0m = 1437
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mnetwork.peer.port[0m = 65123
+
+[92mnetwork.transport[0m = tcp
+
+[93muser_agent.synthetic.type[0m = bot
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92murl.path[0m = /search
+
+[92murl.query[0m = q=OpenTelemetry
+
+[92murl.scheme[0m = http
+
+[92muser_agent.original[0m = CERN-LineMode/2.15 libwww/2.17b3
+
+[92merror.type[0m = _OTHER
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[92mhttp.request.method[0m = CONNECT
+
+[92mhttp.response.status_code[0m = 200
+
+[92mhttp.route[0m = /users/:userID?
+
+[92mnetwork.protocol.name[0m = http
+
+[92mnetwork.protocol.version[0m = 1.0
+
+[93mhttp.request.body.size[0m = 3495
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mhttp.request.method_original[0m = GeT
+
+[93mhttp.request.size[0m = 1437
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mhttp.response.body.size[0m = 3495
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mhttp.response.header.key[0m = ["template_value1", "template_value2"]
+       - template_attribute: [32mhttp.response.header[0m - Is a template
+
+[93mhttp.response.size[0m = 1437
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mnetwork.peer.port[0m = 65123
+
+[92mnetwork.transport[0m = tcp
+
+[92mclient.address[0m = 83.164.160.102
+
+[92mclient.port[0m = 65123
+
+[92mhttp.request.header.key[0m = ["template_value1", "template_value2"]
+       - template_attribute: [32mhttp.request.header[0m - Is a template
+
+[92mnetwork.local.address[0m = 10.1.2.80
+
+[92mnetwork.local.port[0m = 65123
+
+[93mrpc.method[0m = exampleMethod
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = myservice.EchoService
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[92mnetwork.transport[0m = tcp
+
+[92mnetwork.type[0m = ipv4
+
+[92mnetwork.peer.port[0m = 65123
+
+[93mrpc.method[0m = exampleMethod
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = myservice.EchoService
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92mclient.address[0m = client.example.com
+
+[92mclient.port[0m = 65123
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[92mnetwork.transport[0m = tcp
+
+[92mnetwork.type[0m = ipv4
+
+[92mnetwork.peer.port[0m = 65123
+
+[93mgraphql.operation.name[0m = findBookById
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgraphql.operation.type[0m = query
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgraphql.document[0m = query findBookById { bookById(id: ?) { name } }
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92merror.type[0m = _OTHER
+
+[93mgen_ai.request.max_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.temperature[0m
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.top_p[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.top_k[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.stop_sequences[0m = ["forest", "lived"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.frequency_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.presence_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.encoding_formats[0m = ["base64"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.id[0m = chatcmpl-123
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.finish_reasons[0m = ["stop"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.input_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.output_tokens[0m = 180
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.system[0m = openai
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.operation.name[0m = chat
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.model[0m = gpt-4
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.choice.count[0m = 3
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.seed[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.output.type[0m = text
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.model[0m = gpt-4-0613
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92merror.type[0m = _OTHER
+
+[93mgen_ai.request.max_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.temperature[0m
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.top_p[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.stop_sequences[0m = ["forest", "lived"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.frequency_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.presence_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.encoding_formats[0m = ["base64"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.id[0m = chatcmpl-123
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.finish_reasons[0m = ["stop"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.openai.response.system_fingerprint[0m = fp_44709d6fcb
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.operation.name[0m = chat
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.choice.count[0m = 3
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.seed[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.model[0m = gpt-4-0613
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.output.type[0m = text
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.openai.request.service_tier[0m = auto
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.openai.response.service_tier[0m = scale
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.model[0m = gpt-4
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.input_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.output_tokens[0m = 180
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92merror.type[0m = _OTHER
+
+[93maz.namespace[0m = Microsoft.CognitiveServices
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.port[0m = 80
+
+[93mgen_ai.request.max_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.temperature[0m
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.top_p[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.stop_sequences[0m = ["forest", "lived"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.frequency_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.presence_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.encoding_formats[0m = ["base64"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.id[0m = chatcmpl-123
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.finish_reasons[0m = ["stop"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.operation.name[0m = chat
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.model[0m = gpt-4
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.choice.count[0m = 3
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.seed[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.model[0m = gpt-4-0613
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.output.type[0m = text
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.input_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.output_tokens[0m = 180
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[92merror.type[0m = _OTHER
+
+[93mgen_ai.request.max_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.stop_sequences[0m = ["forest", "lived"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.frequency_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.presence_penalty[0m = 0.1
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.encoding_formats[0m = ["base64"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.id[0m = chatcmpl-123
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.finish_reasons[0m = ["stop"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.input_tokens[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.usage.output_tokens[0m = 180
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.system[0m = openai
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.operation.name[0m = chat
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.choice.count[0m = 3
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.seed[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.output.type[0m = text
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.response.model[0m = gpt-4-0613
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.agent.description[0m = Helps with math problems
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.agent.id[0m = asst_5j66UpCpwteGg4YSxUnt7lPY
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.agent.name[0m = Math Tutor
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.model[0m = gpt-4
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.temperature[0m
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.request.top_p[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[93mgen_ai.tool.name[0m = Flights
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mgen_ai.tool.call.id[0m = call_mszuSIzqtI65i1wAUOE8w5H4
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.executable.path[0m = /usr/bin/cmd/otelcol
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.command_args[0m = ["cmd/otecol", "--config=config.yaml"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.executable.name[0m = otelcol
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.pid[0m = 1234
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.exit.code[0m = 127
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[93mprocess.executable.path[0m = /usr/bin/cmd/otelcol
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.command_args[0m = ["cmd/otecol", "--config=config.yaml"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.executable.name[0m = otelcol
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.pid[0m = 1234
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mprocess.exit.code[0m = 127
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[93maws.lambda.invoked_arn[0m = arn:aws:lambda:us-east-1:123456:function:myfunction:myalias
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[91mdb.operation.name[0m = findAndModify
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.status_code[0m = 102
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.collection.name[0m = public.users
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = customers
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.system.name[0m = other_sql
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.system[0m - Namespace matches existing attribute
+
+[92mnetwork.peer.port[0m = 65123
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = instance1.products
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = 102
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = mydatabase.products
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = 08000
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = products
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = 1005
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = products
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = 1008
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[93mcassandra.coordinator.dc[0m = us-west-2
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mcassandra.coordinator.id[0m = be13faa2-8574-4d71-926d-27f16cf8a7af
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mcassandra.consistency.level[0m = all
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mcassandra.query.idempotent[0m = true
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mcassandra.page.size[0m = 5000
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mcassandra.speculative_execution.count[0m
+       - stability: [33mdevelopment[0m - Is not stable
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[91mdb.operation.name[0m = findAndModify
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92mnetwork.peer.port[0m = 65123
+
+[93mdb.collection.name[0m = public.users
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = mykeyspace
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = 102
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[93mdb.collection.name[0m = mytable
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = mynamespace
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.operation.name[0m = findAndModify
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.status_code[0m = 200
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[93mdb.namespace[0m = customers
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.operation.name[0m = GET /{db}/{docid}
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.status_code[0m = 200
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mnetwork.peer.port[0m = 65123
+
+[92mnetwork.peer.address[0m = 10.1.2.80
+
+[93mdb.namespace[0m = 0
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.operation.name[0m = HMSET
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.text[0m = HMSET myhash field1 'Hello' field2 'World'
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = ERR
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[93mdb.collection.name[0m = public.users
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = customers
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.operation.name[0m = findAndModify
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.status_code[0m = 36
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[93mdb.collection.name[0m = my_index
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = customers
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.operation.name[0m = search
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.text[0m = "{\"query\":{\"term\":{\"user.id\":\"kimchy\"}}}"
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = 200
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93melasticsearch.node.name[0m = instance-0000000001
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mhttp.request.method[0m = CONNECT
+
+[92murl.full[0m = https://localhost:9200/index/_search?q=user.id:kimchy
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92mserver.address[0m = example.com
+
+[92mserver.port[0m = 80
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = customers
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.response.status_code[0m = ORA-17027
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mazure.client.id[0m = 3ba4827d-4422-483f-b59f-85b74211c11d
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mazure.cosmosdb.request.body.size[0m = 42
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mazure.cosmosdb.consistency.level[0m = Strong
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mazure.cosmosdb.response.sub_status_code[0m = 1000
+       - stability: [33mdevelopment[0m - Is not stable
+
+[92merror.type[0m = _OTHER
+
+[91mdb.operation.batch.size[0m = 2
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[92mserver.address[0m = example.com
+
+[91mdb.operation.parameter.key[0m = template_value
+       - template_attribute: [32mdb.operation.parameter[0m - Is a template
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.query.summary[0m = SELECT wuser_table
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.query.text[0m = SELECT * FROM wuser_table where username = ?
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93mdb.namespace[0m = customers
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[93maz.namespace[0m = Microsoft.DocumentDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mazure.cosmosdb.connection.mode[0m = gateway
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mazure.cosmosdb.operation.contacted_regions[0m = ["North Central US", "Australia East", "Australia Southeast"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mazure.cosmosdb.operation.request_charge[0m = 46.18
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mdb.collection.name[0m = public.users
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[91mdb.operation.name[0m = create_item
+       - stability: [33mrelease_candidate[0m - Is not stable
+       - illegal_namespace: [31mdb.operation[0m - Namespace matches existing attribute
+
+[93mdb.response.returned_rows[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mdb.response.status_code[0m = 200
+       - stability: [33mrelease_candidate[0m - Is not stable
+
+[92mserver.port[0m = 80
+
+[92muser_agent.original[0m = cosmos-netstandard-sdk/3.23.0\|3.23.1\|1\|X64\|Linux 5.4.0-1098-azure 104 18\|.NET Core 3.1.32\|S\|
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users", "Cats"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users", "Cats"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.item_collection_metrics[0m = { "string" : [ { "ItemCollectionKey": { "string" : { "B": blob, "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" : "AttributeValue" }, "N": "string", "NS": [ "string" ], "NULL": boolean, "S": "string", "SS": [ "string" ] } }, "SizeEstimateRangeGB": [ number ] } ] }
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.item_collection_metrics[0m = { "string" : [ { "ItemCollectionKey": { "string" : { "B": blob, "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" : "AttributeValue" }, "N": "string", "NS": [ "string" ], "NULL": boolean, "S": "string", "SS": [ "string" ] } }, "SizeEstimateRangeGB": [ number ] } ] }
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.provisioned_read_capacity[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.provisioned_write_capacity[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.global_secondary_indexes[0m = ["{ \"IndexName\": \"string\", \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" }, \"ProvisionedThroughput\": { \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.local_secondary_indexes[0m = ["{ \"IndexArn\": \"string\", \"IndexName\": \"string\", \"IndexSizeBytes\": number, \"ItemCount\": number, \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" } }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.item_collection_metrics[0m = { "string" : [ { "ItemCollectionKey": { "string" : { "B": blob, "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" : "AttributeValue" }, "N": "string", "NS": [ "string" ], "NULL": boolean, "S": "string", "SS": [ "string" ] } }, "SizeEstimateRangeGB": [ number ] } ] }
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consistent_read[0m = true
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.projection[0m = Title
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.limit[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.exclusive_start_table[0m = Users
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_count[0m = 20
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users", "Cats"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.item_collection_metrics[0m = { "string" : [ { "ItemCollectionKey": { "string" : { "B": blob, "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" : "AttributeValue" }, "N": "string", "NS": [ "string" ], "NULL": boolean, "S": "string", "SS": [ "string" ] } }, "SizeEstimateRangeGB": [ number ] } ] }
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consistent_read[0m = true
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.projection[0m = Title
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.limit[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.attributes_to_get[0m = ["lives", "id"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.index_name[0m = name_to_group
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.select[0m = ALL_ATTRIBUTES
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.scan_forward[0m = true
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consistent_read[0m = true
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.projection[0m = Title
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.limit[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.attributes_to_get[0m = ["lives", "id"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.index_name[0m = name_to_group
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.select[0m = ALL_ATTRIBUTES
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.segment[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.total_segments[0m = 100
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.count[0m = 10
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.scanned_count[0m = 50
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.item_collection_metrics[0m = { "string" : [ { "ItemCollectionKey": { "string" : { "B": blob, "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" : "AttributeValue" }, "N": "string", "NS": [ "string" ], "NULL": boolean, "S": "string", "SS": [ "string" ] } }, "SizeEstimateRangeGB": [ number ] } ] }
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.consumed_capacity[0m = ["{ \"CapacityUnits\": number, \"GlobalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"LocalSecondaryIndexes\": { \"string\" : { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }, \"ReadCapacityUnits\": number, \"Table\": { \"CapacityUnits\": number, \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number }, \"TableName\": \"string\", \"WriteCapacityUnits\": number }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.provisioned_read_capacity[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.provisioned_write_capacity[0m = 1.0
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.attribute_definitions[0m = ["{ \"AttributeName\": \"string\", \"AttributeType\": \"string\" }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.global_secondary_index_updates[0m = ["{ \"Create\": { \"IndexName\": \"string\", \"KeySchema\": [ { \"AttributeName\": \"string\", \"KeyType\": \"string\" } ], \"Projection\": { \"NonKeyAttributes\": [ \"string\" ], \"ProjectionType\": \"string\" }, \"ProvisionedThroughput\": { \"ReadCapacityUnits\": number, \"WriteCapacityUnits\": number } }"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.dynamodb.table_names[0m = ["Users"]
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.request_id[0m = 79b9da39-b7ae-508a-a6bc-864b2829c622
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.s3.bucket[0m = some-bucket-name
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.s3.key[0m = someFile.yml
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.s3.copy_source[0m = someFile.yml
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.s3.upload_id[0m = dfRtDYWFbkRONycy.Yxwh66Yjlx.cph0gtNBtJ
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.s3.delete[0m = Objects=[{Key=string,VersionId=string},{Key=string,VersionId=string}],Quiet=boolean
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.s3.part_number[0m = 3456
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.system[0m = grpc
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.service[0m = DynamoDB
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93mrpc.method[0m = GetItem
+       - stability: [33mdevelopment[0m - Is not stable
+
+[93maws.extended_request_id[0m = wzHcyEWfmOGDIE5QOhTAqFDoDWP3y8IUvpNINCwL9N4TEHbUw0/gZJ+VZTmCNCWR7fezEN3eCiQ=
+       - stability: [33mdevelopment[0m - Is not stable
+
+[91motel.weaver.registry_path[0m = ../semantic-conventions/model
+       - missing_attribute: [31motel.weaver.registry_path[0m - Does not exist in the registry
+       - extends_namespace: [32motel[0m - Extends existing namespace
+
+
+[1m[34mAttribute samples[0m[0m
+  - total: 486
+  - no advice: 116
+  - improvement: 333
+  - information: 4
+  - violation: 33
+
+[1m[34mAdvisories given[0m[0m
+  - total: 413  
+  - advice level:
+    - improvement: 365
+    - information: 15
+    - violation: 33
+  - advice type:
+    - extends_namespace: 1
+    - illegal_namespace: 32
+    - missing_attribute: 1
+    - stability: 365
+    - template_attribute: 14
+
+[1m[34mRegistry coverage[0m[0m
+  - attributes seen: 20.44%
+

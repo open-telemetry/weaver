@@ -40,7 +40,7 @@ pub mod extensions;
 pub mod file_loader;
 mod filter;
 mod formats;
-mod jq;
+pub mod jq;
 pub mod registry;
 
 /// Name of the Weaver configuration file.

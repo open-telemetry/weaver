@@ -1,0 +1,18 @@
+{% import "live_check_macros.j2" as macros %}
+{% if ctx.attributes is defined %}
+{# This is a LiveCheckReport object #}
+{{ ("Live Check Report") | ansi_bright_white | ansi_bold }}
+{{ ("=================") | ansi_bright_white | ansi_bold }}
+
+{% for result in ctx.attributes %}
+{{ macros.display_attribute_advice(result) }}
+{% endfor %}
+
+{{ macros.display_statistics(ctx.statistics) }}
+{% elif ctx.all_advice is defined %}
+{# This is a LiveCheckAttribute object #}
+{{ macros.display_attribute_advice(ctx) }}
+{%- elif ctx.total_attributes is defined %}
+{# This is a LiveCheckStatistics object #}
+{{ macros.display_statistics(ctx) }}
+{% endif %}
