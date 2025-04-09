@@ -382,8 +382,12 @@ pub(crate) fn command(
     .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
     .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(&mut registry, logger.clone())
-        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let schema = resolve_semconv_specs(
+        &mut registry,
+        logger.clone(),
+        args.registry.include_unreferenced,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
 
     // We should have two modes:
     // 1. a single input we take in and directly output some rendered result.

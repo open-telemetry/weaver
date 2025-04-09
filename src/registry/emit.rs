@@ -106,6 +106,7 @@ mod tests {
                             path: "crates/weaver_emit/data/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],

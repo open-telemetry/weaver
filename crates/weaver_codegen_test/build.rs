@@ -51,7 +51,7 @@ fn main() {
         .unwrap_or_else(|e| process_error(&logger, e));
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
         .unwrap_or_else(|e| process_error(&logger, e));
-    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
 

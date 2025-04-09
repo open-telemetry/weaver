@@ -188,6 +188,7 @@ mod tests {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -263,6 +264,7 @@ mod tests {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -310,6 +312,7 @@ mod tests {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -415,6 +418,7 @@ mod tests {
                                 path: "data/symbolic_test/".to_owned(),
                             },
                             follow_symlinks,
+                            include_unreferenced: false,
                         },
                         policy: PolicyArgs {
                             policies: vec![],

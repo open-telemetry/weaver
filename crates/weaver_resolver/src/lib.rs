@@ -234,26 +234,29 @@ impl SchemaResolver {
     /// corresponding resolved telemetry schema.
     pub fn resolve_semantic_convention_registry(
         registry: &mut SemConvRegistry,
+        include_unreferenced: bool,
     ) -> WResult<ResolvedTelemetrySchema, Error> {
         let mut attr_catalog = AttributeCatalog::default();
-        resolve_semconv_registry(&mut attr_catalog, "", registry).map(move |resolved_registry| {
-            let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
+        resolve_semconv_registry(&mut attr_catalog, "", registry, include_unreferenced).map(
+            move |resolved_registry| {
+                let catalog = Catalog::from_attributes(attr_catalog.drain_attributes());
 
-            let resolved_schema = ResolvedTelemetrySchema {
-                file_format: "1.0.0".to_owned(),
-                schema_url: "".to_owned(),
-                registry_id: registry.id().into(),
-                registry: resolved_registry,
-                catalog,
-                resource: None,
-                instrumentation_library: None,
-                dependencies: vec![],
-                versions: None, // ToDo LQ: Implement this!
-                registry_manifest: registry.manifest().cloned(),
-            };
+                let resolved_schema = ResolvedTelemetrySchema {
+                    file_format: "1.0.0".to_owned(),
+                    schema_url: "".to_owned(),
+                    registry_id: registry.id().into(),
+                    registry: resolved_registry,
+                    catalog,
+                    resource: None,
+                    instrumentation_library: None,
+                    dependencies: vec![],
+                    versions: None, // ToDo LQ: Implement this!
+                    registry_manifest: registry.manifest().cloned(),
+                };
 
-            resolved_schema
-        })
+                resolved_schema
+            },
+        )
     }
 
     /// Loads the semantic convention specifications from the given registry path.
@@ -445,6 +448,7 @@ mod tests {
         fn check_semconv_specs(
             registry_repo: &RegistryRepo,
             semconv_specs: Vec<(Provenance, SemConvSpec)>,
+            include_unreferenced: bool,
         ) {
             assert_eq!(semconv_specs.len(), 2);
             for (source, semconv_spec) in semconv_specs.iter() {
@@ -473,11 +477,20 @@ mod tests {
 
             let mut registry = SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs)
                 .expect("Failed to create the registry");
-            match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+            match SchemaResolver::resolve_semantic_convention_registry(
+                &mut registry,
+                include_unreferenced,
+            ) {
                 WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
-                    // The group `otel.unused` should be garbage collected
-                    let group = resolved_registry.group("otel.unused");
-                    assert!(group.is_none());
+                    if include_unreferenced {
+                        // The group `otel.unused` shouldn't be garbage collected
+                        let group = resolved_registry.group("otel.unused");
+                        assert!(group.is_some());
+                    } else {
+                        // The group `otel.unused` should be garbage collected
+                        let group = resolved_registry.group("otel.unused");
+                        assert!(group.is_none());
+                    }
 
                     let metrics = resolved_registry.groups(GroupType::Metric);
                     let metric = metrics
@@ -520,9 +533,17 @@ mod tests {
         let registry_repo = RegistryRepo::try_new("main", &registry_path)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
         match result {
-            WResult::Ok(semconv_specs) => check_semconv_specs(&registry_repo, semconv_specs),
+            WResult::Ok(semconv_specs) => {
+                // test with the `include_unreferenced` flag set to false
+                check_semconv_specs(&registry_repo, semconv_specs.clone(), false);
+                // test with the `include_unreferenced` flag set to true
+                check_semconv_specs(&registry_repo, semconv_specs, true);
+            }
             WResult::OkWithNFEs(semconv_specs, nfe) => {
-                check_semconv_specs(&registry_repo, semconv_specs);
+                // test with the `include_unreferenced` flag set to false
+                check_semconv_specs(&registry_repo, semconv_specs.clone(), false);
+                // test with the `include_unreferenced` flag set to true
+                check_semconv_specs(&registry_repo, semconv_specs, true);
                 if !nfe.is_empty() {
                     panic!("Non-fatal errors: {nfe:?}");
                 }

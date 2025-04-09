@@ -157,6 +157,11 @@ pub struct RegistryArgs {
     /// Default is false.
     #[arg(short = 's', long)]
     pub(crate) follow_symlinks: bool,
+
+    /// Boolean flag to include signals and attributes defined in dependency registries,
+    /// even if they are not explicitly referenced in the current (custom) registry.
+    #[arg(long)]
+    pub(crate) include_unreferenced: bool,
 }
 
 /// Set of common parameters used for policy checks.

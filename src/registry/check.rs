@@ -79,9 +79,12 @@ pub(crate) fn command(
                 &baseline_registry_repo,
                 baseline_semconv_specs,
             )?;
-            let baseline_resolved_schema =
-                resolve_semconv_specs(&mut baseline_registry, logger.clone())
-                    .capture_non_fatal_errors(&mut diag_msgs)?;
+            let baseline_resolved_schema = resolve_semconv_specs(
+                &mut baseline_registry,
+                logger.clone(),
+                args.registry.include_unreferenced,
+            )
+            .capture_non_fatal_errors(&mut diag_msgs)?;
             let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
                 &baseline_resolved_schema.registry,
                 baseline_resolved_schema.catalog(),
@@ -145,6 +148,7 @@ mod tests {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     baseline_registry: None,
                     policy: PolicyArgs {
@@ -173,6 +177,7 @@ mod tests {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     baseline_registry: None,
                     policy: PolicyArgs {
@@ -201,6 +206,7 @@ mod tests {
                         path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                     },
                     follow_symlinks: false,
+                    include_unreferenced: false,
                 },
                 baseline_registry: None,
                 policy: PolicyArgs {

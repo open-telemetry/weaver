@@ -55,7 +55,8 @@ pub(crate) fn command(
 
     // Resolve the semantic convention registry.
     let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger).capture_non_fatal_errors(&mut diag_msgs)?;
+        resolve_semconv_specs(&mut registry, logger, args.registry.include_unreferenced)
+            .capture_non_fatal_errors(&mut diag_msgs)?;
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);

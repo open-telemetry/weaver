@@ -303,11 +303,13 @@ impl SnippetGenerator {
         template_engine: TemplateEngine,
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
+        include_unreferenced: bool,
     ) -> Result<SnippetGenerator, Error> {
         let registry = ResolvedSemconvRegistry::try_from_registry_repo(
             registry_repo,
             diag_msgs,
             follow_symlinks,
+            include_unreferenced,
         )?;
         Ok(SnippetGenerator {
             lookup: registry,
@@ -327,6 +329,7 @@ impl ResolvedSemconvRegistry {
         registry_repo: &RegistryRepo,
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
+        include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
         let semconv_specs =
             match SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks) {
@@ -343,7 +346,10 @@ impl ResolvedSemconvRegistry {
             Ok(registry) => registry,
             Err(e) => return Err(e.into()),
         };
-        let schema = match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+        let schema = match SchemaResolver::resolve_semantic_convention_registry(
+            &mut registry,
+            include_unreferenced,
+        ) {
             WResult::Ok(schema) => schema,
             WResult::OkWithNFEs(schema, errs) => {
                 diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
@@ -394,6 +400,7 @@ mod tests {
             &registry_repo,
             template,
             &mut diag_msgs,
+            false,
             false,
         )?;
         let attribute_registry_url = "/docs/attributes-registry";

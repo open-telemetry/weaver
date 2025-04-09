@@ -107,13 +107,18 @@ pub(crate) fn command(
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
 
-    let main_resolved_schema =
-        resolve_telemetry_schema(&main_registry_repo, main_semconv_specs, logger.clone())
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_resolved_schema = resolve_telemetry_schema(
+        &main_registry_repo,
+        main_semconv_specs,
+        logger.clone(),
+        args.registry.include_unreferenced,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_resolved_schema = resolve_telemetry_schema(
         &baseline_registry_repo,
         baseline_semconv_specs,
         logger.clone(),
+        args.registry.include_unreferenced,
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
 
@@ -181,6 +186,7 @@ mod tests {
                             path: "tests/diff/registry_head/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
@@ -210,6 +216,7 @@ mod tests {
                         path: "tests/diff/registry_head/".to_owned(),
                     },
                     follow_symlinks: false,
+                    include_unreferenced: false,
                 },
                 baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),

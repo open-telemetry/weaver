@@ -197,9 +197,10 @@ pub(crate) fn check_policy(
 pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
     logger: impl Logger + Sync + Clone,
+    include_unreferenced: bool,
 ) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let registry_id = registry.id().to_owned();
-    match SchemaResolver::resolve_semantic_convention_registry(registry) {
+    match SchemaResolver::resolve_semantic_convention_registry(registry, include_unreferenced) {
         WResult::Ok(resolved_schema) => {
             logger.success(&format!("`{}` semconv registry resolved", registry_id));
             WResult::Ok(resolved_schema)
@@ -218,6 +219,7 @@ pub(crate) fn resolve_telemetry_schema(
     registry_repo: &RegistryRepo,
     semconv_specs: Vec<(Provenance, SemConvSpec)>,
     logger: impl Logger + Sync + Clone,
+    include_unreferenced: bool,
 ) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
         Ok(registry) => registry,
@@ -227,7 +229,7 @@ pub(crate) fn resolve_telemetry_schema(
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    resolve_semconv_specs(&mut registry, logger.clone())
+    resolve_semconv_specs(&mut registry, logger.clone(), include_unreferenced)
 }
 
 /// Resolves the main registry and optionally checks policies.
@@ -297,8 +299,12 @@ pub(crate) fn prepare_main_registry(
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    let main_resolved_schema = resolve_semconv_specs(&mut main_registry, logger.clone())
-        .capture_non_fatal_errors(diag_msgs)?;
+    let main_resolved_schema = resolve_semconv_specs(
+        &mut main_registry,
+        logger.clone(),
+        registry_args.include_unreferenced,
+    )
+    .capture_non_fatal_errors(diag_msgs)?;
 
     let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
         &main_resolved_schema.registry,

@@ -66,6 +66,8 @@ pub struct UnresolvedGroup {
 /// * `attr_catalog` - The attribute catalog to use to resolve the attribute references.
 /// * `registry_url` - The URL of the registry.
 /// * `registry` - The semantic convention registry.
+/// * `include_unreferenced` - Whether to include unreferenced objects in the
+///   resolved registry.
 ///
 /// # Returns
 ///
@@ -75,6 +77,7 @@ pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
     registry: &SemConvRegistry,
+    include_unreferenced: bool,
 ) -> WResult<Registry, Error> {
     let mut ureg = unresolved_registry_from_specs(registry_url, registry);
 
@@ -153,7 +156,9 @@ pub fn resolve_semconv_registry(
     );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
-    gc_unreferenced_objects(registry.manifest(), &mut ureg.registry);
+    if !include_unreferenced {
+        gc_unreferenced_objects(registry.manifest(), &mut ureg.registry);
+    }
 
     WResult::OkWithNFEs(ureg.registry, errors)
 }
@@ -937,7 +942,7 @@ mod tests {
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
-                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs, false)
                     .into_result_failing_non_fatal();
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
@@ -1015,7 +1020,7 @@ mod tests {
 
         let mut attr_catalog = AttributeCatalog::default();
 
-        resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+        resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs, false)
     }
 
     #[test]
@@ -1166,7 +1171,7 @@ groups:
 
         // Resolve the semantic convention registry.
         let resolved_schema =
-            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry)
+            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry, false)
                 .into_result_failing_non_fatal()?;
 
         // Get the resolved registry by its ID.

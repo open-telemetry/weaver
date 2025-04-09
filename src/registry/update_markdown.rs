@@ -82,6 +82,7 @@ pub(crate) fn command(
         generator,
         &mut diag_msgs,
         args.registry.follow_symlinks,
+        args.registry.include_unreferenced,
     )?;
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
@@ -153,6 +154,7 @@ mod tests {
                             path: "data/update_markdown/registry".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),

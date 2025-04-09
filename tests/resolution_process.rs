@@ -54,12 +54,16 @@ fn test_cli_interface() {
 
     // Resolve the official semantic convention registry.
     let mut attr_catalog = AttributeCatalog::default();
-    let resolved_registry =
-        resolve_semconv_registry(&mut attr_catalog, SEMCONV_REGISTRY_URL, &semconv_specs)
-            .into_result_failing_non_fatal()
-            .unwrap_or_else(|e| {
-                panic!("Failed to resolve the official semantic convention registry, error: {e}");
-            });
+    let resolved_registry = resolve_semconv_registry(
+        &mut attr_catalog,
+        SEMCONV_REGISTRY_URL,
+        &semconv_specs,
+        false,
+    )
+    .into_result_failing_non_fatal()
+    .unwrap_or_else(|e| {
+        panic!("Failed to resolve the official semantic convention registry, error: {e}");
+    });
 
     // The number of semconv groups is fluctuating, so we can't check for a
     // specific number, but we can check if there are any groups at all.
