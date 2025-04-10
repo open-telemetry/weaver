@@ -137,7 +137,7 @@ pub fn resolve_semconv_registry(
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
     if !include_unreferenced {
-        gc_unreferenced_objects(registry.manifest(), &mut ureg.registry);
+        gc_unreferenced_objects(registry.manifest(), &mut ureg.registry, attr_catalog);
     }
 
     WResult::OkWithNFEs(ureg.registry, errors)
@@ -146,17 +146,40 @@ pub fn resolve_semconv_registry(
 /// Garbage collect all the signals and attributes not defined or referenced in the
 /// current registry, i.e. telemetry objects only defined in a dependency and not
 /// referenced in the current registry.
-fn gc_unreferenced_objects(manifest: Option<&RegistryManifest>, registry: &mut Registry) {
+fn gc_unreferenced_objects(
+    manifest: Option<&RegistryManifest>,
+    registry: &mut Registry,
+    attr_catalog: &mut AttributeCatalog,
+) {
     if let Some(manifest) = manifest {
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
             // This registry has dependencies.
             let current_reg_id = manifest.name.clone();
+            let mut attr_refs = HashSet::new();
             registry.groups.retain(|group| {
                 if let Some(lineage) = &group.lineage {
                     lineage.provenance().registry_id.as_ref() == current_reg_id
                 } else {
                     true
                 }
+            });
+
+            // Collect all remaining attribute references
+            registry.groups.iter().for_each(|group| {
+                group.attributes.iter().for_each(|attr| {
+                    _ = attr_refs.insert(*attr);
+                });
+            });
+
+            // Remove all attributes no longer referenced in the catalog and update all the
+            // attribute references in the registry.
+            let attr_refs_map = attr_catalog.gc_unreferenced_attribute_refs(attr_refs);
+            registry.groups.iter_mut().for_each(|group| {
+                group.attributes.iter_mut().for_each(|attr_ref| {
+                    *attr_ref = *attr_refs_map
+                        .get(attr_ref)
+                        .expect("Attribute reference not found in map");
+                });
             });
         }
     }

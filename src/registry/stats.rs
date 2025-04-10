@@ -136,6 +136,9 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                         println!("        - {:#?}: {}", span_kind, count);
                     }
                 }
+                GroupStats::Undefined { common_stats } => {
+                    display_common_group_stats(group_type, common_stats);
+                }
             }
         }
     }
@@ -191,16 +194,18 @@ fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroup
             .collect::<Vec<_>>()
             .join(", ")
     );
-    println!(
-        "      - Number of group with a prefix: {} ({}%)",
-        common_stats.total_with_prefix,
-        common_stats.total_with_prefix * 100 / common_stats.count
-    );
-    println!(
-        "      - Number of group with a note: {} ({}%)",
-        common_stats.total_with_note,
-        common_stats.total_with_note * 100 / common_stats.count
-    );
+    if common_stats.count > 0 {
+        println!(
+            "      - Number of group with a prefix: {} ({}%)",
+            common_stats.total_with_prefix,
+            common_stats.total_with_prefix * 100 / common_stats.count
+        );
+        println!(
+            "      - Number of group with a note: {} ({}%)",
+            common_stats.total_with_note,
+            common_stats.total_with_note * 100 / common_stats.count
+        );
+    }
     if !common_stats.stability_breakdown.is_empty() {
         println!(
             "      - Stability breakdown ({}%):",

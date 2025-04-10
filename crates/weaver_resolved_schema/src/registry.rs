@@ -13,7 +13,7 @@ use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
-    AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span,
+    AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
@@ -202,6 +202,11 @@ pub enum GroupStats {
         /// Span kind breakdown.
         span_kind_breakdown: HashMap<SpanKindSpec, usize>,
     },
+    /// Statistics for an undefined group.
+    Undefined {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
 }
 
 impl CommonGroupStats {
@@ -254,92 +259,97 @@ impl Registry {
             group_breakdown: self.groups.iter().fold(HashMap::new(), |mut acc, group| {
                 let group_type = group.r#type.clone();
 
-                _ =
-                    acc.entry(group_type)
-                        .and_modify(|stats| match stats {
-                            AttributeGroup { common_stats } => {
-                                common_stats.update_stats(group);
-                            }
-                            Metric {
-                                common_stats,
-                                metric_names,
-                                instrument_breakdown,
-                                unit_breakdown,
-                            } => {
-                                common_stats.update_stats(group);
-                                _ =
-                                    metric_names.insert(group.metric_name.clone().expect(
-                                        "metric_name is required as we are in a metric group",
-                                    ));
-                                *instrument_breakdown
-                                    .entry(group.instrument.clone().expect(
-                                        "instrument is required as we are in a metric group",
-                                    ))
-                                    .or_insert(0) += 1;
-                                *unit_breakdown
-                                    .entry(
-                                        group
-                                            .unit
-                                            .clone()
-                                            .expect("unit is required as we are in a metric group"),
-                                    )
-                                    .or_insert(0) += 1;
-                            }
-                            MetricGroup { common_stats } => {
-                                common_stats.update_stats(group);
-                            }
-                            Event { common_stats } => {
-                                common_stats.update_stats(group);
-                            }
-                            Resource { common_stats } => {
-                                common_stats.update_stats(group);
-                            }
-                            Scope { common_stats } => {
-                                common_stats.update_stats(group);
-                            }
-                            Span {
-                                common_stats,
-                                span_kind_breakdown,
-                            } => {
-                                common_stats.update_stats(group);
-                                if let Some(span_kind) = group.span_kind.clone() {
-                                    *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
-                                }
-                            }
-                        })
-                        .or_insert_with(|| match group.r#type {
-                            GroupType::AttributeGroup => AttributeGroup {
-                                common_stats: CommonGroupStats::default(),
-                            },
-                            GroupType::Metric => Metric {
-                                common_stats: CommonGroupStats::default(),
-                                metric_names: HashSet::new(),
-                                instrument_breakdown: HashMap::new(),
-                                unit_breakdown: HashMap::new(),
-                            },
-                            GroupType::MetricGroup => MetricGroup {
-                                common_stats: CommonGroupStats::default(),
-                            },
-                            GroupType::Event => Event {
-                                common_stats: CommonGroupStats::default(),
-                            },
-                            GroupType::Resource => Resource {
-                                common_stats: CommonGroupStats::default(),
-                            },
-                            GroupType::Scope => Scope {
-                                common_stats: CommonGroupStats::default(),
-                            },
-                            GroupType::Span => Span {
-                                common_stats: CommonGroupStats::default(),
-                                span_kind_breakdown: HashMap::new(),
-                            },
-                            GroupType::Undefined => {
-                                // This should never happen in a valid registry,
-                                // this variant is used for backward compatibility
-                                // which is not important for stats.
-                                panic!("Undefined group type found in registry")
-                            }
-                        });
+                // Ensure we have an initialized entry
+                let entry = acc
+                    .entry(group_type.clone())
+                    .or_insert_with(|| match group_type {
+                        GroupType::AttributeGroup => AttributeGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Metric => Metric {
+                            common_stats: CommonGroupStats::default(),
+                            metric_names: HashSet::new(),
+                            instrument_breakdown: HashMap::new(),
+                            unit_breakdown: HashMap::new(),
+                        },
+                        GroupType::MetricGroup => MetricGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Event => Event {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Resource => Resource {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Scope => Scope {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Span => Span {
+                            common_stats: CommonGroupStats::default(),
+                            span_kind_breakdown: HashMap::new(),
+                        },
+                        GroupType::Undefined => Undefined {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                    });
+
+                // Update stats
+                match entry {
+                    AttributeGroup { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Metric {
+                        common_stats,
+                        metric_names,
+                        instrument_breakdown,
+                        unit_breakdown,
+                    } => {
+                        common_stats.update_stats(group);
+
+                        let metric_name = group
+                            .metric_name
+                            .clone()
+                            .expect("metric_name is required as we are in a metric group");
+                        _ = metric_names.insert(metric_name);
+
+                        let instrument = group
+                            .instrument
+                            .clone()
+                            .expect("instrument is required as we are in a metric group");
+                        *instrument_breakdown.entry(instrument).or_insert(0) += 1;
+
+                        let unit = group
+                            .unit
+                            .clone()
+                            .expect("unit is required as we are in a metric group");
+                        *unit_breakdown.entry(unit).or_insert(0) += 1;
+                    }
+                    MetricGroup { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Event { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Resource { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Scope { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                    Span {
+                        common_stats,
+                        span_kind_breakdown,
+                    } => {
+                        common_stats.update_stats(group);
+                        if let Some(span_kind) = group.span_kind.clone() {
+                            *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
+                        }
+                    }
+                    Undefined { common_stats } => {
+                        common_stats.update_stats(group);
+                    }
+                }
+
                 acc
             }),
         }
