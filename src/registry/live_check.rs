@@ -18,18 +18,18 @@ use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
-use weaver_live_check::json_file_ingester::AttributeJsonFileIngester;
-use weaver_live_check::json_stdin_ingester::AttributeJsonStdinIngester;
+use weaver_live_check::json_file_ingester::JsonFileIngester;
+use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
-use weaver_live_check::text_file_ingester::AttributeFileIngester;
-use weaver_live_check::text_stdin_ingester::AttributeStdinIngester;
+use weaver_live_check::text_file_ingester::TextFileIngester;
+use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{Error, Ingester, LiveCheckStatistics};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 
-use super::otlp::otlp_ingester::AttributeOtlpIngester;
+use super::otlp::otlp_ingester::OtlpIngester;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -217,22 +217,22 @@ pub(crate) fn command(
     // Prepare the ingester
     let ingester = match (&args.input_source, &args.input_format) {
         (InputSource::File(path), InputFormat::Text) => {
-            AttributeFileIngester::new(path).ingest(logger.clone())?
+            TextFileIngester::new(path).ingest(logger.clone())?
         }
 
         (InputSource::Stdin, InputFormat::Text) => {
-            AttributeStdinIngester::new().ingest(logger.clone())?
+            TextStdinIngester::new().ingest(logger.clone())?
         }
 
         (InputSource::File(path), InputFormat::Json) => {
-            AttributeJsonFileIngester::new(path).ingest(logger.clone())?
+            JsonFileIngester::new(path).ingest(logger.clone())?
         }
 
         (InputSource::Stdin, InputFormat::Json) => {
-            AttributeJsonStdinIngester::new().ingest(logger.clone())?
+            JsonStdinIngester::new().ingest(logger.clone())?
         }
 
-        (InputSource::Otlp, _) => (AttributeOtlpIngester {
+        (InputSource::Otlp, _) => (OtlpIngester {
             otlp_grpc_address: args.otlp_grpc_address.clone(),
             otlp_grpc_port: args.otlp_grpc_port,
             admin_port: args.admin_port,
@@ -251,17 +251,17 @@ pub(crate) fn command(
 
     if stream_mode {
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
-        for attribute in ingester {
-            let live_check_attribute = live_checker.create_live_check_attribute(&attribute);
-            stats.update(&live_check_attribute);
+        for sample in ingester {
+            let live_check_result = live_checker.create_live_check_result(&sample);
+            stats.update(&live_check_result);
             // Set the exit_code to a non-zero code if there are any violations
-            if let Some(AdviceLevel::Violation) = live_check_attribute.highest_advice_level {
+            if let Some(AdviceLevel::Violation) = live_check_result.highest_advice_level {
                 exit_code = 1;
             }
             engine
                 .generate(
                     logger.clone(),
-                    &live_check_attribute,
+                    &live_check_result,
                     output.as_path(),
                     &output_directive,
                 )
@@ -281,8 +281,8 @@ pub(crate) fn command(
                 })
             })?;
     } else {
-        let attributes = ingester.collect::<Vec<_>>();
-        let results = live_checker.check_attributes(attributes);
+        let samples = ingester.collect::<Vec<_>>();
+        let results = live_checker.check_samples(samples);
         // Set the exit_code to a non-zero code if there are any violations
         if results.has_violations() {
             exit_code = 1;

@@ -2,15 +2,22 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 use weaver_common::Logger;
-use weaver_live_check::{sample_attribute::SampleAttribute, Error, Ingester};
+use weaver_live_check::{
+    sample_attribute::SampleAttribute,
+    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
+    Error, Ingester, Sample,
+};
 
 use super::{
-    grpc_stubs::proto::common::v1::{AnyValue, KeyValue},
+    grpc_stubs::proto::{
+        common::v1::{AnyValue, KeyValue},
+        trace::v1::span::SpanKind,
+    },
     listen_otlp_requests, OtlpRequest,
 };
 
 /// An ingester for OTLP data
-pub struct AttributeOtlpIngester {
+pub struct OtlpIngester {
     /// The address of the OTLP gRPC server
     pub otlp_grpc_address: String,
     /// The port of the OTLP gRPC server
@@ -21,13 +28,13 @@ pub struct AttributeOtlpIngester {
     pub inactivity_timeout: u64,
 }
 
-/// Iterator for OTLP attributes
-struct OtlpAttributeIterator {
+/// Iterator for OTLP samples
+struct OtlpIterator {
     otlp_requests: Box<dyn Iterator<Item = OtlpRequest>>,
-    buffer: Vec<SampleAttribute>,
+    buffer: Vec<Sample>,
 }
 
-impl OtlpAttributeIterator {
+impl OtlpIterator {
     fn new(otlp_requests: Box<dyn Iterator<Item = OtlpRequest>>) -> Self {
         Self {
             otlp_requests,
@@ -89,40 +96,66 @@ impl OtlpAttributeIterator {
                 Some(0)
             }
             OtlpRequest::Traces(trace) => {
-                // Process and buffer all attributes from all spans
                 for resource_span in trace.resource_spans {
                     if let Some(resource) = resource_span.resource {
+                        // TODO SampleResource?
                         for attribute in resource.attributes {
-                            self.buffer
-                                .push(Self::sample_attribute_from_key_value(&attribute));
+                            self.buffer.push(Sample::Attribute(
+                                Self::sample_attribute_from_key_value(&attribute),
+                            ));
                         }
                     }
 
                     for scope_span in resource_span.scope_spans {
                         if let Some(scope) = scope_span.scope {
+                            // TODO SampleInstrumentationScopeSpan? Or add these to the scope_span?
                             for attribute in scope.attributes {
-                                self.buffer
-                                    .push(Self::sample_attribute_from_key_value(&attribute));
+                                self.buffer.push(Sample::Attribute(
+                                    Self::sample_attribute_from_key_value(&attribute),
+                                ));
                             }
                         }
 
                         for span in scope_span.spans {
+                            let mut sample_span = SampleSpan {
+                                name: span.name,
+                                kind: SpanKind::try_from(span.kind)
+                                    .unwrap_or_default()
+                                    .as_str_name()
+                                    .to_owned(),
+                                attributes: Vec::new(),
+                                span_events: Vec::new(),
+                                span_links: Vec::new(),
+                            };
                             for attribute in span.attributes {
-                                self.buffer
+                                sample_span
+                                    .attributes
                                     .push(Self::sample_attribute_from_key_value(&attribute));
                             }
                             for event in span.events {
+                                let mut sample_event = SampleSpanEvent {
+                                    name: event.name,
+                                    attributes: Vec::new(),
+                                };
                                 for attribute in event.attributes {
-                                    self.buffer
+                                    sample_event
+                                        .attributes
                                         .push(Self::sample_attribute_from_key_value(&attribute));
                                 }
+                                sample_span.span_events.push(sample_event);
                             }
                             for link in span.links {
+                                let mut sample_link = SampleSpanLink {
+                                    attributes: Vec::new(),
+                                };
                                 for attribute in link.attributes {
-                                    self.buffer
+                                    sample_link
+                                        .attributes
                                         .push(Self::sample_attribute_from_key_value(&attribute));
                                 }
+                                sample_span.span_links.push(sample_link);
                             }
+                            self.buffer.push(Sample::Span(sample_span));
                         }
                     }
                 }
@@ -134,8 +167,8 @@ impl OtlpAttributeIterator {
     }
 }
 
-impl Iterator for OtlpAttributeIterator {
-    type Item = SampleAttribute;
+impl Iterator for OtlpIterator {
+    type Item = Sample;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.buffer.is_empty() {
@@ -151,11 +184,11 @@ impl Iterator for OtlpAttributeIterator {
     }
 }
 
-impl Ingester<SampleAttribute> for AttributeOtlpIngester {
+impl Ingester for OtlpIngester {
     fn ingest(
         &self,
         logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         let otlp_requests = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
@@ -178,8 +211,6 @@ impl Ingester<SampleAttribute> for AttributeOtlpIngester {
             self.inactivity_timeout
         ));
 
-        Ok(Box::new(OtlpAttributeIterator::new(Box::new(
-            otlp_requests,
-        ))))
+        Ok(Box::new(OtlpIterator::new(Box::new(otlp_requests))))
     }
 }

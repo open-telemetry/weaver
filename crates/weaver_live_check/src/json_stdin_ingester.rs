@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! An ingester that reads sample attributes from JSON input via standard input.
+//! An ingester that reads JSON samples input via standard input.
 //! This implementation currently reads until EOF and then deserializes the JSON
 //! rather than reading fragments and streaming.
 
@@ -8,38 +8,30 @@ use std::io::{self, Read};
 
 use weaver_common::Logger;
 
-use crate::{sample_attribute::SampleAttribute, Error, Ingester};
+use crate::{Error, Ingester, Sample};
 
-/// An ingester that reads sample attributes from JSON input via standard input.
-/// The JSON should contain an array of objects with at least a "name" field:
-/// ```json
-/// [
-///   {"name": "attr.name", "value": "val", "type": "string"},
-///   {"name": "attr.name2"}
-///   {"name": "attr.name3", "type": "string"},
-/// ]
-/// ```
-pub struct AttributeJsonStdinIngester;
+/// An ingester that reads JSON samples input via standard input.
+pub struct JsonStdinIngester;
 
-impl AttributeJsonStdinIngester {
+impl JsonStdinIngester {
     /// Create a new AttributeJsonStdinIngester
     #[must_use]
     pub fn new() -> Self {
-        AttributeJsonStdinIngester
+        JsonStdinIngester
     }
 }
 
-impl Default for AttributeJsonStdinIngester {
+impl Default for JsonStdinIngester {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Ingester<SampleAttribute> for AttributeJsonStdinIngester {
+impl Ingester for JsonStdinIngester {
     fn ingest(
         &self,
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
         let mut buffer = String::new();
@@ -52,11 +44,11 @@ impl Ingester<SampleAttribute> for AttributeJsonStdinIngester {
             })?;
 
         // Deserialize JSON from the buffer
-        let attributes: Vec<SampleAttribute> =
+        let samples: Vec<Sample> =
             serde_json::from_str(&buffer).map_err(|e| Error::IngestError {
                 error: format!("Failed to parse JSON from stdin: {}", e),
             })?;
 
-        Ok(Box::new(attributes.into_iter()))
+        Ok(Box::new(samples.into_iter()))
     }
 }

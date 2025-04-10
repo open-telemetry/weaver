@@ -23,23 +23,51 @@
   - attributes seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
 {% endmacro %}
 
-{% macro display_attribute_advice(result) %}
+{% macro display_attribute_result(result, indent=0) %}
 {% set highest_advice_level = result.highest_advice_level %}
 {% if highest_advice_level == "information" or not highest_advice_level %}
-{{ result.sample.attribute.name | ansi_bright_green }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
+{{ " " * indent }}{{ result.sample.attribute.name | ansi_bright_green }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
 {% elif highest_advice_level == "improvement" %}
-{{ result.sample.attribute.name | ansi_bright_yellow }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
+{{ " " * indent }}{{ result.sample.attribute.name | ansi_bright_yellow }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
 {% else %}
-{{ result.sample.attribute.name | ansi_bright_red }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
+{{ " " * indent }}{{ result.sample.attribute.name | ansi_bright_red }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
 {% endif %}
 
-  {% for advice in result.all_advice %}
+{{ display_advice(result.all_advice, indent)}}
+{% endmacro %}
+
+{% macro display_advice(all_advice, indent=0) %}
+  {% for advice in all_advice %}
     {% if advice.advice_level == "information" %}
-       - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
+{{ " " * indent }}    - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_green }} - {{ advice.message }}
     {% elif advice.advice_level == "improvement" %}
-       - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
+{{ " " * indent }}    - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_yellow }} - {{ advice.message }}
     {% else %}
-       - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
+{{ " " * indent }}    - {{ advice.advice_type ~ ": " ~ (advice.value) | ansi_red }} - {{ advice.message }}
     {% endif %}
   {% endfor %}
+{% endmacro %}
+
+{% macro display_result(result, indent=0) %}
+{%- if result.sample.span is defined %}
+{{ " " * indent }}Span name: {{ result.sample.span.name | ansi_green }} kind: {{ result.sample.span.kind | ansi_green }}
+{{ display_advice(result.all_advice, indent) }}
+{% for contained_result in result.contained_results %}
+{{ display_result(contained_result, indent + 4) }}
+{%- endfor %}
+{% elif result.sample.attribute is defined %}
+{{ display_attribute_result(result, indent) }}
+{%- elif result.sample.span_event is defined %}
+{{ " " * indent }}Span event name: {{ result.sample.span_event.name }}
+{{ display_advice(result.all_advice, indent) }}
+{% for contained_result in result.contained_results %}
+{{ display_result(contained_result, indent + 4) }}
+{%- endfor %}
+{%- elif result.sample.span_link is defined %}
+{{ " " * indent }}Span link
+{{ display_advice(result.all_advice, indent) }}
+{% for contained_result in result.contained_results %}
+{{ display_result(contained_result, indent + 4) }}
+{%- endfor %}
+{%- endif %}
 {% endmacro %}

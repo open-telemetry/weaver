@@ -7,29 +7,30 @@ use std::{fs, path::PathBuf};
 
 use weaver_common::Logger;
 
+use crate::Sample;
 use crate::{sample_attribute::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attributes from a text file.
 /// Each line in the file is treated as a separate attribute.
-pub struct AttributeFileIngester {
+pub struct TextFileIngester {
     path: PathBuf,
 }
 
-impl AttributeFileIngester {
+impl TextFileIngester {
     /// Create a new AttributeFileIngester
     #[must_use]
     pub fn new(path: &Path) -> Self {
-        AttributeFileIngester {
+        TextFileIngester {
             path: path.to_path_buf(),
         }
     }
 }
 
-impl Ingester<SampleAttribute> for AttributeFileIngester {
+impl Ingester for TextFileIngester {
     fn ingest(
         &self,
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         // Read the file contents
         let content = fs::read_to_string(&self.path).map_err(|e| Error::IngestError {
             error: format!("Failed to read file {}: {}", self.path.display(), e),
@@ -39,7 +40,7 @@ impl Ingester<SampleAttribute> for AttributeFileIngester {
         // Process each line into a SampleAttribute
         for line in content.lines() {
             if let Ok(sample_attribute) = SampleAttribute::try_from(line) {
-                attributes.push(sample_attribute);
+                attributes.push(Sample::Attribute(sample_attribute));
             }
         }
 
@@ -55,6 +56,13 @@ mod tests {
     use tempfile::tempdir;
     use weaver_common::TestLogger;
 
+    fn get_attribute(sample: &Sample) -> Option<&SampleAttribute> {
+        match sample {
+            Sample::Attribute(attr) => Some(attr),
+            _ => None,
+        }
+    }
+
     #[test]
     fn test_attribute_file_ingestion() {
         // Create a temporary directory and file
@@ -69,16 +77,19 @@ mod tests {
         writeln!(file, "TaskId").unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeFileIngester::new(&file_path);
+        let ingester = TextFileIngester::new(&file_path);
         let logger = TestLogger::new();
         let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 4);
-        assert_eq!(result[0].name, "aws.s3.bucket");
-        assert_eq!(result[1].name, "aws.s3.bucket.name");
-        assert_eq!(result[2].name, "task.id");
-        assert_eq!(result[3].name, "TaskId");
+        assert_eq!(get_attribute(&result[0]).unwrap().name, "aws.s3.bucket");
+        assert_eq!(
+            get_attribute(&result[1]).unwrap().name,
+            "aws.s3.bucket.name"
+        );
+        assert_eq!(get_attribute(&result[2]).unwrap().name, "task.id");
+        assert_eq!(get_attribute(&result[3]).unwrap().name, "TaskId");
     }
 
     #[test]
@@ -91,7 +102,7 @@ mod tests {
         let _ = File::create(&file_path).unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeFileIngester::new(&file_path);
+        let ingester = TextFileIngester::new(&file_path);
 
         let logger = TestLogger::new();
         let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
@@ -103,7 +114,7 @@ mod tests {
     #[test]
     fn test_file_not_found() {
         let non_existent_path = Path::new("/path/to/nonexistent/file.txt");
-        let ingester = AttributeFileIngester::new(non_existent_path);
+        let ingester = TextFileIngester::new(non_existent_path);
 
         let logger = TestLogger::new();
         let result = ingester.ingest(logger);
@@ -131,32 +142,68 @@ mod tests {
         writeln!(file, "equals_sign=test=test").unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeFileIngester::new(&file_path);
+        let ingester = TextFileIngester::new(&file_path);
         let logger = TestLogger::new();
         let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 5);
 
-        assert_eq!(result[0].name, "simple");
-        assert_eq!(result[0].value.as_ref().unwrap().as_str().unwrap(), "value");
+        assert_eq!(get_attribute(&result[0]).unwrap().name, "simple");
+        assert_eq!(
+            get_attribute(&result[0])
+                .unwrap()
+                .value
+                .as_ref()
+                .unwrap()
+                .as_str()
+                .unwrap(),
+            "value"
+        );
 
-        assert_eq!(result[1].name, "number");
-        assert_eq!(result[1].value.as_ref().unwrap().as_i64().unwrap(), 123);
+        assert_eq!(get_attribute(&result[1]).unwrap().name, "number");
+        assert_eq!(
+            get_attribute(&result[1])
+                .unwrap()
+                .value
+                .as_ref()
+                .unwrap()
+                .as_i64()
+                .unwrap(),
+            123
+        );
 
-        assert_eq!(result[2].name, "boolean");
-        assert!(result[2].value.as_ref().unwrap().as_bool().unwrap());
+        assert_eq!(get_attribute(&result[2]).unwrap().name, "boolean");
+        assert!(get_attribute(&result[2])
+            .unwrap()
+            .value
+            .as_ref()
+            .unwrap()
+            .as_bool()
+            .unwrap());
 
-        assert_eq!(result[3].name, "string_array");
-        let array = result[3].value.as_ref().unwrap().as_array().unwrap();
+        assert_eq!(get_attribute(&result[3]).unwrap().name, "string_array");
+        let array = get_attribute(&result[3])
+            .unwrap()
+            .value
+            .as_ref()
+            .unwrap()
+            .as_array()
+            .unwrap();
         assert_eq!(array.len(), 3);
         assert_eq!(array[0].as_str().unwrap(), "one");
         assert_eq!(array[1].as_str().unwrap(), "two");
         assert_eq!(array[2].as_str().unwrap(), "three");
 
-        assert_eq!(result[4].name, "equals_sign");
+        assert_eq!(get_attribute(&result[4]).unwrap().name, "equals_sign");
         assert_eq!(
-            result[4].value.as_ref().unwrap().as_str().unwrap(),
+            get_attribute(&result[4])
+                .unwrap()
+                .value
+                .as_ref()
+                .unwrap()
+                .as_str()
+                .unwrap(),
             "test=test"
         );
     }

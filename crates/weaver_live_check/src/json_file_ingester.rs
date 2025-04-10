@@ -7,42 +7,36 @@ use std::{fs, path::PathBuf};
 
 use weaver_common::Logger;
 
-use crate::{sample_attribute::SampleAttribute, Error, Ingester};
+use crate::Sample;
+use crate::{Error, Ingester};
 
-/// An ingester that reads attribute names and values from a JSON file.
-/// The file should contain an array of objects with at least a "name" field:
-/// ```json
-/// [
-///   {"name": "attr.name", "value": "val", "type": "string"},
-///   {"name": "attr.name2"}
-/// ]
-/// ```
-pub struct AttributeJsonFileIngester {
+/// An ingester that reads samples from a JSON file.
+pub struct JsonFileIngester {
     path: PathBuf,
 }
 
-impl AttributeJsonFileIngester {
+impl JsonFileIngester {
     /// Create a new AttributeJsonFileIngester
     #[must_use]
     pub fn new(path: &Path) -> Self {
-        AttributeJsonFileIngester {
+        JsonFileIngester {
             path: path.to_path_buf(),
         }
     }
 }
 
-impl Ingester<SampleAttribute> for AttributeJsonFileIngester {
+impl Ingester for JsonFileIngester {
     fn ingest(
         &self,
         _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = SampleAttribute>>, Error> {
+    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         // Open the file and use a reader to deserialize
         let file = fs::File::open(&self.path).map_err(|e| Error::IngestError {
             error: format!("Failed to open file {}: {}", self.path.display(), e),
         })?;
 
         // Deserialize directly from the reader
-        let attributes: Vec<SampleAttribute> =
+        let attributes: Vec<Sample> =
             serde_json::from_reader(file).map_err(|e| Error::IngestError {
                 error: format!(
                     "Failed to parse JSON from file {}: {}",
@@ -57,6 +51,8 @@ impl Ingester<SampleAttribute> for AttributeJsonFileIngester {
 
 #[cfg(test)]
 mod tests {
+    use crate::sample_attribute::SampleAttribute;
+
     use super::*;
     use serde_json::Value;
     use std::fs::File;
@@ -64,6 +60,13 @@ mod tests {
     use tempfile::tempdir;
     use weaver_common::TestLogger;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
+
+    fn get_attribute(sample: &Sample) -> Option<&SampleAttribute> {
+        match sample {
+            Sample::Attribute(attr) => Some(attr),
+            _ => None,
+        }
+    }
 
     #[test]
     fn test_json_array_ingestion() {
@@ -73,13 +76,13 @@ mod tests {
 
         // Create test JSON with array format
         let json_content = r#"[
-            {"name": "aws.s3.bucket", "value": "my-bucket"},
-            {"name": "aws.s3.bucket.name", "value": "my-bucket-name", "type": "string"},
-            {"name": "task.id", "value": 123, "type": "int"},
-            {"name": "metrics.count", "value": 45.6, "type": "double"},
-            {"name": "is.active", "value": true, "type": "boolean"},
-            {"name": "tags", "value": ["tag1", "tag2"], "type": "string[]"},
-            {"name": "TaskId"}
+            {"attribute": {"name": "aws.s3.bucket", "value": "my-bucket"}},
+            {"attribute": {"name": "aws.s3.bucket.name", "value": "my-bucket-name", "type": "string"}},
+            {"attribute": {"name": "task.id", "value": 123, "type": "int"}},
+            {"attribute": {"name": "metrics.count", "value": 45.6, "type": "double"}},
+            {"attribute": {"name": "is.active", "value": true, "type": "boolean"}},
+            {"attribute": {"name": "tags", "value": ["tag1", "tag2"], "type": "string[]"}},
+            {"attribute": {"name": "TaskId"}}
         ]"#;
 
         // Write test data to the file
@@ -87,37 +90,49 @@ mod tests {
         file.write_all(json_content.as_bytes()).unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeJsonFileIngester::new(&file_path);
+        let ingester = JsonFileIngester::new(&file_path);
 
         let logger = TestLogger::new();
         let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 7);
-        assert_eq!(result[0].name, "aws.s3.bucket");
+        assert_eq!(get_attribute(&result[0]).unwrap().name, "aws.s3.bucket");
         assert_eq!(
-            result[0].value.as_ref().unwrap(),
+            get_attribute(&result[0]).unwrap().value.as_ref().unwrap(),
             &Value::String("my-bucket".to_owned())
         );
-        assert_eq!(result[0].r#type, Some(PrimitiveOrArrayTypeSpec::String));
-
-        assert_eq!(result[1].name, "aws.s3.bucket.name");
         assert_eq!(
-            result[1].value.as_ref().unwrap(),
+            get_attribute(&result[0]).unwrap().r#type,
+            Some(PrimitiveOrArrayTypeSpec::String)
+        );
+
+        assert_eq!(
+            get_attribute(&result[1]).unwrap().name,
+            "aws.s3.bucket.name"
+        );
+        assert_eq!(
+            get_attribute(&result[1]).unwrap().value.as_ref().unwrap(),
             &Value::String("my-bucket-name".to_owned())
         );
-        assert_eq!(result[1].r#type, Some(PrimitiveOrArrayTypeSpec::String));
-
-        assert_eq!(result[2].name, "task.id");
         assert_eq!(
-            result[2].value.as_ref().unwrap(),
+            get_attribute(&result[1]).unwrap().r#type,
+            Some(PrimitiveOrArrayTypeSpec::String)
+        );
+
+        assert_eq!(get_attribute(&result[2]).unwrap().name, "task.id");
+        assert_eq!(
+            get_attribute(&result[2]).unwrap().value.as_ref().unwrap(),
             &Value::Number(serde_json::Number::from(123))
         );
-        assert_eq!(result[2].r#type, Some(PrimitiveOrArrayTypeSpec::Int));
+        assert_eq!(
+            get_attribute(&result[2]).unwrap().r#type,
+            Some(PrimitiveOrArrayTypeSpec::Int)
+        );
 
-        assert_eq!(result[6].name, "TaskId");
-        assert_eq!(result[6].value, None);
-        assert_eq!(result[6].r#type, None);
+        assert_eq!(get_attribute(&result[6]).unwrap().name, "TaskId");
+        assert_eq!(get_attribute(&result[6]).unwrap().value, None);
+        assert_eq!(get_attribute(&result[6]).unwrap().r#type, None);
     }
 
     #[test]
@@ -134,7 +149,7 @@ mod tests {
         file.write_all(json_content.as_bytes()).unwrap();
 
         // Create ingester and process the file
-        let ingester = AttributeJsonFileIngester::new(&file_path);
+        let ingester = JsonFileIngester::new(&file_path);
         let logger = TestLogger::new();
         let result = ingester.ingest(logger);
 
@@ -149,7 +164,7 @@ mod tests {
     #[test]
     fn test_file_not_found() {
         let non_existent_path = Path::new("/path/to/nonexistent/file.json");
-        let ingester = AttributeJsonFileIngester::new(non_existent_path);
+        let ingester = JsonFileIngester::new(non_existent_path);
         let logger = TestLogger::new();
         let result = ingester.ingest(logger);
 

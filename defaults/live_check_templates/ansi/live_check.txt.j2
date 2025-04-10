@@ -10,8 +10,8 @@
 
 {{ macros.display_statistics(ctx.statistics) }}
 {% elif ctx.all_advice is defined %}
-{# This is a LiveCheckAttribute object #}
-{{ macros.display_attribute_advice(ctx) }}
+{# This is a LiveCheckResult object #}
+{{ macros.display_result(ctx) }}
 {%- elif ctx.total_attributes is defined %}
 {# This is a LiveCheckStatistics object #}
 {{ macros.display_statistics(ctx) }}

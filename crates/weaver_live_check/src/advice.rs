@@ -18,7 +18,10 @@ use weaver_semconv::{
 };
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_span::SampleSpan, Error,
+    live_checker::LiveChecker,
+    sample_attribute::SampleAttribute,
+    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
+    Error,
 };
 
 /// Embedded default live check rego policies
@@ -38,6 +41,10 @@ pub enum Advisor {
     Attribute(Box<dyn Advise<SampleAttribute, Attribute>>),
     /// Advisor for spans
     Span(Box<dyn Advise<SampleSpan, ResolvedGroup>>),
+    /// Advisor for span events
+    SpanEvent(Box<dyn Advise<SampleSpanEvent, ResolvedGroup>>),
+    /// Advisor for span links
+    SpanLink(Box<dyn Advise<SampleSpanLink, ResolvedGroup>>),
 }
 
 /// Provides advice on a sample

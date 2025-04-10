@@ -12,8 +12,8 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{
-    advice::Advisor, sample_attribute::SampleAttribute, LiveCheckReport, LiveCheckResult,
-    LiveCheckStatistics, Sample, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    advice::Advisor, LiveCheckReport, LiveCheckResult, LiveCheckStatistics, Sample,
+    MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Provides advice for telemetry samples
@@ -88,74 +88,148 @@ impl LiveChecker {
         None
     }
 
-    /// Create a live check attribute from a sample attribute
+    /// Create a live check attribute from a sample
     #[must_use]
-    pub fn create_live_check_attribute(
-        &mut self,
-        sample_attribute: &SampleAttribute,
-    ) -> LiveCheckResult {
-        // clone the sample attribute into the result
-        let mut attribute_result =
-            LiveCheckResult::new(Sample::Attribute(sample_attribute.clone()));
+    pub fn create_live_check_result(&mut self, sample: &Sample) -> LiveCheckResult {
+        // clone the sample into the result
+        let mut result = LiveCheckResult::new(sample.clone());
 
-        // find the attribute in the registry
-        let semconv_attribute = {
-            if let Some(attribute) = self.find_attribute(&sample_attribute.name) {
-                Some(attribute.clone())
-            } else {
-                self.find_template(&sample_attribute.name).cloned()
-            }
-        };
+        match sample {
+            Sample::Attribute(sample_attribute) => {
+                // find the attribute in the registry
+                let semconv_attribute = {
+                    if let Some(attribute) = self.find_attribute(&sample_attribute.name) {
+                        Some(attribute.clone())
+                    } else {
+                        self.find_template(&sample_attribute.name).cloned()
+                    }
+                };
 
-        if semconv_attribute.is_none() {
-            attribute_result.add_advice(Advice {
-                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: Value::String(sample_attribute.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
-                advice_level: AdviceLevel::Violation,
-            });
-        } else {
-            // Provide an info advice if the attribute is a template
-            if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type {
-                    attribute_result.add_advice(Advice {
-                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: Value::String(attribute.name.clone()),
-                        message: "Is a template".to_owned(),
-                        advice_level: AdviceLevel::Information,
+                if semconv_attribute.is_none() {
+                    result.add_advice(Advice {
+                        advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                        value: Value::String(sample_attribute.name.clone()),
+                        message: "Does not exist in the registry".to_owned(),
+                        advice_level: AdviceLevel::Violation,
                     });
-                }
-            }
-        }
-
-        // run advisors on the attribute
-        for entity_advisor in self.advisors.iter_mut() {
-            if let Advisor::Attribute(advisor) = entity_advisor {
-                if let Ok(advices) = advisor.advise(sample_attribute, semconv_attribute.as_ref()) {
-                    for advice in advices {
-                        attribute_result.add_advice(advice);
+                } else {
+                    // Provide an info advice if the attribute is a template
+                    if let Some(attribute) = &semconv_attribute {
+                        if let AttributeType::Template(_) = attribute.r#type {
+                            result.add_advice(Advice {
+                                advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                                value: Value::String(attribute.name.clone()),
+                                message: "Is a template".to_owned(),
+                                advice_level: AdviceLevel::Information,
+                            });
+                        }
                     }
                 }
+
+                // run advisors on the attribute
+                for entity_advisor in self.advisors.iter_mut() {
+                    if let Advisor::Attribute(advisor) = entity_advisor {
+                        if let Ok(advices) =
+                            advisor.advise(sample_attribute, semconv_attribute.as_ref())
+                        {
+                            for advice in advices {
+                                result.add_advice(advice);
+                            }
+                        }
+                    }
+                }
+                result
+            }
+            Sample::Span(sample_span) => {
+                //TODO - Run the advisors on the span, just have a custom rego advisor to demo
+                // Remove this:
+                let span_advice = Advice {
+                    advice_type: "span_info".to_owned(),
+                    value: Value::String(sample_span.name.clone()),
+                    message: format!("Has span kind: `{}`", sample_span.kind),
+                    advice_level: AdviceLevel::Information,
+                };
+                result.add_advice(span_advice);
+
+                for entity_advisor in self.advisors.iter_mut() {
+                    if let Advisor::Span(advisor) = entity_advisor {
+                        if let Ok(advices) = advisor.advise(sample_span, None) {
+                            for advice in advices {
+                                result.add_advice(advice);
+                            }
+                        }
+                    }
+                }
+
+                for attribute in &sample_span.attributes {
+                    result
+                        .contained_results
+                        .push(self.create_live_check_result(&Sample::Attribute(attribute.clone())));
+                }
+                for span_event in &sample_span.span_events {
+                    result.contained_results.push(
+                        self.create_live_check_result(&Sample::SpanEvent(span_event.clone())),
+                    );
+                }
+                for span_link in &sample_span.span_links {
+                    result
+                        .contained_results
+                        .push(self.create_live_check_result(&Sample::SpanLink(span_link.clone())));
+                }
+
+                result
+            }
+            Sample::SpanEvent(sample_span_event) => {
+                for entity_advisor in self.advisors.iter_mut() {
+                    if let Advisor::SpanEvent(advisor) = entity_advisor {
+                        if let Ok(advices) = advisor.advise(sample_span_event, None) {
+                            for advice in advices {
+                                result.add_advice(advice);
+                            }
+                        }
+                    }
+                }
+                for attribute in &sample_span_event.attributes {
+                    result
+                        .contained_results
+                        .push(self.create_live_check_result(&Sample::Attribute(attribute.clone())));
+                }
+                result
+            }
+            Sample::SpanLink(sample_span_link) => {
+                for entity_advisor in self.advisors.iter_mut() {
+                    if let Advisor::SpanLink(advisor) = entity_advisor {
+                        if let Ok(advices) = advisor.advise(sample_span_link, None) {
+                            for advice in advices {
+                                result.add_advice(advice);
+                            }
+                        }
+                    }
+                }
+                for attribute in &sample_span_link.attributes {
+                    result
+                        .contained_results
+                        .push(self.create_live_check_result(&Sample::Attribute(attribute.clone())));
+                }
+                result
             }
         }
-
-        attribute_result
     }
 
     /// Run advisors on every attribute in the list
     #[must_use]
-    pub fn check_attributes(&mut self, sample_attributes: Vec<SampleAttribute>) -> LiveCheckReport {
+    pub fn check_samples(&mut self, samples: Vec<Sample>) -> LiveCheckReport {
         let mut live_check_report = LiveCheckReport {
             attributes: Vec::new(),
             statistics: LiveCheckStatistics::new(&self.registry),
         };
 
-        for sample_attribute in sample_attributes.iter() {
-            let attribute_result = self.create_live_check_attribute(sample_attribute);
+        for sample in samples.iter() {
+            let result = self.create_live_check_result(sample);
 
             // Update statistics
-            live_check_report.statistics.update(&attribute_result);
-            live_check_report.attributes.push(attribute_result);
+            live_check_report.statistics.update(&result);
+            live_check_report.attributes.push(result);
         }
         live_check_report.statistics.finalize();
         live_check_report
@@ -164,8 +238,9 @@ impl LiveChecker {
 
 #[cfg(test)]
 mod tests {
-    use crate::advice::{
-        DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
+    use crate::{
+        advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
+        sample_attribute::SampleAttribute,
     };
 
     use super::*;
@@ -313,16 +388,18 @@ mod tests {
         };
 
         let attributes = vec![
-            SampleAttribute::try_from("test.string=value").unwrap(),
-            SampleAttribute::try_from("testString2").unwrap(),
-            SampleAttribute::try_from("test.deprecated=42").unwrap(),
-            SampleAttribute::try_from("aws.s3.bucket.name").unwrap(),
-            SampleAttribute::try_from("test.enum=foo").unwrap(),
-            SampleAttribute::try_from("test.enum=example_variant1").unwrap(),
-            SampleAttribute::try_from("test.enum=42.42").unwrap(),
-            SampleAttribute::try_from("test.string.not.allowed=example_value").unwrap(),
-            SampleAttribute::try_from("test.extends=new_value").unwrap(),
-            SampleAttribute::try_from("test.template.my.key=42").unwrap(),
+            Sample::Attribute(SampleAttribute::try_from("test.string=value").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("testString2").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.deprecated=42").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("aws.s3.bucket.name").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.enum=foo").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.enum=example_variant1").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.enum=42.42").unwrap()),
+            Sample::Attribute(
+                SampleAttribute::try_from("test.string.not.allowed=example_value").unwrap(),
+            ),
+            Sample::Attribute(SampleAttribute::try_from("test.extends=new_value").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.template.my.key=42").unwrap()),
         ];
 
         let advisors: Vec<Advisor> = vec![
@@ -337,7 +414,7 @@ mod tests {
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
         live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
 
-        let report = live_checker.check_attributes(attributes);
+        let report = live_checker.check_samples(attributes);
         let mut results = report.attributes;
 
         assert_eq!(results.len(), 10);
@@ -582,8 +659,8 @@ mod tests {
         };
 
         let attributes = vec![
-            SampleAttribute::try_from("custom.string=hello").unwrap(),
-            SampleAttribute::try_from("test.string").unwrap(),
+            Sample::Attribute(SampleAttribute::try_from("custom.string=hello").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.string").unwrap()),
         ];
 
         let advisors: Vec<Advisor> = vec![];
@@ -597,7 +674,7 @@ mod tests {
         .expect("Failed to create Rego advisor");
         live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
 
-        let report = live_checker.check_attributes(attributes);
+        let report = live_checker.check_samples(attributes);
         let results = report.attributes;
 
         assert_eq!(results.len(), 2);

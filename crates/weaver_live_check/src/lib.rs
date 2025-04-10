@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
-use sample_span::SampleSpan;
+use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::{
@@ -73,23 +73,27 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// Ingesters implement a generic trait that returns an iterator
-pub trait Ingester<T> {
+/// Ingesters implement a trait that returns an iterator of samples
+pub trait Ingester {
     /// Ingest data and return an iterator of the output type
     fn ingest(
         &self,
         logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = T>>, Error>;
+    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error>;
 }
 
 /// Represents a sample entity
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Sample {
     /// A sample attribute
     Attribute(SampleAttribute),
     /// A sample span
     Span(SampleSpan),
+    /// A sample span event
+    SpanEvent(SampleSpanEvent),
+    /// A sample span link
+    SpanLink(SampleSpanLink),
 }
 
 /// Represents a live check result
@@ -101,6 +105,8 @@ pub struct LiveCheckResult {
     pub all_advice: Vec<Advice>,
     /// The highest advice level
     pub highest_advice_level: Option<AdviceLevel>,
+    /// Results contained within this result, e.g. for attributes in spans
+    pub contained_results: Vec<LiveCheckResult>,
 }
 
 impl LiveCheckResult {
@@ -111,6 +117,7 @@ impl LiveCheckResult {
             sample,
             all_advice: Vec::new(),
             highest_advice_level: None,
+            contained_results: Vec::new(),
         }
     }
 
@@ -195,16 +202,16 @@ impl LiveCheckStatistics {
         }
     }
 
-    /// Update statistics based on a live check attribute
-    pub fn update(&mut self, attribute_result: &LiveCheckResult) {
-        if let Sample::Attribute(sample_attribute) = &attribute_result.sample {
+    /// Update statistics based on a live check result
+    pub fn update(&mut self, result: &LiveCheckResult) {
+        if let Sample::Attribute(sample_attribute) = &result.sample {
             self.total_attributes += 1;
 
             // The seen attribute name. Adjust this if it's a template.
             let mut seen_attribute_name = sample_attribute.name.clone();
 
             // Count of advisories by type
-            for advice in &attribute_result.all_advice {
+            for advice in &result.all_advice {
                 // Count of total advisories
                 self.total_advisories += 1;
 
@@ -243,7 +250,7 @@ impl LiveCheckStatistics {
             }
 
             // Count of attributes with the highest advice level
-            if let Some(highest_advice_level) = &attribute_result.highest_advice_level {
+            if let Some(highest_advice_level) = &result.highest_advice_level {
                 let highest_advice_level_count = self
                     .highest_advice_level_counts
                     .entry(highest_advice_level.clone())
@@ -252,9 +259,13 @@ impl LiveCheckStatistics {
             }
 
             // Count of attributes with no advice
-            if attribute_result.all_advice.is_empty() {
+            if result.all_advice.is_empty() {
                 self.no_advice_count += 1;
             }
+        }
+        for contained_result in &result.contained_results {
+            // Recursively update the statistics for contained results
+            self.update(contained_result);
         }
     }
 
