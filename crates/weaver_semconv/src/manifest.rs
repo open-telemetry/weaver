@@ -40,7 +40,7 @@ pub struct RegistryManifest {
 
     /// List of the registry's dependencies.
     /// Note: In the current phase, we only support zero or one dependency.
-    /// See this GH issue for more details: https://github.com/open-telemetry/weaver/issues/604
+    /// See this GH issue for more details: <https://github.com/open-telemetry/weaver/issues/604>
     pub dependencies: Option<Vec<Dependency>>,
 }
 
