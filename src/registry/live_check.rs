@@ -15,21 +15,21 @@ use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
-use weaver_live_check::attribute_advice::{
+use weaver_live_check::advice::{
     Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
 };
-use weaver_live_check::attribute_file_ingester::AttributeFileIngester;
-use weaver_live_check::attribute_json_file_ingester::AttributeJsonFileIngester;
-use weaver_live_check::attribute_json_stdin_ingester::AttributeJsonStdinIngester;
-use weaver_live_check::attribute_live_check::AttributeLiveChecker;
-use weaver_live_check::attribute_stdin_ingester::AttributeStdinIngester;
+use weaver_live_check::json_file_ingester::AttributeJsonFileIngester;
+use weaver_live_check::json_stdin_ingester::AttributeJsonStdinIngester;
+use weaver_live_check::live_checker::LiveChecker;
+use weaver_live_check::text_file_ingester::AttributeFileIngester;
+use weaver_live_check::text_stdin_ingester::AttributeStdinIngester;
 use weaver_live_check::{Error, Ingester, LiveCheckStatistics};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
 
-use super::otlp::attribute_otlp_ingester::AttributeOtlpIngester;
+use super::otlp::otlp_ingester::AttributeOtlpIngester;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
@@ -69,22 +69,6 @@ impl From<String> for InputFormat {
     }
 }
 
-/// The scope for the live check
-#[derive(Debug, Clone)]
-enum AdviceScope {
-    Attributes,
-    Signals,
-}
-
-impl From<String> for AdviceScope {
-    fn from(s: String) -> Self {
-        match s.to_lowercase().as_str() {
-            "signals" | "signal" | "s" => AdviceScope::Signals,
-            _ => AdviceScope::Attributes,
-        }
-    }
-}
-
 /// Parameters for the `registry live-check` sub-command
 #[derive(Debug, Args)]
 pub struct RegistryLiveCheckArgs {
@@ -107,14 +91,6 @@ pub struct RegistryLiveCheckArgs {
     /// The format of the input telemetry. (Not required for OTLP). text | json
     #[arg(long, default_value = "text")]
     input_format: InputFormat,
-
-    /// Whether to provide advice on attributes or whole signals. attributes | signals
-    ///
-    /// If set to `signals`, the advice is provided on the whole signal (e.g. span, event, etc.)
-    /// If set to `attributes`, the advice is provided on each attribute.
-    /// The scope must be set to match what is present in the input as well as the desired output.
-    #[arg(long, default_value = "attributes")]
-    advice_scope: AdviceScope,
 
     /// Format used to render the report. Predefined formats are: ansi, json
     #[arg(long, default_value = "ansi")]
@@ -165,12 +141,12 @@ pub struct RegistryLiveCheckArgs {
     advice_preprocessor: Option<PathBuf>,
 }
 
-fn default_advisors() -> Vec<Box<dyn Advisor>> {
+fn default_advisors() -> Vec<Advisor> {
     vec![
-        Box::new(DeprecatedAdvisor),
-        Box::new(StabilityAdvisor),
-        Box::new(TypeAdvisor),
-        Box::new(EnumAdvisor),
+        Advisor::Attribute(Box::new(DeprecatedAdvisor)),
+        Advisor::Attribute(Box::new(StabilityAdvisor)),
+        Advisor::Attribute(Box::new(TypeAdvisor)),
+        Advisor::Attribute(Box::new(EnumAdvisor)),
     ]
 }
 
@@ -205,14 +181,14 @@ pub(crate) fn command(
     ));
 
     // Create the live checker with advisors
-    let mut live_checker = AttributeLiveChecker::new(registry, default_advisors());
+    let mut live_checker = LiveChecker::new(registry, default_advisors());
 
     let rego_advisor = RegoAdvisor::new(
         &live_checker,
         &args.advice_policies,
         &args.advice_preprocessor,
     )?;
-    live_checker.add_advisor(Box::new(rego_advisor));
+    live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
 
     // Prepare the template engine
     let loader = EmbeddedFileLoader::try_new(

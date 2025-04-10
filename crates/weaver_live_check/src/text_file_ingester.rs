@@ -7,7 +7,7 @@ use std::{fs, path::PathBuf};
 
 use weaver_common::Logger;
 
-use crate::{sample::SampleAttribute, Error, Ingester};
+use crate::{sample_attribute::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attributes from a text file.
 /// Each line in the file is treated as a separate attribute.

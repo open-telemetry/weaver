@@ -12,27 +12,27 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
 use crate::{
-    attribute_advice::Advisor, sample::SampleAttribute, LiveCheckAttribute, LiveCheckReport,
-    LiveCheckStatistics, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    advice::Advisor, sample_attribute::SampleAttribute, LiveCheckReport, LiveCheckResult,
+    LiveCheckStatistics, Sample, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Provides advice for telemetry samples
 #[derive(Serialize)]
-pub struct AttributeLiveChecker {
+pub struct LiveChecker {
     /// The resolved registry
     pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
     semconv_templates: HashMap<String, Attribute>,
     #[serde(skip)]
-    advisors: Vec<Box<dyn Advisor>>,
+    advisors: Vec<Advisor>,
     #[serde(skip)]
     templates_by_length: Vec<(String, Attribute)>,
 }
 
-impl AttributeLiveChecker {
+impl LiveChecker {
     #[must_use]
-    /// Create a new AttributeLiveChecker
-    pub fn new(registry: ResolvedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
+    /// Create a new LiveChecker
+    pub fn new(registry: ResolvedRegistry, advisors: Vec<Advisor>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
@@ -56,7 +56,7 @@ impl AttributeLiveChecker {
         // Sort templates by name length in descending order
         templates_by_length.sort_by(|(a, _), (b, _)| b.len().cmp(&a.len()));
 
-        AttributeLiveChecker {
+        LiveChecker {
             registry,
             semconv_attributes,
             semconv_templates,
@@ -66,7 +66,7 @@ impl AttributeLiveChecker {
     }
 
     /// Add an advisor
-    pub fn add_advisor(&mut self, advisor: Box<dyn Advisor>) {
+    pub fn add_advisor(&mut self, advisor: Advisor) {
         self.advisors.push(advisor);
     }
 
@@ -93,9 +93,10 @@ impl AttributeLiveChecker {
     pub fn create_live_check_attribute(
         &mut self,
         sample_attribute: &SampleAttribute,
-    ) -> LiveCheckAttribute {
+    ) -> LiveCheckResult {
         // clone the sample attribute into the result
-        let mut attribute_result = LiveCheckAttribute::new(sample_attribute.clone());
+        let mut attribute_result =
+            LiveCheckResult::new(Sample::Attribute(sample_attribute.clone()));
 
         // find the attribute in the registry
         let semconv_attribute = {
@@ -128,10 +129,12 @@ impl AttributeLiveChecker {
         }
 
         // run advisors on the attribute
-        for advisor in self.advisors.iter_mut() {
-            if let Ok(advices) = advisor.advise(sample_attribute, semconv_attribute.as_ref()) {
-                for advice in advices {
-                    attribute_result.add_advice(advice);
+        for entity_advisor in self.advisors.iter_mut() {
+            if let Advisor::Attribute(advisor) = entity_advisor {
+                if let Ok(advices) = advisor.advise(sample_attribute, semconv_attribute.as_ref()) {
+                    for advice in advices {
+                        attribute_result.add_advice(advice);
+                    }
                 }
             }
         }
@@ -161,7 +164,7 @@ impl AttributeLiveChecker {
 
 #[cfg(test)]
 mod tests {
-    use crate::attribute_advice::{
+    use crate::advice::{
         DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
     };
 
@@ -322,17 +325,17 @@ mod tests {
             SampleAttribute::try_from("test.template.my.key=42").unwrap(),
         ];
 
-        let advisors: Vec<Box<dyn Advisor>> = vec![
-            Box::new(DeprecatedAdvisor),
-            Box::new(StabilityAdvisor),
-            Box::new(TypeAdvisor),
-            Box::new(EnumAdvisor),
+        let advisors: Vec<Advisor> = vec![
+            Advisor::Attribute(Box::new(DeprecatedAdvisor)),
+            Advisor::Attribute(Box::new(StabilityAdvisor)),
+            Advisor::Attribute(Box::new(TypeAdvisor)),
+            Advisor::Attribute(Box::new(EnumAdvisor)),
         ];
 
-        let mut live_checker = AttributeLiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(registry, advisors);
         let rego_advisor =
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
-        live_checker.add_advisor(Box::new(rego_advisor));
+        live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
 
         let report = live_checker.check_attributes(attributes);
         let mut results = report.attributes;
@@ -583,16 +586,16 @@ mod tests {
             SampleAttribute::try_from("test.string").unwrap(),
         ];
 
-        let advisors: Vec<Box<dyn Advisor>> = vec![];
+        let advisors: Vec<Advisor> = vec![];
 
-        let mut live_checker = AttributeLiveChecker::new(registry, advisors);
+        let mut live_checker = LiveChecker::new(registry, advisors);
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
             &Some("data/jq/test.jq".into()),
         )
         .expect("Failed to create Rego advisor");
-        live_checker.add_advisor(Box::new(rego_advisor));
+        live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
 
         let report = live_checker.check_attributes(attributes);
         let results = report.attributes;

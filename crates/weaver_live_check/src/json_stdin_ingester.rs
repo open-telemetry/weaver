@@ -8,7 +8,7 @@ use std::io::{self, Read};
 
 use weaver_common::Logger;
 
-use crate::{sample::SampleAttribute, Error, Ingester};
+use crate::{sample_attribute::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads sample attributes from JSON input via standard input.
 /// The JSON should contain an array of objects with at least a "name" field:

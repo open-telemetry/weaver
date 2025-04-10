@@ -7,7 +7,7 @@ use std::{fs, path::PathBuf};
 
 use weaver_common::Logger;
 
-use crate::{sample::SampleAttribute, Error, Ingester};
+use crate::{sample_attribute::SampleAttribute, Error, Ingester};
 
 /// An ingester that reads attribute names and values from a JSON file.
 /// The file should contain an array of objects with at least a "name" field:

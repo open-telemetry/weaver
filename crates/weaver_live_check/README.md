@@ -48,15 +48,15 @@ flowchart LR
 
 ## Ingesters
 
-Sample data can have various levels of detail; from a simple list of attribute names, to a full OTLP signal structure. This data can come from different sources: files, stdin, OTLP. Therefore you need to choose the appropriate `Ingester` for your job by setting three parameters: `--input-source`, `--input-format`, `--advice-scope`
+Sample data can have various levels of detail; from a simple list of attribute names, to a full OTLP signal structure. This data can come from different sources: files, stdin, OTLP. Therefore you need to choose the appropriate `Ingester` for your job by setting two parameters: `--input-source`, `--input-format`
 
-| Input Source   | Input Format | Advice Scope | Outcome                                                 |
-| -------------- | ------------ | ------------ | ------------------------------------------------------- |
-| &lt;file path> | `text`       | `attributes` | Text file with attribute names or name=value pairs      |
-| `stdin`        | `text`       | `attributes` | Standard input with attribute names or name=value pairs |
-| &lt;file path> | `json`       | `attributes` | JSON file with an array of attribute samples            |
-| `stdin`        | `json`       | `attributes` | Standard input with JSON array of attribute samples     |
-| `otlp`         | N/A          | `attributes` | OTLP signals with extracted attributes                  |
+| Input Source   | Input Format |                                                         |
+| -------------- | ------------ | ------------------------------------------------------- |
+| &lt;file path> | `text`       | Text file with attribute names or name=value pairs      |
+| `stdin`        | `text`       | Standard input with attribute names or name=value pairs |
+| &lt;file path> | `json`       | JSON file with an array of samples                      |
+| `stdin`        | `json`       | Standard input with a JSON array of samples             |
+| `otlp`         | N/A          | OTLP signals                                            |
 
 Some `Ingesters`, like `stdin` and `otlp`, can stream the input data so you receive output at the command line as it comes in. This is really useful in live debugging sessions allowing you to breakpoint, step through your code and see live assessment as the data is received in Weaver.
 

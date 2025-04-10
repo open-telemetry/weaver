@@ -9,7 +9,7 @@ use weaver_checker::{
     violation::{Advice, AdviceLevel, Violation},
     Engine,
 };
-use weaver_forge::jq;
+use weaver_forge::{jq, registry::ResolvedGroup};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
     attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec},
@@ -17,7 +17,9 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{attribute_live_check::AttributeLiveChecker, sample::SampleAttribute, Error};
+use crate::{
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_span::SampleSpan, Error,
+};
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -30,26 +32,30 @@ pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
 /// Embedded default live check jq preprocessor
 pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
-/// Provides advice on a sample attribute
-pub trait Advisor {
-    /// Provide advice on a sample attribute
-    fn advise(
-        &mut self,
-        attribute: &SampleAttribute,
-        semconv_attribute: Option<&Attribute>,
-    ) -> Result<Vec<Advice>, Error>;
+/// Advisors for each entity type
+pub enum Advisor {
+    /// Advisor for attributes
+    Attribute(Box<dyn Advise<SampleAttribute, Attribute>>),
+    /// Advisor for spans
+    Span(Box<dyn Advise<SampleSpan, ResolvedGroup>>),
+}
+
+/// Provides advice on a sample
+pub trait Advise<S, RE> {
+    /// Provide advice on a sample
+    fn advise(&mut self, sample: &S, registry_entity: Option<&RE>) -> Result<Vec<Advice>, Error>;
 }
 
 /// An advisor that checks if an attribute is deprecated
 pub struct DeprecatedAdvisor;
-impl Advisor for DeprecatedAdvisor {
+impl Advise<SampleAttribute, Attribute> for DeprecatedAdvisor {
     fn advise(
         &mut self,
         _attribute: &SampleAttribute,
-        semconv_attribute: Option<&Attribute>,
+        registry_attribute: Option<&Attribute>,
     ) -> Result<Vec<Advice>, Error> {
         let mut advices = Vec::new();
-        if let Some(attribute) = semconv_attribute {
+        if let Some(attribute) = registry_attribute {
             if let Some(deprecated) = &attribute.deprecated {
                 advices.push(Advice {
                     advice_type: "deprecated".to_owned(),
@@ -72,16 +78,16 @@ impl Advisor for DeprecatedAdvisor {
 /// An advisor that checks if an attribute is stable from the stability field in the semantic convention
 /// The value will be the stability level
 pub struct StabilityAdvisor;
-// TODO: Configurable Advisory level, strictly stable would mean Violation
+// TODO: Configurable Advice level, strictly stable would mean Violation
 
-impl Advisor for StabilityAdvisor {
+impl Advise<SampleAttribute, Attribute> for StabilityAdvisor {
     fn advise(
         &mut self,
         _attribute: &SampleAttribute,
-        semconv_attribute: Option<&Attribute>,
+        registry_attribute: Option<&Attribute>,
     ) -> Result<Vec<Advice>, Error> {
         let mut advices = Vec::new();
-        if let Some(attribute) = semconv_attribute {
+        if let Some(attribute) = registry_attribute {
             match attribute.stability {
                 Some(ref stability) if *stability != Stability::Stable => {
                     advices.push(Advice {
@@ -100,14 +106,14 @@ impl Advisor for StabilityAdvisor {
 
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
-impl Advisor for TypeAdvisor {
+impl Advise<SampleAttribute, Attribute> for TypeAdvisor {
     fn advise(
         &mut self,
         attribute: &SampleAttribute,
-        semconv_attribute: Option<&Attribute>,
+        registry_attribute: Option<&Attribute>,
     ) -> Result<Vec<Advice>, Error> {
         // Only provide advice if the attribute is a match and the type is present
-        match (semconv_attribute, attribute.r#type.as_ref()) {
+        match (registry_attribute, attribute.r#type.as_ref()) {
             (Some(semconv_attribute), Some(attribute_type)) => {
                 let semconv_attribute_type = match &semconv_attribute.r#type {
                     AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
@@ -158,15 +164,15 @@ impl Advisor for TypeAdvisor {
 
 /// An advisor that reports if the given value is not a defined variant in the enum
 pub struct EnumAdvisor;
-impl Advisor for EnumAdvisor {
+impl Advise<SampleAttribute, Attribute> for EnumAdvisor {
     fn advise(
         &mut self,
         attribute: &SampleAttribute,
-        semconv_attribute: Option<&Attribute>,
+        registry_attribute: Option<&Attribute>,
     ) -> Result<Vec<Advice>, Error> {
-        // Only provide advice if the semconv_attribute is an enum and the attribute has a value and type
+        // Only provide advice if the registry_attribute is an enum and the attribute has a value and type
         match (
-            semconv_attribute,
+            registry_attribute,
             attribute.value.as_ref(),
             attribute.r#type.as_ref(),
         ) {
@@ -222,7 +228,7 @@ pub struct RegoAdvisor {
 impl RegoAdvisor {
     /// Create a new RegoAdvisor
     pub fn new(
-        live_checker: &AttributeLiveChecker,
+        live_checker: &LiveChecker,
         policy_dir: &Option<PathBuf>,
         jq_preprocessor: &Option<PathBuf>,
     ) -> Result<Self, Error> {
@@ -271,11 +277,11 @@ impl RegoAdvisor {
         Ok(RegoAdvisor { engine })
     }
 }
-impl Advisor for RegoAdvisor {
+impl Advise<SampleAttribute, Attribute> for RegoAdvisor {
     fn advise(
         &mut self,
         attribute: &SampleAttribute,
-        _semconv_attribute: Option<&Attribute>,
+        _registry_attribute: Option<&Attribute>,
     ) -> Result<Vec<Advice>, Error> {
         self.engine
             .set_input(attribute)

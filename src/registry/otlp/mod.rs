@@ -2,7 +2,7 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 
-pub mod attribute_otlp_ingester;
+pub mod otlp_ingester;
 
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};

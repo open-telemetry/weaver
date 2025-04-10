@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Intermediary format for telemetry samples
+//! Intermediary format for telemetry sample attributes
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

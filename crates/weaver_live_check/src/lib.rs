@@ -5,8 +5,9 @@
 use std::collections::HashMap;
 
 use miette::Diagnostic;
-use sample::SampleAttribute;
-use serde::Serialize;
+use sample_attribute::SampleAttribute;
+use sample_span::SampleSpan;
+use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::{
     diagnostic::{DiagnosticMessage, DiagnosticMessages},
@@ -15,19 +16,21 @@ use weaver_common::{
 use weaver_forge::registry::ResolvedRegistry;
 
 /// Advisors for live checks
-pub mod attribute_advice;
-/// An ingester that reads attribute names from a text file.
-pub mod attribute_file_ingester;
+pub mod advice;
 /// An ingester that reads attribute names and values from a JSON file.
-pub mod attribute_json_file_ingester;
+pub mod json_file_ingester;
 /// An ingester that reads attribute names and values from standard input.
-pub mod attribute_json_stdin_ingester;
+pub mod json_stdin_ingester;
 /// Attribute live checker
-pub mod attribute_live_check;
+pub mod live_checker;
+/// The intermediary format for attributes
+pub mod sample_attribute;
+/// The intermediary format for spans
+pub mod sample_span;
+/// An ingester that reads attribute names from a text file.
+pub mod text_file_ingester;
 /// An ingester that reads attribute names from standard input.
-pub mod attribute_stdin_ingester;
-/// The intermediary format
-pub mod sample;
+pub mod text_stdin_ingester;
 
 /// Missing Attribute advice type
 pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
@@ -79,29 +82,39 @@ pub trait Ingester<T> {
     ) -> Result<Box<dyn Iterator<Item = T>>, Error>;
 }
 
-/// Represents a live check attribute parsed from any source
+/// Represents a sample entity
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Sample {
+    /// A sample attribute
+    Attribute(SampleAttribute),
+    /// A sample span
+    Span(SampleSpan),
+}
+
+/// Represents a live check result
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LiveCheckAttribute {
-    /// The sample attribute
-    pub sample_attribute: SampleAttribute,
-    /// Advice on the attribute
+pub struct LiveCheckResult {
+    /// The sample entity
+    pub sample: Sample,
+    /// Advice on the entity
     pub all_advice: Vec<Advice>,
     /// The highest advice level
     pub highest_advice_level: Option<AdviceLevel>,
 }
 
-impl LiveCheckAttribute {
-    /// Create a new LiveCheckAttribute
+impl LiveCheckResult {
+    /// Create a new LiveCheckResult
     #[must_use]
-    pub fn new(sample_attribute: SampleAttribute) -> Self {
-        LiveCheckAttribute {
-            sample_attribute,
+    pub fn new(sample: Sample) -> Self {
+        LiveCheckResult {
+            sample,
             all_advice: Vec::new(),
             highest_advice_level: None,
         }
     }
 
-    /// Add an advice to the attribute and update the highest advice level
+    /// Add an advice to the result and update the highest advice level
     pub fn add_advice(&mut self, advice: Advice) {
         let advice_level = advice.advice_level.clone();
         if let Some(previous_highest) = &self.highest_advice_level {
@@ -119,7 +132,7 @@ impl LiveCheckAttribute {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LiveCheckReport {
     /// The live check attributes
-    pub attributes: Vec<LiveCheckAttribute>,
+    pub attributes: Vec<LiveCheckResult>,
     /// The statistics for the report
     pub statistics: LiveCheckStatistics,
 }
@@ -183,63 +196,65 @@ impl LiveCheckStatistics {
     }
 
     /// Update statistics based on a live check attribute
-    pub fn update(&mut self, attribute_result: &LiveCheckAttribute) {
-        self.total_attributes += 1;
+    pub fn update(&mut self, attribute_result: &LiveCheckResult) {
+        if let Sample::Attribute(sample_attribute) = &attribute_result.sample {
+            self.total_attributes += 1;
 
-        // The seen attribute name. Adjust this if it's a template.
-        let mut seen_attribute_name = attribute_result.sample_attribute.name.clone();
-
-        // Count of advisories by type
-        for advice in &attribute_result.all_advice {
-            // Count of total advisories
-            self.total_advisories += 1;
-
-            let advice_level_count = self
-                .advice_level_counts
-                .entry(advice.advice_level.clone())
-                .or_insert(0);
-            *advice_level_count += 1;
+            // The seen attribute name. Adjust this if it's a template.
+            let mut seen_attribute_name = sample_attribute.name.clone();
 
             // Count of advisories by type
-            let advice_type_count = self
-                .advice_type_counts
-                .entry(advice.advice_type.clone())
-                .or_insert(0);
-            *advice_type_count += 1;
+            for advice in &attribute_result.all_advice {
+                // Count of total advisories
+                self.total_advisories += 1;
 
-            // If the advice is a template, adjust the name
-            if advice.advice_type == "template_attribute" {
-                if let Some(template_name) = advice.value.as_str() {
-                    seen_attribute_name = template_name.to_owned();
+                let advice_level_count = self
+                    .advice_level_counts
+                    .entry(advice.advice_level.clone())
+                    .or_insert(0);
+                *advice_level_count += 1;
+
+                // Count of advisories by type
+                let advice_type_count = self
+                    .advice_type_counts
+                    .entry(advice.advice_type.clone())
+                    .or_insert(0);
+                *advice_type_count += 1;
+
+                // If the advice is a template, adjust the name
+                if advice.advice_type == "template_attribute" {
+                    if let Some(template_name) = advice.value.as_str() {
+                        seen_attribute_name = template_name.to_owned();
+                    }
                 }
             }
-        }
 
-        // Count of attributes seen from the registry
-        if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
-            // This is a registry attribute
-            *count += 1;
-        } else {
-            // This is a non-registry attribute
-            let seen_non_registry_count = self
-                .seen_non_registry_attributes
-                .entry(seen_attribute_name.clone())
-                .or_insert(0);
-            *seen_non_registry_count += 1;
-        }
+            // Count of attributes seen from the registry
+            if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
+                // This is a registry attribute
+                *count += 1;
+            } else {
+                // This is a non-registry attribute
+                let seen_non_registry_count = self
+                    .seen_non_registry_attributes
+                    .entry(seen_attribute_name.clone())
+                    .or_insert(0);
+                *seen_non_registry_count += 1;
+            }
 
-        // Count of attributes with the highest advice level
-        if let Some(highest_advice_level) = &attribute_result.highest_advice_level {
-            let highest_advice_level_count = self
-                .highest_advice_level_counts
-                .entry(highest_advice_level.clone())
-                .or_insert(0);
-            *highest_advice_level_count += 1;
-        }
+            // Count of attributes with the highest advice level
+            if let Some(highest_advice_level) = &attribute_result.highest_advice_level {
+                let highest_advice_level_count = self
+                    .highest_advice_level_counts
+                    .entry(highest_advice_level.clone())
+                    .or_insert(0);
+                *highest_advice_level_count += 1;
+            }
 
-        // Count of attributes with no advice
-        if attribute_result.all_advice.is_empty() {
-            self.no_advice_count += 1;
+            // Count of attributes with no advice
+            if attribute_result.all_advice.is_empty() {
+                self.no_advice_count += 1;
+            }
         }
     }
 

@@ -6,7 +6,7 @@ use std::io::{self, BufRead};
 
 use weaver_common::Logger;
 
-use crate::{sample::SampleAttribute, Error, Ingester};
+use crate::{sample_attribute::SampleAttribute, Error, Ingester};
 
 /// An ingester that streams attribute names or name=value pairs from standard input.
 /// Implements the Ingester trait to return an iterator of SampleAttribute items.
