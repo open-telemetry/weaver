@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
-use weaver_resolved_schema::registry::{Constraint, Group, Registry};
+use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
@@ -48,8 +48,8 @@ pub struct ResolvedGroup {
     #[serde(default)]
     #[serde(skip_serializing_if = "String::is_empty")]
     pub prefix: String,
-    /// Reference another semantic convention id. It inherits the prefix,
-    /// constraints, and all attributes defined in the specified semantic
+    /// Reference another semantic convention id. It inherits
+    /// all attributes defined in the specified semantic
     /// convention.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extends: Option<String>,
@@ -65,22 +65,16 @@ pub struct ResolvedGroup {
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
-    /// Additional constraints.
-    /// Allow to define additional requirements on the semantic convention.
-    /// It defaults to an empty list.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub constraints: Vec<Constraint>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<Attribute>,
 
     /// Specifies the kind of the span.
-    /// Note: only valid if type is span (the default)
+    /// Note: only valid if type is span
     pub span_kind: Option<SpanKindSpec>,
     /// List of strings that specify the ids of event semantic conventions
     /// associated with this span semantic convention.
-    /// Note: only valid if type is span (the default)
+    /// Note: only valid if type is span
     #[serde(default)]
     pub events: Vec<String>,
     /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
@@ -109,6 +103,10 @@ pub struct ResolvedGroup {
     /// The body specification used for event semantic conventions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
+    /// The associated entities of this group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
 }
 
 impl ResolvedGroup {
@@ -123,7 +121,6 @@ impl ResolvedGroup {
         let extends = group.extends.clone();
         let stability = group.stability.clone();
         let deprecated = group.deprecated.clone();
-        let constraints = group.constraints.clone();
         let attributes = group
             .attributes
             .iter()
@@ -152,7 +149,6 @@ impl ResolvedGroup {
             extends,
             stability,
             deprecated,
-            constraints,
             attributes,
             span_kind: group.span_kind.clone(),
             events: group.events.clone(),
@@ -163,6 +159,7 @@ impl ResolvedGroup {
             lineage,
             display_name: group.display_name.clone(),
             body: group.body.clone(),
+            entity_associations: group.entity_associations.clone(),
         })
     }
 }
@@ -187,7 +184,6 @@ impl ResolvedRegistry {
                 let extends = group.extends.clone();
                 let stability = group.stability.clone();
                 let deprecated = group.deprecated.clone();
-                let constraints = group.constraints.clone();
                 let attributes = group
                     .attributes
                     .iter()
@@ -213,7 +209,6 @@ impl ResolvedRegistry {
                     extends,
                     stability,
                     deprecated,
-                    constraints,
                     attributes,
                     span_kind: group.span_kind.clone(),
                     events: group.events.clone(),
@@ -224,6 +219,7 @@ impl ResolvedRegistry {
                     lineage,
                     display_name: group.display_name.clone(),
                     body: group.body.clone(),
+                    entity_associations: group.entity_associations.clone(),
                 }
             })
             .collect();

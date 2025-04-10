@@ -133,10 +133,10 @@ impl ResolvedTelemetrySchema {
             events: vec![],
             metric_name: None,
             instrument: None,
-            constraints: vec![],
             unit: None,
             body: None,
             annotations: None,
+            entity_associations: vec![],
         });
     }
 

@@ -307,10 +307,6 @@ groups:
       - ref: server.socket.domain
         requirement_level:
           recommended: If different than `server.address` and if `server.socket.address` is set.
-    constraints:
-      - any_of:
-          - 'server.address'
-          - 'server.socket.address'
 
   - id: db.mssql
     stability: stable
@@ -688,15 +684,3 @@ groups:
         examples: [46.18, 1.0]
         requirement_level:
           conditionally_required: when available
-
-  - id: db.tech
-    stability: stable
-    type: span
-    span_kind: client
-    brief: "Semantic convention group for specific technologies"
-    constraints:
-      - include: 'db.cassandra'
-      - include: 'db.redis'
-      - include: 'db.mongodb'
-      - include: 'db.sql'
-      - include: 'db.cosmosdb'

@@ -20,7 +20,7 @@ This content will be replaced by generated snippet.
 
 Snippets can be defined with the following pseudo-grammar:
 
-```
+```text
 SNIPPET_TAG = "semconv" GROUP_ID SNIPPET_ARGS?
 GROUP_ID = ('A'-'Z', 'a'-'z', '.', '_', '-')+
 SNIPPET_ARGS = "(" SNIPPET_ARG ("," SNIPPET_ARG)* ")"
@@ -30,7 +30,6 @@ SNIPPET_ARG =
    "omit_requirement_level" |
    ("tag" "=" ('A'-'Z','a'-'z','0'-'9')+)
 ```
-
 
 ## Snippet Templates
 

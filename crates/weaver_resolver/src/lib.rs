@@ -17,7 +17,6 @@ use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
 use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
-use weaver_resolved_schema::registry::Constraint;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
@@ -25,7 +24,6 @@ use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
 use weaver_semconv::semconv::SemConvSpec;
 
 pub mod attribute;
-mod constraint;
 pub mod registry;
 
 /// A resolver that can be used to resolve telemetry schemas.
@@ -114,17 +112,6 @@ pub enum Error {
         provenance: Provenance,
     },
 
-    /// An `any_of` constraint that is not satisfied for a group.
-    #[error("The following `any_of` constraint is not satisfied for the group '{group_id}'.\n`any_of` constraint: {any_of:#?}\nMissing attributes: {missing_attributes:?}")]
-    UnsatisfiedAnyOfConstraint {
-        /// The id of the group containing the unsatisfied `any_of` constraint.
-        group_id: String,
-        /// The `any_of` constraint that is not satisfied.
-        any_of: Constraint,
-        /// The detected missing attributes.
-        missing_attributes: Vec<String>,
-    },
-
     /// An invalid Schema path.
     #[error("Invalid Schema path: {path}")]
     InvalidSchemaPath {
@@ -203,15 +190,6 @@ impl From<Error> for DiagnosticMessages {
             _ => vec![DiagnosticMessage::new(error)],
         })
     }
-}
-
-/// A constraint that is not satisfied and its missing attributes.
-#[derive(Debug)]
-pub struct UnsatisfiedAnyOfConstraint {
-    /// The `any_of` constraint that is not satisfied.
-    pub any_of: Constraint,
-    /// The detected missing attributes.
-    pub missing_attributes: Vec<String>,
 }
 
 impl Error {

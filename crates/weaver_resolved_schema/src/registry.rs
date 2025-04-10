@@ -65,8 +65,8 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "String::is_empty")]
     pub prefix: String,
-    /// Reference another semantic convention id. It inherits the prefix,
-    /// constraints, and all attributes defined in the specified semantic
+    /// Reference another semantic convention id. It inherits all
+    /// attributes defined in the specified semantic
     /// convention.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extends: Option<String>,
@@ -82,12 +82,6 @@ pub struct Group {
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
-    /// Additional constraints.
-    /// Allow to define additional requirements on the semantic convention.
-    /// It defaults to an empty list.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub constraints: Vec<Constraint>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     pub attributes: Vec<AttributeRef>,
@@ -136,6 +130,11 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<HashMap<String, YamlValue>>,
+    /// Which resources this group should be associated with.
+    /// Note: this is only viable for span, metric and event groups.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entity_associations: Vec<String>,
 }
 
 /// Common statistics for a group.
@@ -203,21 +202,6 @@ pub enum GroupStats {
         /// Span kind breakdown.
         span_kind_breakdown: HashMap<SpanKindSpec, usize>,
     },
-}
-
-/// Allow to define additional requirements on the semantic convention.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Hash, Eq, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct Constraint {
-    /// any_of accepts a list of sequences. Each sequence contains a list of
-    /// attribute ids that are required. any_of enforces that all attributes
-    /// of at least one of the sequences are set.
-    #[serde(default)]
-    pub any_of: Vec<String>,
-    /// include accepts a semantic conventions id. It includes as part of this
-    /// semantic convention all constraints and required attributes that are
-    /// not already defined in the current semantic convention.
-    pub include: Option<String>,
 }
 
 impl CommonGroupStats {
@@ -349,6 +333,12 @@ impl Registry {
                                 common_stats: CommonGroupStats::default(),
                                 span_kind_breakdown: HashMap::new(),
                             },
+                            GroupType::Undefined => {
+                                // This should never happen in a valid registry,
+                                // this variant is used for backward compatibility
+                                // which is not important for stats.
+                                panic!("Undefined group type found in registry")
+                            }
                         });
                 acc
             }),
@@ -359,8 +349,8 @@ impl Registry {
 impl Group {
     /// Returns `true` if the group is a registry attribute group.
     ///
-    /// Note: Currently, this method relies on the `registry.` prefix to identify  
-    /// registry attribute groups. Once issue [#580](https://github.com/open-telemetry/weaver/issues/580)  
+    /// Note: Currently, this method relies on the `registry.` prefix to identify
+    /// registry attribute groups. Once issue [#580](https://github.com/open-telemetry/weaver/issues/580)
     /// is resolved, this method must be updated accordingly.
     #[must_use]
     pub fn is_registry_attribute_group(&self) -> bool {
@@ -401,12 +391,6 @@ impl Group {
         Ok(attributes)
     }
 
-    /// Returns true if the group contains at least one `include` constraint.
-    #[must_use]
-    pub fn has_include(&self) -> bool {
-        self.constraints.iter().any(|c| c.include.is_some())
-    }
-
     /// Import attributes from the provided slice that do not exist in the
     /// current group.
     pub fn import_attributes_from(&mut self, attributes: &[AttributeRef]) {
@@ -415,23 +399,6 @@ impl Group {
                 self.attributes.push(*attr);
             }
         }
-    }
-
-    /// Update the group constraints according to the provided constraints to
-    /// add and the `include` constraints to remove.
-    pub fn update_constraints(
-        &mut self,
-        constraints_to_add: Vec<Constraint>,
-        include_to_remove: HashSet<String>,
-    ) {
-        // Add the new constraints
-        self.constraints.extend(constraints_to_add);
-
-        // Remove the include constraints
-        self.constraints.retain(|c| {
-            c.include.is_none()
-                || !include_to_remove.contains(c.include.as_ref().expect("include is not none"))
-        });
     }
 
     /// Returns the provenance of the group.

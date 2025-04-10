@@ -143,7 +143,6 @@ mod tests {
                 extends: None,
                 stability: Some(Stability::Stable),
                 deprecated: None,
-                constraints: vec![],
                 attributes: vec![Attribute {
                     name: "test.string".to_owned(),
                     r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
@@ -174,6 +173,7 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                entity_associations: vec![],
             }],
         };
 
