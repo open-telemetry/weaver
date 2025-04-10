@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [TBD] - TBD
+## [0.14.0] - 2025-04-10
 
 What's changed
 
