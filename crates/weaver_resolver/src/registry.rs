@@ -16,6 +16,8 @@ use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
 use weaver_semconv::group::GroupSpecWithProvenance;
+use weaver_semconv::manifest::RegistryManifest;
+use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 
 /// A registry containing unresolved groups.
@@ -43,7 +45,7 @@ pub struct UnresolvedGroup {
     pub attributes: Vec<UnresolvedAttribute>,
 
     /// The provenance of the group (URL or path).
-    pub provenance: String,
+    pub provenance: Provenance,
 }
 
 /// Resolves the semantic convention registry passed as argument and returns
@@ -58,6 +60,8 @@ pub struct UnresolvedGroup {
 /// * `attr_catalog` - The attribute catalog to use to resolve the attribute references.
 /// * `registry_url` - The URL of the registry.
 /// * `registry` - The semantic convention registry.
+/// * `include_unreferenced` - Whether to include unreferenced objects in the
+///   resolved registry.
 ///
 /// # Returns
 ///
@@ -67,6 +71,7 @@ pub fn resolve_semconv_registry(
     attr_catalog: &mut AttributeCatalog,
     registry_url: &str,
     registry: &SemConvRegistry,
+    include_unreferenced: bool,
 ) -> WResult<Registry, Error> {
     let mut ureg = unresolved_registry_from_specs(registry_url, registry);
 
@@ -131,7 +136,30 @@ pub fn resolve_semconv_registry(
     );
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
+    if !include_unreferenced {
+        gc_unreferenced_objects(registry.manifest(), &mut ureg.registry);
+    }
+
     WResult::OkWithNFEs(ureg.registry, errors)
+}
+
+/// Garbage collect all the signals and attributes not defined or referenced in the
+/// current registry, i.e. telemetry objects only defined in a dependency and not
+/// referenced in the current registry.
+fn gc_unreferenced_objects(manifest: Option<&RegistryManifest>, registry: &mut Registry) {
+    if let Some(manifest) = manifest {
+        if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
+            // This registry has dependencies.
+            let current_reg_id = manifest.name.clone();
+            registry.groups.retain(|group| {
+                if let Some(lineage) = &group.lineage {
+                    lineage.provenance().registry_id.as_ref() == current_reg_id
+                } else {
+                    true
+                }
+            });
+        }
+    }
 }
 
 /// Generic function to check for duplicate keys in the given registry.
@@ -146,21 +174,21 @@ fn check_uniqueness<K, KF, EF>(
 ) where
     K: Eq + Display + Hash,
     KF: Fn(&Group) -> Option<K>,
-    EF: Fn(String, Vec<String>) -> Error,
+    EF: Fn(String, Vec<Provenance>) -> Error,
 {
-    let mut keys: HashMap<K, Vec<String>> = HashMap::new();
+    let mut keys: HashMap<K, Vec<Provenance>> = HashMap::new();
 
     for group in registry.groups.iter() {
         if let Some(key) = key_fn(group) {
             let provenances = keys.entry(key).or_default();
-            provenances.push(group.provenance().to_owned());
+            provenances.push(group.provenance());
         }
     }
 
     for (key, provenances) in keys {
         if provenances.len() > 1 {
             // Deduplicate the provenances.
-            let provenances: HashSet<String> = provenances.into_iter().unique().collect();
+            let provenances: HashSet<Provenance> = provenances.into_iter().unique().collect();
 
             errors.push(error_fn(key.to_string(), provenances.into_iter().collect()));
         }
@@ -288,7 +316,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             instrument: group.spec.instrument,
             unit: group.spec.unit,
             name: group.spec.name,
-            lineage: Some(GroupLineage::new(&group.provenance)),
+            lineage: Some(GroupLineage::new(group.provenance.clone())),
             display_name: group.spec.display_name,
             body: group.spec.body,
             annotations: group.spec.annotations,
@@ -646,6 +674,7 @@ mod tests {
     use weaver_resolved_schema::attribute;
     use weaver_resolved_schema::registry::Registry;
     use weaver_semconv::group::GroupType;
+    use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
 
     use crate::attribute::AttributeCatalog;
@@ -705,7 +734,7 @@ mod tests {
 
             let mut attr_catalog = AttributeCatalog::default();
             let observed_registry =
-                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+                resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs, false)
                     .into_result_failing_non_fatal();
 
             // Check that the resolved attribute catalog matches the expected attribute catalog.
@@ -777,13 +806,13 @@ mod tests {
     fn create_registry_from_string(registry_spec: &str) -> WResult<Registry, crate::Error> {
         let mut sc_specs = SemConvRegistry::new("default");
         sc_specs
-            .add_semconv_spec_from_string("<str>", registry_spec)
+            .add_semconv_spec_from_string(Provenance::new("main", "<str>"), registry_spec)
             .into_result_failing_non_fatal()
             .expect("Failed to load semconv spec");
 
         let mut attr_catalog = AttributeCatalog::default();
 
-        resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs)
+        resolve_semconv_registry(&mut attr_catalog, "https://127.0.0.1", &sc_specs, false)
     }
 
     #[test]
@@ -853,7 +882,7 @@ groups:
 
         // Resolve the semantic convention registry.
         let resolved_schema =
-            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry)
+            SchemaResolver::resolve_semantic_convention_registry(&mut semconv_registry, false)
                 .into_result_failing_non_fatal()?;
 
         // Get the resolved registry by its ID.

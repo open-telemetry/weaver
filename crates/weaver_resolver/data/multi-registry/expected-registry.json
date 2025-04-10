@@ -11,10 +11,7 @@
         6
       ],
       "lineage": {
-        "provenance": {
-            "path": "data/registry-test-11-prefix-refs-extends/registry/client.yaml",
-            "registry_id": "default"
-        },
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/client.yaml",
         "attributes": {
           "client.geo.lat": {
             "source_group": "registry.geo",
@@ -42,10 +39,7 @@
         3
       ],
       "lineage": {
-        "provenance": {
-          "path": "data/registry-test-11-prefix-refs-extends/registry/geo.yaml",
-          "registry_id": "default"
-        }
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/geo.yaml"
       }
     },
     {
@@ -60,10 +54,7 @@
         7
       ],
       "lineage": {
-        "provenance": {
-            "path": "data/registry-test-11-prefix-refs-extends/registry/usage.yaml",
-            "registry_id": "default"
-        },
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/usage.yaml",
         "attributes": {
           "client.geo.lat": {
             "source_group": "registry.client",
@@ -125,10 +116,7 @@
         7
       ],
       "lineage": {
-        "provenance": {
-            "path": "data/registry-test-11-prefix-refs-extends/registry/usage2.yaml",
-            "registry_id": "default"
-        },
+        "source_file": "data/registry-test-11-prefix-refs-extends/registry/usage2.yaml",
         "attributes": {
           "client.geo.lat": {
             "source_group": "registry.client",

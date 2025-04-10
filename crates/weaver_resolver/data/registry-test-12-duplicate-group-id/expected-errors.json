@@ -5,8 +5,14 @@
         "DuplicateGroupId": {
           "group_id": "metric.messaging.attributes",
           "provenances": [
-            "data/registry-test-12-duplicate-group-id/registry/metrics-messaging.yaml",
-            "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
+            {
+              "registry_id": "default",
+              "path": "data/registry-test-12-duplicate-group-id/registry/metrics-messaging.yaml"
+            },
+            {
+              "registry_id": "default",
+              "path": "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
+            }
           ]
         }
       },
@@ -14,7 +20,10 @@
         "DuplicateGroupId": {
           "group_id": "registry.messaging_bis",
           "provenances": [
-            "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
+            {
+              "registry_id": "default",
+                "path": "data/registry-test-12-duplicate-group-id/registry/registry-messaging.yaml"
+            }
           ]
         }
       },

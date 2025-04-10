@@ -11,9 +11,8 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::process::exit;
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::RegistryRepo;
 use weaver_common::in_memory::LogMessage;
+use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{in_memory, Logger};
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
@@ -21,6 +20,7 @@ use weaver_forge::registry::ResolvedRegistry;
 use weaver_forge::{OutputDirective, TemplateEngine};
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 const SEMCONV_REGISTRY_PATH: &str = "./semconv_registry/";
 const TEMPLATES_PATH: &str = "./templates/registry/";
@@ -40,18 +40,18 @@ fn main() {
     let logger = in_memory::Logger::new(0);
 
     // Load and resolve the semantic convention registry
-    let registry_path = RegistryPath::LocalFolder {
+    let registry_path = VirtualDirectoryPath::LocalFolder {
         path: SEMCONV_REGISTRY_PATH.into(),
     };
     let registry_repo =
         RegistryRepo::try_new("main", &registry_path).unwrap_or_else(|e| process_error(&logger, e));
-    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, FOLLOW_SYMLINKS)
+    let semconv_specs = SchemaResolver::load_semconv_specs(&registry_repo, true, FOLLOW_SYMLINKS)
         .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
         .unwrap_or_else(|e| process_error(&logger, e));
-    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+    let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
         .into_result_failing_non_fatal()
         .unwrap_or_else(|e| process_error(&logger, e));
 

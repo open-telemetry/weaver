@@ -6,12 +6,12 @@
 use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
+use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
 
 /// Parameters for the `registry update-markdown` sub-command
@@ -82,6 +82,7 @@ pub(crate) fn command(
         generator,
         &mut diag_msgs,
         args.registry.follow_symlinks,
+        args.registry.include_unreferenced,
     )?;
 
     if is_future_mode_enabled() && !diag_msgs.is_empty() {
@@ -131,12 +132,12 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand};
+    use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_update_markdown() {
@@ -149,10 +150,11 @@ mod tests {
                 command: RegistrySubCommand::UpdateMarkdown(RegistryUpdateMarkdownArgs {
                     markdown_dir: "data/update_markdown/markdown".to_owned(),
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "data/update_markdown/registry".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),

@@ -8,9 +8,107 @@ pub mod in_memory;
 pub mod quiet;
 pub mod result;
 pub mod test;
+pub mod vdir;
 
+use crate::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use crate::error::{format_errors, WeaverError};
+use crate::Error::CompoundError;
+use miette::Diagnostic;
+use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+
+/// All the errors emitted by this crate.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
+#[non_exhaustive]
+pub enum Error {
+    /// Home directory not found.
+    #[error("Home directory not found")]
+    HomeDirNotFound,
+
+    /// Cache directory not created.
+    #[error("Cache directory not created: {message}")]
+    CacheDirNotCreated {
+        /// The error message
+        message: String,
+    },
+
+    /// Git repo not created.
+    #[error("Git repo `{repo_url}` not created: {message}")]
+    GitRepoNotCreated {
+        /// The git repo URL
+        repo_url: String,
+        /// The error message
+        message: String,
+    },
+
+    /// A git error occurred.
+    #[error("Git error occurred while cloning `{repo_url}`: {message}")]
+    GitError {
+        /// The git repo URL
+        repo_url: String,
+        /// The error message
+        message: String,
+    },
+
+    /// An invalid registry path.
+    #[error("The registry path `{path}` is invalid: {error}")]
+    InvalidRegistryPath {
+        /// The registry path
+        path: String,
+        /// The error message
+        error: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("The registry archive `{archive}` is invalid: {error}")]
+    InvalidRegistryArchive {
+        /// The registry archive path
+        archive: String,
+        /// The error message
+        error: String,
+    },
+
+    /// An invalid registry archive.
+    #[error("This archive `{archive}` is not supported. Supported formats are: .tar.gz, .zip")]
+    UnsupportedRegistryArchive {
+        /// The registry archive path
+        archive: String,
+    },
+
+    /// A container for multiple errors.
+    #[error("{:?}", format_errors(.0))]
+    CompoundError(#[related] Vec<Error>),
+}
+
+impl WeaverError<Error> for Error {
+    fn compound(errors: Vec<Error>) -> Error {
+        CompoundError(
+            errors
+                .into_iter()
+                .flat_map(|e| match e {
+                    CompoundError(errors) => errors,
+                    e => vec![e],
+                })
+                .collect(),
+        )
+    }
+}
+
+impl From<Error> for DiagnosticMessages {
+    fn from(error: Error) -> Self {
+        DiagnosticMessages::new(match error {
+            CompoundError(errors) => errors
+                .into_iter()
+                .flat_map(|e| {
+                    let diag_msgs: DiagnosticMessages = e.into();
+                    diag_msgs.into_inner()
+                })
+                .collect(),
+            _ => vec![DiagnosticMessage::new(error)],
+        })
+    }
+}
 
 /// A trait that defines the interface of a logger.
 pub trait Logger {

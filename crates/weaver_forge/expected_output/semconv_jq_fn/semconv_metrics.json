@@ -8,7 +8,10 @@
         "id": "metric.jvm.class.count",
         "instrument": "updowncounter",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.class.count",
         "name": null,
@@ -25,7 +28,10 @@
         "id": "metric.jvm.class.loaded",
         "instrument": "counter",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.class.loaded",
         "name": null,
@@ -42,7 +48,10 @@
         "id": "metric.jvm.class.unloaded",
         "instrument": "counter",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.class.unloaded",
         "name": null,
@@ -59,7 +68,10 @@
         "id": "metric.jvm.cpu.count",
         "instrument": "updowncounter",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.cpu.count",
         "name": null,
@@ -76,7 +88,10 @@
         "id": "metric.jvm.cpu.recent_utilization",
         "instrument": "gauge",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.cpu.recent_utilization",
         "name": null,
@@ -94,7 +109,10 @@
         "id": "metric.jvm.cpu.time",
         "instrument": "counter",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.cpu.time",
         "name": null,
@@ -136,7 +154,10 @@
         "id": "metric.jvm.gc.duration",
         "instrument": "histogram",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.gc.duration",
         "name": null,
@@ -220,7 +241,10 @@
               "source_group": "attributes.jvm.memory"
             }
           },
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.memory.committed",
         "name": null,
@@ -304,7 +328,10 @@
               "source_group": "attributes.jvm.memory"
             }
           },
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.memory.limit",
         "name": null,
@@ -391,7 +418,10 @@
               "source_group": "attributes.jvm.memory"
             }
           },
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.memory.used",
         "name": null,
@@ -475,7 +505,10 @@
               "source_group": "attributes.jvm.memory"
             }
           },
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.memory.used_after_last_gc",
         "name": null,
@@ -563,7 +596,10 @@
         "id": "metric.jvm.thread.count",
         "instrument": "updowncounter",
         "lineage": {
-          "source_file": "data/jvm-metrics.yaml"
+          "provenance": {
+            "path": "data/jvm-metrics.yaml",
+            "registry_id": "default"
+          }
         },
         "metric_name": "jvm.thread.count",
         "name": null,

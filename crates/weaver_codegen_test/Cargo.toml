@@ -16,7 +16,6 @@ workspace = true
 
 [build-dependencies]
 weaver_common = { path = "../weaver_common" }
-weaver_cache = { path = "../weaver_cache" }
 weaver_forge = { path = "../weaver_forge" }
 weaver_resolver = { path = "../weaver_resolver" }
 weaver_semconv = { path = "../weaver_semconv" }

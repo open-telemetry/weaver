@@ -158,14 +158,12 @@ mod tests {
 
     use tempdir::TempDir;
 
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::registry::generate::RegistryGenerateArgs;
-    use crate::registry::{
-        PolicyArgs, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
-    };
+    use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_common::vdir::VirtualDirectoryPath;
+    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_generate() {
@@ -186,10 +184,11 @@ mod tests {
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -261,10 +260,11 @@ mod tests {
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -308,10 +308,11 @@ mod tests {
                     param: None,
                     params: None,
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "crates/weaver_codegen_test/semconv_registry/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
                     policy: PolicyArgs {
                         policies: vec![],
@@ -413,10 +414,11 @@ mod tests {
                         param: None,
                         params: None,
                         registry: RegistryArgs {
-                            registry: RegistryPath::LocalFolder {
+                            registry: VirtualDirectoryPath::LocalFolder {
                                 path: "data/symbolic_test/".to_owned(),
                             },
                             follow_symlinks,
+                            include_unreferenced: false,
                         },
                         policy: PolicyArgs {
                             policies: vec![],
