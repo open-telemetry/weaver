@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::Arc;
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
@@ -169,10 +168,8 @@ impl SemConvSpecWithProvenance {
         registry_id: &str,
         path: P,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
-        let provenance = Provenance {
-            registry_id: Arc::from(registry_id),
-            path: path.as_ref().display().to_string(),
-        };
+        let path = path.as_ref().display().to_string();
+        let provenance = Provenance::new(registry_id, &path);
         SemConvSpec::from_file(path).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 

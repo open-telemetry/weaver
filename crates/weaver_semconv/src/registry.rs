@@ -266,7 +266,6 @@ mod tests {
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
     use crate::Error;
-    use std::sync::Arc;
     use weaver_common::test::ServeStaticFiles;
     use weaver_common::vdir::VirtualDirectoryPath;
 
@@ -302,10 +301,7 @@ mod tests {
     fn test_from_semconv_specs() {
         let semconv_specs = vec![
             (
-                Provenance {
-                    registry_id: Arc::from("main"),
-                    path: "data/c1.yaml".to_owned(),
-                },
+                Provenance::new("main", "data/c1.yaml"),
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
@@ -345,10 +341,7 @@ mod tests {
                 },
             ),
             (
-                Provenance {
-                    registry_id: Arc::from("main"),
-                    path: "data/c2.yaml".to_owned(),
-                },
+                Provenance::new("main", "data/c2.yaml"),
                 super::SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),

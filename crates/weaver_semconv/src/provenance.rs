@@ -30,7 +30,7 @@ impl Provenance {
     pub fn new(registry_id: &str, path: &str) -> Self {
         Provenance {
             registry_id: Arc::from(registry_id),
-            path: path.to_owned(),
+            path: path.replace('\\', "/"),
         }
     }
 

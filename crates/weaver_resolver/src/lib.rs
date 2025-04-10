@@ -301,13 +301,7 @@ impl SchemaResolver {
                                     let relative_path = &path[prefix.len() + 1..];
                                     format!("{}/{}", registry_path_repr, relative_path)
                                 };
-                                (
-                                    Provenance {
-                                        registry_id: registry_repo.id(),
-                                        path,
-                                    },
-                                    spec,
-                                )
+                                (Provenance::new(&registry_repo.id(), &path), spec)
                             },
                         )]
                         .into_par_iter()
