@@ -4,7 +4,6 @@
 
 //! Specification of a resolved attribute.
 
-use std::cell::{Cell, RefCell};
 use crate::tags::Tags;
 use crate::value::Value;
 use schemars::JsonSchema;
@@ -12,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::ops::Not;
-use std::rc::Rc;
 #[cfg(test)]
 use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
@@ -100,7 +98,7 @@ pub struct UnresolvedAttribute {
 
 /// An internal reference to an attribute in the catalog.
 #[derive(
-    Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema, Hash
+    Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema, Hash,
 )]
 pub struct AttributeRef(pub u32);
 

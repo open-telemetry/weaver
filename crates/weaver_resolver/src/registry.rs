@@ -146,7 +146,11 @@ pub fn resolve_semconv_registry(
 /// Garbage collect all the signals and attributes not defined or referenced in the
 /// current registry, i.e. telemetry objects only defined in a dependency and not
 /// referenced in the current registry.
-fn gc_unreferenced_objects(manifest: Option<&RegistryManifest>, registry: &mut Registry, _attr_catalog: &mut AttributeCatalog) {
+fn gc_unreferenced_objects(
+    manifest: Option<&RegistryManifest>,
+    registry: &mut Registry,
+    attr_catalog: &mut AttributeCatalog,
+) {
     if let Some(manifest) = manifest {
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
             // This registry has dependencies.
@@ -159,16 +163,24 @@ fn gc_unreferenced_objects(manifest: Option<&RegistryManifest>, registry: &mut R
                     true
                 }
             });
-            
+
             // Collect all remaining attribute references
             registry.groups.iter().for_each(|group| {
                 group.attributes.iter().for_each(|attr| {
-                    _ = attr_refs.insert(attr);
+                    _ = attr_refs.insert(*attr);
                 });
             });
-            
-            // Remove all attributes no longer referenced in the catalog
-            //attr_catalog.drain_attributes()
+
+            // Remove all attributes no longer referenced in the catalog and update all the
+            // attribute references in the registry.
+            let attr_refs_map = attr_catalog.gc_unreferenced_attribute_refs(attr_refs);
+            registry.groups.iter_mut().for_each(|group| {
+                group.attributes.iter_mut().for_each(|attr_ref| {
+                    *attr_ref = *attr_refs_map
+                        .get(attr_ref)
+                        .expect("Attribute reference not found in map");
+                });
+            });
         }
     }
 }

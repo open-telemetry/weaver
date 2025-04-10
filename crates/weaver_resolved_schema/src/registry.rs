@@ -13,7 +13,7 @@ use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
-    AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span,
+    AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
@@ -202,6 +202,11 @@ pub enum GroupStats {
         /// Span kind breakdown.
         span_kind_breakdown: HashMap<SpanKindSpec, usize>,
     },
+    /// Statistics for an undefined group.
+    Undefined {
+        /// Common statistics for this type of group.
+        common_stats: CommonGroupStats,
+    },
 }
 
 impl CommonGroupStats {
@@ -255,34 +260,38 @@ impl Registry {
                 let group_type = group.r#type.clone();
 
                 // Ensure we have an initialized entry
-                let entry = acc.entry(group_type.clone()).or_insert_with(|| match group_type {
-                    GroupType::AttributeGroup => AttributeGroup {
-                        common_stats: CommonGroupStats::default(),
-                    },
-                    GroupType::Metric => Metric {
-                        common_stats: CommonGroupStats::default(),
-                        metric_names: HashSet::new(),
-                        instrument_breakdown: HashMap::new(),
-                        unit_breakdown: HashMap::new(),
-                    },
-                    GroupType::MetricGroup => MetricGroup {
-                        common_stats: CommonGroupStats::default(),
-                    },
-                    GroupType::Event => Event {
-                        common_stats: CommonGroupStats::default(),
-                    },
-                    GroupType::Resource => Resource {
-                        common_stats: CommonGroupStats::default(),
-                    },
-                    GroupType::Scope => Scope {
-                        common_stats: CommonGroupStats::default(),
-                    },
-                    GroupType::Span => Span {
-                        common_stats: CommonGroupStats::default(),
-                        span_kind_breakdown: HashMap::new(),
-                    },
-                    GroupType::Undefined => panic!("Undefined group type found in registry"),
-                });
+                let entry = acc
+                    .entry(group_type.clone())
+                    .or_insert_with(|| match group_type {
+                        GroupType::AttributeGroup => AttributeGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Metric => Metric {
+                            common_stats: CommonGroupStats::default(),
+                            metric_names: HashSet::new(),
+                            instrument_breakdown: HashMap::new(),
+                            unit_breakdown: HashMap::new(),
+                        },
+                        GroupType::MetricGroup => MetricGroup {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Event => Event {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Resource => Resource {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Scope => Scope {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                        GroupType::Span => Span {
+                            common_stats: CommonGroupStats::default(),
+                            span_kind_breakdown: HashMap::new(),
+                        },
+                        GroupType::Undefined => Undefined {
+                            common_stats: CommonGroupStats::default(),
+                        },
+                    });
 
                 // Update stats
                 match entry {
@@ -335,6 +344,9 @@ impl Registry {
                         if let Some(span_kind) = group.span_kind.clone() {
                             *span_kind_breakdown.entry(span_kind).or_insert(0) += 1;
                         }
+                    }
+                    Undefined { common_stats } => {
+                        common_stats.update_stats(group);
                     }
                 }
 
