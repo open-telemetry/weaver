@@ -3,20 +3,13 @@
 //! Runs advisors on attributes to check for compliance with the registry
 
 use serde::Serialize;
-use serde_json::Value;
 use std::collections::HashMap;
-use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::AttributeType;
 
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
-use crate::{
-    advice::Advisor,
-    sample_attribute::SampleAttribute,
-    sample_span::{SampleSpanEvent, SampleSpanLink},
-    LiveCheckResult, Sample, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
-};
+use crate::{advice::Advisor, Sample};
 
 /// Provides advice for telemetry samples
 #[derive(Serialize)]
@@ -25,8 +18,9 @@ pub struct LiveChecker {
     pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
     semconv_templates: HashMap<String, Attribute>,
+    /// The advisors to run
     #[serde(skip)]
-    advisors: Vec<Advisor>,
+    pub advisors: Vec<Advisor>,
     #[serde(skip)]
     templates_by_length: Vec<(String, Attribute)>,
 }
@@ -90,133 +84,29 @@ impl LiveChecker {
         None
     }
 
-    fn attach_live_check_result_to_attribute(&mut self, sample_attribute: &mut SampleAttribute) {
-        let mut result = LiveCheckResult::new();
-        // find the attribute in the registry
-        let semconv_attribute = {
-            if let Some(attribute) = self.find_attribute(&sample_attribute.name) {
-                Some(attribute.clone())
-            } else {
-                self.find_template(&sample_attribute.name).cloned()
-            }
-        };
-
-        if semconv_attribute.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: Value::String(sample_attribute.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
-                advice_level: AdviceLevel::Violation,
-            });
-        } else {
-            // Provide an info advice if the attribute is a template
-            if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type {
-                    result.add_advice(Advice {
-                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: Value::String(attribute.name.clone()),
-                        message: "Is a template".to_owned(),
-                        advice_level: AdviceLevel::Information,
-                    });
-                }
-            }
-        }
-
-        // run advisors on the attribute
-        for entity_advisor in self.advisors.iter_mut() {
-            if let Advisor::Attribute(advisor) = entity_advisor {
-                if let Ok(advices) = advisor.advise(sample_attribute, semconv_attribute.as_ref()) {
-                    for advice in advices {
-                        result.add_advice(advice);
-                    }
-                }
-            }
-        }
-        sample_attribute.live_check_result = Some(result);
-    }
-
-    fn attach_live_check_result_to_span_event(&mut self, sample_span_event: &mut SampleSpanEvent) {
-        let mut result = LiveCheckResult::new();
-        for entity_advisor in self.advisors.iter_mut() {
-            if let Advisor::SpanEvent(advisor) = entity_advisor {
-                if let Ok(advices) = advisor.advise(sample_span_event, None) {
-                    for advice in advices {
-                        result.add_advice(advice);
-                    }
-                }
-            }
-        }
-        for attribute in &mut sample_span_event.attributes {
-            self.attach_live_check_result_to_attribute(attribute);
-        }
-        sample_span_event.live_check_result = Some(result);
-    }
-
-    fn attach_live_check_result_to_span_link(&mut self, sample_span_link: &mut SampleSpanLink) {
-        let mut result = LiveCheckResult::new();
-        for entity_advisor in self.advisors.iter_mut() {
-            if let Advisor::SpanLink(advisor) = entity_advisor {
-                if let Ok(advices) = advisor.advise(sample_span_link, None) {
-                    for advice in advices {
-                        result.add_advice(advice);
-                    }
-                }
-            }
-        }
-        for attribute in &mut sample_span_link.attributes {
-            self.attach_live_check_result_to_attribute(attribute);
-        }
-        sample_span_link.live_check_result = Some(result);
-    }
-
-    /// Attach live check result to the sample
-    pub fn attach_live_check_result(&mut self, sample: &mut Sample) {
-        let mut result = LiveCheckResult::new();
-
+    /// Run the live check on each sample type
+    pub fn run_live_check(&mut self, sample: &mut Sample) {
         match sample {
-            Sample::Attribute(sample_attribute) => {
-                self.attach_live_check_result_to_attribute(sample_attribute);
+            Sample::Attribute(s) => {
+                s.run_live_check(self);
             }
-            Sample::Span(sample_span) => {
-                // TODO Remove this:
-                let span_advice = Advice {
-                    advice_type: "span_info".to_owned(),
-                    value: Value::String(sample_span.name.clone()),
-                    message: format!("Has span kind: `{}`", sample_span.kind),
-                    advice_level: AdviceLevel::Information,
-                };
-                result.add_advice(span_advice);
-
-                for entity_advisor in self.advisors.iter_mut() {
-                    if let Advisor::Span(advisor) = entity_advisor {
-                        if let Ok(advices) = advisor.advise(sample_span, None) {
-                            for advice in advices {
-                                result.add_advice(advice);
-                            }
-                        }
-                    }
-                }
-
-                for attribute in &mut sample_span.attributes {
-                    self.attach_live_check_result_to_attribute(attribute);
-                }
-                for span_event in &mut sample_span.span_events {
-                    self.attach_live_check_result_to_span_event(span_event);
-                }
-                for span_link in &mut sample_span.span_links {
-                    self.attach_live_check_result_to_span_link(span_link);
-                }
-
-                sample_span.live_check_result = Some(result);
+            Sample::Span(s) => {
+                s.run_live_check(self);
             }
-            Sample::SpanEvent(sample_span_event) => {
-                self.attach_live_check_result_to_span_event(sample_span_event);
+            Sample::SpanEvent(s) => {
+                s.run_live_check(self);
             }
-            Sample::SpanLink(sample_span_link) => {
-                self.attach_live_check_result_to_span_link(sample_span_link);
+            Sample::SpanLink(s) => {
+                s.run_live_check(self);
             }
         }
     }
+}
+
+/// Samples implement this trait to run live checks on themselves
+pub trait LiveCheckRunner {
+    /// Run the live check
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker);
 }
 
 #[cfg(test)]
@@ -224,11 +114,12 @@ mod tests {
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
         sample_attribute::SampleAttribute,
-        LiveCheckStatistics,
+        LiveCheckStatistics, UpdateStats,
     };
 
     use super::*;
     use serde_json::Value;
+    use weaver_checker::violation::{Advice, AdviceLevel};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
@@ -411,8 +302,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            live_checker.attach_live_check_result(sample);
-            stats.update(sample);
+            live_checker.run_live_check(sample);
+            sample.update_stats(&mut stats);
         }
         stats.finalize();
 
@@ -609,8 +500,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            live_checker.attach_live_check_result(sample);
-            stats.update(sample);
+            live_checker.run_live_check(sample);
+            sample.update_stats(&mut stats);
         }
         stats.finalize();
 

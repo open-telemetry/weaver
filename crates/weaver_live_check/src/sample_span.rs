@@ -3,8 +3,15 @@
 //! Intermediary format for telemetry sample spans
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use weaver_checker::violation::{Advice, AdviceLevel};
 
-use crate::{sample_attribute::SampleAttribute, LiveCheckResult};
+use crate::{
+    advice::Advisor,
+    live_checker::{LiveCheckRunner, LiveChecker},
+    sample_attribute::SampleAttribute,
+    LiveCheckResult, LiveCheckStatistics, UpdateStats,
+};
 
 /// Represents a sample telemetry span parsed from any source
 /// The contained attributes, span_events, and span_links are not serialized to avoid
@@ -25,6 +32,52 @@ pub struct SampleSpan {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl LiveCheckRunner for SampleSpan {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+        let mut result = LiveCheckResult::new();
+        // TODO Remove this:
+        let span_advice = Advice {
+            advice_type: "span_info".to_owned(),
+            value: Value::String(self.name.clone()),
+            message: format!("Has span kind: `{}`", self.kind),
+            advice_level: AdviceLevel::Information,
+        };
+        result.add_advice(span_advice);
+
+        for entity_advisor in live_checker.advisors.iter_mut() {
+            if let Advisor::Span(advisor) = entity_advisor {
+                if let Ok(advice_list) = advisor.advise(self, None) {
+                    result.add_advice_list(advice_list);
+                }
+            }
+        }
+        for attribute in &mut self.attributes {
+            attribute.run_live_check(live_checker);
+        }
+        for span_event in &mut self.span_events {
+            span_event.run_live_check(live_checker);
+        }
+        for span_link in &mut self.span_links {
+            span_link.run_live_check(live_checker);
+        }
+        self.live_check_result = Some(result);
+    }
+}
+
+impl UpdateStats for SampleSpan {
+    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
+        for attribute in &mut self.attributes {
+            attribute.update_stats(stats);
+        }
+        for span_event in &mut self.span_events {
+            span_event.update_stats(stats);
+        }
+        for span_link in &mut self.span_links {
+            span_link.update_stats(stats);
+        }
+    }
+}
+
 /// Represents a span event
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SampleSpanEvent {
@@ -36,6 +89,31 @@ pub struct SampleSpanEvent {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl LiveCheckRunner for SampleSpanEvent {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+        let mut result = LiveCheckResult::new();
+        for entity_advisor in live_checker.advisors.iter_mut() {
+            if let Advisor::SpanEvent(advisor) = entity_advisor {
+                if let Ok(advice_list) = advisor.advise(self, None) {
+                    result.add_advice_list(advice_list);
+                }
+            }
+        }
+        for attribute in &mut self.attributes {
+            attribute.run_live_check(live_checker);
+        }
+        self.live_check_result = Some(result);
+    }
+}
+
+impl UpdateStats for SampleSpanEvent {
+    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
+        for attribute in &mut self.attributes {
+            attribute.update_stats(stats);
+        }
+    }
+}
+
 /// Represents a span link
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SampleSpanLink {
@@ -43,4 +121,29 @@ pub struct SampleSpanLink {
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+}
+
+impl LiveCheckRunner for SampleSpanLink {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+        let mut result = LiveCheckResult::new();
+        for entity_advisor in live_checker.advisors.iter_mut() {
+            if let Advisor::SpanLink(advisor) = entity_advisor {
+                if let Ok(advice_list) = advisor.advise(self, None) {
+                    result.add_advice_list(advice_list);
+                }
+            }
+        }
+        for attribute in &mut self.attributes {
+            attribute.run_live_check(live_checker);
+        }
+        self.live_check_result = Some(result);
+    }
+}
+
+impl UpdateStats for SampleSpanLink {
+    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
+        for attribute in &mut self.attributes {
+            attribute.update_stats(stats);
+        }
+    }
 }

@@ -4,9 +4,15 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
+use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
-use crate::LiveCheckResult;
+use crate::{
+    advice::Advisor,
+    live_checker::{LiveCheckRunner, LiveChecker},
+    LiveCheckResult, LiveCheckStatistics, UpdateStats, MISSING_ATTRIBUTE_ADVICE_TYPE,
+    TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+};
 
 /// Represents a sample telemetry attribute parsed from any source
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -135,6 +141,111 @@ impl SampleAttribute {
                 }
             }
             Value::Object(_) => None, // Unsupported
+        }
+    }
+}
+
+impl LiveCheckRunner for SampleAttribute {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+        let mut result = LiveCheckResult::new();
+        // find the attribute in the registry
+        let semconv_attribute = {
+            if let Some(attribute) = live_checker.find_attribute(&self.name) {
+                Some(attribute.clone())
+            } else {
+                live_checker.find_template(&self.name).cloned()
+            }
+        };
+
+        if semconv_attribute.is_none() {
+            result.add_advice(Advice {
+                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                value: Value::String(self.name.clone()),
+                message: "Does not exist in the registry".to_owned(),
+                advice_level: AdviceLevel::Violation,
+            });
+        } else {
+            // Provide an info advice if the attribute is a template
+            if let Some(attribute) = &semconv_attribute {
+                if let AttributeType::Template(_) = attribute.r#type {
+                    result.add_advice(Advice {
+                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                        value: Value::String(attribute.name.clone()),
+                        message: "Is a template".to_owned(),
+                        advice_level: AdviceLevel::Information,
+                    });
+                }
+            }
+        }
+
+        // run advisors on the attribute
+        for entity_advisor in live_checker.advisors.iter_mut() {
+            if let Advisor::Attribute(advisor) = entity_advisor {
+                if let Ok(advice_list) = advisor.advise(self, semconv_attribute.as_ref()) {
+                    result.add_advice_list(advice_list);
+                }
+            }
+        }
+        self.live_check_result = Some(result);
+    }
+}
+
+impl UpdateStats for SampleAttribute {
+    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
+        stats.total_attributes += 1;
+        let mut seen_attribute_name = self.name.clone();
+        if let Some(result) = &mut self.live_check_result {
+            for advice in &mut result.all_advice {
+                // Count of total advisories
+                stats.total_advisories += 1;
+
+                let advice_level_count = stats
+                    .advice_level_counts
+                    .entry(advice.advice_level.clone())
+                    .or_insert(0);
+                *advice_level_count += 1;
+
+                // Count of advisories by type
+                let advice_type_count = stats
+                    .advice_type_counts
+                    .entry(advice.advice_type.clone())
+                    .or_insert(0);
+                *advice_type_count += 1;
+
+                // If the advice is a template, adjust the name
+                if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
+                    if let Some(template_name) = advice.value.as_str() {
+                        seen_attribute_name = template_name.to_owned();
+                    }
+                }
+            }
+            // Count of attributes with the highest advice level
+            if let Some(highest_advice_level) = &result.highest_advice_level {
+                let highest_advice_level_count = stats
+                    .highest_advice_level_counts
+                    .entry(highest_advice_level.clone())
+                    .or_insert(0);
+                *highest_advice_level_count += 1;
+            }
+
+            // Count of attributes with no advice
+            if result.all_advice.is_empty() {
+                stats.no_advice_count += 1;
+            }
+        } else {
+            // Count of attributes with no advice
+            stats.no_advice_count += 1;
+        }
+        if let Some(count) = stats.seen_registry_attributes.get_mut(&seen_attribute_name) {
+            // This is a registry attribute
+            *count += 1;
+        } else {
+            // This is a non-registry attribute
+            let seen_non_registry_count = stats
+                .seen_non_registry_attributes
+                .entry(seen_attribute_name.clone())
+                .or_insert(0);
+            *seen_non_registry_count += 1;
         }
     }
 }
