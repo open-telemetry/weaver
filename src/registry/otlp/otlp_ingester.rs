@@ -82,6 +82,7 @@ impl OtlpIterator {
             name: key_value.key.clone(),
             value,
             r#type,
+            live_check_result: None,
         }
     }
 
@@ -126,6 +127,7 @@ impl OtlpIterator {
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),
+                                live_check_result: None,
                             };
                             for attribute in span.attributes {
                                 sample_span
@@ -136,6 +138,7 @@ impl OtlpIterator {
                                 let mut sample_event = SampleSpanEvent {
                                     name: event.name,
                                     attributes: Vec::new(),
+                                    live_check_result: None,
                                 };
                                 for attribute in event.attributes {
                                     sample_event
@@ -147,6 +150,7 @@ impl OtlpIterator {
                             for link in span.links {
                                 let mut sample_link = SampleSpanLink {
                                     attributes: Vec::new(),
+                                    live_check_result: None,
                                 };
                                 for attribute in link.attributes {
                                     sample_link

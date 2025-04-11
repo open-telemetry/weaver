@@ -23,19 +23,6 @@
   - attributes seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
 {% endmacro %}
 
-{% macro display_attribute_result(result, indent=0) %}
-{% set highest_advice_level = result.highest_advice_level %}
-{% if highest_advice_level == "information" or not highest_advice_level %}
-{{ " " * indent }}{{ result.sample.attribute.name | ansi_bright_green }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
-{% elif highest_advice_level == "improvement" %}
-{{ " " * indent }}{{ result.sample.attribute.name | ansi_bright_yellow }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
-{% else %}
-{{ " " * indent }}{{ result.sample.attribute.name | ansi_bright_red }}{% if result.sample.attribute.value %} = {{ result.sample.attribute.value }}{% endif %}
-{% endif %}
-
-{{ display_advice(result.all_advice, indent)}}
-{% endmacro %}
-
 {% macro display_advice(all_advice, indent=0) %}
   {% for advice in all_advice %}
     {% if advice.advice_level == "information" %}
@@ -48,26 +35,53 @@
   {% endfor %}
 {% endmacro %}
 
-{% macro display_result(result, indent=0) %}
-{%- if result.sample.span is defined %}
-{{ " " * indent }}{{ ("Span") | ansi_bright_blue | ansi_bold }} name: {{ result.sample.span.name | ansi_green }} kind: {{ result.sample.span.kind | ansi_green }}
-{{ display_advice(result.all_advice, indent) }}
-{% for contained_result in result.contained_results %}
-{{ display_result(contained_result, indent + 4) }}
-{%- endfor %}
-{% elif result.sample.attribute is defined %}
-{{ display_attribute_result(result, indent) }}
-{%- elif result.sample.span_event is defined %}
-{{ " " * indent }}{{ ("Span event") | ansi_bright_blue | ansi_bold }} name: {{ result.sample.span_event.name }}
-{{ display_advice(result.all_advice, indent) }}
-{% for contained_result in result.contained_results %}
-{{ display_result(contained_result, indent + 4) }}
-{%- endfor %}
-{%- elif result.sample.span_link is defined %}
-{{ " " * indent }}{{ ("Span link") | ansi_bright_blue | ansi_bold }}
-{{ display_advice(result.all_advice, indent) }}
-{% for contained_result in result.contained_results %}
-{{ display_result(contained_result, indent + 4) }}
-{%- endfor %}
+{% macro display_attribute(attribute, indent=0) %}
+{% set highest_advice_level = attribute.live_check_result.highest_advice_level %}
+{%- if highest_advice_level == "information" or not highest_advice_level %}
+{{ " " * indent }}{{ attribute.name | ansi_bright_green }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
+{%- elif highest_advice_level == "improvement" %}
+{{ " " * indent }}{{ attribute.name | ansi_bright_yellow }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
+{%- else %}
+{{ " " * indent }}{{ attribute.name | ansi_bright_red }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
 {%- endif %}
+
+{{ display_advice(attribute.live_check_result.all_advice, indent)}}
+{%- endmacro -%}
+
+{% macro display_span_event(span_event, indent=0) %}
+{{ " " * indent }}{{ ("Span event") | ansi_bright_cyan | ansi_bold }} name: {{ span_event.name | ansi_green }}
+{{ display_advice(span_event.live_check_result.all_advice, indent) }}
+{%- for attribute in span_event.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
 {% endmacro %}
+
+{% macro display_span_link(span_link, indent=0) %}
+{{ " " * indent }}{{ ("Span link") | ansi_bright_cyan | ansi_bold }} trace_id: {{ span_link.trace_id | ansi_green }} span_id: {{ span_link.span_id | ansi_green }}
+{{ display_advice(span_link.live_check_result.all_advice, indent) }}
+{% for attribute in span_link.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
+{%- macro display_sample(sample, indent=0) -%}
+{%- if sample.span is defined -%}
+{{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} name: {{ sample.span.name | ansi_green }} kind: {{ sample.span.kind | ansi_green }}
+{{ display_advice(sample.span.live_check_result.all_advice, indent) }}
+{%- for attribute in sample.span.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{% for span_event in sample.span.span_events %}
+{{ display_span_event(span_event, indent + 4) }}
+{%- endfor %}
+{% for span_link in sample.span.span_links %}
+{{ display_span_link(span_link, indent + 4) }}
+{%- endfor %}
+{%- elif sample.attribute is defined -%}
+{{ display_attribute(sample.attribute, indent) }}
+{%- elif sample.span_event is defined -%}
+{{ display_span_event(sample.span_event, indent) }}
+{%- elif sample.span_link is defined -%}
+{{ display_span_link(sample.span_link, indent) }}
+{%- endif -%}
+{%- endmacro -%}

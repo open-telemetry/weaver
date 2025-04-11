@@ -97,27 +97,21 @@ pub enum Sample {
 }
 
 /// Represents a live check result
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LiveCheckResult {
-    /// The sample entity
-    pub sample: Sample,
     /// Advice on the entity
     pub all_advice: Vec<Advice>,
     /// The highest advice level
     pub highest_advice_level: Option<AdviceLevel>,
-    /// Results contained within this result, e.g. for attributes in spans
-    pub contained_results: Vec<LiveCheckResult>,
 }
 
 impl LiveCheckResult {
     /// Create a new LiveCheckResult
     #[must_use]
-    pub fn new(sample: Sample) -> Self {
+    pub fn new() -> Self {
         LiveCheckResult {
-            sample,
             all_advice: Vec::new(),
             highest_advice_level: None,
-            contained_results: Vec::new(),
         }
     }
 
@@ -135,11 +129,17 @@ impl LiveCheckResult {
     }
 }
 
-/// A live check report for a set of attributes
+impl Default for LiveCheckResult {
+    fn default() -> Self {
+        LiveCheckResult::new()
+    }
+}
+
+/// A live check report for a set of samples
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LiveCheckReport {
-    /// The live check attributes
-    pub attributes: Vec<LiveCheckResult>,
+    /// The live check samples
+    pub samples: Vec<Sample>,
     /// The statistics for the report
     pub statistics: LiveCheckStatistics,
 }
@@ -202,16 +202,18 @@ impl LiveCheckStatistics {
         }
     }
 
-    /// Update statistics based on a live check result
-    pub fn update(&mut self, result: &LiveCheckResult) {
-        if let Sample::Attribute(sample_attribute) = &result.sample {
-            self.total_attributes += 1;
+    /// Are there any violations in the statistics?
+    #[must_use]
+    pub fn has_violations(&self) -> bool {
+        self.highest_advice_level_counts
+            .contains_key(&AdviceLevel::Violation)
+    }
 
-            // The seen attribute name. Adjust this if it's a template.
-            let mut seen_attribute_name = sample_attribute.name.clone();
-
-            // Count of advisories by type
-            for advice in &result.all_advice {
+    fn update_for_attribute(&mut self, sample_attribute: &mut SampleAttribute) {
+        self.total_attributes += 1;
+        let mut seen_attribute_name = sample_attribute.name.clone();
+        if let Some(result) = &mut sample_attribute.live_check_result {
+            for advice in &mut result.all_advice {
                 // Count of total advisories
                 self.total_advisories += 1;
 
@@ -229,26 +231,12 @@ impl LiveCheckStatistics {
                 *advice_type_count += 1;
 
                 // If the advice is a template, adjust the name
-                if advice.advice_type == "template_attribute" {
+                if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
                     if let Some(template_name) = advice.value.as_str() {
                         seen_attribute_name = template_name.to_owned();
                     }
                 }
             }
-
-            // Count of attributes seen from the registry
-            if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
-                // This is a registry attribute
-                *count += 1;
-            } else {
-                // This is a non-registry attribute
-                let seen_non_registry_count = self
-                    .seen_non_registry_attributes
-                    .entry(seen_attribute_name.clone())
-                    .or_insert(0);
-                *seen_non_registry_count += 1;
-            }
-
             // Count of attributes with the highest advice level
             if let Some(highest_advice_level) = &result.highest_advice_level {
                 let highest_advice_level_count = self
@@ -262,11 +250,59 @@ impl LiveCheckStatistics {
             if result.all_advice.is_empty() {
                 self.no_advice_count += 1;
             }
+        } else {
+            // Count of attributes with no advice
+            self.no_advice_count += 1;
         }
-        for contained_result in &result.contained_results {
-            // Recursively update the statistics for contained results
-            self.update(contained_result);
+        if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
+            // This is a registry attribute
+            *count += 1;
+        } else {
+            // This is a non-registry attribute
+            let seen_non_registry_count = self
+                .seen_non_registry_attributes
+                .entry(seen_attribute_name.clone())
+                .or_insert(0);
+            *seen_non_registry_count += 1;
         }
+    }
+
+    fn update_for_span_event(&mut self, sample_span_event: &mut SampleSpanEvent) {
+        for attribute in &mut sample_span_event.attributes {
+            self.update_for_attribute(attribute);
+        }
+    }
+
+    fn update_for_span_link(&mut self, sample_span_link: &mut SampleSpanLink) {
+        for attribute in &mut sample_span_link.attributes {
+            self.update_for_attribute(attribute);
+        }
+    }
+
+    /// Update statistics based on a live check result
+    pub fn update(&mut self, sample: &mut Sample) {
+        match sample {
+            Sample::Attribute(sample_attribute) => {
+                self.update_for_attribute(sample_attribute);
+            }
+            Sample::Span(sample_span) => {
+                for attribute in &mut sample_span.attributes {
+                    self.update_for_attribute(attribute);
+                }
+                for span_event in &mut sample_span.span_events {
+                    self.update_for_span_event(span_event);
+                }
+                for span_link in &mut sample_span.span_links {
+                    self.update_for_span_link(span_link);
+                }
+            }
+            Sample::SpanEvent(sample_span_event) => {
+                self.update_for_span_event(sample_span_event);
+            }
+            Sample::SpanLink(sample_span_link) => {
+                self.update_for_span_link(sample_span_link);
+            }
+        };
     }
 
     /// Finalize the statistics

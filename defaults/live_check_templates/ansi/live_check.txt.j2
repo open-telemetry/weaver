@@ -1,18 +1,14 @@
 {% import "live_check_macros.j2" as macros %}
 {% if ctx.attributes is defined %}
 {# This is a LiveCheckReport object #}
-{{ ("Live Check Report") | ansi_bright_white | ansi_bold }}
-{{ ("=================") | ansi_bright_white | ansi_bold }}
-
-{% for result in ctx.attributes %}
-{{ macros.display_attribute_advice(result) }}
+{% for sample in ctx.samples %}
+{{ macros.display_sample(sample) }}
 {% endfor %}
 
 {{ macros.display_statistics(ctx.statistics) }}
-{% elif ctx.all_advice is defined %}
-{# This is a LiveCheckResult object #}
-{{ macros.display_result(ctx) }}
-{%- elif ctx.total_attributes is defined %}
+{%- elif ctx.total_attributes is defined -%}
 {# This is a LiveCheckStatistics object #}
 {{ macros.display_statistics(ctx) }}
-{% endif %}
+{%- else -%}{# This is a sample #}
+{{ macros.display_sample(ctx) }}
+{%- endif -%}

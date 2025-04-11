@@ -9,7 +9,6 @@ use std::path::PathBuf;
 use clap::Args;
 use include_dir::{include_dir, Dir};
 
-use weaver_checker::violation::AdviceLevel;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -23,7 +22,7 @@ use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
-use weaver_live_check::{Error, Ingester, LiveCheckStatistics};
+use weaver_live_check::{Error, Ingester, LiveCheckReport, LiveCheckStatistics};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
@@ -249,30 +248,31 @@ pub(crate) fn command(
         !args.no_stream
     };
 
-    if stream_mode {
-        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
-        for sample in ingester {
-            let live_check_result = live_checker.create_live_check_result(&sample);
-            stats.update(&live_check_result);
-            // Set the exit_code to a non-zero code if there are any violations
-            if let Some(AdviceLevel::Violation) = live_check_result.highest_advice_level {
-                exit_code = 1;
-            }
+    let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+    let mut samples = Vec::new();
+    for mut sample in ingester {
+        live_checker.attach_live_check_result(&mut sample);
+        stats.update(&mut sample);
+        if stream_mode {
             engine
-                .generate(
-                    logger.clone(),
-                    &live_check_result,
-                    output.as_path(),
-                    &output_directive,
-                )
+                .generate(logger.clone(), &sample, output.as_path(), &output_directive)
                 .map_err(|e| {
                     DiagnosticMessages::from(Error::OutputError {
                         error: e.to_string(),
                     })
                 })?;
+        } else {
+            samples.push(sample);
         }
-        stats.finalize();
-        // Output the final statistics
+    }
+    stats.finalize();
+    // Set the exit_code to a non-zero code if there are any violations
+    if stats.has_violations() {
+        exit_code = 1;
+    }
+
+    // Output the final statistics
+    if stream_mode {
         engine
             .generate(logger.clone(), &stats, output.as_path(), &output_directive)
             .map_err(|e| {
@@ -281,19 +281,13 @@ pub(crate) fn command(
                 })
             })?;
     } else {
-        let samples = ingester.collect::<Vec<_>>();
-        let results = live_checker.check_samples(samples);
-        // Set the exit_code to a non-zero code if there are any violations
-        if results.has_violations() {
-            exit_code = 1;
-        }
+        // Package into a report
+        let report = LiveCheckReport {
+            statistics: stats,
+            samples,
+        };
         engine
-            .generate(
-                logger.clone(),
-                &results,
-                output.as_path(),
-                &output_directive,
-            )
+            .generate(logger.clone(), &report, output.as_path(), &output_directive)
             .map_err(|e| {
                 DiagnosticMessages::from(Error::OutputError {
                     error: e.to_string(),

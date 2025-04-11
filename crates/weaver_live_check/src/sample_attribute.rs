@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 
+use crate::LiveCheckResult;
+
 /// Represents a sample telemetry attribute parsed from any source
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SampleAttribute {
@@ -16,6 +18,8 @@ pub struct SampleAttribute {
     /// The type of the attribute's value
     /// This may be available in the upstream source, an o11y vendor for example
     pub r#type: Option<PrimitiveOrArrayTypeSpec>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
 }
 
 impl<'de> Deserialize<'de> for SampleAttribute {
@@ -42,6 +46,7 @@ impl<'de> Deserialize<'de> for SampleAttribute {
             name: helper.name,
             value: helper.value,
             r#type: inferred_type,
+            live_check_result: None,
         })
     }
 }
@@ -63,6 +68,7 @@ impl TryFrom<&str> for SampleAttribute {
                 name: name.trim().to_owned(),
                 value: Some(json_value),
                 r#type,
+                live_check_result: None,
             };
             return Ok(sample_attribute);
         }
@@ -71,6 +77,7 @@ impl TryFrom<&str> for SampleAttribute {
             name: trimmed.to_owned(),
             value: None,
             r#type: None,
+            live_check_result: None,
         })
     }
 }

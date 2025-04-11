@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::sample_attribute::SampleAttribute;
+use crate::{sample_attribute::SampleAttribute, LiveCheckResult};
 
 /// Represents a sample telemetry span parsed from any source
 /// The contained attributes, span_events, and span_links are not serialized to avoid
@@ -16,14 +16,13 @@ pub struct SampleSpan {
     /// The kind of the span
     pub kind: String,
     /// The span's attributes
-    #[serde(skip_serializing)]
     pub attributes: Vec<SampleAttribute>,
     /// SpanEvents
-    #[serde(skip_serializing)]
     pub span_events: Vec<SampleSpanEvent>,
     /// SpanLinks
-    #[serde(skip_serializing)]
     pub span_links: Vec<SampleSpanLink>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
 }
 
 /// Represents a span event
@@ -32,14 +31,16 @@ pub struct SampleSpanEvent {
     /// The name of the event
     pub name: String,
     /// The attributes of the event
-    #[serde(skip_serializing)]
     pub attributes: Vec<SampleAttribute>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
 }
 
 /// Represents a span link
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SampleSpanLink {
     /// The attributes of the link
-    #[serde(skip_serializing)]
     pub attributes: Vec<SampleAttribute>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
 }
