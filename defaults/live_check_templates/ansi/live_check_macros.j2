@@ -50,7 +50,7 @@
 
 {% macro display_result(result, indent=0) %}
 {%- if result.sample.span is defined %}
-{{ " " * indent }}Span name: {{ result.sample.span.name | ansi_green }} kind: {{ result.sample.span.kind | ansi_green }}
+{{ " " * indent }}{{ ("Span") | ansi_bright_blue | ansi_bold }} name: {{ result.sample.span.name | ansi_green }} kind: {{ result.sample.span.kind | ansi_green }}
 {{ display_advice(result.all_advice, indent) }}
 {% for contained_result in result.contained_results %}
 {{ display_result(contained_result, indent + 4) }}
@@ -58,13 +58,13 @@
 {% elif result.sample.attribute is defined %}
 {{ display_attribute_result(result, indent) }}
 {%- elif result.sample.span_event is defined %}
-{{ " " * indent }}Span event name: {{ result.sample.span_event.name }}
+{{ " " * indent }}{{ ("Span event") | ansi_bright_blue | ansi_bold }} name: {{ result.sample.span_event.name }}
 {{ display_advice(result.all_advice, indent) }}
 {% for contained_result in result.contained_results %}
 {{ display_result(contained_result, indent + 4) }}
 {%- endfor %}
 {%- elif result.sample.span_link is defined %}
-{{ " " * indent }}Span link
+{{ " " * indent }}{{ ("Span link") | ansi_bright_blue | ansi_bold }}
 {{ display_advice(result.all_advice, indent) }}
 {% for contained_result in result.contained_results %}
 {{ display_result(contained_result, indent + 4) }}
