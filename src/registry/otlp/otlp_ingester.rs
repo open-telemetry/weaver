@@ -8,6 +8,7 @@ use weaver_live_check::{
     sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
     Error, Ingester, Sample,
 };
+use weaver_semconv::group::SpanKindSpec;
 
 use super::{
     grpc_stubs::proto::{
@@ -87,6 +88,16 @@ impl OtlpIterator {
         }
     }
 
+    fn span_kind_from_otlp_kind(kind: i32) -> SpanKindSpec {
+        match kind {
+            2 => SpanKindSpec::Server,
+            3 => SpanKindSpec::Client,
+            4 => SpanKindSpec::Producer,
+            5 => SpanKindSpec::Consumer,
+            _ => SpanKindSpec::Internal,
+        }
+    }
+
     fn fill_buffer_from_request(&mut self, request: OtlpRequest) -> Option<usize> {
         match request {
             OtlpRequest::Logs(_logs) => {
@@ -125,10 +136,7 @@ impl OtlpIterator {
                         for span in scope_span.spans {
                             let mut sample_span = SampleSpan {
                                 name: span.name,
-                                kind: SpanKind::try_from(span.kind)
-                                    .unwrap_or_default()
-                                    .as_str_name()
-                                    .to_owned(),
+                                kind: Self::span_kind_from_otlp_kind(span.kind),
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),

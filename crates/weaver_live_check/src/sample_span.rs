@@ -3,8 +3,7 @@
 //! Intermediary format for telemetry sample spans
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult, LiveCheckRunner,
@@ -19,12 +18,15 @@ pub struct SampleSpan {
     /// The name of the span
     pub name: String,
     /// The kind of the span
-    pub kind: String,
+    pub kind: SpanKindSpec,
     /// The span's attributes
+    #[serde(default)]
     pub attributes: Vec<SampleAttribute>,
     /// SpanEvents
+    #[serde(default)]
     pub span_events: Vec<SampleSpanEvent>,
     /// SpanLinks
+    #[serde(default)]
     pub span_links: Vec<SampleSpanLink>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,

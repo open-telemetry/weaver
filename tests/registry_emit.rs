@@ -22,8 +22,6 @@ fn test_emit_with_live_check() {
         .args([
             "registry",
             "live-check",
-            "--input-source",
-            "otlp",
             "-r",
             "crates/weaver_emit/data",
             "--format",

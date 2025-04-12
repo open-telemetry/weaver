@@ -52,11 +52,11 @@ Sample data can have various levels of detail; from a simple list of attribute n
 
 | Input Source   | Input Format |                                                         |
 | -------------- | ------------ | ------------------------------------------------------- |
+| `otlp`         | N/A          | OTLP signals (default)                                  |
 | &lt;file path> | `text`       | Text file with attribute names or name=value pairs      |
 | `stdin`        | `text`       | Standard input with attribute names or name=value pairs |
 | &lt;file path> | `json`       | JSON file with an array of samples                      |
 | `stdin`        | `json`       | Standard input with a JSON array of samples             |
-| `otlp`         | N/A          | OTLP signals                                            |
 
 Some `Ingesters`, like `stdin` and `otlp`, can stream the input data so you receive output at the command line as it comes in. This is really useful in live debugging sessions allowing you to breakpoint, step through your code and see live assessment as the data is received in Weaver.
 
@@ -75,13 +75,13 @@ Options for OTLP ingest:
 
 ## Advisors
 
-Sample entities are assessed by the set of `Advisors` to produce a list of `Advice` for each one. Built-ins check for fundamental compliance with the `Registry` supplied, for example `missing_attribute` and `type_mismatch`.
+Sample entities are assessed by the set of `Advisors` and augmented with `Advice`. Built-ins check for fundamental compliance with the `Registry` supplied, for example `missing_attribute` and `type_mismatch`.
 
 Beyond the fundamentals, external `Advisors` can be defined in Rego policies. The OpenTelemetry Semantic Conventions rules are included out-of-the-box by default. They provide `Advice` on name-spacing and formatting aligned with the standard. These default policies can be overridden at the command line with your own.
 
 ### Advice
 
-As mentioned, a list of `Advice` is returned in the report for each sample entity. The snippet below shows `Advice` from two `Advisors`. A builtin is providing `missing_attribute` and a default Otel Rego policy is providing `extends_namespace`. The fields of `Advice` are intended to be used like so:
+As mentioned, a list of `Advice` is returned in the report for each sample entity. The snippet below shows `Advice` from one `Advisor`, a builtin providing `missing_attribute`. The fields of `Advice` are intended to be used like so:
 
 - `advice_level`: _string_ - one of `violation`, `improvement` or `information` with that order of precedence. Weaver will return with a non-zero exit-code if there is any `violation` in the report.
 - `advice_type`: _string_ - a simple machine readable string to represent the advice type
@@ -90,20 +90,20 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 
 ```json
 {
-  "all_advice": [
-    {
-      "advice_level": "violation",
-      "advice_type": "missing_attribute",
-      "message": "Does not exist in the registry",
-      "value": "aws.s3.extension.name"
-    }
-  ],
-  "highest_advice_level": "violation",
-  "sample_attribute": {
-    "name": "aws.s3.extension.name",
-    "type": "string",
-    "value": "foo"
-  }
+  "live_check_result": {
+    "all_advice": [
+      {
+        "advice_level": "violation",
+        "advice_type": "missing_attribute",
+        "message": "Does not exist in the registry",
+        "value": "hello"
+      }
+    ],
+    "highest_advice_level": "violation"
+  },
+  "name": "hello",
+  "type": "string",
+  "value": "world"
 }
 ```
 
@@ -118,10 +118,11 @@ import rego.v1
 
 # checks attribute name contains the word "test"
 deny contains make_advice(advice_type, advice_level, value, message) if {
-  contains(input.name, "test")
+  input.attribute
+  value := input.attribute.name
+  contains(value, "test")
   advice_type := "contains_test"
   advice_level := "violation"
-  value := input.name
   message := "Name must not contain 'test'"
 }
 
@@ -134,7 +135,7 @@ make_advice(advice_type, advice_level, value, message) := {
 }
 ```
 
-`input` contains the sample entity for assessment. `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
+`input` contains the sample entity for assessment wrapped in a type e.g. `input.attribute` or `input.span`. `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
@@ -201,22 +202,28 @@ This could be parsed for a more sophisticated way to determine pass/fail in CI f
 
 ## Usage examples
 
+Read a json file
+
+```sh
+weaver registry live-check --input-source crates/weaver_live_check/data/span.json
+```
+
 Pipe a list of attribute names or name=value pairs
 
 ```sh
-cat attributes.txt | weaver registry live-check
+cat attributes.txt | weaver registry live-check --input-source stdin --input-format text
 ```
 
 Or a redirect
 
 ```sh
-weaver registry live-check < attributes.txt
+weaver registry live-check < attributes.txt --input-source stdin --input-format text
 ```
 
 Or a here-doc
 
 ```sh
-weaver registry live-check << EOF
+weaver registry live-check --input-source stdin --input-format text << EOF
 code.function
 thing.blah
 EOF
@@ -225,14 +232,14 @@ EOF
 Or enter text at the prompt, an empty line will exit
 
 ```sh
-weaver registry live-check
+weaver registry live-check --input-source stdin --input-format text
 code.line.number=42
 ```
 
 Using `emit` for a round-trip test:
 
 ```sh
-weaver registry live-check --input-source otlp -r ../semantic-conventions/model --output ./outdir &
+weaver registry live-check -r ../semantic-conventions/model --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
 weaver registry emit -r ../semantic-conventions/model --skip-policies
@@ -243,13 +250,13 @@ wait $LIVE_CHECK_PID
 Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
 
 ```sh
-weaver registry live-check --input-source otlp -r ../semantic-conventions/model --inactivity-timeout 120
+weaver registry live-check -r ../semantic-conventions/model --inactivity-timeout 120
 ```
 
 CI/CD - create a JSON report
 
 ```sh
-weaver registry live-check --input-source otlp -r ../semantic-conventions/model --format json --output ./outdir &
+weaver registry live-check -r ../semantic-conventions/model --format json --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
 # Run the code under test here.

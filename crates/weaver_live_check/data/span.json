@@ -1,0 +1,38 @@
+[
+    {
+        "span": {
+            "attributes": [
+                {
+                    "name": "http.response.status_code",
+                    "value": "foo"
+                },
+                {
+                    "name": "aws.s3.bucket",
+                    "value": "value"
+                },
+                {
+                    "name": "aws.s3.bucket.name",
+                    "value": "value"
+                },
+                {
+                    "name": "task.id",
+                    "value": "value"
+                },
+                {
+                    "name": "TaskId",
+                    "value": "value"
+                },
+                {
+                    "name": "aws.s3.extension.name",
+                    "value": "foo"
+                },
+                {
+                    "name": "http.request.method",
+                    "value": "GET"
+                }
+            ],
+            "kind": "SPAN_KIND_CLIENT",
+            "name": "test"
+        }
+    }
+]

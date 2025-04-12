@@ -84,11 +84,11 @@ pub struct RegistryLiveCheckArgs {
     pub diagnostic: DiagnosticArgs,
 
     /// Where to read the input telemetry from. {file path} | stdin | otlp
-    #[arg(long, default_value = "stdin")]
+    #[arg(long, default_value = "otlp")]
     input_source: InputSource,
 
     /// The format of the input telemetry. (Not required for OTLP). text | json
-    #[arg(long, default_value = "text")]
+    #[arg(long, default_value = "json")]
     input_format: InputFormat,
 
     /// Format used to render the report. Predefined formats are: ansi, json
