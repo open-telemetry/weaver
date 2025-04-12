@@ -20,7 +20,7 @@ pub struct LiveChecker {
     semconv_templates: HashMap<String, Attribute>,
     /// The advisors to run
     #[serde(skip)]
-    pub advisors: Vec<Advisor>,
+    pub advisors: Vec<Box<dyn Advisor>>,
     #[serde(skip)]
     templates_by_length: Vec<(String, Attribute)>,
 }
@@ -28,7 +28,7 @@ pub struct LiveChecker {
 impl LiveChecker {
     #[must_use]
     /// Create a new LiveChecker
-    pub fn new(registry: ResolvedRegistry, advisors: Vec<Advisor>) -> Self {
+    pub fn new(registry: ResolvedRegistry, advisors: Vec<Box<dyn Advisor>>) -> Self {
         // Create a hashmap of attributes for quick lookup
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
@@ -62,7 +62,7 @@ impl LiveChecker {
     }
 
     /// Add an advisor
-    pub fn add_advisor(&mut self, advisor: Advisor) {
+    pub fn add_advisor(&mut self, advisor: Box<dyn Advisor>) {
         self.advisors.push(advisor);
     }
 
@@ -264,17 +264,17 @@ mod tests {
             Sample::Attribute(SampleAttribute::try_from("test.template.my.key=42").unwrap()),
         ];
 
-        let advisors: Vec<Advisor> = vec![
-            Advisor::Attribute(Box::new(DeprecatedAdvisor)),
-            Advisor::Attribute(Box::new(StabilityAdvisor)),
-            Advisor::Attribute(Box::new(TypeAdvisor)),
-            Advisor::Attribute(Box::new(EnumAdvisor)),
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(StabilityAdvisor),
+            Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
         ];
 
         let mut live_checker = LiveChecker::new(registry, advisors);
         let rego_advisor =
             RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
-        live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
+        live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
@@ -462,7 +462,7 @@ mod tests {
             Sample::Attribute(SampleAttribute::try_from("test.string").unwrap()),
         ];
 
-        let advisors: Vec<Advisor> = vec![];
+        let advisors: Vec<Box<dyn Advisor>> = vec![];
 
         let mut live_checker = LiveChecker::new(registry, advisors);
         let rego_advisor = RegoAdvisor::new(
@@ -471,7 +471,7 @@ mod tests {
             &Some("data/jq/test.jq".into()),
         )
         .expect("Failed to create Rego advisor");
-        live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
+        live_checker.add_advisor(Box::new(rego_advisor));
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {

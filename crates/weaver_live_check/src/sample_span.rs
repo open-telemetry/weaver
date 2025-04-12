@@ -7,8 +7,8 @@ use serde_json::Value;
 use weaver_checker::violation::{Advice, AdviceLevel};
 
 use crate::{
-    advice::Advisor, live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics,
 };
 
 /// Represents a sample telemetry span parsed from any source
@@ -42,11 +42,9 @@ impl LiveCheckRunner for SampleSpan {
         };
         result.add_advice(span_advice);
 
-        for entity_advisor in live_checker.advisors.iter_mut() {
-            if let Advisor::Span(advisor) = entity_advisor {
-                if let Ok(advice_list) = advisor.advise(self, None) {
-                    result.add_advice_list(advice_list);
-                }
+        for advisor in live_checker.advisors.iter_mut() {
+            if let Ok(advice_list) = advisor.advise_on_span(self, None) {
+                result.add_advice_list(advice_list);
             }
         }
         for attribute in &mut self.attributes {
@@ -76,11 +74,9 @@ pub struct SampleSpanEvent {
 impl LiveCheckRunner for SampleSpanEvent {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
-        for entity_advisor in live_checker.advisors.iter_mut() {
-            if let Advisor::SpanEvent(advisor) = entity_advisor {
-                if let Ok(advice_list) = advisor.advise(self, None) {
-                    result.add_advice_list(advice_list);
-                }
+        for advisor in live_checker.advisors.iter_mut() {
+            if let Ok(advice_list) = advisor.advise_on_span_event(self, None) {
+                result.add_advice_list(advice_list);
             }
         }
         for attribute in &mut self.attributes {
@@ -102,11 +98,9 @@ pub struct SampleSpanLink {
 impl LiveCheckRunner for SampleSpanLink {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
-        for entity_advisor in live_checker.advisors.iter_mut() {
-            if let Advisor::SpanLink(advisor) = entity_advisor {
-                if let Ok(advice_list) = advisor.advise(self, None) {
-                    result.add_advice_list(advice_list);
-                }
+        for advisor in live_checker.advisors.iter_mut() {
+            if let Ok(advice_list) = advisor.advise_on_span_link(self, None) {
+                result.add_advice_list(advice_list);
             }
         }
         for attribute in &mut self.attributes {

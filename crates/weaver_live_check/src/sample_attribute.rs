@@ -8,8 +8,8 @@ use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    advice::Advisor, live_checker::LiveChecker, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    live_checker::LiveChecker, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
+    MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -235,11 +235,9 @@ impl LiveCheckRunner for SampleAttribute {
         }
 
         // run advisors on the attribute
-        for entity_advisor in live_checker.advisors.iter_mut() {
-            if let Advisor::Attribute(advisor) = entity_advisor {
-                if let Ok(advice_list) = advisor.advise(self, semconv_attribute.as_ref()) {
-                    result.add_advice_list(advice_list);
-                }
+        for advisor in live_checker.advisors.iter_mut() {
+            if let Ok(advice_list) = advisor.advise_on_attribute(self, semconv_attribute.as_ref()) {
+                result.add_advice_list(advice_list);
             }
         }
         self.live_check_result = Some(result);

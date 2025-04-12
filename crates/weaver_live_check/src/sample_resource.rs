@@ -5,8 +5,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    advice::Advisor, live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics,
 };
 
 /// Represents a resource
@@ -21,11 +21,9 @@ pub struct SampleResource {
 impl LiveCheckRunner for SampleResource {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
-        for entity_advisor in live_checker.advisors.iter_mut() {
-            if let Advisor::Resource(advisor) = entity_advisor {
-                if let Ok(advice_list) = advisor.advise(self, None) {
-                    result.add_advice_list(advice_list);
-                }
+        for advisor in live_checker.advisors.iter_mut() {
+            if let Ok(advice_list) = advisor.advise_on_resource(self, None) {
+                result.add_advice_list(advice_list);
             }
         }
         for attribute in &mut self.attributes {

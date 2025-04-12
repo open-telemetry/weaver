@@ -4,6 +4,7 @@
 
 use std::{collections::BTreeMap, path::PathBuf};
 
+use serde::Serialize;
 use serde_json::Value;
 use weaver_checker::{
     violation::{Advice, AdviceLevel, Violation},
@@ -36,30 +37,58 @@ pub const DEFAULT_LIVE_CHECK_REGO_POLICY_PATH: &str =
 /// Embedded default live check jq preprocessor
 pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advice.jq");
 
-/// Advisors for each entity type
-pub enum Advisor {
-    /// Advisor for attributes
-    Attribute(Box<dyn Advise<SampleAttribute, Attribute>>),
-    /// Advisor for spans
-    Span(Box<dyn Advise<SampleSpan, ResolvedGroup>>),
-    /// Advisor for span events
-    SpanEvent(Box<dyn Advise<SampleSpanEvent, ResolvedGroup>>),
-    /// Advisor for span links
-    SpanLink(Box<dyn Advise<SampleSpanLink, ResolvedGroup>>),
-    /// Advisor for resources
-    Resource(Box<dyn Advise<SampleResource, ResolvedGroup>>),
-}
-
 /// Provides advice on a sample
-pub trait Advise<S, RE> {
-    /// Provide advice on a sample
-    fn advise(&mut self, sample: &S, registry_entity: Option<&RE>) -> Result<Vec<Advice>, Error>;
+pub trait Advisor {
+    /// Provide advice on an attribute
+    fn advise_on_attribute(
+        &mut self,
+        _sample_attribute: &SampleAttribute,
+        _attribute: Option<&Attribute>,
+    ) -> Result<Vec<Advice>, Error> {
+        Ok(vec![])
+    }
+
+    /// Provide advice on a span
+    fn advise_on_span(
+        &mut self,
+        _sample_span: &SampleSpan,
+        _group: Option<&ResolvedGroup>,
+    ) -> Result<Vec<Advice>, Error> {
+        Ok(vec![])
+    }
+
+    /// Provide advice on a span event
+    fn advise_on_span_event(
+        &mut self,
+        _sample_span_event: &SampleSpanEvent,
+        _group: Option<&ResolvedGroup>,
+    ) -> Result<Vec<Advice>, Error> {
+        Ok(vec![])
+    }
+
+    /// Provide advice on a span link
+    fn advise_on_span_link(
+        &mut self,
+        _sample_span_link: &SampleSpanLink,
+        _group: Option<&ResolvedGroup>,
+    ) -> Result<Vec<Advice>, Error> {
+        Ok(vec![])
+    }
+
+    /// Provide advice on a resource
+    fn advise_on_resource(
+        &mut self,
+        _sample_resource: &SampleResource,
+        _group: Option<&ResolvedGroup>,
+    ) -> Result<Vec<Advice>, Error> {
+        Ok(vec![])
+    }
 }
 
 /// An advisor that checks if an attribute is deprecated
 pub struct DeprecatedAdvisor;
-impl Advise<SampleAttribute, Attribute> for DeprecatedAdvisor {
-    fn advise(
+impl Advisor for DeprecatedAdvisor {
+    fn advise_on_attribute(
         &mut self,
         _attribute: &SampleAttribute,
         registry_attribute: Option<&Attribute>,
@@ -90,8 +119,8 @@ impl Advise<SampleAttribute, Attribute> for DeprecatedAdvisor {
 pub struct StabilityAdvisor;
 // TODO: Configurable Advice level, strictly stable would mean Violation
 
-impl Advise<SampleAttribute, Attribute> for StabilityAdvisor {
-    fn advise(
+impl Advisor for StabilityAdvisor {
+    fn advise_on_attribute(
         &mut self,
         _attribute: &SampleAttribute,
         registry_attribute: Option<&Attribute>,
@@ -116,8 +145,8 @@ impl Advise<SampleAttribute, Attribute> for StabilityAdvisor {
 
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
-impl Advise<SampleAttribute, Attribute> for TypeAdvisor {
-    fn advise(
+impl Advisor for TypeAdvisor {
+    fn advise_on_attribute(
         &mut self,
         attribute: &SampleAttribute,
         registry_attribute: Option<&Attribute>,
@@ -174,8 +203,8 @@ impl Advise<SampleAttribute, Attribute> for TypeAdvisor {
 
 /// An advisor that reports if the given value is not a defined variant in the enum
 pub struct EnumAdvisor;
-impl Advise<SampleAttribute, Attribute> for EnumAdvisor {
-    fn advise(
+impl Advisor for EnumAdvisor {
+    fn advise_on_attribute(
         &mut self,
         attribute: &SampleAttribute,
         registry_attribute: Option<&Attribute>,
@@ -286,15 +315,13 @@ impl RegoAdvisor {
 
         Ok(RegoAdvisor { engine })
     }
-}
-impl Advise<SampleAttribute, Attribute> for RegoAdvisor {
-    fn advise(
-        &mut self,
-        attribute: &SampleAttribute,
-        _registry_attribute: Option<&Attribute>,
-    ) -> Result<Vec<Advice>, Error> {
+
+    fn check<T>(&mut self, input: &T) -> Result<Vec<Advice>, Error>
+    where
+        T: Serialize,
+    {
         self.engine
-            .set_input(attribute)
+            .set_input(input)
             .map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?;
@@ -315,5 +342,15 @@ impl Advise<SampleAttribute, Attribute> for RegoAdvisor {
                 }
             })
             .collect::<Vec<Advice>>())
+    }
+}
+
+impl Advisor for RegoAdvisor {
+    fn advise_on_attribute(
+        &mut self,
+        sample: &SampleAttribute,
+        _attribute: Option<&Attribute>,
+    ) -> Result<Vec<Advice>, Error> {
+        self.check(&sample)
     }
 }

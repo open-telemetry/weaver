@@ -140,12 +140,12 @@ pub struct RegistryLiveCheckArgs {
     advice_preprocessor: Option<PathBuf>,
 }
 
-fn default_advisors() -> Vec<Advisor> {
+fn default_advisors() -> Vec<Box<dyn Advisor>> {
     vec![
-        Advisor::Attribute(Box::new(DeprecatedAdvisor)),
-        Advisor::Attribute(Box::new(StabilityAdvisor)),
-        Advisor::Attribute(Box::new(TypeAdvisor)),
-        Advisor::Attribute(Box::new(EnumAdvisor)),
+        Box::new(DeprecatedAdvisor),
+        Box::new(StabilityAdvisor),
+        Box::new(TypeAdvisor),
+        Box::new(EnumAdvisor),
     ]
 }
 
@@ -187,7 +187,7 @@ pub(crate) fn command(
         &args.advice_policies,
         &args.advice_preprocessor,
     )?;
-    live_checker.add_advisor(Advisor::Attribute(Box::new(rego_advisor)));
+    live_checker.add_advisor(Box::new(rego_advisor));
 
     // Prepare the template engine
     let loader = EmbeddedFileLoader::try_new(
@@ -240,19 +240,24 @@ pub(crate) fn command(
         .ingest(logger.clone())?,
     };
 
-    // If this is a stream - process the attributes one by one
-    // File output is not supported in stream mode
-    let stream_mode = if let OutputDirective::File = output_directive {
-        false
+    // Run the live check
+
+    let report_mode = if let OutputDirective::File = output_directive {
+        // File output forces report mode
+        true
     } else {
-        !args.no_stream
+        // This flag is not set by default. The user can set it to disable streaming output
+        // and force report mode.
+        args.no_stream
     };
 
     let mut stats = LiveCheckStatistics::new(&live_checker.registry);
     let mut samples = Vec::new();
     for mut sample in ingester {
         sample.run_live_check(&mut live_checker, &mut stats);
-        if stream_mode {
+        if report_mode {
+            samples.push(sample);
+        } else {
             engine
                 .generate(logger.clone(), &sample, output.as_path(), &output_directive)
                 .map_err(|e| {
@@ -260,8 +265,6 @@ pub(crate) fn command(
                         error: e.to_string(),
                     })
                 })?;
-        } else {
-            samples.push(sample);
         }
     }
     stats.finalize();
@@ -270,16 +273,7 @@ pub(crate) fn command(
         exit_code = 1;
     }
 
-    // Output the final statistics
-    if stream_mode {
-        engine
-            .generate(logger.clone(), &stats, output.as_path(), &output_directive)
-            .map_err(|e| {
-                DiagnosticMessages::from(Error::OutputError {
-                    error: e.to_string(),
-                })
-            })?;
-    } else {
+    if report_mode {
         // Package into a report
         let report = LiveCheckReport {
             statistics: stats,
@@ -287,6 +281,15 @@ pub(crate) fn command(
         };
         engine
             .generate(logger.clone(), &report, output.as_path(), &output_directive)
+            .map_err(|e| {
+                DiagnosticMessages::from(Error::OutputError {
+                    error: e.to_string(),
+                })
+            })?;
+    } else {
+        // Output the stats
+        engine
+            .generate(logger.clone(), &stats, output.as_path(), &output_directive)
             .map_err(|e| {
                 DiagnosticMessages::from(Error::OutputError {
                     error: e.to_string(),
