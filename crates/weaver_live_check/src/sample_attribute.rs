@@ -8,10 +8,8 @@ use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    advice::Advisor,
-    live_checker::{LiveCheckRunner, LiveChecker},
-    LiveCheckResult, LiveCheckStatistics, UpdateStats, MISSING_ATTRIBUTE_ADVICE_TYPE,
-    TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    advice::Advisor, live_checker::LiveChecker, LiveCheckResult, LiveCheckRunner,
+    LiveCheckStatistics, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -143,54 +141,7 @@ impl SampleAttribute {
             Value::Object(_) => None, // Unsupported
         }
     }
-}
 
-impl LiveCheckRunner for SampleAttribute {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
-        let mut result = LiveCheckResult::new();
-        // find the attribute in the registry
-        let semconv_attribute = {
-            if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute.clone())
-            } else {
-                live_checker.find_template(&self.name).cloned()
-            }
-        };
-
-        if semconv_attribute.is_none() {
-            result.add_advice(Advice {
-                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                value: Value::String(self.name.clone()),
-                message: "Does not exist in the registry".to_owned(),
-                advice_level: AdviceLevel::Violation,
-            });
-        } else {
-            // Provide an info advice if the attribute is a template
-            if let Some(attribute) = &semconv_attribute {
-                if let AttributeType::Template(_) = attribute.r#type {
-                    result.add_advice(Advice {
-                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
-                        value: Value::String(attribute.name.clone()),
-                        message: "Is a template".to_owned(),
-                        advice_level: AdviceLevel::Information,
-                    });
-                }
-            }
-        }
-
-        // run advisors on the attribute
-        for entity_advisor in live_checker.advisors.iter_mut() {
-            if let Advisor::Attribute(advisor) = entity_advisor {
-                if let Ok(advice_list) = advisor.advise(self, semconv_attribute.as_ref()) {
-                    result.add_advice_list(advice_list);
-                }
-            }
-        }
-        self.live_check_result = Some(result);
-    }
-}
-
-impl UpdateStats for SampleAttribute {
     fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
         stats.total_attributes += 1;
         let mut seen_attribute_name = self.name.clone();
@@ -247,6 +198,52 @@ impl UpdateStats for SampleAttribute {
                 .or_insert(0);
             *seen_non_registry_count += 1;
         }
+    }
+}
+
+impl LiveCheckRunner for SampleAttribute {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
+        let mut result = LiveCheckResult::new();
+        // find the attribute in the registry
+        let semconv_attribute = {
+            if let Some(attribute) = live_checker.find_attribute(&self.name) {
+                Some(attribute.clone())
+            } else {
+                live_checker.find_template(&self.name).cloned()
+            }
+        };
+
+        if semconv_attribute.is_none() {
+            result.add_advice(Advice {
+                advice_type: MISSING_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                value: Value::String(self.name.clone()),
+                message: "Does not exist in the registry".to_owned(),
+                advice_level: AdviceLevel::Violation,
+            });
+        } else {
+            // Provide an info advice if the attribute is a template
+            if let Some(attribute) = &semconv_attribute {
+                if let AttributeType::Template(_) = attribute.r#type {
+                    result.add_advice(Advice {
+                        advice_type: TEMPLATE_ATTRIBUTE_ADVICE_TYPE.to_owned(),
+                        value: Value::String(attribute.name.clone()),
+                        message: "Is a template".to_owned(),
+                        advice_level: AdviceLevel::Information,
+                    });
+                }
+            }
+        }
+
+        // run advisors on the attribute
+        for entity_advisor in live_checker.advisors.iter_mut() {
+            if let Advisor::Attribute(advisor) = entity_advisor {
+                if let Ok(advice_list) = advisor.advise(self, semconv_attribute.as_ref()) {
+                    result.add_advice_list(advice_list);
+                }
+            }
+        }
+        self.live_check_result = Some(result);
+        self.update_stats(stats);
     }
 }
 

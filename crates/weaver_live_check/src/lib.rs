@@ -4,8 +4,10 @@
 
 use std::collections::HashMap;
 
+use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
@@ -25,6 +27,8 @@ pub mod json_stdin_ingester;
 pub mod live_checker;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// An intermediary format for resources
+pub mod sample_resource;
 /// The intermediary format for spans
 pub mod sample_span;
 /// An ingester that reads attribute names from a text file.
@@ -94,15 +98,19 @@ pub enum Sample {
     SpanEvent(SampleSpanEvent),
     /// A sample span link
     SpanLink(SampleSpanLink),
+    /// A sample resource
+    Resource(SampleResource),
 }
 
-impl UpdateStats for Sample {
-    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
+// Dispatch the live check to the sample type
+impl LiveCheckRunner for Sample {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         match self {
-            Sample::Attribute(attribute) => attribute.update_stats(stats),
-            Sample::Span(span) => span.update_stats(stats),
-            Sample::SpanEvent(span_event) => span_event.update_stats(stats),
-            Sample::SpanLink(span_link) => span_link.update_stats(stats),
+            Sample::Attribute(attribute) => attribute.run_live_check(live_checker, stats),
+            Sample::Span(span) => span.run_live_check(live_checker, stats),
+            Sample::SpanEvent(span_event) => span_event.run_live_check(live_checker, stats),
+            Sample::SpanLink(span_link) => span_link.run_live_check(live_checker, stats),
+            Sample::Resource(resource) => resource.run_live_check(live_checker, stats),
         }
     }
 }
@@ -246,8 +254,8 @@ impl LiveCheckStatistics {
     }
 }
 
-/// This trait is implemented for all types that can update the statistics
-pub trait UpdateStats {
-    /// Update the statistics for a sample
-    fn update_stats(&mut self, stats: &mut LiveCheckStatistics);
+/// Samples implement this trait to run live checks on themselves
+pub trait LiveCheckRunner {
+    /// Run the live check
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics);
 }

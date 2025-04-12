@@ -20,6 +20,7 @@ use weaver_semconv::{
 use crate::{
     live_checker::LiveChecker,
     sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
     sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
     Error,
 };
@@ -45,6 +46,8 @@ pub enum Advisor {
     SpanEvent(Box<dyn Advise<SampleSpanEvent, ResolvedGroup>>),
     /// Advisor for span links
     SpanLink(Box<dyn Advise<SampleSpanLink, ResolvedGroup>>),
+    /// Advisor for resources
+    Resource(Box<dyn Advise<SampleResource, ResolvedGroup>>),
 }
 
 /// Provides advice on a sample

@@ -22,7 +22,7 @@ use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
 use weaver_live_check::live_checker::LiveChecker;
 use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
-use weaver_live_check::{Error, Ingester, LiveCheckReport, LiveCheckStatistics, UpdateStats};
+use weaver_live_check::{Error, Ingester, LiveCheckReport, LiveCheckRunner, LiveCheckStatistics};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
@@ -251,8 +251,7 @@ pub(crate) fn command(
     let mut stats = LiveCheckStatistics::new(&live_checker.registry);
     let mut samples = Vec::new();
     for mut sample in ingester {
-        live_checker.run_live_check(&mut sample);
-        sample.update_stats(&mut stats);
+        sample.run_live_check(&mut live_checker, &mut stats);
         if stream_mode {
             engine
                 .generate(logger.clone(), &sample, output.as_path(), &output_directive)

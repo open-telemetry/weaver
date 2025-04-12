@@ -9,7 +9,7 @@ use weaver_semconv::attribute::AttributeType;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
 
-use crate::{advice::Advisor, Sample};
+use crate::advice::Advisor;
 
 /// Provides advice for telemetry samples
 #[derive(Serialize)]
@@ -83,30 +83,6 @@ impl LiveChecker {
         }
         None
     }
-
-    /// Run the live check on each sample type
-    pub fn run_live_check(&mut self, sample: &mut Sample) {
-        match sample {
-            Sample::Attribute(s) => {
-                s.run_live_check(self);
-            }
-            Sample::Span(s) => {
-                s.run_live_check(self);
-            }
-            Sample::SpanEvent(s) => {
-                s.run_live_check(self);
-            }
-            Sample::SpanLink(s) => {
-                s.run_live_check(self);
-            }
-        }
-    }
-}
-
-/// Samples implement this trait to run live checks on themselves
-pub trait LiveCheckRunner {
-    /// Run the live check
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker);
 }
 
 #[cfg(test)]
@@ -114,7 +90,7 @@ mod tests {
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
         sample_attribute::SampleAttribute,
-        LiveCheckStatistics, UpdateStats,
+        LiveCheckRunner, LiveCheckStatistics, Sample,
     };
 
     use super::*;
@@ -302,8 +278,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            live_checker.run_live_check(sample);
-            sample.update_stats(&mut stats);
+            sample.run_live_check(&mut live_checker, &mut stats);
         }
         stats.finalize();
 
@@ -500,8 +475,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            live_checker.run_live_check(sample);
-            sample.update_stats(&mut stats);
+            sample.run_live_check(&mut live_checker, &mut stats);
         }
         stats.finalize();
 

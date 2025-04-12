@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use weaver_common::Logger;
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
+    sample_resource::SampleResource,
     sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
     Error, Ingester, Sample,
 };
@@ -99,12 +100,16 @@ impl OtlpIterator {
             OtlpRequest::Traces(trace) => {
                 for resource_span in trace.resource_spans {
                     if let Some(resource) = resource_span.resource {
-                        // TODO SampleResource?
+                        let mut sample_resource = SampleResource {
+                            attributes: Vec::new(),
+                            live_check_result: None,
+                        };
                         for attribute in resource.attributes {
-                            self.buffer.push(Sample::Attribute(
-                                Self::sample_attribute_from_key_value(&attribute),
-                            ));
+                            sample_resource
+                                .attributes
+                                .push(Self::sample_attribute_from_key_value(&attribute));
                         }
+                        self.buffer.push(Sample::Resource(sample_resource));
                     }
 
                     for scope_span in resource_span.scope_spans {

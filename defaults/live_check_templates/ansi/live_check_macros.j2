@@ -57,9 +57,17 @@
 {% endmacro %}
 
 {% macro display_span_link(span_link, indent=0) %}
-{{ " " * indent }}{{ ("Span link") | ansi_bright_cyan | ansi_bold }} trace_id: {{ span_link.trace_id | ansi_green }} span_id: {{ span_link.span_id | ansi_green }}
+{{ " " * indent }}{{ ("Span link") | ansi_bright_cyan | ansi_bold }}
 {{ display_advice(span_link.live_check_result.all_advice, indent) }}
-{% for attribute in span_link.attributes %}
+{%- for attribute in span_link.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
+{% macro display_resource(resource, indent=0) %}
+{{ " " * indent }}{{ ("Resource") | ansi_bright_cyan | ansi_bold }}
+{{ display_advice(resource.live_check_result.all_advice, indent) }}
+{%- for attribute in resource.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
 {%- endfor %}
 {% endmacro %}
@@ -83,5 +91,7 @@
 {{ display_span_event(sample.span_event, indent) }}
 {%- elif sample.span_link is defined -%}
 {{ display_span_link(sample.span_link, indent) }}
+{%- elif sample.resource is defined -%}
+{{ display_resource(sample.resource, indent) }}
 {%- endif -%}
 {%- endmacro -%}

@@ -7,10 +7,8 @@ use serde_json::Value;
 use weaver_checker::violation::{Advice, AdviceLevel};
 
 use crate::{
-    advice::Advisor,
-    live_checker::{LiveCheckRunner, LiveChecker},
-    sample_attribute::SampleAttribute,
-    LiveCheckResult, LiveCheckStatistics, UpdateStats,
+    advice::Advisor, live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult,
+    LiveCheckRunner, LiveCheckStatistics,
 };
 
 /// Represents a sample telemetry span parsed from any source
@@ -33,7 +31,7 @@ pub struct SampleSpan {
 }
 
 impl LiveCheckRunner for SampleSpan {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         // TODO Remove this:
         let span_advice = Advice {
@@ -52,29 +50,15 @@ impl LiveCheckRunner for SampleSpan {
             }
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker);
+            attribute.run_live_check(live_checker, stats);
         }
         for span_event in &mut self.span_events {
-            span_event.run_live_check(live_checker);
+            span_event.run_live_check(live_checker, stats);
         }
         for span_link in &mut self.span_links {
-            span_link.run_live_check(live_checker);
+            span_link.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
-    }
-}
-
-impl UpdateStats for SampleSpan {
-    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
-        for attribute in &mut self.attributes {
-            attribute.update_stats(stats);
-        }
-        for span_event in &mut self.span_events {
-            span_event.update_stats(stats);
-        }
-        for span_link in &mut self.span_links {
-            span_link.update_stats(stats);
-        }
     }
 }
 
@@ -90,7 +74,7 @@ pub struct SampleSpanEvent {
 }
 
 impl LiveCheckRunner for SampleSpanEvent {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for entity_advisor in live_checker.advisors.iter_mut() {
             if let Advisor::SpanEvent(advisor) = entity_advisor {
@@ -100,17 +84,9 @@ impl LiveCheckRunner for SampleSpanEvent {
             }
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker);
+            attribute.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
-    }
-}
-
-impl UpdateStats for SampleSpanEvent {
-    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
-        for attribute in &mut self.attributes {
-            attribute.update_stats(stats);
-        }
     }
 }
 
@@ -124,7 +100,7 @@ pub struct SampleSpanLink {
 }
 
 impl LiveCheckRunner for SampleSpanLink {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker) {
+    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for entity_advisor in live_checker.advisors.iter_mut() {
             if let Advisor::SpanLink(advisor) = entity_advisor {
@@ -134,16 +110,8 @@ impl LiveCheckRunner for SampleSpanLink {
             }
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker);
+            attribute.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
-    }
-}
-
-impl UpdateStats for SampleSpanLink {
-    fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
-        for attribute in &mut self.attributes {
-            attribute.update_stats(stats);
-        }
     }
 }
