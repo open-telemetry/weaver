@@ -31,7 +31,7 @@
                     "value": "GET"
                 }
             ],
-            "kind": "SPAN_KIND_CLIENT",
+            "kind": "client",
             "name": "test"
         }
     }
