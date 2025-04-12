@@ -8,7 +8,7 @@ use weaver_checker::violation::{Advice, AdviceLevel};
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics,
+    LiveCheckStatistics, SampleRef,
 };
 
 /// Represents a sample telemetry span parsed from any source
@@ -33,17 +33,8 @@ pub struct SampleSpan {
 impl LiveCheckRunner for SampleSpan {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
-        // TODO Remove this:
-        let span_advice = Advice {
-            advice_type: "span_info".to_owned(),
-            value: Value::String(self.name.clone()),
-            message: format!("Has span kind: `{}`", self.kind),
-            advice_level: AdviceLevel::Information,
-        };
-        result.add_advice(span_advice);
-
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise_on_span(self, None) {
+            if let Ok(advice_list) = advisor.advise(&SampleRef::Span(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }
@@ -75,7 +66,7 @@ impl LiveCheckRunner for SampleSpanEvent {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise_on_span_event(self, None) {
+            if let Ok(advice_list) = advisor.advise(&SampleRef::SpanEvent(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }
@@ -99,7 +90,7 @@ impl LiveCheckRunner for SampleSpanLink {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise_on_span_link(self, None) {
+            if let Ok(advice_list) = advisor.advise(&SampleRef::SpanLink(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }

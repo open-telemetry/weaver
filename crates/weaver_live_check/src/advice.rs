@@ -18,13 +18,7 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{
-    live_checker::LiveChecker,
-    sample_attribute::SampleAttribute,
-    sample_resource::SampleResource,
-    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
-    Error,
-};
+use crate::{live_checker::LiveChecker, Error, SampleRef};
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -39,78 +33,97 @@ pub const DEFAULT_LIVE_CHECK_JQ: &str = include_str!("../../../defaults/jq/advic
 
 /// Provides advice on a sample
 pub trait Advisor {
-    /// Provide advice on an attribute
-    fn advise_on_attribute(
+    /// Provide advice on a sample
+    fn advise(
         &mut self,
-        _sample_attribute: &SampleAttribute,
-        _attribute: Option<&Attribute>,
-    ) -> Result<Vec<Advice>, Error> {
-        Ok(vec![])
-    }
-
-    /// Provide advice on a span
-    fn advise_on_span(
-        &mut self,
-        _sample_span: &SampleSpan,
-        _group: Option<&ResolvedGroup>,
-    ) -> Result<Vec<Advice>, Error> {
-        Ok(vec![])
-    }
-
-    /// Provide advice on a span event
-    fn advise_on_span_event(
-        &mut self,
-        _sample_span_event: &SampleSpanEvent,
-        _group: Option<&ResolvedGroup>,
-    ) -> Result<Vec<Advice>, Error> {
-        Ok(vec![])
-    }
-
-    /// Provide advice on a span link
-    fn advise_on_span_link(
-        &mut self,
-        _sample_span_link: &SampleSpanLink,
-        _group: Option<&ResolvedGroup>,
-    ) -> Result<Vec<Advice>, Error> {
-        Ok(vec![])
-    }
-
-    /// Provide advice on a resource
-    fn advise_on_resource(
-        &mut self,
-        _sample_resource: &SampleResource,
-        _group: Option<&ResolvedGroup>,
-    ) -> Result<Vec<Advice>, Error> {
-        Ok(vec![])
-    }
+        sample: &SampleRef<'_>,
+        registry_attribute: Option<&Attribute>,
+        registry_group: Option<&ResolvedGroup>,
+    ) -> Result<Vec<Advice>, Error>;
 }
+
+// /// Provides advice on a sample
+// pub trait Advisor {
+//     /// Provide advice on an attribute
+//     fn advise_on_attribute(
+//         &mut self,
+//         _sample_attribute: &SampleAttribute,
+//         _attribute: Option<&Attribute>,
+//     ) -> Result<Vec<Advice>, Error> {
+//         Ok(vec![])
+//     }
+
+//     /// Provide advice on a span
+//     fn advise_on_span(
+//         &mut self,
+//         _sample_span: &SampleSpan,
+//         _group: Option<&ResolvedGroup>,
+//     ) -> Result<Vec<Advice>, Error> {
+//         Ok(vec![])
+//     }
+
+//     /// Provide advice on a span event
+//     fn advise_on_span_event(
+//         &mut self,
+//         _sample_span_event: &SampleSpanEvent,
+//         _group: Option<&ResolvedGroup>,
+//     ) -> Result<Vec<Advice>, Error> {
+//         Ok(vec![])
+//     }
+
+//     /// Provide advice on a span link
+//     fn advise_on_span_link(
+//         &mut self,
+//         _sample_span_link: &SampleSpanLink,
+//         _group: Option<&ResolvedGroup>,
+//     ) -> Result<Vec<Advice>, Error> {
+//         Ok(vec![])
+//     }
+
+//     /// Provide advice on a resource
+//     fn advise_on_resource(
+//         &mut self,
+//         _sample_resource: &SampleResource,
+//         _group: Option<&ResolvedGroup>,
+//     ) -> Result<Vec<Advice>, Error> {
+//         Ok(vec![])
+//     }
+// }
 
 /// An advisor that checks if an attribute is deprecated
 pub struct DeprecatedAdvisor;
 impl Advisor for DeprecatedAdvisor {
-    fn advise_on_attribute(
+    fn advise(
         &mut self,
-        _attribute: &SampleAttribute,
+        sample: &SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
+        _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        let mut advices = Vec::new();
-        if let Some(attribute) = registry_attribute {
-            if let Some(deprecated) = &attribute.deprecated {
-                advices.push(Advice {
-                    advice_type: "deprecated".to_owned(),
-                    value: match deprecated {
-                        Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
-                        Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
-                        Deprecated::Uncategorized { .. } => {
-                            Value::String("uncategorized".to_owned())
-                        }
-                    },
-                    message: deprecated.to_string(),
-                    advice_level: AdviceLevel::Violation,
-                });
+        match sample {
+            SampleRef::Attribute(_sample_attribute) => {
+                let mut advices = Vec::new();
+                if let Some(attribute) = registry_attribute {
+                    if let Some(deprecated) = &attribute.deprecated {
+                        advices.push(Advice {
+                            advice_type: "deprecated".to_owned(),
+                            value: match deprecated {
+                                Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
+                                Deprecated::Obsoleted { .. } => {
+                                    Value::String("obsoleted".to_owned())
+                                }
+                                Deprecated::Uncategorized { .. } => {
+                                    Value::String("uncategorized".to_owned())
+                                }
+                            },
+                            message: deprecated.to_string(),
+                            advice_level: AdviceLevel::Violation,
+                        });
+                    }
+                }
+                Ok(advices)
             }
+            _ => Ok(Vec::new()),
         }
-        Ok(advices)
     }
 }
 
@@ -120,80 +133,96 @@ pub struct StabilityAdvisor;
 // TODO: Configurable Advice level, strictly stable would mean Violation
 
 impl Advisor for StabilityAdvisor {
-    fn advise_on_attribute(
+    fn advise(
         &mut self,
-        _attribute: &SampleAttribute,
+        sample: &SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
+        _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        let mut advices = Vec::new();
-        if let Some(attribute) = registry_attribute {
-            match attribute.stability {
-                Some(ref stability) if *stability != Stability::Stable => {
-                    advices.push(Advice {
-                        advice_type: "stability".to_owned(),
-                        value: Value::String(stability.to_string()),
-                        message: "Is not stable".to_owned(),
-                        advice_level: AdviceLevel::Improvement,
-                    });
+        match sample {
+            SampleRef::Attribute(_sample_attribute) => {
+                let mut advices = Vec::new();
+                if let Some(attribute) = registry_attribute {
+                    match attribute.stability {
+                        Some(ref stability) if *stability != Stability::Stable => {
+                            advices.push(Advice {
+                                advice_type: "stability".to_owned(),
+                                value: Value::String(stability.to_string()),
+                                message: "Is not stable".to_owned(),
+                                advice_level: AdviceLevel::Improvement,
+                            });
+                        }
+                        _ => {}
+                    }
                 }
-                _ => {}
+                Ok(advices)
             }
+            _ => Ok(Vec::new()),
         }
-        Ok(advices)
     }
 }
 
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
 impl Advisor for TypeAdvisor {
-    fn advise_on_attribute(
+    fn advise(
         &mut self,
-        attribute: &SampleAttribute,
+        sample: &SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
+        _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        // Only provide advice if the attribute is a match and the type is present
-        match (registry_attribute, attribute.r#type.as_ref()) {
-            (Some(semconv_attribute), Some(attribute_type)) => {
-                let semconv_attribute_type = match &semconv_attribute.r#type {
-                    AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
-                        primitive_or_array_type_spec
-                    }
-                    AttributeType::Template(template_type_spec) => &match template_type_spec {
-                        TemplateTypeSpec::Boolean => PrimitiveOrArrayTypeSpec::Boolean,
-                        TemplateTypeSpec::Int => PrimitiveOrArrayTypeSpec::Int,
-                        TemplateTypeSpec::Double => PrimitiveOrArrayTypeSpec::Double,
-                        TemplateTypeSpec::String => PrimitiveOrArrayTypeSpec::String,
-                        TemplateTypeSpec::Strings => PrimitiveOrArrayTypeSpec::Strings,
-                        TemplateTypeSpec::Ints => PrimitiveOrArrayTypeSpec::Ints,
-                        TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
-                        TemplateTypeSpec::Booleans => PrimitiveOrArrayTypeSpec::Booleans,
-                    },
-                    AttributeType::Enum { .. } => {
-                        // Special case: Enum variants can be either string or int
-                        if attribute_type != &PrimitiveOrArrayTypeSpec::String
-                            && attribute_type != &PrimitiveOrArrayTypeSpec::Int
-                        {
-                            return Ok(vec![Advice {
+        match sample {
+            SampleRef::Attribute(sample_attribute) => {
+                // Only provide advice if the attribute is a match and the type is present
+                match (registry_attribute, sample_attribute.r#type.as_ref()) {
+                    (Some(semconv_attribute), Some(attribute_type)) => {
+                        let semconv_attribute_type = match &semconv_attribute.r#type {
+                            AttributeType::PrimitiveOrArray(primitive_or_array_type_spec) => {
+                                primitive_or_array_type_spec
+                            }
+                            AttributeType::Template(template_type_spec) => {
+                                &match template_type_spec {
+                                    TemplateTypeSpec::Boolean => PrimitiveOrArrayTypeSpec::Boolean,
+                                    TemplateTypeSpec::Int => PrimitiveOrArrayTypeSpec::Int,
+                                    TemplateTypeSpec::Double => PrimitiveOrArrayTypeSpec::Double,
+                                    TemplateTypeSpec::String => PrimitiveOrArrayTypeSpec::String,
+                                    TemplateTypeSpec::Strings => PrimitiveOrArrayTypeSpec::Strings,
+                                    TemplateTypeSpec::Ints => PrimitiveOrArrayTypeSpec::Ints,
+                                    TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
+                                    TemplateTypeSpec::Booleans => {
+                                        PrimitiveOrArrayTypeSpec::Booleans
+                                    }
+                                }
+                            }
+                            AttributeType::Enum { .. } => {
+                                // Special case: Enum variants can be either string or int
+                                if attribute_type != &PrimitiveOrArrayTypeSpec::String
+                                    && attribute_type != &PrimitiveOrArrayTypeSpec::Int
+                                {
+                                    return Ok(vec![Advice {
+                                        advice_type: "type_mismatch".to_owned(),
+                                        value: Value::String(attribute_type.to_string()),
+                                        message: "Type should be `string` or `int`".to_owned(),
+                                        advice_level: AdviceLevel::Violation,
+                                    }]);
+                                } else {
+                                    return Ok(Vec::new());
+                                }
+                            }
+                        };
+
+                        if attribute_type != semconv_attribute_type {
+                            Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
-                                message: "Type should be `string` or `int`".to_owned(),
+                                message: format!("Type should be `{}`", semconv_attribute_type),
                                 advice_level: AdviceLevel::Violation,
-                            }]);
+                            }])
                         } else {
-                            return Ok(Vec::new());
+                            Ok(Vec::new())
                         }
                     }
-                };
-
-                if attribute_type != semconv_attribute_type {
-                    Ok(vec![Advice {
-                        advice_type: "type_mismatch".to_owned(),
-                        value: Value::String(attribute_type.to_string()),
-                        message: format!("Type should be `{}`", semconv_attribute_type),
-                        advice_level: AdviceLevel::Violation,
-                    }])
-                } else {
-                    Ok(Vec::new())
+                    _ => Ok(Vec::new()),
                 }
             }
             _ => Ok(Vec::new()),
@@ -204,56 +233,63 @@ impl Advisor for TypeAdvisor {
 /// An advisor that reports if the given value is not a defined variant in the enum
 pub struct EnumAdvisor;
 impl Advisor for EnumAdvisor {
-    fn advise_on_attribute(
+    fn advise(
         &mut self,
-        attribute: &SampleAttribute,
+        sample: &SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
+        _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        // Only provide advice if the registry_attribute is an enum and the attribute has a value and type
-        match (
-            registry_attribute,
-            attribute.value.as_ref(),
-            attribute.r#type.as_ref(),
-        ) {
-            (Some(semconv_attribute), Some(attribute_value), Some(attribute_type)) => {
-                if let AttributeType::Enum { members, .. } = &semconv_attribute.r#type {
-                    let mut is_found = false;
-                    for member in members {
-                        if match attribute_type {
-                            PrimitiveOrArrayTypeSpec::Int => {
-                                if let Some(int_value) = attribute_value.as_i64() {
-                                    member.value == ValueSpec::Int(int_value)
-                                } else {
-                                    false
+        match sample {
+            SampleRef::Attribute(sample_attribute) => {
+                // Only provide advice if the registry_attribute is an enum and the attribute has a value and type
+                match (
+                    registry_attribute,
+                    sample_attribute.value.as_ref(),
+                    sample_attribute.r#type.as_ref(),
+                ) {
+                    (Some(semconv_attribute), Some(attribute_value), Some(attribute_type)) => {
+                        if let AttributeType::Enum { members, .. } = &semconv_attribute.r#type {
+                            let mut is_found = false;
+                            for member in members {
+                                if match attribute_type {
+                                    PrimitiveOrArrayTypeSpec::Int => {
+                                        if let Some(int_value) = attribute_value.as_i64() {
+                                            member.value == ValueSpec::Int(int_value)
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    PrimitiveOrArrayTypeSpec::String => {
+                                        if let Some(string_value) = attribute_value.as_str() {
+                                            member.value
+                                                == ValueSpec::String(string_value.to_owned())
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    _ => {
+                                        // Any other type is not supported - the TypeAdvisor should have already caught this
+                                        return Ok(Vec::new());
+                                    }
+                                } {
+                                    is_found = true;
+                                    break;
                                 }
                             }
-                            PrimitiveOrArrayTypeSpec::String => {
-                                if let Some(string_value) = attribute_value.as_str() {
-                                    member.value == ValueSpec::String(string_value.to_owned())
-                                } else {
-                                    false
-                                }
-                            }
-                            _ => {
-                                // Any other type is not supported - the TypeAdvisor should have already caught this
-                                return Ok(Vec::new());
-                            }
-                        } {
-                            is_found = true;
-                            break;
-                        }
-                    }
 
-                    if !is_found {
-                        return Ok(vec![Advice {
-                            advice_type: "undefined_enum_variant".to_owned(),
-                            value: attribute_value.clone(),
-                            message: "Is not a defined variant".to_owned(),
-                            advice_level: AdviceLevel::Information,
-                        }]);
+                            if !is_found {
+                                return Ok(vec![Advice {
+                                    advice_type: "undefined_enum_variant".to_owned(),
+                                    value: attribute_value.clone(),
+                                    message: "Is not a defined variant".to_owned(),
+                                    advice_level: AdviceLevel::Information,
+                                }]);
+                            }
+                        }
+                        Ok(Vec::new())
                     }
+                    _ => Ok(Vec::new()),
                 }
-                Ok(Vec::new())
             }
             _ => Ok(Vec::new()),
         }
@@ -346,11 +382,12 @@ impl RegoAdvisor {
 }
 
 impl Advisor for RegoAdvisor {
-    fn advise_on_attribute(
+    fn advise(
         &mut self,
-        sample: &SampleAttribute,
-        _attribute: Option<&Attribute>,
+        sample: &SampleRef<'_>,
+        _registry_attribute: Option<&Attribute>,
+        _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        self.check(&sample)
+        self.check(sample)
     }
 }

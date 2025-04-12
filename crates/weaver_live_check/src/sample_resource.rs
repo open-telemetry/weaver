@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics,
+    LiveCheckStatistics, SampleRef,
 };
 
 /// Represents a resource
@@ -22,7 +22,7 @@ impl LiveCheckRunner for SampleResource {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise_on_resource(self, None) {
+            if let Ok(advice_list) = advisor.advise(&SampleRef::Resource(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }

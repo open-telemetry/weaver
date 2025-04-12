@@ -8,7 +8,7 @@ use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    live_checker::LiveChecker, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
+    live_checker::LiveChecker, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
     MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
@@ -236,7 +236,11 @@ impl LiveCheckRunner for SampleAttribute {
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise_on_attribute(self, semconv_attribute.as_ref()) {
+            if let Ok(advice_list) = advisor.advise(
+                &SampleRef::Attribute(self),
+                semconv_attribute.as_ref(),
+                None,
+            ) {
                 result.add_advice_list(advice_list);
             }
         }

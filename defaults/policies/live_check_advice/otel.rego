@@ -22,29 +22,33 @@ concat(".", array.slice(parts, 0, i)) |
 
 # checks attribute has a namespace
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	not contains(input.name, ".")
+	input.attribute
+	not contains(input.attribute.name, ".")
 	advice_type := "missing_namespace"
 	advice_level := "improvement"
-	value := input.name
+	value := input.attribute.name
 	message := "Does not have a namespace"
 }
 
 # checks attribute name format
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	not regex.match(name_regex, input.name)
+	input.attribute
+	not regex.match(name_regex, input.attribute.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
-	value := input.name
+	value := input.attribute.name
 	message := "Does not match name formatting rules"
 }
 
 # checks attribute namespace doesn't collide with existing attributes
 deny contains make_advice(advice_type, advice_level, value, message) if {
+	input.attribute
+
 	# Skip if no namespace
-	contains(input.name, ".")
+	contains(input.attribute.name, ".")
 
 	# Get input namespaces
-	namespaces := derive_namespaces(input.name)
+	namespaces := derive_namespaces(input.attribute.name)
 
 	# Find collision
 	some value in namespaces
@@ -57,13 +61,15 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 
 # provides advice if the attribute extends an existing namespace
 deny contains make_advice(advice_type, advice_level, value, message) if {
+	input.attribute
+
 	# Skip checks first (fail fast)
-	contains(input.name, ".") # Must have at least one namespace
-	not is_template_type(input.name)
-	not is_registry_attribute(input.name)
+	contains(input.attribute.name, ".") # Must have at least one namespace
+	not is_template_type(input.attribute.name)
+	not is_registry_attribute(input.attribute.name)
 
 	# Get input namespaces
-	namespaces := derive_namespaces(input.name)
+	namespaces := derive_namespaces(input.attribute.name)
 
 	# Find matches - check keys in set
 	matches := [ns | some ns in namespaces; namespaces_to_check_set[ns] != null]

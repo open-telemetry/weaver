@@ -36,20 +36,13 @@
 {% endmacro %}
 
 {% macro display_attribute(attribute, indent=0) %}
-{% set highest_advice_level = attribute.live_check_result.highest_advice_level %}
-{%- if highest_advice_level == "information" or not highest_advice_level %}
-{{ " " * indent }}{{ attribute.name | ansi_bright_green }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
-{%- elif highest_advice_level == "improvement" %}
-{{ " " * indent }}{{ attribute.name | ansi_bright_yellow }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
-{%- else %}
-{{ " " * indent }}{{ attribute.name | ansi_bright_red }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
-{%- endif %}
+{{ " " * indent }}{{ display_sample_header(attribute.live_check_result.highest_advice_level, attribute.name) }}{% if attribute.value %} = {{ attribute.value }}{% endif %}
 
 {{ display_advice(attribute.live_check_result.all_advice, indent)}}
 {%- endmacro -%}
 
 {% macro display_span_event(span_event, indent=0) %}
-{{ " " * indent }}{{ ("Span event") | ansi_bright_cyan | ansi_bold }} name: {{ span_event.name | ansi_green }}
+{{ " " * indent }}{{ ("Span event") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(span_event.live_check_result.highest_advice_level, span_event.name) }}
 {{ display_advice(span_event.live_check_result.all_advice, indent) }}
 {%- for attribute in span_event.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -74,7 +67,7 @@
 
 {%- macro display_sample(sample, indent=0) -%}
 {%- if sample.span is defined -%}
-{{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} name: {{ sample.span.name | ansi_green }} kind: {{ sample.span.kind | ansi_green }}
+{{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(sample.span.live_check_result.highest_advice_level, sample.span.name) }} `{{ sample.span.kind }}`
 {{ display_advice(sample.span.live_check_result.all_advice, indent) }}
 {%- for attribute in sample.span.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
@@ -93,5 +86,15 @@
 {{ display_span_link(sample.span_link, indent) }}
 {%- elif sample.resource is defined -%}
 {{ display_resource(sample.resource, indent) }}
+{%- endif -%}
+{%- endmacro -%}
+
+{% macro display_sample_header(highest_advice_level, name) %}
+{%- if highest_advice_level == "information" or not highest_advice_level -%}
+{{ name | ansi_bright_green }}
+{%- elif highest_advice_level == "improvement" -%}
+{{ name | ansi_bright_yellow }}
+{%- else -%}
+{{ name | ansi_bright_red }}
 {%- endif -%}
 {%- endmacro -%}

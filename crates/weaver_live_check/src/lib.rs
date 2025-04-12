@@ -102,6 +102,22 @@ pub enum Sample {
     Resource(SampleResource),
 }
 
+/// Represents sample entity with a reference to the inner type
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SampleRef<'a> {
+    /// A sample attribute
+    Attribute(&'a SampleAttribute),
+    /// A sample span
+    Span(&'a SampleSpan),
+    /// A sample span event
+    SpanEvent(&'a SampleSpanEvent),
+    /// A sample span link
+    SpanLink(&'a SampleSpanLink),
+    /// A sample resource
+    Resource(&'a SampleResource),
+}
+
 // Dispatch the live check to the sample type
 impl LiveCheckRunner for Sample {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
