@@ -11,10 +11,7 @@ use weaver_live_check::{
 use weaver_semconv::group::SpanKindSpec;
 
 use super::{
-    grpc_stubs::proto::{
-        common::v1::{AnyValue, KeyValue},
-        trace::v1::span::SpanKind,
-    },
+    grpc_stubs::proto::common::v1::{AnyValue, KeyValue},
     listen_otlp_requests, OtlpRequest,
 };
 
@@ -125,7 +122,7 @@ impl OtlpIterator {
 
                     for scope_span in resource_span.scope_spans {
                         if let Some(scope) = scope_span.scope {
-                            // TODO SampleInstrumentationScopeSpan? Or add these to the scope_span?
+                            // TODO SampleInstrumentationScope?
                             for attribute in scope.attributes {
                                 self.buffer.push(Sample::Attribute(
                                     Self::sample_attribute_from_key_value(&attribute),
