@@ -155,26 +155,26 @@ A statistics entity is produced when the input is closed like this snippet:
 
 ```json
 {
+  "advice_level_counts": {
+    "improvement": 3,
+    "information": 2,
+    "violation": 11
+  },
   "advice_type_counts": {
     "extends_namespace": 2,
     "illegal_namespace": 1,
-    "invalid_format": 1,
-    "missing_attribute": 4,
-    "missing_namespace": 1,
+    "invalid_format": 2,
+    "missing_attribute": 7,
+    "missing_namespace": 2,
     "stability": 1,
     "type_mismatch": 1
   },
-  "advice_level_counts": {
-    "improvement": 2,
-    "information": 2,
-    "violation": 7
-  },
   "highest_advice_level_counts": {
     "improvement": 1,
-    "violation": 5
+    "violation": 8
   },
-  "no_advice_count": 1,
-  "registry_coverage": 0.013138686306774616,
+  "no_advice_count": 6,
+  "registry_coverage": 0.007005253806710243,
   "seen_non_registry_attributes": {
     "TaskId": 1,
     "http.request.extension": 1,
@@ -185,15 +185,21 @@ A statistics entity is produced when the input is closed like this snippet:
     "android.os.api_level": 0,
     ...
   },
-  "total_advisories": 11,
-  "total_attributes": 7
+  "total_advisories": 16,
+  "total_entities": 15,
+  "total_entities_by_type": {
+    "attribute": 11,
+    "resource": 1,
+    "span": 1,
+    "span_event": 2
+  }
 }
 ```
 
 These should be self-explanatory, but:
 
-- `highest_advice_level_counts` is a per advice level count of the highest advice level given to each attribute
-- `no_advice_count` is the number of attributes that received no advice
+- `highest_advice_level_counts` is a per advice level count of the highest advice level given to each sample
+- `no_advice_count` is the number of samples that received no advice
 - `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `registry_coverage` is the fraction of seen registry attributes over the total registry attributes
