@@ -50,6 +50,8 @@ impl LiveCheckRunner for SampleSpan {
             span_link.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
+        stats.inc_entity_count("span");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
     }
 }
 
@@ -76,6 +78,8 @@ impl LiveCheckRunner for SampleSpanEvent {
             attribute.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
+        stats.inc_entity_count("span_event");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
     }
 }
 
@@ -100,5 +104,7 @@ impl LiveCheckRunner for SampleSpanLink {
             attribute.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
+        stats.inc_entity_count("span_link");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
     }
 }

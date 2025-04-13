@@ -6,7 +6,7 @@
 {% endfor %}
 
 {{ macros.display_statistics(ctx.statistics) }}
-{%- elif ctx.total_attributes is defined -%}
+{%- elif ctx.total_entities is defined -%}
 {# This is a LiveCheckStatistics object #}
 {{ macros.display_statistics(ctx) }}
 {%- else -%}{# This is a sample #}

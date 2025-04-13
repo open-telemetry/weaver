@@ -143,26 +143,11 @@ impl SampleAttribute {
     }
 
     fn update_stats(&mut self, stats: &mut LiveCheckStatistics) {
-        stats.total_attributes += 1;
+        stats.inc_entity_count("attribute");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         let mut seen_attribute_name = self.name.clone();
         if let Some(result) = &mut self.live_check_result {
             for advice in &mut result.all_advice {
-                // Count of total advisories
-                stats.total_advisories += 1;
-
-                let advice_level_count = stats
-                    .advice_level_counts
-                    .entry(advice.advice_level.clone())
-                    .or_insert(0);
-                *advice_level_count += 1;
-
-                // Count of advisories by type
-                let advice_type_count = stats
-                    .advice_type_counts
-                    .entry(advice.advice_type.clone())
-                    .or_insert(0);
-                *advice_type_count += 1;
-
                 // If the advice is a template, adjust the name
                 if advice.advice_type == TEMPLATE_ATTRIBUTE_ADVICE_TYPE {
                     if let Some(template_name) = advice.value.as_str() {
@@ -170,34 +155,8 @@ impl SampleAttribute {
                     }
                 }
             }
-            // Count of attributes with the highest advice level
-            if let Some(highest_advice_level) = &result.highest_advice_level {
-                let highest_advice_level_count = stats
-                    .highest_advice_level_counts
-                    .entry(highest_advice_level.clone())
-                    .or_insert(0);
-                *highest_advice_level_count += 1;
-            }
-
-            // Count of attributes with no advice
-            if result.all_advice.is_empty() {
-                stats.no_advice_count += 1;
-            }
-        } else {
-            // Count of attributes with no advice
-            stats.no_advice_count += 1;
         }
-        if let Some(count) = stats.seen_registry_attributes.get_mut(&seen_attribute_name) {
-            // This is a registry attribute
-            *count += 1;
-        } else {
-            // This is a non-registry attribute
-            let seen_non_registry_count = stats
-                .seen_non_registry_attributes
-                .entry(seen_attribute_name.clone())
-                .or_insert(0);
-            *seen_non_registry_count += 1;
-        }
+        stats.add_attribute_name_to_coverage(seen_attribute_name);
     }
 }
 

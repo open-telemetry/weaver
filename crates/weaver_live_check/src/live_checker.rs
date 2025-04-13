@@ -87,6 +87,8 @@ impl LiveChecker {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
         sample_attribute::SampleAttribute,
@@ -120,134 +122,7 @@ mod tests {
 
     #[test]
     fn test_attribute_live_checker() {
-        let registry = ResolvedRegistry {
-            registry_url: "TEST".to_owned(),
-            groups: vec![ResolvedGroup {
-                id: "test.comprehensive.internal".to_owned(),
-                r#type: GroupType::Span,
-                brief: "".to_owned(),
-                note: "".to_owned(),
-                prefix: "".to_owned(),
-                entity_associations: vec![],
-                extends: None,
-                stability: Some(Stability::Stable),
-                deprecated: None,
-                attributes: vec![
-                    Attribute {
-                        name: "test.string".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                        examples: Some(Examples::Strings(vec![
-                            "value1".to_owned(),
-                            "value2".to_owned(),
-                        ])),
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Stable),
-                        deprecated: None,
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                        annotations: None,
-                    },
-                    Attribute {
-                        name: "test.enum".to_owned(),
-                        r#type: AttributeType::Enum {
-                            allow_custom_values: None,
-                            members: vec![
-                                EnumEntriesSpec {
-                                    id: "test_enum_member".to_owned(),
-                                    value: ValueSpec::String("example_variant1".to_owned()),
-                                    brief: None,
-                                    note: None,
-                                    stability: Some(Stability::Stable),
-                                    deprecated: None,
-                                },
-                                EnumEntriesSpec {
-                                    id: "test_enum_member2".to_owned(),
-                                    value: ValueSpec::String("example_variant2".to_owned()),
-                                    brief: None,
-                                    note: None,
-                                    stability: Some(Stability::Stable),
-                                    deprecated: None,
-                                },
-                            ],
-                        },
-                        examples: None,
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Stable),
-                        deprecated: None,
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                        annotations: None,
-                    },
-                    Attribute {
-                        name: "test.deprecated".to_owned(),
-                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                        examples: Some(Examples::Strings(vec![
-                            "value1".to_owned(),
-                            "value2".to_owned(),
-                        ])),
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Development),
-                        deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
-                            note: "note".to_owned(),
-                        }),
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                        annotations: None,
-                    },
-                    Attribute {
-                        name: "test.template".to_owned(),
-                        r#type: AttributeType::Template(TemplateTypeSpec::String),
-                        examples: Some(Examples::Strings(vec![
-                            "value1".to_owned(),
-                            "value2".to_owned(),
-                        ])),
-                        brief: "".to_owned(),
-                        tag: None,
-                        requirement_level: RequirementLevel::Recommended {
-                            text: "".to_owned(),
-                        },
-                        sampling_relevant: None,
-                        note: "".to_owned(),
-                        stability: Some(Stability::Stable),
-                        deprecated: None,
-                        prefix: false,
-                        tags: None,
-                        value: None,
-                        annotations: None,
-                    },
-                ],
-                span_kind: Some(SpanKindSpec::Internal),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-            }],
-        };
+        let registry = make_registry();
 
         let mut samples = vec![
             Sample::Attribute(SampleAttribute::try_from("test.string=value").unwrap()),
@@ -388,7 +263,7 @@ mod tests {
         assert_eq!(all_advice[1].message, "Type should be `string`");
 
         // Check statistics
-        assert_eq!(stats.total_attributes, 10);
+        assert_eq!(stats.total_entities, 10);
         assert_eq!(stats.total_advisories, 16);
         assert_eq!(stats.advice_level_counts.len(), 3);
         assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 10);
@@ -408,6 +283,137 @@ mod tests {
         assert_eq!(stats.seen_registry_attributes["test.enum"], 3);
         assert_eq!(stats.seen_non_registry_attributes.len(), 5);
         assert_eq!(stats.registry_coverage, 1.0);
+    }
+
+    fn make_registry() -> ResolvedRegistry {
+        ResolvedRegistry {
+            registry_url: "TEST".to_owned(),
+            groups: vec![ResolvedGroup {
+                id: "test.comprehensive.internal".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                entity_associations: vec![],
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![
+                    Attribute {
+                        name: "test.string".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                    },
+                    Attribute {
+                        name: "test.enum".to_owned(),
+                        r#type: AttributeType::Enum {
+                            allow_custom_values: None,
+                            members: vec![
+                                EnumEntriesSpec {
+                                    id: "test_enum_member".to_owned(),
+                                    value: ValueSpec::String("example_variant1".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Stable),
+                                    deprecated: None,
+                                },
+                                EnumEntriesSpec {
+                                    id: "test_enum_member2".to_owned(),
+                                    value: ValueSpec::String("example_variant2".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Stable),
+                                    deprecated: None,
+                                },
+                            ],
+                        },
+                        examples: None,
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                    },
+                    Attribute {
+                        name: "test.deprecated".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Development),
+                        deprecated: Some(weaver_semconv::deprecated::Deprecated::Uncategorized {
+                            note: "note".to_owned(),
+                        }),
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                    },
+                    Attribute {
+                        name: "test.template".to_owned(),
+                        r#type: AttributeType::Template(TemplateTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                    },
+                ],
+                span_kind: Some(SpanKindSpec::Internal),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+            }],
+        }
     }
 
     #[test]
@@ -493,7 +499,7 @@ mod tests {
         assert_eq!(all_advice[1].message, "Name must not contain 'test'");
 
         // Check statistics
-        assert_eq!(stats.total_attributes, 2);
+        assert_eq!(stats.total_entities, 2);
         assert_eq!(stats.total_advisories, 2);
         assert_eq!(stats.advice_level_counts.len(), 1);
         assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 2);
@@ -503,5 +509,40 @@ mod tests {
             1
         );
         assert_eq!(stats.no_advice_count, 1);
+    }
+
+    #[test]
+    fn test_json_input_output() {
+        let registry = make_registry();
+
+        // Load samples from JSON file
+        let path = "data/span.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(StabilityAdvisor),
+            Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
+        ];
+
+        let mut live_checker = LiveChecker::new(registry, advisors);
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            sample.run_live_check(&mut live_checker, &mut stats);
+        }
+        stats.finalize();
+
+        // Check the statistics
+        assert_eq!(stats.total_entities, 8);
+        // Should be one span
+        assert_eq!(stats.total_entities_by_type.get("span"), Some(&1));
+        assert_eq!(stats.total_advisories, 9);
     }
 }

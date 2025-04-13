@@ -199,8 +199,10 @@ impl LiveCheckReport {
 /// The statistics for a live check report
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LiveCheckStatistics {
-    /// The total number of attributes
-    pub total_attributes: usize,
+    /// The total number of sample entities
+    pub total_entities: usize,
+    /// The total number of sample entities by type
+    pub total_entities_by_type: HashMap<String, usize>,
     /// The total number of advisories
     pub total_advisories: usize,
     /// The number of each advice level
@@ -232,7 +234,8 @@ impl LiveCheckStatistics {
             }
         }
         LiveCheckStatistics {
-            total_attributes: 0,
+            total_entities: 0,
+            total_entities_by_type: HashMap::new(),
             total_advisories: 0,
             advice_level_counts: HashMap::new(),
             highest_advice_level_counts: HashMap::new(),
@@ -241,6 +244,77 @@ impl LiveCheckStatistics {
             seen_registry_attributes: seen_attributes,
             seen_non_registry_attributes: HashMap::new(),
             registry_coverage: 0.0,
+        }
+    }
+
+    /// Add a live check result to the stats
+    pub fn maybe_add_live_check_result(&mut self, live_check_result: Option<&LiveCheckResult>) {
+        if let Some(result) = live_check_result {
+            for advice in &result.all_advice {
+                // Count of total advisories
+                self.add_advice(advice);
+            }
+            // Count of samples with the highest advice level
+            if let Some(highest_advice_level) = &result.highest_advice_level {
+                self.add_highest_advice_level(highest_advice_level);
+            }
+
+            // Count of samples with no advice
+            if result.all_advice.is_empty() {
+                self.inc_no_advice_count();
+            }
+        } else {
+            // Count of samples with no advice
+            self.inc_no_advice_count();
+        }
+    }
+
+    /// Increment the total number of entities by type
+    pub fn inc_entity_count(&mut self, entity_type: &str) {
+        *self
+            .total_entities_by_type
+            .entry(entity_type.to_owned())
+            .or_insert(0) += 1;
+        self.total_entities += 1;
+    }
+
+    /// Add an advice to the statistics
+    fn add_advice(&mut self, advice: &Advice) {
+        *self
+            .advice_level_counts
+            .entry(advice.advice_level.clone())
+            .or_insert(0) += 1;
+        *self
+            .advice_type_counts
+            .entry(advice.advice_type.clone())
+            .or_insert(0) += 1;
+        self.total_advisories += 1;
+    }
+
+    /// Add a highest advice level to the statistics
+    fn add_highest_advice_level(&mut self, advice: &AdviceLevel) {
+        *self
+            .highest_advice_level_counts
+            .entry(advice.clone())
+            .or_insert(0) += 1;
+    }
+
+    /// Increment the no advice count in the statistics
+    fn inc_no_advice_count(&mut self) {
+        self.no_advice_count += 1;
+    }
+
+    /// Add attribute name to coverage
+    pub fn add_attribute_name_to_coverage(&mut self, seen_attribute_name: String) {
+        if let Some(count) = self.seen_registry_attributes.get_mut(&seen_attribute_name) {
+            // This is a registry attribute
+            *count += 1;
+        } else {
+            // This is a non-registry attribute
+            *self
+                .seen_non_registry_attributes
+                .entry(seen_attribute_name)
+                .or_insert(0) += 1;
         }
     }
 

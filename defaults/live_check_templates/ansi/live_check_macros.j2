@@ -1,10 +1,17 @@
 {% macro display_statistics(statistics) %}
-{{ ("Attribute samples") | ansi_blue | ansi_bold }}
-  - total: {{ statistics.total_attributes }}
-  - no advice: {{ statistics.no_advice_count }}
-{% for key, value in statistics.highest_advice_level_counts.items() %}
-  - {{ key }}: {{ value }}
+{{ ("Samples") | ansi_blue | ansi_bold }}
+  - total: {{ statistics.total_entities }}
+{%- if statistics.total_entities > 0 %}  
+  - by type:
+{% for key, value in statistics.total_entities_by_type.items() %}
+    - {{ key }}: {{ value }}
 {% endfor %}
+  - by highest advice level:
+    - no advice: {{ statistics.no_advice_count }}
+{% for key, value in statistics.highest_advice_level_counts.items() %}
+    - {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
 
 {{ ("Advisories given") | ansi_blue | ansi_bold }}
   - total: {{ statistics.total_advisories }}

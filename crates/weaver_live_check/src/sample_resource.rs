@@ -30,5 +30,7 @@ impl LiveCheckRunner for SampleResource {
             attribute.run_live_check(live_checker, stats);
         }
         self.live_check_result = Some(result);
+        stats.inc_entity_count("resource");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
     }
 }
