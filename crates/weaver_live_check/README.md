@@ -208,6 +208,24 @@ This could be parsed for a more sophisticated way to determine pass/fail in CI f
 
 ## Usage examples
 
+Default operation. Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
+
+```sh
+weaver registry live-check
+```
+
+CI/CD - create a JSON report
+
+```sh
+weaver registry live-check --format json --output ./outdir &
+LIVE_CHECK_PID=$!
+sleep 3
+# Run the code under test here.
+kill -HUP $LIVE_CHECK_PID
+wait $LIVE_CHECK_PID
+# Check the exit code and/or parse the JSON in outdir
+```
+
 Read a json file
 
 ```sh
@@ -223,7 +241,7 @@ cat attributes.txt | weaver registry live-check --input-source stdin --input-for
 Or a redirect
 
 ```sh
-weaver registry live-check < attributes.txt --input-source stdin --input-format text
+weaver registry live-check --input-source stdin --input-format text < attributes.txt
 ```
 
 Or a here-doc
@@ -245,28 +263,10 @@ code.line.number=42
 Using `emit` for a round-trip test:
 
 ```sh
-weaver registry live-check -r ../semantic-conventions/model --output ./outdir &
+weaver registry live-check --output ./outdir &
 LIVE_CHECK_PID=$!
 sleep 3
-weaver registry emit -r ../semantic-conventions/model --skip-policies
+weaver registry emit --skip-policies
 kill -HUP $LIVE_CHECK_PID
 wait $LIVE_CHECK_PID
-```
-
-Receive OTLP requests and output advice as it arrives. Useful for debugging an application to check for telemetry problems as you step through your code. (ctrl-c to exit, or wait for the timeout)
-
-```sh
-weaver registry live-check -r ../semantic-conventions/model --inactivity-timeout 120
-```
-
-CI/CD - create a JSON report
-
-```sh
-weaver registry live-check -r ../semantic-conventions/model --format json --output ./outdir &
-LIVE_CHECK_PID=$!
-sleep 3
-# Run the code under test here.
-kill -HUP $LIVE_CHECK_PID
-wait $LIVE_CHECK_PID
-# Check the exit code and/or parse the JSON in outdir
 ```
