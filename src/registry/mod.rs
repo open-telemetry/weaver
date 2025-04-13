@@ -171,7 +171,7 @@ pub struct PolicyArgs {
     /// convention registry.  If a directory is provided all `.rego` files in the directory will be
     /// loaded.
     #[arg(short = 'p', long = "policy")]
-    pub policies: Vec<PathBuf>,
+    pub policies: Vec<VirtualDirectoryPath>,
 
     /// Skip the policy checks.
     #[arg(long, default_value = "false")]

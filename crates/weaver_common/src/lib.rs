@@ -60,6 +60,15 @@ pub enum Error {
         error: String,
     },
 
+    /// A virtual directory error.
+    #[error("Virtual directory `{path}` is invalid: {error}")]
+    InvalidVirtualDirectory {
+        /// The virtual directory path
+        path: String,
+        /// The error message
+        error: String,
+    },
+
     /// An invalid registry archive.
     #[error("The registry archive `{archive}` is invalid: {error}")]
     InvalidRegistryArchive {

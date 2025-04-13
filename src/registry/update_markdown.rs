@@ -13,6 +13,9 @@ use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
+use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_common::vdir::VirtualDirectory;
+use weaver_common::Error;
 
 /// Parameters for the `registry update-markdown` sub-command
 #[derive(Debug, Args)]
@@ -38,7 +41,7 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(short = 't', long, default_value = "templates")]
-    pub templates: String,
+    pub templates: VirtualDirectoryPath,
 
     /// If provided, the target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
@@ -66,8 +69,13 @@ pub(crate) fn command(
 
     // Construct a generator if we were given a `--target` argument.
     let generator = {
+        let templates_dir = VirtualDirectory::try_new(&args.templates)
+            .map_err(|e| Error::InvalidVirtualDirectory {
+                path: args.templates.to_string(),
+                error: e.to_string(),
+            })?;
         let loader = FileSystemFileLoader::try_new(
-            format!("{}/registry", args.templates).into(),
+            templates_dir.path().join("registry"),
             &args.target,
         )?;
         let config = WeaverConfig::try_from_loader(&loader)?;
@@ -158,7 +166,9 @@ mod tests {
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: "data/update_markdown/templates".to_owned(),
+                    templates: VirtualDirectoryPath::LocalFolder {
+                        path: "data/update_markdown/templates".to_owned(),
+                    },
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
                 }),
