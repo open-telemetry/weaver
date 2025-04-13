@@ -1,5 +1,15 @@
 [
     {
+        "resource": {
+            "attributes": [
+                {
+                    "name": "service.name",
+                    "value": "my_service"
+                }
+            ]
+        }
+    },
+    {
         "span": {
             "attributes": [
                 {
@@ -29,6 +39,27 @@
                 {
                     "name": "http.request.method",
                     "value": "GET"
+                }
+            ],
+            "span_events": [
+                {
+                    "attributes": [
+                        {
+                            "name": "hello",
+                            "value": "world"
+                        }
+                    ],
+                    "name": "test_event"
+                }
+            ],
+            "span_links": [
+                {
+                    "attributes": [
+                        {
+                            "name": "hello",
+                            "value": "world"
+                        }
+                    ]
                 }
             ],
             "kind": "client",

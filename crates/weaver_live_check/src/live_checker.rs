@@ -540,9 +540,12 @@ mod tests {
         stats.finalize();
 
         // Check the statistics
-        assert_eq!(stats.total_entities, 8);
-        // Should be one span
+        assert_eq!(stats.total_entities, 14);
+        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&10));
         assert_eq!(stats.total_entities_by_type.get("span"), Some(&1));
-        assert_eq!(stats.total_advisories, 9);
+        assert_eq!(stats.total_entities_by_type.get("span_event"), Some(&1));
+        assert_eq!(stats.total_entities_by_type.get("span_link"), Some(&1));
+        assert_eq!(stats.total_entities_by_type.get("resource"), Some(&1));
+        assert_eq!(stats.total_advisories, 14);
     }
 }
