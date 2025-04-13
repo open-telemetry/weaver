@@ -1309,7 +1309,7 @@ dependencies = [
  "gix-utils 0.2.0",
  "itoa",
  "thiserror 2.0.12",
- "winnow 0.7.2",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -1455,7 +1455,7 @@ dependencies = [
  "smallvec",
  "thiserror 2.0.12",
  "unicode-bom",
- "winnow 0.7.2",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -1927,7 +1927,7 @@ dependencies = [
  "itoa",
  "smallvec",
  "thiserror 2.0.12",
- "winnow 0.7.2",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -2156,7 +2156,7 @@ dependencies = [
  "gix-utils 0.2.0",
  "maybe-async",
  "thiserror 2.0.12",
- "winnow 0.7.2",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -2220,7 +2220,7 @@ dependencies = [
  "gix-validate",
  "memmap2",
  "thiserror 2.0.12",
- "winnow 0.7.2",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -5394,7 +5394,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow 0.7.2",
+ "winnow 0.7.4",
 ]
 
 [[package]]
@@ -6026,7 +6026,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.13.2"
+version = "0.14.0"
 dependencies = [
  "miette",
  "serde",
@@ -6406,6 +6406,12 @@ name = "windows_x86_64_msvc"
 version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
+
+[[package]]
+name = "windows_x86_64_msvc"
+version = "0.53.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "271414315aff87387382ec3d271b52d7ae78726f5d44ac98b4f4030c91880486"
 
 [[package]]
 name = "winnow"
