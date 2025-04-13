@@ -19,11 +19,11 @@ use weaver_forge::registry::ResolvedRegistry;
 
 /// Advisors for live checks
 pub mod advice;
-/// An ingester that reads attribute names and values from a JSON file.
+/// An ingester that reads samples from a JSON file.
 pub mod json_file_ingester;
-/// An ingester that reads attribute names and values from standard input.
+/// An ingester that reads samples from standard input.
 pub mod json_stdin_ingester;
-/// Attribute live checker
+/// Live checker
 pub mod live_checker;
 /// The intermediary format for attributes
 pub mod sample_attribute;
@@ -102,7 +102,7 @@ pub enum Sample {
     Resource(SampleResource),
 }
 
-/// Represents sample entity with a reference to the inner type
+/// Represents a sample entity with a reference to the inner type
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SampleRef<'a> {
@@ -184,16 +184,6 @@ pub struct LiveCheckReport {
     pub samples: Vec<Sample>,
     /// The statistics for the report
     pub statistics: LiveCheckStatistics,
-}
-
-impl LiveCheckReport {
-    /// Return true if there are any violations in the report
-    #[must_use]
-    pub fn has_violations(&self) -> bool {
-        self.statistics
-            .highest_advice_level_counts
-            .contains_key(&AdviceLevel::Violation)
-    }
 }
 
 /// The statistics for a live check report

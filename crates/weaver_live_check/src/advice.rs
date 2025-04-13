@@ -42,54 +42,6 @@ pub trait Advisor {
     ) -> Result<Vec<Advice>, Error>;
 }
 
-// /// Provides advice on a sample
-// pub trait Advisor {
-//     /// Provide advice on an attribute
-//     fn advise_on_attribute(
-//         &mut self,
-//         _sample_attribute: &SampleAttribute,
-//         _attribute: Option<&Attribute>,
-//     ) -> Result<Vec<Advice>, Error> {
-//         Ok(vec![])
-//     }
-
-//     /// Provide advice on a span
-//     fn advise_on_span(
-//         &mut self,
-//         _sample_span: &SampleSpan,
-//         _group: Option<&ResolvedGroup>,
-//     ) -> Result<Vec<Advice>, Error> {
-//         Ok(vec![])
-//     }
-
-//     /// Provide advice on a span event
-//     fn advise_on_span_event(
-//         &mut self,
-//         _sample_span_event: &SampleSpanEvent,
-//         _group: Option<&ResolvedGroup>,
-//     ) -> Result<Vec<Advice>, Error> {
-//         Ok(vec![])
-//     }
-
-//     /// Provide advice on a span link
-//     fn advise_on_span_link(
-//         &mut self,
-//         _sample_span_link: &SampleSpanLink,
-//         _group: Option<&ResolvedGroup>,
-//     ) -> Result<Vec<Advice>, Error> {
-//         Ok(vec![])
-//     }
-
-//     /// Provide advice on a resource
-//     fn advise_on_resource(
-//         &mut self,
-//         _sample_resource: &SampleResource,
-//         _group: Option<&ResolvedGroup>,
-//     ) -> Result<Vec<Advice>, Error> {
-//         Ok(vec![])
-//     }
-// }
-
 /// An advisor that checks if an attribute is deprecated
 pub struct DeprecatedAdvisor;
 impl Advisor for DeprecatedAdvisor {
@@ -99,7 +51,7 @@ impl Advisor for DeprecatedAdvisor {
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match sample {
+        match *sample {
             SampleRef::Attribute(_sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
@@ -139,7 +91,7 @@ impl Advisor for StabilityAdvisor {
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match sample {
+        match *sample {
             SampleRef::Attribute(_sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
@@ -171,7 +123,7 @@ impl Advisor for TypeAdvisor {
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match sample {
+        match *sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the attribute is a match and the type is present
                 match (registry_attribute, sample_attribute.r#type.as_ref()) {
@@ -239,7 +191,7 @@ impl Advisor for EnumAdvisor {
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match sample {
+        match *sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the registry_attribute is an enum and the attribute has a value and type
                 match (

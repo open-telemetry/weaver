@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! An ingester that reads attribute names and values from a JSON file.
+//! An ingester that reads JSON samples from a file.
 
 use std::path::Path;
 use std::{fs, path::PathBuf};
@@ -16,7 +16,7 @@ pub struct JsonFileIngester {
 }
 
 impl JsonFileIngester {
-    /// Create a new AttributeJsonFileIngester
+    /// Create a new JsonFileIngester
     #[must_use]
     pub fn new(path: &Path) -> Self {
         JsonFileIngester {

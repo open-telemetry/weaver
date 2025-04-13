@@ -13,6 +13,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SampleResource {
     /// The attributes of the resource
+    #[serde(default)]
     pub attributes: Vec<SampleAttribute>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,

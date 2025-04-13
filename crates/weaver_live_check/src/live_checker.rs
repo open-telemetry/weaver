@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Runs advisors on attributes to check for compliance with the registry
+//! Holds the registry, helper structs, and the advisors for the live check
 
 use serde::Serialize;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use weaver_resolved_schema::attribute::Attribute;
 
 use crate::advice::Advisor;
 
-/// Provides advice for telemetry samples
+/// Holds the registry, helper structs, and the advisors for the live check
 #[derive(Serialize)]
 pub struct LiveChecker {
     /// The resolved registry

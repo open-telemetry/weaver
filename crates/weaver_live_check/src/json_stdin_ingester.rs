@@ -14,7 +14,7 @@ use crate::{Error, Ingester, Sample};
 pub struct JsonStdinIngester;
 
 impl JsonStdinIngester {
-    /// Create a new AttributeJsonStdinIngester
+    /// Create a new JsonStdinIngester
     #[must_use]
     pub fn new() -> Self {
         JsonStdinIngester

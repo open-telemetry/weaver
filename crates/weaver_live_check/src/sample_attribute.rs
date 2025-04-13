@@ -21,6 +21,7 @@ pub struct SampleAttribute {
     pub value: Option<Value>,
     /// The type of the attribute's value
     /// This may be available in the upstream source, an o11y vendor for example
+    /// or inferred from the value
     pub r#type: Option<PrimitiveOrArrayTypeSpec>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
