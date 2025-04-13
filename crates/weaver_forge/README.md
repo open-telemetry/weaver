@@ -24,7 +24,10 @@ Weaver Forge is a component of OTEL Weaver that facilitates documentation and
 code generation from a semantic convention registry. It uses MiniJinja, a
 template engine compatible with Jinja2 syntax, which provides extensive
 customization options (refer to this [GitHub repository](https://github.com/mitsuhiko/minijinja)
-for more details). To streamline template creation for semantic conventions,
+for more details). Some good references to start developing Jinja2 templages are 
+[1](https://ttl255.com/jinja2-tutorial-part-2-loops-and-conditionals/) and 
+[2](https://jinja.palletsprojects.com/en/stable/templates).
+To streamline template creation for semantic conventions,
 additional filters, functions, tests, and naming conventions have been
 integrated with the standard Jinja logic.
 
@@ -313,7 +316,7 @@ grouped by root namespace. The `application_mode` is set to `each` so that the t
 applied to each object in the array, i.e., to each group of attributes for a given root namespace.
 
 A series of JQ filters dedicated to the manipulation of semantic conventions registries is
-available to template authors.
+available to template authors. They can be found [here](/defaults/jq/semconv.jq)
 
 **Process Registry Attributes**
 
@@ -480,7 +483,8 @@ compatibility extensions that are also enabled in Weaver.
 In addition, OTel Weaver provides a set of custom filters to facilitate the
 generation of documentation and code.
 
-The following filters are available:
+The following filters are available (the code for all available extension can be found 
+[here](./src/extensions)):
 
 - `lower_case`: Converts a string to lowercase.
 - `upper_case`: Converts a string to UPPERCASE.

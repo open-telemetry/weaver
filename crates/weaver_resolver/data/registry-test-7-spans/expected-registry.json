@@ -38,7 +38,10 @@
         29
       ],
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/registry-db.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/registry-db.yaml"
+        }
       }
     },
     {
@@ -57,7 +60,10 @@
         38
       ],
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/registry-http.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/registry-http.yaml"
+        }
       }
     },
     {
@@ -82,7 +88,10 @@
         53
       ],
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/registry-network.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/registry-network.yaml"
+        }
       }
     },
     {
@@ -94,7 +103,10 @@
         55
       ],
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/registry-server.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/registry-server.yaml"
+        }
       }
     },
     {
@@ -109,7 +121,10 @@
         60
       ],
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/registry-url.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/registry-url.yaml"
+        }
       }
     },
     {
@@ -120,7 +135,10 @@
         61
       ],
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/registry-user-agent.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/registry-user-agent.yaml"
+        }
       }
     },
     {
@@ -146,7 +164,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -356,7 +377,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -585,7 +609,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.cassandra.consistency_level": {
             "source_group": "registry.db",
@@ -883,7 +910,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -1092,7 +1122,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -1302,7 +1335,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -1525,7 +1561,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -1752,7 +1791,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -2027,7 +2069,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",
@@ -2258,7 +2303,10 @@
       ],
       "span_kind": "client",
       "lineage": {
-        "source_file": "data/registry-test-7-spans/registry/trace-database.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-7-spans/registry/trace-database.yaml"
+        },
         "attributes": {
           "db.connection_string": {
             "source_group": "registry.db",

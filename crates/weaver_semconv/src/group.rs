@@ -14,6 +14,7 @@ use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
+use crate::provenance::Provenance;
 use crate::stability::Stability;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
@@ -1873,5 +1874,5 @@ pub struct GroupSpecWithProvenance {
     /// The group spec.
     pub spec: GroupSpec,
     /// The provenance of the group spec (path or URL).
-    pub provenance: String,
+    pub provenance: Provenance,
 }

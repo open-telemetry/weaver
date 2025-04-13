@@ -2,7 +2,7 @@
 
 //! Attribute resolution.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
@@ -55,6 +55,32 @@ impl AttributeCatalog {
             self.attribute_refs.into_iter().collect();
         attributes.sort_by_key(|(_, attr_ref)| attr_ref.0);
         attributes.into_iter().map(|(attr, _)| attr).collect()
+    }
+
+    /// Removes all attributes that are not referenced by the given attribute refs.
+    /// This leads to holes in the attribute ref vector so we need to remap the
+    /// attribute refs.
+    ///
+    /// Returns a map of old attribute refs to new attribute refs.
+    #[must_use]
+    pub fn gc_unreferenced_attribute_refs(
+        &mut self,
+        attr_refs: HashSet<AttributeRef>,
+    ) -> HashMap<AttributeRef, AttributeRef> {
+        self.attribute_refs
+            .retain(|_, attr_ref| attr_refs.contains(attr_ref));
+        let mut next_id = 0;
+        let gc_map = self
+            .attribute_refs
+            .values()
+            .map(|attr_ref| {
+                let new_attr_ref = AttributeRef(next_id);
+                next_id += 1;
+                (*attr_ref, new_attr_ref)
+            })
+            .collect();
+
+        gc_map
     }
 
     /// Returns a list of indexed attribute names ordered by their references.

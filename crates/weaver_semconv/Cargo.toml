@@ -13,10 +13,10 @@ workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+walkdir.workspace = true
 
 [dependencies]
 weaver_common = { path = "../weaver_common" }
-weaver_cache = { path = "../weaver_cache" }
 
 serde.workspace = true
 serde_yaml.workspace = true

@@ -103,7 +103,10 @@
     "id": "device.app.lifecycle",
     "instrument": null,
     "lineage": {
-      "source_file": "data/mobile-events.yaml"
+      "provenance": {
+        "path": "data/mobile-events.yaml",
+        "registry_id": "default"
+      }
     },
     "metric_name": null,
     "name": "device.app.lifecycle",
@@ -212,7 +215,10 @@
           "source_group": "registry.exception"
         }
       },
-      "source_file": "data/trace-exception.yaml"
+      "provenance": {
+        "path": "data/trace-exception.yaml",
+        "registry_id": "default"
+      }
     },
     "metric_name": null,
     "name": "exception",

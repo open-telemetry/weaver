@@ -18,7 +18,9 @@ pub mod deprecated;
 pub mod group;
 pub mod manifest;
 pub mod metric;
+pub mod provenance;
 pub mod registry;
+pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
@@ -280,6 +282,19 @@ pub enum Error {
         error: String,
     },
 
+    /// A virtual directory error.
+    #[error(transparent)]
+    VirtualDirectoryError(#[from] weaver_common::Error),
+
+    /// An invalid registry archive.
+    #[error("The registry archive `{archive}` is invalid: {error}")]
+    InvalidRegistryArchive {
+        /// The registry archive path
+        archive: String,
+        /// The error message
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -493,7 +508,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file(yaml)
+                .add_semconv_spec_from_file("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
@@ -506,7 +521,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file(yaml)
+                .add_semconv_spec_from_file("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

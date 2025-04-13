@@ -3,6 +3,7 @@
 //! Semantic convention specification.
 
 use crate::group::GroupSpec;
+use crate::provenance::Provenance;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -25,7 +26,7 @@ pub struct SemConvSpecWithProvenance {
     /// The semantic convention spec.
     pub(crate) spec: SemConvSpec,
     /// The provenance of the semantic convention spec (path or URL).
-    pub(crate) provenance: String,
+    pub(crate) provenance: Provenance,
 }
 
 impl SemConvSpec {
@@ -144,6 +145,12 @@ impl SemConvSpec {
 
         WResult::with_non_fatal_errors(self, errors)
     }
+
+    /// Returns the list of groups in the semantic convention spec.
+    #[must_use]
+    pub fn groups(&self) -> &[GroupSpec] {
+        &self.groups
+    }
 }
 
 impl SemConvSpecWithProvenance {
@@ -157,8 +164,12 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> WResult<SemConvSpecWithProvenance, Error> {
-        let provenance = path.as_ref().display().to_string();
+    pub fn from_file<P: AsRef<Path>>(
+        registry_id: &str,
+        path: P,
+    ) -> WResult<SemConvSpecWithProvenance, Error> {
+        let path = path.as_ref().display().to_string();
+        let provenance = Provenance::new(registry_id, &path);
         SemConvSpec::from_file(path).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 
@@ -173,11 +184,11 @@ impl SemConvSpecWithProvenance {
     ///
     /// The semantic convention with provenance or an error if the semantic
     /// convention spec is invalid.
-    pub fn from_string(provenance: &str, spec: &str) -> WResult<SemConvSpecWithProvenance, Error> {
-        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance {
-            spec,
-            provenance: provenance.to_owned(),
-        })
+    pub fn from_string(
+        provenance: Provenance,
+        spec: &str,
+    ) -> WResult<SemConvSpecWithProvenance, Error> {
+        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 }
 
@@ -286,7 +297,7 @@ mod tests {
               - id: "attr3"
                 type: "double"
                 stability: stable
-                brief: "Brief3"                
+                brief: "Brief3"
         "#;
         let semconv_spec = SemConvSpec::from_string(spec).into_result_failing_non_fatal();
         if let Err(Error::CompoundError(errors)) = semconv_spec {
@@ -375,23 +386,23 @@ mod tests {
     #[test]
     fn test_semconv_spec_with_provenance_from_file() {
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file(&path)
+        let semconv_spec = SemConvSpecWithProvenance::from_file("main", &path)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 10);
-        assert_eq!(semconv_spec.provenance, path.display().to_string());
+        assert_eq!(semconv_spec.provenance.path, path.display().to_string());
     }
 
     #[test]
     fn test_semconv_spec_with_provenance_from_string() {
-        let provenance = "<str>";
+        let provenance = Provenance::new("main", "<str>");
         let spec = r#"
         groups:
           - id: "group1"
             stability: "stable"
             brief: "description1"
             span_kind: "client"
-            type: span           
+            type: span
             attributes:
               - id: "attr1"
                 stability: "stable"
@@ -410,7 +421,7 @@ mod tests {
                 type: "int"
         "#;
 
-        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance, spec)
+        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance.clone(), spec)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 2);

@@ -739,7 +739,7 @@ mod tests {
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
         let engine = TemplateEngine::new(config, loader, cli_params);
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 
@@ -917,7 +917,7 @@ mod tests {
         let mut registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
             .into_result_failing_non_fatal()
             .expect("Failed to load registry");
-        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry)
+        let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
             .expect("Failed to resolve registry");
 

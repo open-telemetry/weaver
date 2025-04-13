@@ -11,13 +11,13 @@ use include_dir::{include_dir, Dir};
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
-use weaver_cache::registry_path::RegistryPath;
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
+use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
@@ -31,7 +31,7 @@ pub struct RegistryDiffArgs {
 
     /// Parameters to specify the baseline semantic convention registry
     #[arg(long)]
-    baseline_registry: RegistryPath,
+    baseline_registry: VirtualDirectoryPath,
 
     /// Format used to render the schema changes. Predefined formats are: ansi, json,
     /// and markdown.
@@ -107,13 +107,18 @@ pub(crate) fn command(
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
 
-    let main_resolved_schema =
-        resolve_telemetry_schema(&main_registry_repo, main_semconv_specs, logger.clone())
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_resolved_schema = resolve_telemetry_schema(
+        &main_registry_repo,
+        main_semconv_specs,
+        logger.clone(),
+        args.registry.include_unreferenced,
+    )
+    .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_resolved_schema = resolve_telemetry_schema(
         &baseline_registry_repo,
         baseline_semconv_specs,
         logger.clone(),
+        args.registry.include_unreferenced,
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
 
@@ -159,7 +164,7 @@ mod tests {
     use crate::cli::{Cli, Commands};
     use crate::registry::diff::RegistryDiffArgs;
     use crate::registry::{
-        semconv_registry, RegistryArgs, RegistryCommand, RegistryPath, RegistrySubCommand,
+        semconv_registry, RegistryArgs, RegistryCommand, RegistrySubCommand, VirtualDirectoryPath,
     };
     use crate::run_command;
     use std::fs::OpenOptions;
@@ -177,12 +182,13 @@ mod tests {
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::Diff(RegistryDiffArgs {
                     registry: RegistryArgs {
-                        registry: RegistryPath::LocalFolder {
+                        registry: VirtualDirectoryPath::LocalFolder {
                             path: "tests/diff/registry_head/".to_owned(),
                         },
                         follow_symlinks: false,
+                        include_unreferenced: false,
                     },
-                    baseline_registry: RegistryPath::LocalFolder {
+                    baseline_registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_baseline/".to_owned(),
                     },
                     diff_format: "json".to_owned(),
@@ -206,12 +212,13 @@ mod tests {
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Diff(RegistryDiffArgs {
                 registry: RegistryArgs {
-                    registry: RegistryPath::LocalFolder {
+                    registry: VirtualDirectoryPath::LocalFolder {
                         path: "tests/diff/registry_head/".to_owned(),
                     },
                     follow_symlinks: false,
+                    include_unreferenced: false,
                 },
-                baseline_registry: RegistryPath::LocalFolder {
+                baseline_registry: VirtualDirectoryPath::LocalFolder {
                     path: "tests/diff/registry_baseline/".to_owned(),
                 },
                 diff_format: "json".to_owned(),

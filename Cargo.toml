@@ -26,7 +26,7 @@ eula = false
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.13.2"
+version = "0.14.0"
 authors = ["OpenTelemetry"]
 edition = "2021"
 repository = "https://github.com/open-telemetry/weaver"
@@ -35,7 +35,7 @@ publish = false
 rust-version = "1.81.0"
 
 [workspace.dependencies]
-serde = { version = "1.0.219", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_yaml = "0.9.34"
 serde_json = { version = "1.0.140" }
 thiserror = "2.0.12"
@@ -75,7 +75,6 @@ weaver_resolver = { path = "crates/weaver_resolver" }
 weaver_semconv = { path = "crates/weaver_semconv" }
 weaver_resolved_schema = { path = "crates/weaver_resolved_schema" }
 weaver_semconv_gen = { path = "crates/weaver_semconv_gen" }
-weaver_cache = { path = "crates/weaver_cache" }
 weaver_forge = { path = "crates/weaver_forge" }
 weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
@@ -86,7 +85,7 @@ rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 crossterm = { version = "0.28.1", features = ["serde"] }
 tui-textarea = "0.7.0"
-tokio = { version = "1.44.1", features = ["rt", "net", "signal"] }
+tokio = { version = "1.44.2", features = ["rt", "net", "signal"] }
 prost = "0.13.4"
 tonic = { version = "0.12.3", default-features = false, features = [
     "server",

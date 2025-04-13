@@ -9,7 +9,10 @@
         2
       ],
       "lineage": {
-        "source_file": "data/registry-test-8-http/registry/http-common.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-8-http/registry/http-common.yaml"
+        },
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -35,7 +38,10 @@
         3
       ],
       "lineage": {
-        "source_file": "data/registry-test-8-http/registry/http-common.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-8-http/registry/http-common.yaml"
+        },
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -73,7 +79,10 @@
         4
       ],
       "lineage": {
-        "source_file": "data/registry-test-8-http/registry/http.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-8-http/registry/http.yaml"
+        },
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -115,7 +124,10 @@
       "instrument": "histogram",
       "unit": "s",
       "lineage": {
-        "source_file": "data/registry-test-8-http/registry/http.yaml",
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-8-http/registry/http.yaml"
+        },
         "attributes": {
           "network.protocol.name": {
             "source_group": "registry.network",
@@ -152,7 +164,10 @@
         0
       ],
       "lineage": {
-        "source_file": "data/registry-test-8-http/registry/network.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-8-http/registry/network.yaml"
+        }
       }
     },
     {
@@ -163,7 +178,10 @@
         1
       ],
       "lineage": {
-        "source_file": "data/registry-test-8-http/registry/server.yaml"
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-8-http/registry/server.yaml"
+        }
       }
     }
   ]

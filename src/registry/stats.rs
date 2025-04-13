@@ -7,13 +7,13 @@ use crate::util::{load_semconv_specs, resolve_semconv_specs};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use miette::Diagnostic;
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Parameters for the `registry stats` sub-command
 #[derive(Debug, Args)]
@@ -55,7 +55,8 @@ pub(crate) fn command(
 
     // Resolve the semantic convention registry.
     let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger).capture_non_fatal_errors(&mut diag_msgs)?;
+        resolve_semconv_specs(&mut registry, logger, args.registry.include_unreferenced)
+            .capture_non_fatal_errors(&mut diag_msgs)?;
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -135,6 +136,9 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                         println!("        - {:#?}: {}", span_kind, count);
                     }
                 }
+                GroupStats::Undefined { common_stats } => {
+                    display_common_group_stats(group_type, common_stats);
+                }
             }
         }
     }
@@ -190,16 +194,18 @@ fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroup
             .collect::<Vec<_>>()
             .join(", ")
     );
-    println!(
-        "      - Number of group with a prefix: {} ({}%)",
-        common_stats.total_with_prefix,
-        common_stats.total_with_prefix * 100 / common_stats.count
-    );
-    println!(
-        "      - Number of group with a note: {} ({}%)",
-        common_stats.total_with_note,
-        common_stats.total_with_note * 100 / common_stats.count
-    );
+    if common_stats.count > 0 {
+        println!(
+            "      - Number of group with a prefix: {} ({}%)",
+            common_stats.total_with_prefix,
+            common_stats.total_with_prefix * 100 / common_stats.count
+        );
+        println!(
+            "      - Number of group with a note: {} ({}%)",
+            common_stats.total_with_note,
+            common_stats.total_with_note * 100 / common_stats.count
+        );
+    }
     if !common_stats.stability_breakdown.is_empty() {
         println!(
             "      - Stability breakdown ({}%):",

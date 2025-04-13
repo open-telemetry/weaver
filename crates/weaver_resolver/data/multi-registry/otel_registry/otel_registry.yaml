@@ -1,0 +1,23 @@
+groups:
+  - id: otel.registry
+    type: attribute_group
+    brief: Attributes from the OTEL Registry.
+    attributes:
+      - id: error.type
+        type: string
+        brief: The error type.
+        stability: stable
+        requirement_level: recommended
+        examples:
+          "Ex"
+  - id: otel.unused
+    type: attribute_group
+    brief: Unused attributes from the OTEL Registry.
+    attributes:
+      - id: unused
+        type: string
+        brief: Unused attribute.
+        stability: stable
+        requirement_level: recommended
+        examples:
+          "Unused"

@@ -7,7 +7,6 @@
 use miette::Diagnostic;
 use serde::Serialize;
 use std::{fmt, fs};
-use weaver_cache::RegistryRepo;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
@@ -19,6 +18,7 @@ use weaver_resolved_schema::registry::Group;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
 use weaver_semconv::registry::SemConvRegistry;
+use weaver_semconv::registry_repo::RegistryRepo;
 
 mod parser;
 
@@ -81,10 +81,6 @@ pub enum Error {
     #[error(transparent)]
     ResolverError(#[from] weaver_resolver::Error),
 
-    /// Errors from using weaver_cache.
-    #[error(transparent)]
-    CacheError(#[from] weaver_cache::Error),
-
     /// Errors from using weaver_forge.
     #[error(transparent)]
     ForgeError(#[from] weaver_forge::error::Error),
@@ -122,7 +118,6 @@ impl From<Error> for DiagnosticMessages {
             ),
             Error::SemconvError(e) => e.into(),
             Error::ResolverError(e) => e.into(),
-            Error::CacheError(e) => e.into(),
             Error::ForgeError(e) => e.into(),
             _ => DiagnosticMessages::new(vec![DiagnosticMessage::new(error)]),
         }
@@ -308,11 +303,13 @@ impl SnippetGenerator {
         template_engine: TemplateEngine,
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
+        include_unreferenced: bool,
     ) -> Result<SnippetGenerator, Error> {
         let registry = ResolvedSemconvRegistry::try_from_registry_repo(
             registry_repo,
             diag_msgs,
             follow_symlinks,
+            include_unreferenced,
         )?;
         Ok(SnippetGenerator {
             lookup: registry,
@@ -332,22 +329,27 @@ impl ResolvedSemconvRegistry {
         registry_repo: &RegistryRepo,
         diag_msgs: &mut DiagnosticMessages,
         follow_symlinks: bool,
+        include_unreferenced: bool,
     ) -> Result<ResolvedSemconvRegistry, Error> {
-        let semconv_specs = match SchemaResolver::load_semconv_specs(registry_repo, follow_symlinks)
-        {
-            WResult::Ok(semconv_specs) => semconv_specs,
-            WResult::OkWithNFEs(semconv_specs, errs) => {
-                diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
-                semconv_specs
-            }
-            WResult::FatalErr(err) => return Err(err.into()),
-        };
+        let semconv_specs =
+            match SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks) {
+                WResult::Ok(semconv_specs) => semconv_specs,
+                WResult::OkWithNFEs(semconv_specs, errs) => {
+                    diag_msgs
+                        .extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
+                    semconv_specs
+                }
+                WResult::FatalErr(err) => return Err(err.into()),
+            };
 
         let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
             Ok(registry) => registry,
             Err(e) => return Err(e.into()),
         };
-        let schema = match SchemaResolver::resolve_semantic_convention_registry(&mut registry) {
+        let schema = match SchemaResolver::resolve_semantic_convention_registry(
+            &mut registry,
+            include_unreferenced,
+        ) {
             WResult::Ok(schema) => schema,
             WResult::OkWithNFEs(schema, errs) => {
                 diag_msgs.extend_from_vec(errs.into_iter().map(DiagnosticMessage::new).collect());
@@ -369,14 +371,13 @@ impl ResolvedSemconvRegistry {
 
 #[cfg(test)]
 mod tests {
-    use weaver_cache::registry_path::RegistryPath;
-    use weaver_cache::RegistryRepo;
+    use crate::{update_markdown, Error, SnippetGenerator};
     use weaver_common::diagnostic::DiagnosticMessages;
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_forge::config::{Params, WeaverConfig};
     use weaver_forge::file_loader::FileSystemFileLoader;
     use weaver_forge::TemplateEngine;
-
-    use crate::{update_markdown, Error, SnippetGenerator};
+    use weaver_semconv::registry_repo::RegistryRepo;
 
     fn force_print_error<T>(result: Result<T, Error>) -> T {
         match result {
@@ -390,7 +391,7 @@ mod tests {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         let template = TemplateEngine::new(config, loader, Params::default());
-        let registry_path = RegistryPath::LocalFolder {
+        let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };
         let mut diag_msgs = DiagnosticMessages::empty();
@@ -399,6 +400,7 @@ mod tests {
             &registry_repo,
             template,
             &mut diag_msgs,
+            false,
             false,
         )?;
         let attribute_registry_url = "/docs/attributes-registry";

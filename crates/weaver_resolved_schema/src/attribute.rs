@@ -98,7 +98,7 @@ pub struct UnresolvedAttribute {
 
 /// An internal reference to an attribute in the catalog.
 #[derive(
-    Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema,
+    Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, JsonSchema, Hash,
 )]
 pub struct AttributeRef(pub u32);
 
