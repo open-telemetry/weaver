@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# [TBD] - TBD
+
+* Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
+
 ## [0.14.0] - 2025-04-10
 
 What's changed
@@ -15,7 +19,6 @@ What's changed
 * Make `type` property required on the semantic convention group (behind `--future` flag). ([#611](https://github.com/open-telemetry/weaver/pull/611) by @lmolkova).
 * Exclude attributes declared with `code_generation.exclude` annotations in `semconv_attributes` and other JQ attribute helpers. ([#662](https://github.com/open-telemetry/weaver/pull/662) by @lmolkova)
 * Sort metrics by name in all JQ helpers. ([#573](https://github.com/open-telemetry/weaver/issues/573) by @lmolkova)
-* Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
 
 ## [0.13.2] - 2025-02-13
 
