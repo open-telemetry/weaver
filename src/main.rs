@@ -111,7 +111,7 @@ fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
             generate_completion(&completions.shell);
             return ExitDirectives {
                 exit_code: 0,
-                quiet_mode: cli.quiet,
+                quiet_mode: true,
             };
         }
         None => {
