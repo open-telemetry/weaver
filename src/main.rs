@@ -108,7 +108,13 @@ fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
         Some(Commands::Completion(completions)) => {
-            generate_completion(&completions.shell);
+            if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
+                log.error(&e);
+                return ExitDirectives {
+                    exit_code: 1,
+                    quiet_mode: true,
+                };
+            }
             return ExitDirectives {
                 exit_code: 0,
                 quiet_mode: true,
@@ -175,8 +181,19 @@ fn process_diagnostics(
     exit_directives
 }
 
-fn generate_completion(shell: &Shell) {
+fn generate_completion(shell: &Shell, output_file: &Option<PathBuf>) -> Result<(), String> {
     let mut app = Cli::command();
     let bin_name = app.get_name().to_owned();
-    generate(*shell, &mut app, bin_name, &mut io::stdout());
+
+    if let Some(file_path) = output_file {
+        let file = std::fs::File::create(file_path)
+            .map_err(|e| format!("Failed to create file '{}': {}", file_path.display(), e))?;
+        generate(*shell, &mut app, bin_name, &mut io::BufWriter::new(file));
+    } else {
+        return Err(
+            "No output file specified. Use --completion-file to specify a file.".to_owned(),
+        );
+    }
+
+    Ok(())
 }

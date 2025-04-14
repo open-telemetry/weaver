@@ -53,4 +53,8 @@ pub struct CompletionCommand {
     /// The shell to generate the completions for
     #[arg(value_enum)]
     pub shell: clap_complete::Shell,
+
+    /// The file to write the completions to
+    #[arg(long)]
+    pub completion_file: Option<std::path::PathBuf>,
 }

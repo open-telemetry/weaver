@@ -189,13 +189,13 @@ For example, to install the completion for bash, you can run the following
 command:
 
 ```bash
-weaver completion bash > $BASH_COMPLETION_USER_DIR/weaver
+weaver completion bash --completion-file $BASH_COMPLETION_USER_DIR/weaver
 ```
 
 To enable the completion for zsh, you can run the following command:
 
 ```bash
-weaver completion zsh > ${fpath[1]}/_weaver
+weaver completion zsh --completion-file ${fpath[1]}/_weaver
 ```
 
 That will install the completion in the first directory in your `fpath` array.
