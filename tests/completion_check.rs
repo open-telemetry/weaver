@@ -3,7 +3,6 @@
 //! Test the completion command.
 
 use assert_cmd::Command;
-use tempfile;
 
 /// This test checks the CLI interface for the completion command.
 #[test]
@@ -48,10 +47,10 @@ fn test_generate_completion_with_file() {
         .expect("failed to execute process");
     assert!(file_output.status.success());
 
-    let file_contents = std::fs::read_to_string(temp_file.path()).expect("Failed to read temp file");
+    let file_contents =
+        std::fs::read_to_string(temp_file.path()).expect("Failed to read temp file");
     assert_eq!(
         stdout, file_contents,
         "STDOUT and --completion-file outputs do not match"
     );
 }
-
