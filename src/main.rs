@@ -4,7 +4,10 @@
 
 use std::path::PathBuf;
 
+use clap::CommandFactory;
 use clap::{Args, Parser};
+use clap_complete::{generate, Shell};
+use std::io;
 
 use registry::semconv_registry;
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
@@ -104,6 +107,19 @@ fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
     let cmd_result = match &cli.command {
         Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
+        Some(Commands::Completion(completions)) => {
+            if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
+                log.error(&e);
+                return ExitDirectives {
+                    exit_code: 1,
+                    quiet_mode: true,
+                };
+            }
+            return ExitDirectives {
+                exit_code: 0,
+                quiet_mode: true,
+            };
+        }
         None => {
             return ExitDirectives {
                 exit_code: 0,
@@ -163,4 +179,20 @@ fn process_diagnostics(
     }
 
     exit_directives
+}
+
+fn generate_completion(shell: &Shell, output_file: &Option<PathBuf>) -> Result<(), String> {
+    let mut app = Cli::command();
+    let bin_name = app.get_name().to_owned();
+
+    if let Some(file_path) = output_file {
+        let file = std::fs::File::create(file_path)
+            .map_err(|e| format!("Failed to create file '{}': {}", file_path.display(), e))?;
+        generate(*shell, &mut app, bin_name, &mut io::BufWriter::new(file));
+    } else {
+        // Default to writing to STDOUT
+        generate(*shell, &mut app, bin_name, &mut io::stdout());
+    }
+
+    Ok(())
 }

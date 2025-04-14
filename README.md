@@ -178,6 +178,28 @@ Telemetry Schemas.
   v1.2.0 [Draft](https://github.com/lquerel/oteps/blob/app-telemetry-schema-format/text/0241-telemetry-schema-ext.md) (
   not yet ready).
 
+## Shell Completions
+
+Weaver supports shell completions via
+[clap_complete](https://docs.rs/clap_complete/latest/clap_complete/) for the
+following shells: bash, elvish, fish, powershell, and zsh. Installing and using
+the completion depends on your shell, and your setup.
+
+For example, to install the completion for bash, you can run the following
+command:
+
+```bash
+weaver completion bash > $BASH_COMPLETION_USER_DIR/weaver
+```
+
+To enable the completion for zsh, you can run the following command:
+
+```bash
+weaver completion zsh > ${fpath[1]}/_weaver
+```
+
+That will install the completion in the first directory in your `fpath` array.
+
 ## Links
 
 - [OpenTelemetry Semantic Convention File Format](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)

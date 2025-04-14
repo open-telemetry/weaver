@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+# [TBD] - TBD
+
+* Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
+
 ## [0.14.0] - 2025-04-10
 
 What's changed

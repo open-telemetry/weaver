@@ -4,7 +4,7 @@
 
 use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 /// Command line arguments.
 #[derive(Parser)]
@@ -44,4 +44,17 @@ pub enum Commands {
     Registry(RegistryCommand),
     /// Manage Diagnostic Messages
     Diagnostic(DiagnosticCommand),
+    /// Generate shell completions
+    Completion(CompletionCommand),
+}
+
+#[derive(Args)]
+pub struct CompletionCommand {
+    /// The shell to generate the completions for
+    #[arg(value_enum)]
+    pub shell: clap_complete::Shell,
+
+    /// (Optional) The file to write the completions to. Defaults to STDOUT.
+    #[arg(long, hide = true)]
+    pub completion_file: Option<std::path::PathBuf>,
 }
