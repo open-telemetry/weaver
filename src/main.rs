@@ -190,9 +190,8 @@ fn generate_completion(shell: &Shell, output_file: &Option<PathBuf>) -> Result<(
             .map_err(|e| format!("Failed to create file '{}': {}", file_path.display(), e))?;
         generate(*shell, &mut app, bin_name, &mut io::BufWriter::new(file));
     } else {
-        return Err(
-            "No output file specified. Use --completion-file to specify a file.".to_owned(),
-        );
+        // Default to writing to STDOUT
+        generate(*shell, &mut app, bin_name, &mut io::stdout());
     }
 
     Ok(())
