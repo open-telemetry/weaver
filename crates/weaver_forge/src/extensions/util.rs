@@ -134,11 +134,22 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
 
 // Helper filter to dump value (1st parameter) in yaml format.
 fn to_yaml(value: Value) -> Result<String, minijinja::Error> {
-    let mut out = Vec::<u8>::new();
-    let mut s = serde_yaml::Serializer::new(&mut out);
-    let yaml = serde::Serialize::serialize(&value, &mut s)
-        .map(|_| unsafe { String::from_utf8_unchecked(out) })
-        .map_err(|e| minijinja::Error::new(ErrorKind::InvalidOperation, e.to_string()))?;
+    let yaml = serde_yaml::to_string(&value)
+        .map_err(|e| minijinja::Error::new(ErrorKind::BadSerialization, e.to_string()))
+        .map(|s| {
+            // When this filter is used the return value is safe for both HTML and JSON
+            let mut rv = String::with_capacity(s.len());
+            for c in s.chars() {
+                match c {
+                    '<' => rv.push_str("\\u003c"),
+                    '>' => rv.push_str("\\u003e"),
+                    '&' => rv.push_str("\\u0026"),
+                    '\'' => rv.push_str("\\u0027"),
+                    _ => rv.push(c),
+                }
+            }
+            rv
+        })?;
     Ok(yaml)
 }
 
