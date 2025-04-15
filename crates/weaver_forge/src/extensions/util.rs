@@ -211,6 +211,14 @@ mod tests {
             Value::String("Alice".to_owned()),
         );
         let _ = inner_map.insert(
+            Value::String("about".to_owned()),
+            Value::String("<h1>Software Engineer<h1>".to_owned()),
+        );
+        let _ = inner_map.insert(
+            Value::String("profile".to_owned()),
+            Value::String("https://example.com/?page=1&section=about".to_owned()),
+        );
+        let _ = inner_map.insert(
             Value::String("skills".to_owned()),
             Value::Sequence(vec![
                 Value::String("Rust".to_owned()),
