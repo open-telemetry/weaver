@@ -16,8 +16,8 @@ use weaver_forge::{OutputDirective, TemplateEngine};
 use crate::registry::{Error, PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
-use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::vdir::VirtualDirectory;
+use weaver_common::vdir::VirtualDirectoryPath;
 
 /// Parameters for the `registry generate` sub-command
 #[derive(Debug, Args)]
@@ -99,12 +99,13 @@ pub(crate) fn command(
         prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
 
     let params = generate_params(args)?;
-    let templates_dir = VirtualDirectory::try_new(&args.templates)
-        .map_err(|e| Error::InvalidParams {
+    let templates_dir =
+        VirtualDirectory::try_new(&args.templates).map_err(|e| Error::InvalidParams {
             params_file: PathBuf::from(args.templates.to_string()),
             error: e.to_string(),
         })?;
-    let loader = FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
+    let loader =
+        FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
     let config = if let Some(paths) = &args.config {
         WeaverConfig::try_from_config_files(paths)
     } else {

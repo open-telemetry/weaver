@@ -7,15 +7,15 @@ use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_common::vdir::VirtualDirectory;
+use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_common::Error;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
-use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::vdir::VirtualDirectory;
-use weaver_common::Error;
 
 /// Parameters for the `registry update-markdown` sub-command
 #[derive(Debug, Args)]
@@ -69,15 +69,14 @@ pub(crate) fn command(
 
     // Construct a generator if we were given a `--target` argument.
     let generator = {
-        let templates_dir = VirtualDirectory::try_new(&args.templates)
-            .map_err(|e| Error::InvalidVirtualDirectory {
+        let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
+            Error::InvalidVirtualDirectory {
                 path: args.templates.to_string(),
                 error: e.to_string(),
-            })?;
-        let loader = FileSystemFileLoader::try_new(
-            templates_dir.path().join("registry"),
-            &args.target,
-        )?;
+            }
+        })?;
+        let loader =
+            FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         TemplateEngine::new(config, loader, Params::default())
     };

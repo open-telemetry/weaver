@@ -11,6 +11,7 @@ use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
+use weaver_common::vdir::VirtualDirectory;
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -19,7 +20,6 @@ use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv::semconv::SemConvSpec;
-use weaver_common::vdir::VirtualDirectory;
 
 /// Loads the semantic convention specifications from a registry path.
 ///
@@ -270,20 +270,25 @@ pub(crate) fn prepare_main_registry(
     // Optionally init policy engine
     let mut policy_engine = if !policy_args.skip_policies {
         // Create and hold all VirtualDirectory instances to keep them from being dropped
-        let policy_vdirs: Vec<VirtualDirectory> = policy_args.policies.iter()
-            .map(|path| VirtualDirectory::try_new(path)
-                .map_err(|e| DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
-                    path: path.to_string(),
-                    error: e.to_string(),
-                }))
-            )
+        let policy_vdirs: Vec<VirtualDirectory> = policy_args
+            .policies
+            .iter()
+            .map(|path| {
+                VirtualDirectory::try_new(path).map_err(|e| {
+                    DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
+                        path: path.to_string(),
+                        error: e.to_string(),
+                    })
+                })
+            })
             .collect::<Result<_, _>>()?;
-        
+
         // Extract paths from VirtualDirectory instances
-        let policy_paths: Vec<PathBuf> = policy_vdirs.iter()
+        let policy_paths: Vec<PathBuf> = policy_vdirs
+            .iter()
             .map(|vdir| vdir.path().to_owned())
             .collect();
-            
+
         Some(init_policy_engine(
             &main_registry_repo,
             &policy_paths,
