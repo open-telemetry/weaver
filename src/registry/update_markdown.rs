@@ -7,6 +7,9 @@ use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
+use weaver_common::vdir::VirtualDirectory;
+use weaver_common::vdir::VirtualDirectoryPath;
+use weaver_common::Error;
 use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
@@ -38,7 +41,7 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Note: `registry update-markdown` will look for a specific jinja template:
     ///   {templates}/{target}/snippet.md.j2.
     #[arg(short = 't', long, default_value = "templates")]
-    pub templates: String,
+    pub templates: VirtualDirectoryPath,
 
     /// If provided, the target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
@@ -66,10 +69,14 @@ pub(crate) fn command(
 
     // Construct a generator if we were given a `--target` argument.
     let generator = {
-        let loader = FileSystemFileLoader::try_new(
-            format!("{}/registry", args.templates).into(),
-            &args.target,
-        )?;
+        let templates_dir = VirtualDirectory::try_new(&args.templates).map_err(|e| {
+            Error::InvalidVirtualDirectory {
+                path: args.templates.to_string(),
+                error: e.to_string(),
+            }
+        })?;
+        let loader =
+            FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
         TemplateEngine::new(config, loader, Params::default())
     };
@@ -158,7 +165,9 @@ mod tests {
                     },
                     dry_run: true,
                     attribute_registry_base_url: Some("/docs/attributes-registry".to_owned()),
-                    templates: "data/update_markdown/templates".to_owned(),
+                    templates: VirtualDirectoryPath::LocalFolder {
+                        path: "data/update_markdown/templates".to_owned(),
+                    },
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
                 }),

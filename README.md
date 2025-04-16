@@ -170,6 +170,61 @@ Telemetry Schemas.
 - Presentation slides from the Semantic Convention SIG meeting on October 23,
   2023 [here](https://docs.google.com/presentation/d/1nxt5VFlC1mUjZ8eecUYK4e4SxThpIVj1IRnIcodMsNI/edit?usp=sharing).
 
+## Examples of Code and Documentation Generation
+
+The following examples show how to generate code and documentation for various languages using Weaver.
+
+> Note: A more out of the box experience will be available in the future.
+
+**Java**
+From GitHub repo main branch.
+
+```bash
+weaver registry generate \
+--templates https://github.com/open-telemetry/semantic-conventions-java.git[buildscripts/templates] \
+java
+```
+
+**C++**
+From a specific release using the corresponding archive.
+
+```bash
+weaver registry generate \
+--templates https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.20.0.zip[buildscripts/semantic-convention/templates] \
+./ \
+--param filter=any \
+--param output=output/ \
+--param schema_url=https://opentelemetry.io/schemas/v1.32.0
+```
+
+**Python**
+From GitHub repo main branch.
+
+```bash
+weaver registry generate \
+--templates https://github.com/open-telemetry/opentelemetry-python.git[scripts/semconv/templates] \
+--param output=./ \
+--param filter=any \
+./
+```
+
+**Markdown (attribute registry)**
+From a specific release using a GitHub archive release.
+
+```bash
+weaver registry generate \
+--templates https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.32.0.zip[templates] \
+markdown
+```
+
+**Templates in local path**
+
+```bash
+weaver registry generate \
+--templates custom-templates/ \
+markdown
+```
+
 ## Experimental
 
 - [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)

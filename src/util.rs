@@ -11,6 +11,7 @@ use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::result::WResult;
+use weaver_common::vdir::VirtualDirectory;
 use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
@@ -81,10 +82,11 @@ pub(crate) fn init_policy_engine(
     // Add policies from the registry
     _ = engine.add_policies(registry_repo.path(), "*.rego")?;
 
-    // Add policies from the command line
+    // Add the user-provided policies
     for policy in policies {
         engine.add_policy_from_file_or_dir(policy)?;
     }
+
     Ok(engine)
 }
 
@@ -267,9 +269,29 @@ pub(crate) fn prepare_main_registry(
 
     // Optionally init policy engine
     let mut policy_engine = if !policy_args.skip_policies {
+        // Create and hold all VirtualDirectory instances to keep them from being dropped
+        let policy_vdirs: Vec<VirtualDirectory> = policy_args
+            .policies
+            .iter()
+            .map(|path| {
+                VirtualDirectory::try_new(path).map_err(|e| {
+                    DiagnosticMessages::from_error(weaver_common::Error::InvalidVirtualDirectory {
+                        path: path.to_string(),
+                        error: e.to_string(),
+                    })
+                })
+            })
+            .collect::<Result<_, _>>()?;
+
+        // Extract paths from VirtualDirectory instances
+        let policy_paths: Vec<PathBuf> = policy_vdirs
+            .iter()
+            .map(|vdir| vdir.path().to_owned())
+            .collect();
+
         Some(init_policy_engine(
             &main_registry_repo,
-            &policy_args.policies,
+            &policy_paths,
             policy_args.display_policy_coverage,
         )?)
     } else {
