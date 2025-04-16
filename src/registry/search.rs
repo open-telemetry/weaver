@@ -15,12 +15,12 @@ use crate::{
     util::{load_semconv_specs, resolve_semconv_specs},
     DiagnosticArgs, ExitDirectives,
 };
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-    ExecutableCommand,
-};
 use ratatui::{
+    crossterm::{
+        event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+        ExecutableCommand,
+    },
     layout::{Constraint, Direction, Layout},
     prelude::{CrosstermBackend, Terminal},
     style::{Color, Modifier, Style},
