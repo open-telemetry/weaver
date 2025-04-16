@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # [TBD] - TBD
 
 * Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
+* Add support for remote templates and policies. ([#700](https://github.com/open-telemetry/weaver/pull/700) by @lquerel)
 
 ## [0.14.0] - 2025-04-10
 
