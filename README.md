@@ -180,28 +180,49 @@ The following examples show how to generate code and documentation for various l
 From GitHub repo main branch.
 
 ```bash
-weaver registry generate --templates https://github.com/open-telemetry/semantic-conventions-java.git[buildscripts/templates] java
+weaver registry generate \
+--templates https://github.com/open-telemetry/semantic-conventions-java.git[buildscripts/templates] \
+java
 ```
 
 **C++**
 From a specific release using the corresponding archive.
 
 ```bash
-weaver registry generate --templates https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.20.0.zip[buildscripts/semantic-convention/templates] ./ --param filter=any --param output=output/ --param schema_url=https://opentelemetry.io/schemas/v1.32.0
+weaver registry generate \
+--templates https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.20.0.zip[buildscripts/semantic-convention/templates] \
+./ \
+--param filter=any \
+--param output=output/ \
+--param schema_url=https://opentelemetry.io/schemas/v1.32.0
 ```
 
 **Python**
 From GitHub repo main branch.
 
 ```bash
-weaver registry generate --templates https://github.com/open-telemetry/opentelemetry-python.git[scripts/semconv/templates] --param output=./ --param filter=any ./
+weaver registry generate \
+--templates https://github.com/open-telemetry/opentelemetry-python.git[scripts/semconv/templates] \
+--param output=./ \
+--param filter=any \
+./
 ```
 
 **Markdown (attribute registry)**
 From a specific release using a GitHub archive release.
 
 ```bash
-weaver registry generate --templates https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.32.0.zip[templates] markdown
+weaver registry generate \
+--templates https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.32.0.zip[templates] \
+markdown
+```
+
+**Templates in local path**
+
+```bash
+weaver registry generate \
+--templates custom-templates/ \
+markdown
 ```
 
 ## Experimental
