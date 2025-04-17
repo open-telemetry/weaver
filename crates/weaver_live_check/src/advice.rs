@@ -36,7 +36,7 @@ pub trait Advisor {
     /// Provide advice on a sample
     fn advise(
         &mut self,
-        sample: &SampleRef<'_>,
+        sample: SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
         registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error>;
@@ -47,11 +47,11 @@ pub struct DeprecatedAdvisor;
 impl Advisor for DeprecatedAdvisor {
     fn advise(
         &mut self,
-        sample: &SampleRef<'_>,
+        sample: SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match *sample {
+        match sample {
             SampleRef::Attribute(_sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
@@ -87,11 +87,11 @@ pub struct StabilityAdvisor;
 impl Advisor for StabilityAdvisor {
     fn advise(
         &mut self,
-        sample: &SampleRef<'_>,
+        sample: SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match *sample {
+        match sample {
             SampleRef::Attribute(_sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
@@ -119,11 +119,11 @@ pub struct TypeAdvisor;
 impl Advisor for TypeAdvisor {
     fn advise(
         &mut self,
-        sample: &SampleRef<'_>,
+        sample: SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match *sample {
+        match sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the attribute is a match and the type is present
                 match (registry_attribute, sample_attribute.r#type.as_ref()) {
@@ -187,11 +187,11 @@ pub struct EnumAdvisor;
 impl Advisor for EnumAdvisor {
     fn advise(
         &mut self,
-        sample: &SampleRef<'_>,
+        sample: SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
-        match *sample {
+        match sample {
             SampleRef::Attribute(sample_attribute) => {
                 // Only provide advice if the registry_attribute is an enum and the attribute has a value and type
                 match (
@@ -304,12 +304,12 @@ impl RegoAdvisor {
         Ok(RegoAdvisor { engine })
     }
 
-    fn check<T>(&mut self, input: &T) -> Result<Vec<Advice>, Error>
+    fn check<T>(&mut self, input: T) -> Result<Vec<Advice>, Error>
     where
         T: Serialize,
     {
         self.engine
-            .set_input(input)
+            .set_input(&input)
             .map_err(|e| Error::AdviceError {
                 error: e.to_string(),
             })?;
@@ -336,7 +336,7 @@ impl RegoAdvisor {
 impl Advisor for RegoAdvisor {
     fn advise(
         &mut self,
-        sample: &SampleRef<'_>,
+        sample: SampleRef<'_>,
         _registry_attribute: Option<&Attribute>,
         _registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {

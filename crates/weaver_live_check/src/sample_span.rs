@@ -34,7 +34,7 @@ impl LiveCheckRunner for SampleSpan {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(&SampleRef::Span(self), None, None) {
+            if let Ok(advice_list) = advisor.advise(SampleRef::Span(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }
@@ -69,7 +69,7 @@ impl LiveCheckRunner for SampleSpanEvent {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(&SampleRef::SpanEvent(self), None, None) {
+            if let Ok(advice_list) = advisor.advise(SampleRef::SpanEvent(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }
@@ -96,7 +96,7 @@ impl LiveCheckRunner for SampleSpanLink {
     fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(&SampleRef::SpanLink(self), None, None) {
+            if let Ok(advice_list) = advisor.advise(SampleRef::SpanLink(self), None, None) {
                 result.add_advice_list(advice_list);
             }
         }

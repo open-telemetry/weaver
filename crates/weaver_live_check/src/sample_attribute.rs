@@ -196,11 +196,9 @@ impl LiveCheckRunner for SampleAttribute {
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(
-                &SampleRef::Attribute(self),
-                semconv_attribute.as_ref(),
-                None,
-            ) {
+            if let Ok(advice_list) =
+                advisor.advise(SampleRef::Attribute(self), semconv_attribute.as_ref(), None)
+            {
                 result.add_advice_list(advice_list);
             }
         }
