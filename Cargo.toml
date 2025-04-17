@@ -109,7 +109,7 @@ weaver_diff = { path = "crates/weaver_diff" }
 weaver_version = { path = "crates/weaver_version" }
 tempdir.workspace = true
 ureq.workspace = true
-assert_cmd = "2.0.16"
+assert_cmd = "2.0.17"
 portpicker = "0.1.1"
 tempfile = "3.19.1"
 
