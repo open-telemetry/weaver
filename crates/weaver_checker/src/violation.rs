@@ -3,6 +3,7 @@
 //! Definition of a policy violation.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fmt::{Display, Formatter};
 
 /// Enum representing the different types of violations.
@@ -21,6 +22,8 @@ pub enum Violation {
         /// The semconv attribute where the violation occurred.
         attr: String,
     },
+    /// Advice related to a policy violation.
+    Advice(Advice),
 }
 
 impl Display for Violation {
@@ -38,6 +41,18 @@ impl Display for Violation {
                     id, category, group, attr
                 )
             }
+            Violation::Advice(Advice {
+                advice_type: r#type,
+                value,
+                message,
+                advice_level,
+            }) => {
+                write!(
+                    f,
+                    "type={}, value={}, message={}, advice_level={:?}",
+                    r#type, value, message, advice_level
+                )
+            }
         }
     }
 }
@@ -48,6 +63,35 @@ impl Violation {
     pub fn id(&self) -> &str {
         match self {
             Violation::SemconvAttribute { id, .. } => id,
+            Violation::Advice(Advice {
+                advice_type: r#type,
+                ..
+            }) => r#type,
         }
     }
+}
+
+/// The level of an advice
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum AdviceLevel {
+    /// Useful context without action needed
+    Information,
+    /// Suggested change that would improve things
+    Improvement,
+    /// Something that breaks compliance rules
+    Violation,
+}
+
+/// Represents a live check advice
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Advice {
+    /// The type of advice e.g. "is_deprecated"
+    pub advice_type: String,
+    /// The value of the advice e.g. "true"
+    pub value: Value,
+    /// The message of the advice e.g. "This attribute is deprecated"
+    pub message: String,
+    /// The level of the advice e.g. "violation"
+    pub advice_level: AdviceLevel,
 }

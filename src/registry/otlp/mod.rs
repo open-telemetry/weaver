@@ -2,6 +2,8 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 
+pub mod otlp_ingester;
+
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};
 use grpc_stubs::proto::collector::logs::v1::{ExportLogsServiceRequest, ExportLogsServiceResponse};
 use grpc_stubs::proto::collector::metrics::v1::metrics_service_server::{
@@ -30,7 +32,6 @@ use tonic::codegen::tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_common::Logger;
 
 /// Expose the OTLP gRPC services.
 /// See the build.rs file for more information.
@@ -168,7 +169,6 @@ pub fn listen_otlp_requests(
     grpc_port: u16,
     admin_port: u16,
     inactivity_timeout: Duration,
-    logger: impl Logger + Sync + Clone,
 ) -> Result<impl Iterator<Item = OtlpRequest>, Error> {
     let addr: SocketAddr =
         format!("{grpc_addr}:{grpc_port}")
@@ -202,18 +202,6 @@ pub fn listen_otlp_requests(
         tx: tx.clone(),
         activity_tx: activity_tx.clone(),
     };
-
-    logger.log("To stop the OTLP receiver:");
-    logger.log("  - press CTRL+C,");
-    logger.log(&format!(
-        "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
-        std::process::id()
-    ));
-    logger.log(&format!("  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.", grpc_port + 1));
-    logger.log(&format!(
-        "The OTLP receiver will stop after {} seconds of inactivity.",
-        inactivity_timeout.as_secs()
-    ));
 
     let (ready_tx, ready_rx) = oneshot::channel();
 
@@ -515,23 +503,15 @@ mod tests {
     use crate::registry::otlp::grpc_stubs::proto::collector::metrics::v1::metrics_service_client::MetricsServiceClient;
     use crate::registry::otlp::grpc_stubs::proto::collector::trace::v1::trace_service_client::TraceServiceClient;
     use std::thread;
-    use weaver_common::TestLogger;
 
     #[test]
     fn test_inactivity_stop_after_1_second() {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_millis(500);
-        let logger = TestLogger::default();
 
-        let mut receiver = listen_otlp_requests(
-            "127.0.0.1",
-            grpc_port,
-            admin_port,
-            inactivity_timeout,
-            logger,
-        )
-        .unwrap();
+        let mut receiver =
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
         let grpc_endpoint = format!("http://127.0.0.1:{grpc_port}");
         let expected_metrics_count = 3;
         let expected_logs_count = 4;
@@ -625,16 +605,9 @@ mod tests {
         let grpc_port = portpicker::pick_unused_port().expect("No free ports");
         let admin_port = portpicker::pick_unused_port().expect("No free ports");
         let inactivity_timeout = Duration::from_secs(5);
-        let logger = TestLogger::default();
 
-        let mut receiver = listen_otlp_requests(
-            "127.0.0.1",
-            grpc_port,
-            admin_port,
-            inactivity_timeout,
-            logger,
-        )
-        .unwrap();
+        let mut receiver =
+            listen_otlp_requests("127.0.0.1", grpc_port, admin_port, inactivity_timeout).unwrap();
 
         // Give the server a little time to finish binding the port.
         thread::sleep(Duration::from_millis(200));
