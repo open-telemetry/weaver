@@ -1,0 +1,14 @@
+{% import "live_check_macros.j2" as macros %}
+{% if ctx.attributes is defined %}
+{# This is a LiveCheckReport object #}
+{% for sample in ctx.samples %}
+{{ macros.display_sample(sample) }}
+{% endfor %}
+
+{{ macros.display_statistics(ctx.statistics) }}
+{%- elif ctx.total_entities is defined -%}
+{# This is a LiveCheckStatistics object #}
+{{ macros.display_statistics(ctx) }}
+{%- else -%}{# This is a sample #}
+{{ macros.display_sample(ctx) }}
+{%- endif -%}

@@ -1,112 +1,313 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//! Check the gap between a semantic convention registry and an OTLP traffic.
+//! Perform checks on sample telemetry by:
+//! - Comparing it to a semantic convention registry.
+//! - Running built-in and custom policies to provide advice on how to improve the telemetry.
 
-use crate::registry::otlp::{listen_otlp_requests, OtlpRequest};
+use std::path::PathBuf;
+
+use clap::Args;
+use include_dir::{include_dir, Dir};
+
+use weaver_common::diagnostic::DiagnosticMessages;
+use weaver_common::Logger;
+use weaver_forge::config::{Params, WeaverConfig};
+use weaver_forge::file_loader::EmbeddedFileLoader;
+use weaver_forge::{OutputDirective, TemplateEngine};
+use weaver_live_check::advice::{
+    Advisor, DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor,
+};
+use weaver_live_check::json_file_ingester::JsonFileIngester;
+use weaver_live_check::json_stdin_ingester::JsonStdinIngester;
+use weaver_live_check::live_checker::LiveChecker;
+use weaver_live_check::text_file_ingester::TextFileIngester;
+use weaver_live_check::text_stdin_ingester::TextStdinIngester;
+use weaver_live_check::{Error, Ingester, LiveCheckReport, LiveCheckRunner, LiveCheckStatistics};
+
 use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
 use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
-use std::time::Duration;
-use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
+
+use super::otlp::otlp_ingester::OtlpIngester;
+
+/// Embedded default live check templates
+pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
+    include_dir!("defaults/live_check_templates");
+
+/// The input source
+#[derive(Debug, Clone)]
+enum InputSource {
+    File(PathBuf),
+    Stdin,
+    Otlp,
+}
+
+impl From<String> for InputSource {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "stdin" | "s" => InputSource::Stdin,
+            "otlp" | "o" => InputSource::Otlp,
+            _ => InputSource::File(PathBuf::from(s)),
+        }
+    }
+}
+
+/// The input format
+#[derive(Debug, Clone)]
+enum InputFormat {
+    Text,
+    Json,
+}
+
+impl From<String> for InputFormat {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "json" | "js" => InputFormat::Json,
+            _ => InputFormat::Text,
+        }
+    }
+}
 
 /// Parameters for the `registry live-check` sub-command
 #[derive(Debug, Args)]
-pub struct CheckRegistryArgs {
+pub struct RegistryLiveCheckArgs {
     /// Parameters to specify the semantic convention registry
     #[command(flatten)]
     registry: RegistryArgs,
 
-    /// Address used by the gRPC OTLP listener.
-    #[clap(long, default_value = "0.0.0.0")]
-    pub otlp_grpc_address: String,
-
-    /// Port used by the gRPC OTLP listener.
-    #[clap(long, default_value = "4317", short = 'p')]
-    pub otlp_grpc_port: u16,
-
-    /// Port used by the HTTP admin port (endpoints: /stop).
-    #[clap(long, default_value = "4320", short = 'a')]
-    pub admin_port: u16,
-
-    /// Max inactivity time in seconds before stopping the listener.
-    #[clap(long, default_value = "10", short = 't')]
-    pub inactivity_timeout: u64,
+    /// Policy parameters
+    #[command(flatten)]
+    policy: PolicyArgs,
 
     /// Parameters to specify the diagnostic format.
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
+
+    /// Where to read the input telemetry from. {file path} | stdin | otlp
+    #[arg(long, default_value = "otlp")]
+    input_source: InputSource,
+
+    /// The format of the input telemetry. (Not required for OTLP). text | json
+    #[arg(long, default_value = "json")]
+    input_format: InputFormat,
+
+    /// Format used to render the report. Predefined formats are: ansi, json
+    #[arg(long, default_value = "ansi")]
+    format: String,
+
+    /// Path to the directory where the templates are located.
+    #[arg(long, default_value = "live_check_templates")]
+    templates: PathBuf,
+
+    /// Disable stream mode. Use this flag to disable streaming output.
+    ///
+    /// When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP),
+    /// by default output the live check results for each entity as they are ingested.
+    #[arg(long, default_value = "false")]
+    no_stream: bool,
+
+    /// Path to the directory where the generated artifacts will be saved.
+    /// If not specified, the report is printed to stdout.
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+
+    /// Address used by the gRPC OTLP listener.
+    #[clap(long, default_value = "0.0.0.0")]
+    otlp_grpc_address: String,
+
+    /// Port used by the gRPC OTLP listener.
+    #[clap(long, default_value = "4317")]
+    otlp_grpc_port: u16,
+
+    /// Port used by the HTTP admin port (endpoints: /stop).
+    #[clap(long, default_value = "4320")]
+    admin_port: u16,
+
+    /// Max inactivity time in seconds before stopping the listener.
+    #[clap(long, default_value = "10")]
+    inactivity_timeout: u64,
+
+    /// Advice policies directory. Set this to override the default policies.
+    #[arg(long)]
+    advice_policies: Option<PathBuf>,
+
+    /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
+    ///
+    /// Rego policies are run for each sample as it arrives in a stream. The preprocessor
+    /// can be used to create a new data structure that is more efficient for the rego policies
+    /// versus processing the data for every sample.
+    #[arg(long)]
+    advice_preprocessor: Option<PathBuf>,
 }
 
-/// Check the conformance level of an OTLP stream against a semantic convention registry.
-///
-/// This command starts an OTLP listener and compares each received OTLP message with the
-/// registry provided as a parameter. When the command is stopped (see stop conditions),
-/// a conformance/coverage report is generated. The purpose of this command is to be used
-/// in a CI/CD pipeline to validate the telemetry stream from an application or service
-/// against a registry.
-///
-/// The currently supported stop conditions are: CTRL+C (SIGINT), SIGHUP, the HTTP /stop
-/// endpoint, and a maximum duration of no OTLP message reception.
+fn default_advisors() -> Vec<Box<dyn Advisor>> {
+    vec![
+        Box::new(DeprecatedAdvisor),
+        Box::new(StabilityAdvisor),
+        Box::new(TypeAdvisor),
+        Box::new(EnumAdvisor),
+    ]
+}
+
+/// Perform a live check on sample data by comparing it to a semantic convention registry.
 pub(crate) fn command(
     logger: impl Logger + Sync + Clone,
-    args: &CheckRegistryArgs,
+    args: &RegistryLiveCheckArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
-    let mut diag_msgs = DiagnosticMessages::empty();
-    let policy = PolicyArgs::skip();
-    let otlp_requests = listen_otlp_requests(
-        args.otlp_grpc_address.as_str(),
-        args.otlp_grpc_port,
-        args.admin_port,
-        Duration::from_secs(args.inactivity_timeout),
-        logger.clone(),
-    )?;
+    let mut exit_code = 0;
+    let mut output = PathBuf::from("output");
+    let output_directive = if let Some(path_buf) = &args.output {
+        output = path_buf.clone();
+        OutputDirective::File
+    } else {
+        logger.mute();
+        OutputDirective::Stdout
+    };
 
-    // @ToDo Use the following resolved registry to check the level of compliance of the incoming OTLP messages
-    let (_resolved_registry, _) =
-        prepare_main_registry(&args.registry, &policy, logger.clone(), &mut diag_msgs)?;
+    logger.log("Weaver Registry Live Check");
+
+    // Prepare the registry
+    logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+
+    let mut diag_msgs = DiagnosticMessages::empty();
+
+    let (registry, _) =
+        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
 
     logger.loading(&format!(
-        "Checking OTLP traffic on port {}.",
-        args.otlp_grpc_port
+        "Performing live check with registry `{}`",
+        args.registry.registry
     ));
 
-    // @ToDo Implement the checking logic
-    for otlp_request in otlp_requests {
-        match otlp_request {
-            OtlpRequest::Logs(_logs) => {
-                // ToDo Implement the checking logic for logs
-                println!("Logs Request received");
-            }
-            OtlpRequest::Metrics(_metrics) => {
-                // ToDo Implement the checking logic for metrics
-                println!("Metrics Request received");
-            }
-            OtlpRequest::Traces(_traces) => {
-                // ToDo Implement the checking logic for traces
-                println!("Trace Request received");
-            }
-            OtlpRequest::Stop(reason) => {
-                logger.warn(&format!("Stopping the listener, reason: {}", reason));
-                // ToDo Generate the report here
-                break;
-            }
-            OtlpRequest::Error(error) => {
-                diag_msgs.extend(DiagnosticMessages::from_error(error));
-                break;
-            }
+    // Create the live checker with advisors
+    let mut live_checker = LiveChecker::new(registry, default_advisors());
+
+    let rego_advisor = RegoAdvisor::new(
+        &live_checker,
+        &args.advice_policies,
+        &args.advice_preprocessor,
+    )?;
+    live_checker.add_advisor(Box::new(rego_advisor));
+
+    // Prepare the template engine
+    let loader = EmbeddedFileLoader::try_new(
+        &DEFAULT_LIVE_CHECK_TEMPLATES,
+        args.templates.clone(),
+        &args.format,
+    )
+    .map_err(|e| {
+        DiagnosticMessages::from(Error::OutputError {
+            error: format!(
+                "Failed to create the embedded file loader for the live check templates: {}",
+                e
+            ),
+        })
+    })?;
+    let config = WeaverConfig::try_from_loader(&loader).map_err(|e| {
+        DiagnosticMessages::from(Error::OutputError {
+            error: format!(
+                "Failed to load `defaults/live_check_templates/weaver.yaml`: {}",
+                e
+            ),
+        })
+    })?;
+    let engine = TemplateEngine::new(config, loader, Params::default());
+
+    // Prepare the ingester
+    let ingester = match (&args.input_source, &args.input_format) {
+        (InputSource::File(path), InputFormat::Text) => {
+            TextFileIngester::new(path).ingest(logger.clone())?
+        }
+
+        (InputSource::Stdin, InputFormat::Text) => {
+            TextStdinIngester::new().ingest(logger.clone())?
+        }
+
+        (InputSource::File(path), InputFormat::Json) => {
+            JsonFileIngester::new(path).ingest(logger.clone())?
+        }
+
+        (InputSource::Stdin, InputFormat::Json) => {
+            JsonStdinIngester::new().ingest(logger.clone())?
+        }
+
+        (InputSource::Otlp, _) => (OtlpIngester {
+            otlp_grpc_address: args.otlp_grpc_address.clone(),
+            otlp_grpc_port: args.otlp_grpc_port,
+            admin_port: args.admin_port,
+            inactivity_timeout: args.inactivity_timeout,
+        })
+        .ingest(logger.clone())?,
+    };
+
+    // Run the live check
+
+    let report_mode = if let OutputDirective::File = output_directive {
+        // File output forces report mode
+        true
+    } else {
+        // This flag is not set by default. The user can set it to disable streaming output
+        // and force report mode.
+        args.no_stream
+    };
+
+    let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+    let mut samples = Vec::new();
+    for mut sample in ingester {
+        sample.run_live_check(&mut live_checker, &mut stats);
+        if report_mode {
+            samples.push(sample);
+        } else {
+            engine
+                .generate(logger.clone(), &sample, output.as_path(), &output_directive)
+                .map_err(|e| {
+                    DiagnosticMessages::from(Error::OutputError {
+                        error: e.to_string(),
+                    })
+                })?;
         }
     }
+    stats.finalize();
+    // Set the exit_code to a non-zero code if there are any violations
+    if stats.has_violations() {
+        exit_code = 1;
+    }
+
+    if report_mode {
+        // Package into a report
+        let report = LiveCheckReport {
+            statistics: stats,
+            samples,
+        };
+        engine
+            .generate(logger.clone(), &report, output.as_path(), &output_directive)
+            .map_err(|e| {
+                DiagnosticMessages::from(Error::OutputError {
+                    error: e.to_string(),
+                })
+            })?;
+    } else {
+        // Output the stats
+        engine
+            .generate(logger.clone(), &stats, output.as_path(), &output_directive)
+            .map_err(|e| {
+                DiagnosticMessages::from(Error::OutputError {
+                    error: e.to_string(),
+                })
+            })?;
+    }
+
+    logger.success(&format!(
+        "Performed live check for registry `{}`",
+        args.registry.registry
+    ));
 
     if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
-    logger.success("OTLP requests received and checked.");
-
     Ok(ExitDirectives {
-        exit_code: 0,
-        quiet_mode: false,
+        exit_code,
+        quiet_mode: args.output.is_none(),
     })
 }
