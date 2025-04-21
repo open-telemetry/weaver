@@ -9,6 +9,7 @@ use opentelemetry::{
 };
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
+use weaver_semconv::attribute::ValueSpec;
 use weaver_semconv::{
     attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, TemplateTypeSpec},
     group::{GroupType, SpanKindSpec},
@@ -108,6 +109,21 @@ fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                             .map(|s| s.clone().into())
                             .collect(),
                     )),
+                    Some(Examples::Any(any)) => match any {
+                        ValueSpec::Int(v) => Value::I64(*v),
+                        ValueSpec::Double(v) => Value::F64(f64::from(*v)),
+                        ValueSpec::String(v) => Value::String(v.clone().into()),
+                        ValueSpec::Bool(v) => Value::Bool(*v),
+                    },
+                    Some(Examples::Anys(anys)) => anys
+                        .first()
+                        .map(|v| match v {
+                            ValueSpec::Int(v) => Value::I64(*v),
+                            ValueSpec::Double(v) => Value::F64(f64::from(*v)),
+                            ValueSpec::String(v) => Value::String(v.clone().into()),
+                            ValueSpec::Bool(v) => Value::Bool(*v),
+                        })
+                        .unwrap_or(Value::String("value".into())),
                     // Fallback to a default value
                     _ => Value::String("value".into()),
                 },
@@ -339,6 +355,31 @@ mod tests {
     }
 
     #[test]
+    fn test_primitive_any_with_example() {
+        let attr = create_test_attribute(
+            "test.any",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Any),
+            Some(Examples::Anys(vec![
+                ValueSpec::Int(123),
+                ValueSpec::String("example".to_owned()),
+            ])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.any", 123));
+    }
+
+    #[test]
+    fn test_primitive_any_without_example() {
+        let attr = create_test_attribute(
+            "test.any",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Any),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.any", "value"));
+    }
+
+    #[test]
     fn test_array_boolean() {
         let attr = create_test_attribute(
             "test.bools",
@@ -539,6 +580,17 @@ mod tests {
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.template.key", true));
+    }
+
+    #[test]
+    fn test_template_any() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Any),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.template.key", "template_any_value"));
     }
 
     #[test]
