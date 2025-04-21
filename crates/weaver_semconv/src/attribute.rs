@@ -259,11 +259,7 @@ pub enum PrimitiveOrArrayTypeSpec {
     Doubles,
     /// An array of boolean attribute.
     #[serde(rename = "boolean[]")]
-    Anys,
-        /// An array of any attribute.
-        #[serde(rename = "any[]")]
-        Booleans,
-    
+    Booleans,
 }
 
 /// Implements a human readable display for PrimitiveOrArrayType.
@@ -279,7 +275,6 @@ impl Display for PrimitiveOrArrayTypeSpec {
             PrimitiveOrArrayTypeSpec::Doubles => write!(f, "double[]"),
             PrimitiveOrArrayTypeSpec::Booleans => write!(f, "boolean[]"),
             PrimitiveOrArrayTypeSpec::Any => write!(f, "any"),
-            PrimitiveOrArrayTypeSpec::Anys => write!(f, "any[]"),
         }
     }
 }
@@ -315,9 +310,6 @@ pub enum TemplateTypeSpec {
     /// An array of boolean attribute.
     #[serde(rename = "template[boolean[]]")]
     Booleans,
-    /// An array of any attribute.
-    #[serde(rename = "template[any[]]")]
-    Anys,
 }
 
 /// Implements a human readable display for TemplateType.
@@ -333,7 +325,6 @@ impl Display for TemplateTypeSpec {
             TemplateTypeSpec::Ints => write!(f, "template[int[]]"),
             TemplateTypeSpec::Doubles => write!(f, "template[double[]]"),
             TemplateTypeSpec::Booleans => write!(f, "template[boolean[]]"),
-            TemplateTypeSpec::Anys => write!(f, "template[any[]]"),
         }
     }
 }

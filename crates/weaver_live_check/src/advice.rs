@@ -138,6 +138,7 @@ impl Advisor for TypeAdvisor {
                                     TemplateTypeSpec::Int => PrimitiveOrArrayTypeSpec::Int,
                                     TemplateTypeSpec::Double => PrimitiveOrArrayTypeSpec::Double,
                                     TemplateTypeSpec::String => PrimitiveOrArrayTypeSpec::String,
+                                    TemplateTypeSpec::Any => PrimitiveOrArrayTypeSpec::Any,
                                     TemplateTypeSpec::Strings => PrimitiveOrArrayTypeSpec::Strings,
                                     TemplateTypeSpec::Ints => PrimitiveOrArrayTypeSpec::Ints,
                                     TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
