@@ -367,6 +367,8 @@ pub enum ValueSpec {
     Double(OrderedFloat<f64>),
     /// A string value.
     String(String),
+    /// A boolean value.
+    Bool(bool),
 }
 
 /// Implements a human readable display for Value.
@@ -377,6 +379,7 @@ impl Display for ValueSpec {
             ValueSpec::Int(v) => write!(f, "{}", v),
             ValueSpec::Double(v) => write!(f, "{}", v),
             ValueSpec::String(v) => write!(f, "{}", v),
+            ValueSpec::Bool(v) => write!(f, "{}", v),
         }
     }
 }
@@ -426,6 +429,8 @@ pub enum Examples {
     Double(OrderedFloat<f64>),
     /// A string example.
     String(String),
+    /// A any example.
+    Any(ValueSpec),
     /// A array of integers example.
     Ints(Vec<i64>),
     /// A array of doubles example.
@@ -434,6 +439,8 @@ pub enum Examples {
     Bools(Vec<bool>),
     /// A array of strings example.
     Strings(Vec<String>),
+    /// A array of anys example.
+    Anys(Vec<ValueSpec>),
     /// List of arrays of integers example.
     ListOfInts(Vec<Vec<i64>>),
     /// List of arrays of doubles example.
@@ -465,9 +472,8 @@ impl Examples {
             | (Examples::ListOfInts(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
             | (Examples::ListOfDoubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
             | (Examples::ListOfBools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
-            | (Examples::ListOfStrings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
-                WResult::Ok(())
-            }
+            | (Examples::ListOfStrings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings))
+            | (_, PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Any)) => WResult::Ok(()),
             (_, Enum { .. }) => {
                 // enum types are open so it's not possible to validate the examples
                 WResult::Ok(())
@@ -491,7 +497,8 @@ impl Examples {
             (Examples::String(_), Template(TemplateTypeSpec::String))
             | (Examples::Strings(_), Template(TemplateTypeSpec::String))
             | (Examples::String(_), Template(TemplateTypeSpec::Strings))
-            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::Ok(()),
+            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings))
+            | (_, Template(TemplateTypeSpec::Any)) => WResult::Ok(()),
             _ => WResult::OkWithNFEs(
                 (),
                 vec![Error::InvalidExampleError {
@@ -997,6 +1004,21 @@ mod tests {
         let yaml = "---\n- true\n- false";
         let ex: Examples = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(ex, Examples::Bools(vec![true, false]));
+    }
+
+    #[test]
+    fn test_examples_anys() {
+        let yaml = "---\n- 1\n- 2.0\n- \"text\"\n- true";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::Anys(vec![
+                ValueSpec::Int(1),
+                ValueSpec::Double(OrderedFloat(2.0)),
+                ValueSpec::String("text".to_owned()),
+                ValueSpec::Bool(true),
+            ])
+        );
     }
 
     #[test]

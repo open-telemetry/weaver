@@ -1,0 +1,19 @@
+groups:
+  - id: registry.test
+    type: attribute_group
+    brief: 'Used for testing atrribute any and template[any'
+    attributes:
+      - id: test.any
+        stability: stable
+        type: any
+        brief: 'any attribute'
+        note: |
+          any attribute.
+        examples: ["zero", 1, 2.0, true]
+      - id: test.template.any
+        stability: stable
+        type: template[any]
+        brief: 'template[any] attribute'
+        note: |
+          template[any] attribute.
+        examples: ['test.template.any.my-custom-metadata-attribute=["zero", 1, 2.0, true]']
