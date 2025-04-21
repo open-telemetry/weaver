@@ -245,6 +245,9 @@ pub enum PrimitiveOrArrayTypeSpec {
     Double,
     /// A string attribute.
     String,
+    /// An any type attribute (accepts any valid value).
+    #[serde(rename = "any")]
+    Any,
     /// An array of strings attribute.
     #[serde(rename = "string[]")]
     Strings,
@@ -256,7 +259,11 @@ pub enum PrimitiveOrArrayTypeSpec {
     Doubles,
     /// An array of boolean attribute.
     #[serde(rename = "boolean[]")]
-    Booleans,
+    Anys,
+        /// An array of any attribute.
+        #[serde(rename = "any[]")]
+        Booleans,
+    
 }
 
 /// Implements a human readable display for PrimitiveOrArrayType.
@@ -271,6 +278,8 @@ impl Display for PrimitiveOrArrayTypeSpec {
             PrimitiveOrArrayTypeSpec::Ints => write!(f, "int[]"),
             PrimitiveOrArrayTypeSpec::Doubles => write!(f, "double[]"),
             PrimitiveOrArrayTypeSpec::Booleans => write!(f, "boolean[]"),
+            PrimitiveOrArrayTypeSpec::Any => write!(f, "any"),
+            PrimitiveOrArrayTypeSpec::Anys => write!(f, "any[]"),
         }
     }
 }
@@ -291,6 +300,9 @@ pub enum TemplateTypeSpec {
     /// A string attribute.
     #[serde(rename = "template[string]")]
     String,
+    /// A any attribute.
+    #[serde(rename = "template[any]")]
+    Any,
     /// An array of strings attribute.
     #[serde(rename = "template[string[]]")]
     Strings,
@@ -303,6 +315,9 @@ pub enum TemplateTypeSpec {
     /// An array of boolean attribute.
     #[serde(rename = "template[boolean[]]")]
     Booleans,
+    /// An array of any attribute.
+    #[serde(rename = "template[any[]]")]
+    Anys,
 }
 
 /// Implements a human readable display for TemplateType.
@@ -313,10 +328,12 @@ impl Display for TemplateTypeSpec {
             TemplateTypeSpec::Int => write!(f, "template[int]"),
             TemplateTypeSpec::Double => write!(f, "template[double]"),
             TemplateTypeSpec::String => write!(f, "template[string]"),
+            TemplateTypeSpec::Any => write!(f, "template[any]"),
             TemplateTypeSpec::Strings => write!(f, "template[string[]]"),
             TemplateTypeSpec::Ints => write!(f, "template[int[]]"),
             TemplateTypeSpec::Doubles => write!(f, "template[double[]]"),
             TemplateTypeSpec::Booleans => write!(f, "template[boolean[]]"),
+            TemplateTypeSpec::Anys => write!(f, "template[any[]]"),
         }
     }
 }
@@ -827,6 +844,7 @@ mod tests {
             format!("{}", PrimitiveOrArrayTypeSpec::Booleans),
             "boolean[]"
         );
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Any), "any");
     }
 
     #[test]
@@ -851,6 +869,7 @@ mod tests {
             format!("{}", TemplateTypeSpec::Booleans),
             "template[boolean[]]"
         );
+        assert_eq!(format!("{}", TemplateTypeSpec::Any), "template[any]");
     }
 
     #[test]

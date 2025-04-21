@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 # [TBD] - TBD
 
+- Add attribute `any`. ([]() by @lquerel)
 - Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
 - Add support for remote templates and policies. ([#700](https://github.com/open-telemetry/weaver/pull/700) by @lquerel)
 - Add [Live Check](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_live_check/README.md) for Spans via OTLP/JSON and loose Attributes via JSON/Text. ([#630](https://github.com/open-telemetry/weaver/pull/630) by @jerbly)
