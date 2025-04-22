@@ -133,7 +133,7 @@ pub fn acronym(acronyms: Vec<String>) -> impl Fn(&str) -> String {
 }
 
 // Helper filter to dump value (1st parameter) in yaml format.
-fn to_yaml(value: Value) -> Result<String, minijinja::Error> {
+fn to_yaml(value: &Value) -> Result<Value, minijinja::Error> {
     let yaml = serde_yaml::to_string(&value)
         .map_err(|e| minijinja::Error::new(ErrorKind::BadSerialization, e.to_string()))
         .map(|s| {
@@ -148,7 +148,7 @@ fn to_yaml(value: Value) -> Result<String, minijinja::Error> {
                     _ => rv.push(c),
                 }
             }
-            rv
+            Value::from_safe_string(rv)
         })?;
     Ok(yaml)
 }
