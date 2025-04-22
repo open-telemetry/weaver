@@ -41,7 +41,7 @@
     {
       "id": "registry.test",
       "type": "attribute_group",
-      "brief": "Used for testing attribute any and template[any",
+      "brief": "Used for testing any and template[any]",
       "attributes": [
         0,
         1
