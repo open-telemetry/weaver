@@ -481,9 +481,29 @@ impl Examples {
                 )
             }
             (Examples::String(_), Template(TemplateTypeSpec::String))
+            | (Examples::Int(_), Template(TemplateTypeSpec::Int))
+            | (Examples::Double(_), Template(TemplateTypeSpec::Double))
+            | (Examples::Bool(_), Template(TemplateTypeSpec::Boolean))
+            | (Examples::ListOfStrings(_), Template(TemplateTypeSpec::Strings))
+            | (Examples::ListOfInts(_), Template(TemplateTypeSpec::Ints))
+            | (Examples::ListOfDoubles(_), Template(TemplateTypeSpec::Doubles))
+            | (Examples::ListOfBools(_), Template(TemplateTypeSpec::Booleans))
             | (Examples::Strings(_), Template(TemplateTypeSpec::String))
-            | (Examples::String(_), Template(TemplateTypeSpec::Strings))
-            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::Ok(()),
+            | (Examples::Ints(_), Template(TemplateTypeSpec::Int))
+            | (Examples::Doubles(_), Template(TemplateTypeSpec::Double))
+            | (Examples::Bools(_), Template(TemplateTypeSpec::Boolean)) => WResult::Ok(()),
+            // Weaver version 0.14.0 and below allowed these example type mismatches.
+            // So these have to stay as warnings for backward compatibility
+            (Examples::String(_), Template(TemplateTypeSpec::Strings))
+            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::OkWithNFEs(
+                (),
+                vec![Error::InvalidExampleWarning {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    attribute_id: attr_id.to_owned(),
+                    error: format!("All examples SHOULD be of type `{}`", attr_type),
+                }],
+            ),
             _ => WResult::OkWithNFEs(
                 (),
                 vec![Error::InvalidExampleError {
