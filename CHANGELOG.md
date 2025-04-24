@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 - Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
 - Add support for remote templates and policies. ([#700](https://github.com/open-telemetry/weaver/pull/700) by @lquerel)
 - Add [Live Check](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_live_check/README.md) for Spans via OTLP/JSON and loose Attributes via JSON/Text. ([#630](https://github.com/open-telemetry/weaver/pull/630) by @jerbly)
-- Support for simplified Template Type Examples format where the key/attribute name is no longer included. ([#???](https://github.com/open-telemetry/weaver/pull/???) by @jerbly)
+- Support for simplified Template Type Examples format where the key/attribute name is no longer included. ([#710](https://github.com/open-telemetry/weaver/pull/710) by @jerbly)
 
 ## [0.14.0] - 2025-04-10
 
