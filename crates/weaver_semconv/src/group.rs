@@ -530,8 +530,9 @@ pub enum GroupType {
     /// The metric group semconv is a group where related metric attributes can
     /// be defined and then referenced from other metric groups using ref.
     MetricGroup,
-    /// A group of resources.
-    Resource,
+    /// Entity semantic convention.
+    #[serde(alias="resource")]
+    Entity,
     /// Scope.
     Scope,
     /// Undefined group type.
@@ -1477,7 +1478,7 @@ mod tests {
             .is_ok());
 
         group.stability = None;
-        group.r#type = GroupType::Resource;
+        group.r#type = GroupType::Entity;
         group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1676,7 +1677,7 @@ mod tests {
         group.extends = None;
 
         // Resource must have extends or attributes.
-        group.r#type = GroupType::Resource;
+        group.r#type = GroupType::Entity;
         group.span_kind = None;
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(

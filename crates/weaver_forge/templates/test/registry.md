@@ -32,7 +32,7 @@ Url: {{ registry_url }}
 
 # Resource
 {% for group in ctx.groups -%}
-{%- if group.type == "resource" %}
+{%- if group.type == "entity" %}
 - [{{ group.id }}](resource/{{ group.id | snake_case }}.md)
   {%- endif %}
   {%- endfor %}
