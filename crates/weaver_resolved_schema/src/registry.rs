@@ -13,7 +13,7 @@ use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
-    AttributeGroup, Event, Metric, MetricGroup, Entity, Scope, Span, Undefined,
+    AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;

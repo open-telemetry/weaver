@@ -531,7 +531,7 @@ pub enum GroupType {
     /// be defined and then referenced from other metric groups using ref.
     MetricGroup,
     /// Entity semantic convention.
-    #[serde(alias="resource")]
+    #[serde(alias = "resource")]
     Entity,
     /// Scope.
     Scope,
