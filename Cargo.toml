@@ -92,7 +92,7 @@ tonic = { version = "0.12.3", default-features = false, features = [
     "codegen",
     "prost",
     "tls",
-    "tls-roots",
+    "tls-native-roots",
 ] }
 
 # workspace dependencies
