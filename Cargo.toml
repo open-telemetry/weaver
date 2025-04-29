@@ -239,6 +239,8 @@ install-updater = false
 install-path = "CARGO_HOME"
 # Whether to enable GitHub Attestations
 github-attestations = true
+github-custom-runners = { global="ubuntu-24.04" }
+
 
 
 #exhaustive_enums = "warn"
