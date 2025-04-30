@@ -6,9 +6,9 @@ use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;
@@ -28,35 +28,27 @@ pub struct RegistryStatsArgs {
 }
 
 /// Compute stats on a semantic convention registry.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryStatsArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
-    logger.loading(&format!(
+pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+    info!(
         "Compute statistics on the registry `{}`",
         args.registry.registry
-    ));
+    );
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = &args.registry.registry;
     let registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(
-        &registry_repo,
-        logger.clone(),
-        args.registry.follow_symlinks,
-    )
-    .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-    .into_result_failing_non_fatal()?;
+    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
 
     display_semconv_registry_stats(&registry);
 
     // Resolve the semantic convention registry.
-    let resolved_schema =
-        resolve_semconv_specs(&mut registry, logger, args.registry.include_unreferenced)
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+    let resolved_schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
     if !diag_msgs.is_empty() {
         return Err(diag_msgs);
@@ -65,7 +57,7 @@ pub(crate) fn command(
     display_schema_stats(&resolved_schema);
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        warnings: None,
     })
 }
 

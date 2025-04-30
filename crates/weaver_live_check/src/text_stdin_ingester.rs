@@ -4,8 +4,6 @@
 
 use std::io::{self, BufRead};
 
-use weaver_common::Logger;
-
 use crate::{sample_attribute::SampleAttribute, Error, Ingester, Sample};
 
 /// An ingester that streams attribute names or name=value pairs from standard input.
@@ -27,10 +25,7 @@ impl Default for TextStdinIngester {
 }
 
 impl Ingester for TextStdinIngester {
-    fn ingest(
-        &self,
-        _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         let stdin = io::stdin();
         let handle = stdin.lock();
         Ok(Box::new(TextStdinIterator::new(handle)))

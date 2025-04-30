@@ -5,7 +5,6 @@
 use miette::Diagnostic;
 
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::TestLogger;
 use weaver_resolver::attribute::AttributeCatalog;
 use weaver_resolver::registry::resolve_semconv_registry;
 use weaver_resolver::SchemaResolver;
@@ -28,7 +27,9 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 /// - No warn or error messages should be reported by the logger.
 #[test]
 fn test_cli_interface() {
-    let log = TestLogger::new();
+    // Setup TestLog to capture log messages and keep a reference to it
+    let log = weaver_common::TestLog::new();
+    log.clone().init().expect("Failed to init logger");
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.

@@ -11,7 +11,6 @@ use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_common::Logger;
 
 /// Embedded default diagnostic templates
 pub(crate) static DEFAULT_DIAGNOSTIC_TEMPLATES: Dir<'_> =
@@ -50,10 +49,10 @@ pub enum DiagnosticSubCommand {
 }
 
 /// Manage diagnostic messages.
-pub fn diagnostic(log: impl Logger + Sync + Clone, command: &DiagnosticCommand) -> CmdResult {
+pub fn diagnostic(command: &DiagnosticCommand) -> CmdResult {
     match &command.command {
         DiagnosticSubCommand::Init(args) => {
-            CmdResult::new(init::command(log, args), Some(args.diagnostic.clone()))
+            CmdResult::new(init::command(args), Some(args.diagnostic.clone()))
         }
     }
 }

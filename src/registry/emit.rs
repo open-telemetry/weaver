@@ -4,8 +4,9 @@
 
 use clap::Args;
 
+use log::info;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
-use weaver_common::Logger;
+use weaver_common::log_success;
 use weaver_emit::{emit, ExporterConfig};
 
 use crate::registry::{PolicyArgs, RegistryArgs};
@@ -37,22 +38,15 @@ pub struct RegistryEmitArgs {
 }
 
 /// Emit all spans in the resolved registry.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryEmitArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
-    if args.stdout {
-        logger.mute();
-    }
-    logger.log("Weaver Registry Emit");
-    logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+    info!("Weaver Registry Emit");
+    info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    let (registry, _) =
-        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
+    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
-    logger.loading(&format!("Emitting registry `{}`", args.registry.registry));
+    info!("Emitting registry `{}`", args.registry.registry);
 
     let exporter_config = if args.stdout {
         ExporterConfig::Stdout
@@ -70,15 +64,15 @@ pub(crate) fn command(
     )
     .combine_diag_msgs_with(&diag_msgs)?;
 
-    logger.success(&format!("Emitted registry `{}`", args.registry.registry));
+    log_success(format!("Emitted registry `{}`", args.registry.registry));
 
-    if !diag_msgs.is_empty() {
+    if diag_msgs.has_error() {
         return Err(diag_msgs);
     }
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: args.stdout,
+        warnings: Some(diag_msgs),
     })
 }
 
@@ -89,12 +83,9 @@ mod tests {
     use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_emit() {
-        let logger = TestLogger::new();
-
         let cli = Cli {
             debug: 1,
             quiet: false,
@@ -120,7 +111,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
     }

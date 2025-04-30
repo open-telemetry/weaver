@@ -4,8 +4,8 @@
 
 use crate::error::Error::{CompoundError, TemplateEvaluationFailed};
 use indexmap::IndexMap;
+use log::error;
 use std::error::Error;
-use weaver_common::Logger;
 
 /// Return a nice summary of the error including the chain of causes.
 /// Only the last error in the chain is displayed with a full stack trace.
@@ -44,9 +44,8 @@ pub(crate) fn error_summary(error: minijinja::Error) -> String {
 ///
 /// # Arguments
 ///
-/// * `logger` - The logger to use for logging.
 /// * `error` - The error to print.
-pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: crate::error::Error) {
+pub fn print_dedup_errors(error: crate::error::Error) {
     struct DedupError {
         pub error: String,
         pub occurrences: usize,
@@ -100,7 +99,7 @@ pub fn print_dedup_errors(logger: impl Logger + Sync + Clone, error: crate::erro
                 err.occurrences - 1
             ),
         };
-        logger.error(&output);
+        error!("{}", &output);
     });
 }
 
@@ -111,7 +110,10 @@ mod tests {
 
     #[test]
     fn test_print_dedup_errors() {
-        let logger = weaver_common::TestLogger::new();
+        // Setup TestLog to capture log messages and keep a reference to it
+        let test_log = weaver_common::TestLog::new();
+        test_log.clone().init().expect("Failed to init logger");
+
         let error = CompoundError(vec![
             TargetNotSupported {
                 // <-- These 3 errors are deduplicated
@@ -136,7 +138,9 @@ mod tests {
                 error: "error".to_owned(),
             },
         ]);
-        print_dedup_errors(logger.clone(), error);
-        assert_eq!(logger.error_count(), 2);
+        print_dedup_errors(error);
+
+        // Check the error count using the TestLog reference
+        assert_eq!(test_log.error_count(), 2);
     }
 }

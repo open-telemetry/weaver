@@ -6,8 +6,6 @@
 
 use std::io::{self, Read};
 
-use weaver_common::Logger;
-
 use crate::{Error, Ingester, Sample};
 
 /// An ingester that reads JSON samples input via standard input.
@@ -28,10 +26,7 @@ impl Default for JsonStdinIngester {
 }
 
 impl Ingester for JsonStdinIngester {
-    fn ingest(
-        &self,
-        _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
         let mut buffer = String::new();

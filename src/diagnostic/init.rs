@@ -9,7 +9,7 @@ use include_dir::DirEntry;
 use std::fs;
 use std::path::{Path, PathBuf};
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
+use weaver_common::log_success;
 
 /// Parameters for the `diagnostic init` sub-command
 #[derive(Debug, Args)]
@@ -28,10 +28,7 @@ pub struct DiagnosticInitArgs {
 }
 
 /// Initializes a `diagnostic_templates` directory to define or override diagnostic output formats.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &DiagnosticInitArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(args: &DiagnosticInitArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     extract(args.diagnostic_templates_dir.clone(), &args.target).map_err(|e| {
         Error::InitDiagnosticError {
             path: args.diagnostic_templates_dir.clone(),
@@ -39,13 +36,13 @@ pub(crate) fn command(
         }
     })?;
 
-    logger.success(&format!(
+    log_success(format!(
         "Diagnostic templates initialized at {:?}",
         args.diagnostic_templates_dir
     ));
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        warnings: None,
     })
 }
 
@@ -79,8 +76,6 @@ mod tests {
 
     use tempdir::TempDir;
 
-    use weaver_common::TestLogger;
-
     use crate::cli::{Cli, Commands};
     use crate::diagnostic::init::DiagnosticInitArgs;
     use crate::diagnostic::{DiagnosticCommand, DiagnosticSubCommand};
@@ -88,7 +83,6 @@ mod tests {
 
     #[test]
     fn test_diagnostic_init() {
-        let logger = TestLogger::new();
         let temp_output = TempDir::new("output")
             .expect("Failed to create temporary directory")
             .into_path();
@@ -107,7 +101,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
@@ -132,7 +126,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
