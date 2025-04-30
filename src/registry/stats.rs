@@ -117,7 +117,7 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                     display_common_group_stats(group_type, common_stats);
                     total_number_of_attributes += common_stats.total_attribute_count;
                 }
-                GroupStats::Resource { common_stats } => {
+                GroupStats::Entity { common_stats } => {
                     display_common_group_stats(group_type, common_stats);
                     total_number_of_attributes += common_stats.total_attribute_count;
                 }
