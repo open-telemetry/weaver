@@ -13,7 +13,7 @@ use crate::catalog::Catalog;
 use crate::error::{handle_errors, Error};
 use crate::lineage::GroupLineage;
 use crate::registry::GroupStats::{
-    AttributeGroup, Event, Metric, MetricGroup, Resource, Scope, Span, Undefined,
+    AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
@@ -186,7 +186,7 @@ pub enum GroupStats {
         common_stats: CommonGroupStats,
     },
     /// Statistics for a resource.
-    Resource {
+    Entity {
         /// Common statistics for this type of group.
         common_stats: CommonGroupStats,
     },
@@ -278,7 +278,7 @@ impl Registry {
                         GroupType::Event => Event {
                             common_stats: CommonGroupStats::default(),
                         },
-                        GroupType::Resource => Resource {
+                        GroupType::Entity => Entity {
                             common_stats: CommonGroupStats::default(),
                         },
                         GroupType::Scope => Scope {
@@ -330,7 +330,7 @@ impl Registry {
                     Event { common_stats } => {
                         common_stats.update_stats(group);
                     }
-                    Resource { common_stats } => {
+                    Entity { common_stats } => {
                         common_stats.update_stats(group);
                     }
                     Scope { common_stats } => {
