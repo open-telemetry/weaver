@@ -412,7 +412,7 @@ mod tests {
             .for_each(|(group_type, total)| match group_type {
                 GroupType::AttributeGroup => assert_eq!(*total, 1),
                 GroupType::MetricGroup => assert_eq!(*total, 0),
-                GroupType::Resource => assert_eq!(*total, 1),
+                GroupType::Entity => assert_eq!(*total, 1),
                 GroupType::Span => assert_eq!(*total, 1),
                 _ => panic!("Unexpected group type {:?}", group_type),
             });

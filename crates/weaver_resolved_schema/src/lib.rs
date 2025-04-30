@@ -268,8 +268,8 @@ impl ResolvedTelemetrySchema {
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Resource);
-        let baseline_signals = baseline_schema.groups(GroupType::Resource);
+        let latest_signals = self.groups(GroupType::Entity);
+        let baseline_signals = baseline_schema.groups(GroupType::Entity);
         self.diff_signals(
             SchemaItemType::Resources,
             &latest_signals,
