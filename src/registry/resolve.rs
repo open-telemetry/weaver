@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use clap::Args;
 
+use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
 
 use crate::format::{apply_format, Format};
 use crate::registry::{PolicyArgs, RegistryArgs};
@@ -50,18 +50,11 @@ pub struct RegistryResolveArgs {
 
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryResolveArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
-    if args.output.is_none() {
-        logger.mute();
-    }
-    logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+    info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    let (registry, _) =
-        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
+    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
     apply_format(&args.format, &registry)
         .map_err(|e| format!("Failed to serialize the registry: {e:?}"))
@@ -87,7 +80,7 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: args.output.is_none(),
+        warnings: None,
     })
 }
 
@@ -99,11 +92,9 @@ mod tests {
     use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_resolve() {
-        let logger = TestLogger::new();
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -130,7 +121,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
@@ -161,7 +152,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger);
+        let exit_directive = run_command(&cli);
         // The command should exit with an error code.
         assert_eq!(exit_directive.exit_code, 1);
     }

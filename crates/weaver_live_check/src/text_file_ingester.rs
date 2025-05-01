@@ -5,8 +5,6 @@
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
-use weaver_common::Logger;
-
 use crate::Sample;
 use crate::{sample_attribute::SampleAttribute, Error, Ingester};
 
@@ -27,10 +25,7 @@ impl TextFileIngester {
 }
 
 impl Ingester for TextFileIngester {
-    fn ingest(
-        &self,
-        _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         // Read the file contents
         let content = fs::read_to_string(&self.path).map_err(|e| Error::IngestError {
             error: format!("Failed to read file {}: {}", self.path.display(), e),
@@ -54,7 +49,6 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
-    use weaver_common::TestLogger;
 
     fn get_attribute(sample: &Sample) -> Option<&SampleAttribute> {
         match sample {
@@ -78,8 +72,7 @@ mod tests {
 
         // Create ingester and process the file
         let ingester = TextFileIngester::new(&file_path);
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
+        let result = ingester.ingest().unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 4);
@@ -104,8 +97,7 @@ mod tests {
         // Create ingester and process the file
         let ingester = TextFileIngester::new(&file_path);
 
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
+        let result = ingester.ingest().unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 0);
@@ -116,8 +108,7 @@ mod tests {
         let non_existent_path = Path::new("/path/to/nonexistent/file.txt");
         let ingester = TextFileIngester::new(non_existent_path);
 
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger);
+        let result = ingester.ingest();
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {
@@ -143,8 +134,7 @@ mod tests {
 
         // Create ingester and process the file
         let ingester = TextFileIngester::new(&file_path);
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
+        let result = ingester.ingest().unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 5);

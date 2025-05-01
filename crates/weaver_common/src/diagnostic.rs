@@ -2,12 +2,13 @@
 
 //! A generic diagnostic message
 
-use crate::Logger;
 use miette::{Diagnostic, LabeledSpan, MietteDiagnostic, Report, Severity};
 use serde::Serialize;
 use std::error::Error;
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
+
+use crate::log_error;
 
 /// A flag to globally enable future mode for diagnostics.
 /// When enabled, all the warning messages will be treated as errors.
@@ -156,10 +157,10 @@ impl DiagnosticMessages {
     }
 
     /// Logs all the diagnostic messages
-    pub fn log(&self, logger: impl Logger) {
+    pub fn log(&self) {
         self.0
             .iter()
-            .for_each(|msg| logger.error(&msg.diagnostic.message));
+            .for_each(|msg| log_error(&msg.diagnostic.message));
     }
 
     /// Returns the number of diagnostic messages

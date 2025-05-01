@@ -9,8 +9,9 @@ use std::path::PathBuf;
 use clap::Args;
 use include_dir::{include_dir, Dir};
 
+use log::info;
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
+use weaver_common::log_success;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
@@ -150,34 +151,29 @@ fn default_advisors() -> Vec<Box<dyn Advisor>> {
 }
 
 /// Perform a live check on sample data by comparing it to a semantic convention registry.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryLiveCheckArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut exit_code = 0;
     let mut output = PathBuf::from("output");
     let output_directive = if let Some(path_buf) = &args.output {
         output = path_buf.clone();
         OutputDirective::File
     } else {
-        logger.mute();
         OutputDirective::Stdout
     };
 
-    logger.log("Weaver Registry Live Check");
+    info!("Weaver Registry Live Check");
 
     // Prepare the registry
-    logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+    info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
-    let (registry, _) =
-        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
+    let (registry, _) = prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
-    logger.loading(&format!(
+    info!(
         "Performing live check with registry `{}`",
         args.registry.registry
-    ));
+    );
 
     // Create the live checker with advisors
     let mut live_checker = LiveChecker::new(registry, default_advisors());
@@ -215,21 +211,13 @@ pub(crate) fn command(
 
     // Prepare the ingester
     let ingester = match (&args.input_source, &args.input_format) {
-        (InputSource::File(path), InputFormat::Text) => {
-            TextFileIngester::new(path).ingest(logger.clone())?
-        }
+        (InputSource::File(path), InputFormat::Text) => TextFileIngester::new(path).ingest()?,
 
-        (InputSource::Stdin, InputFormat::Text) => {
-            TextStdinIngester::new().ingest(logger.clone())?
-        }
+        (InputSource::Stdin, InputFormat::Text) => TextStdinIngester::new().ingest()?,
 
-        (InputSource::File(path), InputFormat::Json) => {
-            JsonFileIngester::new(path).ingest(logger.clone())?
-        }
+        (InputSource::File(path), InputFormat::Json) => JsonFileIngester::new(path).ingest()?,
 
-        (InputSource::Stdin, InputFormat::Json) => {
-            JsonStdinIngester::new().ingest(logger.clone())?
-        }
+        (InputSource::Stdin, InputFormat::Json) => JsonStdinIngester::new().ingest()?,
 
         (InputSource::Otlp, _) => (OtlpIngester {
             otlp_grpc_address: args.otlp_grpc_address.clone(),
@@ -237,7 +225,7 @@ pub(crate) fn command(
             admin_port: args.admin_port,
             inactivity_timeout: args.inactivity_timeout,
         })
-        .ingest(logger.clone())?,
+        .ingest()?,
     };
 
     // Run the live check
@@ -259,7 +247,7 @@ pub(crate) fn command(
             samples.push(sample);
         } else {
             engine
-                .generate(logger.clone(), &sample, output.as_path(), &output_directive)
+                .generate(&sample, output.as_path(), &output_directive)
                 .map_err(|e| {
                     DiagnosticMessages::from(Error::OutputError {
                         error: e.to_string(),
@@ -280,7 +268,7 @@ pub(crate) fn command(
             samples,
         };
         engine
-            .generate(logger.clone(), &report, output.as_path(), &output_directive)
+            .generate(&report, output.as_path(), &output_directive)
             .map_err(|e| {
                 DiagnosticMessages::from(Error::OutputError {
                     error: e.to_string(),
@@ -289,7 +277,7 @@ pub(crate) fn command(
     } else {
         // Output the stats
         engine
-            .generate(logger.clone(), &stats, output.as_path(), &output_directive)
+            .generate(&stats, output.as_path(), &output_directive)
             .map_err(|e| {
                 DiagnosticMessages::from(Error::OutputError {
                     error: e.to_string(),
@@ -297,7 +285,7 @@ pub(crate) fn command(
             })?;
     }
 
-    logger.success(&format!(
+    log_success(format!(
         "Performed live check for registry `{}`",
         args.registry.registry
     ));
@@ -308,6 +296,6 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code,
-        quiet_mode: args.output.is_none(),
+        warnings: Some(diag_msgs),
     })
 }

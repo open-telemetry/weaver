@@ -12,7 +12,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-weaver_common = {  path = "../weaver_common" }
+weaver_common = { path = "../weaver_common" }
 weaver_diff = { path = "../weaver_diff" }
 weaver_semconv = { path = "../weaver_semconv" }
 weaver_resolved_schema = { path = "../weaver_resolved_schema" }
@@ -24,6 +24,7 @@ serde_json.workspace = true
 walkdir.workspace = true
 miette.workspace = true
 itertools.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 glob = "0.3.2"

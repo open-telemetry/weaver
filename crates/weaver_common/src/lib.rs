@@ -4,8 +4,6 @@
 
 pub mod diagnostic;
 pub mod error;
-pub mod in_memory;
-pub mod quiet;
 pub mod result;
 pub mod test;
 pub mod vdir;
@@ -14,8 +12,10 @@ use crate::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use crate::error::{format_errors, WeaverError};
 use crate::Error::CompoundError;
 use miette::Diagnostic;
+use paris::formatter::colorize_string;
 use serde::Serialize;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::io::Write;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// All the errors emitted by this crate.
@@ -119,299 +119,19 @@ impl From<Error> for DiagnosticMessages {
     }
 }
 
-/// A trait that defines the interface of a logger.
-pub trait Logger {
-    /// Logs an trace message (only with debug enabled).
-    fn trace(&self, message: &str);
-
-    /// Logs an info message.
-    fn info(&self, message: &str);
-
-    /// Logs a warning message.
-    fn warn(&self, message: &str);
-
-    /// Logs an error message.
-    fn error(&self, message: &str);
-
-    /// Logs a success message.
-    fn success(&self, message: &str);
-
-    /// Logs a newline.
-    fn newline(&self, count: usize);
-
-    /// Indents the logger.
-    fn indent(&self, count: usize);
-
-    /// Stops a loading message.
-    fn done(&self);
-
-    /// Adds a style to the logger.
-    fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self;
-
-    /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str);
-
-    /// Forces the logger to not print a newline for the next message.
-    fn same(&self) -> &Self;
-
-    /// Logs a message without icon.
-    fn log(&self, message: &str);
-
-    /// Mute all the messages except for the warnings and errors.
-    fn mute(&self);
-}
-
-/// A generic logger that can be used to log messages to the console.
-/// This logger is thread-safe and can be cloned.
+/// A logger implementation for the standard Rust `log` crate that can be used in tests.
+/// This logger tracks warning and error counts and is thread-safe.
 #[derive(Default, Clone)]
-pub struct ConsoleLogger {
-    logger: Arc<Mutex<paris::Logger<'static>>>,
-    debug_level: u8,
-    /// Mute all the messages except for the warnings and errors.
-    /// This flag is used to dynamically mute the logger.
-    ///
-    /// Ordering logic:
-    /// - Ordering::Acquire in load: Ensures that when a thread reads the muted flag, it sees all
-    ///   preceding writes to that flag by other threads.
-    /// - Ordering::Release in store: Ensures that when a thread sets the muted flag, the store
-    ///   operation is visible to other threads that subsequently perform an acquire load.
-    mute: Arc<AtomicBool>,
-}
-
-impl ConsoleLogger {
-    /// Creates a new logger.
-    #[must_use]
-    pub fn new(debug_level: u8) -> Self {
-        ConsoleLogger {
-            logger: Arc::new(Mutex::new(paris::Logger::new())),
-            debug_level,
-            mute: Arc::new(AtomicBool::new(false)),
-        }
-    }
-}
-
-impl Logger for ConsoleLogger {
-    /// Logs an trace message (only with debug enabled).
-    fn trace(&self, message: &str) {
-        if self.debug_level > 0 && !self.mute.load(Ordering::Acquire) {
-            _ = self
-                .logger
-                .lock()
-                .expect("Failed to lock logger")
-                .log(message);
-        }
-    }
-
-    /// Logs an info message.
-    fn info(&self, message: &str) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .info(message);
-    }
-
-    /// Logs a warning message.
-    fn warn(&self, message: &str) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .warn(message);
-    }
-
-    /// Logs an error message.
-    fn error(&self, message: &str) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .error(message);
-    }
-
-    /// Logs a success message.
-    fn success(&self, message: &str) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .success(message);
-    }
-
-    /// Logs a newline.
-    fn newline(&self, count: usize) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .newline(count);
-    }
-
-    /// Indents the logger.
-    fn indent(&self, count: usize) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .indent(count);
-    }
-
-    /// Stops a loading message.
-    fn done(&self) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self.logger.lock().expect("Failed to lock logger").done();
-    }
-
-    /// Adds a style to the logger.
-    fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        if self.mute.load(Ordering::Acquire) {
-            return self;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .add_style(name, styles);
-        self
-    }
-
-    /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .loading(message);
-    }
-
-    /// Forces the logger to not print a newline for the next message.
-    fn same(&self) -> &Self {
-        if self.mute.load(Ordering::Acquire) {
-            return self;
-        }
-
-        _ = self.logger.lock().expect("Failed to lock logger").same();
-        self
-    }
-
-    /// Logs a message without icon.
-    fn log(&self, message: &str) {
-        if self.mute.load(Ordering::Acquire) {
-            return;
-        }
-
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .log(message);
-    }
-
-    /// Mute all the messages except for the warnings and errors.
-    fn mute(&self) {
-        // Ordering::Release:
-        // Ensures that when a thread sets the muted flag, the store operation is visible to other
-        // threads that subsequently perform an acquire load.
-        self.mute.store(true, Ordering::Release);
-    }
-}
-
-/// A logger that does not log anything.
-#[derive(Default, Clone)]
-pub struct NullLogger {}
-
-impl NullLogger {
-    /// Creates a new logger.
-    #[must_use]
-    pub fn new() -> Self {
-        NullLogger {}
-    }
-}
-
-impl Logger for NullLogger {
-    /// Logs an trace message (only with debug enabled).
-    fn trace(&self, _: &str) {}
-
-    /// Logs an info message.
-    fn info(&self, _: &str) {}
-
-    /// Logs a warning message.
-    fn warn(&self, _: &str) {}
-
-    /// Logs an error message.
-    fn error(&self, _: &str) {}
-
-    /// Logs a success message.
-    fn success(&self, _: &str) {}
-
-    /// Logs a newline.
-    fn newline(&self, _: usize) {}
-
-    /// Indents the logger.
-    fn indent(&self, _: usize) {}
-
-    /// Stops a loading message.
-    fn done(&self) {}
-
-    /// Adds a style to the logger.
-    fn add_style(&self, _: &str, _: Vec<&'static str>) -> &Self {
-        self
-    }
-
-    /// Logs a loading message with a spinner.
-    fn loading(&self, _: &str) {}
-
-    /// Forces the logger to not print a newline for the next message.
-    fn same(&self) -> &Self {
-        self
-    }
-
-    /// Logs a message without icon.
-    fn log(&self, _: &str) {}
-
-    /// Mute all the messages except for the warnings and errors.
-    fn mute(&self) {}
-}
-
-/// A logger that can be used in unit or integration tests.
-/// This logger is thread-safe and can be cloned.
-#[derive(Default, Clone)]
-pub struct TestLogger {
-    logger: Arc<Mutex<paris::Logger<'static>>>,
+pub struct TestLog {
     warn_count: Arc<AtomicUsize>,
     error_count: Arc<AtomicUsize>,
 }
 
-impl TestLogger {
-    /// Creates a new logger.
+impl TestLog {
+    /// Creates a new test logger.
     #[must_use]
     pub fn new() -> Self {
-        TestLogger {
-            logger: Arc::new(Mutex::new(paris::Logger::new())),
+        TestLog {
             warn_count: Arc::new(AtomicUsize::new(0)),
             error_count: Arc::new(AtomicUsize::new(0)),
         }
@@ -428,109 +148,162 @@ impl TestLogger {
     pub fn error_count(&self) -> usize {
         self.error_count.load(Ordering::Relaxed)
     }
+
+    /// Registers this logger as the global logger.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setting the logger fails.
+    pub fn init(self) -> Result<(), log::SetLoggerError> {
+        log::set_max_level(log::LevelFilter::Trace);
+        log::set_boxed_logger(Box::new(self))
+    }
 }
 
-impl Logger for TestLogger {
-    /// Logs a trace message (only with debug enabled).
-    fn trace(&self, _message: &str) {}
+impl log::Log for TestLog {
+    fn enabled(&self, _metadata: &log::Metadata<'_>) -> bool {
+        true
+    }
 
-    /// Logs an info message.
-    fn info(&self, message: &str) {
-        _ = self
-            .logger
+    fn log(&self, record: &log::Record<'_>) {
+        match record.level() {
+            log::Level::Warn => {
+                _ = self.warn_count.fetch_add(1, Ordering::Relaxed);
+            }
+            log::Level::Error => {
+                _ = self.error_count.fetch_add(1, Ordering::Relaxed);
+            }
+            _ => {}
+        }
+
+        // Print the log message to stderr
+        std::io::stderr()
+            .write_fmt(format_args!("{} - {}\n", record.level(), record.args()))
+            .expect("Failed to write log message");
+    }
+
+    fn flush(&self) {}
+}
+
+/// A stored log record with all relevant information
+#[derive(Debug, Clone)]
+pub struct StoredRecord {
+    /// The level of the log record
+    pub level: log::Level,
+    /// The target of the log record
+    pub target: String,
+    /// The message of the log record
+    pub message: String,
+}
+
+/// A logger implementation for the standard Rust `log` crate that stores records in memory.
+/// This logger keeps all logs in a vector for later inspection and is thread-safe.
+#[derive(Default, Clone)]
+pub struct MemLog {
+    records: Arc<Mutex<Vec<StoredRecord>>>,
+}
+
+impl MemLog {
+    /// Creates a new memory logger.
+    #[must_use]
+    pub fn new() -> Self {
+        MemLog {
+            records: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    /// Returns all stored log records.
+    #[must_use]
+    pub fn records(&self) -> Vec<StoredRecord> {
+        self.records.lock().expect("Failed to lock records").clone()
+    }
+
+    /// Returns the number of warning messages logged.
+    #[must_use]
+    pub fn warn_count(&self) -> usize {
+        self.records
             .lock()
-            .expect("Failed to lock logger")
-            .info(message);
+            .expect("Failed to lock records")
+            .iter()
+            .filter(|record| record.level == log::Level::Warn)
+            .count()
     }
 
-    /// Logs a warning message.
-    fn warn(&self, message: &str) {
-        _ = self
-            .logger
+    /// Returns the number of error messages logged.
+    #[must_use]
+    pub fn error_count(&self) -> usize {
+        self.records
             .lock()
-            .expect("Failed to lock logger")
-            .warn(message);
-        _ = self.warn_count.fetch_add(1, Ordering::Relaxed);
+            .expect("Failed to lock records")
+            .iter()
+            .filter(|record| record.level == log::Level::Error)
+            .count()
     }
 
-    /// Logs an error message.
-    fn error(&self, message: &str) {
-        _ = self
-            .logger
+    /// Registers this logger as the global logger.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setting the logger fails.
+    pub fn init(self) -> Result<(), log::SetLoggerError> {
+        log::set_max_level(log::LevelFilter::Trace);
+        log::set_boxed_logger(Box::new(self))
+    }
+}
+
+impl log::Log for MemLog {
+    fn enabled(&self, _metadata: &log::Metadata<'_>) -> bool {
+        true
+    }
+
+    fn log(&self, record: &log::Record<'_>) {
+        let stored_record = StoredRecord {
+            level: record.level(),
+            target: record.target().to_owned(),
+            message: record.args().to_string(),
+        };
+
+        self.records
             .lock()
-            .expect("Failed to lock logger")
-            .error(message);
-        _ = self.error_count.fetch_add(1, Ordering::Relaxed);
+            .expect("Failed to lock records")
+            .push(stored_record);
     }
 
-    /// Logs a success message.
-    fn success(&self, message: &str) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .success(message);
-    }
+    fn flush(&self) {}
+}
 
-    /// Logs a newline.
-    fn newline(&self, count: usize) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .newline(count);
-    }
+/// Adds some success flare to text
+pub fn success_flare<T: std::fmt::Display>(message: T) -> String {
+    colorize_string(format!("<green><tick></> {}", message))
+}
+/// Logs a success message as info
+pub fn log_success<T: std::fmt::Display>(message: T) {
+    log::info!("{}", success_flare(message));
+}
 
-    /// Indents the logger.
-    fn indent(&self, count: usize) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .indent(count);
-    }
+/// Adds some error flare to text
+pub fn error_flare<T: std::fmt::Display>(message: T) -> String {
+    colorize_string(format!("<red><cross></> {}", message))
+}
+/// Logs an error message as error
+pub fn log_error<T: std::fmt::Display>(message: T) {
+    log::error!("{}", error_flare(message));
+}
 
-    /// Stops a loading message.
-    fn done(&self) {
-        _ = self.logger.lock().expect("Failed to lock logger").done();
-    }
+/// Adds some info flare to text
+pub fn info_flare<T: std::fmt::Display>(message: T) -> String {
+    colorize_string(format!("<cyan><info></> {}", message))
+}
+/// Logs an info message as info
+pub fn log_info<T: std::fmt::Display>(message: T) {
+    log::info!("{}", info_flare(message));
+}
 
-    /// Adds a style to the logger.
-    fn add_style(&self, name: &str, styles: Vec<&'static str>) -> &Self {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .add_style(name, styles);
-        self
-    }
-
-    /// Logs a loading message with a spinner.
-    fn loading(&self, message: &str) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .loading(message);
-    }
-
-    /// Forces the logger to not print a newline for the next message.
-    fn same(&self) -> &Self {
-        _ = self.logger.lock().expect("Failed to lock logger").same();
-        self
-    }
-
-    /// Logs a message without icon.
-    fn log(&self, message: &str) {
-        _ = self
-            .logger
-            .lock()
-            .expect("Failed to lock logger")
-            .log(message);
-    }
-
-    /// Mute all the messages except for the warnings and errors.
-    fn mute(&self) {
-        // We do not need to mute the logger in the tests.
-    }
+/// Adds some warning flare to text
+pub fn warn_flare<T: std::fmt::Display>(message: T) -> String {
+    colorize_string(format!("<yellow><warn></> {}", message))
+}
+/// Logs a warning message as warn
+pub fn log_warn<T: std::fmt::Display>(message: T) {
+    log::warn!("{}", warn_flare(message));
 }
