@@ -254,7 +254,7 @@ pub(crate) fn command(
     let mut stats = LiveCheckStatistics::new(&live_checker.registry);
     let mut samples = Vec::new();
     for mut sample in ingester {
-        sample.run_live_check(&mut live_checker, &mut stats);
+        sample.run_live_check(&mut live_checker, &mut stats)?;
         if report_mode {
             samples.push(sample);
         } else {

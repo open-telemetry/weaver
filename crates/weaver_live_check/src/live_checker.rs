@@ -153,7 +153,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            sample.run_live_check(&mut live_checker, &mut stats);
+            let _ = sample.run_live_check(&mut live_checker, &mut stats);
         }
         stats.finalize();
 
@@ -481,7 +481,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            sample.run_live_check(&mut live_checker, &mut stats);
+            let _ = sample.run_live_check(&mut live_checker, &mut stats);
         }
         stats.finalize();
 
@@ -535,7 +535,7 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            sample.run_live_check(&mut live_checker, &mut stats);
+            let _ = sample.run_live_check(&mut live_checker, &mut stats);
         }
         stats.finalize();
 
@@ -547,5 +547,80 @@ mod tests {
         assert_eq!(stats.total_entities_by_type.get("span_link"), Some(&1));
         assert_eq!(stats.total_entities_by_type.get("resource"), Some(&1));
         assert_eq!(stats.total_advisories, 14);
+    }
+
+    #[test]
+    fn test_bad_custom_rego() {
+        let registry = ResolvedRegistry {
+            registry_url: "TEST".to_owned(),
+            groups: vec![ResolvedGroup {
+                id: "custom.comprehensive.internal".to_owned(),
+                r#type: GroupType::Span,
+                brief: "".to_owned(),
+                note: "".to_owned(),
+                prefix: "".to_owned(),
+                entity_associations: vec![],
+                extends: None,
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                attributes: vec![Attribute {
+                    name: "custom.string".to_owned(),
+                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                    examples: Some(Examples::Strings(vec![
+                        "value1".to_owned(),
+                        "value2".to_owned(),
+                    ])),
+                    brief: "".to_owned(),
+                    tag: None,
+                    requirement_level: RequirementLevel::Recommended {
+                        text: "".to_owned(),
+                    },
+                    sampling_relevant: None,
+                    note: "".to_owned(),
+                    stability: Some(Stability::Stable),
+                    deprecated: None,
+                    prefix: false,
+                    tags: None,
+                    value: None,
+                    annotations: None,
+                }],
+                span_kind: Some(SpanKindSpec::Internal),
+                events: vec![],
+                metric_name: None,
+                instrument: None,
+                unit: None,
+                name: None,
+                lineage: None,
+                display_name: None,
+                body: None,
+            }],
+        };
+
+        let mut samples = vec![Sample::Attribute(
+            SampleAttribute::try_from("custom.string=hello").unwrap(),
+        )];
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![];
+
+        let mut live_checker = LiveChecker::new(registry, advisors);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/bad_advice/".into()),
+            &Some("data/jq/test.jq".into()),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            // This should fail with: "error: use of undefined variable `attribu1te_name` is unsafe"
+
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("use of undefined variable"));
+        }
     }
 }
