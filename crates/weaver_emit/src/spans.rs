@@ -9,6 +9,7 @@ use opentelemetry::{
 };
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::attribute::Attribute;
+use weaver_semconv::attribute::ValueSpec;
 use weaver_semconv::{
     attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, TemplateTypeSpec},
     group::{GroupType, SpanKindSpec},
@@ -63,6 +64,69 @@ fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                     ),
                     _ => Value::String("value".into()),
                 },
+                PrimitiveOrArrayTypeSpec::Any => match &attribute.examples {
+                    // Boolean-based examples
+                    Some(Examples::Bool(b)) => Value::Bool(*b),
+                    Some(Examples::Bools(booleans)) => {
+                        Value::Bool(*booleans.first().unwrap_or(&true))
+                    }
+                    Some(Examples::ListOfBools(list_of_bools)) => Value::Array(Array::Bool(
+                        list_of_bools.first().unwrap_or(&vec![true, false]).to_vec(),
+                    )),
+                    // Integer-based examples
+                    Some(Examples::Int(i)) => Value::I64(*i),
+                    Some(Examples::Ints(ints)) => Value::I64(*ints.first().unwrap_or(&42)),
+                    Some(Examples::ListOfInts(list_of_ints)) => Value::Array(Array::I64(
+                        list_of_ints.first().unwrap_or(&vec![42, 43]).to_vec(),
+                    )),
+                    // Double-based examples
+                    Some(Examples::Double(d)) => Value::F64(f64::from(*d)),
+                    Some(Examples::Doubles(doubles)) => {
+                        Value::F64(f64::from(*doubles.first().unwrap_or((&3.13).into())))
+                    }
+                    Some(Examples::ListOfDoubles(list_of_doubles)) => Value::Array(Array::F64(
+                        list_of_doubles
+                            .first()
+                            .unwrap_or(&vec![(3.13).into(), (3.15).into()])
+                            .iter()
+                            .map(|d| f64::from(*d))
+                            .collect(),
+                    )),
+                    // String-based examples
+                    Some(Examples::String(s)) => Value::String(s.clone().into()),
+                    Some(Examples::Strings(strings)) => Value::String(
+                        strings
+                            .first()
+                            .unwrap_or(&"value".to_owned())
+                            .clone()
+                            .into(),
+                    ),
+                    Some(Examples::ListOfStrings(list_of_strings)) => Value::Array(Array::String(
+                        list_of_strings
+                            .first()
+                            .unwrap_or(&vec!["value1".to_owned(), "value2".to_owned()])
+                            .iter()
+                            .map(|s| s.clone().into())
+                            .collect(),
+                    )),
+                    Some(Examples::Any(any)) => match any {
+                        ValueSpec::Int(v) => Value::I64(*v),
+                        ValueSpec::Double(v) => Value::F64(f64::from(*v)),
+                        ValueSpec::String(v) => Value::String(v.clone().into()),
+                        ValueSpec::Bool(v) => Value::Bool(*v),
+                    },
+                    Some(Examples::Anys(anys)) => anys
+                        .first()
+                        .map(|v| match v {
+                            ValueSpec::Int(v) => Value::I64(*v),
+                            ValueSpec::Double(v) => Value::F64(f64::from(*v)),
+                            ValueSpec::String(v) => Value::String(v.clone().into()),
+                            ValueSpec::Bool(v) => Value::Bool(*v),
+                        })
+                        .unwrap_or(Value::String("value".into())),
+                    // Fallback to a default value
+                    _ => Value::String("value".into()),
+                },
                 PrimitiveOrArrayTypeSpec::Booleans => Value::Array(Array::Bool(vec![true, false])),
                 PrimitiveOrArrayTypeSpec::Ints => match &attribute.examples {
                     Some(Examples::Ints(ints)) => Value::Array(Array::I64(ints.to_vec())),
@@ -112,6 +176,7 @@ fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
                 TemplateTypeSpec::Int => Value::I64(42),
                 TemplateTypeSpec::Double => Value::F64(3.13),
                 TemplateTypeSpec::Boolean => Value::Bool(true),
+                TemplateTypeSpec::Any => Value::String("template_any_value".into()),
                 TemplateTypeSpec::Strings => Value::Array(Array::String(vec![
                     "template_value1".into(),
                     "template_value2".into(),
@@ -287,6 +352,31 @@ mod tests {
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.string", "value"));
+    }
+
+    #[test]
+    fn test_primitive_any_with_example() {
+        let attr = create_test_attribute(
+            "test.any",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Any),
+            Some(Examples::Anys(vec![
+                ValueSpec::Int(123),
+                ValueSpec::String("example".to_owned()),
+            ])),
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.any", 123));
+    }
+
+    #[test]
+    fn test_primitive_any_without_example() {
+        let attr = create_test_attribute(
+            "test.any",
+            AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Any),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.any", "value"));
     }
 
     #[test]
@@ -490,6 +580,17 @@ mod tests {
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.template.key", true));
+    }
+
+    #[test]
+    fn test_template_any() {
+        let attr = create_test_attribute(
+            "test.template",
+            AttributeType::Template(TemplateTypeSpec::Any),
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.template.key", "template_any_value"));
     }
 
     #[test]

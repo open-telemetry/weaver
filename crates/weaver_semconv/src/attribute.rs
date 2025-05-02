@@ -245,6 +245,9 @@ pub enum PrimitiveOrArrayTypeSpec {
     Double,
     /// A string attribute.
     String,
+    /// An any type attribute (accepts any valid value).
+    #[serde(rename = "any")]
+    Any,
     /// An array of strings attribute.
     #[serde(rename = "string[]")]
     Strings,
@@ -271,6 +274,20 @@ impl Display for PrimitiveOrArrayTypeSpec {
             PrimitiveOrArrayTypeSpec::Ints => write!(f, "int[]"),
             PrimitiveOrArrayTypeSpec::Doubles => write!(f, "double[]"),
             PrimitiveOrArrayTypeSpec::Booleans => write!(f, "boolean[]"),
+            PrimitiveOrArrayTypeSpec::Any => write!(f, "any"),
+        }
+    }
+}
+
+impl PrimitiveOrArrayTypeSpec {
+    /// Returns true if the current type is compatible with the other type
+    /// passed as argument.
+    #[must_use]
+    pub fn is_compatible(&self, other: &PrimitiveOrArrayTypeSpec) -> bool {
+        match (self, other) {
+            (PrimitiveOrArrayTypeSpec::Any, _) => true,
+            (_, PrimitiveOrArrayTypeSpec::Any) => true,
+            _ => self == other,
         }
     }
 }
@@ -291,6 +308,9 @@ pub enum TemplateTypeSpec {
     /// A string attribute.
     #[serde(rename = "template[string]")]
     String,
+    /// A any attribute.
+    #[serde(rename = "template[any]")]
+    Any,
     /// An array of strings attribute.
     #[serde(rename = "template[string[]]")]
     Strings,
@@ -313,6 +333,7 @@ impl Display for TemplateTypeSpec {
             TemplateTypeSpec::Int => write!(f, "template[int]"),
             TemplateTypeSpec::Double => write!(f, "template[double]"),
             TemplateTypeSpec::String => write!(f, "template[string]"),
+            TemplateTypeSpec::Any => write!(f, "template[any]"),
             TemplateTypeSpec::Strings => write!(f, "template[string[]]"),
             TemplateTypeSpec::Ints => write!(f, "template[int[]]"),
             TemplateTypeSpec::Doubles => write!(f, "template[double[]]"),
@@ -359,6 +380,8 @@ pub enum ValueSpec {
     Double(OrderedFloat<f64>),
     /// A string value.
     String(String),
+    /// A boolean value.
+    Bool(bool),
 }
 
 /// Implements a human readable display for Value.
@@ -369,6 +392,7 @@ impl Display for ValueSpec {
             ValueSpec::Int(v) => write!(f, "{}", v),
             ValueSpec::Double(v) => write!(f, "{}", v),
             ValueSpec::String(v) => write!(f, "{}", v),
+            ValueSpec::Bool(v) => write!(f, "{}", v),
         }
     }
 }
@@ -418,6 +442,8 @@ pub enum Examples {
     Double(OrderedFloat<f64>),
     /// A string example.
     String(String),
+    /// A any example.
+    Any(ValueSpec),
     /// A array of integers example.
     Ints(Vec<i64>),
     /// A array of doubles example.
@@ -426,6 +452,8 @@ pub enum Examples {
     Bools(Vec<bool>),
     /// A array of strings example.
     Strings(Vec<String>),
+    /// A array of anys example.
+    Anys(Vec<ValueSpec>),
     /// List of arrays of integers example.
     ListOfInts(Vec<Vec<i64>>),
     /// List of arrays of doubles example.
@@ -457,9 +485,8 @@ impl Examples {
             | (Examples::ListOfInts(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Ints))
             | (Examples::ListOfDoubles(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Doubles))
             | (Examples::ListOfBools(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Booleans))
-            | (Examples::ListOfStrings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings)) => {
-                WResult::Ok(())
-            }
+            | (Examples::ListOfStrings(_), PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Strings))
+            | (_, PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Any)) => WResult::Ok(()),
             (_, Enum { .. }) => {
                 // enum types are open so it's not possible to validate the examples
                 WResult::Ok(())
@@ -481,9 +508,30 @@ impl Examples {
                 )
             }
             (Examples::String(_), Template(TemplateTypeSpec::String))
+            | (Examples::Int(_), Template(TemplateTypeSpec::Int))
+            | (Examples::Double(_), Template(TemplateTypeSpec::Double))
+            | (Examples::Bool(_), Template(TemplateTypeSpec::Boolean))
+            | (Examples::ListOfStrings(_), Template(TemplateTypeSpec::Strings))
+            | (Examples::ListOfInts(_), Template(TemplateTypeSpec::Ints))
+            | (Examples::ListOfDoubles(_), Template(TemplateTypeSpec::Doubles))
+            | (Examples::ListOfBools(_), Template(TemplateTypeSpec::Booleans))
             | (Examples::Strings(_), Template(TemplateTypeSpec::String))
-            | (Examples::String(_), Template(TemplateTypeSpec::Strings))
-            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::Ok(()),
+            | (Examples::Ints(_), Template(TemplateTypeSpec::Int))
+            | (Examples::Doubles(_), Template(TemplateTypeSpec::Double))
+            | (Examples::Bools(_), Template(TemplateTypeSpec::Boolean))
+            | (_, Template(TemplateTypeSpec::Any)) => WResult::Ok(()),
+            // Weaver version 0.14.0 and below allowed these example type mismatches.
+            // So these have to stay as warnings for backward compatibility
+            (Examples::String(_), Template(TemplateTypeSpec::Strings))
+            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::OkWithNFEs(
+                (),
+                vec![Error::InvalidExampleWarning {
+                    path_or_url: path_or_url.to_owned(),
+                    group_id: group_id.to_owned(),
+                    attribute_id: attr_id.to_owned(),
+                    error: format!("All examples SHOULD be of type `{}`", attr_type),
+                }],
+            ),
             _ => WResult::OkWithNFEs(
                 (),
                 vec![Error::InvalidExampleError {
@@ -827,6 +875,7 @@ mod tests {
             format!("{}", PrimitiveOrArrayTypeSpec::Booleans),
             "boolean[]"
         );
+        assert_eq!(format!("{}", PrimitiveOrArrayTypeSpec::Any), "any");
     }
 
     #[test]
@@ -851,6 +900,7 @@ mod tests {
             format!("{}", TemplateTypeSpec::Booleans),
             "template[boolean[]]"
         );
+        assert_eq!(format!("{}", TemplateTypeSpec::Any), "template[any]");
     }
 
     #[test]
@@ -987,6 +1037,21 @@ mod tests {
         let yaml = "---\n- true\n- false";
         let ex: Examples = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(ex, Examples::Bools(vec![true, false]));
+    }
+
+    #[test]
+    fn test_examples_anys() {
+        let yaml = "---\n- 1\n- 2.0\n- \"text\"\n- true";
+        let ex: Examples = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(
+            ex,
+            Examples::Anys(vec![
+                ValueSpec::Int(1),
+                ValueSpec::Double(OrderedFloat(2.0)),
+                ValueSpec::String("text".to_owned()),
+                ValueSpec::Bool(true),
+            ])
+        );
     }
 
     #[test]
@@ -1249,6 +1314,16 @@ mod tests {
             .validate(&attr_double, "grp", "attr", "url")
             .into_result_failing_non_fatal()
             .is_err());
+    }
+
+    #[test]
+    fn test_is_compatible() {
+        assert!(PrimitiveOrArrayTypeSpec::Boolean.is_compatible(&PrimitiveOrArrayTypeSpec::Boolean));
+        assert!(!PrimitiveOrArrayTypeSpec::Boolean.is_compatible(&PrimitiveOrArrayTypeSpec::Int));
+        assert!(PrimitiveOrArrayTypeSpec::Int.is_compatible(&PrimitiveOrArrayTypeSpec::Int));
+        assert!(PrimitiveOrArrayTypeSpec::Int.is_compatible(&PrimitiveOrArrayTypeSpec::Any));
+        assert!(PrimitiveOrArrayTypeSpec::Any.is_compatible(&PrimitiveOrArrayTypeSpec::Double));
+        assert!(PrimitiveOrArrayTypeSpec::Any.is_compatible(&PrimitiveOrArrayTypeSpec::Any));
     }
 }
 

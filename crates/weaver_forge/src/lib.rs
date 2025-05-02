@@ -23,7 +23,7 @@ use error::Error::{
     WriteGeneratedCodeFailed,
 };
 use weaver_common::error::handle_errors;
-use weaver_common::Logger;
+use weaver_common::log_success;
 
 use crate::config::{ApplicationMode, Params, TemplateConfig, WeaverConfig};
 use crate::debug::error_summary;
@@ -235,7 +235,6 @@ impl TemplateEngine {
     ///
     /// # Arguments
     ///
-    /// * `log` - The logger to use for logging
     /// * `context` - The context to use when generating snippets.
     /// * `snippet_id` - The template to use when rendering the snippet.
     pub fn generate_snippet<T: Serialize>(
@@ -263,7 +262,6 @@ impl TemplateEngine {
     ///
     /// # Arguments
     ///
-    /// * `log` - The logger to use for logging.
     /// * `context` - The context to use for generating the artifacts.
     /// * `output_dir` - The directory where the generated artifacts will be saved.
     ///
@@ -273,7 +271,6 @@ impl TemplateEngine {
     /// * `Err(error)` if an error occurred during the generation of the artifacts.
     pub fn generate<T: Serialize>(
         &self,
-        log: impl Logger + Clone + Sync,
         context: &T,
         output_dir: &Path,
         output_directive: &OutputDirective,
@@ -303,7 +300,6 @@ impl TemplateEngine {
                             &context,
                             output_dir,
                             output_directive,
-                            log.clone(),
                         )
                         .err()
                     })
@@ -323,7 +319,6 @@ impl TemplateEngine {
         context: &serde_json::Value,
         output_dir: &Path,
         output_directive: &OutputDirective,
-        log: impl Logger + Sync + Clone,
     ) -> Result<(), Error> {
         let yaml_params = Self::init_params(template.params.clone())?;
         let params = Self::prepare_jq_context(&yaml_params)?;
@@ -338,7 +333,6 @@ impl TemplateEngine {
                 template_file,
                 output_dir,
                 output_directive,
-                log,
             ),
             ApplicationMode::Each => self.process_each_mode(
                 &filtered_result,
@@ -347,7 +341,6 @@ impl TemplateEngine {
                 template_file,
                 output_dir,
                 output_directive,
-                log,
             ),
         }
     }
@@ -363,7 +356,6 @@ impl TemplateEngine {
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
-        log: impl Logger + Sync + Clone,
     ) -> Result<(), Error> {
         match ctx {
             serde_json::Value::Array(values) => {
@@ -372,7 +364,6 @@ impl TemplateEngine {
                     .into_par_iter()
                     .filter_map(|result| {
                         self.evaluate_template(
-                            log.clone(),
                             NewContext { ctx: result }.try_into().ok()?,
                             file_path,
                             params,
@@ -386,7 +377,6 @@ impl TemplateEngine {
                 handle_errors(errs)
             }
             _ => self.evaluate_template(
-                log.clone(),
                 NewContext { ctx }.try_into()?,
                 file_path,
                 params,
@@ -406,14 +396,12 @@ impl TemplateEngine {
         template_file: &Path,
         output_dir: &Path,
         output_directive: &OutputDirective,
-        log: impl Logger + Sync + Clone,
     ) -> Result<(), Error> {
         if ctx.is_null() || (ctx.is_array() && ctx.as_array().expect("is_array").is_empty()) {
             // Skip the template evaluation if the filtered result is null or an empty array
             return Ok(());
         }
         self.evaluate_template(
-            log.clone(),
             NewContext { ctx }.try_into()?,
             file_path,
             params,
@@ -481,7 +469,6 @@ impl TemplateEngine {
     #[allow(clippy::print_stderr)] // This is used for the OutputDirective::Stderr variant
     fn evaluate_template(
         &self,
-        log: impl Logger + Clone + Sync,
         ctx: serde_json::Value,
         file_path: Option<&String>,
         params: &BTreeMap<String, serde_yaml::Value>,
@@ -560,7 +547,7 @@ impl TemplateEngine {
             OutputDirective::File => {
                 let generated_file =
                     Self::save_generated_code(output_dir, template_object.file_name(), output)?;
-                log.success(&format!("Generated file {:?}", generated_file));
+                log_success(format!("Generated file {:?}", generated_file));
             }
         }
         Ok(())
@@ -695,7 +682,6 @@ mod tests {
     use globset::Glob;
     use serde::Serialize;
 
-    use weaver_common::TestLogger;
     use weaver_diff::diff_dir;
     use weaver_resolver::SchemaResolver;
     use weaver_semconv::registry::SemConvRegistry;
@@ -710,13 +696,7 @@ mod tests {
     fn prepare_test(
         target: &str,
         cli_params: Params,
-    ) -> (
-        TestLogger,
-        TemplateEngine,
-        ResolvedRegistry,
-        PathBuf,
-        PathBuf,
-    ) {
+    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let registry_id = "default";
         let registry = SemConvRegistry::try_from_path_pattern(registry_id, "data/*.yaml")
             .into_result_failing_non_fatal()
@@ -728,13 +708,7 @@ mod tests {
         target: &str,
         cli_params: Params,
         mut registry: SemConvRegistry,
-    ) -> (
-        TestLogger,
-        TemplateEngine,
-        ResolvedRegistry,
-        PathBuf,
-        PathBuf,
-    ) {
+    ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
@@ -757,7 +731,6 @@ mod tests {
         fs::remove_dir_all(format!("observed_output/{}", target)).unwrap_or_default();
 
         (
-            TestLogger::default(),
             engine,
             template_registry,
             PathBuf::from(format!("observed_output/{}", target)),
@@ -893,7 +866,6 @@ mod tests {
         // We ignore failures because the directory may not exist yet.
         let _ = fs::remove_dir_all("observed_output/test");
 
-        let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "test")
             .expect("Failed to create file system loader");
         let config =
@@ -932,13 +904,12 @@ mod tests {
 
         engine
             .generate(
-                logger.clone(),
                 &template_registry,
                 Path::new("observed_output/test"),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
-                print_dedup_errors(logger.clone(), e.clone());
+                print_dedup_errors(e.clone());
             })
             .expect("Failed to generate registry assets");
 
@@ -947,18 +918,17 @@ mod tests {
 
     #[test]
     fn test_whitespace_control() {
-        let (logger, engine, template_registry, observed_output, expected_output) =
+        let (engine, template_registry, observed_output, expected_output) =
             prepare_test("whitespace_control", Params::default());
 
         engine
             .generate(
-                logger.clone(),
                 &template_registry,
                 observed_output.as_path(),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
-                print_dedup_errors(logger.clone(), e.clone());
+                print_dedup_errors(e.clone());
             })
             .expect("Failed to generate registry assets");
 
@@ -972,7 +942,6 @@ mod tests {
             text: String,
         }
 
-        let logger = TestLogger::default();
         let loader = FileSystemFileLoader::try_new("templates".into(), "py_compat")
             .expect("Failed to create file system loader");
         let config = WeaverConfig::try_from_loader(&loader).unwrap();
@@ -983,13 +952,12 @@ mod tests {
 
         engine
             .generate(
-                logger.clone(),
                 &context,
                 Path::new("observed_output/py_compat"),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
-                print_dedup_errors(logger.clone(), e.clone());
+                print_dedup_errors(e.clone());
             })
             .expect("Failed to generate registry assets");
 
@@ -998,18 +966,17 @@ mod tests {
 
     #[test]
     fn test_semconv_jq_functions() {
-        let (logger, engine, template_registry, observed_output, expected_output) =
+        let (engine, template_registry, observed_output, expected_output) =
             prepare_test("semconv_jq_fn", Params::default());
 
         engine
             .generate(
-                logger.clone(),
                 &template_registry,
                 observed_output.as_path(),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
-                print_dedup_errors(logger.clone(), e.clone());
+                print_dedup_errors(e.clone());
             })
             .expect("Failed to generate registry assets");
 
@@ -1025,18 +992,17 @@ mod tests {
             ),
             ("shared_2", serde_yaml::Value::Bool(true)),
         ]);
-        let (logger, engine, template_registry, observed_output, expected_output) =
+        let (engine, template_registry, observed_output, expected_output) =
             prepare_test("template_params", cli_params);
 
         engine
             .generate(
-                logger.clone(),
                 &template_registry,
                 observed_output.as_path(),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
-                print_dedup_errors(logger.clone(), e.clone());
+                print_dedup_errors(e.clone());
             })
             .expect("Failed to generate registry assets");
 
@@ -1052,18 +1018,17 @@ mod tests {
         )
         .into_result_failing_non_fatal()
         .expect("Failed to load registry");
-        let (logger, engine, template_registry, observed_output, expected_output) =
+        let (engine, template_registry, observed_output, expected_output) =
             prepare_test_with_registry("comment_format", Params::default(), registry);
 
         engine
             .generate(
-                logger.clone(),
                 &template_registry,
                 observed_output.as_path(),
                 &OutputDirective::File,
             )
             .inspect_err(|e| {
-                print_dedup_errors(logger.clone(), e.clone());
+                print_dedup_errors(e.clone());
             })
             .expect("Failed to generate registry assets");
 

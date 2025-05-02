@@ -1,0 +1,1 @@
+Test attribute `any` and `template[any]`

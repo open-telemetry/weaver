@@ -27,6 +27,14 @@ def stability_filter($options):
         .
     end;
 
+# Expands signal argument into a filter on groups.
+def signal_filter($signal):
+  if ($signal | index("resource")) then
+    map(select(.type == "entity"))
+  else
+    map(select(.type == $signal))
+  end;
+
 # Filters out attributes based on code generation annotations.
 # $options is an object that can contain:
 # - ignore_code_generation_annotations: a boolean to ignore code generation annotations.
@@ -101,7 +109,7 @@ def semconv_grouped_attributes: semconv_grouped_attributes({});
 # - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable signals instead.
 def semconv_signal($signal; $options):
     .groups
-    | map(select(.type == $signal))
+    | signal_filter($signal)
     | stability_filter($options)
     | if ($options | has("exclude_deprecated") and $options.exclude_deprecated == true) then
         map(select(.id | endswith(".deprecated") | not))

@@ -29,8 +29,13 @@ The attribute value MUST consist of either multiple header values as an array of
   
 - Type: template[string[]]
 - Examples: [
-    "http.request.header.content-type=[\"application/json\"]",
-    "http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]",
+    [
+        "application/json",
+    ],
+    [
+        "1.2.3.4",
+        "1.2.3.5",
+    ],
 ]
   
 - Stability: Stable
@@ -126,8 +131,13 @@ The attribute value MUST consist of either multiple header values as an array of
   
 - Type: template[string[]]
 - Examples: [
-    "http.response.header.content-type=[\"application/json\"]",
-    "http.response.header.my-custom-header=[\"abc\", \"def\"]",
+    [
+        "application/json",
+    ],
+    [
+        "abc",
+        "def",
+    ],
 ]
   
 - Stability: Stable

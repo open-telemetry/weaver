@@ -33,6 +33,7 @@ fn test_cli_interface() {
         .arg("crates/weaver_codegen_test/semconv_registry/")
         .arg("--diagnostic-format")
         .arg("json")
+        .arg("--diagnostic-stdout")
         .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");
@@ -43,10 +44,11 @@ fn test_cli_interface() {
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
     let json_value: Vec<serde_json::Value> = serde_json::from_str(&stdout).expect("Invalid JSON");
     // We expect 41 policy violations.
+    // - 2 legacy template examples format
     // - 12 allow_custom_values
     // - 3 missing stability on enum members
     // - 13 violations before resolution
     // - 3 violations for metrics after resolution
     // - 9 violations for http after resolution
-    assert_eq!(json_value.len(), 40);
+    assert_eq!(json_value.len(), 42);
 }

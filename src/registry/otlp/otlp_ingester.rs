@@ -1,7 +1,8 @@
 use std::time::Duration;
 
+use log::info;
 use serde_json::{json, Value};
-use weaver_common::Logger;
+use weaver_common::log_info;
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
     sample_resource::SampleResource,
@@ -199,10 +200,7 @@ impl Iterator for OtlpIterator {
 }
 
 impl Ingester for OtlpIngester {
-    fn ingest(
-        &self,
-        logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         let otlp_requests = listen_otlp_requests(
             self.otlp_grpc_address.as_str(),
             self.otlp_grpc_port,
@@ -213,17 +211,20 @@ impl Ingester for OtlpIngester {
             error: format!("Failed to listen to OTLP requests: {}", e),
         })?;
 
-        logger.log("To stop the OTLP receiver:");
-        logger.log("  - press CTRL+C,");
-        logger.log(&format!(
+        log_info("To stop the OTLP receiver:");
+        info!("  - press CTRL+C,");
+        info!(
             "  - send a SIGHUP signal to the weaver process or run this command kill -SIGHUP {}",
             std::process::id()
-        ));
-        logger.log(&format!("  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.", self.admin_port));
-        logger.log(&format!(
+        );
+        info!(
+            "  - or send a POST request to the /stop endpoint via the following command curl -X POST http://localhost:{}/stop.",
+            self.admin_port
+        );
+        info!(
             "The OTLP receiver will stop after {} seconds of inactivity.",
             self.inactivity_timeout
-        ));
+        );
 
         Ok(Box::new(OtlpIterator::new(Box::new(otlp_requests))))
     }
