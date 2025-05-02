@@ -1,0 +1,7 @@
+groups:
+  - id: metric.any.attributes
+    type: attribute_group
+    brief: "Common any metrics attributes."
+    attributes:
+      - ref: test.any
+      - ref: test.template.any
