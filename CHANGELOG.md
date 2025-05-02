@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# [TBD] - TBD
+# [0.15.0] - 2025-05-01
 
 - Add support for attributes of type `any`. ([#707](https://github.com/open-telemetry/weaver/pull/707) by @lquerel)
 - Add shell completion functionality. ([#682](https://github.com/open-telemetry/weaver/pull/682) by @larrys)
