@@ -8,8 +8,8 @@ use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
-    live_checker::LiveChecker, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
-    MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
+    live_checker::LiveChecker, Error, LiveCheckResult, LiveCheckRunner, LiveCheckStatistics,
+    SampleRef, MISSING_ATTRIBUTE_ADVICE_TYPE, TEMPLATE_ATTRIBUTE_ADVICE_TYPE,
 };
 
 /// Represents a sample telemetry attribute parsed from any source
@@ -57,7 +57,7 @@ impl<'de> Deserialize<'de> for SampleAttribute {
 }
 
 impl TryFrom<&str> for SampleAttribute {
-    type Error = crate::Error;
+    type Error = Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let trimmed = value.trim();
@@ -162,7 +162,11 @@ impl SampleAttribute {
 }
 
 impl LiveCheckRunner for SampleAttribute {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+    ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
         let semconv_attribute = {
@@ -196,14 +200,13 @@ impl LiveCheckRunner for SampleAttribute {
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.as_ref(), None)
-            {
-                result.add_advice_list(advice_list);
-            }
+            let advice_list =
+                advisor.advise(SampleRef::Attribute(self), semconv_attribute.as_ref(), None)?;
+            result.add_advice_list(advice_list);
         }
         self.live_check_result = Some(result);
         self.update_stats(stats);
+        Ok(())
     }
 }
 

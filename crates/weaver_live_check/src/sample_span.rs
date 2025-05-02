@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, LiveCheckResult, LiveCheckRunner,
-    LiveCheckStatistics, SampleRef,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
+    LiveCheckRunner, LiveCheckStatistics, SampleRef,
 };
 
 /// Represents a sample telemetry span parsed from any source
@@ -31,25 +31,29 @@ pub struct SampleSpan {
 }
 
 impl LiveCheckRunner for SampleSpan {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+    ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(SampleRef::Span(self), None, None) {
-                result.add_advice_list(advice_list);
-            }
+            let advice_list = advisor.advise(SampleRef::Span(self), None, None)?;
+            result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats);
+            attribute.run_live_check(live_checker, stats)?;
         }
         for span_event in &mut self.span_events {
-            span_event.run_live_check(live_checker, stats);
+            span_event.run_live_check(live_checker, stats)?;
         }
         for span_link in &mut self.span_links {
-            span_link.run_live_check(live_checker, stats);
+            span_link.run_live_check(live_checker, stats)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("span");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        Ok(())
     }
 }
 
@@ -66,19 +70,23 @@ pub struct SampleSpanEvent {
 }
 
 impl LiveCheckRunner for SampleSpanEvent {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+    ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(SampleRef::SpanEvent(self), None, None) {
-                result.add_advice_list(advice_list);
-            }
+            let advice_list = advisor.advise(SampleRef::SpanEvent(self), None, None)?;
+            result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats);
+            attribute.run_live_check(live_checker, stats)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("span_event");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        Ok(())
     }
 }
 
@@ -93,18 +101,22 @@ pub struct SampleSpanLink {
 }
 
 impl LiveCheckRunner for SampleSpanLink {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+    ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
-            if let Ok(advice_list) = advisor.advise(SampleRef::SpanLink(self), None, None) {
-                result.add_advice_list(advice_list);
-            }
+            let advice_list = advisor.advise(SampleRef::SpanLink(self), None, None)?;
+            result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats);
+            attribute.run_live_check(live_checker, stats)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("span_link");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        Ok(())
     }
 }
