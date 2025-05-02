@@ -21,7 +21,6 @@ use crate::CmdResult;
 use check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::Logger;
 
 mod check;
 mod diff;
@@ -176,47 +175,38 @@ pub struct PolicyArgs {
 }
 
 /// Manage a semantic convention registry and return the exit code.
-pub fn semconv_registry(log: impl Logger + Sync + Clone, command: &RegistryCommand) -> CmdResult {
+pub fn semconv_registry(command: &RegistryCommand) -> CmdResult {
     match &command.command {
-        RegistrySubCommand::Check(args) => CmdResult::new(
-            check::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Generate(args) => CmdResult::new(
-            generate::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Stats(args) => CmdResult::new(
-            stats::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Resolve(args) => CmdResult::new(
-            resolve::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Search(args) => CmdResult::new(
-            search::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
+        RegistrySubCommand::Check(args) => {
+            CmdResult::new(check::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Generate(args) => {
+            CmdResult::new(generate::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Stats(args) => {
+            CmdResult::new(stats::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Resolve(args) => {
+            CmdResult::new(resolve::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Search(args) => {
+            CmdResult::new(search::command(args), Some(args.diagnostic.clone()))
+        }
         RegistrySubCommand::UpdateMarkdown(args) => CmdResult::new(
-            update_markdown::command(log.clone(), args),
+            update_markdown::command(args),
             Some(args.diagnostic.clone()),
         ),
-        RegistrySubCommand::JsonSchema(args) => CmdResult::new(
-            json_schema::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Diff(args) => CmdResult::new(
-            diff::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::LiveCheck(args) => CmdResult::new(
-            live_check::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
-        RegistrySubCommand::Emit(args) => CmdResult::new(
-            emit::command(log.clone(), args),
-            Some(args.diagnostic.clone()),
-        ),
+        RegistrySubCommand::JsonSchema(args) => {
+            CmdResult::new(json_schema::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Diff(args) => {
+            CmdResult::new(diff::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::LiveCheck(args) => {
+            CmdResult::new(live_check::command(args), Some(args.diagnostic.clone()))
+        }
+        RegistrySubCommand::Emit(args) => {
+            CmdResult::new(emit::command(args), Some(args.diagnostic.clone()))
+        }
     }
 }

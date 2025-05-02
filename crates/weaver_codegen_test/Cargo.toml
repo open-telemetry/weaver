@@ -21,7 +21,9 @@ weaver_resolver = { path = "../weaver_resolver" }
 weaver_semconv = { path = "../weaver_semconv" }
 walkdir.workspace = true
 dirs.workspace = true
-miette.workspace =  true
+miette.workspace = true
+log.workspace = true
+
 
 [dependencies]
 opentelemetry.workspace = true

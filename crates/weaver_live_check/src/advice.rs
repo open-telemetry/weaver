@@ -138,6 +138,7 @@ impl Advisor for TypeAdvisor {
                                     TemplateTypeSpec::Int => PrimitiveOrArrayTypeSpec::Int,
                                     TemplateTypeSpec::Double => PrimitiveOrArrayTypeSpec::Double,
                                     TemplateTypeSpec::String => PrimitiveOrArrayTypeSpec::String,
+                                    TemplateTypeSpec::Any => PrimitiveOrArrayTypeSpec::Any,
                                     TemplateTypeSpec::Strings => PrimitiveOrArrayTypeSpec::Strings,
                                     TemplateTypeSpec::Ints => PrimitiveOrArrayTypeSpec::Ints,
                                     TemplateTypeSpec::Doubles => PrimitiveOrArrayTypeSpec::Doubles,
@@ -163,7 +164,7 @@ impl Advisor for TypeAdvisor {
                             }
                         };
 
-                        if attribute_type != semconv_attribute_type {
+                        if !attribute_type.is_compatible(semconv_attribute_type) {
                             Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),

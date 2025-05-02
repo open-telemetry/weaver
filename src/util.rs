@@ -10,9 +10,9 @@ use std::path::PathBuf;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
+use weaver_common::log_success;
 use weaver_common::result::WResult;
 use weaver_common::vdir::VirtualDirectory;
-use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_resolver::SchemaResolver;
@@ -26,7 +26,6 @@ use weaver_semconv::semconv::SemConvSpec;
 /// # Arguments
 ///
 /// * `registry_repo` - The registry repository.
-/// * `log` - The logger for logging messages.
 ///
 /// # Returns
 ///
@@ -34,12 +33,11 @@ use weaver_semconv::semconv::SemConvSpec;
 /// or a `weaver_resolver::Error` on failure.
 pub(crate) fn load_semconv_specs(
     registry_repo: &RegistryRepo,
-    log: impl Logger + Sync + Clone,
     follow_symlinks: bool,
 ) -> WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error> {
     SchemaResolver::load_semconv_specs(registry_repo, true, follow_symlinks).inspect(
         |semconv_specs, _| {
-            log.success(&format!(
+            log_success(format!(
                 "`{}` semconv registry `{}` loaded ({} files)",
                 registry_repo.id(),
                 registry_repo.registry_path_repr(),
@@ -190,7 +188,6 @@ pub(crate) fn check_policy(
 /// # Arguments
 ///
 /// * `registry` - The semantic convention registry to resolve.
-/// * `logger` - The logger for logging messages.
 ///
 /// # Returns
 ///
@@ -198,17 +195,16 @@ pub(crate) fn check_policy(
 /// `DiagnosticMessages` on failure.
 pub(crate) fn resolve_semconv_specs(
     registry: &mut SemConvRegistry,
-    logger: impl Logger + Sync + Clone,
     include_unreferenced: bool,
 ) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let registry_id = registry.id().to_owned();
     match SchemaResolver::resolve_semantic_convention_registry(registry, include_unreferenced) {
         WResult::Ok(resolved_schema) => {
-            logger.success(&format!("`{}` semconv registry resolved", registry_id));
+            log_success(format!("`{}` semconv registry resolved", registry_id));
             WResult::Ok(resolved_schema)
         }
         WResult::OkWithNFEs(resolved_schema, errs) => {
-            logger.success(&format!("`{}` semconv registry resolved", registry_id));
+            log_success(format!("`{}` semconv registry resolved", registry_id));
             let nfes = errs.into_iter().map(DiagnosticMessage::new).collect();
             WResult::OkWithNFEs(resolved_schema, nfes)
         }
@@ -220,7 +216,6 @@ pub(crate) fn resolve_semconv_specs(
 pub(crate) fn resolve_telemetry_schema(
     registry_repo: &RegistryRepo,
     semconv_specs: Vec<(Provenance, SemConvSpec)>,
-    logger: impl Logger + Sync + Clone,
     include_unreferenced: bool,
 ) -> WResult<ResolvedTelemetrySchema, DiagnosticMessage> {
     let mut registry = match SemConvRegistry::from_semconv_specs(registry_repo, semconv_specs) {
@@ -231,7 +226,7 @@ pub(crate) fn resolve_telemetry_schema(
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    resolve_semconv_specs(&mut registry, logger.clone(), include_unreferenced)
+    resolve_semconv_specs(&mut registry, include_unreferenced)
 }
 
 /// Resolves the main registry and optionally checks policies.
@@ -242,7 +237,6 @@ pub(crate) fn resolve_telemetry_schema(
 ///
 /// * `registry_args` - The common CLI args for the main registry.
 /// * `policy_args` - The common CLI args for policies.
-/// * `logger` - The logger for logging messages.
 /// * `diag_msgs` - The DiagnosticMessages to append to.
 ///
 /// # Returns
@@ -252,7 +246,6 @@ pub(crate) fn resolve_telemetry_schema(
 pub(crate) fn prepare_main_registry(
     registry_args: &RegistryArgs,
     policy_args: &PolicyArgs,
-    logger: impl Logger + Sync + Clone,
     diag_msgs: &mut DiagnosticMessages,
 ) -> Result<(ResolvedRegistry, Option<Engine>), DiagnosticMessages> {
     let registry_path = &registry_args.registry;
@@ -260,12 +253,8 @@ pub(crate) fn prepare_main_registry(
     let main_registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
     // Load the semantic convention specs
-    let main_semconv_specs = load_semconv_specs(
-        &main_registry_repo,
-        logger.clone(),
-        registry_args.follow_symlinks,
-    )
-    .capture_non_fatal_errors(diag_msgs)?;
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, registry_args.follow_symlinks)
+        .capture_non_fatal_errors(diag_msgs)?;
 
     // Optionally init policy engine
     let mut policy_engine = if !policy_args.skip_policies {
@@ -303,12 +292,12 @@ pub(crate) fn prepare_main_registry(
         check_policy(engine, &main_semconv_specs)
             .inspect(|_, violations| {
                 if let Some(violations) = violations {
-                    logger.success(&format!(
+                    log_success(format!(
                         "All `before_resolution` policies checked ({} violations found)",
                         violations.len()
                     ));
                 } else {
-                    logger.success("No `before_resolution` policy violation");
+                    log_success("No `before_resolution` policy violation");
                 }
             })
             .capture_non_fatal_errors(diag_msgs)?;
@@ -321,12 +310,9 @@ pub(crate) fn prepare_main_registry(
     // If there are any resolution errors, they should be captured into the ongoing list of
     // diagnostic messages and returned immediately because there is no point in continuing
     // as the resolution is a prerequisite for the next stages.
-    let main_resolved_schema = resolve_semconv_specs(
-        &mut main_registry,
-        logger.clone(),
-        registry_args.include_unreferenced,
-    )
-    .capture_non_fatal_errors(diag_msgs)?;
+    let main_resolved_schema =
+        resolve_semconv_specs(&mut main_registry, registry_args.include_unreferenced)
+            .capture_non_fatal_errors(diag_msgs)?;
 
     let main_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
         &main_resolved_schema.registry,
@@ -345,12 +331,12 @@ pub(crate) fn prepare_main_registry(
         )
         .inspect(|_, violations| {
             if let Some(violations) = violations {
-                logger.success(&format!(
+                log_success(format!(
                     "All `after_resolution` policies checked ({} violations found)",
                     violations.len()
                 ));
             } else {
-                logger.success("No `after_resolution` policy violation");
+                log_success("No `after_resolution` policy violation");
             }
         })
         .capture_non_fatal_errors(diag_msgs)?;

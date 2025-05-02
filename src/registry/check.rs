@@ -8,11 +8,12 @@ use crate::util::{
 };
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use log::info;
 use miette::Diagnostic;
 use weaver_checker::PolicyStage;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
+use weaver_common::log_success;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
@@ -38,19 +39,16 @@ pub struct RegistryCheckArgs {
 }
 
 /// Check a semantic convention registry.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryCheckArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut diag_msgs = DiagnosticMessages::empty();
-    logger.log("Weaver Registry Check");
-    logger.loading(&format!("Checking registry `{}`", args.registry.registry));
+    info!("Weaver Registry Check");
+    info!("Checking registry `{}`", args.registry.registry);
 
     // Initialize the main registry.
     let registry_path = &args.registry.registry;
 
     let (main_resolved_registry, mut policy_engine) =
-        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
+        prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
     // Initialize the baseline registry if provided.
     let baseline_registry_repo = if let Some(baseline_registry) = &args.baseline_registry {
@@ -65,7 +63,7 @@ pub(crate) fn command(
             // Baseline registry resolution should allow non-future features
             // and warnings against it should be suppressed when evaluating
             // against it as a "baseline".
-            load_semconv_specs(repo, logger.clone(), args.registry.follow_symlinks)
+            load_semconv_specs(repo, args.registry.follow_symlinks)
                 .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
                 .capture_non_fatal_errors(&mut diag_msgs)
         })
@@ -79,12 +77,9 @@ pub(crate) fn command(
                 &baseline_registry_repo,
                 baseline_semconv_specs,
             )?;
-            let baseline_resolved_schema = resolve_semconv_specs(
-                &mut baseline_registry,
-                logger.clone(),
-                args.registry.include_unreferenced,
-            )
-            .capture_non_fatal_errors(&mut diag_msgs)?;
+            let baseline_resolved_schema =
+                resolve_semconv_specs(&mut baseline_registry, args.registry.include_unreferenced)
+                    .capture_non_fatal_errors(&mut diag_msgs)?;
             let baseline_resolved_registry = ResolvedRegistry::try_from_resolved_registry(
                 &baseline_resolved_schema.registry,
                 baseline_resolved_schema.catalog(),
@@ -101,12 +96,12 @@ pub(crate) fn command(
             )
             .inspect(|_, violations| {
                 if let Some(violations) = violations {
-                    logger.success(&format!(
+                    log_success(format!(
                         "All `comparison_after_resolution` policies checked ({} violations found)",
                         violations.len()
                     ));
                 } else {
-                    logger.success("No `comparison_after_resolution` policy violation");
+                    log_success("No `comparison_after_resolution` policy violation");
                 }
             })
             .capture_non_fatal_errors(&mut diag_msgs)?;
@@ -119,7 +114,7 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        warnings: None,
     })
 }
 
@@ -132,11 +127,9 @@ mod tests {
     };
     use crate::run_command;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_check_exit_code() {
-        let logger = TestLogger::new();
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -161,7 +154,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
@@ -190,15 +183,13 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger);
+        let exit_directive = run_command(&cli);
         // The command should exit with an error code.
         assert_eq!(exit_directive.exit_code, 1);
     }
 
     #[test]
     fn test_semconv_registry() {
-        let logger = TestLogger::new();
-
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Check(RegistryCheckArgs {
                 registry: RegistryArgs {
@@ -218,7 +209,7 @@ mod tests {
             }),
         };
 
-        let cmd_result = semconv_registry(logger.clone(), &registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd);
         // Violations should be observed.
         assert!(cmd_result.command_result.is_err());
         if let Err(diag_msgs) = cmd_result.command_result {

@@ -8,12 +8,12 @@ use crate::util::{load_semconv_specs, resolve_telemetry_schema};
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
 use include_dir::{include_dir, Dir};
+use log::info;
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::Logger;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
@@ -74,50 +74,37 @@ impl From<Error> for DiagnosticMessages {
 }
 
 /// Generate a diff between two versions of a semantic convention registry.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryDiffArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let mut output = PathBuf::from("output");
     let output_directive = if let Some(path_buf) = &args.output {
         output = path_buf.clone();
         OutputDirective::File
     } else {
-        logger.mute();
         OutputDirective::Stdout
     };
 
     let mut diag_msgs = DiagnosticMessages::empty();
-    logger.log("Weaver Registry Diff");
-    logger.loading(&format!("Checking registry `{}`", args.registry.registry));
+    info!("Weaver Registry Diff");
+    info!("Checking registry `{}`", args.registry.registry);
 
     let registry_path = args.registry.registry.clone();
     let main_registry_repo = RegistryRepo::try_new("main", &registry_path)?;
     let baseline_registry_repo = RegistryRepo::try_new("baseline", &args.baseline_registry)?;
-    let main_semconv_specs = load_semconv_specs(
-        &main_registry_repo,
-        logger.clone(),
-        args.registry.follow_symlinks,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
-    let baseline_semconv_specs = load_semconv_specs(
-        &baseline_registry_repo,
-        logger.clone(),
-        args.registry.follow_symlinks,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
+    let main_semconv_specs = load_semconv_specs(&main_registry_repo, args.registry.follow_symlinks)
+        .capture_non_fatal_errors(&mut diag_msgs)?;
+    let baseline_semconv_specs =
+        load_semconv_specs(&baseline_registry_repo, args.registry.follow_symlinks)
+            .capture_non_fatal_errors(&mut diag_msgs)?;
 
     let main_resolved_schema = resolve_telemetry_schema(
         &main_registry_repo,
         main_semconv_specs,
-        logger.clone(),
         args.registry.include_unreferenced,
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
     let baseline_resolved_schema = resolve_telemetry_schema(
         &baseline_registry_repo,
         baseline_semconv_specs,
-        logger.clone(),
         args.registry.include_unreferenced,
     )
     .capture_non_fatal_errors(&mut diag_msgs)?;
@@ -139,12 +126,7 @@ pub(crate) fn command(
         .expect("Failed to load `defaults/diff_templates/weaver.yaml`");
     let engine = TemplateEngine::new(config, loader, Params::default());
 
-    match engine.generate(
-        logger.clone(),
-        &changes,
-        output.as_path(),
-        &output_directive,
-    ) {
+    match engine.generate(&changes, output.as_path(), &output_directive) {
         Ok(_) => {}
         Err(e) => {
             return Err(DiagnosticMessages::from(DiffRender {
@@ -155,7 +137,7 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: args.output.is_none(),
+        warnings: None,
     })
 }
 
@@ -169,12 +151,10 @@ mod tests {
     use crate::run_command;
     use std::fs::OpenOptions;
     use tempdir::TempDir;
-    use weaver_common::TestLogger;
     use weaver_version::schema_changes::SchemaChanges;
 
     #[test]
     fn test_registry_diff_exit_code() {
-        let logger = TestLogger::new();
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -199,7 +179,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
     }
@@ -208,7 +188,6 @@ mod tests {
     fn test_registry_diff_cmd() {
         let temp_dir = TempDir::new("output").expect("Failed to create temp file");
 
-        let logger = TestLogger::new();
         let registry_cmd = RegistryCommand {
             command: RegistrySubCommand::Diff(RegistryDiffArgs {
                 registry: RegistryArgs {
@@ -228,7 +207,7 @@ mod tests {
             }),
         };
 
-        let cmd_result = semconv_registry(logger.clone(), &registry_cmd);
+        let cmd_result = semconv_registry(&registry_cmd);
         assert_eq!(cmd_result.command_result.ok().unwrap().exit_code, 0);
 
         // Read the output file and check that it contains the expected JSON.

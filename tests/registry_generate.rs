@@ -33,6 +33,7 @@ fn test_cli_interface() {
         .arg("crates/weaver_codegen_test/templates/")
         .arg("--diagnostic-format")
         .arg("json")
+        .arg("--diagnostic-stdout")
         .arg("rust")
         .arg("output/")
         .timeout(std::time::Duration::from_secs(60))

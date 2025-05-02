@@ -57,6 +57,7 @@ once_cell = "1.21.3"
 opentelemetry = { version = "0.29.1", features = ["trace", "metrics", "logs"] }
 rouille = "3.6.2"
 convert_case = "0.7.1"
+log = { version = "0.4.27", features = ["std"] }
 
 # Features definition =========================================================
 [features]
@@ -94,6 +95,7 @@ tonic = { version = "0.12.3", default-features = false, features = [
     "tls",
     "tls-roots",
 ] }
+env_logger = "0.11.8"
 
 # workspace dependencies
 serde.workspace = true
@@ -105,6 +107,7 @@ thiserror.workspace = true
 miette.workspace = true
 schemars.workspace = true
 itertools.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 weaver_diff = { path = "crates/weaver_diff" }
@@ -244,6 +247,7 @@ install-updater = false
 install-path = "CARGO_HOME"
 # Whether to enable GitHub Attestations
 github-attestations = true
+github-custom-runners = { global="ubuntu-latest", x86_64-unknown-linux-gnu="ubuntu-24.04" }
 
 
 #exhaustive_enums = "warn"
