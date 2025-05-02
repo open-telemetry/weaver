@@ -1101,8 +1101,13 @@
       {
         "brief": "HTTP request headers, `\u003ckey\u003e` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
         "examples": [
-          "http.request.header.content-type=[\"application/json\"]",
-          "http.request.header.x-forwarded-for=[\"1.2.3.4\", \"1.2.3.5\"]"
+          [
+            "application/json"
+          ],
+          [
+            "1.2.3.4",
+            "1.2.3.5"
+          ]
         ],
         "name": "http.request.header",
         "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all request headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nThe `User-Agent` header is already captured in the `user_agent.original` attribute. Users MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",
@@ -1244,8 +1249,13 @@
       {
         "brief": "HTTP response headers, `\u003ckey\u003e` being the normalized HTTP Header name (lowercase), the value being the header values.\n",
         "examples": [
-          "http.response.header.content-type=[\"application/json\"]",
-          "http.response.header.my-custom-header=[\"abc\", \"def\"]"
+          [
+            "application/json"
+          ],
+          [
+            "abc",
+            "def"
+          ]
         ],
         "name": "http.response.header",
         "note": "Instrumentations SHOULD require an explicit configuration of which headers are to be captured. Including all response headers can be a security risk - explicit configuration helps avoid leaking sensitive information.\nUsers MAY explicitly configure instrumentations to capture them even though it is not recommended.\nThe attribute value MUST consist of either multiple header values as an array of strings or a single-item array containing a possibly comma-concatenated string, depending on the way the HTTP library provides access to headers.\n",

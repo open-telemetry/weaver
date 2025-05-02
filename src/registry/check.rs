@@ -216,7 +216,8 @@ mod tests {
             assert!(!diag_msgs.is_empty());
             assert_eq!(
                 diag_msgs.len(),
-                12 /* allow_custom_values */
+                2 /* legacy template examples format */
+                + 12 /* allow_custom_values */
                 + 3 /* missing stability on enum members */
                 + 13 /* before resolution */
                     + 3 /* metric after resolution */

@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - 💥 BREAKING CHANGE 💥 `resource` groups are now called `entity` groups. All JQ helper methods have been updated, but any template directly interacting with
   `group.type` may be broken. Use `entity` instead of `resource` group type in your Jinja templates. ([#714](https://github.com/open-telemetry/weaver/pull/714) by @jsuereth)
 - 💥 BREAKING CHANGE 💥 - All logging and diagnostics now go to `stderr`. Override diagnostics with `--diagnostic-stdout`. ([#721](https://github.com/open-telemetry/weaver/pull/721) by @jerbly)
+- Support for simplified Template Type Examples format where the key/attribute name is no longer included. ([#710](https://github.com/open-telemetry/weaver/pull/710) by @jerbly)
 
 ## [0.14.0] - 2025-04-10
 
