@@ -1,0 +1,11 @@
+about: \u003ch1\u003eSoftware Engineer\u003ch1\u003e
+age: 30
+details:
+  city: Wonderland
+  email: alice@example.com
+is_active: true
+name: Alice
+profile: https://example.com/?page=1\u0026section=about
+skills:
+- Rust
+- JavaScript
