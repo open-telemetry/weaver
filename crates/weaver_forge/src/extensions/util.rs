@@ -233,9 +233,12 @@ mod tests {
 
         add_filters(&mut env, &config);
         let expected_yaml = fs::read_to_string("expected_output/yaml/test.yaml").unwrap();
-        assert_eq!(
-            env.render_str("{{ user | toyaml }}", &ctx).unwrap(),
-            expected_yaml
-        );
+        // Normalize line endings for both strings (remove any \r characters)
+        let normalized_expected = expected_yaml.replace("\r\n", "\n");
+        let normalized_actual = env
+            .render_str("{{ user | toyaml }}", &ctx)
+            .unwrap()
+            .replace("\r\n", "\n");
+        assert_eq!(normalized_actual, normalized_expected);
     }
 }

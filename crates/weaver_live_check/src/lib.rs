@@ -114,7 +114,11 @@ pub enum SampleRef<'a> {
 
 // Dispatch the live check to the sample type
 impl LiveCheckRunner for Sample {
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics) {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+    ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => attribute.run_live_check(live_checker, stats),
             Sample::Span(span) => span.run_live_check(live_checker, stats),
@@ -331,5 +335,9 @@ impl LiveCheckStatistics {
 /// Samples implement this trait to run live checks on themselves
 pub trait LiveCheckRunner {
     /// Run the live check
-    fn run_live_check(&mut self, live_checker: &mut LiveChecker, stats: &mut LiveCheckStatistics);
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+    ) -> Result<(), Error>;
 }
