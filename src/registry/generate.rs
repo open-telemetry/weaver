@@ -5,10 +5,11 @@
 use std::path::PathBuf;
 
 use clap::Args;
+use log::info;
 use serde_yaml::Value;
 
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
+use weaver_common::log_success;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::{FileLoader, FileSystemFileLoader};
 use weaver_forge::{OutputDirective, TemplateEngine};
@@ -84,19 +85,16 @@ fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
 }
 
 /// Generate artifacts from a semantic convention registry.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryGenerateArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
-    logger.loading(&format!(
+pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+    info!(
         "Generating artifacts for the registry `{}`",
         args.registry.registry
-    ));
+    );
 
     let mut diag_msgs = DiagnosticMessages::empty();
 
     let (template_registry, _) =
-        prepare_main_registry(&args.registry, &args.policy, logger.clone(), &mut diag_msgs)?;
+        prepare_main_registry(&args.registry, &args.policy, &mut diag_msgs)?;
 
     let params = generate_params(args)?;
     let templates_dir =
@@ -114,7 +112,6 @@ pub(crate) fn command(
     let engine = TemplateEngine::new(config, loader, params);
 
     engine.generate(
-        logger.clone(),
         &template_registry,
         args.output.as_path(),
         &OutputDirective::File,
@@ -124,10 +121,10 @@ pub(crate) fn command(
         return Err(diag_msgs);
     }
 
-    logger.success("Artifacts generated successfully");
+    log_success("Artifacts generated successfully");
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        warnings: None,
     })
 }
 
@@ -171,11 +168,9 @@ mod tests {
     use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_generate() {
-        let logger = TestLogger::new();
         let temp_output = TempDir::new("output")
             .expect("Failed to create temporary directory")
             .into_path();
@@ -211,7 +206,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
@@ -289,14 +284,13 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger);
+        let exit_directive = run_command(&cli);
         // The command should exit with an error code.
         assert_eq!(exit_directive.exit_code, 1);
     }
 
     #[test]
     fn test_registry_generate_with_config() {
-        let logger = TestLogger::new();
         let temp_output = TempDir::new("output")
             .expect("Failed to create temporary directory")
             .into_path();
@@ -339,7 +333,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
@@ -410,7 +404,6 @@ mod tests {
         ];
 
         for (follow_symlinks, expected_files) in test_cases {
-            let logger = TestLogger::new();
             let temp_output = TempDir::new("output")
                 .expect("Failed to create temporary directory")
                 .into_path();
@@ -447,7 +440,7 @@ mod tests {
                 })),
             };
 
-            let exit_directive = run_command(&cli, logger.clone());
+            let exit_directive = run_command(&cli);
             // The command should succeed in both cases
             assert_eq!(exit_directive.exit_code, 0);
 

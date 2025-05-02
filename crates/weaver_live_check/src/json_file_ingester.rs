@@ -5,8 +5,6 @@
 use std::path::Path;
 use std::{fs, path::PathBuf};
 
-use weaver_common::Logger;
-
 use crate::Sample;
 use crate::{Error, Ingester};
 
@@ -26,10 +24,7 @@ impl JsonFileIngester {
 }
 
 impl Ingester for JsonFileIngester {
-    fn ingest(
-        &self,
-        _logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error> {
         // Open the file and use a reader to deserialize
         let file = fs::File::open(&self.path).map_err(|e| Error::IngestError {
             error: format!("Failed to open file {}: {}", self.path.display(), e),
@@ -58,7 +53,6 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
-    use weaver_common::TestLogger;
     use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
 
     fn get_attribute(sample: &Sample) -> Option<&SampleAttribute> {
@@ -92,8 +86,7 @@ mod tests {
         // Create ingester and process the file
         let ingester = JsonFileIngester::new(&file_path);
 
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger).unwrap().collect::<Vec<_>>();
+        let result = ingester.ingest().unwrap().collect::<Vec<_>>();
 
         // Verify the results
         assert_eq!(result.len(), 7);
@@ -150,8 +143,7 @@ mod tests {
 
         // Create ingester and process the file
         let ingester = JsonFileIngester::new(&file_path);
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger);
+        let result = ingester.ingest();
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {
@@ -165,8 +157,7 @@ mod tests {
     fn test_file_not_found() {
         let non_existent_path = Path::new("/path/to/nonexistent/file.json");
         let ingester = JsonFileIngester::new(non_existent_path);
-        let logger = TestLogger::new();
-        let result = ingester.ingest(logger);
+        let result = ingester.ingest();
 
         assert!(result.is_err());
         if let Err(Error::IngestError { error }) = result {

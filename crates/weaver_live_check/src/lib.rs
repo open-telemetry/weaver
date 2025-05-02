@@ -11,10 +11,7 @@ use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
-use weaver_common::{
-    diagnostic::{DiagnosticMessage, DiagnosticMessages},
-    Logger,
-};
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
 
 /// Advisors for live checks
@@ -80,10 +77,7 @@ impl From<Error> for DiagnosticMessages {
 /// Ingesters implement a trait that returns an iterator of samples
 pub trait Ingester {
     /// Ingest data and return an iterator of the output type
-    fn ingest(
-        &self,
-        logger: impl Logger + Sync + Clone,
-    ) -> Result<Box<dyn Iterator<Item = Sample>>, Error>;
+    fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error>;
 }
 
 /// Represents a sample entity

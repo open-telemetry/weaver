@@ -6,14 +6,14 @@
 //! specified by Cargo. This generation step occurs before the standard build of the crate. The
 //! generated code, along with the standard crate code, will be compiled together.
 
+use log::error;
 use miette::Diagnostic;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 use std::process::exit;
-use weaver_common::in_memory::LogMessage;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::{in_memory, Logger};
+use weaver_common::MemLog;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::registry::ResolvedRegistry;
@@ -37,7 +37,8 @@ fn main() {
     let target_dir = std::env::var("OUT_DIR").expect("Failed to get OUT_DIR from Cargo");
 
     // Create an in-memory logger as stdout and stderr are not "classically" available in build.rs.
-    let logger = in_memory::Logger::new(0);
+    let logger = MemLog::new();
+    logger.clone().init().expect("Failed to init logger");
 
     // Load and resolve the semantic convention registry
     let registry_path = VirtualDirectoryPath::LocalFolder {
@@ -66,7 +67,6 @@ fn main() {
     let target_dir: PathBuf = target_dir.into();
     engine
         .generate(
-            logger.clone(),
             &template_registry,
             target_dir.as_path(),
             &OutputDirective::File,
@@ -213,19 +213,19 @@ fn add_modules(
 }
 
 /// Print logs to stdout by following the Cargo's build script output format.
-fn print_logs(logger: &in_memory::Logger) {
-    for log_message in logger.messages() {
-        match &log_message {
-            LogMessage::Warn(msg) => println!("cargo:warning={}", msg),
-            LogMessage::Error(err) => println!("cargo:warning=Error: {}", err),
+fn print_logs(logger: &MemLog) {
+    for record in logger.records() {
+        match &record.level {
+            log::Level::Warn => println!("cargo:warning={}", record.message),
+            log::Level::Error => println!("cargo:warning=Error: {}", record.message),
             _ => { /* Ignore */ }
         }
     }
 }
 
 /// Process the error message and exit the build script with a non-zero exit code.
-fn process_error(logger: &in_memory::Logger, error: impl std::fmt::Display) -> ! {
-    logger.error(&error.to_string());
+fn process_error(logger: &MemLog, error: impl std::fmt::Display) -> ! {
+    error!("{}", &error.to_string());
     print_logs(logger);
     #[allow(clippy::exit)] // Expected behavior
     exit(1)

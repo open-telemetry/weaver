@@ -5,13 +5,13 @@
 
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use log::info;
 use miette::Diagnostic;
 use schemars::schema_for;
 use serde::Serialize;
 use serde_json::to_string_pretty;
-use std::path::PathBuf;
+use std::{io::Write, path::PathBuf};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_common::Logger;
 use weaver_forge::registry::ResolvedRegistry;
 
 /// Parameters for the `registry json-schema` sub-command
@@ -56,10 +56,7 @@ impl From<Error> for DiagnosticMessages {
 
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
 /// file or print it to stdout.
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistryJsonSchemaArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
+pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = schema_for!(ResolvedRegistry);
 
     let json_schema_str =
@@ -68,68 +65,73 @@ pub(crate) fn command(
         })?;
 
     if let Some(output) = &args.output {
-        logger.loading(&format!("Writing JSON schema to `{}`", output.display()));
+        info!("Writing JSON schema to `{}`", output.display());
         std::fs::write(output, json_schema_str).map_err(|e| Error::WriteError {
             file: output.clone(),
             error: e.to_string(),
         })?;
     } else {
-        logger.log(&json_schema_str);
+        std::io::stdout()
+            .write_all(json_schema_str.as_bytes())
+            .map_err(|e| Error::WriteError {
+                file: PathBuf::from("stdout"),
+                error: e.to_string(),
+            })?;
     }
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: args.output.is_none(),
+        warnings: None,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use weaver_common::in_memory;
-    use weaver_common::in_memory::LogMessage;
 
     use crate::cli::{Cli, Commands};
     use crate::registry::json_schema::RegistryJsonSchemaArgs;
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use std::fs;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_registry_json_schema() {
-        let logger = in_memory::Logger::new(0);
+        // Create a temporary file for the output
+        let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+        let output_path = temp_file.path().to_path_buf();
+
         let cli = Cli {
             debug: 0,
             quiet: false,
             future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
-                    output: None,
+                    output: Some(output_path.clone()),
                     diagnostic: Default::default(),
                 }),
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
 
-        // We should have a single log message with the JSON schema.
-        let messages = logger.messages();
-        assert_eq!(messages.len(), 1);
+        // Read the content of the temp file
+        let json_content = fs::read_to_string(output_path).expect("Failed to read temporary file");
 
-        let message = &messages[0];
-        if let LogMessage::Log(log) = message {
-            let value =
-                serde_json::from_str::<serde_json::Value>(log).expect("Failed to parse JSON");
-            let definitions = value
-                .as_object()
-                .expect("Expected a JSON object")
-                .get("definitions");
-            assert!(
-                definitions.is_some(),
-                "Expected a 'definitions' key in the JSON schema"
-            );
-        } else {
-            panic!("Expected a log message, but got: {:?}", message);
-        }
+        // Parse and validate the JSON content
+        let value =
+            serde_json::from_str::<serde_json::Value>(&json_content).expect("Failed to parse JSON");
+
+        let definitions = value
+            .as_object()
+            .expect("Expected a JSON object")
+            .get("definitions");
+
+        assert!(
+            definitions.is_some(),
+            "Expected a 'definitions' key in the JSON schema"
+        );
     }
 }
