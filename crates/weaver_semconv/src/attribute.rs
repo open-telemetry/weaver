@@ -518,12 +518,12 @@ impl Examples {
             | (Examples::Strings(_), Template(TemplateTypeSpec::String))
             | (Examples::Ints(_), Template(TemplateTypeSpec::Int))
             | (Examples::Doubles(_), Template(TemplateTypeSpec::Double))
-            | (Examples::Bools(_), Template(TemplateTypeSpec::Boolean)) => WResult::Ok(()),
+            | (Examples::Bools(_), Template(TemplateTypeSpec::Boolean))
+            | (_, Template(TemplateTypeSpec::Any)) => WResult::Ok(()),
             // Weaver version 0.14.0 and below allowed these example type mismatches.
             // So these have to stay as warnings for backward compatibility
             (Examples::String(_), Template(TemplateTypeSpec::Strings))
-            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings))
-            | (_, Template(TemplateTypeSpec::Any)) => WResult::OkWithNFEs(
+            | (Examples::Strings(_), Template(TemplateTypeSpec::Strings)) => WResult::OkWithNFEs(
                 (),
                 vec![Error::InvalidExampleWarning {
                     path_or_url: path_or_url.to_owned(),
