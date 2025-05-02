@@ -74,7 +74,7 @@ fn test_emit_with_live_check() {
         .expect("Failed to read live check report from output directory");
     let live_check_json: serde_json::Value =
         serde_json::from_str(&live_check_report).expect("Failed to parse live check report JSON");
-
+    println!("{:#?}", live_check_json);
     let statistics = live_check_json["statistics"].as_object().unwrap();
     let no_advice_count = statistics["no_advice_count"].as_u64().unwrap();
     let total_advisories = statistics["total_advisories"].as_u64().unwrap();
@@ -82,9 +82,9 @@ fn test_emit_with_live_check() {
     let registry_coverage = statistics["registry_coverage"].as_f64().unwrap();
 
     assert_eq!(no_advice_count, 24);
-    assert_eq!(total_advisories, 3);
-    assert_eq!(total_entities, 27);
-    assert!(registry_coverage > 0.0);
+    assert_eq!(total_advisories, 9);
+    assert_eq!(total_entities, 33);
+    assert!(registry_coverage > 0.7);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope
 }

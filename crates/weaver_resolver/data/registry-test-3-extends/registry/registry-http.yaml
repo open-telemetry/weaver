@@ -1,7 +1,7 @@
 groups:
   - id: registry.http
     type: attribute_group
-    brief: 'This document defines semantic convention attributes in the HTTP namespace.'
+    brief: "This document defines semantic convention attributes in the HTTP namespace."
     attributes:
       - id: http.request.body.size
         type: int
@@ -10,7 +10,7 @@ groups:
           is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)
           header. For requests using transport encoding, this should be the compressed size.
         examples: 3495
-        stability: experimental  # this should not be marked stable with other HTTP attributes
+        stability: experimental # this should not be marked stable with other HTTP attributes
       - id: http.request.header
         stability: stable
         type: template[string[]]
@@ -26,7 +26,7 @@ groups:
           The attribute value MUST consist of either multiple header values as an array of strings
           or a single-item array containing a possibly comma-concatenated string, depending on the way
           the HTTP library provides access to headers.
-        examples: ['http.request.header.content-type=["application/json"]', 'http.request.header.x-forwarded-for=["1.2.3.4", "1.2.3.5"]']
+        examples: [["application/json"], ["1.2.3.4", "1.2.3.5"]]
       - id: http.request.method
         stability: stable
         type:
@@ -34,44 +34,44 @@ groups:
             - id: connect
               stability: stable
               value: "CONNECT"
-              brief: 'CONNECT method.'
+              brief: "CONNECT method."
             - id: delete
               stability: stable
               value: "DELETE"
-              brief: 'DELETE method.'
+              brief: "DELETE method."
             - id: get
               stability: stable
               value: "GET"
-              brief: 'GET method.'
+              brief: "GET method."
             - id: head
               stability: stable
               value: "HEAD"
-              brief: 'HEAD method.'
+              brief: "HEAD method."
             - id: options
               stability: stable
               value: "OPTIONS"
-              brief: 'OPTIONS method.'
+              brief: "OPTIONS method."
             - id: patch
               stability: stable
               value: "PATCH"
-              brief: 'PATCH method.'
+              brief: "PATCH method."
             - id: post
               stability: stable
               value: "POST"
-              brief: 'POST method.'
+              brief: "POST method."
             - id: put
               stability: stable
               value: "PUT"
-              brief: 'PUT method.'
+              brief: "PUT method."
             - id: trace
               stability: stable
               value: "TRACE"
-              brief: 'TRACE method.'
+              brief: "TRACE method."
             - id: other
               stability: stable
               value: "_OTHER"
-              brief: 'Any HTTP method that the instrumentation has no prior knowledge of.'
-        brief: 'HTTP request method.'
+              brief: "Any HTTP method that the instrumentation has no prior knowledge of."
+        brief: "HTTP request method."
         examples: ["GET", "POST", "HEAD"]
         note: |
           HTTP request method value SHOULD be "known" to the instrumentation.
@@ -110,7 +110,7 @@ groups:
           is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)
           header. For requests using transport encoding, this should be the compressed size.
         examples: 3495
-        stability: experimental  # this should not be marked stable with other HTTP attributes
+        stability: experimental # this should not be marked stable with other HTTP attributes
       - id: http.response.header
         stability: stable
         type: template[string[]]
@@ -125,18 +125,18 @@ groups:
           The attribute value MUST consist of either multiple header values as an array of strings
           or a single-item array containing a possibly comma-concatenated string, depending on the way
           the HTTP library provides access to headers.
-        examples: ['http.response.header.content-type=["application/json"]', 'http.response.header.my-custom-header=["abc", "def"]']
+        examples: [["application/json"], ["abc", "def"]]
       - id: http.response.status_code
         stability: stable
         type: int
-        brief: '[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).'
+        brief: "[HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6)."
         examples: [200]
       - id: http.route
         stability: stable
         type: string
         brief: >
           The matched route, that is, the path template in the format used by the respective server framework.
-        examples: ['/users/:userID?', '{controller}/{action}/{id?}']
+        examples: ["/users/:userID?", "{controller}/{action}/{id?}"]
         note: >
           MUST NOT be populated when this is not supported by the HTTP server framework as the route attribute should have low-cardinality and the URI path can NOT substitute it.
 
