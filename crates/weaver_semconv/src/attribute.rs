@@ -282,10 +282,8 @@ impl Display for PrimitiveOrArrayTypeSpec {
 impl PrimitiveOrArrayTypeSpec {
     /// Returns true if the current type is compatible with the other type
     /// passed as argument.
-    pub fn is_compatible(
-        &self,
-        other: &PrimitiveOrArrayTypeSpec,
-    ) -> bool {
+    #[must_use]
+    pub fn is_compatible(&self, other: &PrimitiveOrArrayTypeSpec) -> bool {
         match (self, other) {
             (PrimitiveOrArrayTypeSpec::Any, _) => true,
             (_, PrimitiveOrArrayTypeSpec::Any) => true,
@@ -1297,7 +1295,7 @@ mod tests {
             .into_result_failing_non_fatal()
             .is_err());
     }
-    
+
     #[test]
     fn test_is_compatible() {
         assert!(PrimitiveOrArrayTypeSpec::Boolean.is_compatible(&PrimitiveOrArrayTypeSpec::Boolean));
