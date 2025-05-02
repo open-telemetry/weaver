@@ -164,7 +164,7 @@ impl Advisor for TypeAdvisor {
                             }
                         };
 
-                        if attribute_type != semconv_attribute_type {
+                        if !attribute_type.is_compatible(&semconv_attribute_type) {
                             Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
