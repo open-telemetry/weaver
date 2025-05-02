@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use crate::manifest::RegistryManifest;
 use crate::Error;
+use weaver_common::log_info;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
-use weaver_common::{log_info, log_warn};
 
 /// The name of the registry manifest file.
 pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
@@ -86,7 +86,7 @@ impl RegistryRepo {
             ));
             Some(manifest_path)
         } else {
-            log_warn(format!(
+            log_info(format!(
                 "No registry manifest found: {}",
                 manifest_path.display()
             ));
