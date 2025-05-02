@@ -4,6 +4,7 @@
 
 use miette::Diagnostic;
 use std::path::{PathBuf, MAIN_SEPARATOR};
+use weaver_common::log_error;
 
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
@@ -15,7 +16,6 @@ use crate::registry::resolve_semconv_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
-use weaver_common::Logger;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::provenance::Provenance;
@@ -195,14 +195,14 @@ impl From<Error> for DiagnosticMessages {
 impl Error {
     /// Logs one or multiple errors (if current error is a 1CompoundError`)
     /// using the given logger.
-    pub fn log(&self, logger: impl Logger + Clone + Sync) {
+    pub fn log(&self) {
         match self {
             Error::CompoundError(errors) => {
                 for error in errors {
-                    error.log(logger.clone());
+                    error.log();
                 }
             }
-            _ => logger.error(&self.to_string()),
+            _ => log_error(self),
         }
     }
 }

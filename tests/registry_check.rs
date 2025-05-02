@@ -33,6 +33,7 @@ fn test_cli_interface() {
         .arg("crates/weaver_codegen_test/semconv_registry/")
         .arg("--diagnostic-format")
         .arg("json")
+        .arg("--diagnostic-stdout")
         .timeout(std::time::Duration::from_secs(60))
         .output()
         .expect("failed to execute process");

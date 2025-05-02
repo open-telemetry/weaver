@@ -953,6 +953,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_filter"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "186e05a59d4c50738528153b83b0b0194d3a29507dfec16eccd4b342903397d0"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13c863f0904021b108aa8b2f55046443e6b1ebde8fd4a15c399893aae4fa069f"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "jiff",
+ "log",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5882,8 +5905,10 @@ dependencies = [
  "assert_cmd",
  "clap",
  "clap_complete",
+ "env_logger",
  "include_dir",
  "itertools 0.14.0",
+ "log",
  "miette",
  "portpicker",
  "prost",
@@ -5935,6 +5960,7 @@ name = "weaver_codegen_test"
 version = "0.14.0"
 dependencies = [
  "dirs",
+ "log",
  "miette",
  "opentelemetry",
  "walkdir",
@@ -5951,6 +5977,7 @@ dependencies = [
  "dirs",
  "flate2",
  "gix 0.70.0",
+ "log",
  "miette",
  "once_cell",
  "paris",
@@ -6009,6 +6036,7 @@ dependencies = [
  "jaq-core",
  "jaq-json",
  "jaq-std",
+ "log",
  "markdown",
  "miette",
  "minijinja",
@@ -6079,6 +6107,7 @@ version = "0.14.0"
 dependencies = [
  "glob",
  "itertools 0.14.0",
+ "log",
  "miette",
  "rayon",
  "serde",

@@ -9,8 +9,7 @@ use clap::Args;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
-use weaver_common::Error;
-use weaver_common::Logger;
+use weaver_common::{log_error, log_info, log_success, Error};
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
@@ -56,7 +55,6 @@ pub struct RegistryUpdateMarkdownArgs {
 
 /// Update markdown files.
 pub(crate) fn command(
-    log: impl Logger + Sync + Clone,
     args: &RegistryUpdateMarkdownArgs,
 ) -> Result<ExitDirectives, DiagnosticMessages> {
     fn is_markdown(entry: &walkdir::DirEntry) -> bool {
@@ -98,7 +96,7 @@ pub(crate) fn command(
         return Err(diag_msgs);
     }
 
-    log.success("Registry resolved successfully");
+    log_success("Registry resolved successfully");
     let operation = if args.dry_run {
         "Validating"
     } else {
@@ -112,7 +110,7 @@ pub(crate) fn command(
             _ => None,
         })
     {
-        log.info(&format!("{}: ${}", operation, entry.path().display()));
+        log_info(format!("{}: ${}", operation, entry.path().display()));
         if let Err(error) = update_markdown(
             &entry.path().display().to_string(),
             &generator,
@@ -120,7 +118,7 @@ pub(crate) fn command(
             args.attribute_registry_base_url.as_deref(),
         ) {
             has_error = true;
-            log.error(&format!("{error}"));
+            log_error(error);
         }
     }
     if has_error {
@@ -133,7 +131,7 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        warnings: None,
     })
 }
 
@@ -144,11 +142,9 @@ mod tests {
     use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use weaver_common::TestLogger;
 
     #[test]
     fn test_registry_update_markdown() {
-        let logger = TestLogger::new();
         let cli = Cli {
             debug: 0,
             quiet: false,
@@ -174,7 +170,7 @@ mod tests {
             })),
         };
 
-        let exit_directive = run_command(&cli, logger.clone());
+        let exit_directive = run_command(&cli);
         // The command should succeed.
         assert_eq!(exit_directive.exit_code, 0);
     }

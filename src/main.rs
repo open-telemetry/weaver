@@ -7,12 +7,13 @@ use std::path::PathBuf;
 use clap::CommandFactory;
 use clap::{Args, Parser};
 use clap_complete::{generate, Shell};
+use log::info;
 use std::io;
+use std::io::Write;
 
 use registry::semconv_registry;
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
-use weaver_common::quiet::QuietLogger;
-use weaver_common::{ConsoleLogger, Logger};
+use weaver_common::log_error;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
@@ -37,6 +38,10 @@ pub(crate) struct DiagnosticArgs {
     /// Path to the directory where the diagnostic templates are located.
     #[arg(long, default_value = "diagnostic_templates")]
     pub(crate) diagnostic_template: PathBuf,
+
+    /// Send the output to stdout instead of stderr.
+    #[arg(long)]
+    pub(crate) diagnostic_stdout: bool,
 }
 
 impl Default for DiagnosticArgs {
@@ -44,6 +49,7 @@ impl Default for DiagnosticArgs {
         Self {
             diagnostic_format: "ansi".to_owned(),
             diagnostic_template: PathBuf::from("diagnostic_templates"),
+            diagnostic_stdout: false,
         }
     }
 }
@@ -60,8 +66,8 @@ pub(crate) struct CmdResult {
 pub(crate) struct ExitDirectives {
     /// Exit code.
     exit_code: i32,
-    /// Quiet mode.
-    quiet_mode: bool,
+    /// Non-error diagnostic messages to log out.
+    warnings: Option<DiagnosticMessages>,
 }
 
 impl CmdResult {
@@ -81,18 +87,19 @@ fn main() {
     let cli = Cli::parse();
 
     let start = std::time::Instant::now();
-    let exit_directives = if cli.quiet {
-        let log = QuietLogger::new();
-        run_command(&cli, log)
-    } else {
-        let log = ConsoleLogger::new(cli.debug);
-        run_command(&cli, log)
-    };
 
-    if !cli.quiet && !exit_directives.quiet_mode {
-        let elapsed = start.elapsed();
-        println!("\nTotal execution time: {:?}s", elapsed.as_secs_f64());
+    if !cli.quiet {
+        // Initialize the logger
+        env_logger::builder()
+            .filter(None, log::LevelFilter::Info)
+            .format(|buf, record| writeln!(buf, "{}", record.args()))
+            .init();
     }
+
+    let exit_directives = run_command(&cli);
+
+    let elapsed = start.elapsed();
+    info!("\nTotal execution time: {:?}s", elapsed.as_secs_f64());
 
     // Exit the process with the exit code provided by the `run_command` function.
     #[allow(clippy::exit)]
@@ -100,72 +107,80 @@ fn main() {
 }
 
 /// Run the command specified by the CLI arguments and return the exit directives.
-fn run_command(cli: &Cli, log: impl Logger + Sync + Clone) -> ExitDirectives {
+fn run_command(cli: &Cli) -> ExitDirectives {
     if cli.future {
         enable_future_mode();
     }
     let cmd_result = match &cli.command {
-        Some(Commands::Registry(params)) => semconv_registry(log.clone(), params),
-        Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(log.clone(), params),
+        Some(Commands::Registry(params)) => semconv_registry(params),
+        Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),
         Some(Commands::Completion(completions)) => {
             if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
-                log.error(&e);
+                log_error(&e);
                 return ExitDirectives {
                     exit_code: 1,
-                    quiet_mode: true,
+                    warnings: None,
                 };
             }
             return ExitDirectives {
                 exit_code: 0,
-                quiet_mode: true,
+                warnings: None,
             };
         }
         None => {
             return ExitDirectives {
                 exit_code: 0,
-                quiet_mode: false,
+                warnings: None,
             }
         }
     };
 
-    process_diagnostics(cmd_result, log.clone())
+    process_diagnostics(cmd_result)
+}
+
+fn print_diagnostics(
+    diagnostic_args: &DiagnosticArgs,
+    diagnostic_messages: &DiagnosticMessages,
+) -> Result<(), weaver_forge::error::Error> {
+    let loader = EmbeddedFileLoader::try_new(
+        &DEFAULT_DIAGNOSTIC_TEMPLATES,
+        diagnostic_args.diagnostic_template.clone(),
+        &diagnostic_args.diagnostic_format,
+    )
+    .expect("Failed to create the embedded file loader for the diagnostic templates");
+    let config = WeaverConfig::try_from_loader(&loader)
+        .expect("Failed to load `defaults/diagnostic_templates/weaver.yaml`");
+    let engine = TemplateEngine::new(config, loader, Params::default());
+    let output_directive = if diagnostic_args.diagnostic_stdout {
+        OutputDirective::Stdout
+    } else {
+        OutputDirective::Stderr
+    };
+    engine.generate(
+        diagnostic_messages,
+        PathBuf::new().as_path(),
+        &output_directive,
+    )
 }
 
 /// Render the diagnostic messages based on the diagnostic configuration and return the exit
 /// directives based on the diagnostic messages and the CmdResult quiet mode.
-fn process_diagnostics(
-    cmd_result: CmdResult,
-    logger: impl Logger + Sync + Clone,
-) -> ExitDirectives {
+fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
     let diagnostic_args = cmd_result.diagnostic_args.unwrap_or_default();
     let mut exit_directives = if let Ok(exit_directives) = &cmd_result.command_result {
         exit_directives.clone()
     } else {
         ExitDirectives {
             exit_code: 0,
-            quiet_mode: false,
+            warnings: None,
         }
     };
 
     if let Err(diagnostic_messages) = cmd_result.command_result {
-        let loader = EmbeddedFileLoader::try_new(
-            &DEFAULT_DIAGNOSTIC_TEMPLATES,
-            diagnostic_args.diagnostic_template,
-            &diagnostic_args.diagnostic_format,
-        )
-        .expect("Failed to create the embedded file loader for the diagnostic templates");
-        let config = WeaverConfig::try_from_loader(&loader)
-            .expect("Failed to load `defaults/diagnostic_templates/weaver.yaml`");
-        let engine = TemplateEngine::new(config, loader, Params::default());
-        match engine.generate(
-            logger.clone(),
-            &diagnostic_messages,
-            PathBuf::new().as_path(),
-            &OutputDirective::Stdout,
-        ) {
+        match print_diagnostics(&diagnostic_args, &diagnostic_messages) {
             Ok(_) => {}
             Err(e) => {
-                logger.error(&format!(
+                log_error(format!(
                     "Failed to render the diagnostic messages. Error: {}",
                     e
                 ));
@@ -175,6 +190,18 @@ fn process_diagnostics(
         }
         if diagnostic_messages.has_error() {
             exit_directives.exit_code = 1;
+        }
+    } else if let Some(ref warnings) = exit_directives.warnings {
+        if !warnings.is_empty() {
+            match print_diagnostics(&diagnostic_args, warnings) {
+                Ok(_) => {}
+                Err(e) => {
+                    log_error(format!(
+                        "Failed to render the diagnostic messages. Error: {}",
+                        e
+                    ));
+                }
+            }
         }
     }
 

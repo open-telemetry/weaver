@@ -4,9 +4,9 @@
 
 use clap::Args;
 use itertools::Itertools;
+use log::info;
 use miette::Diagnostic;
 use weaver_common::diagnostic::DiagnosticMessages;
-use weaver_common::Logger;
 use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 use weaver_semconv::registry::SemConvRegistry;
 
@@ -363,31 +363,20 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
     println!("{}", results);
 }
 
-pub(crate) fn command(
-    logger: impl Logger + Sync + Clone,
-    args: &RegistrySearchArgs,
-) -> Result<ExitDirectives, DiagnosticMessages> {
-    logger.loading(&format!("Resolving registry `{}`", args.registry.registry));
+pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, DiagnosticMessages> {
+    info!("Resolving registry `{}`", args.registry.registry);
 
     let mut diag_msgs = DiagnosticMessages::empty();
     let registry_path = &args.registry.registry;
     let registry_repo = RegistryRepo::try_new("main", registry_path)?;
 
     // Load the semantic convention registry into a local cache.
-    let semconv_specs = load_semconv_specs(
-        &registry_repo,
-        logger.clone(),
-        args.registry.follow_symlinks,
-    )
-    .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
-    .into_result_failing_non_fatal()?;
+    let semconv_specs = load_semconv_specs(&registry_repo, args.registry.follow_symlinks)
+        .ignore(|e| matches!(e.severity(), Some(miette::Severity::Warning)))
+        .into_result_failing_non_fatal()?;
     let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)?;
-    let schema = resolve_semconv_specs(
-        &mut registry,
-        logger.clone(),
-        args.registry.include_unreferenced,
-    )
-    .capture_non_fatal_errors(&mut diag_msgs)?;
+    let schema = resolve_semconv_specs(&mut registry, args.registry.include_unreferenced)
+        .capture_non_fatal_errors(&mut diag_msgs)?;
 
     // We should have two modes:
     // 1. a single input we take in and directly output some rendered result.
@@ -401,7 +390,7 @@ pub(crate) fn command(
         println!("Error: Could not find a terminal, and no search string was provided.");
         return Ok(ExitDirectives {
             exit_code: 1,
-            quiet_mode: false,
+            warnings: None,
         });
     }
 
@@ -411,6 +400,6 @@ pub(crate) fn command(
 
     Ok(ExitDirectives {
         exit_code: 0,
-        quiet_mode: false,
+        warnings: None,
     })
 }
