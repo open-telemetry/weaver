@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::manifest::RegistryManifest;
 use crate::Error;
 use weaver_common::vdir::{VirtualDirectory, VirtualDirectoryPath};
+use weaver_common::{log_info, log_warn};
 
 /// The name of the registry manifest file.
 pub const REGISTRY_MANIFEST: &str = "registry_manifest.yaml";
@@ -79,8 +80,16 @@ impl RegistryRepo {
     pub fn manifest_path(&self) -> Option<PathBuf> {
         let manifest_path = self.registry.path().join(REGISTRY_MANIFEST);
         if manifest_path.exists() {
+            log_info(format!(
+                "Found registry manifest: {}",
+                manifest_path.display()
+            ));
             Some(manifest_path)
         } else {
+            log_warn(format!(
+                "No registry manifest found: {}",
+                manifest_path.display()
+            ));
             None
         }
     }
