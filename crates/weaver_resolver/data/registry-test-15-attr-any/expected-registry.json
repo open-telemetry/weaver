@@ -1,0 +1,57 @@
+{
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "metric.any.attributes",
+      "type": "attribute_group",
+      "brief": "Common any metrics attributes.",
+      "attributes": [
+        0,
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-15-attr-any/registry/metrics-messaging.yaml"
+        },
+        "attributes": {
+          "test.any": {
+            "source_group": "registry.test",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          },
+          "test.template.any": {
+            "source_group": "registry.test",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "registry.test",
+      "type": "attribute_group",
+      "brief": "Used for testing any and template[any]",
+      "attributes": [
+        0,
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-15-attr-any/registry/registry-messaging.yaml"
+        }
+      }
+    }
+  ]
+}
