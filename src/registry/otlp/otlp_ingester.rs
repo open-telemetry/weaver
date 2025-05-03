@@ -6,7 +6,7 @@ use weaver_common::log_info;
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
     sample_resource::SampleResource,
-    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
+    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode},
     Error, Ingester, Sample,
 };
 use weaver_semconv::group::SpanKindSpec;
@@ -96,6 +96,23 @@ impl OtlpIterator {
         }
     }
 
+    fn status_from_otlp_status(
+        status: Option<super::grpc_stubs::proto::trace::v1::Status>,
+    ) -> Option<Status> {
+        if let Some(status) = status {
+            let code = match status.code {
+                1 => StatusCode::Ok,
+                2 => StatusCode::Error,
+                _ => StatusCode::Unset,
+            };
+            return Some(Status {
+                code,
+                message: status.message,
+            });
+        }
+        None
+    }
+
     fn fill_buffer_from_request(&mut self, request: OtlpRequest) -> Option<usize> {
         match request {
             OtlpRequest::Logs(_logs) => {
@@ -135,6 +152,7 @@ impl OtlpIterator {
                             let mut sample_span = SampleSpan {
                                 name: span.name,
                                 kind: Self::span_kind_from_otlp_kind(span.kind),
+                                status: Self::status_from_otlp_status(span.status),
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),
