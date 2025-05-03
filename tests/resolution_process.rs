@@ -27,9 +27,7 @@ const SEMCONV_REGISTRY_MODEL: &str = "model";
 /// - No warn or error messages should be reported by the logger.
 #[test]
 fn test_cli_interface() {
-    // Setup TestLog to capture log messages and keep a reference to it
     let log = weaver_common::TestLog::new();
-    log.clone().init().expect("Failed to init logger");
 
     // Load the official semantic convention registry into a local cache.
     // No parsing errors should be observed.
