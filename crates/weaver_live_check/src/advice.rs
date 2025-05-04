@@ -89,13 +89,30 @@ impl Advisor for StabilityAdvisor {
         &mut self,
         sample: SampleRef<'_>,
         registry_attribute: Option<&Attribute>,
-        _registry_group: Option<&ResolvedGroup>,
+        registry_group: Option<&ResolvedGroup>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(_sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     match attribute.stability {
+                        Some(ref stability) if *stability != Stability::Stable => {
+                            advices.push(Advice {
+                                advice_type: "stability".to_owned(),
+                                value: Value::String(stability.to_string()),
+                                message: "Is not stable".to_owned(),
+                                advice_level: AdviceLevel::Improvement,
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(advices)
+            }
+            SampleRef::Metric(_sample_metric) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    match group.stability {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: "stability".to_owned(),

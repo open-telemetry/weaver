@@ -2,6 +2,7 @@
 
 //! A basic OTLP receiver integrated into Weaver.
 
+pub mod metric_conversion;
 pub mod otlp_ingester;
 
 use grpc_stubs::proto::collector::logs::v1::logs_service_server::{LogsService, LogsServiceServer};

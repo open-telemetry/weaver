@@ -4,9 +4,9 @@
 
 use serde::Serialize;
 use std::collections::HashMap;
-use weaver_semconv::attribute::AttributeType;
+use weaver_semconv::{attribute::AttributeType, group::GroupType, semconv};
 
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_resolved_schema::attribute::Attribute;
 
 use crate::advice::Advisor;
@@ -18,6 +18,7 @@ pub struct LiveChecker {
     pub registry: ResolvedRegistry,
     semconv_attributes: HashMap<String, Attribute>,
     semconv_templates: HashMap<String, Attribute>,
+    semconv_metrics: HashMap<String, ResolvedGroup>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
@@ -33,8 +34,15 @@ impl LiveChecker {
         let mut semconv_attributes = HashMap::new();
         let mut semconv_templates = HashMap::new();
         let mut templates_by_length = Vec::new();
+        // Hashmap of metrics by name
+        let mut semconv_metrics = HashMap::new();
 
         for group in &registry.groups {
+            if group.r#type == GroupType::Metric {
+                if let Some(metric_name) = &group.metric_name {
+                    let _ = semconv_metrics.insert(metric_name.clone(), group.clone());
+                }
+            }
             for attribute in &group.attributes {
                 match attribute.r#type {
                     AttributeType::Template(_) => {
@@ -56,6 +64,7 @@ impl LiveChecker {
             registry,
             semconv_attributes,
             semconv_templates,
+            semconv_metrics,
             advisors,
             templates_by_length,
         }
@@ -70,6 +79,12 @@ impl LiveChecker {
     #[must_use]
     pub fn find_attribute(&self, name: &str) -> Option<&Attribute> {
         self.semconv_attributes.get(name)
+    }
+
+    /// Find a metric in the registry
+    #[must_use]
+    pub fn find_metric(&self, name: &str) -> Option<&ResolvedGroup> {
+        self.semconv_metrics.get(name)
     }
 
     /// Find a template in the registry

@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
+use sample_metric::SampleMetric;
 use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,8 @@ pub mod json_stdin_ingester;
 pub mod live_checker;
 /// The intermediary format for attributes
 pub mod sample_attribute;
+/// The intermediary format for metrics
+pub mod sample_metric;
 /// An intermediary format for resources
 pub mod sample_resource;
 /// The intermediary format for spans
@@ -37,6 +40,8 @@ pub mod text_stdin_ingester;
 pub const MISSING_ATTRIBUTE_ADVICE_TYPE: &str = "missing_attribute";
 /// Template Attribute advice type
 pub const TEMPLATE_ATTRIBUTE_ADVICE_TYPE: &str = "template_attribute";
+/// Missing Metric advice type
+pub const MISSING_METRIC_ADVICE_TYPE: &str = "missing_metric";
 
 /// Weaver live check errors
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -94,6 +99,8 @@ pub enum Sample {
     SpanLink(SampleSpanLink),
     /// A sample resource
     Resource(SampleResource),
+    /// A sample metric
+    Metric(SampleMetric),
 }
 
 /// Represents a sample entity with a reference to the inner type
@@ -110,6 +117,8 @@ pub enum SampleRef<'a> {
     SpanLink(&'a SampleSpanLink),
     /// A sample resource
     Resource(&'a SampleResource),
+    /// A sample metric
+    Metric(&'a SampleMetric),
 }
 
 // Dispatch the live check to the sample type
@@ -125,6 +134,7 @@ impl LiveCheckRunner for Sample {
             Sample::SpanEvent(span_event) => span_event.run_live_check(live_checker, stats),
             Sample::SpanLink(span_link) => span_link.run_live_check(live_checker, stats),
             Sample::Resource(resource) => resource.run_live_check(live_checker, stats),
+            Sample::Metric(metric) => metric.run_live_check(live_checker, stats),
         }
     }
 }

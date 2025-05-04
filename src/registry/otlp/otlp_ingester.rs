@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! OTLP ingester
 use std::time::Duration;
 
 use log::info;
@@ -13,7 +16,9 @@ use weaver_semconv::group::SpanKindSpec;
 
 use super::{
     grpc_stubs::proto::common::v1::{AnyValue, KeyValue},
-    listen_otlp_requests, OtlpRequest,
+    listen_otlp_requests,
+    metric_conversion::otlp_metric_to_sample,
+    OtlpRequest,
 };
 
 /// An ingester for OTLP data
@@ -102,9 +107,38 @@ impl OtlpIterator {
                 // TODO Implement the checking logic for logs
                 Some(0)
             }
-            OtlpRequest::Metrics(_metrics) => {
-                // TODO Implement the checking logic for metrics
-                Some(0)
+            OtlpRequest::Metrics(metrics) => {
+                for resource_metric in metrics.resource_metrics {
+                    if let Some(resource) = resource_metric.resource {
+                        let mut sample_resource = SampleResource {
+                            attributes: Vec::new(),
+                            live_check_result: None,
+                        };
+                        for attribute in resource.attributes {
+                            sample_resource
+                                .attributes
+                                .push(Self::sample_attribute_from_key_value(&attribute));
+                        }
+                        self.buffer.push(Sample::Resource(sample_resource));
+                    }
+
+                    for scope_metric in resource_metric.scope_metrics {
+                        if let Some(scope) = scope_metric.scope {
+                            // TODO SampleInstrumentationScope?
+                            for attribute in scope.attributes {
+                                self.buffer.push(Sample::Attribute(
+                                    Self::sample_attribute_from_key_value(&attribute),
+                                ));
+                            }
+                        }
+
+                        for metric in scope_metric.metrics {
+                            let sample_metric = Sample::Metric(otlp_metric_to_sample(metric));
+                            self.buffer.push(sample_metric);
+                        }
+                    }
+                }
+                Some(self.buffer.len())
             }
             OtlpRequest::Traces(trace) => {
                 for resource_span in trace.resource_spans {
