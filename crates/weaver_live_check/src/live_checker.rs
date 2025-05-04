@@ -5,7 +5,7 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::rc::Rc;
-use weaver_semconv::{attribute::AttributeType, group::GroupType, semconv};
+use weaver_semconv::{attribute::AttributeType, group::GroupType};
 
 use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_resolved_schema::attribute::Attribute;

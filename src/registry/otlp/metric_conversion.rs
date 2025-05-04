@@ -5,10 +5,7 @@
 use weaver_live_check::sample_metric::SampleMetric;
 use weaver_semconv::group::InstrumentSpec;
 
-use super::{
-    grpc_stubs::proto::metrics::v1::{metric::Data, Metric},
-    Error,
-};
+use super::grpc_stubs::proto::metrics::v1::{metric::Data, Metric};
 
 /// Converts an OTLP metric to a SampleMetric
 pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {

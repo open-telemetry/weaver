@@ -72,6 +72,11 @@
 {%- endfor %}
 {% endmacro %}
 
+{% macro display_metric(metric, indent=0) %}
+{{ " " * indent }}{{ ("Metric") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(metric.live_check_result.highest_advice_level, metric.name) }} `{{ metric.instrument }}`, `{{ metric.unit }}`
+{{ display_advice(metric.live_check_result.all_advice, indent) }}
+{%- endmacro %}
+
 {%- macro display_sample(sample, indent=0) -%}
 {%- if sample.span is defined -%}
 {{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(sample.span.live_check_result.highest_advice_level, sample.span.name) }} `{{ sample.span.kind }}`
@@ -93,6 +98,8 @@
 {{ display_span_link(sample.span_link, indent) }}
 {%- elif sample.resource is defined -%}
 {{ display_resource(sample.resource, indent) }}
+{%- elif sample.metric is defined -%}
+{{ display_metric(sample.metric, indent) }}
 {%- endif -%}
 {%- endmacro -%}
 

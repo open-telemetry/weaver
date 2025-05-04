@@ -3,7 +3,6 @@
 //! This crate provides the weaver_live_check library
 
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use live_checker::LiveChecker;
 use miette::Diagnostic;
@@ -15,8 +14,6 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_forge::registry::ResolvedGroup;
-use weaver_resolved_schema::attribute::Attribute;
 
 /// Advisors for live checks
 pub mod advice;

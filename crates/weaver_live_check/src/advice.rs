@@ -4,7 +4,7 @@
 
 use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
 
-use serde::{de, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use weaver_checker::{
     violation::{Advice, AdviceLevel, Violation},
