@@ -4,6 +4,7 @@
 
 use serde::Serialize;
 use std::collections::HashMap;
+use std::rc::Rc;
 use weaver_semconv::{attribute::AttributeType, group::GroupType, semconv};
 
 use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
@@ -16,14 +17,14 @@ use crate::advice::Advisor;
 pub struct LiveChecker {
     /// The resolved registry
     pub registry: ResolvedRegistry,
-    semconv_attributes: HashMap<String, Attribute>,
-    semconv_templates: HashMap<String, Attribute>,
-    semconv_metrics: HashMap<String, ResolvedGroup>,
+    semconv_attributes: HashMap<String, Rc<Attribute>>,
+    semconv_templates: HashMap<String, Rc<Attribute>>,
+    semconv_metrics: HashMap<String, Rc<ResolvedGroup>>,
     /// The advisors to run
     #[serde(skip)]
     pub advisors: Vec<Box<dyn Advisor>>,
     #[serde(skip)]
-    templates_by_length: Vec<(String, Attribute)>,
+    templates_by_length: Vec<(String, Rc<Attribute>)>,
 }
 
 impl LiveChecker {
@@ -40,18 +41,20 @@ impl LiveChecker {
         for group in &registry.groups {
             if group.r#type == GroupType::Metric {
                 if let Some(metric_name) = &group.metric_name {
-                    let _ = semconv_metrics.insert(metric_name.clone(), group.clone());
+                    let group_rc = Rc::new(group.clone());
+                    let _ = semconv_metrics.insert(metric_name.clone(), group_rc);
                 }
             }
             for attribute in &group.attributes {
+                let attribute_rc = Rc::new(attribute.clone());
                 match attribute.r#type {
                     AttributeType::Template(_) => {
-                        templates_by_length.push((attribute.name.clone(), attribute.clone()));
-                        let _ = semconv_templates.insert(attribute.name.clone(), attribute.clone());
+                        templates_by_length
+                            .push((attribute.name.clone(), Rc::clone(&attribute_rc)));
+                        let _ = semconv_templates.insert(attribute.name.clone(), attribute_rc);
                     }
                     _ => {
-                        let _ =
-                            semconv_attributes.insert(attribute.name.clone(), attribute.clone());
+                        let _ = semconv_attributes.insert(attribute.name.clone(), attribute_rc);
                     }
                 }
             }
@@ -77,23 +80,23 @@ impl LiveChecker {
 
     /// Find an attribute in the registry
     #[must_use]
-    pub fn find_attribute(&self, name: &str) -> Option<&Attribute> {
-        self.semconv_attributes.get(name)
+    pub fn find_attribute(&self, name: &str) -> Option<Rc<Attribute>> {
+        self.semconv_attributes.get(name).map(Rc::clone)
     }
 
     /// Find a metric in the registry
     #[must_use]
-    pub fn find_metric(&self, name: &str) -> Option<&ResolvedGroup> {
-        self.semconv_metrics.get(name)
+    pub fn find_metric(&self, name: &str) -> Option<Rc<ResolvedGroup>> {
+        self.semconv_metrics.get(name).map(Rc::clone)
     }
 
     /// Find a template in the registry
     #[must_use]
-    pub fn find_template(&self, attribute_name: &str) -> Option<&Attribute> {
+    pub fn find_template(&self, attribute_name: &str) -> Option<Rc<Attribute>> {
         // Use the pre-sorted list to find the first (longest) matching template
         for (template_name, attribute) in &self.templates_by_length {
             if attribute_name.starts_with(template_name) {
-                return Some(attribute);
+                return Some(Rc::clone(attribute));
             }
         }
         None

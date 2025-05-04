@@ -4,6 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::rc::Rc;
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
@@ -171,9 +172,9 @@ impl LiveCheckRunner for SampleAttribute {
         // find the attribute in the registry
         let semconv_attribute = {
             if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute.clone())
+                Some(attribute)
             } else {
-                live_checker.find_template(&self.name).cloned()
+                live_checker.find_template(&self.name)
             }
         };
 
@@ -200,8 +201,11 @@ impl LiveCheckRunner for SampleAttribute {
 
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.as_ref(), None)?;
+            let advice_list = advisor.advise(
+                SampleRef::Attribute(self),
+                semconv_attribute.as_ref(),
+                None,
+            )?;
             result.add_advice_list(advice_list);
         }
         self.live_check_result = Some(result);

@@ -2,7 +2,8 @@
 
 //! Conversion routines for OTLP to Sample
 
-use weaver_live_check::sample_metric::{Instrument, SampleMetric};
+use weaver_live_check::sample_metric::SampleMetric;
+use weaver_semconv::group::InstrumentSpec;
 
 use super::{
     grpc_stubs::proto::metrics::v1::{metric::Data, Metric},
@@ -25,17 +26,17 @@ pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {
 /// updowncounter → Sum with is_monotonic: false
 /// gauge → Gauge
 /// histogram → Histogram
-fn otlp_data_to_instrument(data: Option<Data>) -> Instrument {
+fn otlp_data_to_instrument(data: Option<Data>) -> InstrumentSpec {
     match data {
         Some(Data::Sum(sum)) => {
             if sum.is_monotonic {
-                Instrument::Counter
+                InstrumentSpec::Counter
             } else {
-                Instrument::UpDownCounter
+                InstrumentSpec::UpDownCounter
             }
         }
-        Some(Data::Gauge(_)) => Instrument::Gauge,
-        Some(Data::Histogram(_)) => Instrument::Histogram,
-        _ => Instrument::Gauge, // TODO Default to Gauge if unknown?
+        Some(Data::Gauge(_)) => InstrumentSpec::Gauge,
+        Some(Data::Histogram(_)) => InstrumentSpec::Histogram,
+        _ => InstrumentSpec::Gauge, // TODO Default to Gauge if unknown?
     }
 }

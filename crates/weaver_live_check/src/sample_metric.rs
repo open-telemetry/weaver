@@ -5,6 +5,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
@@ -20,25 +21,11 @@ pub struct SampleMetric {
     //    #[serde(default)]
     //    pub attributes: Vec<SampleAttribute>,
     /// Type of the metric (e.g. gauge, histogram, ...).
-    pub instrument: Instrument,
+    pub instrument: InstrumentSpec,
     /// Unit of the metric.
     pub unit: String,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
-}
-
-/// The type of the metric.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Instrument {
-    /// An up-down counter metric.
-    UpDownCounter,
-    /// A counter metric.
-    Counter,
-    /// A gauge metric.
-    Gauge,
-    /// A histogram metric.
-    Histogram,
 }
 
 impl LiveCheckRunner for SampleMetric {
@@ -49,16 +36,14 @@ impl LiveCheckRunner for SampleMetric {
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the metric in the registry
-        let semconv_metric = if let Some(group) = live_checker.find_metric(&self.name) {
-            Some(group.clone())
-        } else {
+        let semconv_metric = live_checker.find_metric(&self.name);
+        if semconv_metric.is_none() {
             result.add_advice(Advice {
                 advice_type: MISSING_METRIC_ADVICE_TYPE.to_owned(),
                 value: Value::String(self.name.clone()),
                 message: "Does not exist in the registry".to_owned(),
                 advice_level: AdviceLevel::Violation,
             });
-            None
         };
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list =
