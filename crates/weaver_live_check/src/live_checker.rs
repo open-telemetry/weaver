@@ -435,6 +435,137 @@ mod tests {
         }
     }
 
+    fn make_metrics_registry() -> ResolvedRegistry {
+        ResolvedRegistry {
+            registry_url: "TEST_METRICS".to_owned(),
+            groups: vec![
+                // Attribute group for system memory
+                ResolvedGroup {
+                    id: "registry.system.memory".to_owned(),
+                    r#type: GroupType::AttributeGroup,
+                    brief: "Describes System Memory attributes".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: None,
+                    deprecated: None,
+                    attributes: vec![
+                        Attribute {
+                            name: "system.memory.state".to_owned(),
+                            r#type: AttributeType::Enum {
+                                allow_custom_values: None,
+                                members: vec![
+                                    EnumEntriesSpec {
+                                        id: "used".to_owned(),
+                                        value: ValueSpec::String("used".to_owned()),
+                                        brief: None,
+                                        note: None,
+                                        stability: Some(Stability::Development),
+                                        deprecated: None,
+                                    },
+                                    EnumEntriesSpec {
+                                        id: "free".to_owned(),
+                                        value: ValueSpec::String("free".to_owned()),
+                                        brief: None,
+                                        note: None,
+                                        stability: Some(Stability::Development),
+                                        deprecated: None,
+                                    },
+                                ],
+                            },
+                            examples: Some(Examples::Strings(vec![
+                                "free".to_owned(),
+                                "cached".to_owned(),
+                            ])),
+                            brief: "The memory state".to_owned(),
+                            tag: None,
+                            requirement_level: RequirementLevel::Recommended { text: "".to_owned() },
+                            sampling_relevant: None,
+                            note: "".to_owned(),
+                            stability: Some(Stability::Development),
+                            deprecated: None,
+                            prefix: false,
+                            tags: None,
+                            value: None,
+                            annotations: None,
+                        },
+                    ],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: Some("System Memory Attributes".to_owned()),
+                    body: None,
+                },
+                // System uptime metric
+                ResolvedGroup {
+                    id: "metric.system.uptime".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "The time the system has been running".to_owned(),
+                    note: "Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.\nThe actual accuracy would depend on the instrumentation and operating system.".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Development),
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("system.uptime".to_owned()),
+                    instrument: Some(weaver_semconv::group::InstrumentSpec::Gauge),
+                    unit: Some("s".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                },
+                // System memory usage metric
+                ResolvedGroup {
+                    id: "metric.system.memory.usage".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "Reports memory in use by state.".to_owned(),
+                    note: "The sum over all `system.memory.state` values SHOULD equal the total memory\navailable on the system, that is `system.memory.limit`.".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Development),
+                    deprecated: None,
+                    attributes: vec![
+                        Attribute {
+                            name: "system.memory.state".to_owned(),
+                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                            examples: None,
+                            brief: "The memory state".to_owned(),
+                            tag: None,
+                            requirement_level: RequirementLevel::Recommended { text: "".to_owned() },
+                            sampling_relevant: None,
+                            note: "".to_owned(),
+                            stability: Some(Stability::Development),
+                            deprecated: None,
+                            prefix: false,
+                            tags: None,
+                            value: None,
+                            annotations: None,
+                        },
+                    ],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("system.memory.usage".to_owned()),
+                    instrument: Some(weaver_semconv::group::InstrumentSpec::UpDownCounter),
+                    unit: Some("By".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                },
+            ],
+        }
+    }
+
     #[test]
     fn test_custom_rego() {
         let registry = ResolvedRegistry {
@@ -601,6 +732,68 @@ mod tests {
             stats.advice_type_counts.get("contains_test_in_status"),
             Some(&1)
         );
+    }
+
+    #[test]
+    fn test_json_metric() {
+        let registry = make_metrics_registry();
+
+        // Load samples from JSON file
+        let path = "data/metrics.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let advisors: Vec<Box<dyn Advisor>> = vec![
+            Box::new(DeprecatedAdvisor),
+            Box::new(StabilityAdvisor),
+            Box::new(TypeAdvisor),
+            Box::new(EnumAdvisor),
+        ];
+
+        let mut live_checker = LiveChecker::new(registry, advisors);
+        let rego_advisor =
+            RegoAdvisor::new(&live_checker, &None, &None).expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+        /* Assert on these:
+        total_entities_by_type: {
+            "histogram_data_point": 1,
+            "number_data_point": 5,
+            "metric": 4,
+            "attribute": 3,
+        },
+        no_advice_count: 4,
+        advice_type_counts: {
+            "attribute_required": 2,
+            "missing_attribute": 2,
+            "stability": 2,
+            "missing_metric": 3,
+            "missing_namespace": 2,
+        }, */
+        // Check the statistics
+        assert_eq!(
+            stats.total_entities_by_type.get("histogram_data_point"),
+            Some(&1)
+        );
+        assert_eq!(
+            stats.total_entities_by_type.get("number_data_point"),
+            Some(&5)
+        );
+        assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
+        assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
+        assert_eq!(stats.no_advice_count, 4);
+        assert_eq!(stats.advice_type_counts.get("attribute_required"), Some(&2));
+        assert_eq!(stats.advice_type_counts.get("missing_attribute"), Some(&2));
+        assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
+        assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
+        assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
     }
 
     #[test]
