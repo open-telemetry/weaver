@@ -235,6 +235,27 @@ impl Advisor for TypeAdvisor {
                 }
                 Ok(advice_list)
             }
+            SampleRef::NumberDataPoint(sample_number_data_point) => {
+                let mut advice_list = Vec::new();
+                if let Some(semconv_metric) = registry_group {
+                    for semconv_attribute in semconv_metric.attributes.iter() {
+                        // Check if the attribute is present in the sample
+                        if !sample_number_data_point
+                            .attributes
+                            .iter()
+                            .any(|attribute| attribute.name == semconv_attribute.name)
+                        {
+                            advice_list.push(Advice {
+                                advice_type: "attribute_required".to_owned(),
+                                value: Value::String(semconv_attribute.name.clone()),
+                                message: "Attribute is required".to_owned(),
+                                advice_level: AdviceLevel::Violation,
+                            });
+                        }
+                    }
+                }
+                Ok(advice_list)
+            }
             _ => Ok(Vec::new()),
         }
     }

@@ -72,9 +72,20 @@
 {%- endfor %}
 {% endmacro %}
 
+{% macro display_data_point(data_point, indent=0) %}
+{{ " " * indent }}{{ ("Data point") | ansi_bright_cyan | ansi_bold }} {{ data_point.value }}
+{{ display_advice(data_point.live_check_result.all_advice, indent) }}
+{%- for attribute in data_point.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
 {% macro display_metric(metric, indent=0) %}
 {{ " " * indent }}{{ ("Metric") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(metric.live_check_result.highest_advice_level, metric.name) }} `{{ metric.instrument }}`, `{{ metric.unit }}`
 {{ display_advice(metric.live_check_result.all_advice, indent) }}
+{%- for data_point in metric.data_points %}
+{{ display_data_point(data_point, indent + 4) }}
+{%- endfor %}
 {%- endmacro %}
 
 {%- macro display_sample(sample, indent=0) -%}

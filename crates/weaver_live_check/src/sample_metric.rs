@@ -12,6 +12,52 @@ use crate::{
     LiveCheckRunner, LiveCheckStatistics, SampleRef, MISSING_METRIC_ADVICE_TYPE,
 };
 
+/// The data point types of a metric
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DataPoints {
+    /// Number data points
+    Number(Vec<NumberDataPoint>),
+    /// Histogram data points
+    Histogram(Vec<HistogramDataPoint>),
+    /// Exponential histogram data points
+    ExponentialHistogram(Vec<ExponentialHistogramDataPoint>),
+    /// Summary data points
+    Summary(Vec<SummaryDataPoint>),
+}
+
+/// Represents a single data point of a metric
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NumberDataPoint {
+    /// The value of the data point
+    pub value: Value,
+    /// The attributes of the data point
+    pub attributes: Vec<SampleAttribute>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
+}
+
+/// Represents a single histogram data point of a metric
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HistogramDataPoint {
+    /// The attributes of the data point
+    pub attributes: Vec<SampleAttribute>,
+}
+
+/// Represents a single exponential histogram data point of a metric
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ExponentialHistogramDataPoint {
+    /// The attributes of the data point
+    pub attributes: Vec<SampleAttribute>,
+}
+
+/// Represents a single summary data point of a metric
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SummaryDataPoint {
+    /// The attributes of the data point
+    pub attributes: Vec<SampleAttribute>,
+}
+
 /// Represents a sample telemetry span parsed from any source
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SampleMetric {
@@ -24,6 +70,8 @@ pub struct SampleMetric {
     pub instrument: InstrumentSpec,
     /// Unit of the metric.
     pub unit: String,
+    /// Data points of the metric.
+    pub data_points: Option<DataPoints>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
 }
@@ -50,7 +98,26 @@ impl LiveCheckRunner for SampleMetric {
                 advisor.advise(SampleRef::Metric(self), None, semconv_metric.as_ref())?;
             result.add_advice_list(advice_list);
         }
-        // TODO for each data point...
+        // Get advice for the data points
+        if let Some(DataPoints::Number(number_data_points)) = &mut self.data_points {
+            for point in number_data_points.iter_mut() {
+                // TODO Get advice on the data point
+                let mut point_result = LiveCheckResult::new();
+                for advisor in live_checker.advisors.iter_mut() {
+                    let advice_list = advisor.advise(
+                        SampleRef::NumberDataPoint(point),
+                        None,
+                        semconv_metric.as_ref(),
+                    )?;
+                    point_result.add_advice_list(advice_list);
+                }
+                point.live_check_result = Some(point_result);
+
+                for attribute in &mut point.attributes {
+                    attribute.run_live_check(live_checker, stats)?;
+                }
+            }
+        }
 
         self.live_check_result = Some(result);
         stats.inc_entity_count("metric");
