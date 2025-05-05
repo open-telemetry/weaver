@@ -7,13 +7,14 @@ use log::info;
 use weaver_common::log_info;
 use weaver_live_check::{
     sample_resource::SampleResource,
-    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode},
+    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
     Error, Ingester, Sample,
 };
 
 use super::{
     conversion::{
         otlp_metric_to_sample, sample_attribute_from_key_value, span_kind_from_otlp_kind,
+        status_from_otlp_status,
     },
     listen_otlp_requests, OtlpRequest,
 };
@@ -111,8 +112,8 @@ impl OtlpIterator {
                         for span in scope_span.spans {
                             let mut sample_span = SampleSpan {
                                 name: span.name,
-                                kind: Self::span_kind_from_otlp_kind(span.kind),
-                                status: Self::status_from_otlp_status(span.status),
+                                kind: span_kind_from_otlp_kind(span.kind),
+                                status: status_from_otlp_status(span.status),
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),

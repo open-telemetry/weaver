@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
     sample_metric::{DataPoints, SampleMetric},
+    sample_span::{Status, StatusCode},
 };
 use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 
@@ -66,6 +67,24 @@ pub fn span_kind_from_otlp_kind(kind: i32) -> SpanKindSpec {
         5 => SpanKindSpec::Consumer,
         _ => SpanKindSpec::Internal,
     }
+}
+
+/// Converts an OTLP status to a Status
+pub fn status_from_otlp_status(
+    status: Option<super::grpc_stubs::proto::trace::v1::Status>,
+) -> Option<Status> {
+    if let Some(status) = status {
+        let code = match status.code {
+            1 => StatusCode::Ok,
+            2 => StatusCode::Error,
+            _ => StatusCode::Unset,
+        };
+        return Some(Status {
+            code,
+            message: status.message,
+        });
+    }
+    None
 }
 
 /// Converts an OTLP metric to a SampleMetric
