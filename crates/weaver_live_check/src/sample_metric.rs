@@ -17,18 +17,18 @@ use crate::{
 #[serde(untagged)]
 pub enum DataPoints {
     /// Number data points
-    Number(Vec<NumberDataPoint>),
+    Number(Vec<SampleNumberDataPoint>),
     /// Histogram data points
-    Histogram(Vec<HistogramDataPoint>),
+    Histogram(Vec<SampleHistogramDataPoint>),
     /// Exponential histogram data points
-    ExponentialHistogram(Vec<ExponentialHistogramDataPoint>),
+    ExponentialHistogram(Vec<SampleExponentialHistogramDataPoint>),
     /// Summary data points
-    Summary(Vec<SummaryDataPoint>),
+    Summary(Vec<SampleSummaryDataPoint>),
 }
 
 /// Represents a single data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NumberDataPoint {
+pub struct SampleNumberDataPoint {
     /// The value of the data point
     pub value: Value,
     /// The attributes of the data point
@@ -39,7 +39,7 @@ pub struct NumberDataPoint {
 
 /// Represents a single histogram data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HistogramDataPoint {
+pub struct SampleHistogramDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
     /// The count of the data point
@@ -58,14 +58,14 @@ pub struct HistogramDataPoint {
 
 /// Represents a single exponential histogram data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ExponentialHistogramDataPoint {
+pub struct SampleExponentialHistogramDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
 }
 
 /// Represents a single summary data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SummaryDataPoint {
+pub struct SampleSummaryDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
 }

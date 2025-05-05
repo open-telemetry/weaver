@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
-use sample_metric::{HistogramDataPoint, NumberDataPoint, SampleMetric};
+use sample_metric::{SampleHistogramDataPoint, SampleMetric, SampleNumberDataPoint};
 use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use serde::{Deserialize, Serialize};
@@ -120,9 +120,9 @@ pub enum SampleRef<'a> {
     /// A sample metric
     Metric(&'a SampleMetric),
     /// A sample number data point
-    NumberDataPoint(&'a NumberDataPoint),
+    NumberDataPoint(&'a SampleNumberDataPoint),
     /// A sample histogram data point
-    HistogramDataPoint(&'a HistogramDataPoint),
+    HistogramDataPoint(&'a SampleHistogramDataPoint),
 }
 
 // Dispatch the live check to the sample type

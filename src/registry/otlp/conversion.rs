@@ -135,7 +135,7 @@ fn otlp_data_to_data_points(data: &Option<Data>) -> Option<DataPoints> {
 fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
-        let live_check_point = weaver_live_check::sample_metric::HistogramDataPoint {
+        let live_check_point = weaver_live_check::sample_metric::SampleHistogramDataPoint {
             attributes: point
                 .attributes
                 .iter()
@@ -157,7 +157,7 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
 fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
-        let live_check_point = weaver_live_check::sample_metric::NumberDataPoint {
+        let live_check_point = weaver_live_check::sample_metric::SampleNumberDataPoint {
             value: match point.value {
                 Some(value) => match value {
                     super::grpc_stubs::proto::metrics::v1::number_data_point::Value::AsDouble(
