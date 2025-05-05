@@ -131,10 +131,13 @@ impl TestLog {
     /// Creates a new test logger.
     #[must_use]
     pub fn new() -> Self {
-        TestLog {
+        let testlog = TestLog {
             warn_count: Arc::new(AtomicUsize::new(0)),
             error_count: Arc::new(AtomicUsize::new(0)),
-        }
+        };
+        log::set_max_level(log::LevelFilter::Info);
+        log::set_boxed_logger(Box::new(testlog.clone())).expect("Failed to set logger");
+        testlog
     }
 
     /// Returns the number of warning messages logged.
@@ -147,16 +150,6 @@ impl TestLog {
     #[must_use]
     pub fn error_count(&self) -> usize {
         self.error_count.load(Ordering::Relaxed)
-    }
-
-    /// Registers this logger as the global logger.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if setting the logger fails.
-    pub fn init(self) -> Result<(), log::SetLoggerError> {
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_boxed_logger(Box::new(self))
     }
 }
 
@@ -207,9 +200,12 @@ impl MemLog {
     /// Creates a new memory logger.
     #[must_use]
     pub fn new() -> Self {
-        MemLog {
+        let memlog = MemLog {
             records: Arc::new(Mutex::new(Vec::new())),
-        }
+        };
+        log::set_max_level(log::LevelFilter::Info);
+        log::set_boxed_logger(Box::new(memlog.clone())).expect("Failed to set logger");
+        memlog
     }
 
     /// Returns all stored log records.
@@ -238,16 +234,6 @@ impl MemLog {
             .iter()
             .filter(|record| record.level == log::Level::Error)
             .count()
-    }
-
-    /// Registers this logger as the global logger.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if setting the logger fails.
-    pub fn init(self) -> Result<(), log::SetLoggerError> {
-        log::set_max_level(log::LevelFilter::Trace);
-        log::set_boxed_logger(Box::new(self))
     }
 }
 

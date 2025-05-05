@@ -171,7 +171,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let _ = sample.run_live_check(&mut live_checker, &mut stats);
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
         }
         stats.finalize();
 
@@ -499,7 +500,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let _ = sample.run_live_check(&mut live_checker, &mut stats);
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
         }
         stats.finalize();
 
@@ -553,7 +555,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let _ = sample.run_live_check(&mut live_checker, &mut stats);
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
         }
         stats.finalize();
 
@@ -565,6 +568,39 @@ mod tests {
         assert_eq!(stats.total_entities_by_type.get("span_link"), Some(&1));
         assert_eq!(stats.total_entities_by_type.get("resource"), Some(&1));
         assert_eq!(stats.total_advisories, 14);
+    }
+
+    #[test]
+    fn test_json_span_rego() {
+        let registry = make_registry();
+
+        // Load samples from JSON file
+        let path = "data/span.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/live_check_advice/".into()),
+            &Some("data/jq/test.jq".into()),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+
+        // Check the statistics
+        assert_eq!(
+            stats.advice_type_counts.get("contains_test_in_status"),
+            Some(&1)
+        );
     }
 
     #[test]

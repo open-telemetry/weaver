@@ -63,7 +63,11 @@
                 }
             ],
             "kind": "client",
-            "name": "test"
+            "name": "test",
+            "status": {
+                "code": "error",
+                "message": "test status message"
+            }
         }
     }
 ]
