@@ -153,7 +153,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let _ = sample.run_live_check(&mut live_checker, &mut stats);
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
         }
         stats.finalize();
 
@@ -481,7 +482,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let _ = sample.run_live_check(&mut live_checker, &mut stats);
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
         }
         stats.finalize();
 
@@ -535,7 +537,8 @@ mod tests {
 
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
-            let _ = sample.run_live_check(&mut live_checker, &mut stats);
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
         }
         stats.finalize();
 

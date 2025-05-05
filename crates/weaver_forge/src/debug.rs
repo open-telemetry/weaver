@@ -110,9 +110,7 @@ mod tests {
 
     #[test]
     fn test_print_dedup_errors() {
-        // Setup TestLog to capture log messages and keep a reference to it
         let test_log = weaver_common::TestLog::new();
-        test_log.clone().init().expect("Failed to init logger");
 
         let error = CompoundError(vec![
             TargetNotSupported {

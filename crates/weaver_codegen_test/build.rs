@@ -38,7 +38,6 @@ fn main() {
 
     // Create an in-memory logger as stdout and stderr are not "classically" available in build.rs.
     let logger = MemLog::new();
-    logger.clone().init().expect("Failed to init logger");
 
     // Load and resolve the semantic convention registry
     let registry_path = VirtualDirectoryPath::LocalFolder {
