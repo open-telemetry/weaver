@@ -42,6 +42,18 @@ pub struct NumberDataPoint {
 pub struct HistogramDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
+    /// The count of the data point
+    pub count: u64,
+    /// The sum of the data point
+    pub sum: Option<f64>,
+    /// The bucket counts of the data point
+    pub bucket_counts: Vec<u64>,
+    /// The minimum of the data point
+    pub min: Option<f64>,
+    /// The maximum of the data point
+    pub max: Option<f64>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
 }
 
 /// Represents a single exponential histogram data point of a metric
@@ -99,24 +111,48 @@ impl LiveCheckRunner for SampleMetric {
             result.add_advice_list(advice_list);
         }
         // Get advice for the data points
-        if let Some(DataPoints::Number(number_data_points)) = &mut self.data_points {
-            for point in number_data_points.iter_mut() {
-                // TODO Get advice on the data point
-                let mut point_result = LiveCheckResult::new();
-                for advisor in live_checker.advisors.iter_mut() {
-                    let advice_list = advisor.advise(
-                        SampleRef::NumberDataPoint(point),
-                        None,
-                        semconv_metric.as_ref(),
-                    )?;
-                    point_result.add_advice_list(advice_list);
-                }
-                point.live_check_result = Some(point_result);
+        match &mut self.data_points {
+            Some(DataPoints::Number(number_data_points)) => {
+                for point in number_data_points.iter_mut() {
+                    let mut point_result = LiveCheckResult::new();
+                    for advisor in live_checker.advisors.iter_mut() {
+                        let advice_list = advisor.advise(
+                            SampleRef::NumberDataPoint(point),
+                            None,
+                            semconv_metric.as_ref(),
+                        )?;
+                        point_result.add_advice_list(advice_list);
+                    }
+                    point.live_check_result = Some(point_result);
+                    stats.inc_entity_count("number_data_point");
+                    stats.maybe_add_live_check_result(point.live_check_result.as_ref());
 
-                for attribute in &mut point.attributes {
-                    attribute.run_live_check(live_checker, stats)?;
+                    for attribute in &mut point.attributes {
+                        attribute.run_live_check(live_checker, stats)?;
+                    }
                 }
             }
+            Some(DataPoints::Histogram(histogram_data_points)) => {
+                for point in histogram_data_points.iter_mut() {
+                    let mut point_result = LiveCheckResult::new();
+                    for advisor in live_checker.advisors.iter_mut() {
+                        let advice_list = advisor.advise(
+                            SampleRef::HistogramDataPoint(point),
+                            None,
+                            semconv_metric.as_ref(),
+                        )?;
+                        point_result.add_advice_list(advice_list);
+                    }
+                    point.live_check_result = Some(point_result);
+                    stats.inc_entity_count("histogram_data_point");
+                    stats.maybe_add_live_check_result(point.live_check_result.as_ref());
+
+                    for attribute in &mut point.attributes {
+                        attribute.run_live_check(live_checker, stats)?;
+                    }
+                }
+            }
+            _ => (),
         }
 
         self.live_check_result = Some(result);

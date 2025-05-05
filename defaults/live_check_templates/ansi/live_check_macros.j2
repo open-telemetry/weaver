@@ -72,8 +72,16 @@
 {%- endfor %}
 {% endmacro %}
 
+{% macro summarize_data_point_value(data_point) %}
+{%- if data_point.value is defined -%}
+{{ data_point.value }}
+{%- else -%}
+sum={{ data_point.sum }}, min={{ data_point.min }}, max={{ data_point.max }} 
+{%- endif -%}
+{% endmacro %} 
+
 {% macro display_data_point(data_point, indent=0) %}
-{{ " " * indent }}{{ ("Data point") | ansi_bright_cyan | ansi_bold }} {{ data_point.value }}
+{{ " " * indent }}{{ ("Data point") | ansi_bright_cyan | ansi_bold }} {{ summarize_data_point_value(data_point) }}
 {{ display_advice(data_point.live_check_result.all_advice, indent) }}
 {%- for attribute in data_point.attributes %}
 {{ display_attribute(attribute, indent + 4) }}

@@ -11,7 +11,7 @@ use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 
 use super::grpc_stubs::proto::{
     common::v1::{AnyValue, KeyValue},
-    metrics::v1::{metric::Data, Metric, NumberDataPoint},
+    metrics::v1::{metric::Data, HistogramDataPoint, Metric, NumberDataPoint},
 };
 
 fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
@@ -104,8 +104,34 @@ fn otlp_data_to_instrument(data: &Option<Data>) -> InstrumentSpec {
 fn otlp_data_to_data_points(data: &Option<Data>) -> Option<DataPoints> {
     match data {
         Some(Data::Sum(sum)) => Some(otlp_number_data_points(&sum.data_points)),
+        Some(Data::Gauge(gauge)) => Some(otlp_number_data_points(&gauge.data_points)),
+        Some(Data::Histogram(histogram)) => {
+            Some(otlp_histogram_data_points(&histogram.data_points))
+        }
         _ => None,
     }
+}
+
+/// Converts OTLP Histogram data points to DataPoints::Histogram
+fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
+    let mut data_points = Vec::new();
+    for point in otlp {
+        let live_check_point = weaver_live_check::sample_metric::HistogramDataPoint {
+            attributes: point
+                .attributes
+                .iter()
+                .map(sample_attribute_from_key_value)
+                .collect(),
+            count: point.count,
+            sum: point.sum,
+            bucket_counts: point.bucket_counts.clone(),
+            min: point.min,
+            max: point.max,
+            live_check_result: None,
+        };
+        data_points.push(live_check_point);
+    }
+    DataPoints::Histogram(data_points)
 }
 
 /// Converts OTLP Number data points to DataPoints::Number
