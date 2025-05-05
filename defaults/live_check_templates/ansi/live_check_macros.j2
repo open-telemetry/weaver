@@ -76,7 +76,7 @@
 {%- if data_point.value is defined -%}
 {{ data_point.value }}
 {%- else -%}
-sum={{ data_point.sum }}, min={{ data_point.min }}, max={{ data_point.max }} 
+count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}, max={{ data_point.max }} 
 {%- endif -%}
 {% endmacro %} 
 
