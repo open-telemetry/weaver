@@ -764,8 +764,7 @@ mod tests {
         stats.finalize();
         /* Assert on these:
         total_entities_by_type: {
-            "histogram_data_point": 1,
-            "number_data_point": 5,
+            "data_point": 6,
             "metric": 4,
             "attribute": 3,
         },
@@ -778,14 +777,7 @@ mod tests {
             "missing_namespace": 2,
         }, */
         // Check the statistics
-        assert_eq!(
-            stats.total_entities_by_type.get("histogram_data_point"),
-            Some(&1)
-        );
-        assert_eq!(
-            stats.total_entities_by_type.get("number_data_point"),
-            Some(&5)
-        );
+        assert_eq!(stats.total_entities_by_type.get("data_point"), Some(&6));
         assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
         assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
         assert_eq!(stats.no_advice_count, 4);
