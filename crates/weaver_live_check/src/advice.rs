@@ -18,7 +18,7 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{live_checker::LiveChecker, Error, SampleRef};
+use crate::{live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, SampleRef};
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -147,6 +147,31 @@ impl Advisor for StabilityAdvisor {
 
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
+
+/// Checks if required attributes from a resolved group are present in a list of attributes
+/// Returns a list of advice for missing attributes
+fn check_required_attributes(
+    required_attributes: &[Attribute],
+    attributes: &[SampleAttribute],
+) -> Vec<Advice> {
+    let mut advice_list = Vec::new();
+    for required_attribute in required_attributes {
+        // Check if the attribute is present in the sample
+        if !attributes
+            .iter()
+            .any(|attribute| attribute.name == required_attribute.name)
+        {
+            advice_list.push(Advice {
+                advice_type: "attribute_required".to_owned(),
+                value: Value::String(required_attribute.name.clone()),
+                message: "Attribute is required".to_owned(),
+                advice_level: AdviceLevel::Violation,
+            });
+        }
+    }
+    advice_list
+}
+
 impl Advisor for TypeAdvisor {
     fn advise(
         &mut self,
@@ -210,6 +235,7 @@ impl Advisor for TypeAdvisor {
                 }
             }
             SampleRef::Metric(sample_metric) => {
+                // Check the instrument and unit of the metric
                 let mut advice_list = Vec::new();
                 if let Some(semconv_metric) = registry_group {
                     if let Some(semconv_instrument) = &semconv_metric.instrument {
@@ -236,25 +262,24 @@ impl Advisor for TypeAdvisor {
                 Ok(advice_list)
             }
             SampleRef::NumberDataPoint(sample_number_data_point) => {
-                let mut advice_list = Vec::new();
                 if let Some(semconv_metric) = registry_group {
-                    for semconv_attribute in semconv_metric.attributes.iter() {
-                        // Check if the attribute is present in the sample
-                        if !sample_number_data_point
-                            .attributes
-                            .iter()
-                            .any(|attribute| attribute.name == semconv_attribute.name)
-                        {
-                            advice_list.push(Advice {
-                                advice_type: "attribute_required".to_owned(),
-                                value: Value::String(semconv_attribute.name.clone()),
-                                message: "Attribute is required".to_owned(),
-                                advice_level: AdviceLevel::Violation,
-                            });
-                        }
-                    }
+                    Ok(check_required_attributes(
+                        &semconv_metric.attributes,
+                        &sample_number_data_point.attributes,
+                    ))
+                } else {
+                    Ok(Vec::new())
                 }
-                Ok(advice_list)
+            }
+            SampleRef::HistogramDataPoint(sample_histogram_data_point) => {
+                if let Some(semconv_metric) = registry_group {
+                    Ok(check_required_attributes(
+                        &semconv_metric.attributes,
+                        &sample_histogram_data_point.attributes,
+                    ))
+                } else {
+                    Ok(Vec::new())
+                }
             }
             _ => Ok(Vec::new()),
         }
