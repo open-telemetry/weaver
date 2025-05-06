@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use clap::CommandFactory;
 use clap::{Args, Parser};
 use clap_complete::{generate, Shell};
+use clap_markdown::{help_markdown_custom, MarkdownOptions};
 use log::info;
 use std::io;
 use std::io::Write;
@@ -127,6 +128,19 @@ fn run_command(cli: &Cli) -> ExitDirectives {
                 warnings: None,
             };
         }
+        Some(Commands::Markdown(markdown)) => {
+            if let Err(e) = generate_markdown(&markdown.output_file) {
+                log_error(&e);
+                return ExitDirectives {
+                    exit_code: 1,
+                    warnings: None,
+                };
+            }
+            return ExitDirectives {
+                exit_code: 0,
+                warnings: None,
+            };
+        }
         None => {
             return ExitDirectives {
                 exit_code: 0,
@@ -219,6 +233,22 @@ fn generate_completion(shell: &Shell, output_file: &Option<PathBuf>) -> Result<(
     } else {
         // Default to writing to STDOUT
         generate(*shell, &mut app, bin_name, &mut io::stdout());
+    }
+
+    Ok(())
+}
+
+fn generate_markdown(output_file: &Option<PathBuf>) -> Result<(), String> {
+    let markdown = help_markdown_custom::<Cli>(&MarkdownOptions::new().show_footer(false));
+
+    if let Some(file_path) = output_file {
+        let mut file = std::fs::File::create(file_path)
+            .map_err(|e| format!("Failed to create file '{}': {}", file_path.display(), e))?;
+        file.write_all(markdown.as_bytes())
+            .map_err(|e| format!("Failed to write to file '{}': {}", file_path.display(), e))?;
+    } else {
+        // Default to writing to STDOUT
+        print!("{}", markdown);
     }
 
     Ok(())

@@ -550,6 +550,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap-markdown"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2a2617956a06d4885b490697b5307ebb09fec10b088afc18c81762d848c2339"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_builder"
 version = "4.5.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -563,9 +572,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.47"
+version = "4.5.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06f5378ea264ad4f82bbc826628b5aad714a75abf6ece087e923010eb937fb6"
+checksum = "be8c97f3a6f02b9e24cadc12aaba75201d18754b53ea0a9d99642f806ccdb4c9"
 dependencies = [
  "clap",
 ]
@@ -5904,6 +5913,7 @@ version = "0.15.0"
 dependencies = [
  "assert_cmd",
  "clap",
+ "clap-markdown",
  "clap_complete",
  "env_logger",
  "include_dir",

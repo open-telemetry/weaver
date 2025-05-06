@@ -82,7 +82,8 @@ weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
 
 clap = { version = "4.5.37", features = ["derive"] }
-clap_complete = "4.5.47"
+clap_complete = "4.5.48"
+clap-markdown = "0.1.5"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
@@ -256,3 +257,4 @@ github-custom-runners = { global="ubuntu-latest", x86_64-unknown-linux-gnu="ubun
 #todo = "warn"
 #implicit_clone = "warn"
 #inconsistent_struct_constructor = "warn"
+
