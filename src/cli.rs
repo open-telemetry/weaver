@@ -46,6 +46,9 @@ pub enum Commands {
     Diagnostic(DiagnosticCommand),
     /// Generate shell completions
     Completion(CompletionCommand),
+    /// Generate markdown documentation (hidden)
+    #[command(hide = true)]
+    Markdown(MarkdownCommand),
 }
 
 #[derive(Args)]
@@ -54,7 +57,14 @@ pub struct CompletionCommand {
     #[arg(value_enum)]
     pub shell: clap_complete::Shell,
 
-    /// (Optional) The file to write the completions to. Defaults to STDOUT.
+    /// (Optional) The file to write the completions to. Defaults to `STDOUT`.
     #[arg(long, hide = true)]
     pub completion_file: Option<std::path::PathBuf>,
+}
+
+#[derive(Args)]
+pub struct MarkdownCommand {
+    /// The file to write the markdown documentation to. Defaults to `STDOUT`.
+    #[arg(long)]
+    pub output_file: Option<std::path::PathBuf>,
 }
