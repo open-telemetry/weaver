@@ -202,7 +202,9 @@ These should be self-explanatory, but:
 - `no_advice_count` is the number of samples that received no advice
 - `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
-- `registry_coverage` is the fraction of seen registry attributes over the total registry attributes
+- `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
+- `seen_non_registry_attributes` is a record of how many times each non-registry metric was seen in the samples
+- `registry_coverage` is the fraction of seen registry entities over the total registry entities
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 

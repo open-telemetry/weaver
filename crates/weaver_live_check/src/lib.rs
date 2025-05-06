@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
+use weaver_semconv::group::GroupType;
 
 /// Advisors for live checks
 pub mod advice;
@@ -209,17 +210,21 @@ pub struct LiveCheckStatistics {
     pub total_advisories: usize,
     /// The number of each advice level
     pub advice_level_counts: HashMap<AdviceLevel, usize>,
-    /// The number of attributes with each highest advice level
+    /// The number of entities with each highest advice level
     pub highest_advice_level_counts: HashMap<AdviceLevel, usize>,
-    /// The number of attributes with no advice
+    /// The number of entities with no advice
     pub no_advice_count: usize,
-    /// The number of attributes with each advice type
+    /// The number of entities with each advice type
     pub advice_type_counts: HashMap<String, usize>,
     /// The number of each attribute seen from the registry
     pub seen_registry_attributes: HashMap<String, usize>,
     /// The number of each non-registry attribute seen
     pub seen_non_registry_attributes: HashMap<String, usize>,
-    /// Fraction of the registry covered by the attributes
+    /// The number of each metric seen from the registry
+    pub seen_registry_metrics: HashMap<String, usize>,
+    /// The number of each non-registry metric seen
+    pub seen_non_registry_metrics: HashMap<String, usize>,
+    /// Fraction of the registry covered by the attributes and metrics
     pub registry_coverage: f32,
 }
 
@@ -228,10 +233,16 @@ impl LiveCheckStatistics {
     #[must_use]
     pub fn new(registry: &ResolvedRegistry) -> Self {
         let mut seen_attributes = HashMap::new();
+        let mut seen_metrics = HashMap::new();
         for group in &registry.groups {
             for attribute in &group.attributes {
                 if attribute.deprecated.is_none() {
                     let _ = seen_attributes.insert(attribute.name.clone(), 0);
+                }
+            }
+            if group.r#type == GroupType::Metric && group.deprecated.is_none() {
+                if let Some(metric_name) = &group.metric_name {
+                    let _ = seen_metrics.insert(metric_name.clone(), 0);
                 }
             }
         }
@@ -245,6 +256,8 @@ impl LiveCheckStatistics {
             advice_type_counts: HashMap::new(),
             seen_registry_attributes: seen_attributes,
             seen_non_registry_attributes: HashMap::new(),
+            seen_registry_metrics: seen_metrics,
+            seen_non_registry_metrics: HashMap::new(),
             registry_coverage: 0.0,
         }
     }
@@ -320,6 +333,20 @@ impl LiveCheckStatistics {
         }
     }
 
+    /// Add metric name to coverage
+    pub fn add_metric_name_to_coverage(&mut self, seen_metric_name: String) {
+        if let Some(count) = self.seen_registry_metrics.get_mut(&seen_metric_name) {
+            // This is a registry metric
+            *count += 1;
+        } else {
+            // This is a non-registry metric
+            *self
+                .seen_non_registry_metrics
+                .entry(seen_metric_name)
+                .or_insert(0) += 1;
+        }
+    }
+
     /// Are there any violations in the statistics?
     #[must_use]
     pub fn has_violations(&self) -> bool {
@@ -330,16 +357,26 @@ impl LiveCheckStatistics {
     /// Finalize the statistics
     pub fn finalize(&mut self) {
         // Calculate the registry coverage
-        // non-zero attributes / total attributes
+        // (non-zero attributes + non-zero metrics) / (total attributes + total metrics)
         let non_zero_attributes = self
             .seen_registry_attributes
             .values()
             .filter(|&&count| count > 0)
             .count();
         let total_registry_attributes = self.seen_registry_attributes.len();
-        if total_registry_attributes > 0 {
+
+        let non_zero_metrics = self
+            .seen_registry_metrics
+            .values()
+            .filter(|&&count| count > 0)
+            .count();
+        let total_registry_metrics = self.seen_registry_metrics.len();
+
+        let total_registry_items = total_registry_attributes + total_registry_metrics;
+
+        if total_registry_items > 0 {
             self.registry_coverage =
-                (non_zero_attributes as f32) / (total_registry_attributes as f32);
+                ((non_zero_attributes + non_zero_metrics) as f32) / (total_registry_items as f32);
         } else {
             self.registry_coverage = 0.0;
         }

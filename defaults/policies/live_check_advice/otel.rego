@@ -40,6 +40,16 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 	message := "Does not match name formatting rules"
 }
 
+# checks metric name format
+deny contains make_advice(advice_type, advice_level, value, message) if {
+	input.metric
+	not regex.match(name_regex, input.metric.name)
+	advice_type := "invalid_format"
+	advice_level := "violation"
+	value := input.metric.name
+	message := "Does not match name formatting rules"
+}
+
 # checks attribute namespace doesn't collide with existing attributes
 deny contains make_advice(advice_type, advice_level, value, message) if {
 	input.attribute

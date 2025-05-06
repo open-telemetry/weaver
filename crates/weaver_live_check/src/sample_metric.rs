@@ -124,7 +124,7 @@ impl LiveCheckRunner for SampleMetric {
                         point_result.add_advice_list(advice_list);
                     }
                     point.live_check_result = Some(point_result);
-                    stats.inc_entity_count("number_data_point");
+                    stats.inc_entity_count("data_point");
                     stats.maybe_add_live_check_result(point.live_check_result.as_ref());
 
                     for attribute in &mut point.attributes {
@@ -144,7 +144,7 @@ impl LiveCheckRunner for SampleMetric {
                         point_result.add_advice_list(advice_list);
                     }
                     point.live_check_result = Some(point_result);
-                    stats.inc_entity_count("histogram_data_point");
+                    stats.inc_entity_count("data_point");
                     stats.maybe_add_live_check_result(point.live_check_result.as_ref());
 
                     for attribute in &mut point.attributes {
@@ -158,6 +158,7 @@ impl LiveCheckRunner for SampleMetric {
         self.live_check_result = Some(result);
         stats.inc_entity_count("metric");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        stats.add_metric_name_to_coverage(self.name.clone());
         Ok(())
     }
 }

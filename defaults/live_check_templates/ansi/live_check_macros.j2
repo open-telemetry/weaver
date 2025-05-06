@@ -27,7 +27,7 @@
 {% endif %}
 
 {{ ("Registry coverage") | ansi_blue | ansi_bold }}
-  - attributes seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
+  - entities seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
 {% endmacro %}
 
 {% macro display_advice(all_advice, indent=0) %}

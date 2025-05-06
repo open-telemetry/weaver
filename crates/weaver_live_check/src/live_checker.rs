@@ -794,6 +794,11 @@ mod tests {
         assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
         assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
+        assert_eq!(
+            stats.seen_registry_metrics.get("system.memory.usage"),
+            Some(&1)
+        );
+        assert_eq!(stats.seen_non_registry_metrics.len(), 3);
     }
 
     #[test]
