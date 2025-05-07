@@ -171,9 +171,9 @@ impl LiveCheckRunner for SampleAttribute {
         // find the attribute in the registry
         let semconv_attribute = {
             if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute.clone())
+                Some(attribute)
             } else {
-                live_checker.find_template(&self.name).cloned()
+                live_checker.find_template(&self.name)
             }
         };
 
