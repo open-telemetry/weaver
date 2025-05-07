@@ -84,7 +84,7 @@ pub enum RegistrySubCommand {
     Check(RegistryCheckArgs),
     /// Generates artifacts from a semantic convention registry.
     ///
-    /// Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+    /// Rego policies present in the registry or specified using `-p` or `--policy` will be automatically validated by the policy engine before the artifact generation phase.
     ///
     /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
     ///
@@ -93,7 +93,7 @@ pub enum RegistrySubCommand {
     Generate(RegistryGenerateArgs),
     /// Resolves a semantic convention registry.
     ///
-    /// Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+    /// Rego policies present in the registry or specified using `-p` or `--policy` will be automatically validated by the policy engine before the artifact generation phase.
     ///
     /// Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
     ///
