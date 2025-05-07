@@ -31,8 +31,8 @@ mod util;
 /// Set of parameters used to specify the diagnostic format.
 #[derive(Args, Debug, Clone)]
 pub(crate) struct DiagnosticArgs {
-    /// Format used to render the diagnostic messages. Predefined formats are: ansi, json,
-    /// gh_workflow_command.
+    /// Format used to render the diagnostic messages. Predefined formats are: `ansi`, `json`,
+    /// `gh_workflow_command`.
     #[arg(long, default_value = "ansi")]
     pub(crate) diagnostic_format: String,
 

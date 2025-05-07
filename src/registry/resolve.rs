@@ -33,8 +33,8 @@ pub struct RegistryResolveArgs {
 
     /// Output format for the resolved schema
     /// If not specified, the resolved schema is printed in YAML format
-    /// Supported formats: yaml, json
-    /// Default format: yaml
+    /// Supported formats: `yaml`, `json`
+    /// Default format: `yaml`
     /// Example: `--format json`
     #[arg(short, long, default_value = "yaml")]
     format: Format,

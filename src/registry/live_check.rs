@@ -84,15 +84,15 @@ pub struct RegistryLiveCheckArgs {
     #[command(flatten)]
     pub diagnostic: DiagnosticArgs,
 
-    /// Where to read the input telemetry from. {file path} | stdin | otlp
+    /// Where to read the input telemetry from. Possible values: `{file path}`, `stdin`, `otlp`
     #[arg(long, default_value = "otlp")]
     input_source: InputSource,
 
-    /// The format of the input telemetry. (Not required for OTLP). text | json
+    /// The format of the input telemetry. (Not required for OTLP). Predefined formats are: `text`, or `json`
     #[arg(long, default_value = "json")]
     input_format: InputFormat,
 
-    /// Format used to render the report. Predefined formats are: ansi, json
+    /// Format used to render the report. Predefined formats are: `ansi`, `json`
     #[arg(long, default_value = "ansi")]
     format: String,
 
@@ -120,7 +120,7 @@ pub struct RegistryLiveCheckArgs {
     #[clap(long, default_value = "4317")]
     otlp_grpc_port: u16,
 
-    /// Port used by the HTTP admin port (endpoints: /stop).
+    /// Port used by the HTTP admin port (endpoints: `/stop`).
     #[clap(long, default_value = "4320")]
     admin_port: u16,
 
