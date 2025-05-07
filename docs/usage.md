@@ -106,7 +106,7 @@ The process exits with a code of 0 if the registry validation is successful.
 
 Generates artifacts from a semantic convention registry.
 
-Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+Rego policies present in the registry or specified using `-p` or `--policy` will be automatically validated by the policy engine before the artifact generation phase.
 
 Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
 
@@ -158,7 +158,7 @@ The process exits with a code of 0 if the generation is successful.
 
 Resolves a semantic convention registry.
 
-Rego policies present in the registry or specified using -p or --policy will be automatically validated by the policy engine before the artifact generation phase.
+Rego policies present in the registry or specified using `-p` or `--policy` will be automatically validated by the policy engine before the artifact generation phase.
 
 Note: The `-d` and `--registry-git-sub-dir` options are only used when the registry is a Git URL otherwise these options are ignored.
 
