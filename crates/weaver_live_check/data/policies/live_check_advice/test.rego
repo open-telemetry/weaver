@@ -22,6 +22,16 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 	message := "Name must not contain 'test'"
 }
 
+# checks span status message contains the word "test"
+deny contains make_advice(advice_type, advice_level, value, message) if {
+	input.span
+	value := input.span.status.message
+	contains(value, "test")
+	advice_type := "contains_test_in_status"
+	advice_level := "violation"
+	message := "Status message must not contain 'test'"
+}
+
 # checks span_event name contains the word "test"
 deny contains make_advice(advice_type, advice_level, value, message) if {
 	input.span_event

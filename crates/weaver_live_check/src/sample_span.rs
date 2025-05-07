@@ -10,6 +10,27 @@ use crate::{
     LiveCheckRunner, LiveCheckStatistics, SampleRef,
 };
 
+/// The status code of the span
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StatusCode {
+    /// The status is unset
+    Unset,
+    /// The status is ok
+    Ok,
+    /// The status is error
+    Error,
+}
+
+/// The status code and message of the span
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Status {
+    /// The status code
+    pub code: StatusCode,
+    /// The status message
+    pub message: String,
+}
+
 /// Represents a sample telemetry span parsed from any source
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SampleSpan {
@@ -17,6 +38,8 @@ pub struct SampleSpan {
     pub name: String,
     /// The kind of the span
     pub kind: SpanKindSpec,
+    /// Status
+    pub status: Option<Status>,
     /// The span's attributes
     #[serde(default)]
     pub attributes: Vec<SampleAttribute>,
