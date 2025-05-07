@@ -18,6 +18,13 @@
 					{
 						"allOf": [
 							{
+								"$ref": "#/$defs/EntitySemanticConvention"
+							}
+						]
+					},
+					{
+						"allOf": [
+							{
 								"$ref": "#/$defs/SpanSemanticConvention"
 							}
 						]
@@ -99,6 +106,44 @@
 				}
 			]
 		},
+		"EntitySemanticConvention": {
+			"allOf": [
+				{
+					"$ref": "#/$defs/SemanticConventionBase"
+				}
+			],
+			"required": [
+				"name"
+			],
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "entity"
+				},
+				"attributes": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/Attribute"
+					},
+					"description": "list of identifying attributes for the entity type"
+				},
+				"descriptive_attributes": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/Attribute"
+					},
+					"description": "list of descriptive attributes for the entity type"
+				},
+				"relationships": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"additionalProperties": "string"
+					},
+					"description": "list of relationships for the entity type"
+				}
+		    }
+		},
 		"SemanticConventionBase": {
 			"type": "object",
 			"required": [
@@ -165,7 +210,7 @@
 					"type": "string",
 					"enum": [
 						"span",
-						"resource",
+						"entity",
 						"metric",
 						"event",
 						"attribute_group"
@@ -193,7 +238,7 @@
 				},
 				"display_name": {
 					"type": "string",
-					"description": "the display name / title of the attribute group."
+					"description": "the display name / title of the semantic convention."
 				},
 				"deprecated": {
 					"$ref": "#/$defs/Deprecated"
@@ -458,6 +503,11 @@
 				"unit": {
 					"type": "string",
 					"description": "The unit in which the metric is measured in."
+				},
+				"entity_associations": {
+					"type": "array",
+					"items": { "type": "string" },
+					"description": "list of entity associations for the metric"
 				}
 			}
 		},
