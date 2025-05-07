@@ -114,7 +114,7 @@ pub enum RegistrySubCommand {
     /// Generate a diff between two versions of a semantic convention registry.
     ///
     /// This diff can then be rendered in multiple formats:
-    /// - a console-friendly format (default: ansi),
+    /// - a console-friendly format (default: `ansi`),
     /// - a structured document in JSON format,
     /// - ...
     #[clap(verbatim_doc_comment)]
@@ -146,7 +146,7 @@ pub struct RegistryArgs {
     pub registry: VirtualDirectoryPath,
 
     /// Boolean flag to specify whether to follow symlinks when loading the registry.
-    /// Default is false.
+    /// Default value: `false`.
     #[arg(short = 's', long)]
     pub(crate) follow_symlinks: bool,
 

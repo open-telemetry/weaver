@@ -38,13 +38,13 @@ pub struct RegistryUpdateMarkdownArgs {
     /// Path to the directory where the templates are located.
     /// Default is the `templates` directory.
     /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   {templates}/{target}/snippet.md.j2.
+    ///   `{templates}/{target}/snippet.md.j2.`
     #[arg(short = 't', long, default_value = "templates")]
     pub templates: VirtualDirectoryPath,
 
     /// If provided, the target to generate snippets with.
     /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   {templates}/{target}/snippet.md.j2.
+    ///   `{templates}/{target}/snippet.md.j2.`
     #[arg(long)]
     pub target: String,
 

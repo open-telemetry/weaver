@@ -41,7 +41,7 @@ pub struct RegistryGenerateArgs {
     #[arg(short = 'c', long)]
     pub config: Option<Vec<PathBuf>>,
 
-    /// Parameters key=value, defined in the command line, to pass to the templates.
+    /// Parameters `key=value`, defined in the command line, to pass to the templates.
     /// The value must be a valid YAML value.
     #[arg(short = 'D', long, value_parser = parse_key_val)]
     pub param: Option<Vec<(String, Value)>>,

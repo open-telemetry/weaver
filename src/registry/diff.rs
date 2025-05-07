@@ -33,8 +33,8 @@ pub struct RegistryDiffArgs {
     #[arg(long)]
     baseline_registry: VirtualDirectoryPath,
 
-    /// Format used to render the schema changes. Predefined formats are: ansi, json,
-    /// and markdown.
+    /// Format used to render the schema changes. Predefined formats are: `ansi`, `json`,
+    /// and `markdown`.
     #[arg(long, default_value = "ansi")]
     diff_format: String,
 
