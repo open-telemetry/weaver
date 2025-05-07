@@ -437,13 +437,25 @@ impl RegoAdvisor {
     }
 }
 
+/// Input data for the check function
+#[derive(Serialize)]
+struct RegoInput<'a> {
+    sample: SampleRef<'a>,
+    registry_attribute: Option<&'a Rc<Attribute>>,
+    registry_group: Option<&'a Rc<ResolvedGroup>>,
+}
+
 impl Advisor for RegoAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        _registry_attribute: Option<&Rc<Attribute>>,
-        _registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<&Rc<Attribute>>,
+        registry_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
-        self.check(sample)
+        self.check(RegoInput {
+            sample,
+            registry_attribute,
+            registry_group,
+        })
     }
 }

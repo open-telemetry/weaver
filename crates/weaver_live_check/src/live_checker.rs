@@ -123,7 +123,7 @@ mod tests {
             AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
             TemplateTypeSpec, ValueSpec,
         },
-        group::{GroupType, SpanKindSpec},
+        group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
     };
 
@@ -516,7 +516,7 @@ mod tests {
                     span_kind: None,
                     events: vec![],
                     metric_name: Some("system.uptime".to_owned()),
-                    instrument: Some(weaver_semconv::group::InstrumentSpec::Gauge),
+                    instrument: Some(InstrumentSpec::Gauge),
                     unit: Some("s".to_owned()),
                     name: None,
                     lineage: None,
@@ -555,7 +555,7 @@ mod tests {
                     span_kind: None,
                     events: vec![],
                     metric_name: Some("system.memory.usage".to_owned()),
-                    instrument: Some(weaver_semconv::group::InstrumentSpec::UpDownCounter),
+                    instrument: Some(InstrumentSpec::UpDownCounter),
                     unit: Some("By".to_owned()),
                     name: None,
                     lineage: None,
@@ -791,6 +791,38 @@ mod tests {
             Some(&1)
         );
         assert_eq!(stats.seen_non_registry_metrics.len(), 3);
+    }
+
+    #[test]
+    fn test_json_metric_custom_rego() {
+        let registry = make_metrics_registry();
+
+        // Load samples from JSON file
+        let path = "data/metrics.json";
+        let mut samples: Vec<Sample> =
+            serde_json::from_reader(File::open(path).expect("Unable to open file"))
+                .expect("Unable to parse JSON");
+
+        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/live_check_advice/".into()),
+            &Some("data/jq/test.jq".into()),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            println!("{:?}", result);
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+        assert_eq!(
+            stats.advice_type_counts.get("invalid_data_point_value"),
+            Some(&1)
+        );
     }
 
     #[test]
