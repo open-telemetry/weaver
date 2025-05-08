@@ -22,6 +22,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -70,6 +71,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -83,6 +85,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           },
@@ -92,6 +95,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -105,6 +109,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }

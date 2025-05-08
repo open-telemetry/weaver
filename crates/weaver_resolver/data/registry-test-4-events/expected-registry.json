@@ -12,8 +12,8 @@
       "name": "some.event",
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-4-events/registry/log-events.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
         },
         "attributes": {
           "test_attr.event.attr": {
@@ -23,6 +23,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -38,8 +39,8 @@
       "name": "empty.event",
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-4-events/registry/log-events.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-4-events/registry/log-events.yaml"
         }
       }
     },
@@ -67,6 +68,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           },
@@ -77,6 +79,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           },
@@ -87,6 +90,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -500,6 +504,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           },
@@ -509,6 +514,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -522,6 +528,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           },
@@ -531,6 +538,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -578,6 +586,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -608,6 +617,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [

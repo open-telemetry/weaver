@@ -614,6 +614,7 @@ fn resolve_inheritance_attr(
             deprecated,
             prefix,
             annotations,
+            role,
         } => {
             match parent_attr {
                 AttributeSpec::Ref {
@@ -627,6 +628,7 @@ fn resolve_inheritance_attr(
                     deprecated: parent_deprecated,
                     prefix: parent_prefix,
                     annotations: parent_annotations,
+                    role: parent_role,
                     ..
                 } => {
                     // attr and attr_parent are both references.
@@ -646,6 +648,7 @@ fn resolve_inheritance_attr(
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
                         prefix: lineage.prefix(prefix, parent_prefix),
                         annotations: lineage.annotations(annotations, parent_annotations),
+                        role: lineage.optional_role(role, parent_role),
                     }
                 }
                 AttributeSpec::Id {
@@ -659,6 +662,7 @@ fn resolve_inheritance_attr(
                     stability: parent_stability,
                     deprecated: parent_deprecated,
                     annotations: parent_annotations,
+                    role: parent_role,
                     ..
                 } => {
                     // attr is a reference and attr_parent is an id.
@@ -677,6 +681,7 @@ fn resolve_inheritance_attr(
                         stability: lineage.stability(stability, parent_stability),
                         deprecated: lineage.deprecated(deprecated, parent_deprecated),
                         annotations: lineage.annotations(annotations, parent_annotations),
+                        role: lineage.optional_role(role, parent_role),
                     }
                 }
             }
@@ -688,6 +693,8 @@ fn resolve_inheritance_attr(
 #[cfg(test)]
 mod tests {
     use std::error::Error;
+    use std::fs::{File, OpenOptions};
+    use std::io::Write;
     use std::path::PathBuf;
 
     use glob::glob;
@@ -735,6 +742,13 @@ mod tests {
             // }
             println!("Testing `{}`", test_dir);
 
+            // Delete all the files in the observed_output/target directory
+            // before generating the new files.
+            std::fs::remove_dir_all(format!("observed_output/{}", test_dir)).unwrap_or_default();
+            let observed_output_dir = PathBuf::from(format!("observed_output/{}", test_dir));
+            std::fs::create_dir_all(observed_output_dir.clone())
+                .expect("Failed to create observed output directory");
+
             let registry_id = "default";
             let result = SemConvRegistry::try_from_path_pattern(
                 registry_id,
@@ -771,6 +785,8 @@ mod tests {
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
                     .expect("Failed to read expected errors file");
                 let observed_errors = serde_json::to_string(&observed_registry).unwrap();
+                // TODO - Write observed errors.
+
                 assert_eq!(
                     canonicalize_json_string(&observed_errors).unwrap(),
                     canonicalize_json_string(&expected_errors).unwrap(),
@@ -793,15 +809,20 @@ mod tests {
             )
             .expect("Failed to deserialize expected attribute catalog");
 
+            // Write observed output.
+            let observed_attr_catalog_file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(observed_output_dir.join("attribute-catalog.json"))
+                .expect("Failed to open observed output file");
+            serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
+                .expect("Failed to write observed ouptut.");
+            // Compare values
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
                 "Observed and expected attribute catalogs don't match for `{}`.\nDiff from expected:\n{}",
                 test_dir, weaver_diff::diff_output(&to_json(&expected_attr_catalog), &to_json(&observed_attr_catalog))
             );
-
-            // let yaml = serde_yaml::to_string(&observed_attr_catalog).unwrap();
-            //println!("{}", yaml);
-            // println!("Observed attribute catalog:\n{}", to_json(&observed_attr_catalog));
 
             // Check that the resolved registry matches the expected registry.
             let expected_registry: Registry = serde_json::from_reader(
@@ -809,6 +830,15 @@ mod tests {
                     .expect("Failed to open expected registry"),
             )
             .expect("Failed to deserialize expected registry");
+
+            // Write observed output.
+            let observed_registry_file = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .open(observed_output_dir.join("registry.json"))
+                .expect("Failed to open observed output file");
+            serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
+                .expect("Failed to write observed ouptut.");
 
             assert_eq!(
                 observed_registry,

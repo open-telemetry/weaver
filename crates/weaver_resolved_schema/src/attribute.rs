@@ -13,7 +13,9 @@ use std::fmt::Display;
 use std::ops::Not;
 #[cfg(test)]
 use weaver_semconv::attribute::PrimitiveOrArrayTypeSpec;
-use weaver_semconv::attribute::{AttributeSpec, AttributeType, Examples, RequirementLevel};
+use weaver_semconv::attribute::{
+    AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel,
+};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
@@ -87,6 +89,10 @@ pub struct Attribute {
     /// Note: This is only used in a telemetry schema specification.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Value>,
+    /// Whether the attribute is identifying or descriptive.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "AttributeRole::is_identifying")]
+    pub role: AttributeRole,
 }
 
 /// An unresolved attribute definition.
@@ -128,6 +134,7 @@ impl Attribute {
             tags: None,
             value: None,
             annotations: None,
+            role: Default::default(),
         }
     }
 
@@ -150,6 +157,7 @@ impl Attribute {
             tags: None,
             value: None,
             annotations: None,
+            role: Default::default(),
         }
     }
 
@@ -172,6 +180,7 @@ impl Attribute {
             tags: None,
             value: None,
             annotations: None,
+            role: Default::default(),
         }
     }
 
@@ -198,6 +207,7 @@ impl Attribute {
             tags: None,
             value: None,
             annotations: None,
+            role: Default::default(),
         }
     }
 

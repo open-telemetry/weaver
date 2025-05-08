@@ -41,6 +41,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -70,6 +71,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -99,6 +101,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -128,6 +131,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -157,6 +161,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -186,6 +191,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -215,6 +221,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -244,6 +251,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -273,6 +281,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }

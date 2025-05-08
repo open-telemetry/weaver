@@ -249,6 +249,7 @@ mod tests {
             tags: None,
             value: None,
             annotations: None,
+            role: Default::default(),
         }
     }
 

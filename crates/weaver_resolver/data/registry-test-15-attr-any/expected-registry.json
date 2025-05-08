@@ -22,6 +22,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           },
@@ -32,6 +33,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
