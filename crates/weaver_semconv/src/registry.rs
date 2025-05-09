@@ -320,6 +320,7 @@ mod tests {
                             stability: None,
                             deprecated: None,
                             annotations: None,
+                            role: Default::default(),
                         }],
                         span_kind: None,
                         prefix: "".to_owned(),

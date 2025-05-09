@@ -1,0 +1,24 @@
+groups:
+  - id: registry.host
+    type: attribute_group
+    brief: Registry server
+    attributes:
+      - id: host.name
+        stability: stable
+        type: string
+        brief: Name of the host
+        examples: ["localhost"]
+      - id: host.id
+        stability: stable
+        type: string
+        brief: Unique identifier for a host
+        examples: ["01556-1402034656"]
+  - id: entity.host
+    type: entity
+    name: host
+    brief: host entity
+    stability: stable
+    attributes:
+      - ref: host.name
+        role: descriptive
+      - ref: host.id

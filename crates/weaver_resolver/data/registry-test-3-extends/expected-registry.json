@@ -22,6 +22,7 @@
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -36,6 +37,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -48,6 +50,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -59,6 +62,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -72,6 +76,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -97,14 +102,15 @@
       ],
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/http-common.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
         "attributes": {
           "error.type": {
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -119,6 +125,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -131,6 +138,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -142,6 +150,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -155,6 +164,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -165,6 +175,7 @@
             "source_group": "server",
             "inherited_fields": [
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -178,6 +189,7 @@
             "inherited_fields": [
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -190,6 +202,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -225,6 +238,7 @@
             "source_group": "registry.error",
             "inherited_fields": [
               "brief",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -239,6 +253,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -251,6 +266,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -263,6 +279,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -274,6 +291,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -287,6 +305,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -298,6 +317,7 @@
             "inherited_fields": [
               "examples",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -309,6 +329,7 @@
             "source_group": "server",
             "inherited_fields": [
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -321,6 +342,7 @@
             "source_group": "registry.url",
             "inherited_fields": [
               "brief",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -355,6 +377,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -367,6 +390,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -379,6 +403,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -393,6 +418,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -404,6 +430,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -418,6 +445,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -449,6 +477,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -462,6 +491,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -474,6 +504,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -485,6 +516,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -497,6 +529,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -511,6 +544,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -522,6 +556,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -536,6 +571,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -571,6 +607,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -584,6 +621,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -596,6 +634,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -607,6 +646,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -619,6 +659,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -633,6 +674,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -644,6 +686,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -658,6 +701,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -684,8 +728,8 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "attributes": {
           "error.type": {
@@ -693,6 +737,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -706,6 +751,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -718,6 +764,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -729,6 +776,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -741,6 +789,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -755,6 +804,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -766,6 +816,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -780,6 +831,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -815,6 +867,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -828,6 +881,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -840,6 +894,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -851,6 +906,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -863,6 +919,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -877,6 +934,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -888,6 +946,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -902,6 +961,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -937,6 +997,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -950,6 +1011,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -962,6 +1024,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -973,6 +1036,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -985,6 +1049,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -999,6 +1064,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1010,6 +1076,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1024,6 +1091,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -1059,6 +1127,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1072,6 +1141,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1084,6 +1154,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1095,6 +1166,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1107,6 +1179,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1121,6 +1194,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1132,6 +1206,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1146,6 +1221,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -1181,6 +1257,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1194,6 +1271,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1206,6 +1284,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1217,6 +1296,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1229,6 +1309,7 @@
               "brief",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1243,6 +1324,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1254,6 +1336,7 @@
             "inherited_fields": [
               "brief",
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -1268,6 +1351,7 @@
               "examples",
               "note",
               "requirement_level",
+              "role",
               "stability"
             ]
           }
@@ -1305,8 +1389,8 @@
       ],
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/registry-http.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/registry-http.yaml"
         }
       }
     },
@@ -1409,8 +1493,8 @@
       ],
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/registry-url.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/registry-url.yaml"
         }
       }
     }

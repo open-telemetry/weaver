@@ -102,8 +102,8 @@ mod tests {
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
         attribute::{
-            AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
-            TemplateTypeSpec, ValueSpec,
+            AttributeRole, AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec,
+            RequirementLevel, TemplateTypeSpec, ValueSpec,
         },
         group::{GroupType, SpanKindSpec},
         stability::Stability,
@@ -320,6 +320,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: AttributeRole::Identifying,
                     },
                     Attribute {
                         name: "test.enum".to_owned(),
@@ -358,6 +359,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: AttributeRole::Identifying,
                     },
                     Attribute {
                         name: "test.deprecated".to_owned(),
@@ -381,6 +383,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: AttributeRole::Identifying,
                     },
                     Attribute {
                         name: "test.template".to_owned(),
@@ -402,6 +405,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: AttributeRole::Identifying,
                     },
                 ],
                 span_kind: Some(SpanKindSpec::Internal),
@@ -451,6 +455,7 @@ mod tests {
                     tags: None,
                     value: None,
                     annotations: None,
+                    role: AttributeRole::Identifying,
                 }],
                 span_kind: Some(SpanKindSpec::Internal),
                 events: vec![],
@@ -619,6 +624,7 @@ mod tests {
                     tags: None,
                     value: None,
                     annotations: None,
+                    role: AttributeRole::Identifying,
                 }],
                 span_kind: Some(SpanKindSpec::Internal),
                 events: vec![],

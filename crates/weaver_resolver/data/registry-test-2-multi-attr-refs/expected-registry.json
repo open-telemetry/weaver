@@ -21,6 +21,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -33,6 +34,7 @@
               "brief",
               "examples",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [

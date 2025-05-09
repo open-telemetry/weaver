@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
-use weaver_semconv::attribute::{AttributeSpec, Examples, RequirementLevel};
+use weaver_semconv::attribute::{AttributeRole, AttributeSpec, Examples, RequirementLevel};
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
@@ -324,6 +324,47 @@ impl AttributeLineage {
             if parent_value.is_some() {
                 _ = self.inherited_fields.insert("stability".to_owned());
             }
+            parent_value.clone()
+        }
+    }
+    /// Determines the value of the role field by evaluating the presence of
+    /// a local value. If a local value is provided, it is used, and the role
+    /// field's lineage is marked as local. Otherwise, the specified parent
+    /// value is used, and the role field's lineage is marked as inherited
+    /// from the parent.
+    pub fn optional_role(
+        &mut self,
+        local_value: &Option<AttributeRole>,
+        parent_value: &Option<AttributeRole>,
+    ) -> Option<AttributeRole> {
+        if local_value.is_some() {
+            _ = self.locally_overridden_fields.insert("role".to_owned());
+            _ = self.inherited_fields.remove("role");
+            local_value.clone()
+        } else {
+            if parent_value.is_some() {
+                _ = self.inherited_fields.insert("role".to_owned());
+            }
+            parent_value.clone()
+        }
+    }
+
+    /// Determines the value of the role field by evaluating the presence of
+    /// a local value. If a local value is provided, it is used, and the role
+    /// field's lineage is marked as local. Otherwise, the specified parent
+    /// value is used, and the role field's lineage is marked as inherited
+    /// from the parent.
+    pub fn role(
+        &mut self,
+        local_value: &Option<AttributeRole>,
+        parent_value: &AttributeRole,
+    ) -> AttributeRole {
+        if let Some(v) = local_value {
+            _ = self.locally_overridden_fields.insert("role".to_owned());
+            _ = self.inherited_fields.remove("role");
+            v.clone()
+        } else {
+            _ = self.inherited_fields.insert("role".to_owned());
             parent_value.clone()
         }
     }

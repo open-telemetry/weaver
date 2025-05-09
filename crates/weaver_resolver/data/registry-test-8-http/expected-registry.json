@@ -19,6 +19,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -48,6 +49,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -59,6 +61,7 @@
             "source_group": "server",
             "inherited_fields": [
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -89,6 +92,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -100,6 +104,7 @@
             "source_group": "server",
             "inherited_fields": [
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -134,6 +139,7 @@
             "inherited_fields": [
               "brief",
               "note",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -145,6 +151,7 @@
             "source_group": "server",
             "inherited_fields": [
               "examples",
+              "role",
               "stability"
             ],
             "locally_overridden_fields": [

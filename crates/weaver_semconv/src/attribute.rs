@@ -84,6 +84,10 @@ pub enum AttributeSpec {
         prefix: bool,
         /// Annotations for the attribute.
         annotations: Option<BTreeMap<String, YamlValue>>,
+        /// Whether the attribute is identifying or descriptive.
+        #[serde(default)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        role: Option<AttributeRole>,
     },
     /// Attribute definition.
     Id {
@@ -138,6 +142,10 @@ pub enum AttributeSpec {
         deprecated: Option<Deprecated>,
         /// Annotations for the attribute.
         annotations: Option<BTreeMap<String, YamlValue>>,
+        /// Whether the attribute is identifying or descriptive.
+        #[serde(default)]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        role: Option<AttributeRole>,
     },
 }
 
@@ -230,6 +238,24 @@ impl Display for AttributeType {
                 write!(f, "enum {{{}}}", entries)
             }
         }
+    }
+}
+
+/// The different roles for attributes in groups.
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeRole {
+    /// The attribute is considered identifying for the signal it is associated with.
+    #[default]
+    Identifying,
+    /// The attribute is considered descriptive for the signal it is associated with.
+    Descriptive,
+}
+impl AttributeRole {
+    /// True if role is Identifying.
+    #[must_use]
+    pub fn is_identifying(&self) -> bool {
+        matches!(self, Self::Identifying)
     }
 }
 
@@ -948,6 +974,7 @@ mod tests {
                 note: "".to_owned(),
             }),
             annotations: None,
+            role: Default::default(),
         };
         assert_eq!(attr.id(), "id");
         assert_eq!(attr.brief(), "brief");
@@ -969,6 +996,7 @@ mod tests {
             }),
             prefix: false,
             annotations: None,
+            role: Default::default(),
         };
         assert_eq!(attr.id(), "ref");
         assert_eq!(attr.brief(), "brief");

@@ -176,6 +176,7 @@
             "brief",
             "note",
             "requirement_level",
+            "role",
             "stability"
           ],
           "source_group": "registry.exception"
@@ -185,6 +186,7 @@
             "brief",
             "examples",
             "note",
+            "role",
             "stability"
           ],
           "locally_overridden_fields": [
@@ -198,6 +200,7 @@
             "examples",
             "note",
             "requirement_level",
+            "role",
             "stability"
           ],
           "source_group": "registry.exception"
@@ -207,6 +210,7 @@
             "brief",
             "examples",
             "note",
+            "role",
             "stability"
           ],
           "locally_overridden_fields": [
