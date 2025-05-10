@@ -4,21 +4,9 @@
 
 The AnyValueTypeSpec is a specification of a value that can be of any type.
 
-One of the following: 
+It will have one of the following values: 
 
-A boolean attribute.
-
-| field | type | description |
-| --- | --- | --- |
-| `brief` | `string` | A brief description of the value |
-| `examples` | `Examples | null` | Sequence of examples for the value or single example value. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. |
-| `id` | `string` | String that uniquely identifies the enum entry. |
-| `note` | `string` | A more elaborate description of the value. It defaults to an empty string. |
-| `requirement_level` | `RequirementLevel` | Specifies if the field is mandatory. Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended". When set to "conditionally_required", the string provided as <condition> MUST specify the conditions under which the field is required. |
-| `stability` | `Stability | null` | Specifies the stability of the value. |
-| `type` | `string` | |
-
-A integer attribute (signed 64 bit integer).
+**An Object:** A boolean attribute.
 
 | field | type | description |
 | --- | --- | --- |
@@ -30,7 +18,7 @@ A integer attribute (signed 64 bit integer).
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-A double attribute (double precision floating point (IEEE 754-1985)).
+**An Object:** A integer attribute (signed 64 bit integer).
 
 | field | type | description |
 | --- | --- | --- |
@@ -42,7 +30,7 @@ A double attribute (double precision floating point (IEEE 754-1985)).
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-A string attribute.
+**An Object:** A double attribute (double precision floating point (IEEE 754-1985)).
 
 | field | type | description |
 | --- | --- | --- |
@@ -54,7 +42,7 @@ A string attribute.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-An array of strings attribute.
+**An Object:** A string attribute.
 
 | field | type | description |
 | --- | --- | --- |
@@ -66,7 +54,7 @@ An array of strings attribute.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-An array of integer attribute.
+**An Object:** An array of strings attribute.
 
 | field | type | description |
 | --- | --- | --- |
@@ -78,7 +66,7 @@ An array of integer attribute.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-An array of double attribute.
+**An Object:** An array of integer attribute.
 
 | field | type | description |
 | --- | --- | --- |
@@ -90,7 +78,7 @@ An array of double attribute.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-An array of boolean attribute.
+**An Object:** An array of double attribute.
 
 | field | type | description |
 | --- | --- | --- |
@@ -102,20 +90,19 @@ An array of boolean attribute.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-The value type is a map of key, value pairs
+**An Object:** An array of boolean attribute.
 
 | field | type | description |
 | --- | --- | --- |
 | `brief` | `string` | A brief description of the value |
 | `examples` | `Examples | null` | Sequence of examples for the value or single example value. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. |
-| `fields` | `AnyValueSpec[]` | The collection of key, values where the value is an `AnyValueSpec` |
 | `id` | `string` | String that uniquely identifies the enum entry. |
 | `note` | `string` | A more elaborate description of the value. It defaults to an empty string. |
 | `requirement_level` | `RequirementLevel` | Specifies if the field is mandatory. Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended". When set to "conditionally_required", the string provided as <condition> MUST specify the conditions under which the field is required. |
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-The value type is a map of key, value pairs
+**An Object:** The value type is a map of key, value pairs
 
 | field | type | description |
 | --- | --- | --- |
@@ -128,7 +115,20 @@ The value type is a map of key, value pairs
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-The value type will just be a bytes.
+**An Object:** The value type is a map of key, value pairs
+
+| field | type | description |
+| --- | --- | --- |
+| `brief` | `string` | A brief description of the value |
+| `examples` | `Examples | null` | Sequence of examples for the value or single example value. If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. |
+| `fields` | `AnyValueSpec[]` | The collection of key, values where the value is an `AnyValueSpec` |
+| `id` | `string` | String that uniquely identifies the enum entry. |
+| `note` | `string` | A more elaborate description of the value. It defaults to an empty string. |
+| `requirement_level` | `RequirementLevel` | Specifies if the field is mandatory. Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended". When set to "conditionally_required", the string provided as <condition> MUST specify the conditions under which the field is required. |
+| `stability` | `Stability | null` | Specifies the stability of the value. |
+| `type` | `string` | |
+
+**An Object:** The value type will just be a bytes.
 
 | field | type | description |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ The value type will just be a bytes.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-The value type is not specified.
+**An Object:** The value type is not specified.
 
 | field | type | description |
 | --- | --- | --- |
@@ -152,7 +152,7 @@ The value type is not specified.
 | `stability` | `Stability | null` | Specifies the stability of the value. |
 | `type` | `string` | |
 
-An enum definition type.
+**An Object:** An enum definition type.
 
 | field | type | description |
 | --- | --- | --- |
@@ -201,25 +201,35 @@ Attribute lineage (at the field level).
 
 The different types of attributes (specification).
 
-todo: SubschemaValidation { all_of: None, any_of: Some([Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Primitive or array type."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: None, format: None, enum_values: None, const_value: None, subschemas: Some(SubschemaValidation { all_of: Some([Object(SchemaObject { metadata: None, instance_type: None, format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: Some("#/definitions/PrimitiveOrArrayTypeSpec"), extensions: {} })]), any_of: None, one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }), number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A template type."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: None, format: None, enum_values: None, const_value: None, subschemas: Some(SubschemaValidation { all_of: Some([Object(SchemaObject { metadata: None, instance_type: None, format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: Some("#/definitions/TemplateTypeSpec"), extensions: {} })]), any_of: None, one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }), number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An enum definition type."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Object)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: Some(ObjectValidation { max_properties: None, min_properties: None, required: {"members"}, properties: {"allow_custom_values": Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Set to false to not accept values other than the specified members. No longer used since semconv 1.27.0."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Vec([Boolean, Null])), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), "members": Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("List of enum entries."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: None, format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: Some("#/definitions/EnumEntriesSpec"), extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} })}, pattern_properties: {}, additional_properties: None, property_names: None }), reference: None, extensions: {} })]), one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }
+It will have any of the following values: 
+
+- `PrimitiveOrArrayTypeSpec`: Primitive or array type.
+- `TemplateTypeSpec`: A template type.
+**An Object:** An enum definition type.
+
+| field | type | description |
+| --- | --- | --- |
+| `allow_custom_values` | `Boolean | Null` | Set to false to not accept values other than the specified members. No longer used since semconv 1.27.0. |
+| `members` | `EnumEntriesSpec[]` | List of enum entries. |
+
 
 ## BasicRequirementLevelSpec
 
 The different types of basic requirement levels.
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A required requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("required")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An optional requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("recommended")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An opt-in requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("opt_in")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"required"` : A required requirement level.
+- `"recommended"` : An optional requirement level.
+- `"opt_in"` : An opt-in requirement level.
 
 ## Deprecated
 
 The different ways to deprecate an attribute, a metric, ...
 
-One of the following: 
+It will have one of the following values: 
 
-The telemetry object containing the deprecated field has been renamed to an existing or a new telemetry object.
+**An Object:** The telemetry object containing the deprecated field has been renamed to an existing or a new telemetry object.
 
 | field | type | description |
 | --- | --- | --- |
@@ -227,7 +237,7 @@ The telemetry object containing the deprecated field has been renamed to an exis
 | `reason` | `string` | |
 | `renamed_to` | `string` | The new name of the telemetry object. |
 
-The telemetry object containing the deprecated field has been obsoleted because it no longer exists and has no valid replacement.
+**An Object:** The telemetry object containing the deprecated field has been obsoleted because it no longer exists and has no valid replacement.
 
 The `brief` field should contain the reason why the field has been obsoleted.
 
@@ -236,7 +246,7 @@ The `brief` field should contain the reason why the field has been obsoleted.
 | `note` | `string` | The note to provide more context about the deprecation. |
 | `reason` | `string` | |
 
-The telemetry object containing the deprecated field has been deprecated for complex reasons (split, merge, ...) which are currently not precisely defined in the supported deprecation reasons.
+**An Object:** The telemetry object containing the deprecated field has been deprecated for complex reasons (split, merge, ...) which are currently not precisely defined in the supported deprecation reasons.
 
 The `brief` field should contain the reason for this uncategorized deprecation.
 
@@ -263,7 +273,22 @@ Possible enum entries.
 
 The different types of examples.
 
-todo: SubschemaValidation { all_of: None, any_of: Some([Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A boolean example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Boolean)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A integer example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Integer)), format: Some("int64"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A double example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Number)), format: Some("double"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A string example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A any example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: None, format: None, enum_values: None, const_value: None, subschemas: Some(SubschemaValidation { all_of: Some([Object(SchemaObject { metadata: None, instance_type: None, format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: Some("#/definitions/ValueSpec"), extensions: {} })]), any_of: None, one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }), number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A array of integers example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Integer)), format: Some("int64"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A array of doubles example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Number)), format: Some("double"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A array of bools example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Boolean)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A array of strings example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A array of anys example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: None, format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: Some("#/definitions/ValueSpec"), extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("List of arrays of integers example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Integer)), format: Some("int64"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("List of arrays of doubles example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Number)), format: Some("double"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("List of arrays of bools example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Boolean)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("List of arrays of strings example."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(Array)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: Some(ArrayValidation { items: Some(Single(Object(SchemaObject { metadata: None, instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} }))), additional_items: None, max_items: None, min_items: None, unique_items: None, contains: None }), object: None, reference: None, extensions: {} })]), one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }
+It will have any of the following values: 
+
+- `boolean`: A boolean example.
+- `int`: A integer example.
+- `double`: A double example.
+- `string`: A string example.
+- `ValueSpec`: A any example.
+- `Object[]`: A array of integers example.
+- `Object[]`: A array of doubles example.
+- `Object[]`: A array of bools example.
+- `Object[]`: A array of strings example.
+- `Object[]`: A array of anys example.
+- `Object[]`: List of arrays of integers example.
+- `Object[]`: List of arrays of doubles example.
+- `Object[]`: List of arrays of bools example.
+- `Object[]`: List of arrays of strings example.
 
 ## GroupLineage
 
@@ -280,43 +305,43 @@ Note: Use a BTreeMap to ensure a deterministic order of attributes. This is impo
 
 The different types of groups (specification).
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Attribute group (attribute_group type) defines a set of attributes that can be declared once and referenced by semantic conventions for different signals, for example spans and logs. Attribute groups don't have any specific fields and follow the general semconv semantics."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("attribute_group")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Span semantic convention."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("span")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Event semantic convention."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("event")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Metric semantic convention."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("metric")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("The metric group semconv is a group where related metric attributes can be defined and then referenced from other metric groups using ref."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("metric_group")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Entity semantic convention."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("entity")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Scope."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("scope")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("Undefined group type."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("undefined")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"attribute_group"` : Attribute group (attribute_group type) defines a set of attributes that can be declared once and referenced by semantic conventions for different signals, for example spans and logs. Attribute groups don't have any specific fields and follow the general semconv semantics.
+- `"span"` : Span semantic convention.
+- `"event"` : Event semantic convention.
+- `"metric"` : Metric semantic convention.
+- `"metric_group"` : The metric group semconv is a group where related metric attributes can be defined and then referenced from other metric groups using ref.
+- `"entity"` : Entity semantic convention.
+- `"scope"` : Scope.
+- `"undefined"` : Undefined group type.
 
 ## InstrumentSpec
 
 The type of the metric.
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An up-down counter metric."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("updowncounter")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A counter metric."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("counter")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A gauge metric."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("gauge")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A histogram metric."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("histogram")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"updowncounter"` : An up-down counter metric.
+- `"counter"` : A counter metric.
+- `"gauge"` : A gauge metric.
+- `"histogram"` : A histogram metric.
 
 ## PrimitiveOrArrayTypeSpec
 
 Primitive or array types.
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A boolean attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("boolean")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A integer attribute (signed 64 bit integer)."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("int")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A double attribute (double precision floating point (IEEE 754-1985))."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("double")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A string attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("string")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An any type attribute (accepts any valid value)."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("any")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of strings attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("string[]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of integer attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("int[]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of double attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("double[]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of boolean attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("boolean[]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"boolean"` : A boolean attribute.
+- `"int"` : A integer attribute (signed 64 bit integer).
+- `"double"` : A double attribute (double precision floating point (IEEE 754-1985)).
+- `"string"` : A string attribute.
+- `"any"` : An any type attribute (accepts any valid value).
+- `"string[]"` : An array of strings attribute.
+- `"int[]"` : An array of integer attribute.
+- `"double[]"` : An array of double attribute.
+- `"boolean[]"` : An array of boolean attribute.
 
 ## Provenance
 
@@ -331,7 +356,27 @@ The provenance a semantic convention specification file.
 
 The different requirement level specifications.
 
-todo: SubschemaValidation { all_of: None, any_of: Some([Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A basic requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: None, format: None, enum_values: None, const_value: None, subschemas: Some(SubschemaValidation { all_of: Some([Object(SchemaObject { metadata: None, instance_type: None, format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: Some("#/definitions/BasicRequirementLevelSpec"), extensions: {} })]), any_of: None, one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }), number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A conditional requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Object)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: Some(ObjectValidation { max_properties: None, min_properties: None, required: {"conditionally_required"}, properties: {"conditionally_required": Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("The description of the condition."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} })}, pattern_properties: {}, additional_properties: None, property_names: None }), reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A recommended requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Object)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: Some(ObjectValidation { max_properties: None, min_properties: None, required: {"recommended"}, properties: {"recommended": Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("The description of the recommendation."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} })}, pattern_properties: {}, additional_properties: None, property_names: None }), reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An opt in requirement level."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Object)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: Some(ObjectValidation { max_properties: None, min_properties: None, required: {"opt_in"}, properties: {"opt_in": Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("The description of the recommendation."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} })}, pattern_properties: {}, additional_properties: None, property_names: None }), reference: None, extensions: {} })]), one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }
+It will have any of the following values: 
+
+- `BasicRequirementLevelSpec`: A basic requirement level.
+**An Object:** A conditional requirement level.
+
+| field | type | description |
+| --- | --- | --- |
+| `conditionally_required` | `string` | The description of the condition. |
+
+**An Object:** A recommended requirement level.
+
+| field | type | description |
+| --- | --- | --- |
+| `recommended` | `string` | The description of the recommendation. |
+
+**An Object:** An opt in requirement level.
+
+| field | type | description |
+| --- | --- | --- |
+| `opt_in` | `string` | The description of the recommendation. |
+
 
 ## ResolvedGroup
 
@@ -372,64 +417,64 @@ A resolved semantic convention registry used in the context of the template and 
 
 The span kind.
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An internal span."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("internal")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A client span."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("client")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A server span."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("server")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A producer span."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("producer")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A consumer span."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("consumer")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"internal"` : An internal span.
+- `"client"` : A client span.
+- `"server"` : A server span.
+- `"producer"` : A producer span.
+- `"consumer"` : A consumer span.
 
 ## Stability
 
 The level of stability for a definition. Defined in [OTEP-232](https://github.com/open-telemetry/oteps/blob/main/text/0232-maturity-of-otel.md)
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A deprecated definition."), default: None, deprecated: true, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("deprecated")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A stable definition."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("stable")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A definition in development. Formally known as experimental."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("development")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An alpha definition."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("alpha")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A beta definition."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("beta")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A release candidate definition."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("release_candidate")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"deprecated"` : A deprecated definition.
+- `"stable"` : A stable definition.
+- `"development"` : A definition in development. Formally known as experimental.
+- `"alpha"` : An alpha definition.
+- `"beta"` : A beta definition.
+- `"release_candidate"` : A release candidate definition.
 
 ## TemplateTypeSpec
 
 Template types.
 
-One of the following: 
+It will have one of the following values: 
 
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A boolean attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[boolean]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A integer attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[int]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A double attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[double]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A string attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[string]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A any attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[any]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of strings attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[string[]]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of integer attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[int[]]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of double attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[double[]]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
-SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("An array of boolean attribute."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: Some([String("template[boolean[]]")]), const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }
+- `"template[boolean]"` : A boolean attribute.
+- `"template[int]"` : A integer attribute.
+- `"template[double]"` : A double attribute.
+- `"template[string]"` : A string attribute.
+- `"template[any]"` : A any attribute.
+- `"template[string[]]"` : An array of strings attribute.
+- `"template[int[]]"` : An array of integer attribute.
+- `"template[double[]]"` : An array of double attribute.
+- `"template[boolean[]]"` : An array of boolean attribute.
 
 ## Value
 
 The different types of values.
 
-One of the following: 
+It will have one of the following values: 
 
-A integer value.
+**An Object:** A integer value.
 
 | field | type | description |
 | --- | --- | --- |
 | `type` | `string` | |
 | `value` | `int` | The value |
 
-A double value.
+**An Object:** A double value.
 
 | field | type | description |
 | --- | --- | --- |
 | `type` | `string` | |
 | `value` | `double` | The value |
 
-A string value.
+**An Object:** A string value.
 
 | field | type | description |
 | --- | --- | --- |
@@ -441,7 +486,12 @@ A string value.
 
 The different types of values.
 
-todo: SubschemaValidation { all_of: None, any_of: Some([Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A integer value."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Integer)), format: Some("int64"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A double value."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Number)), format: Some("double"), enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A string value."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(String)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} }), Object(SchemaObject { metadata: Some(Metadata { id: None, title: None, description: Some("A boolean value."), default: None, deprecated: false, read_only: false, write_only: false, examples: [] }), instance_type: Some(Single(Boolean)), format: None, enum_values: None, const_value: None, subschemas: None, number: None, string: None, array: None, object: None, reference: None, extensions: {} })]), one_of: None, not: None, if_schema: None, then_schema: None, else_schema: None }
+It will have any of the following values: 
+
+- `int`: A integer value.
+- `double`: A double value.
+- `string`: A string value.
+- `boolean`: A boolean value.
 
 ## YamlValue
 
