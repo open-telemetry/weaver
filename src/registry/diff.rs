@@ -2,18 +2,16 @@
 
 //! Generate a diff between two versions of a semantic convention registry.
 
-use crate::registry::Error::DiffRender;
-use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_telemetry_schema};
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use crate::ExitDirectives;
 use include_dir::{include_dir, Dir};
 use log::info;
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
+use weaver_cli::registry::diff::RegistryDiffArgs;
+use weaver_cli::registry::Error::DiffRender;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
@@ -21,36 +19,6 @@ use weaver_semconv::registry_repo::RegistryRepo;
 
 /// Embedded default schema changes templates
 pub(crate) static DEFAULT_DIFF_TEMPLATES: Dir<'_> = include_dir!("defaults/diff_templates");
-
-/// Parameters for the `registry diff` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryDiffArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Parameters to specify the baseline semantic convention registry
-    #[arg(long)]
-    baseline_registry: VirtualDirectoryPath,
-
-    /// Format used to render the schema changes. Predefined formats are: `ansi`, `json`,
-    /// and `markdown`.
-    #[arg(long, default_value = "ansi")]
-    diff_format: String,
-
-    /// Path to the directory where the schema changes templates are located.
-    #[arg(long, default_value = "diff_templates")]
-    diff_template: PathBuf,
-
-    /// Path to the directory where the generated artifacts will be saved.
-    /// If not specified, the diff report is printed to stdout
-    #[arg(short, long)]
-    output: Option<PathBuf>,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub(crate) diagnostic: DiagnosticArgs,
-}
 
 /// An error that can occur while generating the diff between two versions of the same
 /// semantic convention registry.
@@ -143,14 +111,14 @@ pub(crate) fn command(args: &RegistryDiffArgs) -> Result<ExitDirectives, Diagnos
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{Cli, Commands};
     use crate::registry::diff::RegistryDiffArgs;
-    use crate::registry::{
-        semconv_registry, RegistryArgs, RegistryCommand, RegistrySubCommand, VirtualDirectoryPath,
-    };
+    use crate::registry::{semconv_registry, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use std::fs::OpenOptions;
     use tempdir::TempDir;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::registry::RegistryArgs;
+    use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_version::schema_changes::SchemaChanges;
 
     #[test]

@@ -572,9 +572,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.48"
+version = "4.5.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be8c97f3a6f02b9e24cadc12aaba75201d18754b53ea0a9d99642f806ccdb4c9"
+checksum = "c91d3baa3bcd889d60e6ef28874126a0b384fd225ab83aa6d8a801c519194ce1"
 dependencies = [
  "clap",
 ]
@@ -5913,7 +5913,6 @@ version = "0.15.0"
 dependencies = [
  "assert_cmd",
  "clap",
- "clap-markdown",
  "clap_complete",
  "env_logger",
  "include_dir",
@@ -5938,6 +5937,7 @@ dependencies = [
  "ureq",
  "walkdir",
  "weaver_checker",
+ "weaver_cli",
  "weaver_common",
  "weaver_diff",
  "weaver_emit",
@@ -5963,6 +5963,20 @@ dependencies = [
  "thiserror 2.0.12",
  "walkdir",
  "weaver_common",
+]
+
+[[package]]
+name = "weaver_cli"
+version = "0.15.0"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "miette",
+ "serde",
+ "serde_yaml",
+ "thiserror 1.0.69",
+ "weaver_common",
+ "weaver_emit",
 ]
 
 [[package]]
@@ -6515,9 +6529,11 @@ version = "0.1.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "clap-markdown",
  "gix 0.71.0",
  "semver",
  "toml",
+ "weaver_cli",
 ]
 
 [[package]]

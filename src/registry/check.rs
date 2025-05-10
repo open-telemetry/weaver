@@ -2,41 +2,19 @@
 
 //! Check a semantic convention registry.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::{
     check_policy_stage, load_semconv_specs, prepare_main_registry, resolve_semconv_specs,
 };
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use crate::ExitDirectives;
 use log::info;
 use miette::Diagnostic;
 use weaver_checker::PolicyStage;
+use weaver_cli::registry::check::RegistryCheckArgs;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::log_success;
-use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
-
-/// Parameters for the `registry check` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryCheckArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Parameters to specify the baseline semantic convention registry
-    #[arg(long)]
-    baseline_registry: Option<VirtualDirectoryPath>,
-
-    /// Policy parameters
-    #[command(flatten)]
-    policy: PolicyArgs,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-}
 
 /// Check a semantic convention registry.
 pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, DiagnosticMessages> {
@@ -120,12 +98,11 @@ pub(crate) fn command(args: &RegistryCheckArgs) -> Result<ExitDirectives, Diagno
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{Cli, Commands};
     use crate::registry::check::RegistryCheckArgs;
-    use crate::registry::{
-        semconv_registry, PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand,
-    };
+    use crate::registry::{semconv_registry, RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::registry::{PolicyArgs, RegistryArgs};
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]

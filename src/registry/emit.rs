@@ -2,40 +2,14 @@
 
 //! Emit a semantic convention registry to an OTLP receiver.
 
-use clap::Args;
-
 use log::info;
+use weaver_cli::registry::emit::RegistryEmitArgs;
 use weaver_common::diagnostic::{DiagnosticMessages, ResultExt};
 use weaver_common::log_success;
 use weaver_emit::{emit, ExporterConfig};
 
-use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
-use crate::{DiagnosticArgs, ExitDirectives};
-
-/// Parameters for the `registry emit` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryEmitArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Policy parameters
-    #[command(flatten)]
-    policy: PolicyArgs,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-
-    /// Write the telemetry to standard output
-    #[arg(long)]
-    stdout: bool,
-
-    /// Endpoint for the OTLP receiver. OTEL_EXPORTER_OTLP_ENDPOINT env var will override this.
-    #[arg(long, default_value = weaver_emit::DEFAULT_OTLP_ENDPOINT)]
-    endpoint: String,
-}
+use crate::ExitDirectives;
 
 /// Emit all spans in the resolved registry.
 pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, DiagnosticMessages> {
@@ -78,10 +52,11 @@ pub(crate) fn command(args: &RegistryEmitArgs) -> Result<ExitDirectives, Diagnos
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{Cli, Commands};
-    use crate::registry::emit::RegistryEmitArgs;
-    use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
+    use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::registry::emit::RegistryEmitArgs;
+    use weaver_cli::registry::{PolicyArgs, RegistryArgs};
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]

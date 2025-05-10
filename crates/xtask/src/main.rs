@@ -11,6 +11,7 @@
 #![allow(clippy::print_stderr)]
 
 mod history;
+mod markdown_help;
 mod validate;
 
 #[cfg(not(tarpaulin_include))]
@@ -22,6 +23,7 @@ fn main() -> anyhow::Result<()> {
         Some(task) => match task.as_str() {
             "validate" => validate::run(),
             "history" => history::run(std::env::args().nth(2)),
+            "markdown_help" => markdown_help::run(),
             "help" => print_help(),
             _ => {
                 eprintln!("Unknown task: {}", task);
@@ -39,9 +41,10 @@ pub fn print_help() -> anyhow::Result<()> {
 Usage: Execute the command using `cargo xtask <task>`, e.g., `cargo xtask validate`.
 
 Tasks:
-  - validate: Validate the entire structure of the weaver project.
-  - history: Run registry check on semconv models within back compatibility range.
-             Optionally provide a start semver e.g. `history 1.29.0`.
+  - history:        Run registry check on semconv models within back compatibility range.
+                    Optionally provide a start semver e.g. `history 1.29.0`.
+  - markdown_help   Generate markdown help for the weaver CLI.
+  - validate:       Validate the entire structure of the weaver project.
 "
     );
     Ok(())

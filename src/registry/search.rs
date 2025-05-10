@@ -2,7 +2,6 @@
 
 //! Search a semantic convention registry.
 
-use clap::Args;
 use itertools::Itertools;
 use log::info;
 use miette::Diagnostic;
@@ -11,9 +10,8 @@ use weaver_resolved_schema::{attribute::Attribute, ResolvedTelemetrySchema};
 use weaver_semconv::registry::SemConvRegistry;
 
 use crate::{
-    registry::RegistryArgs,
     util::{load_semconv_specs, resolve_semconv_specs},
-    DiagnosticArgs, ExitDirectives,
+    ExitDirectives,
 };
 use ratatui::{
     crossterm::{
@@ -30,28 +28,8 @@ use ratatui::{
 };
 use std::io::{stdout, IsTerminal};
 use tui_textarea::TextArea;
+pub(crate) use weaver_cli::registry::search::RegistrySearchArgs;
 use weaver_semconv::registry_repo::RegistryRepo;
-
-/// Parameters for the `registry search` sub-command
-#[derive(Debug, Args)]
-pub struct RegistrySearchArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Flag to indicate if lineage information should be included in the
-    /// resolved schema (not yet implemented)
-    #[arg(long, default_value = "false")]
-    lineage: bool,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-
-    /// An (optional) search string to use.  If specified, will return matching values on the command line.
-    /// Otherwise, runs an interactive terminal UI.
-    pub search_string: Option<String>,
-}
 
 #[derive(thiserror::Error, Debug, serde::Serialize, Diagnostic)]
 enum Error {

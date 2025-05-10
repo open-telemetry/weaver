@@ -3,29 +3,13 @@
 //! Initializes a `diagnostic_templates` directory to define or override diagnostic output formats.
 
 use crate::diagnostic::{Error, DEFAULT_DIAGNOSTIC_TEMPLATES};
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use crate::ExitDirectives;
 use include_dir::DirEntry;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use weaver_cli::diagnostic::init::DiagnosticInitArgs;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
-
-/// Parameters for the `diagnostic init` sub-command
-#[derive(Debug, Args)]
-pub struct DiagnosticInitArgs {
-    /// Optional target to initialize the diagnostic templates for. If empty, all default templates will be extracted.
-    #[arg(default_value = "")]
-    pub target: String,
-
-    /// Optional path where the diagnostic templates directory should be created.
-    #[arg(short = 't', long, default_value = "diagnostic_templates")]
-    pub diagnostic_templates_dir: PathBuf,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-}
 
 /// Initializes a `diagnostic_templates` directory to define or override diagnostic output formats.
 pub(crate) fn command(args: &DiagnosticInitArgs) -> Result<ExitDirectives, DiagnosticMessages> {
@@ -74,12 +58,11 @@ fn extract<S: AsRef<Path>>(base_path: S, target: &str) -> std::io::Result<()> {
 mod tests {
     use std::fs;
 
-    use tempdir::TempDir;
-
-    use crate::cli::{Cli, Commands};
-    use crate::diagnostic::init::DiagnosticInitArgs;
     use crate::diagnostic::{DiagnosticCommand, DiagnosticSubCommand};
     use crate::run_command;
+    use tempdir::TempDir;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::diagnostic::init::DiagnosticInitArgs;
 
     #[test]
     fn test_diagnostic_init() {
