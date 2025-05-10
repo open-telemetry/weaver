@@ -2,30 +2,17 @@
 
 //! Compute stats on a semantic convention registry.
 
-use crate::registry::RegistryArgs;
 use crate::util::{load_semconv_specs, resolve_semconv_specs};
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use crate::ExitDirectives;
 use log::info;
 use miette::Diagnostic;
+pub(crate) use weaver_cli::registry::stats::RegistryStatsArgs;
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_resolved_schema::registry::{CommonGroupStats, GroupStats};
 use weaver_resolved_schema::ResolvedTelemetrySchema;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::RegistryRepo;
-
-/// Parameters for the `registry stats` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryStatsArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-}
 
 /// Compute stats on a semantic convention registry.
 pub(crate) fn command(args: &RegistryStatsArgs) -> Result<ExitDirectives, DiagnosticMessages> {

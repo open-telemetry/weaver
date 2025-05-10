@@ -6,10 +6,10 @@
 
 use std::path::PathBuf;
 
-use clap::Args;
 use include_dir::{include_dir, Dir};
 
 use log::info;
+use weaver_cli::registry::live_check::{InputFormat, InputSource, RegistryLiveCheckArgs};
 use weaver_common::diagnostic::DiagnosticMessages;
 use weaver_common::log_success;
 use weaver_forge::config::{Params, WeaverConfig};
@@ -25,121 +25,14 @@ use weaver_live_check::text_file_ingester::TextFileIngester;
 use weaver_live_check::text_stdin_ingester::TextStdinIngester;
 use weaver_live_check::{Error, Ingester, LiveCheckReport, LiveCheckRunner, LiveCheckStatistics};
 
-use crate::registry::{PolicyArgs, RegistryArgs};
 use crate::util::prepare_main_registry;
-use crate::{DiagnosticArgs, ExitDirectives};
+use crate::ExitDirectives;
 
 use super::otlp::otlp_ingester::OtlpIngester;
 
 /// Embedded default live check templates
 pub(crate) static DEFAULT_LIVE_CHECK_TEMPLATES: Dir<'_> =
     include_dir!("defaults/live_check_templates");
-
-/// The input source
-#[derive(Debug, Clone)]
-enum InputSource {
-    File(PathBuf),
-    Stdin,
-    Otlp,
-}
-
-impl From<String> for InputSource {
-    fn from(s: String) -> Self {
-        match s.to_lowercase().as_str() {
-            "stdin" | "s" => InputSource::Stdin,
-            "otlp" | "o" => InputSource::Otlp,
-            _ => InputSource::File(PathBuf::from(s)),
-        }
-    }
-}
-
-/// The input format
-#[derive(Debug, Clone)]
-enum InputFormat {
-    Text,
-    Json,
-}
-
-impl From<String> for InputFormat {
-    fn from(s: String) -> Self {
-        match s.to_lowercase().as_str() {
-            "json" | "js" => InputFormat::Json,
-            _ => InputFormat::Text,
-        }
-    }
-}
-
-/// Parameters for the `registry live-check` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryLiveCheckArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Policy parameters
-    #[command(flatten)]
-    policy: PolicyArgs,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-
-    /// Where to read the input telemetry from. Possible values: `{file path}`, `stdin`, `otlp`
-    #[arg(long, default_value = "otlp")]
-    input_source: InputSource,
-
-    /// The format of the input telemetry. (Not required for OTLP). Predefined formats are: `text`, or `json`
-    #[arg(long, default_value = "json")]
-    input_format: InputFormat,
-
-    /// Format used to render the report. Predefined formats are: `ansi`, `json`
-    #[arg(long, default_value = "ansi")]
-    format: String,
-
-    /// Path to the directory where the templates are located.
-    #[arg(long, default_value = "live_check_templates")]
-    templates: PathBuf,
-
-    /// Disable stream mode. Use this flag to disable streaming output.
-    ///
-    /// When the output is STDOUT, Ingesters that support streaming (STDIN and OTLP),
-    /// by default output the live check results for each entity as they are ingested.
-    #[arg(long, default_value = "false")]
-    no_stream: bool,
-
-    /// Path to the directory where the generated artifacts will be saved.
-    /// If not specified, the report is printed to stdout.
-    #[arg(short, long)]
-    output: Option<PathBuf>,
-
-    /// Address used by the gRPC OTLP listener.
-    #[clap(long, default_value = "0.0.0.0")]
-    otlp_grpc_address: String,
-
-    /// Port used by the gRPC OTLP listener.
-    #[clap(long, default_value = "4317")]
-    otlp_grpc_port: u16,
-
-    /// Port used by the HTTP admin port (endpoints: `/stop`).
-    #[clap(long, default_value = "4320")]
-    admin_port: u16,
-
-    /// Max inactivity time in seconds before stopping the listener.
-    #[clap(long, default_value = "10")]
-    inactivity_timeout: u64,
-
-    /// Advice policies directory. Set this to override the default policies.
-    #[arg(long)]
-    advice_policies: Option<PathBuf>,
-
-    /// Advice preprocessor. A jq script to preprocess the registry data before passing to rego.
-    ///
-    /// Rego policies are run for each sample as it arrives in a stream. The preprocessor
-    /// can be used to create a new data structure that is more efficient for the rego policies
-    /// versus processing the data for every sample.
-    #[arg(long)]
-    advice_preprocessor: Option<PathBuf>,
-}
 
 fn default_advisors() -> Vec<Box<dyn Advisor>> {
     vec![

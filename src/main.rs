@@ -5,55 +5,27 @@
 use std::path::PathBuf;
 
 use clap::CommandFactory;
-use clap::{Args, Parser};
+use clap::Parser;
 use clap_complete::{generate, Shell};
-use clap_markdown::{help_markdown_custom, MarkdownOptions};
 use log::info;
 use std::io;
 use std::io::Write;
 
 use registry::semconv_registry;
+use weaver_cli::cli::{Cli, Commands};
+use weaver_cli::DiagnosticArgs;
 use weaver_common::diagnostic::{enable_future_mode, DiagnosticMessages};
 use weaver_common::log_error;
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::EmbeddedFileLoader;
 use weaver_forge::{OutputDirective, TemplateEngine};
 
-use crate::cli::{Cli, Commands};
 use crate::diagnostic::DEFAULT_DIAGNOSTIC_TEMPLATES;
 
-mod cli;
 mod diagnostic;
 mod format;
 mod registry;
 mod util;
-
-/// Set of parameters used to specify the diagnostic format.
-#[derive(Args, Debug, Clone)]
-pub(crate) struct DiagnosticArgs {
-    /// Format used to render the diagnostic messages. Predefined formats are: `ansi`, `json`,
-    /// `gh_workflow_command`.
-    #[arg(long, default_value = "ansi")]
-    pub(crate) diagnostic_format: String,
-
-    /// Path to the directory where the diagnostic templates are located.
-    #[arg(long, default_value = "diagnostic_templates")]
-    pub(crate) diagnostic_template: PathBuf,
-
-    /// Send the output to stdout instead of stderr.
-    #[arg(long)]
-    pub(crate) diagnostic_stdout: bool,
-}
-
-impl Default for DiagnosticArgs {
-    fn default() -> Self {
-        Self {
-            diagnostic_format: "ansi".to_owned(),
-            diagnostic_template: PathBuf::from("diagnostic_templates"),
-            diagnostic_stdout: false,
-        }
-    }
-}
 
 /// Result of a command execution.
 #[derive(Debug)]
@@ -117,19 +89,6 @@ fn run_command(cli: &Cli) -> ExitDirectives {
         Some(Commands::Diagnostic(params)) => diagnostic::diagnostic(params),
         Some(Commands::Completion(completions)) => {
             if let Err(e) = generate_completion(&completions.shell, &completions.completion_file) {
-                log_error(&e);
-                return ExitDirectives {
-                    exit_code: 1,
-                    warnings: None,
-                };
-            }
-            return ExitDirectives {
-                exit_code: 0,
-                warnings: None,
-            };
-        }
-        Some(Commands::Markdown(markdown)) => {
-            if let Err(e) = generate_markdown(&markdown.output_file) {
                 log_error(&e);
                 return ExitDirectives {
                     exit_code: 1,
@@ -224,31 +183,14 @@ fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
 
 fn generate_completion(shell: &Shell, output_file: &Option<PathBuf>) -> Result<(), String> {
     let mut app = Cli::command();
-    let bin_name = app.get_name().to_owned();
 
     if let Some(file_path) = output_file {
         let file = std::fs::File::create(file_path)
             .map_err(|e| format!("Failed to create file '{}': {}", file_path.display(), e))?;
-        generate(*shell, &mut app, bin_name, &mut io::BufWriter::new(file));
+        generate(*shell, &mut app, "weaver", &mut io::BufWriter::new(file));
     } else {
         // Default to writing to STDOUT
-        generate(*shell, &mut app, bin_name, &mut io::stdout());
-    }
-
-    Ok(())
-}
-
-fn generate_markdown(output_file: &Option<PathBuf>) -> Result<(), String> {
-    let markdown = help_markdown_custom::<Cli>(&MarkdownOptions::new().show_footer(false));
-
-    if let Some(file_path) = output_file {
-        let mut file = std::fs::File::create(file_path)
-            .map_err(|e| format!("Failed to create file '{}': {}", file_path.display(), e))?;
-        file.write_all(markdown.as_bytes())
-            .map_err(|e| format!("Failed to write to file '{}': {}", file_path.display(), e))?;
-    } else {
-        // Default to writing to STDOUT
-        print!("{}", markdown);
+        generate(*shell, &mut app, "weaver", &mut io::stdout());
     }
 
     Ok(())

@@ -3,55 +3,16 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
-use crate::registry::RegistryArgs;
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use crate::ExitDirectives;
+pub(crate) use weaver_cli::registry::update_markdown::RegistryUpdateMarkdownArgs;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectory;
-use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
 use weaver_forge::config::{Params, WeaverConfig};
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
 use weaver_semconv_gen::{update_markdown, SnippetGenerator};
-
-/// Parameters for the `registry update-markdown` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryUpdateMarkdownArgs {
-    /// Path to the directory where the markdown files are located.
-    pub markdown_dir: String,
-
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Whether or not to run updates in dry-run mode.
-    #[arg(long, default_value = "false")]
-    pub dry_run: bool,
-
-    /// Optional path to the attribute registry.
-    /// If provided, all attributes will be linked here.
-    #[arg(long)]
-    pub attribute_registry_base_url: Option<String>,
-
-    /// Path to the directory where the templates are located.
-    /// Default is the `templates` directory.
-    /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   `{templates}/{target}/snippet.md.j2.`
-    #[arg(short = 't', long, default_value = "templates")]
-    pub templates: VirtualDirectoryPath,
-
-    /// If provided, the target to generate snippets with.
-    /// Note: `registry update-markdown` will look for a specific jinja template:
-    ///   `{templates}/{target}/snippet.md.j2.`
-    #[arg(long)]
-    pub target: String,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-}
 
 /// Update markdown files.
 pub(crate) fn command(
@@ -137,10 +98,11 @@ pub(crate) fn command(
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{Cli, Commands};
     use crate::registry::update_markdown::RegistryUpdateMarkdownArgs;
-    use crate::registry::{RegistryArgs, RegistryCommand, RegistrySubCommand};
+    use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::registry::RegistryArgs;
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]

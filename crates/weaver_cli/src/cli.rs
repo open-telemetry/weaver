@@ -6,7 +6,7 @@ use crate::diagnostic::DiagnosticCommand;
 use crate::registry::RegistryCommand;
 use clap::{Args, Parser, Subcommand};
 
-/// Command line arguments.
+/// Manage semantic convention registry and telemetry schema workflows (OpenTelemetry Project)
 #[derive(Parser)]
 #[command(
     author,
@@ -14,7 +14,8 @@ use clap::{Args, Parser, Subcommand};
     about,
     long_about = None,
     subcommand_required = true,
-    arg_required_else_help = true
+    arg_required_else_help = true,
+    bin_name = "weaver"
 )]
 pub struct Cli {
     /// Turn debugging information on
@@ -46,11 +47,9 @@ pub enum Commands {
     Diagnostic(DiagnosticCommand),
     /// Generate shell completions
     Completion(CompletionCommand),
-    /// Generate markdown documentation (hidden)
-    #[command(hide = true)]
-    Markdown(MarkdownCommand),
 }
 
+/// Commands for generating completions and markdown documentation
 #[derive(Args)]
 pub struct CompletionCommand {
     /// The shell to generate the completions for
@@ -60,11 +59,4 @@ pub struct CompletionCommand {
     /// (Optional) The file to write the completions to. Defaults to `STDOUT`.
     #[arg(long, hide = true)]
     pub completion_file: Option<std::path::PathBuf>,
-}
-
-#[derive(Args)]
-pub struct MarkdownCommand {
-    /// The file to write the markdown documentation to. Defaults to `STDOUT`.
-    #[arg(long)]
-    pub output_file: Option<std::path::PathBuf>,
 }

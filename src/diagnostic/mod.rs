@@ -5,13 +5,12 @@
 mod init;
 
 use crate::CmdResult;
-use clap::{Args, Subcommand};
 use include_dir::{include_dir, Dir};
 use miette::Diagnostic;
 use serde::Serialize;
 use std::path::PathBuf;
+use weaver_cli::diagnostic::{DiagnosticCommand, DiagnosticSubCommand};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-
 /// Embedded default diagnostic templates
 pub(crate) static DEFAULT_DIAGNOSTIC_TEMPLATES: Dir<'_> =
     include_dir!("defaults/diagnostic_templates");
@@ -29,23 +28,6 @@ impl From<Error> for DiagnosticMessages {
     fn from(error: Error) -> Self {
         DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
     }
-}
-
-/// Parameters for the `diagnostic` command
-#[derive(Debug, Args)]
-pub struct DiagnosticCommand {
-    /// Define the sub-commands for the `diagnostic` command
-    #[clap(subcommand)]
-    pub command: DiagnosticSubCommand,
-}
-
-/// Sub-commands to manage `diagnostic` messages.
-#[derive(Debug, Subcommand)]
-#[clap(verbatim_doc_comment)]
-pub enum DiagnosticSubCommand {
-    /// Initializes a `diagnostic_templates` directory to define or override diagnostic output
-    /// formats.
-    Init(init::DiagnosticInitArgs),
 }
 
 /// Manage diagnostic messages.

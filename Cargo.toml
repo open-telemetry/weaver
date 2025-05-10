@@ -71,6 +71,7 @@ name = "weaver"
 
 [dependencies]
 # local crates dependencies
+weaver_cli = { path = "crates/weaver_cli" }
 weaver_common = { path = "crates/weaver_common" }
 weaver_resolver = { path = "crates/weaver_resolver" }
 weaver_semconv = { path = "crates/weaver_semconv" }
@@ -83,7 +84,6 @@ weaver_live_check = { path = "crates/weaver_live_check" }
 
 clap = { version = "4.5.37", features = ["derive"] }
 clap_complete = "4.5.48"
-clap-markdown = "0.1.5"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"

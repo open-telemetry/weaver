@@ -2,51 +2,13 @@
 
 //! Resolve a semantic convention registry.
 
-use std::path::PathBuf;
-
-use clap::Args;
-
 use log::info;
+use weaver_cli::registry::resolve::RegistryResolveArgs;
 use weaver_common::diagnostic::DiagnosticMessages;
 
-use crate::format::{apply_format, Format};
-use crate::registry::{PolicyArgs, RegistryArgs};
+use crate::format::apply_format;
 use crate::util::prepare_main_registry;
-use crate::{DiagnosticArgs, ExitDirectives};
-
-/// Parameters for the `registry resolve` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryResolveArgs {
-    /// Parameters to specify the semantic convention registry
-    #[command(flatten)]
-    registry: RegistryArgs,
-
-    /// Flag to indicate if lineage information should be included in the
-    /// resolved schema (not yet implemented)
-    #[arg(long, default_value = "false")]
-    lineage: bool,
-
-    /// Output file to write the resolved schema to
-    /// If not specified, the resolved schema is printed to stdout
-    #[arg(short, long)]
-    output: Option<PathBuf>,
-
-    /// Output format for the resolved schema
-    /// If not specified, the resolved schema is printed in YAML format
-    /// Supported formats: `yaml`, `json`
-    /// Default format: `yaml`
-    /// Example: `--format json`
-    #[arg(short, long, default_value = "yaml")]
-    format: Format,
-
-    /// Policy parameters
-    #[command(flatten)]
-    policy: PolicyArgs,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-}
+use crate::ExitDirectives;
 
 /// Resolve a semantic convention registry and write the resolved schema to a
 /// file or print it to stdout.
@@ -86,11 +48,12 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
 
 #[cfg(test)]
 mod tests {
-    use crate::cli::{Cli, Commands};
-    use crate::format::Format;
     use crate::registry::resolve::RegistryResolveArgs;
-    use crate::registry::{PolicyArgs, RegistryArgs, RegistryCommand, RegistrySubCommand};
+    use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::format::Format;
+    use weaver_cli::registry::{PolicyArgs, RegistryArgs};
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
