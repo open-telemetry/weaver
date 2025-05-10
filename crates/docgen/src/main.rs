@@ -18,7 +18,8 @@ use weaver_forge::registry::ResolvedRegistry;
 // TODO - This should actually be a link to the type...
 fn type_string_ref(r: &str) -> String {
     if r.starts_with("#/definitions/") {
-        return r.chars().skip(14).collect::<String>();
+        let rr = r.chars().skip(14).collect::<String>();
+        return format!("[`{}`](#{})", &rr, &rr);
     }
     r.to_owned()
 }
@@ -30,7 +31,7 @@ fn type_string_svs(os: &SingleOrVec<Schema>) -> String {
             return sts
                 .iter()
                 .map(|t| type_string(&t.clone().into_object()))
-                .join(" | ")
+                .join(" or ")
         }
     }
 }
@@ -38,25 +39,25 @@ fn type_string_svs(os: &SingleOrVec<Schema>) -> String {
 fn type_string_it(tpe: &InstanceType) -> String {
     match tpe {
         schemars::schema::InstanceType::Null => {
-            return "null".to_owned();
+            return "`null`".to_owned();
         }
         schemars::schema::InstanceType::Boolean => {
-            return "boolean".to_owned();
+            return "`boolean`".to_owned();
         }
         schemars::schema::InstanceType::Object => {
-            return "Object".to_owned();
+            return "`Object`".to_owned();
         }
         schemars::schema::InstanceType::Array => {
-            return "Object[]".to_owned();
+            return "`Object`[]".to_owned();
         }
         schemars::schema::InstanceType::Number => {
-            return "double".to_owned();
+            return "`double`".to_owned();
         }
         schemars::schema::InstanceType::String => {
-            return "string".to_owned();
+            return "`String`".to_owned();
         }
         schemars::schema::InstanceType::Integer => {
-            return "int".to_owned();
+            return "`int`".to_owned();
         }
     }
 }
@@ -64,7 +65,7 @@ fn type_string_it(tpe: &InstanceType) -> String {
 fn type_string_svi(os: &SingleOrVec<InstanceType>) -> String {
     match os {
         SingleOrVec::Single(s) => type_string_it(s),
-        SingleOrVec::Vec(sts) => return sts.iter().map(|t| type_string_it(t)).join(" | "),
+        SingleOrVec::Vec(sts) => return sts.iter().map(|t| type_string_it(t)).join(" or "),
     }
 }
 
@@ -77,15 +78,15 @@ fn type_string(os: &SchemaObject) -> String {
             SingleOrVec::Single(st) => {
                 match st.as_ref() {
                     schemars::schema::InstanceType::Null => {
-                        return "null".to_owned();
+                        return "`null`".to_owned();
                     }
                     schemars::schema::InstanceType::Boolean => {
-                        return "boolean".to_owned();
+                        return "`boolean`".to_owned();
                     }
                     schemars::schema::InstanceType::Object => {
                         // TODO - pull in object definition locally?
                         // let ov = os.object.as_ref().unwrap().as_ref();
-                        return "Object".to_owned();
+                        return "`Object`".to_owned();
                     }
                     schemars::schema::InstanceType::Array => {
                         let av = os.array.as_ref().unwrap().as_ref();
@@ -93,21 +94,21 @@ fn type_string(os: &SchemaObject) -> String {
                             // TODO - unwrap this.
                             return format!("{}[]", type_string_svs(iv));
                         } else {
-                            return "Object[]".to_owned();
+                            return "`Object`[]".to_owned();
                         }
                     }
                     schemars::schema::InstanceType::Number => {
-                        return "double".to_owned();
+                        return "`double`".to_owned();
                     }
                     schemars::schema::InstanceType::String => {
-                        return "string".to_owned();
+                        return "`String`".to_owned();
                     }
                     schemars::schema::InstanceType::Integer => {
-                        return "int".to_owned();
+                        return "`int`".to_owned();
                     }
                 }
             }
-            SingleOrVec::Vec(sts) => return sts.iter().map(|t| format!("{:?}", t)).join(" | "),
+            SingleOrVec::Vec(sts) => return sts.iter().map(|t| format!("{:?}", t)).join(" or "),
         }
     }
     if let Some(ss) = os.subschemas.as_ref() {
@@ -116,12 +117,12 @@ fn type_string(os: &SchemaObject) -> String {
             return ao
                 .iter()
                 .map(|s| type_string(&s.to_owned().into_object()))
-                .join(" & ");
+                .join(" and ");
         } else if let Some(ao) = ss.any_of.as_ref() {
             return ao
                 .iter()
                 .map(|s| type_string(&s.to_owned().into_object()))
-                .join(" | ");
+                .join(" or ");
         }
     }
     format!("{:?}", os)
@@ -134,7 +135,7 @@ fn print_object_field_table<O: Write>(out: &mut O, o: &ObjectValidation) -> anyh
     writeln!(out, "| --- | --- | --- |")?;
     for (field, v) in o.properties.iter() {
         let os = v.clone().into_object();
-        write!(out, "| `{}` | `{}` |", field, type_string(&os))?;
+        write!(out, "| {} | {} |", field, type_string(&os))?;
 
         if let Some(desc) = os.metadata.as_ref().and_then(|md| md.description.as_ref()) {
             write!(out, " {} |", desc)?;
@@ -179,7 +180,7 @@ fn print_raw_schema<O: Write>(out: &mut O, schema: &SchemaObject) -> anyhow::Res
     // This should be near the bottom, so we handle instance types AFTER better docs are handled.
     } else if let Some(it) = schema.instance_type.as_ref() {
         let tpe = type_string_svi(it);
-        write!(out, "- `{}`", &tpe)?;
+        write!(out, "- {}", &tpe)?;
         if let Some(desc) = schema
             .metadata
             .as_ref()
@@ -201,7 +202,7 @@ fn print_raw_schema<O: Write>(out: &mut O, schema: &SchemaObject) -> anyhow::Res
         })
     {
         let tpe = type_string_ref(it);
-        write!(out, "- `{}`", &tpe)?;
+        write!(out, "- {}", &tpe)?;
         if let Some(desc) = schema
             .metadata
             .as_ref()
