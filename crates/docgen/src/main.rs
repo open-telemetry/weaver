@@ -8,7 +8,9 @@ use std::{
 
 use itertools::Itertools;
 use schemars::{
-    schema::{InstanceType, Metadata, ObjectValidation, RootSchema, Schema, SchemaObject, SingleOrVec},
+    schema::{
+        InstanceType, Metadata, ObjectValidation, RootSchema, Schema, SchemaObject, SingleOrVec,
+    },
     schema_for,
 };
 use weaver_forge::registry::ResolvedRegistry;
@@ -62,12 +64,7 @@ fn type_string_it(tpe: &InstanceType) -> String {
 fn type_string_svi(os: &SingleOrVec<InstanceType>) -> String {
     match os {
         SingleOrVec::Single(s) => type_string_it(s),
-        SingleOrVec::Vec(sts) => {
-            return sts
-                .iter()
-                .map(|t| type_string_it(t))
-                .join(" | ")
-        }
+        SingleOrVec::Vec(sts) => return sts.iter().map(|t| type_string_it(t)).join(" | "),
     }
 }
 
@@ -116,9 +113,15 @@ fn type_string(os: &SchemaObject) -> String {
     if let Some(ss) = os.subschemas.as_ref() {
         // Check for enum value
         if let Some(ao) = ss.all_of.as_ref() {
-            return ao.iter().map(|s| type_string(&s.to_owned().into_object())).join(" & ");
+            return ao
+                .iter()
+                .map(|s| type_string(&s.to_owned().into_object()))
+                .join(" & ");
         } else if let Some(ao) = ss.any_of.as_ref() {
-            return ao.iter().map(|s| type_string(&s.to_owned().into_object())).join(" | ");
+            return ao
+                .iter()
+                .map(|s| type_string(&s.to_owned().into_object()))
+                .join(" | ");
         }
     }
     format!("{:?}", os)
@@ -133,11 +136,7 @@ fn print_object_field_table<O: Write>(out: &mut O, o: &ObjectValidation) -> anyh
         let os = v.clone().into_object();
         write!(out, "| `{}` | `{}` |", field, type_string(&os))?;
 
-        if let Some(desc) = os
-            .metadata
-            .as_ref()
-            .and_then(|md| md.description.as_ref())
-        {
+        if let Some(desc) = os.metadata.as_ref().and_then(|md| md.description.as_ref()) {
             write!(out, " {} |", desc)?;
         } else {
             write!(out, " |")?;
@@ -148,10 +147,13 @@ fn print_object_field_table<O: Write>(out: &mut O, o: &ObjectValidation) -> anyh
 }
 
 fn print_raw_schema<O: Write>(out: &mut O, schema: &SchemaObject) -> anyhow::Result<()> {
-    
     if let Some(obj) = schema.object.as_ref() {
         write!(out, "**An Object:**")?;
-        if let Some(desc) = schema.metadata.as_ref().and_then(|f| f.description.as_ref()) {
+        if let Some(desc) = schema
+            .metadata
+            .as_ref()
+            .and_then(|f| f.description.as_ref())
+        {
             writeln!(out, " {}", desc)?;
         } else {
             writeln!(out, "")?;
@@ -165,7 +167,11 @@ fn print_raw_schema<O: Write>(out: &mut O, schema: &SchemaObject) -> anyhow::Res
         for v in ss.iter() {
             write!(out, "`{}` ", v)?;
         }
-        if let Some(desc) = schema.metadata.as_ref().and_then(|f| f.description.as_ref()) {
+        if let Some(desc) = schema
+            .metadata
+            .as_ref()
+            .and_then(|f| f.description.as_ref())
+        {
             writeln!(out, ": {}", desc)?;
         } else {
             writeln!(out, "")?;
@@ -174,23 +180,33 @@ fn print_raw_schema<O: Write>(out: &mut O, schema: &SchemaObject) -> anyhow::Res
     } else if let Some(it) = schema.instance_type.as_ref() {
         let tpe = type_string_svi(it);
         write!(out, "- `{}`", &tpe)?;
-        if let Some(desc) = schema.metadata.as_ref().and_then(|f| f.description.as_ref()) {
+        if let Some(desc) = schema
+            .metadata
+            .as_ref()
+            .and_then(|f| f.description.as_ref())
+        {
             writeln!(out, ": {}", desc)?;
         } else {
             writeln!(out, "")?;
         }
     // Next we cover deferring to a subschema validation of a reference.
-    } else if let Some(it) = 
-      schema.subschemas.as_ref()
-      .and_then(|ss| ss.all_of.as_ref())
-      .and_then(|s| s.iter().next())
-      .and_then(|s| { match s {
-        Schema::Bool(_) => None,
-        Schema::Object(obj) => obj.reference.as_ref(),
-        }}) {
-            let tpe = type_string_ref(it);
-            write!(out, "- `{}`", &tpe)?;
-        if let Some(desc) = schema.metadata.as_ref().and_then(|f| f.description.as_ref()) {
+    } else if let Some(it) = schema
+        .subschemas
+        .as_ref()
+        .and_then(|ss| ss.all_of.as_ref())
+        .and_then(|s| s.iter().next())
+        .and_then(|s| match s {
+            Schema::Bool(_) => None,
+            Schema::Object(obj) => obj.reference.as_ref(),
+        })
+    {
+        let tpe = type_string_ref(it);
+        write!(out, "- `{}`", &tpe)?;
+        if let Some(desc) = schema
+            .metadata
+            .as_ref()
+            .and_then(|f| f.description.as_ref())
+        {
             writeln!(out, ": {}", desc)?;
         } else {
             writeln!(out, "")?;
@@ -215,7 +231,7 @@ fn print_schema_for_type<O: Write>(
     if let Some(desc) = md.description.as_ref() {
         writeln!(out, "{}", desc)?;
         writeln!(out, "")?;
-    } 
+    }
     if let Some(o) = schema.object.as_ref() {
         print_object_field_table(out, o.as_ref())?;
         writeln!(out, "")?;
@@ -233,14 +249,14 @@ fn print_schema_for_type<O: Write>(
             writeln!(out, "")?;
             for i in one.iter() {
                 print_raw_schema(out, &i.to_owned().into_object())?;
-            }            
+            }
             writeln!(out, "")?;
         } else if let Some(one) = ss.any_of.as_ref() {
             writeln!(out, "It will have any of the following values: ")?;
             writeln!(out, "")?;
             for i in one.iter() {
                 print_raw_schema(out, &i.to_owned().into_object())?;
-            }            
+            }
             writeln!(out, "")?;
         } else {
             // TODO - flesh this out
