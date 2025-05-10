@@ -3,12 +3,12 @@
 //! Utility functions for resolving a semantic convention registry and checking policies.
 //! This module supports the `schema` and `registry` commands.
 
-use crate::registry::{PolicyArgs, RegistryArgs};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::Serialize;
 use std::path::PathBuf;
 use weaver_checker::Error::{InvalidPolicyFile, PolicyViolation};
 use weaver_checker::{Engine, Error, PolicyStage, SEMCONV_REGO};
+use weaver_cli::registry::{PolicyArgs, RegistryArgs};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages, ResultExt};
 use weaver_common::log_success;
 use weaver_common::result::WResult;

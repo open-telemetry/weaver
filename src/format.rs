@@ -2,17 +2,8 @@
 
 //! Supported output formats for the resolved registry and telemetry schema
 
-use clap::ValueEnum;
 use serde::Serialize;
-
-/// Supported output formats for the resolved schema
-#[derive(Debug, Clone, ValueEnum)]
-pub(crate) enum Format {
-    /// YAML format
-    Yaml,
-    /// JSON format
-    Json,
-}
+use weaver_cli::format::Format;
 
 pub(crate) fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {
     match format {

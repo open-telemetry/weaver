@@ -3,29 +3,16 @@
 //! Generate the JSON Schema of the resolved registry documents consumed by the template generator
 //! and the policy engine.
 
-use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use crate::ExitDirectives;
 use log::info;
 use miette::Diagnostic;
 use schemars::schema_for;
 use serde::Serialize;
 use serde_json::to_string_pretty;
 use std::{io::Write, path::PathBuf};
+pub(crate) use weaver_cli::registry::json_schema::RegistryJsonSchemaArgs;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
-
-/// Parameters for the `registry json-schema` sub-command
-#[derive(Debug, Args)]
-pub struct RegistryJsonSchemaArgs {
-    /// Output file to write the JSON schema to
-    /// If not specified, the JSON schema is printed to stdout
-    #[arg(short, long)]
-    output: Option<PathBuf>,
-
-    /// Parameters to specify the diagnostic format.
-    #[command(flatten)]
-    pub diagnostic: DiagnosticArgs,
-}
 
 /// An error that can occur while generating a JSON Schema.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -88,12 +75,12 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
 #[cfg(test)]
 mod tests {
 
-    use crate::cli::{Cli, Commands};
-    use crate::registry::json_schema::RegistryJsonSchemaArgs;
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use std::fs;
     use tempfile::NamedTempFile;
+    use weaver_cli::cli::{Cli, Commands};
+    use weaver_cli::registry::json_schema::RegistryJsonSchemaArgs;
 
     #[test]
     fn test_registry_json_schema() {
