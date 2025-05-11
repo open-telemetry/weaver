@@ -180,7 +180,7 @@ impl Display for Deprecated {
             Deprecated::Renamed { note, .. }
             | Deprecated::Obsoleted { note }
             | Deprecated::Uncategorized { note } => note,
-            | Deprecated::Unspecified { note } => note,
+            Deprecated::Unspecified { note } => note,
         };
         write!(f, "{}", text)
     }

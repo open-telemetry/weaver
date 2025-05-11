@@ -296,7 +296,9 @@ pub enum Error {
     },
 
     /// This indicates that deprecated property is invalid
-    #[error("The `deprecated` property in `{id}` is invalid. {error}\nProvenance: {path_or_url:?}")]
+    #[error(
+        "The `deprecated` property in `{id}` is invalid. {error}\nProvenance: {path_or_url:?}"
+    )]
     #[diagnostic(severity(Warning))]
     UnstructuredDeprecatedProperty {
         /// The path or URL of the semantic convention asset.

@@ -63,8 +63,8 @@ impl Advisor for DeprecatedAdvisor {
                                 Deprecated::Obsoleted { .. } => {
                                     Value::String("obsoleted".to_owned())
                                 }
-                                Deprecated::Unspecified { .. }  |
-                                Deprecated::Uncategorized { .. } => {
+                                Deprecated::Unspecified { .. }
+                                | Deprecated::Uncategorized { .. } => {
                                     Value::String("uncategorized".to_owned())
                                 }
                             },
