@@ -2,6 +2,7 @@
 
 //! Intermediary format for telemetry sample attributes
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_checker::violation::{Advice, AdviceLevel};
@@ -13,7 +14,7 @@ use crate::{
 };
 
 /// Represents a sample telemetry attribute parsed from any source
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 pub struct SampleAttribute {
     /// The name of the attribute
     pub name: String,

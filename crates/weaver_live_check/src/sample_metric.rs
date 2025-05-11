@@ -2,6 +2,7 @@
 
 //! Intermediary format for telemetry sample spans
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use weaver_checker::violation::{Advice, AdviceLevel};
@@ -13,7 +14,7 @@ use crate::{
 };
 
 /// The data point types of a metric
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum DataPoints {
     /// Number data points
@@ -27,7 +28,7 @@ pub enum DataPoints {
 }
 
 /// Represents a single data point of a metric
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleNumberDataPoint {
     /// The value of the data point
     pub value: Value,
@@ -38,7 +39,7 @@ pub struct SampleNumberDataPoint {
 }
 
 /// Represents a single histogram data point of a metric
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleHistogramDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
@@ -57,27 +58,24 @@ pub struct SampleHistogramDataPoint {
 }
 
 /// Represents a single exponential histogram data point of a metric
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleExponentialHistogramDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
 }
 
 /// Represents a single summary data point of a metric
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleSummaryDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
 }
 
 /// Represents a sample telemetry span parsed from any source
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleMetric {
     /// Metric name.
     pub name: String,
-    /// Set of attributes
-    //    #[serde(default)]
-    //    pub attributes: Vec<SampleAttribute>,
     /// Type of the metric (e.g. gauge, histogram, ...).
     pub instrument: InstrumentSpec,
     /// Unit of the metric.

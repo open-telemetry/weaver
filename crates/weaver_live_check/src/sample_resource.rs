@@ -2,6 +2,7 @@
 
 //! Intermediary format for telemetry sample resources
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// Represents a resource
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleResource {
     /// The attributes of the resource
     #[serde(default)]

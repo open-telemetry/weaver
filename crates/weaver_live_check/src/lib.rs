@@ -10,6 +10,7 @@ use sample_attribute::SampleAttribute;
 use sample_metric::{SampleHistogramDataPoint, SampleMetric, SampleNumberDataPoint};
 use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -87,7 +88,7 @@ pub trait Ingester {
 }
 
 /// Represents a sample entity
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Sample {
     /// A sample attribute
@@ -145,7 +146,7 @@ impl LiveCheckRunner for Sample {
 }
 
 /// Represents a live check result
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct LiveCheckResult {
     /// Advice on the entity
     pub all_advice: Vec<Advice>,
@@ -391,4 +392,12 @@ pub trait LiveCheckRunner {
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
     ) -> Result<(), Error>;
+}
+
+/// Get the JSON schema for the Sample struct
+pub fn get_json_schema() -> Result<String, Error> {
+    let schema = schemars::schema_for!(Sample);
+    serde_json::to_string_pretty(&schema).map_err(|e| Error::OutputError {
+        error: e.to_string(),
+    })
 }

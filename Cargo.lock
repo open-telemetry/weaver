@@ -5947,6 +5947,7 @@ dependencies = [
  "globset",
  "miette",
  "regorus",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -6065,6 +6066,7 @@ name = "weaver_live_check"
 version = "0.15.0"
 dependencies = [
  "miette",
+ "schemars",
  "serde",
  "serde_json",
  "tempfile",

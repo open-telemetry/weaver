@@ -2,6 +2,7 @@
 
 //! Intermediary format for telemetry sample spans
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_semconv::group::SpanKindSpec;
 
@@ -11,7 +12,7 @@ use crate::{
 };
 
 /// The status code of the span
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StatusCode {
     /// The status is unset
@@ -23,7 +24,7 @@ pub enum StatusCode {
 }
 
 /// The status code and message of the span
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Status {
     /// The status code
     pub code: StatusCode,
@@ -32,7 +33,7 @@ pub struct Status {
 }
 
 /// Represents a sample telemetry span parsed from any source
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleSpan {
     /// The name of the span
     pub name: String,
@@ -81,7 +82,7 @@ impl LiveCheckRunner for SampleSpan {
 }
 
 /// Represents a span event
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleSpanEvent {
     /// The name of the event
     pub name: String,
@@ -114,7 +115,7 @@ impl LiveCheckRunner for SampleSpanEvent {
 }
 
 /// Represents a span link
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleSpanLink {
     /// The attributes of the link
     #[serde(default)]
