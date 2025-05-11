@@ -43,6 +43,13 @@ pub enum Deprecated {
         /// The note to provide more context about the deprecation.
         note: String,
     },
+
+    /// This variant is used to capture old, unstructured deprecated "string".
+    /// Used for backward-compatibility only.
+    Unspecified {
+        /// The note to provide more context about the deprecation.
+        note: String,
+    },
 }
 
 /// Custom deserialization function to handle both old and new formats.
@@ -72,7 +79,7 @@ where
         where
             E: de::Error,
         {
-            Ok(Deprecated::Uncategorized {
+            Ok(Deprecated::Unspecified {
                 note: value.to_owned(),
             })
         }
@@ -173,6 +180,7 @@ impl Display for Deprecated {
             Deprecated::Renamed { note, .. }
             | Deprecated::Obsoleted { note }
             | Deprecated::Uncategorized { note } => note,
+            | Deprecated::Unspecified { note } => note,
         };
         write!(f, "{}", text)
     }
@@ -192,14 +200,14 @@ mod tests {
     fn test_deser_and_to_string() {
         let yaml_data = r#"
 - deprecated: 'Replaced by `jvm.buffer.memory.used`.'
-- deprecated: 
+- deprecated:
     reason: obsoleted
 - deprecated:
     reason: renamed
     renamed_to: foo.unique_id
 - deprecated:
     reason: uncategorized
-    note: This field is deprecated for some complex reasons.   
+    note: This field is deprecated for some complex reasons.
 - deprecated:
     reason: renamed
     renamed_to: foo.unique_id
@@ -210,7 +218,7 @@ mod tests {
         assert_eq!(items.len(), 5);
         assert_eq!(
             items[0].deprecated,
-            Some(Deprecated::Uncategorized {
+            Some(Deprecated::Unspecified {
                 note: "Replaced by `jvm.buffer.memory.used`.".to_owned()
             })
         );
