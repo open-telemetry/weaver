@@ -329,7 +329,8 @@ impl GroupSpec {
                         errors.push(Error::UnstructuredDeprecatedProperty {
                             path_or_url: path_or_url.to_owned(),
                             id: attribute.id(),
-                            error: "Unstructured deprecated note is not supported on attributes.".to_owned(),
+                            error: "Unstructured deprecated note is not supported on attributes."
+                                .to_owned(),
                         });
                     }
                 }
@@ -1048,7 +1049,7 @@ mod tests {
                 error: "Unstructured deprecated note is not supported on attributes.".to_owned(),
             },),
             result
-        );        
+        );
     }
 
     #[test]
