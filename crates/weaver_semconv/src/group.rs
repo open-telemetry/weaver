@@ -256,6 +256,14 @@ impl GroupSpec {
             }
         }
 
+        if matches!(self.deprecated, Some(Deprecated::Unspecified { .. })) {
+            errors.push(Error::UnstructuredDeprecatedProperty {
+                path_or_url: path_or_url.to_owned(),
+                id: self.id.clone(),
+                error: "Unstructured deprecated note is not supported on groups.".to_owned(),
+            });
+        }
+
         // Validates the attributes.
         for attribute in &self.attributes {
             match attribute {
@@ -315,6 +323,14 @@ impl GroupSpec {
                                 });
                             }
                         }
+                    }
+
+                    if matches!(deprecated, Some(Deprecated::Unspecified { .. })) {
+                        errors.push(Error::UnstructuredDeprecatedProperty {
+                            path_or_url: path_or_url.to_owned(),
+                            id: attribute.id(),
+                            error: "Unstructured deprecated note is not supported on attributes.".to_owned(),
+                        });
                     }
                 }
                 AttributeSpec::Ref { .. } => {}
@@ -602,7 +618,7 @@ mod tests {
         CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
         InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
-        InvalidSpanMissingSpanKind,
+        InvalidSpanMissingSpanKind, UnstructuredDeprecatedProperty,
     };
 
     use super::*;
@@ -753,6 +769,23 @@ mod tests {
                 ],
             ),
         ), result);
+
+        // Group deprecated is set to unspecified
+        group.name = Some("test".to_owned());
+        group.span_kind = None;
+        group.events = vec![];
+        group.deprecated = Some(Deprecated::Unspecified {
+            note: "note".to_owned(),
+        });
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(UnstructuredDeprecatedProperty {
+                path_or_url: "<test>".to_owned(),
+                id: "test".to_owned(),
+                error: "Unstructured deprecated note is not supported on groups.".to_owned(),
+            },),
+            result
+        );
     }
 
     #[test]
@@ -990,6 +1023,32 @@ mod tests {
             },),
             result
         );
+
+        // Deprecated is set to unspecified.
+        group.attributes = vec![AttributeSpec::Id {
+            id: "test".to_owned(),
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: Some("brief".to_owned()),
+            stability: Some(Stability::Stable),
+            deprecated: Some(Deprecated::Unspecified {
+                note: "note".to_owned(),
+            }),
+            examples: Some(Examples::String("test".to_owned())),
+            tag: None,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: "".to_owned(),
+            annotations: None,
+        }];
+        let result = group.validate("<test>").into_result_failing_non_fatal();
+        assert_eq!(
+            Err(UnstructuredDeprecatedProperty {
+                path_or_url: "<test>".to_owned(),
+                id: "test".to_owned(),
+                error: "Unstructured deprecated note is not supported on attributes.".to_owned(),
+            },),
+            result
+        );        
     }
 
     #[test]
