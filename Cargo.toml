@@ -82,8 +82,8 @@ weaver_checker = { path = "crates/weaver_checker" }
 weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
 
-clap = { version = "4.5.37", features = ["derive"] }
-clap_complete = "4.5.48"
+clap = { version = "4.5.38", features = ["derive"] }
+clap_complete = "4.5.50"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
