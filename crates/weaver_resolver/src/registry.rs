@@ -816,7 +816,7 @@ mod tests {
                 .open(observed_output_dir.join("attribute-catalog.json"))
                 .expect("Failed to open observed output file");
             serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
-                .expect("Failed to write observed ouptut.");
+                .expect("Failed to write observed output.");
             // Compare values
             assert_eq!(
                 observed_attr_catalog, expected_attr_catalog,
@@ -839,7 +839,7 @@ mod tests {
                 .open(observed_output_dir.join("registry.json"))
                 .expect("Failed to open observed output file");
             serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
-                .expect("Failed to write observed ouptut.");
+                .expect("Failed to write observed output.");
 
             assert_eq!(
                 observed_registry,
