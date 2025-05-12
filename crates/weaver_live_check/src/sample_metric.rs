@@ -2,6 +2,8 @@
 
 //! Intermediary format for telemetry sample spans
 
+use std::fmt::{Display, Formatter};
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,6 +15,52 @@ use crate::{
     LiveCheckRunner, LiveCheckStatistics, SampleRef, MISSING_METRIC_ADVICE_TYPE,
 };
 
+/// Represents the instrument type of a metric
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SampleInstrument {
+    /// An up-down counter metric.
+    UpDownCounter,
+    /// A counter metric.
+    Counter,
+    /// A gauge metric.
+    Gauge,
+    /// A histogram metric.
+    Histogram,
+    /// A summary metric. This is no longer used and will cause a violation.
+    Summary,
+    /// Unspecified instrument type.
+    Unspecified,
+}
+
+impl SampleInstrument {
+    /// Converts the instrument type to a semconv instrument type.
+    #[must_use]
+    pub fn as_semconv(&self) -> Option<InstrumentSpec> {
+        match self {
+            SampleInstrument::UpDownCounter => Some(InstrumentSpec::UpDownCounter),
+            SampleInstrument::Counter => Some(InstrumentSpec::Counter),
+            SampleInstrument::Gauge => Some(InstrumentSpec::Gauge),
+            SampleInstrument::Histogram => Some(InstrumentSpec::Histogram),
+            _ => None,
+        }
+    }
+}
+
+/// Implements a human readable display for the instrument.
+impl Display for SampleInstrument {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SampleInstrument::UpDownCounter => write!(f, "updowncounter"),
+            SampleInstrument::Counter => write!(f, "counter"),
+            SampleInstrument::Gauge => write!(f, "gauge"),
+            SampleInstrument::Histogram => write!(f, "histogram"),
+            SampleInstrument::Summary => write!(f, "summary"),
+            SampleInstrument::Unspecified => write!(f, "unspecified"),
+        }
+    }
+}
+
 /// The data point types of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
@@ -23,8 +71,6 @@ pub enum DataPoints {
     Histogram(Vec<SampleHistogramDataPoint>),
     /// Exponential histogram data points
     ExponentialHistogram(Vec<SampleExponentialHistogramDataPoint>),
-    /// Summary data points
-    Summary(Vec<SampleSummaryDataPoint>),
 }
 
 /// Represents a single data point of a metric
@@ -62,6 +108,16 @@ pub struct SampleHistogramDataPoint {
 pub struct SampleExponentialHistogramDataPoint {
     /// The attributes of the data point
     pub attributes: Vec<SampleAttribute>,
+    /// The count of the data point
+    pub count: u64,
+    /// The sum of the data point
+    pub sum: Option<f64>,
+    /// The minimum of the data point
+    pub min: Option<f64>,
+    /// The maximum of the data point
+    pub max: Option<f64>,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
 }
 
 /// Represents a single summary data point of a metric
@@ -77,7 +133,7 @@ pub struct SampleMetric {
     /// Metric name.
     pub name: String,
     /// Type of the metric (e.g. gauge, histogram, ...).
-    pub instrument: InstrumentSpec,
+    pub instrument: SampleInstrument,
     /// Unit of the metric.
     pub unit: String,
     /// Data points of the metric.

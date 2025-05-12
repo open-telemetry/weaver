@@ -18,7 +18,10 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, SampleRef};
+use crate::{
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
+    Error, SampleRef,
+};
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -238,16 +241,46 @@ impl Advisor for TypeAdvisor {
                 // Check the instrument and unit of the metric
                 let mut advice_list = Vec::new();
                 if let Some(semconv_metric) = registry_group {
-                    if let Some(semconv_instrument) = &semconv_metric.instrument {
-                        if semconv_instrument != &sample_metric.instrument {
+                    match &sample_metric.instrument {
+                        SampleInstrument::Summary => {
                             advice_list.push(Advice {
-                                advice_type: "instrument_mismatch".to_owned(),
+                                advice_type: "legacy_instrument".to_owned(),
                                 value: Value::String(sample_metric.instrument.to_string()),
-                                message: format!("Instrument should be `{}`", semconv_instrument),
+                                message: "`Summary` Instrument is not supported".to_owned(),
                                 advice_level: AdviceLevel::Violation,
                             });
                         }
+                        SampleInstrument::Unspecified => {
+                            advice_list.push(Advice {
+                                advice_type: "instrument_missing".to_owned(),
+                                value: Value::String(sample_metric.instrument.to_string()),
+                                message: "An Instrument must be specified".to_owned(),
+                                advice_level: AdviceLevel::Violation,
+                            });
+                        }
+                        _ => {
+                            if let Some(semconv_instrument) = &semconv_metric.instrument {
+                                if let Some(sample_instrument) =
+                                    &sample_metric.instrument.as_semconv()
+                                {
+                                    if semconv_instrument != sample_instrument {
+                                        advice_list.push(Advice {
+                                            advice_type: "instrument_mismatch".to_owned(),
+                                            value: Value::String(
+                                                sample_metric.instrument.to_string(),
+                                            ),
+                                            message: format!(
+                                                "Instrument should be `{}`",
+                                                sample_instrument
+                                            ),
+                                            advice_level: AdviceLevel::Violation,
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     }
+
                     if let Some(semconv_unit) = &semconv_metric.unit {
                         if semconv_unit != &sample_metric.unit {
                             advice_list.push(Advice {

@@ -5,10 +5,10 @@
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
-    sample_metric::{DataPoints, SampleMetric},
+    sample_metric::{DataPoints, SampleInstrument, SampleMetric},
     sample_span::{Status, StatusCode},
 };
-use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
+use weaver_semconv::group::SpanKindSpec;
 
 use super::grpc_stubs::proto::{
     common::v1::{AnyValue, KeyValue},
@@ -104,18 +104,22 @@ pub fn otlp_metric_to_sample(otlp_metric: Metric) -> SampleMetric {
 /// updowncounter → Sum with is_monotonic: false
 /// gauge → Gauge
 /// histogram → Histogram
-fn otlp_data_to_instrument(data: &Option<Data>) -> InstrumentSpec {
+/// histogram → ExponentialHistogram
+/// summary → Summary (this will cause a legacy_instrument violation)
+fn otlp_data_to_instrument(data: &Option<Data>) -> SampleInstrument {
     match data {
         Some(Data::Sum(sum)) => {
             if sum.is_monotonic {
-                InstrumentSpec::Counter
+                SampleInstrument::Counter
             } else {
-                InstrumentSpec::UpDownCounter
+                SampleInstrument::UpDownCounter
             }
         }
-        Some(Data::Gauge(_)) => InstrumentSpec::Gauge,
-        Some(Data::Histogram(_)) => InstrumentSpec::Histogram,
-        _ => InstrumentSpec::Gauge, // TODO Default to Gauge if unknown?
+        Some(Data::Gauge(_)) => SampleInstrument::Gauge,
+        Some(Data::Histogram(_)) => SampleInstrument::Histogram,
+        Some(Data::ExponentialHistogram(_)) => SampleInstrument::Histogram,
+        Some(Data::Summary(_)) => SampleInstrument::Summary,
+        None => SampleInstrument::Unspecified,
     }
 }
 
@@ -127,8 +131,35 @@ fn otlp_data_to_data_points(data: &Option<Data>) -> Option<DataPoints> {
         Some(Data::Histogram(histogram)) => {
             Some(otlp_histogram_data_points(&histogram.data_points))
         }
+        Some(Data::ExponentialHistogram(exponential_histogram)) => Some(
+            otlp_exponential_histogram_data_points(&exponential_histogram.data_points),
+        ),
         _ => None,
     }
+}
+
+/// Converts OTLP ExponentialHistogram data points to DataPoints::ExponentialHistogram
+fn otlp_exponential_histogram_data_points(
+    otlp: &Vec<super::grpc_stubs::proto::metrics::v1::ExponentialHistogramDataPoint>,
+) -> DataPoints {
+    let mut data_points = Vec::new();
+    for point in otlp {
+        let live_check_point =
+            weaver_live_check::sample_metric::SampleExponentialHistogramDataPoint {
+                attributes: point
+                    .attributes
+                    .iter()
+                    .map(sample_attribute_from_key_value)
+                    .collect(),
+                count: point.count,
+                sum: point.sum,
+                min: point.min,
+                max: point.max,
+                live_check_result: None,
+            };
+        data_points.push(live_check_point);
+    }
+    DataPoints::ExponentialHistogram(data_points)
 }
 
 /// Converts OTLP Histogram data points to DataPoints::Histogram

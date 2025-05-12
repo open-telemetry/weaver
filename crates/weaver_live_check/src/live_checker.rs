@@ -110,6 +110,9 @@ mod tests {
     use crate::{
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
         sample_attribute::SampleAttribute,
+        sample_metric::{
+            DataPoints, SampleExponentialHistogramDataPoint, SampleInstrument, SampleMetric,
+        },
         LiveCheckRunner, LiveCheckStatistics, Sample,
     };
 
@@ -898,5 +901,75 @@ mod tests {
                 .to_string()
                 .contains("use of undefined variable"));
         }
+    }
+
+    #[test]
+    fn test_exponential_histogram() {
+        let registry = make_metrics_registry();
+
+        // Generate a sample with exponential histogram data points
+        let sample = Sample::Metric(SampleMetric {
+            name: "system.memory.usage".to_owned(),
+            instrument: SampleInstrument::Histogram,
+            unit: "By".to_owned(),
+            data_points: Some(DataPoints::ExponentialHistogram(vec![
+                SampleExponentialHistogramDataPoint {
+                    attributes: vec![],
+                    count: 0,
+                    sum: None,
+                    min: None,
+                    max: None,
+                    live_check_result: None,
+                },
+            ])),
+            live_check_result: None,
+        });
+        let mut samples = vec![sample];
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(registry, advisors);
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+        assert_eq!(
+            stats.advice_type_counts.get("instrument_mismatch"),
+            Some(&1)
+        );
+    }
+
+    #[test]
+    fn test_summary_unspecified() {
+        let registry = make_metrics_registry();
+
+        let mut samples = vec![
+            Sample::Metric(SampleMetric {
+                name: "system.memory.usage".to_owned(),
+                instrument: SampleInstrument::Summary,
+                unit: "By".to_owned(),
+                data_points: None,
+                live_check_result: None,
+            }),
+            Sample::Metric(SampleMetric {
+                name: "system.memory.usage".to_owned(),
+                instrument: SampleInstrument::Unspecified,
+                unit: "By".to_owned(),
+                data_points: None,
+                live_check_result: None,
+            }),
+        ];
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(registry, advisors);
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        for sample in &mut samples {
+            let result = sample.run_live_check(&mut live_checker, &mut stats);
+            assert!(result.is_ok());
+        }
+        stats.finalize();
+        assert_eq!(stats.advice_type_counts.get("legacy_instrument"), Some(&1));
+        assert_eq!(stats.advice_type_counts.get("instrument_missing"), Some(&1));
     }
 }
