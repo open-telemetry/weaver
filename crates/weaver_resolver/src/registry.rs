@@ -693,8 +693,7 @@ fn resolve_inheritance_attr(
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-    use std::fs::{File, OpenOptions};
-    use std::io::Write;
+    use std::fs::OpenOptions;
     use std::path::PathBuf;
 
     use glob::glob;
@@ -813,6 +812,7 @@ mod tests {
             let observed_attr_catalog_file = OpenOptions::new()
                 .create(true)
                 .write(true)
+                .truncate(true)
                 .open(observed_output_dir.join("attribute-catalog.json"))
                 .expect("Failed to open observed output file");
             serde_json::to_writer_pretty(observed_attr_catalog_file, &observed_attr_catalog)
@@ -835,6 +835,7 @@ mod tests {
             let observed_registry_file = OpenOptions::new()
                 .create(true)
                 .write(true)
+                .truncate(true)
                 .open(observed_output_dir.join("registry.json"))
                 .expect("Failed to open observed output file");
             serde_json::to_writer_pretty(observed_registry_file, &observed_registry)
