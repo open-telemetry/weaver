@@ -119,30 +119,8 @@
 				"type": {
 					"type": "string",
 					"const": "entity"
-				},
-				"attributes": {
-					"type": "array",
-					"items": {
-						"$ref": "#/$defs/Attribute"
-					},
-					"description": "list of identifying attributes for the entity type"
-				},
-				"descriptive_attributes": {
-					"type": "array",
-					"items": {
-						"$ref": "#/$defs/Attribute"
-					},
-					"description": "list of descriptive attributes for the entity type"
-				},
-				"relationships": {
-					"type": "array",
-					"items": {
-						"type": "object",
-						"additionalProperties": "string"
-					},
-					"description": "list of relationships for the entity type"
 				}
-		    }
+			}
 		},
 		"SemanticConventionBase": {
 			"type": "object",
@@ -300,6 +278,11 @@
 				},
 				"body": {
 					"$ref": "#/$defs/AnyValueSemanticConvention"
+				},
+				"entity_associations": {
+					"type": "array",
+					"items": { "type": "string" },
+					"description": "list of entity associations for the metric"
 				}
 			},
 			"anyOf": [
@@ -613,6 +596,14 @@
 				"ref": {
 					"type": "string",
 					"description": "reference an existing attribute"
+				},
+				"role": {
+					"type": "string",
+					"enum": [
+						"Identifying",
+						"Descriptive"
+					],
+					"description": "role of the attribute: 'Identifying' or 'Descriptive'"
 				},
 				"tag": {
 					"type": "string",
