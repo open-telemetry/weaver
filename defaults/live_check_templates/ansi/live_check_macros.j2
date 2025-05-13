@@ -92,7 +92,7 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {% endmacro %}
 
 {% macro display_exemplar(exemplar, indent=0) %}
-{{ " " * indent }}{{ ("Exemplar") | ansi_bright_cyan | ansi_bold }} {{ exemplar.value }}
+{{ " " * indent }}{{ ("Exemplar") | ansi_bright_cyan | ansi_bold }} {{ exemplar.value }} @ {{ exemplar.timestamp }} on {{ exemplar.span_id }} {{ exemplar.trace_id }}
 {{ display_advice(exemplar.live_check_result.all_advice, indent) }}
 {%- for attribute in exemplar.filtered_attributes %}
 {{ display_attribute(attribute, indent + 4) }}

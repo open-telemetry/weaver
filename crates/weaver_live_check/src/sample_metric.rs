@@ -259,6 +259,12 @@ pub struct SampleExemplar {
     pub filtered_attributes: Vec<SampleAttribute>,
     /// Value of the measurement that was recorded (as double or int)
     pub value: Value,
+    /// Time when the exemplar was recorded
+    pub timestamp: String,
+    /// Span ID of the exemplar trace
+    pub span_id: String,
+    /// Trace ID of the exemplar trace
+    pub trace_id: String,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
 }

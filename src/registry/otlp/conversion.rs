@@ -2,6 +2,7 @@
 
 //! Conversion routines for OTLP to Sample
 
+use chrono::{TimeZone, Utc};
 use serde_json::{json, Value};
 use weaver_live_check::{
     sample_attribute::SampleAttribute,
@@ -159,7 +160,40 @@ fn otlp_exemplar_to_sample_exemplar(
             },
             None => Value::Null,
         },
+        timestamp: unix_nanos_to_utc(exemplar.time_unix_nano),
+        span_id: span_id_hex(&exemplar.span_id),
+        trace_id: trace_id_hex(&exemplar.trace_id),
         live_check_result: None,
+    }
+}
+
+fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
+    if let Ok(nanos) = time_unix_nano.try_into() {
+        Utc.timestamp_nanos(nanos).to_rfc3339()
+    } else {
+        "".to_owned()
+    }
+}
+
+fn span_id_hex(span_id: &[u8]) -> String {
+    if span_id.len() == 8 {
+        format!(
+            "{:016x}",
+            u64::from_be_bytes(span_id[0..8].try_into().unwrap_or([0; 8]))
+        )
+    } else {
+        "".to_owned()
+    }
+}
+
+fn trace_id_hex(trace_id: &[u8]) -> String {
+    if trace_id.len() == 16 {
+        format!(
+            "{:032x}",
+            u128::from_be_bytes(trace_id[0..16].try_into().unwrap_or([0; 16]))
+        )
+    } else {
+        "".to_owned()
     }
 }
 
