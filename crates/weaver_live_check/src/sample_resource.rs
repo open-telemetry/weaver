@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use weaver_forge::registry::ResolvedGroup;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, SampleRef,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
 };
 
 /// Represents a resource
@@ -23,6 +23,16 @@ pub struct SampleResource {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl Advisable for SampleResource {
+    fn as_sample_ref(&self) -> SampleRef<'_> {
+        SampleRef::Resource(self)
+    }
+
+    fn entity_type(&self) -> &str {
+        "resource"
+    }
+}
+
 impl LiveCheckRunner for SampleResource {
     fn run_live_check(
         &mut self,
@@ -30,16 +40,9 @@ impl LiveCheckRunner for SampleResource {
         stats: &mut LiveCheckStatistics,
         parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        let mut result = LiveCheckResult::new();
-        for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(SampleRef::Resource(self), None, None)?;
-            result.add_advice_list(advice_list);
-        }
+        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
         self.attributes
             .run_live_check(live_checker, stats, parent_group)?;
-        self.live_check_result = Some(result);
-        stats.inc_entity_count("resource");
-        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
         Ok(())
     }
 }

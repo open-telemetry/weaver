@@ -15,8 +15,8 @@ use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, SampleRef, MISSING_METRIC_ADVICE_TYPE,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef, MISSING_METRIC_ADVICE_TYPE,
 };
 
 /// Represents the instrument type of a metric
@@ -95,6 +95,16 @@ pub struct SampleNumberDataPoint {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl Advisable for SampleNumberDataPoint {
+    fn as_sample_ref(&self) -> SampleRef<'_> {
+        SampleRef::NumberDataPoint(self)
+    }
+
+    fn entity_type(&self) -> &str {
+        "data_point"
+    }
+}
+
 impl LiveCheckRunner for SampleNumberDataPoint {
     fn run_live_check(
         &mut self,
@@ -102,15 +112,7 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         stats: &mut LiveCheckStatistics,
         parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        let mut point_result = LiveCheckResult::new();
-        for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::NumberDataPoint(self), None, parent_group)?;
-            point_result.add_advice_list(advice_list);
-        }
-        self.live_check_result = Some(point_result);
-        stats.inc_entity_count("data_point");
-        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
         self.attributes
             .run_live_check(live_checker, stats, parent_group)?;
         self.exemplars
@@ -151,6 +153,16 @@ pub struct SampleHistogramDataPoint {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl Advisable for SampleHistogramDataPoint {
+    fn as_sample_ref(&self) -> SampleRef<'_> {
+        SampleRef::HistogramDataPoint(self)
+    }
+
+    fn entity_type(&self) -> &str {
+        "data_point"
+    }
+}
+
 impl LiveCheckRunner for SampleHistogramDataPoint {
     fn run_live_check(
         &mut self,
@@ -158,15 +170,7 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         stats: &mut LiveCheckStatistics,
         parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        let mut point_result = LiveCheckResult::new();
-        for advisor in live_checker.advisors.iter_mut() {
-            let advice_list =
-                advisor.advise(SampleRef::HistogramDataPoint(self), None, parent_group)?;
-            point_result.add_advice_list(advice_list);
-        }
-        self.live_check_result = Some(point_result);
-        stats.inc_entity_count("data_point");
-        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
         self.attributes
             .run_live_check(live_checker, stats, parent_group)?;
         self.exemplars
@@ -180,8 +184,7 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
 pub struct SampleExponentialHistogramBuckets {
     /// Bucket index of the first entry in the bucket_counts array
     pub offset: i32,
-    /// Array of count values for buckets, where bucket_counts[i] carries the count of the
-    /// bucket at index (offset+i)
+    /// Array of count values for buckets
     pub bucket_counts: Vec<u64>,
 }
 
@@ -223,6 +226,16 @@ pub struct SampleExponentialHistogramDataPoint {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl Advisable for SampleExponentialHistogramDataPoint {
+    fn as_sample_ref(&self) -> SampleRef<'_> {
+        SampleRef::ExponentialHistogramDataPoint(self)
+    }
+
+    fn entity_type(&self) -> &str {
+        "data_point"
+    }
+}
+
 impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
     fn run_live_check(
         &mut self,
@@ -230,18 +243,7 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         stats: &mut LiveCheckStatistics,
         parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        let mut point_result = LiveCheckResult::new();
-        for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(
-                SampleRef::ExponentialHistogramDataPoint(self),
-                None,
-                parent_group,
-            )?;
-            point_result.add_advice_list(advice_list);
-        }
-        self.live_check_result = Some(point_result);
-        stats.inc_entity_count("data_point");
-        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
         self.attributes
             .run_live_check(live_checker, stats, parent_group)?;
         self.exemplars
@@ -261,6 +263,16 @@ pub struct SampleExemplar {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl Advisable for SampleExemplar {
+    fn as_sample_ref(&self) -> SampleRef<'_> {
+        SampleRef::Exemplar(self)
+    }
+
+    fn entity_type(&self) -> &str {
+        "exemplar"
+    }
+}
+
 impl LiveCheckRunner for SampleExemplar {
     fn run_live_check(
         &mut self,
@@ -268,14 +280,7 @@ impl LiveCheckRunner for SampleExemplar {
         stats: &mut LiveCheckStatistics,
         parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        let mut result = LiveCheckResult::new();
-        for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(SampleRef::Exemplar(self), None, parent_group)?;
-            result.add_advice_list(advice_list);
-        }
-        self.live_check_result = Some(result);
-        stats.inc_entity_count("exemplar");
-        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
         self.filtered_attributes
             .run_live_check(live_checker, stats, parent_group)?;
         Ok(())

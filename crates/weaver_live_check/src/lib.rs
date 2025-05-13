@@ -428,6 +428,35 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
     }
 }
 
+/// Samples implement this trait to run Advisors on themselves
+pub trait Advisable {
+    /// Get a reference to this entity as a SampleRef (for advisor calls)
+    fn as_sample_ref(&self) -> SampleRef<'_>;
+
+    /// Get entity type for statistics
+    fn entity_type(&self) -> &str;
+
+    /// Run advisors on this entity
+    fn run_advisors(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
+    ) -> Result<LiveCheckResult, Error> {
+        let mut result = LiveCheckResult::new();
+
+        for advisor in live_checker.advisors.iter_mut() {
+            let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group)?;
+            result.add_advice_list(advice_list);
+        }
+
+        stats.inc_entity_count(self.entity_type());
+        stats.maybe_add_live_check_result(Some(&result));
+
+        Ok(result)
+    }
+}
+
 /// Get the JSON schema for the Sample struct
 pub fn get_json_schema() -> Result<String, Error> {
     let schema = schemars::schema_for!(Sample);
