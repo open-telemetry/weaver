@@ -413,6 +413,21 @@ pub trait LiveCheckRunner {
     ) -> Result<(), Error>;
 }
 
+// Run checks on all items in a collection that implement LiveCheckRunner
+impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
+    ) -> Result<(), Error> {
+        for item in self.iter_mut() {
+            item.run_live_check(live_checker, stats, parent_group)?;
+        }
+        Ok(())
+    }
+}
+
 /// Get the JSON schema for the Sample struct
 pub fn get_json_schema() -> Result<String, Error> {
     let schema = schemars::schema_for!(Sample);

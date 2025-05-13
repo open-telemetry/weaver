@@ -111,14 +111,10 @@ impl LiveCheckRunner for SampleNumberDataPoint {
         self.live_check_result = Some(point_result);
         stats.inc_entity_count("data_point");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-
-        for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats, parent_group)?;
-        }
-
-        for exemplar in &mut self.exemplars {
-            exemplar.run_live_check(live_checker, stats, parent_group)?;
-        }
+        self.attributes
+            .run_live_check(live_checker, stats, parent_group)?;
+        self.exemplars
+            .run_live_check(live_checker, stats, parent_group)?;
         Ok(())
     }
 }
@@ -171,15 +167,10 @@ impl LiveCheckRunner for SampleHistogramDataPoint {
         self.live_check_result = Some(point_result);
         stats.inc_entity_count("data_point");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-
-        for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats, parent_group)?;
-        }
-
-        for exemplar in &mut self.exemplars {
-            exemplar.run_live_check(live_checker, stats, parent_group)?;
-        }
-
+        self.attributes
+            .run_live_check(live_checker, stats, parent_group)?;
+        self.exemplars
+            .run_live_check(live_checker, stats, parent_group)?;
         Ok(())
     }
 }
@@ -251,15 +242,10 @@ impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
         self.live_check_result = Some(point_result);
         stats.inc_entity_count("data_point");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-
-        for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats, parent_group)?;
-        }
-
-        for exemplar in &mut self.exemplars {
-            exemplar.run_live_check(live_checker, stats, parent_group)?;
-        }
-
+        self.attributes
+            .run_live_check(live_checker, stats, parent_group)?;
+        self.exemplars
+            .run_live_check(live_checker, stats, parent_group)?;
         Ok(())
     }
 }
@@ -290,10 +276,8 @@ impl LiveCheckRunner for SampleExemplar {
         self.live_check_result = Some(result);
         stats.inc_entity_count("exemplar");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
-
-        for attribute in &mut self.filtered_attributes {
-            attribute.run_live_check(live_checker, stats, parent_group)?;
-        }
+        self.filtered_attributes
+            .run_live_check(live_checker, stats, parent_group)?;
         Ok(())
     }
 }
@@ -345,20 +329,14 @@ impl LiveCheckRunner for SampleMetric {
         }
         // Get advice for the data points
         match &mut self.data_points {
-            Some(DataPoints::Number(number_data_points)) => {
-                for point in number_data_points.iter_mut() {
-                    point.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
-                }
+            Some(DataPoints::Number(points)) => {
+                points.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
             }
-            Some(DataPoints::Histogram(histogram_data_points)) => {
-                for point in histogram_data_points.iter_mut() {
-                    point.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
-                }
+            Some(DataPoints::Histogram(points)) => {
+                points.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
             }
-            Some(DataPoints::ExponentialHistogram(exponential_histogram_data_points)) => {
-                for point in exponential_histogram_data_points.iter_mut() {
-                    point.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
-                }
+            Some(DataPoints::ExponentialHistogram(points)) => {
+                points.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
             }
             _ => (),
         }

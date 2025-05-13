@@ -35,9 +35,8 @@ impl LiveCheckRunner for SampleResource {
             let advice_list = advisor.advise(SampleRef::Resource(self), None, None)?;
             result.add_advice_list(advice_list);
         }
-        for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats, parent_group)?;
-        }
+        self.attributes
+            .run_live_check(live_checker, stats, parent_group)?;
         self.live_check_result = Some(result);
         stats.inc_entity_count("resource");
         stats.maybe_add_live_check_result(self.live_check_result.as_ref());
