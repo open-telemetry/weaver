@@ -2,19 +2,22 @@
 
 //! This crate provides the weaver_live_check library
 
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use live_checker::LiveChecker;
 use miette::Diagnostic;
 use sample_attribute::SampleAttribute;
-use sample_metric::{SampleHistogramDataPoint, SampleMetric, SampleNumberDataPoint};
+use sample_metric::{
+    SampleExemplar, SampleExponentialHistogramDataPoint, SampleHistogramDataPoint, SampleMetric,
+    SampleNumberDataPoint,
+};
 use sample_resource::SampleResource;
 use sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use weaver_checker::violation::{Advice, AdviceLevel};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
-use weaver_forge::registry::ResolvedRegistry;
+use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
 use weaver_semconv::group::GroupType;
 
 /// Advisors for live checks
@@ -87,7 +90,8 @@ pub trait Ingester {
     fn ingest(&self) -> Result<Box<dyn Iterator<Item = Sample>>, Error>;
 }
 
-/// Represents a sample entity
+/// Represents a sample root entity. A root entity has no contextual
+/// dependency on a parent entity and can therefore be ingested independently.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Sample {
@@ -105,7 +109,8 @@ pub enum Sample {
     Metric(SampleMetric),
 }
 
-/// Represents a sample entity with a reference to the inner type
+/// Represents a sample entity with a reference to the inner type.
+/// These entities can all be augmented with a live check result.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SampleRef<'a> {
@@ -125,6 +130,10 @@ pub enum SampleRef<'a> {
     NumberDataPoint(&'a SampleNumberDataPoint),
     /// A sample histogram data point
     HistogramDataPoint(&'a SampleHistogramDataPoint),
+    /// A sample Exponential Histogram data point
+    ExponentialHistogramDataPoint(&'a SampleExponentialHistogramDataPoint),
+    /// A sample exemplar
+    Exemplar(&'a SampleExemplar),
 }
 
 // Dispatch the live check to the sample type
@@ -133,14 +142,23 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         match self {
-            Sample::Attribute(attribute) => attribute.run_live_check(live_checker, stats),
-            Sample::Span(span) => span.run_live_check(live_checker, stats),
-            Sample::SpanEvent(span_event) => span_event.run_live_check(live_checker, stats),
-            Sample::SpanLink(span_link) => span_link.run_live_check(live_checker, stats),
-            Sample::Resource(resource) => resource.run_live_check(live_checker, stats),
-            Sample::Metric(metric) => metric.run_live_check(live_checker, stats),
+            Sample::Attribute(attribute) => {
+                attribute.run_live_check(live_checker, stats, parent_group)
+            }
+            Sample::Span(span) => span.run_live_check(live_checker, stats, parent_group),
+            Sample::SpanEvent(span_event) => {
+                span_event.run_live_check(live_checker, stats, parent_group)
+            }
+            Sample::SpanLink(span_link) => {
+                span_link.run_live_check(live_checker, stats, parent_group)
+            }
+            Sample::Resource(resource) => {
+                resource.run_live_check(live_checker, stats, parent_group)
+            }
+            Sample::Metric(metric) => metric.run_live_check(live_checker, stats, parent_group),
         }
     }
 }
@@ -391,6 +409,7 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error>;
 }
 

@@ -2,12 +2,16 @@
 
 //! Intermediary format for telemetry sample spans
 
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::group::InstrumentSpec;
 
 use crate::{
@@ -76,48 +80,222 @@ pub enum DataPoints {
 /// Represents a single data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleNumberDataPoint {
-    /// The value of the data point
-    pub value: Value,
-    /// The attributes of the data point
+    /// The set of key/value pairs that uniquely identify the timeseries from
+    /// where this point belongs
     pub attributes: Vec<SampleAttribute>,
+    /// The value of the data point, can be a double or int64
+    pub value: Value,
+    /// Flags that apply to this specific data point
+    #[serde(default)]
+    pub flags: u32,
+    /// List of exemplars collected from measurements that were used to form the data point
+    #[serde(default)]
+    pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+}
+
+impl LiveCheckRunner for SampleNumberDataPoint {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
+    ) -> Result<(), Error> {
+        let mut point_result = LiveCheckResult::new();
+        for advisor in live_checker.advisors.iter_mut() {
+            let advice_list =
+                advisor.advise(SampleRef::NumberDataPoint(self), None, parent_group)?;
+            point_result.add_advice_list(advice_list);
+        }
+        self.live_check_result = Some(point_result);
+        stats.inc_entity_count("data_point");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+
+        for attribute in &mut self.attributes {
+            attribute.run_live_check(live_checker, stats, parent_group)?;
+        }
+
+        for exemplar in &mut self.exemplars {
+            exemplar.run_live_check(live_checker, stats, parent_group)?;
+        }
+        Ok(())
+    }
 }
 
 /// Represents a single histogram data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleHistogramDataPoint {
-    /// The attributes of the data point
+    /// The set of key/value pairs that uniquely identify the timeseries from
+    /// where this point belongs
     pub attributes: Vec<SampleAttribute>,
-    /// The count of the data point
+    /// Number of values in the population. Must be non-negative. This
+    /// value must be equal to the sum of the "bucket_counts" fields.
     pub count: u64,
-    /// The sum of the data point
+    /// Sum of the values in the population. If count is zero then this field
+    /// must be zero.
     pub sum: Option<f64>,
-    /// The bucket counts of the data point
+    /// Array of bucket counts. The sum of the bucket_counts must equal the value in the count field.
+    #[serde(default)]
     pub bucket_counts: Vec<u64>,
-    /// The minimum of the data point
+    /// Explicit bounds for the bucket boundaries.
+    #[serde(default)]
+    pub explicit_bounds: Vec<f64>,
+    /// Minimum value over the time period
     pub min: Option<f64>,
-    /// The maximum of the data point
+    /// Maximum value over the time period
     pub max: Option<f64>,
+    /// Flags that apply to this specific data point
+    #[serde(default)]
+    pub flags: u32,
+    /// List of exemplars collected from measurements that were used to form the data point
+    #[serde(default)]
+    pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+}
+
+impl LiveCheckRunner for SampleHistogramDataPoint {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
+    ) -> Result<(), Error> {
+        let mut point_result = LiveCheckResult::new();
+        for advisor in live_checker.advisors.iter_mut() {
+            let advice_list =
+                advisor.advise(SampleRef::HistogramDataPoint(self), None, parent_group)?;
+            point_result.add_advice_list(advice_list);
+        }
+        self.live_check_result = Some(point_result);
+        stats.inc_entity_count("data_point");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+
+        for attribute in &mut self.attributes {
+            attribute.run_live_check(live_checker, stats, parent_group)?;
+        }
+
+        for exemplar in &mut self.exemplars {
+            exemplar.run_live_check(live_checker, stats, parent_group)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents a set of buckets in an exponential histogram
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SampleExponentialHistogramBuckets {
+    /// Bucket index of the first entry in the bucket_counts array
+    pub offset: i32,
+    /// Array of count values for buckets, where bucket_counts[i] carries the count of the
+    /// bucket at index (offset+i)
+    pub bucket_counts: Vec<u64>,
 }
 
 /// Represents a single exponential histogram data point of a metric
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleExponentialHistogramDataPoint {
-    /// The attributes of the data point
+    /// The set of key/value pairs that uniquely identify the timeseries from
+    /// where this point belongs
     pub attributes: Vec<SampleAttribute>,
-    /// The count of the data point
+    /// Number of values in the population. Must be non-negative and equal to the sum of
+    /// bucket counts plus zero_count
     pub count: u64,
-    /// The sum of the data point
+    /// Sum of the values in the population. If count is zero then this field must be zero
     pub sum: Option<f64>,
-    /// The minimum of the data point
+    /// Resolution of the histogram, defining the power base where base = (2^(2^-scale))
+    #[serde(default)]
+    pub scale: i32,
+    /// Count of values that are exactly zero or within the zero region
+    #[serde(default)]
+    pub zero_count: u64,
+    /// Contains the positive range of exponential bucket counts
+    pub positive: Option<SampleExponentialHistogramBuckets>,
+    /// Contains the negative range of exponential bucket counts
+    pub negative: Option<SampleExponentialHistogramBuckets>,
+    /// Flags that apply to this specific data point
+    #[serde(default)]
+    pub flags: u32,
+    /// Minimum value over the time period
     pub min: Option<f64>,
-    /// The maximum of the data point
+    /// Maximum value over the time period
     pub max: Option<f64>,
+    /// Width of the zero region defined as [-ZeroThreshold, ZeroThreshold]
+    #[serde(default)]
+    pub zero_threshold: f64,
+    /// List of exemplars collected from measurements that were used to form the data point
+    #[serde(default)]
+    pub exemplars: Vec<SampleExemplar>,
     /// Live check result
     pub live_check_result: Option<LiveCheckResult>,
+}
+
+impl LiveCheckRunner for SampleExponentialHistogramDataPoint {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
+    ) -> Result<(), Error> {
+        let mut point_result = LiveCheckResult::new();
+        for advisor in live_checker.advisors.iter_mut() {
+            let advice_list = advisor.advise(
+                SampleRef::ExponentialHistogramDataPoint(self),
+                None,
+                parent_group,
+            )?;
+            point_result.add_advice_list(advice_list);
+        }
+        self.live_check_result = Some(point_result);
+        stats.inc_entity_count("data_point");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+
+        for attribute in &mut self.attributes {
+            attribute.run_live_check(live_checker, stats, parent_group)?;
+        }
+
+        for exemplar in &mut self.exemplars {
+            exemplar.run_live_check(live_checker, stats, parent_group)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents an exemplar, which is a sample input measurement
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct SampleExemplar {
+    /// Key/value pairs that were filtered out by the aggregator, but recorded alongside the measurement
+    pub filtered_attributes: Vec<SampleAttribute>,
+    /// Value of the measurement that was recorded (as double or int)
+    pub value: Value,
+    /// Live check result
+    pub live_check_result: Option<LiveCheckResult>,
+}
+
+impl LiveCheckRunner for SampleExemplar {
+    fn run_live_check(
+        &mut self,
+        live_checker: &mut LiveChecker,
+        stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
+    ) -> Result<(), Error> {
+        let mut result = LiveCheckResult::new();
+        for advisor in live_checker.advisors.iter_mut() {
+            let advice_list = advisor.advise(SampleRef::Exemplar(self), None, parent_group)?;
+            result.add_advice_list(advice_list);
+        }
+        self.live_check_result = Some(result);
+        stats.inc_entity_count("exemplar");
+        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+
+        for attribute in &mut self.filtered_attributes {
+            attribute.run_live_check(live_checker, stats, parent_group)?;
+        }
+        Ok(())
+    }
 }
 
 /// Represents a single summary data point of a metric
@@ -147,6 +325,7 @@ impl LiveCheckRunner for SampleMetric {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        _parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the metric in the registry
@@ -168,42 +347,17 @@ impl LiveCheckRunner for SampleMetric {
         match &mut self.data_points {
             Some(DataPoints::Number(number_data_points)) => {
                 for point in number_data_points.iter_mut() {
-                    let mut point_result = LiveCheckResult::new();
-                    for advisor in live_checker.advisors.iter_mut() {
-                        let advice_list = advisor.advise(
-                            SampleRef::NumberDataPoint(point),
-                            None,
-                            semconv_metric.as_ref(),
-                        )?;
-                        point_result.add_advice_list(advice_list);
-                    }
-                    point.live_check_result = Some(point_result);
-                    stats.inc_entity_count("data_point");
-                    stats.maybe_add_live_check_result(point.live_check_result.as_ref());
-
-                    for attribute in &mut point.attributes {
-                        attribute.run_live_check(live_checker, stats)?;
-                    }
+                    point.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
                 }
             }
             Some(DataPoints::Histogram(histogram_data_points)) => {
                 for point in histogram_data_points.iter_mut() {
-                    let mut point_result = LiveCheckResult::new();
-                    for advisor in live_checker.advisors.iter_mut() {
-                        let advice_list = advisor.advise(
-                            SampleRef::HistogramDataPoint(point),
-                            None,
-                            semconv_metric.as_ref(),
-                        )?;
-                        point_result.add_advice_list(advice_list);
-                    }
-                    point.live_check_result = Some(point_result);
-                    stats.inc_entity_count("data_point");
-                    stats.maybe_add_live_check_result(point.live_check_result.as_ref());
-
-                    for attribute in &mut point.attributes {
-                        attribute.run_live_check(live_checker, stats)?;
-                    }
+                    point.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
+                }
+            }
+            Some(DataPoints::ExponentialHistogram(exponential_histogram_data_points)) => {
+                for point in exponential_histogram_data_points.iter_mut() {
+                    point.run_live_check(live_checker, stats, semconv_metric.as_ref())?;
                 }
             }
             _ => (),

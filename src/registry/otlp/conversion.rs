@@ -138,12 +138,57 @@ fn otlp_data_to_data_points(data: &Option<Data>) -> Option<DataPoints> {
     }
 }
 
+/// Converts an OTLP Exemplar to a SampleExemplar
+fn otlp_exemplar_to_sample_exemplar(
+    exemplar: &super::grpc_stubs::proto::metrics::v1::Exemplar,
+) -> weaver_live_check::sample_metric::SampleExemplar {
+    weaver_live_check::sample_metric::SampleExemplar {
+        filtered_attributes: exemplar
+            .filtered_attributes
+            .iter()
+            .map(sample_attribute_from_key_value)
+            .collect(),
+        value: match &exemplar.value {
+            Some(value) => match value {
+                super::grpc_stubs::proto::metrics::v1::exemplar::Value::AsDouble(double) => {
+                    json!(double)
+                }
+                super::grpc_stubs::proto::metrics::v1::exemplar::Value::AsInt(int) => {
+                    Value::Number((*int).into())
+                }
+            },
+            None => Value::Null,
+        },
+        live_check_result: None,
+    }
+}
+
 /// Converts OTLP ExponentialHistogram data points to DataPoints::ExponentialHistogram
 fn otlp_exponential_histogram_data_points(
     otlp: &Vec<super::grpc_stubs::proto::metrics::v1::ExponentialHistogramDataPoint>,
 ) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
+        let positive = point.positive.as_ref().map(|buckets| {
+            weaver_live_check::sample_metric::SampleExponentialHistogramBuckets {
+                offset: buckets.offset,
+                bucket_counts: buckets.bucket_counts.clone(),
+            }
+        });
+
+        let negative = point.negative.as_ref().map(|buckets| {
+            weaver_live_check::sample_metric::SampleExponentialHistogramBuckets {
+                offset: buckets.offset,
+                bucket_counts: buckets.bucket_counts.clone(),
+            }
+        });
+
+        let exemplars = point
+            .exemplars
+            .iter()
+            .map(otlp_exemplar_to_sample_exemplar)
+            .collect();
+
         let live_check_point =
             weaver_live_check::sample_metric::SampleExponentialHistogramDataPoint {
                 attributes: point
@@ -153,8 +198,15 @@ fn otlp_exponential_histogram_data_points(
                     .collect(),
                 count: point.count,
                 sum: point.sum,
+                scale: point.scale,
+                zero_count: point.zero_count,
+                positive,
+                negative,
+                flags: point.flags,
                 min: point.min,
                 max: point.max,
+                zero_threshold: point.zero_threshold,
+                exemplars,
                 live_check_result: None,
             };
         data_points.push(live_check_point);
@@ -166,6 +218,12 @@ fn otlp_exponential_histogram_data_points(
 fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
+        let exemplars = point
+            .exemplars
+            .iter()
+            .map(otlp_exemplar_to_sample_exemplar)
+            .collect();
+
         let live_check_point = weaver_live_check::sample_metric::SampleHistogramDataPoint {
             attributes: point
                 .attributes
@@ -175,8 +233,11 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
             count: point.count,
             sum: point.sum,
             bucket_counts: point.bucket_counts.clone(),
+            explicit_bounds: point.explicit_bounds.clone(),
             min: point.min,
             max: point.max,
+            flags: point.flags,
+            exemplars,
             live_check_result: None,
         };
         data_points.push(live_check_point);
@@ -188,7 +249,18 @@ fn otlp_histogram_data_points(otlp: &Vec<HistogramDataPoint>) -> DataPoints {
 fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
     let mut data_points = Vec::new();
     for point in otlp {
+        let exemplars = point
+            .exemplars
+            .iter()
+            .map(otlp_exemplar_to_sample_exemplar)
+            .collect();
+
         let live_check_point = weaver_live_check::sample_metric::SampleNumberDataPoint {
+            attributes: point
+                .attributes
+                .iter()
+                .map(sample_attribute_from_key_value)
+                .collect(),
             value: match point.value {
                 Some(value) => match value {
                     super::grpc_stubs::proto::metrics::v1::number_data_point::Value::AsDouble(
@@ -200,11 +272,8 @@ fn otlp_number_data_points(otlp: &Vec<NumberDataPoint>) -> DataPoints {
                 },
                 None => Value::Null,
             },
-            attributes: point
-                .attributes
-                .iter()
-                .map(sample_attribute_from_key_value)
-                .collect(),
+            flags: point.flags,
+            exemplars,
             live_check_result: None,
         };
         data_points.push(live_check_point);

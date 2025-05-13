@@ -86,6 +86,17 @@ count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}
 {%- for attribute in data_point.attributes %}
 {{ display_attribute(attribute, indent + 4) }}
 {%- endfor %}
+{%- for exemplar in data_point.exemplars %}
+{{ display_exemplar(exemplar, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
+{% macro display_exemplar(exemplar, indent=0) %}
+{{ " " * indent }}{{ ("Exemplar") | ansi_bright_cyan | ansi_bold }} {{ exemplar.value }}
+{{ display_advice(exemplar.live_check_result.all_advice, indent) }}
+{%- for attribute in exemplar.filtered_attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
 {% endmacro %}
 
 {% macro display_metric(metric, indent=0) %}

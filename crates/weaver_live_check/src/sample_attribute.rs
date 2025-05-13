@@ -2,10 +2,13 @@
 
 //! Intermediary format for telemetry sample attributes
 
+use std::rc::Rc;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
@@ -167,6 +170,7 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        _parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry

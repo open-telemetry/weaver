@@ -2,8 +2,11 @@
 
 //! Intermediary format for telemetry sample resources
 
+use std::rc::Rc;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_forge::registry::ResolvedGroup;
 
 use crate::{
     live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
@@ -25,6 +28,7 @@ impl LiveCheckRunner for SampleResource {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
@@ -32,7 +36,7 @@ impl LiveCheckRunner for SampleResource {
             result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats)?;
+            attribute.run_live_check(live_checker, stats, parent_group)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("resource");

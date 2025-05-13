@@ -2,8 +2,11 @@
 
 //! Intermediary format for telemetry sample spans
 
+use std::rc::Rc;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::group::SpanKindSpec;
 
 use crate::{
@@ -59,6 +62,7 @@ impl LiveCheckRunner for SampleSpan {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
@@ -66,13 +70,13 @@ impl LiveCheckRunner for SampleSpan {
             result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats)?;
+            attribute.run_live_check(live_checker, stats, parent_group)?;
         }
         for span_event in &mut self.span_events {
-            span_event.run_live_check(live_checker, stats)?;
+            span_event.run_live_check(live_checker, stats, parent_group)?;
         }
         for span_link in &mut self.span_links {
-            span_link.run_live_check(live_checker, stats)?;
+            span_link.run_live_check(live_checker, stats, parent_group)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("span");
@@ -98,6 +102,7 @@ impl LiveCheckRunner for SampleSpanEvent {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
@@ -105,7 +110,7 @@ impl LiveCheckRunner for SampleSpanEvent {
             result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats)?;
+            attribute.run_live_check(live_checker, stats, parent_group)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("span_event");
@@ -129,6 +134,7 @@ impl LiveCheckRunner for SampleSpanLink {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<&Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         for advisor in live_checker.advisors.iter_mut() {
@@ -136,7 +142,7 @@ impl LiveCheckRunner for SampleSpanLink {
             result.add_advice_list(advice_list);
         }
         for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats)?;
+            attribute.run_live_check(live_checker, stats, parent_group)?;
         }
         self.live_check_result = Some(result);
         stats.inc_entity_count("span_link");
