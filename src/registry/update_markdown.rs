@@ -3,9 +3,12 @@
 //! Update markdown files that contain markers indicating the templates used to
 //! update the specified sections.
 
+use crate::registry::generate::generate_params_shared;
 use crate::registry::RegistryArgs;
 use crate::{DiagnosticArgs, ExitDirectives};
 use clap::Args;
+use serde_yaml::Value;
+use std::path::PathBuf;
 use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
@@ -34,6 +37,15 @@ pub struct RegistryUpdateMarkdownArgs {
     /// If provided, all attributes will be linked here.
     #[arg(long)]
     pub attribute_registry_base_url: Option<String>,
+
+    /// Parameters key=value, defined in the command line, to pass to the templates.
+    /// The value must be a valid YAML value.
+    #[arg(short = 'D', long, value_parser = crate::registry::generate::parse_key_val)]
+    pub param: Option<Vec<(String, Value)>>,
+
+    /// Parameters, defined in a YAML file, to pass to the templates.
+    #[arg(long)]
+    pub params: Option<PathBuf>,
 
     /// Path to the directory where the templates are located.
     /// Default is the `templates` directory.
@@ -64,6 +76,7 @@ pub(crate) fn command(
     }
 
     let mut diag_msgs = DiagnosticMessages::empty();
+    let params = generate_params_shared(&args.param, &args.params)?;
 
     // Construct a generator if we were given a `--target` argument.
     let generator = {
@@ -76,7 +89,7 @@ pub(crate) fn command(
         let loader =
             FileSystemFileLoader::try_new(templates_dir.path().join("registry"), &args.target)?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        TemplateEngine::new(config, loader, Params::default())
+        TemplateEngine::new(config, loader, params)
     };
 
     let registry_path = &args.registry.registry;
@@ -166,6 +179,8 @@ mod tests {
                     },
                     diagnostic: Default::default(),
                     target: "markdown".to_owned(),
+                    param: None,
+                    params: None,
                 }),
             })),
         };
