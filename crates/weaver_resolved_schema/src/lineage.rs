@@ -349,26 +349,6 @@ impl AttributeLineage {
         }
     }
 
-    /// Determines the value of the role field by evaluating the presence of
-    /// a local value. If a local value is provided, it is used, and the role
-    /// field's lineage is marked as local. Otherwise, the specified parent
-    /// value is used, and the role field's lineage is marked as inherited
-    /// from the parent.
-    pub fn role(
-        &mut self,
-        local_value: &Option<AttributeRole>,
-        parent_value: &AttributeRole,
-    ) -> AttributeRole {
-        if let Some(v) = local_value {
-            _ = self.locally_overridden_fields.insert("role".to_owned());
-            _ = self.inherited_fields.remove("role");
-            v.clone()
-        } else {
-            _ = self.inherited_fields.insert("role".to_owned());
-            parent_value.clone()
-        }
-    }
-
     /// Determines the value of the deprecated field by evaluating the presence of
     /// a local value. If a local value is provided, it is used, and the deprecated
     /// field's lineage is marked as local. Otherwise, the specified parent

@@ -23,7 +23,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           }
@@ -68,7 +67,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           },
@@ -79,7 +77,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           },
@@ -90,7 +87,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           }
@@ -504,7 +500,6 @@
               "brief",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           },
@@ -514,7 +509,6 @@
               "brief",
               "examples",
               "note",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -528,7 +522,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           },
@@ -538,7 +531,6 @@
               "brief",
               "examples",
               "note",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -586,7 +578,6 @@
             "inherited_fields": [
               "brief",
               "examples",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -617,7 +608,6 @@
             "inherited_fields": [
               "brief",
               "examples",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [

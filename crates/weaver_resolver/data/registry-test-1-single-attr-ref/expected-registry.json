@@ -10,8 +10,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-1-single-attr-ref/registry/metrics-messaging.yaml"
         },
         "attributes": {
           "messaging.destination.name": {
@@ -20,7 +20,6 @@
               "brief",
               "examples",
               "note",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -39,8 +38,8 @@
       ],
       "lineage": {
         "provenance": {
-            "path": "data/registry-test-1-single-attr-ref/registry/registry-messaging.yaml",
-            "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-1-single-attr-ref/registry/registry-messaging.yaml"
         }
       }
     }

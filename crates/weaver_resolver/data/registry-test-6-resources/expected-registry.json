@@ -17,7 +17,7 @@
     },
     {
       "id": "browser",
-      "type": "resource",
+      "type": "entity",
       "brief": "The web browser in which the application represented by the resource is running. The `browser.*` attributes MUST be used only for resources that represent applications running in a web browser (regardless of whether running on a mobile or desktop device).\n",
       "stability": "stable",
       "attributes": [
@@ -37,7 +37,6 @@
             "source_group": "registry.user_agent",
             "inherited_fields": [
               "requirement_level",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [

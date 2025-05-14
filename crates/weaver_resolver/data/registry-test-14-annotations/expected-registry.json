@@ -10,8 +10,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-14-annotations/registry/group-with-annotations.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-14-annotations/registry/group-with-annotations.yaml"
         }
       },
       "annotations": {
@@ -30,8 +30,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-14-annotations/registry/group-with-annotations.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-14-annotations/registry/group-with-annotations.yaml"
         },
         "attributes": {
           "attr1": {
@@ -41,7 +41,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [

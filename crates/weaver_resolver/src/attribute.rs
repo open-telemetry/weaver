@@ -157,7 +157,7 @@ impl AttributeCatalog {
                         tags: root_attr.attribute.tags.clone(),
                         value: root_attr.attribute.value.clone(),
                         prefix: *prefix,
-                        role: attr_lineage.role(role, &root_attr.attribute.role),
+                        role: attr_lineage.optional_role(role, &root_attr.attribute.role),
                         annotations: attr_lineage
                             .annotations(annotations, &root_attr.attribute.annotations),
                     };
@@ -220,7 +220,7 @@ impl AttributeCatalog {
                     value: None,
                     prefix: false,
                     annotations: annotations.clone(),
-                    role: role.clone().unwrap_or_default(),
+                    role: role.clone(),
                 };
 
                 _ = self.root_attributes.insert(

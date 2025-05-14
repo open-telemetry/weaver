@@ -91,8 +91,8 @@ pub struct Attribute {
     pub value: Option<Value>,
     /// Whether the attribute is identifying or descriptive.
     #[serde(default)]
-    #[serde(skip_serializing_if = "AttributeRole::is_identifying")]
-    pub role: AttributeRole,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<AttributeRole>,
 }
 
 /// An unresolved attribute definition.

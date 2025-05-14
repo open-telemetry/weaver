@@ -1,63 +1,62 @@
 {
-    "registry_url": "https://127.0.0.1",
-    "groups": [
-      {
-        "id": "registry.host",
-        "type": "attribute_group",
-        "brief": "Registry server",
-        "attributes": [
-          0,
-          1
-        ],
-        "lineage": {
-          "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-lineage-3/registry/groups.yaml"
-          }
+  "registry_url": "https://127.0.0.1",
+  "groups": [
+    {
+      "id": "registry.host",
+      "type": "attribute_group",
+      "brief": "Registry server",
+      "attributes": [
+        0,
+        1
+      ],
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-3/registry/groups.yaml"
         }
-      },
-      {
-        "id": "entity.host",
-        "type": "entity",
-        "brief": "host entity",
-        "stability": "stable",
-        "attributes": [
-          1,
-          2
-        ],
-        "name": "host",
-        "lineage": {
-          "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-lineage-3/registry/groups.yaml"
+      }
+    },
+    {
+      "id": "entity.host",
+      "type": "entity",
+      "brief": "host entity",
+      "stability": "stable",
+      "attributes": [
+        1,
+        2
+      ],
+      "name": "host",
+      "lineage": {
+        "provenance": {
+          "registry_id": "default",
+          "path": "data/registry-test-lineage-3/registry/groups.yaml"
+        },
+        "attributes": {
+          "host.id": {
+            "source_group": "registry.host",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ]
           },
-          "attributes": {
-            "host.id": {
-              "source_group": "registry.host",
-              "inherited_fields": [
-                "brief",
-                "examples",
-                "note",
-                "requirement_level",
-                "role",
-                "stability"
-              ]
-            },
-            "host.name": {
-              "source_group": "registry.host",
-              "inherited_fields": [
-                "brief",
-                "examples",
-                "note",
-                "requirement_level",
-                "stability"
-              ],
-              "locally_overridden_fields": [
-                "role"
-              ]
-            }
+          "host.name": {
+            "source_group": "registry.host",
+            "inherited_fields": [
+              "brief",
+              "examples",
+              "note",
+              "requirement_level",
+              "stability"
+            ],
+            "locally_overridden_fields": [
+              "role"
+            ]
           }
         }
       }
-    ]
-  }
+    }
+  ]
+}

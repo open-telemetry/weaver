@@ -12,8 +12,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-10-prefix-refs/registry/client.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-10-prefix-refs/registry/client.yaml"
         },
         "attributes": {
           "client.geo.lat": {
@@ -22,7 +22,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -43,8 +42,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-10-prefix-refs/registry/geo.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-10-prefix-refs/registry/geo.yaml"
         }
       }
     },
@@ -61,8 +60,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-10-prefix-refs/registry/usage.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-10-prefix-refs/registry/usage.yaml"
         },
         "attributes": {
           "client.geo.lat": {
@@ -71,7 +70,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -85,7 +83,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           },
@@ -95,7 +92,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ],
             "locally_overridden_fields": [
@@ -109,7 +105,6 @@
               "examples",
               "note",
               "requirement_level",
-              "role",
               "stability"
             ]
           }
