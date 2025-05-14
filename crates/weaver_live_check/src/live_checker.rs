@@ -102,8 +102,8 @@ mod tests {
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
         attribute::{
-            AttributeRole, AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec,
-            RequirementLevel, TemplateTypeSpec, ValueSpec,
+            AttributeType, EnumEntriesSpec, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel,
+            TemplateTypeSpec, ValueSpec,
         },
         group::{GroupType, SpanKindSpec},
         stability::Stability,
