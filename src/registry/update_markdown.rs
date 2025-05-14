@@ -13,7 +13,7 @@ use weaver_common::diagnostic::{is_future_mode_enabled, DiagnosticMessages};
 use weaver_common::vdir::VirtualDirectory;
 use weaver_common::vdir::VirtualDirectoryPath;
 use weaver_common::{log_error, log_info, log_success, Error};
-use weaver_forge::config::{Params, WeaverConfig};
+use weaver_forge::config::WeaverConfig;
 use weaver_forge::file_loader::FileSystemFileLoader;
 use weaver_forge::TemplateEngine;
 use weaver_semconv::registry_repo::RegistryRepo;
