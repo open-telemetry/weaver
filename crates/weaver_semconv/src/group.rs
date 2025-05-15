@@ -634,6 +634,7 @@ mod tests {
                 sampling_relevant: None,
                 note: "".to_owned(),
                 annotations: None,
+                role: Default::default(),
             }],
             span_kind: Some(SpanKindSpec::Client),
             events: vec!["event".to_owned()],
@@ -781,6 +782,7 @@ mod tests {
                 sampling_relevant: None,
                 note: "".to_owned(),
                 annotations: None,
+                role: Default::default(),
             }],
             span_kind: Some(SpanKindSpec::Client),
             events: vec!["event".to_owned()],
@@ -813,6 +815,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -841,6 +844,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -869,6 +873,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -896,6 +901,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -934,6 +940,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -971,6 +978,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
@@ -1014,6 +1022,7 @@ mod tests {
                 sampling_relevant: None,
                 note: "".to_owned(),
                 annotations: None,
+                role: Default::default(),
             }],
             span_kind: Some(SpanKindSpec::Client),
             events: vec!["event".to_owned()],
@@ -1056,6 +1065,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert!(result.is_ok());
@@ -1442,6 +1452,7 @@ mod tests {
                 sampling_relevant: None,
                 note: "".to_owned(),
                 annotations: None,
+                role: Default::default(),
             }],
             span_kind: None,
             events: vec![],
@@ -1601,6 +1612,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let mut group = GroupSpec {
             id: "test".to_owned(),
@@ -1737,6 +1749,7 @@ mod tests {
                 deprecated: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             AttributeSpec::Ref {
                 r#ref: "attribute".to_owned(),
@@ -1750,6 +1763,7 @@ mod tests {
                 deprecated: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
         ];
         let mut group = GroupSpec {
@@ -1820,6 +1834,7 @@ mod tests {
                 sampling_relevant: None,
                 note: "".to_owned(),
                 annotations: None,
+                role: Default::default(),
             }],
             span_kind: None,
             events: vec![],
