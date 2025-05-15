@@ -179,8 +179,8 @@ impl Display for Deprecated {
         let text = match self {
             Deprecated::Renamed { note, .. }
             | Deprecated::Obsoleted { note }
-            | Deprecated::Uncategorized { note } => note,
-            Deprecated::Unspecified { note } => note,
+            | Deprecated::Uncategorized { note }
+            | Deprecated::Unspecified { note } => note,
         };
         write!(f, "{}", text)
     }
