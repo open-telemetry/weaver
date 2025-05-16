@@ -158,6 +158,9 @@ pub struct TemplateEngine {
 
     /// Target configuration
     target_config: WeaverConfig,
+
+    // Global parameters for snippet generation.
+    snippet_params: Params,
 }
 
 /// Global context for the template engine.
@@ -228,6 +231,7 @@ impl TemplateEngine {
         Self {
             file_loader: Arc::new(loader),
             target_config: config,
+            snippet_params: params,
         }
     }
 
@@ -249,7 +253,20 @@ impl TemplateEngine {
             error: e.to_string(),
         })?;
 
-        let engine = self.template_engine()?;
+        let mut engine = self.template_engine()?;
+        // Create snippet parameters
+        let mut params = self
+            .target_config
+            .params
+            .as_ref()
+            .cloned()
+            .unwrap_or_default();
+        for (name, value) in self.snippet_params.params.iter() {
+            // The result of the insert method is ignored because we don't care about
+            // the previous value of the param.
+            _ = params.insert(name.clone(), value.clone());
+        }
+        engine.add_global("params", Value::from_object(ParamsObject::new(params)));
         let template = engine
             .get_template(&snippet_id)
             .map_err(error::jinja_err_convert)?;
