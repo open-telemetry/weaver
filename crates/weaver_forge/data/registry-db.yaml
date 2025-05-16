@@ -312,7 +312,7 @@ groups:
         type:
           members:
             - id: other_sql
-              stability: stable
+              stability: development
               value: 'other_sql'
               brief: 'Some other SQL database. Fallback only. See notes.'
             - id: mssql
@@ -320,7 +320,7 @@ groups:
               value: 'mssql'
               brief: 'Microsoft SQL Server'
             - id: mssqlcompact
-              stability: stable
+              stability: development
               value: 'mssqlcompact'
               brief: 'Microsoft SQL Server Compact'
             - id: mysql
