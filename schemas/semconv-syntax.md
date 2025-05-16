@@ -75,7 +75,7 @@ display_name ::= string
 
 annotations ::= string yaml
 
-attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [requirement_level] [sampling_relevant] [note] [annotations]
+attributes ::= (id type brief examples | ref [brief] [examples]) [tag] stability [deprecated] [requirement_level] [sampling_relevant] [note] [annotations] [role]
 
 # ref MUST point to an existing attribute id
 ref ::= id
@@ -110,6 +110,9 @@ requirement_level ::= "required"
 sampling_relevant ::= boolean
 
 examples ::= <example_value> {<example_value>}
+
+role ::= "identifying" # Default if not specified
+         | "descriptive"
 
 specificfields ::= spanfields
                |   eventfields

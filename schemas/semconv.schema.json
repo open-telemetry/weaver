@@ -678,6 +678,9 @@
 						},
 						"annotations": {
 							"$ref": "#/$defs/annotations"
+						},
+						"role": {
+							"#ref": "#/$defs/AttributeRole"
 						}
 					}
 				},
@@ -689,6 +692,18 @@
 						{
 							"$ref": "#/$defs/AttributeReference"
 						}
+					]
+				}
+			]
+		},
+		"AttributeRole": {
+			"description": "specified the role of an attribute (e.g. descriptive or identifying).",
+			"oneOf": [
+				{
+					"type": "string",
+					"enum": [
+						"identifying",
+						"descriptive"
 					]
 				}
 			]
