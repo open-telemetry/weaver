@@ -1040,6 +1040,7 @@ mod tests {
             sampling_relevant: None,
             note: "".to_owned(),
             annotations: None,
+            role: Default::default(),
         }];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
