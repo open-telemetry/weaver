@@ -592,7 +592,7 @@
           "deprecated": null,
           "id": "other_sql",
           "note": null,
-          "stability": "stable",
+          "stability": "development",
           "value": "other_sql"
         },
         {
@@ -608,7 +608,7 @@
           "deprecated": null,
           "id": "mssqlcompact",
           "note": null,
-          "stability": "stable",
+          "stability": "development",
           "value": "mssqlcompact"
         },
         {
@@ -1108,7 +1108,7 @@
           "deprecated": null,
           "id": "connect",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "CONNECT"
         },
         {
@@ -1116,7 +1116,7 @@
           "deprecated": null,
           "id": "delete",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "DELETE"
         },
         {
@@ -1124,7 +1124,7 @@
           "deprecated": null,
           "id": "get",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "GET"
         },
         {
@@ -1132,7 +1132,7 @@
           "deprecated": null,
           "id": "head",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "HEAD"
         },
         {
@@ -1140,7 +1140,7 @@
           "deprecated": null,
           "id": "options",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "OPTIONS"
         },
         {
@@ -1148,7 +1148,7 @@
           "deprecated": null,
           "id": "patch",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "PATCH"
         },
         {
@@ -1156,7 +1156,7 @@
           "deprecated": null,
           "id": "post",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "POST"
         },
         {
@@ -1164,7 +1164,7 @@
           "deprecated": null,
           "id": "put",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "PUT"
         },
         {
@@ -1172,7 +1172,7 @@
           "deprecated": null,
           "id": "trace",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "TRACE"
         },
         {
@@ -1180,7 +1180,7 @@
           "deprecated": null,
           "id": "other",
           "note": null,
-          "stability": "development",
+          "stability": "stable",
           "value": "_OTHER"
         }
       ]
