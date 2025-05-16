@@ -23,6 +23,7 @@ serde_yaml.workspace = true
 walkdir.workspace = true
 globset.workspace = true
 miette.workspace = true
+schemars.workspace = true
 
 regorus = { version = "0.4.0", default-features = false, features = [
     "std",
