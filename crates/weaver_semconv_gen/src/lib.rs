@@ -372,6 +372,7 @@ impl ResolvedSemconvRegistry {
 #[cfg(test)]
 mod tests {
     use crate::{update_markdown, Error, SnippetGenerator};
+    use serde_yaml::Value;
     use weaver_common::diagnostic::DiagnosticMessages;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_forge::config::{Params, WeaverConfig};
@@ -390,7 +391,14 @@ mod tests {
     fn test_template_engine() -> Result<(), Error> {
         let loader = FileSystemFileLoader::try_new("templates/registry".into(), "markdown")?;
         let config = WeaverConfig::try_from_loader(&loader)?;
-        let template = TemplateEngine::new(config, loader, Params::default());
+        let params = {
+            let mut p = Params::default();
+            let _ = p
+                .params
+                .insert("test".to_owned(), Value::String("param".to_owned()));
+            p
+        };
+        let template = TemplateEngine::new(config, loader, params);
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
         };

@@ -29,6 +29,7 @@ pub enum WResult<T, E> {
 
 impl<T> WResult<T, DiagnosticMessage> {
     /// Converts a [`WResult`] into a standard [`Result`], optionally capturing non-fatal errors.
+    #[allow(clippy::result_large_err)]
     pub fn capture_non_fatal_errors(
         self,
         diag_msgs: &mut DiagnosticMessages,

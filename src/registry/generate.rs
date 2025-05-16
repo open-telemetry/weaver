@@ -69,7 +69,7 @@ pub struct RegistryGenerateArgs {
 }
 
 /// Utility function to parse key-value pairs from the command line.
-fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
+pub(crate) fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
     let pos = s.find('=').ok_or_else(|| Error::InvalidParam {
         param: s.to_owned(),
         error: "A valid parameter definition is `--param <name>=<yaml-value>`".to_owned(),
@@ -133,8 +133,15 @@ pub(crate) fn command(args: &RegistryGenerateArgs) -> Result<ExitDirectives, Dia
 /// Then the key-value pairs from the `--param` arguments are added to the parameters.
 /// So `--param key=value` will override the value of `key` if it exists in the YAML file.
 fn generate_params(args: &RegistryGenerateArgs) -> Result<Params, Error> {
+    generate_params_shared(&args.param, &args.params)
+}
+
+pub(crate) fn generate_params_shared(
+    direct: &Option<Vec<(String, Value)>>,
+    file: &Option<PathBuf>,
+) -> Result<Params, Error> {
     // Load the parameters from the YAML file or if not provided, use the default parameters.
-    let mut params = if let Some(params_file) = &args.params {
+    let mut params = if let Some(params_file) = file {
         let file = std::fs::File::open(params_file).map_err(|e| Error::InvalidParams {
             params_file: params_file.clone(),
             error: e.to_string(),
@@ -148,12 +155,11 @@ fn generate_params(args: &RegistryGenerateArgs) -> Result<Params, Error> {
     };
 
     // Override the parameters with the key-value pairs from the command line.
-    if let Some(param) = &args.param {
+    if let Some(param) = direct {
         for (name, value) in param {
             _ = params.params.insert(name.clone(), value.clone());
         }
     }
-
     Ok(params)
 }
 

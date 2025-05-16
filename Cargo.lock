@@ -6145,6 +6145,7 @@ dependencies = [
  "miette",
  "nom 8.0.0",
  "serde",
+ "serde_yaml",
  "thiserror 2.0.12",
  "weaver_common",
  "weaver_diff",

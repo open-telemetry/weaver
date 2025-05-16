@@ -53,7 +53,7 @@ pub fn diff_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Re
         if path.is_file() {
             let relative_path = path
                 .strip_prefix(&expected_dir)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(std::io::Error::other)?;
             _ = expected_files.insert(relative_path.to_path_buf());
         }
     }
@@ -67,7 +67,7 @@ pub fn diff_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Re
         if path.is_file() {
             let relative_path = path
                 .strip_prefix(&observed_dir)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                .map_err(std::io::Error::other)?;
             _ = observed_files.insert(relative_path.to_path_buf());
         }
     }
