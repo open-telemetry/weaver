@@ -603,12 +603,7 @@
 					"description": "reference an existing attribute"
 				},
 				"role": {
-					"type": "string",
-					"enum": [
-						"Identifying",
-						"Descriptive"
-					],
-					"description": "role of the attribute: 'Identifying' or 'Descriptive'"
+					"#ref": "#/$defs/AttributeRole"
 				},
 				"tag": {
 					"type": "string",
