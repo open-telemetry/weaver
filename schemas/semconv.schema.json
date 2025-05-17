@@ -106,6 +106,7 @@
 				}
 			]
 		},
+
 		"EntitySemanticConvention": {
 			"allOf": [
 				{
@@ -261,8 +262,7 @@
 				},
 				"entity_associations": {
 					"type": "array",
-					"items": { "type": "string" },
-					"description": "list of entity associations for the span."
+					"items": { "$ref": "#/$defs/EntityAssociation" }
 				}
 			}
 		},
@@ -286,8 +286,7 @@
 				},
 				"entity_associations": {
 					"type": "array",
-					"items": { "type": "string" },
-					"description": "list of entity associations for the event."
+					"items": { "$ref": "#/$defs/EntityAssociation" }
 				}
 			},
 			"anyOf": [
@@ -494,8 +493,7 @@
 				},
 				"entity_associations": {
 					"type": "array",
-					"items": { "type": "string" },
-					"description": "list of entity associations for the metric"
+					"items": { "$ref": "#/$defs/EntityAssociation" }
 				}
 			}
 		},
@@ -800,6 +798,11 @@
 					"description": "literal denoting the type"
 				}
 			]
+		},
+		"EntityAssociation": {
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "list of entity associations."
 		}
 	}
 }
