@@ -17,5 +17,7 @@ groups:
           When observed from the server side, and when communicating through an intermediary, `client.address` SHOULD represent
           the client address behind any intermediaries (e.g. proxies) if it's available.
         examples: ['/tmp/my.sock', '10.1.2.80']
-        deprecated: use xyz instead
+        deprecated:
+          reason: renamed
+          renamed_to: xyz
         stability: stable

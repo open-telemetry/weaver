@@ -50,5 +50,6 @@ fn test_cli_interface() {
     // - 13 violations before resolution
     // - 3 violations for metrics after resolution
     // - 9 violations for http after resolution
-    assert_eq!(json_value.len(), 42);
+    // - 1 deprecated string note
+    assert_eq!(json_value.len(), 43);
 }
