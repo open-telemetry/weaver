@@ -781,6 +781,7 @@ mod tests {
             value: None,
             prefix: false,
             annotations: None,
+            role: Default::default(),
         };
 
         otel::add_filters(&mut env);
@@ -810,6 +811,7 @@ mod tests {
             value: None,
             prefix: false,
             annotations: None,
+            role: Default::default(),
         };
 
         assert_eq!(
@@ -997,6 +999,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "rec.b".into(),
@@ -1013,6 +1016,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "crec.a".into(),
@@ -1029,6 +1033,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "crec.b".into(),
@@ -1045,6 +1050,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "rec.c".into(),
@@ -1061,6 +1067,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "rec.d".into(),
@@ -1077,6 +1084,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "opt.a".into(),
@@ -1093,6 +1101,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "opt.b".into(),
@@ -1109,6 +1118,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "req.a".into(),
@@ -1125,6 +1135,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "req.b".into(),
@@ -1141,6 +1152,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
         ];
         let json =
@@ -1200,6 +1212,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "attr2".to_owned(),
@@ -1216,6 +1229,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
             Attribute {
                 name: "attr3".to_owned(),
@@ -1232,6 +1246,7 @@ mod tests {
                 value: None,
                 prefix: false,
                 annotations: None,
+                role: Default::default(),
             },
         ];
 
@@ -1523,6 +1538,7 @@ mod tests {
             value: None,
             prefix: false,
             annotations: None,
+            role: Default::default(),
         };
 
         otel::add_filters(&mut env);
@@ -1552,6 +1568,7 @@ mod tests {
             value: None,
             prefix: false,
             annotations: None,
+            role: Default::default(),
         };
 
         otel::add_filters(&mut env);
