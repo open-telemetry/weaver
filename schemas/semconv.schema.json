@@ -602,9 +602,6 @@
 					"type": "string",
 					"description": "reference an existing attribute"
 				},
-				"role": {
-					"#ref": "#/$defs/AttributeRole"
-				},
 				"tag": {
 					"type": "string",
 					"description": "associates a tag to the attribute"
