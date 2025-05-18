@@ -54,6 +54,17 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 	message := "Value must be an integer when unit is 'By'"
 }
 
+# As above, but for exemplars which are nested two levels deep.
+deny contains make_advice(advice_type, advice_level, value, message) if {
+	input.sample.exemplar
+	value := input.sample.exemplar.value
+	input.registry_group.unit == "s"
+	value < 1.0
+	advice_type := "low_value"
+	advice_level := "information"
+	message := "This is a low number of seconds"
+}
+
 make_advice(advice_type, advice_level, value, message) := {
 	"type": "advice",
 	"advice_type": advice_type,

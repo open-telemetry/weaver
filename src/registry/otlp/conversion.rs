@@ -167,6 +167,7 @@ fn otlp_exemplar_to_sample_exemplar(
     }
 }
 
+/// Converts a Unix timestamp in nanoseconds to a UTC string
 fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
     if let Ok(nanos) = time_unix_nano.try_into() {
         Utc.timestamp_nanos(nanos).to_rfc3339()
@@ -175,6 +176,7 @@ fn unix_nanos_to_utc(time_unix_nano: u64) -> String {
     }
 }
 
+/// Converts a span ID (8 bytes) to a hex string
 fn span_id_hex(span_id: &[u8]) -> String {
     if span_id.len() == 8 {
         format!(
@@ -186,6 +188,7 @@ fn span_id_hex(span_id: &[u8]) -> String {
     }
 }
 
+/// Converts a trace ID (16 bytes) to a hex string
 fn trace_id_hex(trace_id: &[u8]) -> String {
     if trace_id.len() == 16 {
         format!(

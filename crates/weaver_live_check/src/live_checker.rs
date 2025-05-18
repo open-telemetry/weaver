@@ -111,13 +111,14 @@ mod tests {
         advice::{DeprecatedAdvisor, EnumAdvisor, RegoAdvisor, StabilityAdvisor, TypeAdvisor},
         sample_attribute::SampleAttribute,
         sample_metric::{
-            DataPoints, SampleExponentialHistogramDataPoint, SampleInstrument, SampleMetric,
+            DataPoints, SampleExemplar, SampleExponentialHistogramDataPoint, SampleInstrument,
+            SampleMetric, SampleNumberDataPoint,
         },
         LiveCheckRunner, LiveCheckStatistics, Sample,
     };
 
     use super::*;
-    use serde_json::Value;
+    use serde_json::{json, Value};
     use weaver_checker::violation::{Advice, AdviceLevel};
     use weaver_forge::registry::{ResolvedGroup, ResolvedRegistry};
     use weaver_resolved_schema::attribute::Attribute;
@@ -453,47 +454,47 @@ mod tests {
                     extends: None,
                     stability: None,
                     deprecated: None,
-                    attributes: vec![
-                        Attribute {
-                            name: "system.memory.state".to_owned(),
-                            r#type: AttributeType::Enum {
-                                allow_custom_values: None,
-                                members: vec![
-                                    EnumEntriesSpec {
-                                        id: "used".to_owned(),
-                                        value: ValueSpec::String("used".to_owned()),
-                                        brief: None,
-                                        note: None,
-                                        stability: Some(Stability::Development),
-                                        deprecated: None,
-                                    },
-                                    EnumEntriesSpec {
-                                        id: "free".to_owned(),
-                                        value: ValueSpec::String("free".to_owned()),
-                                        brief: None,
-                                        note: None,
-                                        stability: Some(Stability::Development),
-                                        deprecated: None,
-                                    },
-                                ],
-                            },
-                            examples: Some(Examples::Strings(vec![
-                                "free".to_owned(),
-                                "cached".to_owned(),
-                            ])),
-                            brief: "The memory state".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended { text: "".to_owned() },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Development),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                            annotations: None,
+                    attributes: vec![Attribute {
+                        name: "system.memory.state".to_owned(),
+                        r#type: AttributeType::Enum {
+                            allow_custom_values: None,
+                            members: vec![
+                                EnumEntriesSpec {
+                                    id: "used".to_owned(),
+                                    value: ValueSpec::String("used".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Development),
+                                    deprecated: None,
+                                },
+                                EnumEntriesSpec {
+                                    id: "free".to_owned(),
+                                    value: ValueSpec::String("free".to_owned()),
+                                    brief: None,
+                                    note: None,
+                                    stability: Some(Stability::Development),
+                                    deprecated: None,
+                                },
+                            ],
                         },
-                    ],
+                        examples: Some(Examples::Strings(vec![
+                            "free".to_owned(),
+                            "cached".to_owned(),
+                        ])),
+                        brief: "The memory state".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Development),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                    }],
                     span_kind: None,
                     events: vec![],
                     metric_name: None,
@@ -509,7 +510,7 @@ mod tests {
                     id: "metric.system.uptime".to_owned(),
                     r#type: GroupType::Metric,
                     brief: "The time the system has been running".to_owned(),
-                    note: "Instrumentations SHOULD use a gauge with type `double` and measure uptime in seconds as a floating point number with the highest precision available.\nThe actual accuracy would depend on the instrumentation and operating system.".to_owned(),
+                    note: "".to_owned(),
                     prefix: "".to_owned(),
                     entity_associations: vec![],
                     extends: None,
@@ -531,30 +532,30 @@ mod tests {
                     id: "metric.system.memory.usage".to_owned(),
                     r#type: GroupType::Metric,
                     brief: "Reports memory in use by state.".to_owned(),
-                    note: "The sum over all `system.memory.state` values SHOULD equal the total memory\navailable on the system, that is `system.memory.limit`.".to_owned(),
+                    note: "".to_owned(),
                     prefix: "".to_owned(),
                     entity_associations: vec![],
                     extends: None,
                     stability: Some(Stability::Development),
                     deprecated: None,
-                    attributes: vec![
-                        Attribute {
-                            name: "system.memory.state".to_owned(),
-                            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                            examples: None,
-                            brief: "The memory state".to_owned(),
-                            tag: None,
-                            requirement_level: RequirementLevel::Recommended { text: "".to_owned() },
-                            sampling_relevant: None,
-                            note: "".to_owned(),
-                            stability: Some(Stability::Development),
-                            deprecated: None,
-                            prefix: false,
-                            tags: None,
-                            value: None,
-                            annotations: None,
+                    attributes: vec![Attribute {
+                        name: "system.memory.state".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: None,
+                        brief: "The memory state".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
                         },
-                    ],
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Development),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                    }],
                     span_kind: None,
                     events: vec![],
                     metric_name: Some("system.memory.usage".to_owned()),
@@ -818,7 +819,7 @@ mod tests {
         let mut stats = LiveCheckStatistics::new(&live_checker.registry);
         for sample in &mut samples {
             let result = sample.run_live_check(&mut live_checker, &mut stats, None);
-            println!("{:?}", result);
+
             assert!(result.is_ok());
         }
         stats.finalize();
@@ -907,7 +908,7 @@ mod tests {
     fn test_exponential_histogram() {
         let registry = make_metrics_registry();
 
-        // Generate a sample with exponential histogram data points
+        // A sample with exponential histogram data points
         let sample = Sample::Metric(SampleMetric {
             name: "system.memory.usage".to_owned(),
             instrument: SampleInstrument::Histogram,
@@ -945,6 +946,48 @@ mod tests {
             stats.advice_type_counts.get("instrument_mismatch"),
             Some(&1)
         );
+    }
+
+    #[test]
+    fn test_gauge_exemplar_rego() {
+        let registry = make_metrics_registry();
+
+        // A gauge sample with an exemplar
+        let mut sample = Sample::Metric(SampleMetric {
+            name: "system.uptime".to_owned(),
+            instrument: SampleInstrument::Gauge,
+            unit: "s".to_owned(),
+            data_points: Some(DataPoints::Number(vec![SampleNumberDataPoint {
+                attributes: vec![],
+                value: json!(0.0),
+                flags: 0,
+                live_check_result: None,
+                exemplars: vec![SampleExemplar {
+                    timestamp: "".to_owned(),
+                    value: json!(0.0),
+                    filtered_attributes: vec![],
+                    span_id: "".to_owned(),
+                    trace_id: "".to_owned(),
+                    live_check_result: None,
+                }],
+            }])),
+            live_check_result: None,
+        });
+        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let rego_advisor = RegoAdvisor::new(
+            &live_checker,
+            &Some("data/policies/live_check_advice/".into()),
+            &Some("data/jq/test.jq".into()),
+        )
+        .expect("Failed to create Rego advisor");
+        live_checker.add_advisor(Box::new(rego_advisor));
+
+        let mut stats = LiveCheckStatistics::new(&live_checker.registry);
+        let result = sample.run_live_check(&mut live_checker, &mut stats, None);
+
+        assert!(result.is_ok());
+        stats.finalize();
+        assert_eq!(stats.advice_type_counts.get("low_value"), Some(&1));
     }
 
     #[test]
