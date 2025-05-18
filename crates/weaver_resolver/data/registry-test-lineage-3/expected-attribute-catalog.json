@@ -1,0 +1,33 @@
+[
+    {
+      "name": "host.name",
+      "type": "string",
+      "brief": "Name of the host",
+      "examples": [
+        "localhost"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "host.id",
+      "type": "string",
+      "brief": "Unique identifier for a host",
+      "examples": [
+        "01556-1402034656"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable"
+    },
+    {
+      "name": "host.name",
+      "type": "string",
+      "brief": "Name of the host",
+      "examples": [
+        "localhost"
+      ],
+      "requirement_level": "recommended",
+      "stability": "stable",
+      "role": "descriptive"
+    }
+  ]

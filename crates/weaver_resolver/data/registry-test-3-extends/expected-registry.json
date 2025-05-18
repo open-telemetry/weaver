@@ -97,8 +97,8 @@
       ],
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/http-common.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/http-common.yaml"
         },
         "attributes": {
           "error.type": {
@@ -684,8 +684,8 @@
       "unit": "s",
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/metrics-messaging.yaml"
         },
         "attributes": {
           "error.type": {
@@ -1305,8 +1305,8 @@
       ],
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/registry-http.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/registry-http.yaml"
         }
       }
     },
@@ -1409,8 +1409,8 @@
       ],
       "lineage": {
         "provenance": {
-            "registry_id": "default",
-            "path": "data/registry-test-3-extends/registry/registry-url.yaml"
+          "registry_id": "default",
+          "path": "data/registry-test-3-extends/registry/registry-url.yaml"
         }
       }
     }

@@ -342,6 +342,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: Default::default(),
                     },
                     Attribute {
                         name: "test.enum".to_owned(),
@@ -380,6 +381,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: Default::default(),
                     },
                     Attribute {
                         name: "test.deprecated".to_owned(),
@@ -403,6 +405,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: Default::default(),
                     },
                     Attribute {
                         name: "test.template".to_owned(),
@@ -424,6 +427,7 @@ mod tests {
                         tags: None,
                         value: None,
                         annotations: None,
+                        role: Default::default(),
                     },
                 ],
                 span_kind: Some(SpanKindSpec::Internal),
@@ -604,6 +608,7 @@ mod tests {
                     tags: None,
                     value: None,
                     annotations: None,
+                    role: Default::default(),
                 }],
                 span_kind: Some(SpanKindSpec::Internal),
                 events: vec![],
@@ -863,6 +868,7 @@ mod tests {
                     tags: None,
                     value: None,
                     annotations: None,
+                    role: Default::default(),
                 }],
                 span_kind: Some(SpanKindSpec::Internal),
                 events: vec![],
