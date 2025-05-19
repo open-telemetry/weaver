@@ -16,6 +16,13 @@ templates:
         "stable_only": true
       })
     application_mode: single
+  - template: semconv_grouped_attributes_not_experimental.json
+    filter: >
+      semconv_grouped_attributes({
+        "exclude_root_namespace": $excluded_namespaces,
+        "exclude_stability": ["experimental"],
+      })
+    application_mode: single
   - template: semconv_metrics.json
     filter: >
       semconv_grouped_metrics({ "stable_only": false })
