@@ -295,6 +295,20 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates that deprecated property is invalid
+    #[error(
+        "The `deprecated` property in `{id}` is invalid. {error}\nProvenance: {path_or_url:?}"
+    )]
+    #[diagnostic(severity(Warning))]
+    UnstructuredDeprecatedProperty {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
+        /// The group id of the attribute.
+        id: String,
+        /// The reason of the error.
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
