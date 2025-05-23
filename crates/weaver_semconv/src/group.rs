@@ -21,7 +21,7 @@ use weaver_common::result::WResult;
 
 /// Group Spec contain the list of semantic conventions for attributes,
 /// metrics, events, spans, etc.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.

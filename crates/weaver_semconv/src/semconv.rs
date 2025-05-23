@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use schemars::schema_for;
 use weaver_common::result::WResult;
+use crate::Error::InvalidSemConvSpec;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
@@ -47,6 +49,8 @@ impl SemConvSpec {
                 error: e.to_string(),
             })?;
             serde_yaml::from_reader(BufReader::new(semconv_file)).map_err(|e| {
+                let schema = schema_for!(GroupSpec);
+                
                 Error::InvalidSemConvSpec {
                     path_or_url: provenance.to_owned(),
                     line: e.location().map(|loc| loc.line()),

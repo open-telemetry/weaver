@@ -18,7 +18,7 @@ use weaver_common::result::WResult;
 use AttributeType::{Enum, PrimitiveOrArray, Template};
 
 /// An attribute specification.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
 #[serde(rename_all = "snake_case")]
