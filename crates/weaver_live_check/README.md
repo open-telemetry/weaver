@@ -212,7 +212,7 @@ These should be self-explanatory, but:
 - `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
 - `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
-- `seen_non_registry_attributes` is a record of how many times each non-registry metric was seen in the samples
+- `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
 - `registry_coverage` is the fraction of seen registry entities over the total registry entities
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.

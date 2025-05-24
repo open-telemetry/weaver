@@ -2,7 +2,11 @@
 
 //! Builtin advisors
 
-use std::{collections::BTreeMap, path::PathBuf, rc::Rc};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::PathBuf,
+    rc::Rc,
+};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -40,8 +44,8 @@ pub trait Advisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Rc<Attribute>>,
-        registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error>;
 }
 
@@ -59,8 +63,8 @@ impl Advisor for DeprecatedAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Rc<Attribute>>,
-        registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(_sample_attribute) => {
@@ -105,8 +109,8 @@ impl Advisor for StabilityAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Rc<Attribute>>,
-        registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(_sample_attribute) => {
@@ -157,13 +161,12 @@ fn check_required_attributes(
     required_attributes: &[Attribute],
     attributes: &[SampleAttribute],
 ) -> Vec<Advice> {
+    // Create a HashSet of attribute names for O(1) lookups
+    let attribute_set: HashSet<_> = attributes.iter().map(|attr| &attr.name).collect();
+
     let mut advice_list = Vec::new();
     for required_attribute in required_attributes {
-        // Check if the attribute is present in the sample
-        if !attributes
-            .iter()
-            .any(|attribute| attribute.name == required_attribute.name)
-        {
+        if !attribute_set.contains(&required_attribute.name) {
             advice_list.push(Advice {
                 advice_type: "attribute_required".to_owned(),
                 value: Value::String(required_attribute.name.clone()),
@@ -179,8 +182,8 @@ impl Advisor for TypeAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Rc<Attribute>>,
-        registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -242,40 +245,26 @@ impl Advisor for TypeAdvisor {
                 let mut advice_list = Vec::new();
                 if let Some(semconv_metric) = registry_group {
                     match &sample_metric.instrument {
-                        SampleInstrument::Summary => {
+                        SampleInstrument::Unsupported(name) => {
                             advice_list.push(Advice {
-                                advice_type: "legacy_instrument".to_owned(),
-                                value: Value::String(sample_metric.instrument.to_string()),
-                                message: "`Summary` Instrument is not supported".to_owned(),
+                                advice_type: "unsupported_instrument".to_owned(),
+                                value: name.as_str().into(),
+                                message: "Instrument is not supported".to_owned(),
                                 advice_level: AdviceLevel::Violation,
                             });
                         }
-                        SampleInstrument::Unspecified => {
-                            advice_list.push(Advice {
-                                advice_type: "instrument_missing".to_owned(),
-                                value: Value::String(sample_metric.instrument.to_string()),
-                                message: "An Instrument must be specified".to_owned(),
-                                advice_level: AdviceLevel::Violation,
-                            });
-                        }
-                        _ => {
+                        SampleInstrument::Supported(sample_instrument) => {
                             if let Some(semconv_instrument) = &semconv_metric.instrument {
-                                if let Some(sample_instrument) =
-                                    &sample_metric.instrument.as_semconv()
-                                {
-                                    if semconv_instrument != sample_instrument {
-                                        advice_list.push(Advice {
-                                            advice_type: "instrument_mismatch".to_owned(),
-                                            value: Value::String(
-                                                sample_metric.instrument.to_string(),
-                                            ),
-                                            message: format!(
-                                                "Instrument should be `{}`",
-                                                sample_instrument
-                                            ),
-                                            advice_level: AdviceLevel::Violation,
-                                        });
-                                    }
+                                if semconv_instrument != sample_instrument {
+                                    advice_list.push(Advice {
+                                        advice_type: "instrument_mismatch".to_owned(),
+                                        value: Value::String(sample_instrument.to_string()),
+                                        message: format!(
+                                            "Instrument should be `{}`",
+                                            sample_instrument
+                                        ),
+                                        advice_level: AdviceLevel::Violation,
+                                    });
                                 }
                             }
                         }
@@ -325,8 +314,8 @@ impl Advisor for EnumAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Rc<Attribute>>,
-        _registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<Attribute>>,
+        _registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -474,16 +463,16 @@ impl RegoAdvisor {
 #[derive(Serialize)]
 struct RegoInput<'a> {
     sample: SampleRef<'a>,
-    registry_attribute: Option<&'a Rc<Attribute>>,
-    registry_group: Option<&'a Rc<ResolvedGroup>>,
+    registry_attribute: Option<Rc<Attribute>>,
+    registry_group: Option<Rc<ResolvedGroup>>,
 }
 
 impl Advisor for RegoAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Rc<Attribute>>,
-        registry_group: Option<&Rc<ResolvedGroup>>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         self.check(RegoInput {
             sample,

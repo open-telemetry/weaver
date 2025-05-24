@@ -38,11 +38,12 @@ impl LiveCheckRunner for SampleResource {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
+        self.live_check_result =
+            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group)?;
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         Ok(())
     }
 }

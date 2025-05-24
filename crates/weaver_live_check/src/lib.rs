@@ -142,7 +142,7 @@ impl LiveCheckRunner for Sample {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         match self {
             Sample::Attribute(attribute) => {
@@ -409,7 +409,7 @@ pub trait LiveCheckRunner {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error>;
 }
 
@@ -419,10 +419,10 @@ impl<T: LiveCheckRunner> LiveCheckRunner for Vec<T> {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         for item in self.iter_mut() {
-            item.run_live_check(live_checker, stats, parent_group)?;
+            item.run_live_check(live_checker, stats, parent_group.clone())?;
         }
         Ok(())
     }
@@ -441,12 +441,12 @@ pub trait Advisable {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<LiveCheckResult, Error> {
         let mut result = LiveCheckResult::new();
 
         for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group)?;
+            let advice_list = advisor.advise(self.as_sample_ref(), None, parent_group.clone())?;
             result.add_advice_list(advice_list);
         }
 

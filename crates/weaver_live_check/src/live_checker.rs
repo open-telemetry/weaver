@@ -49,8 +49,7 @@ impl LiveChecker {
                 let attribute_rc = Rc::new(attribute.clone());
                 match attribute.r#type {
                     AttributeType::Template(_) => {
-                        templates_by_length
-                            .push((attribute.name.clone(), Rc::clone(&attribute_rc)));
+                        templates_by_length.push((attribute.name.clone(), attribute_rc.clone()));
                         let _ = semconv_templates.insert(attribute.name.clone(), attribute_rc);
                     }
                     _ => {
@@ -919,7 +918,7 @@ mod tests {
         // A sample with exponential histogram data points
         let sample = Sample::Metric(SampleMetric {
             name: "system.memory.usage".to_owned(),
-            instrument: SampleInstrument::Histogram,
+            instrument: SampleInstrument::Supported(InstrumentSpec::Histogram),
             unit: "By".to_owned(),
             data_points: Some(DataPoints::ExponentialHistogram(vec![
                 SampleExponentialHistogramDataPoint {
@@ -963,7 +962,7 @@ mod tests {
         // A gauge sample with an exemplar
         let mut sample = Sample::Metric(SampleMetric {
             name: "system.uptime".to_owned(),
-            instrument: SampleInstrument::Gauge,
+            instrument: SampleInstrument::Supported(InstrumentSpec::Gauge),
             unit: "s".to_owned(),
             data_points: Some(DataPoints::Number(vec![SampleNumberDataPoint {
                 attributes: vec![],
@@ -1005,14 +1004,14 @@ mod tests {
         let mut samples = vec![
             Sample::Metric(SampleMetric {
                 name: "system.memory.usage".to_owned(),
-                instrument: SampleInstrument::Summary,
+                instrument: SampleInstrument::Unsupported("Summary".to_owned()),
                 unit: "By".to_owned(),
                 data_points: None,
                 live_check_result: None,
             }),
             Sample::Metric(SampleMetric {
                 name: "system.memory.usage".to_owned(),
-                instrument: SampleInstrument::Unspecified,
+                instrument: SampleInstrument::Unsupported("Unspecified".to_owned()),
                 unit: "By".to_owned(),
                 data_points: None,
                 live_check_result: None,
@@ -1027,7 +1026,9 @@ mod tests {
             assert!(result.is_ok());
         }
         stats.finalize();
-        assert_eq!(stats.advice_type_counts.get("legacy_instrument"), Some(&1));
-        assert_eq!(stats.advice_type_counts.get("instrument_missing"), Some(&1));
+        assert_eq!(
+            stats.advice_type_counts.get("unsupported_instrument"),
+            Some(&2)
+        );
     }
 }

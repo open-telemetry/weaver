@@ -9,11 +9,13 @@ use weaver_live_check::{
     sample_metric::{DataPoints, SampleInstrument, SampleMetric},
     sample_span::{Status, StatusCode},
 };
-use weaver_semconv::group::SpanKindSpec;
+use weaver_semconv::group::{InstrumentSpec, SpanKindSpec};
 
+use super::grpc_stubs::proto::trace::v1::status::StatusCode as OtlpStatusCode;
 use super::grpc_stubs::proto::{
     common::v1::{AnyValue, KeyValue},
     metrics::v1::{metric::Data, HistogramDataPoint, Metric, NumberDataPoint},
+    trace::v1::span::SpanKind,
 };
 
 fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
@@ -60,12 +62,12 @@ pub fn sample_attribute_from_key_value(key_value: &KeyValue) -> SampleAttribute 
 }
 
 /// Converts an OTLP span kind to a SpanKindSpec
-pub fn span_kind_from_otlp_kind(kind: i32) -> SpanKindSpec {
+pub fn span_kind_from_otlp_kind(kind: SpanKind) -> SpanKindSpec {
     match kind {
-        2 => SpanKindSpec::Server,
-        3 => SpanKindSpec::Client,
-        4 => SpanKindSpec::Producer,
-        5 => SpanKindSpec::Consumer,
+        SpanKind::Server => SpanKindSpec::Server,
+        SpanKind::Client => SpanKindSpec::Client,
+        SpanKind::Producer => SpanKindSpec::Producer,
+        SpanKind::Consumer => SpanKindSpec::Consumer,
         _ => SpanKindSpec::Internal,
     }
 }
@@ -75,10 +77,10 @@ pub fn status_from_otlp_status(
     status: Option<super::grpc_stubs::proto::trace::v1::Status>,
 ) -> Option<Status> {
     if let Some(status) = status {
-        let code = match status.code {
-            1 => StatusCode::Ok,
-            2 => StatusCode::Error,
-            _ => StatusCode::Unset,
+        let code = match status.code() {
+            OtlpStatusCode::Unset => StatusCode::Unset,
+            OtlpStatusCode::Ok => StatusCode::Ok,
+            OtlpStatusCode::Error => StatusCode::Error,
         };
         return Some(Status {
             code,
@@ -111,16 +113,18 @@ fn otlp_data_to_instrument(data: &Option<Data>) -> SampleInstrument {
     match data {
         Some(Data::Sum(sum)) => {
             if sum.is_monotonic {
-                SampleInstrument::Counter
+                SampleInstrument::Supported(InstrumentSpec::Counter)
             } else {
-                SampleInstrument::UpDownCounter
+                SampleInstrument::Supported(InstrumentSpec::UpDownCounter)
             }
         }
-        Some(Data::Gauge(_)) => SampleInstrument::Gauge,
-        Some(Data::Histogram(_)) => SampleInstrument::Histogram,
-        Some(Data::ExponentialHistogram(_)) => SampleInstrument::Histogram,
-        Some(Data::Summary(_)) => SampleInstrument::Summary,
-        None => SampleInstrument::Unspecified,
+        Some(Data::Gauge(_)) => SampleInstrument::Supported(InstrumentSpec::Gauge),
+        Some(Data::Histogram(_)) => SampleInstrument::Supported(InstrumentSpec::Histogram),
+        Some(Data::ExponentialHistogram(_)) => {
+            SampleInstrument::Supported(InstrumentSpec::Histogram)
+        }
+        Some(Data::Summary(_)) => SampleInstrument::Unsupported("Summary".to_owned()),
+        None => SampleInstrument::Unsupported("Unspecified".to_owned()),
     }
 }
 

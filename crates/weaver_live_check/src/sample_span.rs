@@ -72,15 +72,16 @@ impl LiveCheckRunner for SampleSpan {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
+        self.live_check_result =
+            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group)?;
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         self.span_events
-            .run_live_check(live_checker, stats, parent_group)?;
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         self.span_links
-            .run_live_check(live_checker, stats, parent_group)?;
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         Ok(())
     }
 }
@@ -112,11 +113,12 @@ impl LiveCheckRunner for SampleSpanEvent {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
+        self.live_check_result =
+            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group)?;
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         Ok(())
     }
 }
@@ -146,11 +148,12 @@ impl LiveCheckRunner for SampleSpanLink {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        parent_group: Option<&Rc<ResolvedGroup>>,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        self.live_check_result = Some(self.run_advisors(live_checker, stats, parent_group)?);
+        self.live_check_result =
+            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
         self.attributes
-            .run_live_check(live_checker, stats, parent_group)?;
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         Ok(())
     }
 }

@@ -170,7 +170,7 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
-        _parent_group: Option<&Rc<ResolvedGroup>>,
+        _parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
@@ -206,7 +206,7 @@ impl LiveCheckRunner for SampleAttribute {
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.as_ref(), None)?;
+                advisor.advise(SampleRef::Attribute(self), semconv_attribute.clone(), None)?;
             result.add_advice_list(advice_list);
         }
         self.live_check_result = Some(result);

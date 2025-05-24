@@ -110,9 +110,10 @@ impl OtlpIterator {
                         }
 
                         for span in scope_span.spans {
+                            let span_kind = span.kind();
                             let mut sample_span = SampleSpan {
                                 name: span.name,
-                                kind: span_kind_from_otlp_kind(span.kind),
+                                kind: span_kind_from_otlp_kind(span_kind),
                                 status: status_from_otlp_status(span.status),
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
