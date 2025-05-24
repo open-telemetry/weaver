@@ -17,12 +17,16 @@ def expand_stability($stability):
 # - exclude_stability: a list of stability statuses to exclude. Use `stable_only` to exclude all non-stable attributes instead.
 def stability_filter($options):
     if $options.stable_only then
-        map(select(.stability == "stable"))
+        map(
+          select(.stability == "stable")
+        )
+        | map(.type.members? |= map(select(.stability == "stable")))
     else
         .
     end
     | if $options | has("exclude_stability") then
         map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not))
+        | map(.type.members? |= map(select(.stability as $st | expand_stability($options.exclude_stability) | index($st) | not)))
     else
         .
     end;
@@ -44,9 +48,9 @@ def code_generation_exclude_filter($options):
     else
         # null coalescence is not supported in jaq (but supported in jq)
         map(select(
-            .annotations == null 
-            or .annotations.code_generation == null 
-            or .annotations.code_generation.exclude == null 
+            .annotations == null
+            or .annotations.code_generation == null
+            or .annotations.code_generation.exclude == null
             or .annotations.code_generation.exclude == false
         ))
     end;
