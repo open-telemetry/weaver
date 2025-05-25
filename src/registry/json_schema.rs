@@ -14,6 +14,7 @@ use std::{io::Write, path::PathBuf};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::group::GroupSpec;
+use weaver_semconv::semconv::SemConvSpec;
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
@@ -73,7 +74,7 @@ impl From<Error> for DiagnosticMessages {
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
-        JsonSchemaType::SemconvGroup => schema_for!(GroupSpec)
+        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec)
     };
 
     let json_schema_str =
@@ -106,7 +107,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
 mod tests {
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::json_schema::RegistryJsonSchemaArgs;
+    use crate::registry::json_schema::{JsonSchemaType, RegistryJsonSchemaArgs};
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use std::fs;
@@ -124,6 +125,7 @@ mod tests {
             future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
+                    json_schema: JsonSchemaType::ResolvedRegistry,
                     output: Some(output_path.clone()),
                     diagnostic: Default::default(),
                 }),

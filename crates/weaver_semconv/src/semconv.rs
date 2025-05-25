@@ -7,15 +7,15 @@ use crate::provenance::Provenance;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::BufReader;
 use std::path::Path;
-use schemars::schema_for;
+use schemars::JsonSchema;
 use weaver_common::result::WResult;
 use crate::Error::InvalidSemConvSpec;
+use crate::json_schema::JsonSchemaValidator;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SemConvSpec {
     /// A collection of semantic convention groups or [`GroupSpec`].
@@ -41,28 +41,46 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P) -> WResult<SemConvSpec, Error> {
-        fn from_file_or_fatal(path: &Path, provenance: &str) -> Result<SemConvSpec, Error> {
-            // Load and deserialize the semantic convention registry
-            let semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
+    pub fn from_file<P: AsRef<Path>>(path: P, json_schema_validator: &JsonSchemaValidator) -> WResult<SemConvSpec, Error> {
+        fn from_file_or_fatal(path: &Path, provenance: &str, json_schema_validator: &JsonSchemaValidator) -> Result<SemConvSpec, Error> {
+            use serde_yaml::Value;
+            use std::io::Seek;
+
+            // Open file
+            let mut semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
                 path_or_url: provenance.to_owned(),
                 error: e.to_string(),
             })?;
-            serde_yaml::from_reader(BufReader::new(semconv_file)).map_err(|e| {
-                let schema = schema_for!(GroupSpec);
-                
-                Error::InvalidSemConvSpec {
-                    path_or_url: provenance.to_owned(),
-                    line: e.location().map(|loc| loc.line()),
-                    column: e.location().map(|loc| loc.column()),
-                    error: e.to_string(),
+
+            // Try direct deserialization first
+            match serde_yaml::from_reader::<_, SemConvSpec>(&mut semconv_file) {
+                Ok(spec) => return Ok(spec),
+                Err(e) => {
+                    // If serde fails, try to get better errors via jsonschema
+                    // Rewind file for second read
+                    _ = semconv_file.rewind().ok();
+                    
+                    let original_error = e.to_string();
+                    let value: Result<Value, _> = serde_yaml::from_reader(&mut semconv_file);
+                    if let Ok(yaml_value) = value {
+                        json_schema_validator.validate_yaml(yaml_value, provenance, e)?;
+                    }
+
+                    // Fallback: return original serde error
+                    Err(InvalidSemConvSpec {
+                        path_or_url: provenance.to_owned(),
+                        location: "NA".to_owned(),
+                        src: "NA".to_owned(),
+                        err_span: None,
+                        error: original_error,
+                    })
                 }
-            })
+            }
         }
 
         let provenance = path.as_ref().display().to_string();
 
-        match from_file_or_fatal(path.as_ref(), &provenance) {
+        match from_file_or_fatal(path.as_ref(), &provenance, json_schema_validator) {
             Ok(semconv_spec) => {
                 // Important note: the resolution process expects this step of validation to be done for
                 // each semantic convention spec.
@@ -82,10 +100,11 @@ impl SemConvSpec {
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
     pub fn from_string(spec: &str) -> WResult<SemConvSpec, Error> {
-        match serde_yaml::from_str::<SemConvSpec>(spec).map_err(|e| Error::InvalidSemConvSpec {
+        match serde_yaml::from_str::<SemConvSpec>(spec).map_err(|e| InvalidSemConvSpec {
             path_or_url: "<str>".to_owned(),
-            line: None,
-            column: None,
+            location: "NA".to_owned(),
+            src: "NA".to_owned(),
+            err_span: None,
             error: e.to_string(),
         }) {
             Ok(semconv_spec) => {
@@ -118,10 +137,11 @@ impl SemConvSpec {
                 .into_reader();
 
             // Deserialize the telemetry schema from the content reader
-            serde_yaml::from_reader(reader).map_err(|e| Error::InvalidSemConvSpec {
+            serde_yaml::from_reader(reader).map_err(|e| InvalidSemConvSpec {
                 path_or_url: semconv_url.to_owned(),
-                line: e.location().map(|loc| loc.line()),
-                column: e.location().map(|loc| loc.column()),
+                location: e.location().map(|loc| format!("{}:{}", loc.line(), loc.column())).unwrap_or("NA".to_owned()),
+                src: "NA".to_owned(),
+                err_span: None,
                 error: e.to_string(),
             })
         }
@@ -171,10 +191,11 @@ impl SemConvSpecWithProvenance {
     pub fn from_file<P: AsRef<Path>>(
         registry_id: &str,
         path: P,
+        validator: &JsonSchemaValidator
     ) -> WResult<SemConvSpecWithProvenance, Error> {
         let path = path.as_ref().display().to_string();
         let provenance = Provenance::new(registry_id, &path);
-        SemConvSpec::from_file(path).map(|spec| SemConvSpecWithProvenance { spec, provenance })
+        SemConvSpec::from_file(path, validator).map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 
     /// Creates a semantic convention spec with provenance from a string.
@@ -208,22 +229,23 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_from_file() {
+        let validator = JsonSchemaValidator::new();
         // Existing file
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpec::from_file(path)
+        let semconv_spec = SemConvSpec::from_file(path, &validator)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.groups.len(), 10);
 
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
-        let semconv_spec = SemConvSpec::from_file(path).into_result_failing_non_fatal();
+        let semconv_spec = SemConvSpec::from_file(path, &validator).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
 
         // Invalid file structure
         let path = PathBuf::from("data/invalid-semconv.yaml");
-        let semconv_spec = SemConvSpec::from_file(path).into_result_failing_non_fatal();
+        let semconv_spec = SemConvSpec::from_file(path, &validator).into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
@@ -389,8 +411,9 @@ mod tests {
 
     #[test]
     fn test_semconv_spec_with_provenance_from_file() {
+        let validator = JsonSchemaValidator::new();
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpecWithProvenance::from_file("main", &path)
+        let semconv_spec = SemConvSpecWithProvenance::from_file("main", &path, &validator)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 10);

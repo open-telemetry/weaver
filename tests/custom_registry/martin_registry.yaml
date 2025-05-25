@@ -1,0 +1,16 @@
+groups:
+  - id: pizza.metadata
+    type: resource
+    name: pizza
+    brief: >
+      Metadata about pizza
+    stability: stable
+    attributes:
+      - ref: pizzashop.order.id
+        requirement_level: required
+      - ref: pizzashop.order.pizza_count
+        requirement_level: opt_id
+      - ref: pizzashop.order.delivery_address
+        requirement_level: opt_id
+      - ref: pizzashop.pizza.size
+        requirement_level: opt_id

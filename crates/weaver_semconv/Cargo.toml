@@ -20,6 +20,7 @@ weaver_common = { path = "../weaver_common" }
 
 serde.workspace = true
 serde_yaml.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 ureq.workspace = true
 ordered-float.workspace = true
@@ -29,3 +30,4 @@ regex.workspace = true
 
 glob = "0.3.2"
 jsonschema = "0.30.0"
+saphyr = "0.0.4"

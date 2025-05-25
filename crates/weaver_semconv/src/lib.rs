@@ -3,7 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use crate::Error::CompoundError;
-use miette::Diagnostic;
+use miette::{Diagnostic, SourceSpan};
 use schemars::schema::{InstanceType, Schema};
 use schemars::{JsonSchema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,7 @@ pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod json_schema;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -59,14 +60,22 @@ pub enum Error {
     },
 
     /// The semantic convention spec is invalid.
-    #[error("The semantic convention spec is invalid (path_or_url: {path_or_url:?}). {error}")]
+    #[error("Invalid semantic convention file `{path_or_url}`\nError: {error}\nLocation: {location}")]
+    #[diagnostic(
+        severity(Error),
+        help("The JSON schema governing the syntax of semantic conventions can be generated\nusing the `weaver registry json-schema -j semconv-group` command."),
+    )]
     InvalidSemConvSpec {
         /// The path or URL of the semantic convention spec.
         path_or_url: String,
-        /// The line where the error occurred.
-        line: Option<usize>,
-        /// The column where the error occurred.
-        column: Option<usize>,
+        /// The location where the error occurred.
+        location: String,
+        /// The YAML section where the error occurred (if available).
+        #[source_code]
+        src: String,
+        /// The error that occurred.
+        #[label("error")]
+        err_span: Option<SourceSpan>,
         /// The error that occurred.
         error: String,
     },
@@ -471,11 +480,13 @@ mod tests {
     use crate::registry::SemConvRegistry;
     use std::vec;
     use weaver_common::diagnostic::DiagnosticMessages;
+    use crate::json_schema::JsonSchemaValidator;
 
     /// Load multiple semantic convention files in the semantic convention registry.
     /// No error should be emitted.
     #[test]
     fn test_valid_semconv_registry() {
+        let validator = JsonSchemaValidator::new();
         let yaml_files = vec![
             "data/client.yaml",
             "data/cloud.yaml",
@@ -508,7 +519,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file("main", yaml)
+                .add_semconv_spec_from_file("main", yaml, &validator)
                 .into_result_failing_non_fatal();
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
@@ -519,9 +530,10 @@ mod tests {
         let yaml_files = vec!["data/invalid.yaml"];
 
         let mut registry = SemConvRegistry::default();
+        let validator = JsonSchemaValidator::new();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file("main", yaml)
+                .add_semconv_spec_from_file("main", yaml, &validator)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
