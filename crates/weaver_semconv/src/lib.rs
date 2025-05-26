@@ -74,7 +74,7 @@ pub enum Error {
         #[source_code]
         src: String,
         /// The error that occurred.
-        #[label("error")]
+        #[label("This element violates the schema")]
         err_span: Option<SourceSpan>,
         /// The error that occurred.
         error: String,
