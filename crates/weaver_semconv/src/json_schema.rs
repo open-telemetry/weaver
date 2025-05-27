@@ -104,6 +104,7 @@ enum PathComponent {
 }
 
 /// Represents a YAML document with its content and parsed structure.
+#[derive(Debug)]
 pub struct YamlDocument<'a> {
     content: &'a str,
     yaml: Yaml<'a>,
@@ -171,7 +172,7 @@ impl<'a> YamlDocument<'a> {
         xpath: &str,
     ) -> Result<BlockPosition, Box<dyn std::error::Error>> {
         let path = self.parse_xpath(xpath)?;
-        let _block_content = self.navigate_to_block(&self.yaml, &path)?; // Now returns owned Yaml
+        let _block_content = self.navigate_to_block(&self.yaml, &path)?;
         self.find_block_boundaries(&path)
     }
 
@@ -460,8 +461,6 @@ pub fn find_yaml_block_position_string(
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-    use miette::Diagnostic;
     use super::*;
 
     #[test]
@@ -480,11 +479,36 @@ groups:
         
         assert!(result.is_err());
         if let Err(e) = result {
-            dbg!(&e);
-            println!("Error: {}", e.to_string());
-            
             assert!(matches!(e, InvalidSemConvSpec { .. }));
         }
+    }
+
+    #[test]
+    fn test_empty_yaml_document() {
+        let invalid_yaml = r#""#;
+        let result = YamlDocument::from_str(invalid_yaml);
+
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(matches!(e, InvalidSemConvSpec { .. }));
+        }
+    }
+
+    #[test]
+    fn test_valid_yaml_document() {
+        let yaml = r#"groups:
+  - name: group1
+    attributes:
+      - attr1
+      - attr2
+      - attr3
+  - name: group2
+"#;
+        let yaml = YamlDocument::from_str(yaml).expect("Failed to parse valid YAML");
+        let block_pos = yaml.find_block_position("/groups/0/attributes/1")
+            .expect("Failed to find block position in valid YAML");
+        dbg!(block_pos);
+        dbg!(yaml);
     }
 
     #[test]
