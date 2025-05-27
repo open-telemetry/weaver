@@ -27,7 +27,7 @@
 {% endif %}
 
 {{ ("Registry coverage") | ansi_blue | ansi_bold }}
-  - attributes seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
+  - entities seen: {{ (statistics.registry_coverage * 100) | round(2) }}%
 {% endmacro %}
 
 {% macro display_advice(all_advice, indent=0) %}
@@ -72,6 +72,41 @@
 {%- endfor %}
 {% endmacro %}
 
+{% macro summarize_data_point_value(data_point) %}
+{%- if data_point.value is defined -%}
+{{ data_point.value }}
+{%- else -%}
+count={{ data_point.count }}, sum={{ data_point.sum }}, min={{ data_point.min }}, max={{ data_point.max }} 
+{%- endif -%}
+{% endmacro %} 
+
+{% macro display_data_point(data_point, indent=0) %}
+{{ " " * indent }}{{ ("Data point") | ansi_bright_cyan | ansi_bold }} {{ summarize_data_point_value(data_point) }}
+{{ display_advice(data_point.live_check_result.all_advice, indent) }}
+{%- for attribute in data_point.attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{%- for exemplar in data_point.exemplars %}
+{{ display_exemplar(exemplar, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
+{% macro display_exemplar(exemplar, indent=0) %}
+{{ " " * indent }}{{ ("Exemplar") | ansi_bright_cyan | ansi_bold }} {{ exemplar.value }} @ {{ exemplar.timestamp }} on {{ exemplar.span_id }} {{ exemplar.trace_id }}
+{{ display_advice(exemplar.live_check_result.all_advice, indent) }}
+{%- for attribute in exemplar.filtered_attributes %}
+{{ display_attribute(attribute, indent + 4) }}
+{%- endfor %}
+{% endmacro %}
+
+{% macro display_metric(metric, indent=0) %}
+{{ " " * indent }}{{ ("Metric") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(metric.live_check_result.highest_advice_level, metric.name) }} `{{ metric.instrument }}`, `{{ metric.unit }}`
+{{ display_advice(metric.live_check_result.all_advice, indent) }}
+{%- for data_point in metric.data_points %}
+{{ display_data_point(data_point, indent + 4) }}
+{%- endfor %}
+{%- endmacro %}
+
 {%- macro display_sample(sample, indent=0) -%}
 {%- if sample.span is defined -%}
 {{ " " * indent }}{{ ("Span") | ansi_bright_cyan | ansi_bold }} {{ display_sample_header(sample.span.live_check_result.highest_advice_level, sample.span.name) }} `{{ sample.span.kind }}`
@@ -93,6 +128,8 @@
 {{ display_span_link(sample.span_link, indent) }}
 {%- elif sample.resource is defined -%}
 {{ display_resource(sample.resource, indent) }}
+{%- elif sample.metric is defined -%}
+{{ display_metric(sample.metric, indent) }}
 {%- endif -%}
 {%- endmacro -%}
 

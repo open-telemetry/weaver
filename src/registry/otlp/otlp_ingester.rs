@@ -1,18 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0
+
+//! OTLP ingester
 use std::time::Duration;
 
 use log::info;
-use serde_json::{json, Value};
 use weaver_common::log_info;
 use weaver_live_check::{
-    sample_attribute::SampleAttribute,
     sample_resource::SampleResource,
-    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink, Status, StatusCode},
+    sample_span::{SampleSpan, SampleSpanEvent, SampleSpanLink},
     Error, Ingester, Sample,
 };
-use weaver_semconv::group::SpanKindSpec;
 
 use super::{
-    grpc_stubs::proto::common::v1::{AnyValue, KeyValue},
+    conversion::{
+        otlp_metric_to_sample, sample_attribute_from_key_value, span_kind_from_otlp_kind,
+        status_from_otlp_status,
+    },
     listen_otlp_requests, OtlpRequest,
 };
 
@@ -42,86 +45,44 @@ impl OtlpIterator {
         }
     }
 
-    fn maybe_to_json(value: Option<AnyValue>) -> Option<Value> {
-        if let Some(value) = value {
-            if let Some(value) = value.value {
-                use crate::registry::otlp::grpc_stubs::proto::common::v1::any_value::Value as GrpcValue;
-                match value {
-                    GrpcValue::StringValue(string) => Some(Value::String(string)),
-                    GrpcValue::IntValue(int_value) => Some(Value::Number(int_value.into())),
-                    GrpcValue::DoubleValue(double_value) => Some(json!(double_value)),
-                    GrpcValue::BoolValue(bool_value) => Some(Value::Bool(bool_value)),
-                    GrpcValue::ArrayValue(array_value) => {
-                        let mut vec = Vec::new();
-                        for value in array_value.values {
-                            if let Some(value) = Self::maybe_to_json(Some(value)) {
-                                vec.push(value);
-                            }
-                        }
-                        Some(Value::Array(vec))
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    // TODO Ideally this would be a TryFrom in the SampleAttribute but requires
-    // the grpc_stubs to be in another crate
-    fn sample_attribute_from_key_value(key_value: &KeyValue) -> SampleAttribute {
-        let value = Self::maybe_to_json(key_value.value.clone());
-        let r#type = match value {
-            Some(ref val) => SampleAttribute::infer_type(val),
-            None => None,
-        };
-        SampleAttribute {
-            name: key_value.key.clone(),
-            value,
-            r#type,
-            live_check_result: None,
-        }
-    }
-
-    fn span_kind_from_otlp_kind(kind: i32) -> SpanKindSpec {
-        match kind {
-            2 => SpanKindSpec::Server,
-            3 => SpanKindSpec::Client,
-            4 => SpanKindSpec::Producer,
-            5 => SpanKindSpec::Consumer,
-            _ => SpanKindSpec::Internal,
-        }
-    }
-
-    fn status_from_otlp_status(
-        status: Option<super::grpc_stubs::proto::trace::v1::Status>,
-    ) -> Option<Status> {
-        if let Some(status) = status {
-            let code = match status.code {
-                1 => StatusCode::Ok,
-                2 => StatusCode::Error,
-                _ => StatusCode::Unset,
-            };
-            return Some(Status {
-                code,
-                message: status.message,
-            });
-        }
-        None
-    }
-
     fn fill_buffer_from_request(&mut self, request: OtlpRequest) -> Option<usize> {
         match request {
             OtlpRequest::Logs(_logs) => {
                 // TODO Implement the checking logic for logs
                 Some(0)
             }
-            OtlpRequest::Metrics(_metrics) => {
-                // TODO Implement the checking logic for metrics
-                Some(0)
+            OtlpRequest::Metrics(metrics) => {
+                for resource_metric in metrics.resource_metrics {
+                    if let Some(resource) = resource_metric.resource {
+                        let mut sample_resource = SampleResource {
+                            attributes: Vec::new(),
+                            live_check_result: None,
+                        };
+                        for attribute in resource.attributes {
+                            sample_resource
+                                .attributes
+                                .push(sample_attribute_from_key_value(&attribute));
+                        }
+                        self.buffer.push(Sample::Resource(sample_resource));
+                    }
+
+                    for scope_metric in resource_metric.scope_metrics {
+                        if let Some(scope) = scope_metric.scope {
+                            // TODO SampleInstrumentationScope?
+                            for attribute in scope.attributes {
+                                self.buffer.push(Sample::Attribute(
+                                    sample_attribute_from_key_value(&attribute),
+                                ));
+                            }
+                        }
+
+                        for metric in scope_metric.metrics {
+                            let sample_metric = Sample::Metric(otlp_metric_to_sample(metric));
+                            self.buffer.push(sample_metric);
+                        }
+                    }
+                }
+                Some(self.buffer.len())
             }
             OtlpRequest::Traces(trace) => {
                 for resource_span in trace.resource_spans {
@@ -133,7 +94,7 @@ impl OtlpIterator {
                         for attribute in resource.attributes {
                             sample_resource
                                 .attributes
-                                .push(Self::sample_attribute_from_key_value(&attribute));
+                                .push(sample_attribute_from_key_value(&attribute));
                         }
                         self.buffer.push(Sample::Resource(sample_resource));
                     }
@@ -143,16 +104,17 @@ impl OtlpIterator {
                             // TODO SampleInstrumentationScope?
                             for attribute in scope.attributes {
                                 self.buffer.push(Sample::Attribute(
-                                    Self::sample_attribute_from_key_value(&attribute),
+                                    sample_attribute_from_key_value(&attribute),
                                 ));
                             }
                         }
 
                         for span in scope_span.spans {
+                            let span_kind = span.kind();
                             let mut sample_span = SampleSpan {
                                 name: span.name,
-                                kind: Self::span_kind_from_otlp_kind(span.kind),
-                                status: Self::status_from_otlp_status(span.status),
+                                kind: span_kind_from_otlp_kind(span_kind),
+                                status: status_from_otlp_status(span.status),
                                 attributes: Vec::new(),
                                 span_events: Vec::new(),
                                 span_links: Vec::new(),
@@ -161,7 +123,7 @@ impl OtlpIterator {
                             for attribute in span.attributes {
                                 sample_span
                                     .attributes
-                                    .push(Self::sample_attribute_from_key_value(&attribute));
+                                    .push(sample_attribute_from_key_value(&attribute));
                             }
                             for event in span.events {
                                 let mut sample_event = SampleSpanEvent {
@@ -172,7 +134,7 @@ impl OtlpIterator {
                                 for attribute in event.attributes {
                                     sample_event
                                         .attributes
-                                        .push(Self::sample_attribute_from_key_value(&attribute));
+                                        .push(sample_attribute_from_key_value(&attribute));
                                 }
                                 sample_span.span_events.push(sample_event);
                             }
@@ -184,7 +146,7 @@ impl OtlpIterator {
                                 for attribute in link.attributes {
                                     sample_link
                                         .attributes
-                                        .push(Self::sample_attribute_from_key_value(&attribute));
+                                        .push(sample_attribute_from_key_value(&attribute));
                                 }
                                 sample_span.span_links.push(sample_link);
                             }

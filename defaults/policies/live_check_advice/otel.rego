@@ -22,33 +22,43 @@ concat(".", array.slice(parts, 0, i)) |
 
 # checks attribute has a namespace
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	input.attribute
-	not contains(input.attribute.name, ".")
+	input.sample.attribute
+	not contains(input.sample.attribute.name, ".")
 	advice_type := "missing_namespace"
 	advice_level := "improvement"
-	value := input.attribute.name
+	value := input.sample.attribute.name
 	message := "Does not have a namespace"
 }
 
 # checks attribute name format
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	input.attribute
-	not regex.match(name_regex, input.attribute.name)
+	input.sample.attribute
+	not regex.match(name_regex, input.sample.attribute.name)
 	advice_type := "invalid_format"
 	advice_level := "violation"
-	value := input.attribute.name
+	value := input.sample.attribute.name
+	message := "Does not match name formatting rules"
+}
+
+# checks metric name format
+deny contains make_advice(advice_type, advice_level, value, message) if {
+	input.sample.metric
+	not regex.match(name_regex, input.sample.metric.name)
+	advice_type := "invalid_format"
+	advice_level := "violation"
+	value := input.sample.metric.name
 	message := "Does not match name formatting rules"
 }
 
 # checks attribute namespace doesn't collide with existing attributes
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	input.attribute
+	input.sample.attribute
 
 	# Skip if no namespace
-	contains(input.attribute.name, ".")
+	contains(input.sample.attribute.name, ".")
 
 	# Get input namespaces
-	namespaces := derive_namespaces(input.attribute.name)
+	namespaces := derive_namespaces(input.sample.attribute.name)
 
 	# Find collision
 	some value in namespaces
@@ -61,15 +71,15 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 
 # provides advice if the attribute extends an existing namespace
 deny contains make_advice(advice_type, advice_level, value, message) if {
-	input.attribute
+	input.sample.attribute
 
 	# Skip checks first (fail fast)
-	contains(input.attribute.name, ".") # Must have at least one namespace
-	not is_template_type(input.attribute.name)
-	not is_registry_attribute(input.attribute.name)
+	contains(input.sample.attribute.name, ".") # Must have at least one namespace
+	not is_template_type(input.sample.attribute.name)
+	not is_registry_attribute(input.sample.attribute.name)
 
 	# Get input namespaces
-	namespaces := derive_namespaces(input.attribute.name)
+	namespaces := derive_namespaces(input.sample.attribute.name)
 
 	# Find matches - check keys in set
 	matches := [ns | some ns in namespaces; namespaces_to_check_set[ns] != null]
