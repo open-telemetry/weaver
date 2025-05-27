@@ -329,7 +329,7 @@ impl ResolvedTelemetrySchema {
                                 },
                             );
                         }
-                        Deprecated::Uncategorized { note } => {
+                        Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
                             changes.add_change(
                                 SchemaItemType::RegistryAttributes,
                                 SchemaItemChange::Uncategorized {
@@ -410,7 +410,7 @@ impl ResolvedTelemetrySchema {
                                 },
                             );
                         }
-                        Deprecated::Uncategorized { note } => {
+                        Deprecated::Unspecified { note } | Deprecated::Uncategorized { note } => {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Uncategorized {
