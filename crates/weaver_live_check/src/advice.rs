@@ -53,7 +53,9 @@ fn deprecated_to_value(deprecated: &Deprecated) -> Value {
     match deprecated {
         Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
         Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
-        Deprecated::Uncategorized { .. } => Value::String("uncategorized".to_owned()),
+        Deprecated::Uncategorized { .. } | Deprecated::Unspecified { .. } => {
+            Value::String("uncategorized".to_owned())
+        }
     }
 }
 
