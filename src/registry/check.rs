@@ -220,8 +220,9 @@ mod tests {
                 + 12 /* allow_custom_values */
                 + 3 /* missing stability on enum members */
                 + 13 /* before resolution */
-                    + 3 /* metric after resolution */
-                    + 9 /* http after resolution */
+                + 3 /* metric after resolution */
+                + 9 /* http after resolution */
+                + 1 /* deprecated string note */
             );
         }
     }
