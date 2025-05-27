@@ -155,7 +155,8 @@ fn gc_unreferenced_objects(
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
             // This registry has dependencies.
             let current_reg_id = manifest.name.clone();
-            let mut attr_refs = HashSet::new();
+
+            // Remove all groups that are not defined in the current registry.
             registry.groups.retain(|group| {
                 if let Some(lineage) = &group.lineage {
                     lineage.provenance().registry_id.as_ref() == current_reg_id
@@ -165,6 +166,7 @@ fn gc_unreferenced_objects(
             });
 
             // Collect all remaining attribute references
+            let mut attr_refs = HashSet::new();
             registry.groups.iter().for_each(|group| {
                 group.attributes.iter().for_each(|attr| {
                     _ = attr_refs.insert(*attr);

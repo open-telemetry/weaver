@@ -2,15 +2,19 @@
 
 //! Intermediary format for telemetry sample resources
 
+use std::rc::Rc;
+
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use weaver_forge::registry::ResolvedGroup;
 
 use crate::{
-    live_checker::LiveChecker, sample_attribute::SampleAttribute, Error, LiveCheckResult,
-    LiveCheckRunner, LiveCheckStatistics, SampleRef,
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, Advisable, Error,
+    LiveCheckResult, LiveCheckRunner, LiveCheckStatistics, SampleRef,
 };
 
 /// Represents a resource
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SampleResource {
     /// The attributes of the resource
     #[serde(default)]
@@ -19,23 +23,27 @@ pub struct SampleResource {
     pub live_check_result: Option<LiveCheckResult>,
 }
 
+impl Advisable for SampleResource {
+    fn as_sample_ref(&self) -> SampleRef<'_> {
+        SampleRef::Resource(self)
+    }
+
+    fn entity_type(&self) -> &str {
+        "resource"
+    }
+}
+
 impl LiveCheckRunner for SampleResource {
     fn run_live_check(
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
-        let mut result = LiveCheckResult::new();
-        for advisor in live_checker.advisors.iter_mut() {
-            let advice_list = advisor.advise(SampleRef::Resource(self), None, None)?;
-            result.add_advice_list(advice_list);
-        }
-        for attribute in &mut self.attributes {
-            attribute.run_live_check(live_checker, stats)?;
-        }
-        self.live_check_result = Some(result);
-        stats.inc_entity_count("resource");
-        stats.maybe_add_live_check_result(self.live_check_result.as_ref());
+        self.live_check_result =
+            Some(self.run_advisors(live_checker, stats, parent_group.clone())?);
+        self.attributes
+            .run_live_check(live_checker, stats, parent_group.clone())?;
         Ok(())
     }
 }

@@ -2,6 +2,7 @@
 
 //! Definition of a policy violation.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fmt::{Display, Formatter};
@@ -72,7 +73,9 @@ impl Violation {
 }
 
 /// The level of an advice
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash)]
+#[derive(
+    Debug, Clone, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Eq, Hash, JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum AdviceLevel {
     /// Useful context without action needed
@@ -84,7 +87,7 @@ pub enum AdviceLevel {
 }
 
 /// Represents a live check advice
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Advice {
     /// The type of advice e.g. "is_deprecated"
     pub advice_type: String,

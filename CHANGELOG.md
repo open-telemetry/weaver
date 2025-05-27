@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+# NEXT
+
+- Add support for metrics in Live Check. ([#728](https://github.com/open-telemetry/weaver/pull/728) by @jerbly)
+- Fix #750 - Dual registry resolves incorrectly. ([#753](https://github.com/open-telemetry/weaver/pull/753) by @lquerel)
+
 # [0.15.0] - 2025-05-01
 
 - Add support for attributes of type `any`. ([#707](https://github.com/open-telemetry/weaver/pull/707) by @lquerel)
