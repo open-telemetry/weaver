@@ -833,7 +833,7 @@
       ]
     },
     "AttributeSpec": {
-      "description": "An attribute specification.",
+      "description": "A reference to an attribute or a local definition of an attribute. * For a reference to an attribute, only the `ref` field is required. * For a locally defined attribute, the fields `id`, `type`, `requirement_level`, and `note` are required.",
       "anyOf": [
         {
           "description": "Reference to another attribute.\n\nref MUST have an id of an existing attribute.",

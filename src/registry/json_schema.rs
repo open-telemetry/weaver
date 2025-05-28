@@ -13,7 +13,6 @@ use serde_json::to_string_pretty;
 use std::{io::Write, path::PathBuf};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
-use weaver_semconv::group::GroupSpec;
 use weaver_semconv::semconv::SemConvSpec;
 
 /// Parameters for the `registry json-schema` sub-command

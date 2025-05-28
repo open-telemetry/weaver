@@ -17,7 +17,9 @@ use std::ops::Not;
 use weaver_common::result::WResult;
 use AttributeType::{Enum, PrimitiveOrArray, Template};
 
-/// An attribute specification.
+/// A reference to an attribute or a local definition of an attribute.
+/// For a reference to an attribute, only the `ref` field is required.
+/// For a locally defined attribute, the fields `id`, `type`, `requirement_level`, and `note` are required.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]

@@ -2,8 +2,9 @@
 
 #![doc = include_str!("../README.md")]
 
+use std::borrow::Cow;
 use crate::Error::CompoundError;
-use miette::{Diagnostic, SourceSpan};
+use miette::{Diagnostic, NamedSource, SourceSpan};
 use schemars::schema::{InstanceType, Schema};
 use schemars::{JsonSchema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
@@ -60,23 +61,35 @@ pub enum Error {
     },
 
     /// The semantic convention spec is invalid.
-    #[error("Invalid semantic convention file `{path_or_url}`\nError: {error}\nLocation: {location}")]
+    ///
+    /// Note: The JSON schema governing the syntax of semantic conventions can be generated
+    /// using the `weaver registry json-schema -j semconv-group` command.
+    #[error("{error}")]
     #[diagnostic(
         severity(Error),
-        help("The JSON schema governing the syntax of semantic conventions can be generated\nusing the `weaver registry json-schema -j semconv-group` command."),
+        code(invalid_semconv_group),
     )]
     InvalidSemConvSpec {
-        /// The path or URL of the semantic convention spec.
-        path_or_url: String,
-        /// The location where the error occurred.
-        location: String,
-        /// The YAML section where the error occurred (if available).
+        /// The YAML content of the semantic convention spec (if available).
         #[source_code]
-        src: String,
-        /// The error that occurred.
-        #[label("This element violates the schema")]
+        #[serde(skip_serializing)]
+        src: NamedSource<Cow<'static, str>>,
+        /// The span of the error in the semantic convention spec.
+        #[label("somewhere in this block")]
         err_span: Option<SourceSpan>,
         /// The error that occurred.
+        error: String,
+        /// An optional advice to help the user understand the error.
+        #[help]
+        advice: Option<String>,
+    },
+
+    /// The provided xpath is invalid.
+    #[error("Invalid XPath `{xpath}` detected while validating semantic convention spec.\nError: {error}")]
+    InvalidXPath {
+        /// The invalid XPath expression.
+        xpath: String,
+        /// The reason of the error.
         error: String,
     },
 

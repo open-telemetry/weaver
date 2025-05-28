@@ -1,9 +1,7 @@
 groups:
   - id: pizza.metadata
     type: resource
-    name: pizza
-    brief: >
-      Metadata about pizza
+    name: 1
     stability: stable
     attributes:
       - ref: pizzashop.order.id

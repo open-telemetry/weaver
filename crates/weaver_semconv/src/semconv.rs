@@ -2,12 +2,14 @@
 
 //! Semantic convention specification.
 
+use std::borrow::Cow;
 use crate::group::GroupSpec;
 use crate::provenance::Provenance;
 use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
+use miette::NamedSource;
 use schemars::JsonSchema;
 use weaver_common::result::WResult;
 use crate::Error::InvalidSemConvSpec;
@@ -68,11 +70,10 @@ impl SemConvSpec {
 
                     // Fallback: return original serde error
                     Err(InvalidSemConvSpec {
-                        path_or_url: provenance.to_owned(),
-                        location: "NA".to_owned(),
-                        src: "NA".to_owned(),
+                        src: NamedSource::new(provenance, Cow::Owned("NA".to_owned())),
                         err_span: None,
                         error: original_error,
+                        advice: None
                     })
                 }
             }
@@ -101,11 +102,10 @@ impl SemConvSpec {
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
     pub fn from_string(spec: &str) -> WResult<SemConvSpec, Error> {
         match serde_yaml::from_str::<SemConvSpec>(spec).map_err(|e| InvalidSemConvSpec {
-            path_or_url: "<str>".to_owned(),
-            location: "NA".to_owned(),
-            src: "NA".to_owned(),
+            src: NamedSource::new("<str>", Cow::Owned(spec.to_owned())),
             err_span: None,
             error: e.to_string(),
+            advice: None
         }) {
             Ok(semconv_spec) => {
                 // Important note: the resolution process expects this step of validation to be done for
@@ -138,11 +138,10 @@ impl SemConvSpec {
 
             // Deserialize the telemetry schema from the content reader
             serde_yaml::from_reader(reader).map_err(|e| InvalidSemConvSpec {
-                path_or_url: semconv_url.to_owned(),
-                location: e.location().map(|loc| format!("{}:{}", loc.line(), loc.column())).unwrap_or("NA".to_owned()),
-                src: "NA".to_owned(),
+                src: NamedSource::new(semconv_url, Cow::Owned("NA".to_owned())),
                 err_span: None,
                 error: e.to_string(),
+                advice: None
             })
         }
 
