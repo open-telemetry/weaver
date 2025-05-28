@@ -20,7 +20,6 @@
   {
     "name": "db.cassandra.consistency_level",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "all",
@@ -179,7 +178,6 @@
   {
     "name": "db.cosmosdb.connection_mode",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "gateway",
@@ -216,7 +214,6 @@
   {
     "name": "db.cosmosdb.operation_type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "invalid",
@@ -526,7 +523,6 @@
   {
     "name": "db.system",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "other_sql",
@@ -1000,7 +996,6 @@
   {
     "name": "http.request.method",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "connect",
@@ -1197,7 +1192,6 @@
   {
     "name": "network.connection.subtype",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "gprs",
@@ -1377,7 +1371,6 @@
   {
     "name": "network.connection.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "wifi",
@@ -1493,7 +1486,6 @@
   {
     "name": "network.transport",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "tcp",
@@ -1541,7 +1533,6 @@
   {
     "name": "network.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "ipv4",
@@ -1573,7 +1564,6 @@
   {
     "name": "network.io.direction",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "transmit",
@@ -1695,7 +1685,6 @@
   {
     "name": "db.system",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "other_sql",
@@ -2256,7 +2245,6 @@
   {
     "name": "network.transport",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "tcp",
@@ -2305,7 +2293,6 @@
   {
     "name": "network.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "ipv4",
@@ -2359,7 +2346,6 @@
   {
     "name": "db.cassandra.consistency_level",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "all",
@@ -2669,7 +2655,6 @@
   {
     "name": "http.request.method",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "connect",
@@ -2831,7 +2816,6 @@
   {
     "name": "db.cosmosdb.connection_mode",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "gateway",
@@ -2872,7 +2856,6 @@
   {
     "name": "db.cosmosdb.operation_type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "invalid",

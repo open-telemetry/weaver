@@ -96,7 +96,6 @@ schema:
         note: ''
       - id: jvm.thread.state
         type:
-          allow_custom_values: false
           members:
           - id: new
             value: new

@@ -215,9 +215,6 @@ pub enum AttributeType {
     Template(TemplateTypeSpec),
     /// An enum definition type.
     Enum {
-        /// Set to false to not accept values other than the specified members.
-        /// No longer used since semconv 1.27.0.
-        allow_custom_values: Option<bool>,
         /// List of enum entries.
         members: Vec<EnumEntriesSpec>,
     },
@@ -873,7 +870,6 @@ mod tests {
             format!(
                 "{}",
                 Enum {
-                    allow_custom_values: Some(true),
                     members: vec![EnumEntriesSpec {
                         id: "id".to_owned(),
                         value: ValueSpec::Int(42),

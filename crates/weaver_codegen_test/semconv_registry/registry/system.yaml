@@ -6,7 +6,6 @@ groups:
     attributes:
       - id: system.cpu.state
         type:
-          allow_custom_values: true
           members:
             - id: user
               value: 'user'
@@ -41,7 +40,6 @@ groups:
     attributes:
       - id: system.memory.state
         type:
-          allow_custom_values: true
           members:
             - id: used
               value: 'used'

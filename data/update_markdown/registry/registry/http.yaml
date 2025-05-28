@@ -31,7 +31,6 @@ groups:
       - id: request.method
         stability: stable
         type:
-          allow_custom_values: true
           members:
             - id: connect
               value: "CONNECT"
@@ -135,7 +134,6 @@ groups:
           SHOULD include the [application root](/docs/http/http-spans.md#http-server-definitions) if there is one.
       - id: connection.state
         type:
-          allow_custom_values: true
           members:
             - id: active
               value: "active"

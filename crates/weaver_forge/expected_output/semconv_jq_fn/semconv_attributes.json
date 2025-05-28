@@ -7,7 +7,6 @@
     "stability": "development",
     "tag": "tech-specific-cassandra",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": null,
@@ -193,7 +192,6 @@
     "stability": "stable",
     "tag": "tech-specific-cosmosdb",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": "Gateway (HTTP) connections mode",
@@ -232,7 +230,6 @@
     "stability": "stable",
     "tag": "tech-specific-cosmosdb",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": null,
@@ -585,7 +582,6 @@
     "stability": "stable",
     "tag": "db-generic",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": "Some other SQL database. Fallback only. See notes.",
@@ -1101,7 +1097,6 @@
     "root_namespace": "http",
     "stability": "stable",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": "CONNECT method.",
@@ -1304,7 +1299,6 @@
     "root_namespace": "network",
     "stability": "stable",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": "GPRS",
@@ -1485,7 +1479,6 @@
     "root_namespace": "network",
     "stability": "stable",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": null,
@@ -1540,7 +1533,6 @@
     "root_namespace": "network",
     "stability": "stable",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": null,
@@ -1643,7 +1635,6 @@
     "root_namespace": "network",
     "stability": "stable",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": "TCP",
@@ -1692,7 +1683,6 @@
     "root_namespace": "network",
     "stability": "stable",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "brief": "IPv4",

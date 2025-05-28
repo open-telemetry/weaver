@@ -382,24 +382,6 @@ impl GroupSpec {
                     }
                 }
             }
-
-            // Produce a warning if `allow_custom_values` is Some.
-            if let AttributeSpec::Id {
-                r#type:
-                    AttributeType::Enum {
-                        allow_custom_values: Some(_),
-                        ..
-                    },
-                ..
-            } = attribute
-            {
-                errors.push(Error::InvalidAttributeAllowCustomValues {
-                    path_or_url: path_or_url.to_owned(),
-                    group_id: self.id.clone(),
-                    attribute_id: attribute.id(),
-                    error: "This attribute is an enum using allow_custom_values. This is no longer used.".to_owned(),
-                });
-            }
         }
 
         // Ensure entity associations show up on the right groups.
@@ -616,7 +598,7 @@ mod tests {
     };
     use crate::deprecated::Deprecated;
     use crate::Error::{
-        CompoundError, InvalidAttributeAllowCustomValues, InvalidAttributeWarning,
+        CompoundError, InvalidAttributeWarning,
         InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
         InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
         InvalidSpanMissingSpanKind, UnstructuredDeprecatedProperty,
@@ -953,7 +935,6 @@ mod tests {
         group.attributes = vec![AttributeSpec::Id {
             id: "test".to_owned(),
             r#type: AttributeType::Enum {
-                allow_custom_values: None,
                 members: vec![EnumEntriesSpec {
                     id: "member_id".to_owned(),
                     value: ValueSpec::String("member_value".to_owned()),
@@ -991,7 +972,6 @@ mod tests {
         group.attributes = vec![AttributeSpec::Id {
             id: "test".to_owned(),
             r#type: AttributeType::Enum {
-                allow_custom_values: None,
                 members: vec![EnumEntriesSpec {
                     id: "member_id".to_owned(),
                     value: ValueSpec::String("member_value".to_owned()),
@@ -1051,85 +1031,6 @@ mod tests {
             },),
             result
         );
-    }
-
-    #[test]
-    fn test_allow_custom_values() {
-        let mut group = GroupSpec {
-            id: "test".to_owned(),
-            r#type: GroupType::Span,
-            brief: "test".to_owned(),
-            note: "test".to_owned(),
-            prefix: "".to_owned(),
-            extends: None,
-            stability: Some(Stability::Development),
-            deprecated: Some(Deprecated::Obsoleted {
-                note: "".to_owned(),
-            }),
-            attributes: vec![AttributeSpec::Id {
-                id: "test".to_owned(),
-                r#type: AttributeType::Enum {
-                    members: vec![],
-                    allow_custom_values: Some(true),
-                },
-                brief: None,
-                stability: Some(Stability::Development),
-                deprecated: Some(Deprecated::Obsoleted {
-                    note: "".to_owned(),
-                }),
-                examples: Some(Examples::String("test".to_owned())),
-                tag: None,
-                requirement_level: Default::default(),
-                sampling_relevant: None,
-                note: "".to_owned(),
-                annotations: None,
-                role: Default::default(),
-            }],
-            span_kind: Some(SpanKindSpec::Client),
-            events: vec!["event".to_owned()],
-            metric_name: None,
-            instrument: None,
-            unit: None,
-            name: None,
-            display_name: None,
-            body: None,
-            annotations: None,
-            entity_associations: Vec::new(),
-        };
-        let result = group.validate("<test>").into_result_failing_non_fatal();
-        assert_eq!(
-            Err(InvalidAttributeAllowCustomValues {
-                path_or_url: "<test>".to_owned(),
-                group_id: "test".to_owned(),
-                attribute_id: "test".to_owned(),
-                error:
-                    "This attribute is an enum using allow_custom_values. This is no longer used."
-                        .to_owned(),
-            },),
-            result
-        );
-        // Test that allow_custom_values is not set.
-        group.attributes = vec![AttributeSpec::Id {
-            id: "test".to_owned(),
-            r#type: AttributeType::Enum {
-                members: vec![],
-                allow_custom_values: None,
-            },
-            brief: None,
-            stability: Some(Stability::Development),
-            deprecated: Some(Deprecated::Obsoleted {
-                note: "".to_owned(),
-            }),
-            examples: Some(Examples::String("test".to_owned())),
-            tag: None,
-            requirement_level: Default::default(),
-            sampling_relevant: None,
-            note: "".to_owned(),
-            annotations: None,
-            role: Default::default(),
-        }];
-        let result = group.validate("<test>").into_result_failing_non_fatal();
-        assert!(result.is_ok());
     }
 
     #[test]

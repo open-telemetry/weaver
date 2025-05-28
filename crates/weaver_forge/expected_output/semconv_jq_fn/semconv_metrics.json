@@ -179,7 +179,6 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": {
-              "allow_custom_values": null,
               "members": [
                 {
                   "brief": "Heap memory.",
@@ -266,7 +265,6 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": {
-              "allow_custom_values": null,
               "members": [
                 {
                   "brief": "Heap memory.",
@@ -353,7 +351,6 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": {
-              "allow_custom_values": null,
               "members": [
                 {
                   "brief": "Heap memory.",
@@ -443,7 +440,6 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": {
-              "allow_custom_values": null,
               "members": [
                 {
                   "brief": "Heap memory.",
@@ -537,7 +533,6 @@
             "requirement_level": "recommended",
             "stability": "stable",
             "type": {
-              "allow_custom_values": null,
               "members": [
                 {
                   "brief": "A thread that has not yet started is in this state.",

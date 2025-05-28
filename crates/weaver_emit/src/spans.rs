@@ -513,7 +513,6 @@ mod tests {
         let attr = create_test_attribute(
             "test.enum",
             AttributeType::Enum {
-                allow_custom_values: None,
                 members: vec![
                     EnumEntriesSpec {
                         id: "first".to_owned(),

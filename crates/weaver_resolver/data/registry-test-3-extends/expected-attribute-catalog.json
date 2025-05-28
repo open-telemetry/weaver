@@ -2,7 +2,6 @@
   {
     "name": "error.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "other",
@@ -53,7 +52,6 @@
   {
     "name": "http.request.method",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "connect",
@@ -372,7 +370,6 @@
   {
     "name": "messaging.operation",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "publish",
@@ -432,7 +429,6 @@
   {
     "name": "messaging.rocketmq.consumption_model",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "clustering",
@@ -506,7 +502,6 @@
   {
     "name": "messaging.rocketmq.message.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "normal",
@@ -565,7 +560,6 @@
   {
     "name": "messaging.system",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "activemq",
@@ -688,7 +682,6 @@
   {
     "name": "network.connection.subtype",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "gprs",
@@ -868,7 +861,6 @@
   {
     "name": "network.connection.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "wifi",
@@ -984,7 +976,6 @@
   {
     "name": "network.transport",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "tcp",
@@ -1032,7 +1023,6 @@
   {
     "name": "network.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "ipv4",
@@ -1064,7 +1054,6 @@
   {
     "name": "network.io.direction",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "transmit",
@@ -1175,7 +1164,6 @@
   {
     "name": "http.request.method",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "connect",
@@ -1284,7 +1272,6 @@
   {
     "name": "error.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "other",
@@ -1431,7 +1418,6 @@
   {
     "name": "messaging.system",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "activemq",
@@ -1522,7 +1508,6 @@
   {
     "name": "error.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "other",

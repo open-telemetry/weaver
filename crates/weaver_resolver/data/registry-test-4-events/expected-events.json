@@ -12,7 +12,6 @@
                     },
                     "stability": "experimental",
                     "type": {
-                        "allow_custom_values": false,
                         "members": [
                             {
                                 "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
@@ -61,7 +60,6 @@
                     },
                     "stability": "experimental",
                     "type": {
-                        "allow_custom_values": false,
                         "members": [
                             {
                                 "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",

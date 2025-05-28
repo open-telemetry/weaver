@@ -45,6 +45,6 @@ fn test_cli_interface() {
     // We should be able to parse the JSON output from stdout.
     let stdout = String::from_utf8(output.stdout).expect("Invalid UTF-8");
     let json_value: Vec<serde_json::Value> = serde_json::from_str(&stdout).expect("Invalid JSON");
-    // We expect 42 policy violations.
-    assert_eq!(json_value.len(), 43);
+    // We expect 31 policy violations.
+    assert_eq!(json_value.len(), 31);
 }
