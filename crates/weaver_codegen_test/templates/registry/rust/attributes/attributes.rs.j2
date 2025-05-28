@@ -18,7 +18,9 @@
     {% if attribute is deprecated %}
 #[deprecated(note="{{ attribute.deprecated }}")]
     {% endif %}
-    {% if attribute.type == "string" %}
+    {% if attribute.type.members is defined %}
+pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<{{ attribute.name | pascal_case }}> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
+    {% elif attribute.type == "string" %}
 pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<opentelemetry::{{ attribute.type | map_text("rust_types") }}Value> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
     {% else %}
 pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<{{ attribute.type | map_text("rust_types") }}> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
