@@ -2,18 +2,15 @@
 
 //! Semantic convention specification.
 
-use std::borrow::Cow;
 use crate::group::GroupSpec;
+use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
 use crate::Error;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
-use miette::NamedSource;
-use schemars::JsonSchema;
 use weaver_common::result::WResult;
-use crate::Error::InvalidSemConvSpec;
-use crate::json_schema::JsonSchemaValidator;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
@@ -43,8 +40,15 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub fn from_file<P: AsRef<Path>>(path: P, json_schema_validator: &JsonSchemaValidator) -> WResult<SemConvSpec, Error> {
-        fn from_file_or_fatal(path: &Path, provenance: &str, json_schema_validator: &JsonSchemaValidator) -> Result<SemConvSpec, Error> {
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        json_schema_validator: &JsonSchemaValidator,
+    ) -> WResult<SemConvSpec, Error> {
+        fn from_file_or_fatal(
+            path: &Path,
+            provenance: &str,
+            json_schema_validator: &JsonSchemaValidator,
+        ) -> Result<SemConvSpec, Error> {
             use serde_yaml::Value;
             use std::io::Seek;
 
@@ -56,12 +60,12 @@ impl SemConvSpec {
 
             // Try direct deserialization first
             match serde_yaml::from_reader::<_, SemConvSpec>(&mut semconv_file) {
-                Ok(spec) => return Ok(spec),
+                Ok(spec) => Ok(spec),
                 Err(e) => {
                     // If serde fails, try to get better errors via jsonschema
                     // Rewind file for second read
                     _ = semconv_file.rewind().ok();
-                    
+
                     let original_error = e.to_string();
                     let value: Result<Value, _> = serde_yaml::from_reader(&mut semconv_file);
                     if let Ok(yaml_value) = value {
@@ -69,11 +73,9 @@ impl SemConvSpec {
                     }
 
                     // Fallback: return original serde error
-                    Err(InvalidSemConvSpec {
-                        src: NamedSource::new(provenance, Cow::Owned("NA".to_owned())),
-                        err_span: None,
+                    Err(Error::DeserializationError {
+                        path_or_url: provenance.to_owned(),
                         error: original_error,
-                        advice: None
                     })
                 }
             }
@@ -101,11 +103,9 @@ impl SemConvSpec {
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
     pub fn from_string(spec: &str) -> WResult<SemConvSpec, Error> {
-        match serde_yaml::from_str::<SemConvSpec>(spec).map_err(|e| InvalidSemConvSpec {
-            src: NamedSource::new("<str>", Cow::Owned(spec.to_owned())),
-            err_span: None,
+        match serde_yaml::from_str::<SemConvSpec>(spec).map_err(|e| Error::DeserializationError {
+            path_or_url: "NA".to_owned(),
             error: e.to_string(),
-            advice: None
         }) {
             Ok(semconv_spec) => {
                 // Important note: the resolution process expects this step of validation to be done for
@@ -137,11 +137,9 @@ impl SemConvSpec {
                 .into_reader();
 
             // Deserialize the telemetry schema from the content reader
-            serde_yaml::from_reader(reader).map_err(|e| InvalidSemConvSpec {
-                src: NamedSource::new(semconv_url, Cow::Owned("NA".to_owned())),
-                err_span: None,
+            serde_yaml::from_reader(reader).map_err(|e| Error::DeserializationError {
+                path_or_url: semconv_url.to_owned(),
                 error: e.to_string(),
-                advice: None
             })
         }
 
@@ -190,11 +188,12 @@ impl SemConvSpecWithProvenance {
     pub fn from_file<P: AsRef<Path>>(
         registry_id: &str,
         path: P,
-        validator: &JsonSchemaValidator
+        validator: &JsonSchemaValidator,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
         let path = path.as_ref().display().to_string();
         let provenance = Provenance::new(registry_id, &path);
-        SemConvSpec::from_file(path, validator).map(|spec| SemConvSpecWithProvenance { spec, provenance })
+        SemConvSpec::from_file(path, validator)
+            .map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 
     /// Creates a semantic convention spec with provenance from a string.
@@ -220,8 +219,9 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::Error::{
-        InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroupMissingType,
-        InvalidGroupStability, InvalidSemConvSpec, InvalidSpanMissingSpanKind, RegistryNotFound,
+        DeserializationError, InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning,
+        InvalidGroupMissingType, InvalidGroupStability, InvalidSemConvSpec,
+        InvalidSpanMissingSpanKind, RegistryNotFound,
     };
     use std::path::PathBuf;
     use weaver_common::test::ServeStaticFiles;
@@ -294,7 +294,7 @@ mod tests {
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
-            InvalidSemConvSpec { .. }
+            DeserializationError { .. }
         ));
 
         // Invalid spec
@@ -398,7 +398,7 @@ mod tests {
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
-            InvalidSemConvSpec { .. }
+            DeserializationError { .. }
         ));
 
         // Non-existing URL

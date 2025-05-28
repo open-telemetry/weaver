@@ -2,12 +2,12 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::borrow::Cow;
 use crate::Error::CompoundError;
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use schemars::schema::{InstanceType, Schema};
 use schemars::{JsonSchema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::hash::Hasher;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -17,6 +17,7 @@ pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
 pub mod group;
+pub mod json_schema;
 pub mod manifest;
 pub mod metric;
 pub mod provenance;
@@ -25,7 +26,6 @@ pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
-pub mod json_schema;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -60,29 +60,23 @@ pub enum Error {
         error: String,
     },
 
-    /// The semantic convention spec is invalid.
-    ///
-    /// Note: The JSON schema governing the syntax of semantic conventions can be generated
-    /// using the `weaver registry json-schema -j semconv-group` command.
+    /// A deserialization error occurred while processing a semantic convention group.
     #[error("{error}")]
-    #[diagnostic(
-        severity(Error),
-        code(invalid_semconv_group),
-    )]
-    InvalidSemConvSpec {
-        /// The YAML content of the semantic convention spec (if available).
-        #[source_code]
-        #[serde(skip_serializing)]
-        src: NamedSource<Cow<'static, str>>,
-        /// The span of the error in the semantic convention spec.
-        #[label("somewhere in this block")]
-        err_span: Option<SourceSpan>,
+    #[diagnostic(severity(Error))]
+    DeserializationError {
+        /// The path or URL of the semantic convention asset.
+        path_or_url: String,
         /// The error that occurred.
         error: String,
-        /// An optional advice to help the user understand the error.
-        #[help]
-        advice: Option<String>,
     },
+
+    /// The semantic convention spec is invalid.
+    ///
+    /// Note: We use a boxed error type here to keep the main `Error` type under the 128 bytes
+    /// limit and avoid the `result_large_err` clippy lint.
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    InvalidSemConvSpec(#[from] Box<InvalidSemConvSpecError>),
 
     /// The provided xpath is invalid.
     #[error("Invalid XPath `{xpath}` detected while validating semantic convention spec.\nError: {error}")]
@@ -322,6 +316,35 @@ pub enum Error {
     CompoundError(#[related] Vec<Error>),
 }
 
+/// The semantic convention spec is invalid.
+///
+/// Boxed detailed error struct for `InvalidSemConvSpec` variant.
+/// This is used to keep main error type `Error` under the limit of 128 bytes.
+/// See: https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
+///
+/// Note: The JSON schema governing the syntax of semantic conventions can be generated
+/// using the `weaver registry json-schema -j semconv-group` command.
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Serialize, Diagnostic)]
+#[error("{error}")]
+#[diagnostic(severity(Error), code(invalid_semconv_group))]
+pub struct InvalidSemConvSpecError {
+    /// The YAML content of the semantic convention spec (if available).
+    #[source_code]
+    #[serde(skip_serializing)]
+    pub src: NamedSource<Cow<'static, str>>,
+
+    /// The span of the error in the semantic convention spec.
+    #[label("somewhere in this block")]
+    pub err_span: SourceSpan,
+
+    /// The error that occurred.
+    pub error: String,
+
+    /// Optional advice to help the user understand the error.
+    #[help]
+    pub advice: Option<String>,
+}
+
 impl WeaverError<Error> for Error {
     fn compound(errors: Vec<Error>) -> Error {
         CompoundError(
@@ -490,10 +513,10 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
+    use crate::json_schema::JsonSchemaValidator;
     use crate::registry::SemConvRegistry;
     use std::vec;
     use weaver_common::diagnostic::DiagnosticMessages;
-    use crate::json_schema::JsonSchemaValidator;
 
     /// Load multiple semantic convention files in the semantic convention registry.
     /// No error should be emitted.

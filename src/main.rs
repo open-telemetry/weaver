@@ -95,14 +95,17 @@ fn main() {
             .format(|buf, record| writeln!(buf, "{}", record.args()))
             .init();
     }
-    _ = miette::set_hook(Box::new(|_| {
+
+    // Force the `miette` context to 5 lines.
+    miette::set_hook(Box::new(|_| {
         Box::new(
             miette::MietteHandlerOpts::new()
                 .terminal_links(true)
                 .context_lines(5)
                 .build(),
         )
-    })).expect("Failed to set miette hook");
+    }))
+    .expect("Failed to set miette hook");
 
     let exit_directives = run_command(&cli);
 

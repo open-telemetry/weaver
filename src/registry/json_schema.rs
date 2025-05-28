@@ -73,7 +73,7 @@ impl From<Error> for DiagnosticMessages {
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
     let json_schema = match args.json_schema {
         JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
-        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec)
+        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
     };
 
     let json_schema_str =

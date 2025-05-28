@@ -2,15 +2,14 @@
 
 //! JSON Schema validator for semantic convention files.
 
-use std::any::Any;
 use crate::semconv::SemConvSpec;
-use crate::Error;
 use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
+use crate::{Error, InvalidSemConvSpecError};
 use jsonschema::error::{TypeKind, ValidationErrorKind};
-use miette::{NamedSource, SourceOffset, SourceSpan};
-use saphyr::{LoadableYamlNode, MarkedYaml, Marker};
-use std::borrow::Cow;
 use jsonschema::{JsonType, JsonTypeSet};
+use miette::{NamedSource, SourceSpan};
+use saphyr::{LoadableYamlNode, MarkedYaml};
+use std::borrow::Cow;
 
 /// Parsed simple XPath components
 #[derive(Debug, Clone)]
@@ -28,8 +27,15 @@ pub struct JsonSchemaValidator {
     validator: jsonschema::Validator,
 }
 
+impl Default for JsonSchemaValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsonSchemaValidator {
     /// Creates a new JSON schema validator.
+    #[must_use]
     pub fn new() -> Self {
         // Generate the JSON schema for the SemConvSpec struct using Schemars
         let root_schema = schemars::schema_for!(SemConvSpec);
@@ -58,11 +64,9 @@ impl JsonSchemaValidator {
             Ok(v) => v,
             Err(_) => {
                 // Fallback to original serde error
-                return Err(InvalidSemConvSpec {
-                    src: NamedSource::new(provenance, Cow::Owned("NA".to_owned())),
-                    err_span: None,
+                return Err(Error::DeserializationError {
+                    path_or_url: provenance.to_owned(),
                     error: serde_error.to_string(),
-                    advice: None,
                 });
             }
         };
@@ -74,23 +78,29 @@ impl JsonSchemaValidator {
         for error in self.validator.iter_errors(&json) {
             let description = self.build_description_from_xpath(error.schema_path.as_str())?;
             let error_msg = self.build_error_message(&error);
-            errors.push(InvalidSemConvSpec {
+            errors.push(InvalidSemConvSpec(Box::new(InvalidSemConvSpecError {
                 src: NamedSource::new(provenance, yaml_doc.raw_yaml()),
-                err_span: Some(yaml_doc.source_span(error.instance_path.as_str())?),
+                err_span: yaml_doc.source_span(error.instance_path.as_str())?,
                 error: error_msg,
                 advice: Some(description),
-            });
+            })));
         }
 
         if errors.is_empty() {
             Ok(())
+        } else if errors.len() == 1 {
+            Err(errors
+                .into_iter()
+                .next()
+                .expect("At least one error should be present"))
         } else {
+            // If there are multiple errors, return a compound error
             Err(CompoundError(errors))
         }
     }
 
     /// Builds a nice error message from the validation error.
-    fn build_error_message(&self, error: &jsonschema::ValidationError) -> String {
+    fn build_error_message(&self, error: &jsonschema::ValidationError<'_>) -> String {
         match &error.kind {
             ValidationErrorKind::AdditionalItems { limit } =>
                 format!("Array has more items ({}) than allowed (maximum: {}).", error.instance, limit),
@@ -292,7 +302,7 @@ impl JsonSchemaValidator {
         }
 
         if has_null {
-            type_names.push("null (i.e. optional)".to_string());
+            type_names.push("null (i.e. optional)".to_owned());
         }
 
         if !type_names.is_empty() {
@@ -331,12 +341,11 @@ struct YamlDoc {
 impl YamlDoc {
     /// Create a YamlDoc from a YAML file.
     fn try_from_file(path_or_url: &str) -> Result<Self, Error> {
-        let raw_yaml = std::fs::read_to_string(path_or_url).map_err(|e| InvalidSemConvSpec {
-            src: NamedSource::new(path_or_url, Cow::Owned("NA".to_owned())),
-            err_span: None,
-            error: e.to_string(),
-            advice: None,
-        })?;
+        let raw_yaml =
+            std::fs::read_to_string(path_or_url).map_err(|e| Error::DeserializationError {
+                path_or_url: path_or_url.to_owned(),
+                error: e.to_string(),
+            })?;
 
         Self::try_from_string(&raw_yaml, path_or_url)
     }
@@ -345,18 +354,15 @@ impl YamlDoc {
     fn try_from_string(yaml: &str, path_or_url: &str) -> Result<Self, Error> {
         let raw_yaml: Cow<'static, str> = Cow::Owned(yaml.to_owned());
 
-        let yaml_docs = MarkedYaml::load_from_str(&yaml).map_err(|e| InvalidSemConvSpec {
-            src: NamedSource::new(path_or_url, raw_yaml.clone()),
-            err_span: None,
-            error: e.to_string(),
-            advice: None,
-        })?;
+        let yaml_docs =
+            MarkedYaml::load_from_str(yaml).map_err(|e| Error::DeserializationError {
+                path_or_url: path_or_url.to_owned(),
+                error: e.to_string(),
+            })?;
         if yaml_docs.len() != 1 {
-            return Err(InvalidSemConvSpec {
-                src: NamedSource::new(path_or_url, raw_yaml.clone()),
-                err_span: None,
+            return Err(Error::DeserializationError {
+                path_or_url: path_or_url.to_owned(),
                 error: "Expected exactly one YAML document".to_owned(),
-                advice: None,
             });
         }
 
@@ -368,7 +374,7 @@ impl YamlDoc {
                 .into_iter()
                 .next()
                 .expect("There should be exactly one YAML document"),
-            char_offsets
+            char_offsets,
         })
     }
 
@@ -461,7 +467,7 @@ fn parse_xpath(xpath: &str) -> Result<Vec<PathComponent>, Error> {
             if let Ok(index) = component.parse::<usize>() {
                 Ok(PathComponent::Index(index))
             } else {
-                Ok(PathComponent::Key(component.to_string()))
+                Ok(PathComponent::Key(component.to_owned()))
             }
         })
         .collect();

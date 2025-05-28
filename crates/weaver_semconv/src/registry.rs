@@ -4,6 +4,7 @@
 
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::GroupSpecWithProvenance;
+use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
@@ -16,7 +17,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 use weaver_common::result::WResult;
-use crate::json_schema::JsonSchemaValidator;
 
 /// A semantic convention registry is a collection of semantic convention
 /// specifications indexed by group id.
@@ -92,9 +92,12 @@ impl SemConvRegistry {
                     path_pattern: path_pattern.to_owned(),
                     error: e.to_string(),
                 })?;
-                let (semconv_spec, nfes) =
-                    SemConvSpecWithProvenance::from_file(registry_id, path_buf.as_path(), &validator)
-                        .into_result_with_non_fatal()?;
+                let (semconv_spec, nfes) = SemConvSpecWithProvenance::from_file(
+                    registry_id,
+                    path_buf.as_path(),
+                    &validator,
+                )
+                .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
                 non_fatal_errors.extend(nfes);
             }
@@ -189,7 +192,7 @@ impl SemConvRegistry {
         &mut self,
         registry_id: &str,
         path: P,
-        validator: &JsonSchemaValidator
+        validator: &JsonSchemaValidator,
     ) -> WResult<(), Error> {
         SemConvSpecWithProvenance::from_file(registry_id, path.clone(), validator)
             .map(|spec| self.add_semconv_spec(spec))
@@ -208,7 +211,7 @@ impl SemConvRegistry {
     /// Loads and returns the semantic convention spec from a file.
     pub fn semconv_spec_from_file<P: AsRef<Path>>(
         semconv_path: P,
-        validator: &JsonSchemaValidator
+        validator: &JsonSchemaValidator,
     ) -> WResult<(String, SemConvSpec), Error> {
         let provenance = semconv_path.as_ref().display().to_string();
         SemConvSpec::from_file(semconv_path, validator).map(|spec| (provenance, spec))
@@ -266,13 +269,13 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
+    use crate::json_schema::JsonSchemaValidator;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
     use crate::Error;
     use weaver_common::test::ServeStaticFiles;
     use weaver_common::vdir::VirtualDirectoryPath;
-    use crate::json_schema::JsonSchemaValidator;
 
     #[test]
     fn test_try_from_path_pattern() {
