@@ -169,7 +169,6 @@ pub enum Error {
         error: String,
     },
 
-
     /// This error occurs when a semantic convention asset contains an invalid example.
     /// This is treated as a critical error in the current context.
     #[error("The attribute `{attribute_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]

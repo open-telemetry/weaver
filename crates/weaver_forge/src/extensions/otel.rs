@@ -1646,9 +1646,7 @@ mod tests {
             })
             .collect();
 
-        AttributeType::Enum {
-            members,
-        }
+        AttributeType::Enum { members }
     }
 
     #[test]

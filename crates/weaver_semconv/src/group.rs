@@ -598,10 +598,10 @@ mod tests {
     };
     use crate::deprecated::Deprecated;
     use crate::Error::{
-        CompoundError, InvalidAttributeWarning,
-        InvalidExampleWarning, InvalidGroup, InvalidGroupMissingExtendsOrAttributes,
-        InvalidGroupMissingType, InvalidGroupStability, InvalidGroupUsesPrefix, InvalidMetric,
-        InvalidSpanMissingSpanKind, UnstructuredDeprecatedProperty,
+        CompoundError, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroup,
+        InvalidGroupMissingExtendsOrAttributes, InvalidGroupMissingType, InvalidGroupStability,
+        InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
+        UnstructuredDeprecatedProperty,
     };
 
     use super::*;
@@ -657,7 +657,7 @@ mod tests {
         assert_eq!(
             Err(InvalidGroupUsesPrefix {
                 path_or_url: "<test>".to_owned(),
-                group_id: "test".to_owned()
+                group_id: "test".to_owned(),
             }),
             result
         );
@@ -1001,7 +1001,7 @@ mod tests {
                 group_id: "test".to_owned(),
                 attribute_id: "test".to_owned(),
                 error: "Member member_id stability is set to 'deprecated' which is no longer supported.".to_owned(),
-            },),
+            }, ),
             result
         );
 
