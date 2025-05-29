@@ -1,0 +1,98 @@
+[
+    {
+        "metric": {
+            "data_points": [
+                {
+                    "attributes": [
+                        {
+                            "name": "state",
+                            "value": "used"
+                        }
+                    ],
+                    "value": 26963050496
+                },
+                {
+                    "attributes": [
+                        {
+                            "name": "state",
+                            "value": "free"
+                        }
+                    ],
+                    "value": 586153984
+                },
+                {
+                    "attributes": [
+                        {
+                            "name": "system.memory.state",
+                            "value": "inactive"
+                        }
+                    ],
+                    "value": 681053388.8
+                }
+            ],
+            "instrument": "updowncounter",
+            "name": "system.memory.usage",
+            "unit": "By"
+        }
+    },
+    {
+        "metric": {
+            "data_points": [
+                {
+                    "attributes": [],
+                    "bucket_counts": [
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "count": 1,
+                    "max": 7.0015,
+                    "min": 7.0015,
+                    "sum": 7.0015
+                }
+            ],
+            "instrument": "histogram",
+            "name": "rpc.client.duration",
+            "unit": "ms"
+        }
+    },
+    {
+        "metric": {
+            "data_points": [
+                {
+                    "attributes": [],
+                    "value": 151552000
+                }
+            ],
+            "instrument": "gauge",
+            "name": "otelcol_process_memory_rss",
+            "unit": "By"
+        }
+    },
+    {
+        "metric": {
+            "data_points": [
+                {
+                    "attributes": [],
+                    "value": 39585616
+                }
+            ],
+            "instrument": "counter",
+            "name": "otelcol_process_runtime_total_alloc_bytes",
+            "unit": "By"
+        }
+    }
+]

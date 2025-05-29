@@ -851,7 +851,7 @@ mod tests {
                 Ctx { attr },
             )
             .unwrap(),
-            "uncategorized: Replaced by new_name."
+            "unspecified: Replaced by new_name."
         );
 
         // ---------------------------------------------------------------------

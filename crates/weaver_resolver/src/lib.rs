@@ -410,6 +410,7 @@ impl SchemaResolver {
 #[cfg(test)]
 mod tests {
     use crate::SchemaResolver;
+    use std::collections::HashSet;
     use weaver_common::result::WResult;
     use weaver_common::vdir::VirtualDirectoryPath;
     use weaver_semconv::attribute::{BasicRequirementLevelSpec, RequirementLevel};
@@ -474,11 +475,13 @@ mod tests {
                         .expect("Metric not found");
                     let attributes = &metric.attributes;
                     assert_eq!(attributes.len(), 3);
+                    let mut attr_names = HashSet::new();
                     for attr_ref in attributes {
                         let attr = resolved_registry
                             .catalog
                             .attribute(attr_ref)
                             .expect("Failed to resolve attribute");
+                        _ = attr_names.insert(attr.name.clone());
                         match attr.name.as_str() {
                             "auction.name" => {}
                             "auction.id" => {}
@@ -496,6 +499,10 @@ mod tests {
                             }
                         }
                     }
+                    assert_eq!(metric.attributes.len(), 3);
+                    assert!(attr_names.contains("auction.name"));
+                    assert!(attr_names.contains("auction.id"));
+                    assert!(attr_names.contains("error.type"));
                 }
                 WResult::FatalErr(fatal) => {
                     panic!("Fatal error: {fatal}");

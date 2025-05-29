@@ -2,9 +2,13 @@
 
 //! Intermediary format for telemetry sample attributes
 
+use std::rc::Rc;
+
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use weaver_checker::violation::{Advice, AdviceLevel};
+use weaver_forge::registry::ResolvedGroup;
 use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec};
 
 use crate::{
@@ -13,7 +17,7 @@ use crate::{
 };
 
 /// Represents a sample telemetry attribute parsed from any source
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 pub struct SampleAttribute {
     /// The name of the attribute
     pub name: String,
@@ -166,14 +170,15 @@ impl LiveCheckRunner for SampleAttribute {
         &mut self,
         live_checker: &mut LiveChecker,
         stats: &mut LiveCheckStatistics,
+        _parent_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<(), Error> {
         let mut result = LiveCheckResult::new();
         // find the attribute in the registry
         let semconv_attribute = {
             if let Some(attribute) = live_checker.find_attribute(&self.name) {
-                Some(attribute.clone())
+                Some(attribute)
             } else {
-                live_checker.find_template(&self.name).cloned()
+                live_checker.find_template(&self.name)
             }
         };
 
@@ -201,7 +206,7 @@ impl LiveCheckRunner for SampleAttribute {
         // run advisors on the attribute
         for advisor in live_checker.advisors.iter_mut() {
             let advice_list =
-                advisor.advise(SampleRef::Attribute(self), semconv_attribute.as_ref(), None)?;
+                advisor.advise(SampleRef::Attribute(self), semconv_attribute.clone(), None)?;
             result.add_advice_list(advice_list);
         }
         self.live_check_result = Some(result);

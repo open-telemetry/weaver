@@ -496,9 +496,9 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chrono"
-version = "0.4.40"
+version = "0.4.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a7964611d71df112cb1730f2ee67324fcf4d0fc6606acbbe9bfe06df124637c"
+checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -5551,9 +5551,9 @@ dependencies = [
 
 [[package]]
 name = "tonic-build"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d85f0383fadd15609306383a90e85eaed44169f931a5d2be1b42c76ceff1825e"
+checksum = "eac6f67be712d12f0b41328db3137e0d0757645d8904b4cb7d51cd9c2279e847"
 dependencies = [
  "prettyplease",
  "proc-macro2",
@@ -5988,9 +5988,10 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "assert_cmd",
+ "chrono",
  "clap",
  "clap_complete",
  "env_logger",
@@ -6030,11 +6031,12 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "globset",
  "miette",
  "regorus",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -6045,7 +6047,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "dirs",
  "log",
@@ -6060,7 +6062,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "dirs",
  "flate2",
@@ -6084,7 +6086,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "serde_json",
  "similar",
@@ -6093,7 +6095,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "futures-util",
  "miette",
@@ -6113,7 +6115,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "convert_case",
  "dirs",
@@ -6150,9 +6152,10 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "miette",
+ "schemars",
  "serde",
  "serde_json",
  "tempfile",
@@ -6178,7 +6181,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "ordered-float 4.6.0",
  "schemars",
@@ -6191,7 +6194,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "glob",
  "itertools 0.14.0",
@@ -6210,7 +6213,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "glob",
  "jsonschema 0.30.0",
@@ -6230,7 +6233,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "miette",
  "nom 8.0.0",
@@ -6247,7 +6250,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "schemars",
  "semver",

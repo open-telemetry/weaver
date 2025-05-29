@@ -70,7 +70,7 @@ impl AttributeCatalog {
         self.attribute_refs
             .retain(|_, attr_ref| attr_refs.contains(attr_ref));
         let mut next_id = 0;
-        let gc_map = self
+        let gc_map: HashMap<AttributeRef, AttributeRef> = self
             .attribute_refs
             .values()
             .map(|attr_ref| {
@@ -79,6 +79,11 @@ impl AttributeCatalog {
                 (*attr_ref, new_attr_ref)
             })
             .collect();
+
+        // Remap the current catalog
+        self.attribute_refs.values_mut().for_each(|attr_ref| {
+            *attr_ref = gc_map[attr_ref];
+        });
 
         gc_map
     }
@@ -232,6 +237,136 @@ impl AttributeCatalog {
                 );
                 Some(self.attribute_ref(attr))
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_semconv::attribute::BasicRequirementLevelSpec::{Recommended, Required};
+    use weaver_semconv::attribute::{AttributeType, PrimitiveOrArrayTypeSpec, RequirementLevel};
+
+    #[test]
+    fn test_attribute_catalog() {
+        let mut catalog = AttributeCatalog::default();
+
+        // Generate and add 10 attributes to the catalog.
+        for i in 0..10 {
+            let attr = gen_attr(i);
+            _ = catalog.attribute_ref(attr.clone());
+        }
+
+        // Attributes 2, 4, and 7 are referenced all others are not
+        // so we will garbage collect them.
+        let mut attr_refs: HashSet<AttributeRef> = HashSet::new();
+        _ = attr_refs.insert(AttributeRef(2));
+        _ = attr_refs.insert(AttributeRef(4));
+        _ = attr_refs.insert(AttributeRef(7));
+        let attr_ref_map = catalog.gc_unreferenced_attribute_refs(attr_refs);
+
+        // We should have 3 attributes left in the catalog.
+        // The resulting map should map the old attribute refs [2, 4, 7] to the new ones
+        // [0, 1, 2] but in an arbitrary order since we are using a HashMap.
+        assert_eq!(catalog.attribute_refs.len(), 3);
+        assert_eq!(attr_ref_map.len(), 3);
+
+        // Check that all the old attribute refs are present in the new map
+        assert!(attr_ref_map.contains_key(&AttributeRef(2)));
+        assert!(attr_ref_map.contains_key(&AttributeRef(4)));
+        assert!(attr_ref_map.contains_key(&AttributeRef(7)));
+
+        // Check that the new attribute refs are present in the value map
+        let values: Vec<AttributeRef> = attr_ref_map.values().cloned().collect();
+        assert!(values.contains(&AttributeRef(0)));
+        assert!(values.contains(&AttributeRef(1)));
+        assert!(values.contains(&AttributeRef(2)));
+    }
+
+    #[test]
+    fn test_catalog() {
+        let mut attribute_refs = HashMap::new();
+        _ = attribute_refs.insert(
+            gen_attr_by_name(
+                "error.type".to_owned(),
+                RequirementLevel::Basic(Recommended),
+            ),
+            AttributeRef(0),
+        );
+        _ = attribute_refs.insert(
+            gen_attr_by_name("unused".to_owned(), RequirementLevel::Basic(Recommended)),
+            AttributeRef(1),
+        );
+        _ = attribute_refs.insert(
+            gen_attr_by_name(
+                "auction.id".to_owned(),
+                RequirementLevel::Basic(Recommended),
+            ),
+            AttributeRef(2),
+        );
+        _ = attribute_refs.insert(
+            gen_attr_by_name(
+                "auction.name".to_owned(),
+                RequirementLevel::Basic(Recommended),
+            ),
+            AttributeRef(3),
+        );
+        _ = attribute_refs.insert(
+            gen_attr_by_name("auction.id".to_owned(), RequirementLevel::Basic(Required)),
+            AttributeRef(4),
+        );
+        _ = attribute_refs.insert(
+            gen_attr_by_name("error.type".to_owned(), RequirementLevel::Basic(Required)),
+            AttributeRef(5),
+        );
+
+        let mut catalog = AttributeCatalog {
+            attribute_refs,
+            root_attributes: Default::default(),
+        };
+
+        let mut attr_refs: HashSet<AttributeRef> = HashSet::new();
+        _ = attr_refs.insert(AttributeRef(3));
+        _ = attr_refs.insert(AttributeRef(4));
+        _ = attr_refs.insert(AttributeRef(5));
+        _ = catalog.gc_unreferenced_attribute_refs(attr_refs);
+        let attr_names = catalog
+            .attribute_name_index()
+            .into_iter()
+            .collect::<HashSet<_>>();
+
+        assert_eq!(attr_names.len(), 3);
+        assert_eq!(
+            attr_names,
+            HashSet::from([
+                "auction.id".to_owned(),
+                "auction.name".to_owned(),
+                "error.type".to_owned(),
+            ])
+        );
+    }
+
+    fn gen_attr(id: usize) -> attribute::Attribute {
+        gen_attr_by_name(format!("attr-{}", id), RequirementLevel::Basic(Recommended))
+    }
+
+    fn gen_attr_by_name(name: String, requirement_level: RequirementLevel) -> attribute::Attribute {
+        attribute::Attribute {
+            name,
+            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::Boolean),
+            brief: "brief".to_owned(),
+            examples: None,
+            tag: None,
+            requirement_level,
+            sampling_relevant: Some(false),
+            note: "NA".to_owned(),
+            stability: None,
+            deprecated: None,
+            tags: None,
+            value: None,
+            prefix: false,
+            annotations: None,
+            role: None,
         }
     }
 }

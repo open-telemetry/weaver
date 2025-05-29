@@ -107,6 +107,9 @@ As mentioned, a list of `Advice` is returned in the report for each sample entit
 }
 ```
 
+> **Note**  
+> The `live_check_result` object augments the sample entity at the pertinent level in the structure. If the structure is `metric`->`[number_data_point]`->`[attribute]`, advice should be give at the `number_data_point` level for, say, required attributes that have not been supplied. Whereas, attribute advice, like `missing_attribute` in the JSON above, is given at the attribute level.
+
 ### Custom advisors
 
 Use the `--advice-policies` command line option to provide a path to a directory containing Rego policies with the `live_check_advice` package name. Here's a very simple example that rejects any attribute name containing the string "test":
@@ -118,8 +121,8 @@ import rego.v1
 
 # checks attribute name contains the word "test"
 deny contains make_advice(advice_type, advice_level, value, message) if {
-  input.attribute
-  value := input.attribute.name
+  input.sample.attribute
+  value := input.sample.attribute.name
   contains(value, "test")
   advice_type := "contains_test"
   advice_level := "violation"
@@ -135,7 +138,13 @@ make_advice(advice_type, advice_level, value, message) := {
 }
 ```
 
-`input` contains the sample entity for assessment wrapped in a type e.g. `input.attribute` or `input.span`. `data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
+`input.sample` contains the sample entity for assessment wrapped in a type e.g. `input.sample.attribute` or `input.sample.span`.
+
+`input.registry_attribute`, when present, contains the matching attribute definition from the supplied registry.
+
+`input.registry_group`, when present, contains the matching group definition from the supplied registry.
+
+`data` contains a structure derived from the supplied `Registry`. A jq preprocessor takes the `Registry` (and maps for attributes and templates) to produce the `data` for the policy. If the jq is simply `.` this will passthrough as-is. Preprocessing is used to improve Rego performance and to simplify policy definitions. With this model `data` is processed once whereas the Rego policy runs for every sample entity as it arrives in the stream.
 
 To override the default Otel jq preprocessor provide a path to the jq file through the `--advice-preprocessor` option.
 
@@ -202,7 +211,9 @@ These should be self-explanatory, but:
 - `no_advice_count` is the number of samples that received no advice
 - `seen_registry_attributes` is a record of how many times each attribute in the registry was seen in the samples
 - `seen_non_registry_attributes` is a record of how many times each non-registry attribute was seen in the samples
-- `registry_coverage` is the fraction of seen registry attributes over the total registry attributes
+- `seen_registry_metrics` is a record of how many times each metric in the registry was seen in the samples
+- `seen_non_registry_metrics` is a record of how many times each non-registry metric was seen in the samples
+- `registry_coverage` is the fraction of seen registry entities over the total registry entities
 
 This could be parsed for a more sophisticated way to determine pass/fail in CI for example.
 
