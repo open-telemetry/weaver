@@ -4,6 +4,7 @@
 
 use crate::attribute::AttributeSpecWithProvenance;
 use crate::group::GroupSpecWithProvenance;
+use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
@@ -80,6 +81,7 @@ impl SemConvRegistry {
             non_fatal_errors: &mut Vec<Error>,
         ) -> Result<SemConvRegistry, Error> {
             let mut registry = SemConvRegistry::new(registry_id);
+            let validator = JsonSchemaValidator::new();
             for sc_entry in
                 glob::glob(path_pattern).map_err(|e| Error::InvalidRegistryPathPattern {
                     path_pattern: path_pattern.to_owned(),
@@ -90,9 +92,12 @@ impl SemConvRegistry {
                     path_pattern: path_pattern.to_owned(),
                     error: e.to_string(),
                 })?;
-                let (semconv_spec, nfes) =
-                    SemConvSpecWithProvenance::from_file(registry_id, path_buf.as_path())
-                        .into_result_with_non_fatal()?;
+                let (semconv_spec, nfes) = SemConvSpecWithProvenance::from_file(
+                    registry_id,
+                    path_buf.as_path(),
+                    &validator,
+                )
+                .into_result_with_non_fatal()?;
                 registry.add_semconv_spec(semconv_spec);
                 non_fatal_errors.extend(nfes);
             }
@@ -187,8 +192,9 @@ impl SemConvRegistry {
         &mut self,
         registry_id: &str,
         path: P,
+        validator: &JsonSchemaValidator,
     ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_file(registry_id, path.clone())
+        SemConvSpecWithProvenance::from_file(registry_id, path.clone(), validator)
             .map(|spec| self.add_semconv_spec(spec))
     }
 
@@ -205,9 +211,10 @@ impl SemConvRegistry {
     /// Loads and returns the semantic convention spec from a file.
     pub fn semconv_spec_from_file<P: AsRef<Path>>(
         semconv_path: P,
+        validator: &JsonSchemaValidator,
     ) -> WResult<(String, SemConvSpec), Error> {
         let provenance = semconv_path.as_ref().display().to_string();
-        SemConvSpec::from_file(semconv_path).map(|spec| (provenance, spec))
+        SemConvSpec::from_file(semconv_path, validator).map(|spec| (provenance, spec))
     }
 
     /// Downloads and returns the semantic convention spec from a URL.
@@ -262,6 +269,7 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
+    use crate::json_schema::JsonSchemaValidator;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
@@ -386,6 +394,7 @@ mod tests {
 
     #[test]
     fn test_semconv_from_path_pattern() {
+        let validator = JsonSchemaValidator::new();
         let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
@@ -393,7 +402,7 @@ mod tests {
         assert_eq!(registry.semconv_spec_count(), 3);
 
         registry
-            .add_semconv_spec_from_file("main", "data/database.yaml")
+            .add_semconv_spec_from_file("main", "data/database.yaml", &validator)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(registry.semconv_spec_count(), 4);

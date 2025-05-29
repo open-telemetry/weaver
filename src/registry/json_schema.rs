@@ -4,7 +4,7 @@
 //! and the policy engine.
 
 use crate::{DiagnosticArgs, ExitDirectives};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use log::info;
 use miette::Diagnostic;
 use schemars::schema_for;
@@ -13,10 +13,15 @@ use serde_json::to_string_pretty;
 use std::{io::Write, path::PathBuf};
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
+use weaver_semconv::semconv::SemConvSpec;
 
 /// Parameters for the `registry json-schema` sub-command
 #[derive(Debug, Args)]
 pub struct RegistryJsonSchemaArgs {
+    /// The type of JSON schema to generate
+    #[arg(short, long, value_enum, default_value_t = JsonSchemaType::ResolvedRegistry)]
+    json_schema: JsonSchemaType,
+
     /// Output file to write the JSON schema to
     /// If not specified, the JSON schema is printed to stdout
     #[arg(short, long)]
@@ -48,6 +53,15 @@ pub enum Error {
     },
 }
 
+/// The type of JSON schema to generate.
+#[derive(Debug, Clone, ValueEnum)]
+pub enum JsonSchemaType {
+    /// The JSON schema of a resolved registry.
+    ResolvedRegistry,
+    /// The JSON schema of a semantic convention group.
+    SemconvGroup,
+}
+
 impl From<Error> for DiagnosticMessages {
     fn from(error: Error) -> Self {
         DiagnosticMessages::new(vec![DiagnosticMessage::new(error)])
@@ -57,7 +71,10 @@ impl From<Error> for DiagnosticMessages {
 /// Generate the JSON Schema of a ResolvedRegistry and write the JSON schema to a
 /// file or print it to stdout.
 pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, DiagnosticMessages> {
-    let json_schema = schema_for!(ResolvedRegistry);
+    let json_schema = match args.json_schema {
+        JsonSchemaType::ResolvedRegistry => schema_for!(ResolvedRegistry),
+        JsonSchemaType::SemconvGroup => schema_for!(SemConvSpec),
+    };
 
     let json_schema_str =
         to_string_pretty(&json_schema).map_err(|e| Error::SerializationError {
@@ -89,7 +106,7 @@ pub(crate) fn command(args: &RegistryJsonSchemaArgs) -> Result<ExitDirectives, D
 mod tests {
 
     use crate::cli::{Cli, Commands};
-    use crate::registry::json_schema::RegistryJsonSchemaArgs;
+    use crate::registry::json_schema::{JsonSchemaType, RegistryJsonSchemaArgs};
     use crate::registry::{RegistryCommand, RegistrySubCommand};
     use crate::run_command;
     use std::fs;
@@ -107,6 +124,7 @@ mod tests {
             future: false,
             command: Some(Commands::Registry(RegistryCommand {
                 command: RegistrySubCommand::JsonSchema(RegistryJsonSchemaArgs {
+                    json_schema: JsonSchemaType::ResolvedRegistry,
                     output: Some(output_path.clone()),
                     diagnostic: Default::default(),
                 }),
