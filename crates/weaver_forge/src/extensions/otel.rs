@@ -1646,10 +1646,7 @@ mod tests {
             })
             .collect();
 
-        AttributeType::Enum {
-            allow_custom_values: Some(true),
-            members,
-        }
+        AttributeType::Enum { members }
     }
 
     #[test]

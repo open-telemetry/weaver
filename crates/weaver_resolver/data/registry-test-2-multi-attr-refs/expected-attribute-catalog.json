@@ -156,7 +156,6 @@
   {
     "name": "messaging.operation",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "publish",
@@ -216,7 +215,6 @@
   {
     "name": "messaging.rocketmq.consumption_model",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "clustering",
@@ -290,7 +288,6 @@
   {
     "name": "messaging.rocketmq.message.type",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "normal",
@@ -349,7 +346,6 @@
   {
     "name": "messaging.system",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "activemq",

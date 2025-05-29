@@ -2,7 +2,6 @@
   {
     "name": "faas.trigger",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "datasource",
@@ -62,7 +61,6 @@
   {
     "name": "faas.invoked_provider",
     "type": {
-      "allow_custom_values": null,
       "members": [
         {
           "id": "alibaba_cloud",

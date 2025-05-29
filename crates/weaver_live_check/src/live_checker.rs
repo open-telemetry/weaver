@@ -346,7 +346,6 @@ mod tests {
                     Attribute {
                         name: "test.enum".to_owned(),
                         r#type: AttributeType::Enum {
-                            allow_custom_values: None,
                             members: vec![
                                 EnumEntriesSpec {
                                     id: "test_enum_member".to_owned(),
@@ -460,7 +459,6 @@ mod tests {
                     attributes: vec![Attribute {
                         name: "system.memory.state".to_owned(),
                         r#type: AttributeType::Enum {
-                            allow_custom_values: None,
                             members: vec![
                                 EnumEntriesSpec {
                                     id: "used".to_owned(),

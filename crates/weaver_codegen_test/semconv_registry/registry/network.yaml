@@ -26,7 +26,6 @@ groups:
         examples: "sprint"
       - id: network.connection.subtype
         type:
-          allow_custom_values: true
           members:
             - id: gprs
               brief: GPRS
@@ -117,7 +116,6 @@ groups:
         examples: 'LTE'
       - id: network.connection.type
         type:
-          allow_custom_values: true
           members:
             - id: wifi
               value: "wifi"
@@ -175,7 +173,6 @@ groups:
       - id: network.transport
         stability: stable
         type:
-          allow_custom_values: true
           members:
             - id: tcp
               value: 'tcp'
@@ -206,7 +203,6 @@ groups:
       - id: network.type
         stability: stable
         type:
-          allow_custom_values: true
           members:
             - id: ipv4
               value: 'ipv4'
@@ -221,7 +217,6 @@ groups:
         examples: ['ipv4', 'ipv6']
       - id: network.io.direction
         type:
-          allow_custom_values: false
           members:
             - id: transmit
               value: 'transmit'

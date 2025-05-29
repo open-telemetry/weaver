@@ -79,7 +79,6 @@ groups:
         examples: [8080]
       - id: net.transport
         type:
-          allow_custom_values: true
           members:
             - id: ip_tcp
               value: "ip_tcp"
@@ -126,7 +125,6 @@ groups:
         examples: '3.1.1'
       - id: net.sock.family
         type:
-          allow_custom_values: true
           members:
             - id: inet
               value: 'inet'

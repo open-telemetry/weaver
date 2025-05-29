@@ -18,7 +18,7 @@
     {% if attribute is deprecated %}
 #[deprecated(note="{{ attribute.deprecated }}")]
     {% endif %}
-    {% if attribute.type.allow_custom_values is defined %}
+    {% if attribute.type.members is defined %}
 pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<{{ attribute.name | pascal_case }}> = crate::attributes::AttributeKey::new("{{ attribute.name }}");
     {% elif attribute.type == "string" %}
 pub const {{ attribute.name | screaming_snake_case }}: crate::attributes::AttributeKey<opentelemetry::{{ attribute.type | map_text("rust_types") }}Value> = crate::attributes::AttributeKey::new("{{ attribute.name }}");

@@ -185,20 +185,6 @@ pub enum Error {
         error: String,
     },
 
-    /// The semantic convention asset contains an invalid attribute definition.
-    #[error("The attribute `{attribute_id}` in the group `{group_id}` has `allow_custom_values`. This is no longer used. {error}.\nProvenance: {path_or_url:?}")]
-    #[diagnostic(severity(Warning))]
-    InvalidAttributeAllowCustomValues {
-        /// The path or URL of the semantic convention asset.
-        path_or_url: String,
-        /// The group id of the attribute.
-        group_id: String,
-        /// The id of the attribute.
-        attribute_id: String,
-        /// The reason of the error.
-        error: String,
-    },
-
     /// This error occurs when a semantic convention asset contains an invalid example.
     /// This is treated as a critical error in the current context.
     #[error("The attribute `{attribute_id}` in the group `{group_id}` contains an invalid example. {error}.\nProvenance: {path_or_url:?}")]
