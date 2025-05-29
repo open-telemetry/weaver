@@ -320,7 +320,7 @@ pub enum Error {
 ///
 /// Boxed detailed error struct for `InvalidSemConvSpec` variant.
 /// This is used to keep main error type `Error` under the limit of 128 bytes.
-/// See: https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
+/// See: [result_large_err](https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err)
 ///
 /// Note: The JSON schema governing the syntax of semantic conventions can be generated
 /// using the `weaver registry json-schema -j semconv-group` command.
