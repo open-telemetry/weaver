@@ -18,6 +18,13 @@
 					{
 						"allOf": [
 							{
+								"$ref": "#/$defs/EntitySemanticConvention"
+							}
+						]
+					},
+					{
+						"allOf": [
+							{
 								"$ref": "#/$defs/SpanSemanticConvention"
 							}
 						]
@@ -99,6 +106,23 @@
 				}
 			]
 		},
+
+		"EntitySemanticConvention": {
+			"allOf": [
+				{
+					"$ref": "#/$defs/SemanticConventionBase"
+				}
+			],
+			"required": [
+				"name"
+			],
+			"properties": {
+				"type": {
+					"type": "string",
+					"const": "entity"
+				}
+			}
+		},
 		"SemanticConventionBase": {
 			"type": "object",
 			"required": [
@@ -165,7 +189,7 @@
 					"type": "string",
 					"enum": [
 						"span",
-						"resource",
+						"entity",
 						"metric",
 						"event",
 						"attribute_group"
@@ -193,7 +217,7 @@
 				},
 				"display_name": {
 					"type": "string",
-					"description": "the display name / title of the attribute group."
+					"description": "the display name / title of the semantic convention."
 				},
 				"deprecated": {
 					"$ref": "#/$defs/Deprecated"
@@ -235,6 +259,10 @@
 						"internal"
 					],
 					"description": "specifies the kind of the span."
+				},
+				"entity_associations": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/EntityAssociation" }
 				}
 			}
 		},
@@ -255,6 +283,10 @@
 				},
 				"body": {
 					"$ref": "#/$defs/AnyValueSemanticConvention"
+				},
+				"entity_associations": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/EntityAssociation" }
 				}
 			},
 			"anyOf": [
@@ -458,6 +490,10 @@
 				"unit": {
 					"type": "string",
 					"description": "The unit in which the metric is measured in."
+				},
+				"entity_associations": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/EntityAssociation" }
 				}
 			}
 		},
@@ -762,6 +798,11 @@
 					"description": "literal denoting the type"
 				}
 			]
+		},
+		"EntityAssociation": {
+			"type": "array",
+			"items": { "type": "string" },
+			"description": "list of entity associations."
 		}
 	}
 }

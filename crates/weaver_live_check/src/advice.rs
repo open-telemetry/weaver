@@ -2,7 +2,11 @@
 
 //! Builtin advisors
 
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::PathBuf,
+    rc::Rc,
+};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -18,7 +22,10 @@ use weaver_semconv::{
     stability::Stability,
 };
 
-use crate::{live_checker::LiveChecker, Error, SampleRef};
+use crate::{
+    live_checker::LiveChecker, sample_attribute::SampleAttribute, sample_metric::SampleInstrument,
+    Error, SampleRef,
+};
 
 /// Embedded default live check rego policies
 pub const DEFAULT_LIVE_CHECK_REGO: &str =
@@ -37,9 +44,19 @@ pub trait Advisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Attribute>,
-        registry_group: Option<&ResolvedGroup>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error>;
+}
+
+fn deprecated_to_value(deprecated: &Deprecated) -> Value {
+    match deprecated {
+        Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
+        Deprecated::Obsoleted { .. } => Value::String("obsoleted".to_owned()),
+        Deprecated::Uncategorized { .. } | Deprecated::Unspecified { .. } => {
+            Value::String("uncategorized".to_owned())
+        }
+    }
 }
 
 /// An advisor that checks if an attribute is deprecated
@@ -48,8 +65,8 @@ impl Advisor for DeprecatedAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Attribute>,
-        _registry_group: Option<&ResolvedGroup>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(_sample_attribute) => {
@@ -58,15 +75,21 @@ impl Advisor for DeprecatedAdvisor {
                     if let Some(deprecated) = &attribute.deprecated {
                         advices.push(Advice {
                             advice_type: "deprecated".to_owned(),
-                            value: match deprecated {
-                                Deprecated::Renamed { .. } => Value::String("renamed".to_owned()),
-                                Deprecated::Obsoleted { .. } => {
-                                    Value::String("obsoleted".to_owned())
-                                }
-                                Deprecated::Uncategorized { .. } => {
-                                    Value::String("uncategorized".to_owned())
-                                }
-                            },
+                            value: deprecated_to_value(deprecated),
+                            message: deprecated.to_string(),
+                            advice_level: AdviceLevel::Violation,
+                        });
+                    }
+                }
+                Ok(advices)
+            }
+            SampleRef::Metric(_sample_metric) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    if let Some(deprecated) = &group.deprecated {
+                        advices.push(Advice {
+                            advice_type: "deprecated".to_owned(),
+                            value: deprecated_to_value(deprecated),
                             message: deprecated.to_string(),
                             advice_level: AdviceLevel::Violation,
                         });
@@ -88,14 +111,31 @@ impl Advisor for StabilityAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Attribute>,
-        _registry_group: Option<&ResolvedGroup>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(_sample_attribute) => {
                 let mut advices = Vec::new();
                 if let Some(attribute) = registry_attribute {
                     match attribute.stability {
+                        Some(ref stability) if *stability != Stability::Stable => {
+                            advices.push(Advice {
+                                advice_type: "stability".to_owned(),
+                                value: Value::String(stability.to_string()),
+                                message: "Is not stable".to_owned(),
+                                advice_level: AdviceLevel::Improvement,
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(advices)
+            }
+            SampleRef::Metric(_sample_metric) => {
+                let mut advices = Vec::new();
+                if let Some(group) = registry_group {
+                    match group.stability {
                         Some(ref stability) if *stability != Stability::Stable => {
                             advices.push(Advice {
                                 advice_type: "stability".to_owned(),
@@ -116,12 +156,36 @@ impl Advisor for StabilityAdvisor {
 
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
+
+/// Checks if required attributes from a resolved group are present in a list of attributes
+/// Returns a list of advice for missing attributes
+fn check_required_attributes(
+    required_attributes: &[Attribute],
+    attributes: &[SampleAttribute],
+) -> Vec<Advice> {
+    // Create a HashSet of attribute names for O(1) lookups
+    let attribute_set: HashSet<_> = attributes.iter().map(|attr| &attr.name).collect();
+
+    let mut advice_list = Vec::new();
+    for required_attribute in required_attributes {
+        if !attribute_set.contains(&required_attribute.name) {
+            advice_list.push(Advice {
+                advice_type: "attribute_required".to_owned(),
+                value: Value::String(required_attribute.name.clone()),
+                message: "Attribute is required".to_owned(),
+                advice_level: AdviceLevel::Violation,
+            });
+        }
+    }
+    advice_list
+}
+
 impl Advisor for TypeAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Attribute>,
-        _registry_group: Option<&ResolvedGroup>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -178,6 +242,69 @@ impl Advisor for TypeAdvisor {
                     _ => Ok(Vec::new()),
                 }
             }
+            SampleRef::Metric(sample_metric) => {
+                // Check the instrument and unit of the metric
+                let mut advice_list = Vec::new();
+                if let Some(semconv_metric) = registry_group {
+                    match &sample_metric.instrument {
+                        SampleInstrument::Unsupported(name) => {
+                            advice_list.push(Advice {
+                                advice_type: "unsupported_instrument".to_owned(),
+                                value: name.as_str().into(),
+                                message: "Instrument is not supported".to_owned(),
+                                advice_level: AdviceLevel::Violation,
+                            });
+                        }
+                        SampleInstrument::Supported(sample_instrument) => {
+                            if let Some(semconv_instrument) = &semconv_metric.instrument {
+                                if semconv_instrument != sample_instrument {
+                                    advice_list.push(Advice {
+                                        advice_type: "instrument_mismatch".to_owned(),
+                                        value: Value::String(sample_instrument.to_string()),
+                                        message: format!(
+                                            "Instrument should be `{}`",
+                                            sample_instrument
+                                        ),
+                                        advice_level: AdviceLevel::Violation,
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(semconv_unit) = &semconv_metric.unit {
+                        if semconv_unit != &sample_metric.unit {
+                            advice_list.push(Advice {
+                                advice_type: "unit_mismatch".to_owned(),
+                                value: Value::String(sample_metric.unit.clone()),
+                                message: format!("Unit should be `{}`", semconv_unit),
+                                advice_level: AdviceLevel::Violation,
+                            });
+                        }
+                    }
+                }
+                Ok(advice_list)
+            }
+            SampleRef::NumberDataPoint(sample_number_data_point) => {
+                if let Some(semconv_metric) = registry_group {
+                    Ok(check_required_attributes(
+                        &semconv_metric.attributes,
+                        &sample_number_data_point.attributes,
+                    ))
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            SampleRef::HistogramDataPoint(sample_histogram_data_point) => {
+                if let Some(semconv_metric) = registry_group {
+                    Ok(check_required_attributes(
+                        &semconv_metric.attributes,
+                        &sample_histogram_data_point.attributes,
+                    ))
+                } else {
+                    Ok(Vec::new())
+                }
+            }
             _ => Ok(Vec::new()),
         }
     }
@@ -189,8 +316,8 @@ impl Advisor for EnumAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        registry_attribute: Option<&Attribute>,
-        _registry_group: Option<&ResolvedGroup>,
+        registry_attribute: Option<Rc<Attribute>>,
+        _registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
         match sample {
             SampleRef::Attribute(sample_attribute) => {
@@ -334,13 +461,25 @@ impl RegoAdvisor {
     }
 }
 
+/// Input data for the check function
+#[derive(Serialize)]
+struct RegoInput<'a> {
+    sample: SampleRef<'a>,
+    registry_attribute: Option<Rc<Attribute>>,
+    registry_group: Option<Rc<ResolvedGroup>>,
+}
+
 impl Advisor for RegoAdvisor {
     fn advise(
         &mut self,
         sample: SampleRef<'_>,
-        _registry_attribute: Option<&Attribute>,
-        _registry_group: Option<&ResolvedGroup>,
+        registry_attribute: Option<Rc<Attribute>>,
+        registry_group: Option<Rc<ResolvedGroup>>,
     ) -> Result<Vec<Advice>, Error> {
-        self.check(sample)
+        self.check(RegoInput {
+            sample,
+            registry_attribute,
+            registry_group,
+        })
     }
 }

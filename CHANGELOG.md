@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+# [0.15.1] - 2025-05-27
+
+- Add support for metrics in Live Check. ([#728](https://github.com/open-telemetry/weaver/pull/728) by @jerbly)
+- Fix #750 - Dual registry resolves incorrectly. ([#753](https://github.com/open-telemetry/weaver/pull/753) by @lquerel)
+- Fail on unstructured `deprecated` note (behind `--future` flag) ([#737](https://github.com/open-telemetry/weaver/pull/737) by @lmolkova)
+
 # [0.15.0] - 2025-05-01
 
 - Add support for attributes of type `any`. ([#707](https://github.com/open-telemetry/weaver/pull/707) by @lquerel)
