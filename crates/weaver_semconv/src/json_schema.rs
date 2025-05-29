@@ -161,8 +161,8 @@ impl JsonSchemaValidator {
                         error.instance, limit, if *limit == 1 { "" } else { "s" }),
 
             ValidationErrorKind::MaxProperties { limit } =>
-                format!("Object {} has too many properties: exceeds the maximum of {} propert{}.",
-                        error.instance, limit, if *limit == 1 { "y" } else { "ies" }),
+                format!("Object {} has too many properties: exceeds the maximum of {} property(ies).",
+                        error.instance, limit),
 
             ValidationErrorKind::MinItems { limit } =>
                 format!("Array {} has too few items: minimum required is {}.", error.instance, limit),
@@ -175,8 +175,8 @@ impl JsonSchemaValidator {
                         error.instance, limit, if *limit == 1 { "" } else { "s" }),
 
             ValidationErrorKind::MinProperties { limit } =>
-                format!("Object {} has too few properties: minimum required is {} propert{}.",
-                        error.instance, limit, if *limit == 1 { "y" } else { "ies" }),
+                format!("Object {} has too few properties: minimum required is {} property(ies).",
+                        error.instance, limit),
 
             ValidationErrorKind::MultipleOf { multiple_of } =>
                 format!("Value {} is not a multiple of {}.", error.instance, multiple_of),
