@@ -19,9 +19,12 @@ use crate::stability::Stability;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
 
-/// Group Spec contain the list of semantic conventions for attributes,
-/// metrics, events, spans, etc.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+/// A group defines an attribute group, an entity, or a signal.
+/// Supported group types are: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`.
+/// Mandatory fields are: `id` and `brief`.
+///
+/// Note: The `resource` type is no longer used and is an alias for `entity`.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
@@ -84,8 +87,9 @@ pub struct GroupSpec {
     /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
     /// Note: This field is required if type is metric.
     pub unit: Option<String>,
-    /// The name of the event. If not specified, the prefix is used.
-    /// If prefix is empty (or unspecified), name is required.
+    /// The name of the event (valid only when the group `type` is `event`).
+    ///
+    /// Note: If not specified, the prefix is used. If the prefix is empty (or unspecified), the name is required.
     pub name: Option<String>,
     /// The readable name for attribute groups used when generating registry tables.
     pub display_name: Option<String>,
@@ -511,7 +515,9 @@ fn validate_any_value(
     }
 }
 
-/// The different types of groups (specification).
+/// The different types of groups: `attribute_group`, `span`, `event`, `metric`, `entity`, `scope`.
+///
+/// Note: The `resource` type is no longer used and is an alias for `entity`.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GroupType {

@@ -3,10 +3,11 @@
 #![doc = include_str!("../README.md")]
 
 use crate::Error::CompoundError;
-use miette::Diagnostic;
+use miette::{Diagnostic, NamedSource, SourceSpan};
 use schemars::schema::{InstanceType, Schema};
 use schemars::{JsonSchema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::hash::Hasher;
 use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
@@ -16,6 +17,7 @@ pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
 pub mod group;
+pub mod json_schema;
 pub mod manifest;
 pub mod metric;
 pub mod provenance;
@@ -58,16 +60,30 @@ pub enum Error {
         error: String,
     },
 
-    /// The semantic convention spec is invalid.
-    #[error("The semantic convention spec is invalid (path_or_url: {path_or_url:?}). {error}")]
-    InvalidSemConvSpec {
-        /// The path or URL of the semantic convention spec.
+    /// A deserialization error occurred while processing a semantic convention group.
+    #[error("{error}")]
+    #[diagnostic(severity(Error))]
+    DeserializationError {
+        /// The path or URL of the semantic convention asset.
         path_or_url: String,
-        /// The line where the error occurred.
-        line: Option<usize>,
-        /// The column where the error occurred.
-        column: Option<usize>,
         /// The error that occurred.
+        error: String,
+    },
+
+    /// The semantic convention spec is invalid.
+    ///
+    /// Note: We use a boxed error type here to keep the main `Error` type under the 128 bytes
+    /// limit and avoid the `result_large_err` clippy lint.
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    InvalidSemConvSpec(#[from] Box<InvalidSemConvSpecError>),
+
+    /// The provided xpath is invalid.
+    #[error("Invalid XPath `{xpath}` detected while validating semantic convention spec.\nError: {error}")]
+    InvalidXPath {
+        /// The invalid XPath expression.
+        xpath: String,
+        /// The reason of the error.
         error: String,
     },
 
@@ -300,6 +316,35 @@ pub enum Error {
     CompoundError(#[related] Vec<Error>),
 }
 
+/// The semantic convention spec is invalid.
+///
+/// Boxed detailed error struct for `InvalidSemConvSpec` variant.
+/// This is used to keep main error type `Error` under the limit of 128 bytes.
+/// See: [result_large_err](https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err)
+///
+/// Note: The JSON schema governing the syntax of semantic conventions can be generated
+/// using the `weaver registry json-schema -j semconv-group` command.
+#[derive(Debug, thiserror::Error, Clone, PartialEq, Serialize, Diagnostic)]
+#[error("{error}")]
+#[diagnostic(severity(Error), code(invalid_semconv_group))]
+pub struct InvalidSemConvSpecError {
+    /// The YAML content of the semantic convention spec (if available).
+    #[source_code]
+    #[serde(skip_serializing)]
+    pub src: NamedSource<Cow<'static, str>>,
+
+    /// The span of the error in the semantic convention spec.
+    #[label("somewhere in this block")]
+    pub err_span: SourceSpan,
+
+    /// The error that occurred.
+    pub error: String,
+
+    /// Optional advice to help the user understand the error.
+    #[help]
+    pub advice: Option<String>,
+}
+
 impl WeaverError<Error> for Error {
     fn compound(errors: Vec<Error>) -> Error {
         CompoundError(
@@ -468,6 +513,7 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
+    use crate::json_schema::JsonSchemaValidator;
     use crate::registry::SemConvRegistry;
     use std::vec;
     use weaver_common::diagnostic::DiagnosticMessages;
@@ -476,6 +522,7 @@ mod tests {
     /// No error should be emitted.
     #[test]
     fn test_valid_semconv_registry() {
+        let validator = JsonSchemaValidator::new();
         let yaml_files = vec![
             "data/client.yaml",
             "data/cloud.yaml",
@@ -508,7 +555,7 @@ mod tests {
         let mut registry = SemConvRegistry::default();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file("main", yaml)
+                .add_semconv_spec_from_file("main", yaml, &validator)
                 .into_result_failing_non_fatal();
             assert!(result.is_ok(), "{:#?}", result.err().unwrap());
         }
@@ -519,9 +566,10 @@ mod tests {
         let yaml_files = vec!["data/invalid.yaml"];
 
         let mut registry = SemConvRegistry::default();
+        let validator = JsonSchemaValidator::new();
         for yaml in yaml_files {
             let result = registry
-                .add_semconv_spec_from_file("main", yaml)
+                .add_semconv_spec_from_file("main", yaml, &validator)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

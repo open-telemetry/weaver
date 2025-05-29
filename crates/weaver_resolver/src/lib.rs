@@ -18,6 +18,7 @@ use weaver_common::error::{format_errors, WeaverError};
 use weaver_common::result::WResult;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::ResolvedTelemetrySchema;
+use weaver_semconv::json_schema::JsonSchemaValidator;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
@@ -270,6 +271,7 @@ impl SchemaResolver {
 
         let local_path = registry_repo.path().to_path_buf();
         let registry_path_repr = registry_repo.registry_path_repr();
+        let validator = JsonSchemaValidator::new();
 
         // Loads the semantic convention specifications from the git repo.
         // All yaml files are recursively loaded and parsed in parallel from
@@ -286,24 +288,26 @@ impl SchemaResolver {
                             return vec![].into_par_iter();
                         }
 
-                        vec![SemConvRegistry::semconv_spec_from_file(entry.path()).map(
-                            |(path, spec)| {
-                                // Replace the local path with the git URL combined with the relative path
-                                // of the semantic convention file.
-                                let prefix = local_path
-                                    .to_str()
-                                    .map(|s| s.to_owned())
-                                    .unwrap_or_default();
-                                let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
-                                    let relative_path = &path[prefix.len()..];
-                                    format!("{}{}", registry_path_repr, relative_path)
-                                } else {
-                                    let relative_path = &path[prefix.len() + 1..];
-                                    format!("{}/{}", registry_path_repr, relative_path)
-                                };
-                                (Provenance::new(&registry_repo.id(), &path), spec)
-                            },
-                        )]
+                        vec![
+                            SemConvRegistry::semconv_spec_from_file(entry.path(), &validator).map(
+                                |(path, spec)| {
+                                    // Replace the local path with the git URL combined with the relative path
+                                    // of the semantic convention file.
+                                    let prefix = local_path
+                                        .to_str()
+                                        .map(|s| s.to_owned())
+                                        .unwrap_or_default();
+                                    let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                        let relative_path = &path[prefix.len()..];
+                                        format!("{}{}", registry_path_repr, relative_path)
+                                    } else {
+                                        let relative_path = &path[prefix.len() + 1..];
+                                        format!("{}/{}", registry_path_repr, relative_path)
+                                    };
+                                    (Provenance::new(&registry_repo.id(), &path), spec)
+                                },
+                            ),
+                        ]
                         .into_par_iter()
                     }
                     Err(e) => vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
