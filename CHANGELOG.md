@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+# [0.15.2] - 2025-05-30
+
+- Improve the quality of error messages emitted by Weaver
+  ([#759](https://github.com/open-telemetry/weaver/pull/759) by @lquerel)
+- Remove deprecated `allow_custom_values` from the codebase and YAML files
+  ([#758](https://github.com/open-telemetry/weaver/pull/758) by @trisch-me)
+  As a result of this change, the earliest version of the semantic conventions
+  that Weaver can read is now 1.27.0.
+
 # [0.15.1] - 2025-05-27
 
 - Add support for metrics in Live Check. ([#728](https://github.com/open-telemetry/weaver/pull/728) by @jerbly)

@@ -12,7 +12,7 @@ use std::time::Duration;
 const REPO_URL: &str = "https://github.com/open-telemetry/semantic-conventions.git";
 const ARCHIVE_URL: &str =
     "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/";
-const START_TAG: &str = "v1.26.0";
+const START_TAG: &str = "v1.27.0";
 const TEMP_REPO_DIR: &str = "history-temp-repo";
 
 /// Get the git repository, no checkout
