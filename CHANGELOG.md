@@ -8,8 +8,8 @@ All notable changes to this project will be documented in this file.
   ([#759](https://github.com/open-telemetry/weaver/pull/759) by @lquerel)
 - Remove deprecated `allow_custom_values` from the codebase and YAML files
   ([#758](https://github.com/open-telemetry/weaver/pull/758) by @trisch-me)
-  As a result of this change, the earliest version of the semantic conventions
-  that Weaver can read is now 1.27.0.
+  As a result of this change, `allow_custom_values` will be ignored in registry
+  version 1.26.0, which was the last version to support it.
 
 # [0.15.1] - 2025-05-27
 
