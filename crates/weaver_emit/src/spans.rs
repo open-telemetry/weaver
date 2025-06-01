@@ -35,7 +35,7 @@ fn otel_span_kind(span_kind: Option<&SpanKindSpec>) -> SpanKind {
 /// For the given attribute, return a name/value pair.
 /// Values are generated based on the attribute type and examples where possible.
 #[must_use]
-fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
+pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
     let name = attribute.name.clone();
     match &attribute.r#type {
         AttributeType::PrimitiveOrArray(primitive_or_array) => {

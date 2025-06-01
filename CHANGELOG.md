@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+# [NEXT] - NEXT
+
+- Add support for metrics to `registry emit`
+  ([#???](https://github.com/open-telemetry/weaver/pull/???) by @jerbly)
+
 # [0.15.2] - 2025-05-30
 
 - Improve the quality of error messages emitted by Weaver

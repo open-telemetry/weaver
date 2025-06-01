@@ -81,9 +81,9 @@ fn test_emit_with_live_check() {
     let total_entities = statistics["total_entities"].as_u64().unwrap();
     let registry_coverage = statistics["registry_coverage"].as_f64().unwrap();
 
-    assert_eq!(no_advice_count, 24);
-    assert_eq!(total_advisories, 9);
-    assert_eq!(total_entities, 33);
+    assert_eq!(no_advice_count, 37);
+    assert_eq!(total_advisories, 13);
+    assert_eq!(total_entities, 50);
     assert!(registry_coverage > 0.7);
 
     // The temporary directory will be automatically cleaned up when temp_dir goes out of scope
