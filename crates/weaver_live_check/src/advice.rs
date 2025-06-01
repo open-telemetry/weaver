@@ -263,7 +263,7 @@ impl Advisor for TypeAdvisor {
                                         value: Value::String(sample_instrument.to_string()),
                                         message: format!(
                                             "Instrument should be `{}`",
-                                            sample_instrument
+                                            semconv_instrument
                                         ),
                                         advice_level: AdviceLevel::Violation,
                                     });
