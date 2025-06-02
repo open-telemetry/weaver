@@ -5,6 +5,8 @@ import rego.v1
 # Use pre-computed sets from jq
 attributes_set := data.attributes_set
 
+deprecated_attributes_set := data.deprecated_attributes_set
+
 templates_set := data.templates_set
 
 namespaces_to_check_set := data.namespaces_to_check_set
@@ -62,7 +64,8 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 
 	# Find collision
 	some value in namespaces
-	attributes_set[value] != null
+	attributes_set[value]
+	not deprecated_attributes_set[value]
 
 	advice_type := "illegal_namespace"
 	advice_level := "violation"
@@ -76,13 +79,13 @@ deny contains make_advice(advice_type, advice_level, value, message) if {
 	# Skip checks first (fail fast)
 	contains(input.sample.attribute.name, ".") # Must have at least one namespace
 	not is_template_type(input.sample.attribute.name)
-	not is_registry_attribute(input.sample.attribute.name)
+	not attributes_set[input.sample.attribute.name]
 
 	# Get input namespaces
 	namespaces := derive_namespaces(input.sample.attribute.name)
 
 	# Find matches - check keys in set
-	matches := [ns | some ns in namespaces; namespaces_to_check_set[ns] != null]
+	matches := [ns | some ns in namespaces; namespaces_to_check_set[ns]]
 	count(matches) > 0
 
 	# Get the last match (most specific namespace)
@@ -105,9 +108,4 @@ make_advice(advice_type, advice_level, value, message) := {
 is_template_type(name) if {
 	some template in object.keys(templates_set)
 	startswith(name, template)
-}
-
-# Helper function to check if name is a registry attribute
-is_registry_attribute(name) if {
-	attributes_set[name] != null
 }
