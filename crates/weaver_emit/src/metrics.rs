@@ -2,7 +2,7 @@
 
 //! Translations from Weaver to Otel for metrics.
 
-use crate::spans::get_attribute_name_value;
+use crate::attributes::get_attribute_name_value;
 use opentelemetry::global;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::group::GroupType;

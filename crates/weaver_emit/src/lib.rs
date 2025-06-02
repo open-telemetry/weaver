@@ -14,6 +14,7 @@ use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
 
+pub mod attributes;
 pub mod metrics;
 pub mod spans;
 
@@ -132,14 +133,14 @@ pub enum ExporterConfig {
 pub fn emit(
     registry: &ResolvedRegistry,
     registry_path: &str,
-    tracer_provider_config: &ExporterConfig,
+    exporter_config: &ExporterConfig,
 ) -> Result<(), Error> {
     let rt = tokio::runtime::Runtime::new().map_err(|e| Error::EmitError {
         error: e.to_string(),
     })?;
     rt.block_on(async {
         // Emit spans
-        let tracer_provider = match tracer_provider_config {
+        let tracer_provider = match exporter_config {
             ExporterConfig::Stdout => init_stdout_tracer_provider(),
             ExporterConfig::Otlp { endpoint } => {
                 init_tracer_provider(endpoint).map_err(|e| Error::TracerProviderError {
@@ -158,10 +159,10 @@ pub fn emit(
             })?;
 
         // Emit metrics
-        let meter_provider = match tracer_provider_config {
+        let meter_provider = match exporter_config {
             ExporterConfig::Stdout => init_stdout_meter_provider(),
             ExporterConfig::Otlp { endpoint } => {
-                init_meter_provider(endpoint).map_err(|e| Error::TracerProviderError {
+                init_meter_provider(endpoint).map_err(|e| Error::MetricProviderError {
                     error: e.to_string(),
                 })?
             }
