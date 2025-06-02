@@ -167,7 +167,13 @@ pub fn get_attribute_name_value(attribute: &Attribute) -> KeyValue {
             KeyValue::new(name, value)
         }
         AttributeType::Enum { members, .. } => {
-            KeyValue::new(name, Value::String(members[0].value.to_string().into()))
+            let value = match &members[0].value {
+                ValueSpec::String(s) => Value::String(s.clone().into()),
+                ValueSpec::Int(i) => Value::I64(*i),
+                ValueSpec::Double(d) => Value::F64(f64::from(*d)),
+                ValueSpec::Bool(b) => Value::Bool(*b),
+            };
+            KeyValue::new(name, value)
         }
         AttributeType::Template(template_type_spec) => {
             // TODO Support examples when https://github.com/open-telemetry/semantic-conventions/issues/1740 is complete
@@ -509,7 +515,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enum() {
+    fn test_enum_string() {
         let attr = create_test_attribute(
             "test.enum",
             AttributeType::Enum {
@@ -536,6 +542,96 @@ mod tests {
         );
         let kv = get_attribute_name_value(&attr);
         assert_eq!(kv, KeyValue::new("test.enum", "FIRST"));
+    }
+
+    #[test]
+    fn test_enum_int() {
+        let attr = create_test_attribute(
+            "test.enum",
+            AttributeType::Enum {
+                members: vec![
+                    EnumEntriesSpec {
+                        id: "first".to_owned(),
+                        value: ValueSpec::Int(1),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                    },
+                    EnumEntriesSpec {
+                        id: "second".to_owned(),
+                        value: ValueSpec::Int(2),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                    },
+                ],
+            },
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.enum", 1_i64));
+    }
+
+    #[test]
+    fn test_enum_double() {
+        let attr = create_test_attribute(
+            "test.enum",
+            AttributeType::Enum {
+                members: vec![
+                    EnumEntriesSpec {
+                        id: "first".to_owned(),
+                        value: ValueSpec::Double(OrderedFloat(1.5)),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                    },
+                    EnumEntriesSpec {
+                        id: "second".to_owned(),
+                        value: ValueSpec::Double(OrderedFloat(2.5)),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                    },
+                ],
+            },
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.enum", 1.5));
+    }
+
+    #[test]
+    fn test_enum_boolean() {
+        let attr = create_test_attribute(
+            "test.enum",
+            AttributeType::Enum {
+                members: vec![
+                    EnumEntriesSpec {
+                        id: "first".to_owned(),
+                        value: ValueSpec::Bool(true),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                    },
+                    EnumEntriesSpec {
+                        id: "second".to_owned(),
+                        value: ValueSpec::Bool(false),
+                        brief: None,
+                        note: None,
+                        stability: None,
+                        deprecated: None,
+                    },
+                ],
+            },
+            None,
+        );
+        let kv = get_attribute_name_value(&attr);
+        assert_eq!(kv, KeyValue::new("test.enum", true));
     }
 
     #[test]
