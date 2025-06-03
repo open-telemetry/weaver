@@ -966,6 +966,19 @@ mod tests {
             stats.advice_type_counts.get("instrument_mismatch"),
             Some(&1)
         );
+        // Check the live check result for the sample has the correct instrument mismatch message
+        let sample = match &samples[0] {
+            Sample::Metric(m) => m,
+            _ => panic!("Expected a Metric sample"),
+        };
+        let live_check_result = sample.live_check_result.as_ref().unwrap();
+        // Get the instrument_mismatch from all_advice
+        let advice = live_check_result
+            .all_advice
+            .iter()
+            .find(|a| a.advice_type == "instrument_mismatch")
+            .expect("Expected instrument_mismatch advice");
+        assert_eq!(advice.message, "Instrument should be `updowncounter`");
     }
 
     #[test]
