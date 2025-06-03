@@ -6202,7 +6202,7 @@ dependencies = [
  "minijinja-contrib",
  "opentelemetry 0.30.0",
  "opentelemetry-stdout 0.29.0",
- "opentelemetry_sdk 0.29.0",
+ "opentelemetry_sdk 0.30.0",
  "rayon",
  "regex",
  "schemars",
