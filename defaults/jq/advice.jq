@@ -5,6 +5,15 @@
     .semconv_attributes | keys | 
     reduce .[] as $attr ({}; . + {($attr): true})
   ),
+
+  # Convert attributes to a set of deprecated attributes
+  "deprecated_attributes_set": (
+    .semconv_attributes | 
+    to_entries | 
+    map(select(.value.deprecated != null)) | 
+    map(.key) | 
+    reduce .[] as $attr ({}; . + {($attr): true})
+  ),
   
   # Convert templates to a set
   "templates_set": (

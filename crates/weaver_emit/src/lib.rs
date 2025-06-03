@@ -2,16 +2,20 @@
 
 //! This crate provides the "emit" library for emitting OTLP signals generated from registries.
 
+use metrics::emit_metrics_for_registry;
 use miette::Diagnostic;
 use opentelemetry::global;
-use opentelemetry_otlp::{ExporterBuildError, WithExportConfig};
-use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_otlp::{ExporterBuildError, MetricExporter, WithExportConfig};
+use opentelemetry_sdk::metrics::SdkMeterProvider;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::{metrics::PeriodicReader, trace::SdkTracerProvider};
 use serde::Serialize;
 use spans::emit_trace_for_registry;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_forge::registry::ResolvedRegistry;
 
+pub mod attributes;
+pub mod metrics;
 pub mod spans;
 
 /// The default OTLP endpoint.
@@ -32,6 +36,12 @@ pub enum Error {
     /// Tracer provider error.
     #[error("Tracer provider error. Check your Otel configuration. {error}")]
     TracerProviderError {
+        /// The error that occurred.
+        error: String,
+    },
+    /// Metric provider error.
+    #[error("Metric provider error. Check your Otel configuration. {error}")]
+    MetricProviderError {
         /// The error that occurred.
         error: String,
     },
@@ -72,6 +82,41 @@ fn init_stdout_tracer_provider() -> SdkTracerProvider {
         .build()
 }
 
+/// Initialise a grpc OTLP exporter for metrics, sends to by default http://localhost:4317
+/// but can be overridden with the standard OTEL_EXPORTER_OTLP_ENDPOINT env var.
+fn init_meter_provider(endpoint: &String) -> Result<SdkMeterProvider, ExporterBuildError> {
+    let resource = Resource::builder()
+        .with_service_name(WEAVER_SERVICE_NAME)
+        .build();
+
+    let exporter = MetricExporter::builder()
+        .with_tonic()
+        .with_endpoint(endpoint)
+        .build()?;
+
+    let reader = PeriodicReader::builder(exporter).build();
+
+    Ok(SdkMeterProvider::builder()
+        .with_resource(resource)
+        .with_reader(reader)
+        .build())
+}
+
+/// Initialise a stdout exporter for debug
+fn init_stdout_meter_provider() -> SdkMeterProvider {
+    let resource = Resource::builder()
+        .with_service_name(WEAVER_SERVICE_NAME)
+        .build();
+
+    let exporter = opentelemetry_stdout::MetricExporter::default();
+    let reader = PeriodicReader::builder(exporter).build();
+
+    SdkMeterProvider::builder()
+        .with_resource(resource)
+        .with_reader(reader)
+        .build()
+}
+
 /// The configuration for the tracer provider.
 #[derive(Debug)]
 pub enum ExporterConfig {
@@ -88,14 +133,14 @@ pub enum ExporterConfig {
 pub fn emit(
     registry: &ResolvedRegistry,
     registry_path: &str,
-    tracer_provider_config: &ExporterConfig,
+    exporter_config: &ExporterConfig,
 ) -> Result<(), Error> {
     let rt = tokio::runtime::Runtime::new().map_err(|e| Error::EmitError {
         error: e.to_string(),
     })?;
     rt.block_on(async {
         // Emit spans
-        let tracer_provider = match tracer_provider_config {
+        let tracer_provider = match exporter_config {
             ExporterConfig::Stdout => init_stdout_tracer_provider(),
             ExporterConfig::Otlp { endpoint } => {
                 init_tracer_provider(endpoint).map_err(|e| Error::TracerProviderError {
@@ -113,7 +158,24 @@ pub fn emit(
                 error: e.to_string(),
             })?;
 
-        // TODO Emit metrics
+        // Emit metrics
+        let meter_provider = match exporter_config {
+            ExporterConfig::Stdout => init_stdout_meter_provider(),
+            ExporterConfig::Otlp { endpoint } => {
+                init_meter_provider(endpoint).map_err(|e| Error::MetricProviderError {
+                    error: e.to_string(),
+                })?
+            }
+        };
+        global::set_meter_provider(meter_provider.clone());
+
+        emit_metrics_for_registry(registry);
+
+        meter_provider
+            .shutdown()
+            .map_err(|e| Error::MetricProviderError {
+                error: e.to_string(),
+            })?;
         Ok(())
     })
 }
@@ -125,7 +187,7 @@ mod tests {
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
-        group::{GroupType, SpanKindSpec},
+        group::{GroupType, InstrumentSpec, SpanKindSpec},
         stability::Stability,
     };
 
@@ -134,48 +196,134 @@ mod tests {
     fn test_emit_stdout() {
         let registry = ResolvedRegistry {
             registry_url: "TEST".to_owned(),
-            groups: vec![ResolvedGroup {
-                id: "test.comprehensive.internal".to_owned(),
-                r#type: GroupType::Span,
-                brief: "".to_owned(),
-                note: "".to_owned(),
-                prefix: "".to_owned(),
-                extends: None,
-                stability: Some(Stability::Stable),
-                deprecated: None,
-                attributes: vec![Attribute {
-                    name: "test.string".to_owned(),
-                    r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-                    examples: Some(Examples::Strings(vec![
-                        "value1".to_owned(),
-                        "value2".to_owned(),
-                    ])),
+            groups: vec![
+                ResolvedGroup {
+                    id: "test.comprehensive.internal".to_owned(),
+                    r#type: GroupType::Span,
                     brief: "".to_owned(),
-                    tag: None,
-                    requirement_level: RequirementLevel::Recommended {
-                        text: "".to_owned(),
-                    },
-                    sampling_relevant: None,
                     note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    extends: None,
                     stability: Some(Stability::Stable),
                     deprecated: None,
-                    prefix: false,
-                    tags: None,
-                    value: None,
-                    annotations: None,
-                    role: Default::default(),
-                }],
-                span_kind: Some(SpanKindSpec::Internal),
-                events: vec![],
-                metric_name: None,
-                instrument: None,
-                unit: None,
-                name: None,
-                lineage: None,
-                display_name: None,
-                body: None,
-                entity_associations: vec![],
-            }],
+                    attributes: vec![Attribute {
+                        name: "test.string".to_owned(),
+                        r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                        examples: Some(Examples::Strings(vec![
+                            "value1".to_owned(),
+                            "value2".to_owned(),
+                        ])),
+                        brief: "".to_owned(),
+                        tag: None,
+                        requirement_level: RequirementLevel::Recommended {
+                            text: "".to_owned(),
+                        },
+                        sampling_relevant: None,
+                        note: "".to_owned(),
+                        stability: Some(Stability::Stable),
+                        deprecated: None,
+                        prefix: false,
+                        tags: None,
+                        value: None,
+                        annotations: None,
+                        role: Default::default(),
+                    }],
+                    span_kind: Some(SpanKindSpec::Internal),
+                    events: vec![],
+                    metric_name: None,
+                    instrument: None,
+                    unit: None,
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                    entity_associations: vec![],
+                },
+                ResolvedGroup {
+                    id: "test.updowncounter".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "test.updowncounter".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Development),
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("test.updowncounter".to_owned()),
+                    instrument: Some(InstrumentSpec::UpDownCounter),
+                    unit: Some("1".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                },
+                ResolvedGroup {
+                    id: "test.counter".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "test.counter".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Development),
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("test.counter".to_owned()),
+                    instrument: Some(InstrumentSpec::Counter),
+                    unit: Some("1".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                },
+                ResolvedGroup {
+                    id: "test.gauge".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "test.gauge".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Development),
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("test.gauge".to_owned()),
+                    instrument: Some(InstrumentSpec::Gauge),
+                    unit: Some("1".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                },
+                ResolvedGroup {
+                    id: "test.histogram".to_owned(),
+                    r#type: GroupType::Metric,
+                    brief: "test.histogram".to_owned(),
+                    note: "".to_owned(),
+                    prefix: "".to_owned(),
+                    entity_associations: vec![],
+                    extends: None,
+                    stability: Some(Stability::Development),
+                    deprecated: None,
+                    attributes: vec![],
+                    span_kind: None,
+                    events: vec![],
+                    metric_name: Some("test.histogram".to_owned()),
+                    instrument: Some(InstrumentSpec::Histogram),
+                    unit: Some("1".to_owned()),
+                    name: None,
+                    lineage: None,
+                    display_name: None,
+                    body: None,
+                },
+            ],
         };
 
         let result = emit(&registry, "TEST", &ExporterConfig::Stdout);

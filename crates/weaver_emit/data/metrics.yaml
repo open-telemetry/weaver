@@ -1,0 +1,40 @@
+groups:
+  - id: test.comprehensive.gauge
+    type: metric
+    metric_name: test.comprehensive.gauge
+    stability: development
+    brief: "Test gauge"
+    instrument: gauge
+    unit: "1"
+    attributes:
+      - ref: test.string
+
+  - id: test.comprehensive.counter
+    type: metric
+    metric_name: test.comprehensive.counter
+    stability: development
+    brief: "Test counter"
+    instrument: counter
+    unit: "1"
+    attributes:
+      - ref: test.string
+
+  - id: test.comprehensive.updowncounter
+    type: metric
+    metric_name: test.comprehensive.updowncounter
+    stability: development
+    brief: "Test updowncounter"
+    instrument: updowncounter
+    unit: "1"
+    attributes:
+      - ref: test.string
+
+  - id: test.comprehensive.histogram
+    type: metric
+    metric_name: test.comprehensive.histogram
+    stability: development
+    brief: "Test histogram"
+    instrument: histogram
+    unit: "1"
+    attributes:
+      - ref: test.string

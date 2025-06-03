@@ -158,6 +158,7 @@ mod tests {
             ),
             Sample::Attribute(SampleAttribute::try_from("test.extends=new_value").unwrap()),
             Sample::Attribute(SampleAttribute::try_from("test.template.my.key=42").unwrap()),
+            Sample::Attribute(SampleAttribute::try_from("test.deprecated.allowed=42").unwrap()),
         ];
 
         let advisors: Vec<Box<dyn Advisor>> = vec![
@@ -284,17 +285,31 @@ mod tests {
         assert_eq!(all_advice[1].value, Value::String("int".to_owned()));
         assert_eq!(all_advice[1].message, "Type should be `string`");
 
+        // test.deprecated.allowed
+        // Should not get illegal_namespace for extending a deprecated attribute
+        let all_advice = get_all_advice(&mut samples[10]);
+        assert_eq!(all_advice.len(), 2);
+        assert_eq!(all_advice[0].advice_type, "missing_attribute");
+        assert_eq!(
+            all_advice[0].value,
+            Value::String("test.deprecated.allowed".to_owned())
+        );
+        assert_eq!(all_advice[0].message, "Does not exist in the registry");
+        assert_eq!(all_advice[1].advice_type, "extends_namespace");
+        assert_eq!(all_advice[1].value, Value::String("test".to_owned()));
+        assert_eq!(all_advice[1].message, "Extends existing namespace");
+
         // Check statistics
-        assert_eq!(stats.total_entities, 10);
-        assert_eq!(stats.total_advisories, 16);
+        assert_eq!(stats.total_entities, 11);
+        assert_eq!(stats.total_advisories, 18);
         assert_eq!(stats.advice_level_counts.len(), 3);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 10);
-        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 4);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Violation], 11);
+        assert_eq!(stats.advice_level_counts[&AdviceLevel::Information], 5);
         assert_eq!(stats.advice_level_counts[&AdviceLevel::Improvement], 2);
         assert_eq!(stats.highest_advice_level_counts.len(), 2);
         assert_eq!(
             stats.highest_advice_level_counts[&AdviceLevel::Violation],
-            7
+            8
         );
         assert_eq!(
             stats.highest_advice_level_counts[&AdviceLevel::Information],
@@ -303,7 +318,7 @@ mod tests {
         assert_eq!(stats.no_advice_count, 2);
         assert_eq!(stats.seen_registry_attributes.len(), 3);
         assert_eq!(stats.seen_registry_attributes["test.enum"], 3);
-        assert_eq!(stats.seen_non_registry_attributes.len(), 5);
+        assert_eq!(stats.seen_non_registry_attributes.len(), 6);
         assert_eq!(stats.registry_coverage, 1.0);
     }
 
