@@ -176,7 +176,7 @@ impl SemConvSpec {
     pub fn groups(&self) -> &[GroupSpec] {
         &self.groups
     }
-    
+
     /// Returns the list of imports in the semantic convention spec.
     #[must_use]
     pub fn imports(&self) -> Option<&[GroupImport]> {

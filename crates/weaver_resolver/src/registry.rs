@@ -46,7 +46,7 @@ pub struct UnresolvedGroup {
     /// The resolution process will progressively move the unresolved attributes,
     /// and other signals, into the group field once they are resolved.
     pub attributes: Vec<UnresolvedAttribute>,
-    
+
     /// The provenance of the group (URL or path).
     pub provenance: Provenance,
 }
@@ -140,7 +140,12 @@ pub fn resolve_semconv_registry(
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
     if !include_unreferenced {
-        gc_unreferenced_objects(registry.manifest(), &mut ureg.registry, &ureg.imports, attr_catalog);
+        gc_unreferenced_objects(
+            registry.manifest(),
+            &mut ureg.registry,
+            &ureg.imports,
+            attr_catalog,
+        );
     }
 
     WResult::OkWithNFEs(ureg.registry, errors)
@@ -156,11 +161,8 @@ fn gc_unreferenced_objects(
     attr_catalog: &mut AttributeCatalog,
 ) {
     // Build a set of imported IDs from the imports.
-    let imported_ids: HashSet<&str> = imports
-        .iter()
-        .map(|iwp| iwp.import.r#ref())
-        .collect();
-    
+    let imported_ids: HashSet<&str> = imports.iter().map(|iwp| iwp.import.r#ref()).collect();
+
     if let Some(manifest) = manifest {
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
             // This registry has dependencies.
@@ -320,10 +322,8 @@ fn unresolved_registry_from_specs(
         .unresolved_group_with_provenance_iter()
         .map(group_from_spec)
         .collect();
-    let imports = registry
-        .unresolved_imports_iter()
-        .collect::<Vec<_>>();
-    
+    let imports = registry.unresolved_imports_iter().collect::<Vec<_>>();
+
     UnresolvedRegistry {
         registry: Registry::new(registry_url),
         groups,

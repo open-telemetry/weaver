@@ -135,6 +135,7 @@ pub enum GroupImport {
 
 impl GroupImport {
     /// Returns the reference of the group being imported.
+    #[must_use]
     pub fn r#ref(&self) -> &str {
         match self {
             GroupImport::MetricRef { metric_ref } => metric_ref,
