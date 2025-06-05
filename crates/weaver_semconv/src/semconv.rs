@@ -19,7 +19,7 @@ use weaver_common::result::WResult;
 pub struct SemConvSpec {
     /// A collection of semantic convention groups or [`GroupSpec`].
     pub(crate) groups: Vec<GroupSpec>,
-    
+
     /// A list of imports referencing groups defined in a dependent registry.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) imports: Option<Vec<GroupImport>>,

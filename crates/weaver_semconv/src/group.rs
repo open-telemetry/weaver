@@ -110,21 +110,22 @@ pub struct GroupSpec {
 /// Currently supports references to groups of type `metric`, `event`, and `entity`.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
 pub enum GroupImport {
     /// Imports a metric group from the imported registry.
-    MetricRef {
+    Metric {
         /// The ID of the metric group being referenced in the imported registry.
         r#ref: String,
         // Additional overridable fields may be added in the future.
     },
     /// Imports an event group from the imported registry.
-    EventRef {
+    Event {
         /// The ID of the event group being referenced in the imported registry.
         r#ref: String,
         // Additional overridable fields may be added in the future.
     },
     /// Imports an entity group from the imported registry.
-    EntityRef {
+    Entity {
         /// The ID of the entity group being referenced in the imported registry.
         r#ref: String,
         // Additional overridable fields may be added in the future.
