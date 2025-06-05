@@ -21,3 +21,13 @@ groups:
         requirement_level: recommended
         examples:
           "Unused"
+
+  - id: metric.example_counter
+    type: metric
+    metric_name: example.counter
+    stability: development
+    brief: A counter of the number of messages processed.
+    instrument: counter
+    unit: "1"
+    attributes:
+      - ref: error.type

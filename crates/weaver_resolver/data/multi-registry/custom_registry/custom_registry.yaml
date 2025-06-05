@@ -29,3 +29,6 @@ groups:
         requirement_level: recommended
       - ref: error.type
         requirement_level: required
+
+imports:
+  - metric_ref: metric.example_counter

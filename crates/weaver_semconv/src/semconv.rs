@@ -176,6 +176,12 @@ impl SemConvSpec {
     pub fn groups(&self) -> &[GroupSpec] {
         &self.groups
     }
+    
+    /// Returns the list of imports in the semantic convention spec.
+    #[must_use]
+    pub fn imports(&self) -> Option<&[GroupImport]> {
+        self.imports.as_deref()
+    }
 }
 
 impl SemConvSpecWithProvenance {
@@ -282,11 +288,16 @@ mod tests {
                 stability: "stable"
                 brief: "description2"
                 type: "int"
+        imports:
+          - metric_ref: "metric_id"
+          - event_ref: "event_id"
+          - entity_ref: "entity_id"
         "#;
         let semconv_spec = SemConvSpec::from_string(spec)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.groups.len(), 2);
+        assert_eq!(semconv_spec.imports.as_ref().unwrap().len(), 3);
 
         // Invalid yaml
         let spec = r#"

@@ -438,13 +438,14 @@ mod tests {
                         assert_eq!(semconv_spec.groups().len(), 2);
                         assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
                         assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
+                        assert_eq!(semconv_spec.imports().expect("Imports not found").len(), 1);
                     }
                     "otel" => {
                         assert_eq!(
                             source.path,
                             "data/multi-registry/otel_registry/otel_registry.yaml"
                         );
-                        assert_eq!(semconv_spec.groups().len(), 2);
+                        assert_eq!(semconv_spec.groups().len(), 3);
                         assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
                         assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
                     }
@@ -467,6 +468,9 @@ mod tests {
                         // The group `otel.unused` should be garbage collected
                         let group = resolved_registry.group("otel.unused");
                         assert!(group.is_none());
+                        // The group referenced in the `imports` should not be garbage collected
+                        let group = resolved_registry.group("metric.example_counter");
+                        assert!(group.is_some());
                     }
 
                     let metrics = resolved_registry.groups(GroupType::Metric);
