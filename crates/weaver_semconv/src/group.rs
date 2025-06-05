@@ -106,6 +106,31 @@ pub struct GroupSpec {
     pub entity_associations: Vec<String>,
 }
 
+/// Represents an import of a group defined in an imported registry.
+/// Currently supports references to groups of type `metric`, `event`, and `entity`.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub enum GroupImport {
+    /// Imports a metric group from the imported registry.
+    MetricRef {
+        /// The ID of the metric group being referenced in the imported registry.
+        r#ref: String,
+        // Additional overridable fields may be added in the future.
+    },
+    /// Imports an event group from the imported registry.
+    EventRef {
+        /// The ID of the event group being referenced in the imported registry.
+        r#ref: String,
+        // Additional overridable fields may be added in the future.
+    },
+    /// Imports an entity group from the imported registry.
+    EntityRef {
+        /// The ID of the entity group being referenced in the imported registry.
+        r#ref: String,
+        // Additional overridable fields may be added in the future.
+    },
+}
+
 impl GroupSpec {
     /// Validation logic for the group.
     pub(crate) fn validate(&self, path_or_url: &str) -> WResult<(), Error> {

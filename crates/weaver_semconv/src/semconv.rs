@@ -2,7 +2,7 @@
 
 //! Semantic convention specification.
 
-use crate::group::GroupSpec;
+use crate::group::{GroupImport, GroupSpec};
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
 use crate::Error;
@@ -19,6 +19,10 @@ use weaver_common::result::WResult;
 pub struct SemConvSpec {
     /// A collection of semantic convention groups or [`GroupSpec`].
     pub(crate) groups: Vec<GroupSpec>,
+    
+    /// A list of imports referencing groups defined in a dependent registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) imports: Option<Vec<GroupImport>>,
 }
 
 /// A wrapper for a [`SemConvSpec`] with its provenance.

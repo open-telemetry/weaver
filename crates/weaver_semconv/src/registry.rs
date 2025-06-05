@@ -347,6 +347,7 @@ mod tests {
                         annotations: None,
                         entity_associations: Vec::new(),
                     }],
+                    imports: None,
                 },
             ),
             (
@@ -373,6 +374,7 @@ mod tests {
                         annotations: None,
                         entity_associations: Vec::new(),
                     }],
+                    imports: None,
                 },
             ),
         ];
