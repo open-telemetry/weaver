@@ -2,7 +2,7 @@
 
 //! Semantic convention specification.
 
-use crate::group::{GroupImport, GroupSpec};
+use crate::group::{GroupSpec, GroupWildcard};
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
 use crate::Error;
@@ -22,7 +22,7 @@ pub struct SemConvSpec {
 
     /// A list of imports referencing groups defined in a dependent registry.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) imports: Option<Vec<GroupImport>>,
+    pub(crate) imports: Option<Vec<GroupWildcard>>,
 }
 
 /// A wrapper for a [`SemConvSpec`] with its provenance.
@@ -179,7 +179,7 @@ impl SemConvSpec {
 
     /// Returns the list of imports in the semantic convention spec.
     #[must_use]
-    pub fn imports(&self) -> Option<&[GroupImport]> {
+    pub fn imports(&self) -> Option<&[GroupWildcard]> {
         self.imports.as_deref()
     }
 }
@@ -289,9 +289,9 @@ mod tests {
                 brief: "description2"
                 type: "int"
         imports:
-          - metric_ref: "metric_id"
-          - event_ref: "event_id"
-          - entity_ref: "entity_id"
+          - metric.*
+          - event.id
+          - entity.*
         "#;
         let semconv_spec = SemConvSpec::from_string(spec)
             .into_result_failing_non_fatal()

@@ -4,11 +4,11 @@
 
 //! A group specification.
 
+use globset::Glob;
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
-
-use serde::{Deserialize, Serialize};
 
 use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
@@ -106,44 +106,10 @@ pub struct GroupSpec {
     pub entity_associations: Vec<String>,
 }
 
-/// Represents an import of a group defined in an imported registry.
-/// Currently supports references to groups of type `metric`, `event`, and `entity`.
+/// Represents a wildcard expression to import one or several groups defined in an imported
+/// registry.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(deny_unknown_fields)]
-#[serde(untagged)]
-#[serde(rename_all = "snake_case")]
-pub enum GroupImport {
-    /// Imports a metric group from the imported registry.
-    MetricRef {
-        /// The ID of the metric group being referenced in the imported registry.
-        metric_ref: String,
-        // Additional overridable fields may be added in the future.
-    },
-    /// Imports an event group from the imported registry.
-    EventRef {
-        /// The ID of the event group being referenced in the imported registry.
-        event_ref: String,
-        // Additional overridable fields may be added in the future.
-    },
-    /// Imports an entity group from the imported registry.
-    EntityRef {
-        /// The ID of the entity group being referenced in the imported registry.
-        entity_ref: String,
-        // Additional overridable fields may be added in the future.
-    },
-}
-
-impl GroupImport {
-    /// Returns the reference of the group being imported.
-    #[must_use]
-    pub fn r#ref(&self) -> &str {
-        match self {
-            GroupImport::MetricRef { metric_ref } => metric_ref,
-            GroupImport::EventRef { event_ref } => event_ref,
-            GroupImport::EntityRef { entity_ref } => entity_ref,
-        }
-    }
-}
+pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {
     /// Validation logic for the group.
@@ -633,6 +599,24 @@ impl Display for InstrumentSpec {
             Histogram => write!(f, "histogram"),
         }
     }
+}
+
+/// A group spec with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct GroupSpecWithProvenance {
+    /// The group spec.
+    pub spec: GroupSpec,
+    /// The provenance of the group spec (path or URL).
+    pub provenance: Provenance,
+}
+
+/// A group wildcard with its provenance (path or URL).
+#[derive(Debug, Clone, Deserialize)]
+pub struct GroupWildcardWithProvenance {
+    /// The group wildcard.
+    pub wildcard: GroupWildcard,
+    /// The provenance of the group import (path or URL).
+    pub provenance: Provenance,
 }
 
 #[cfg(test)]
@@ -1889,22 +1873,4 @@ mod tests {
             result
         );
     }
-}
-
-/// A group spec with its provenance (path or URL).
-#[derive(Debug, Clone)]
-pub struct GroupSpecWithProvenance {
-    /// The group spec.
-    pub spec: GroupSpec,
-    /// The provenance of the group spec (path or URL).
-    pub provenance: Provenance,
-}
-
-/// A group import with its provenance (path or URL).
-#[derive(Debug, Clone, Deserialize)]
-pub struct GroupImportWithProvenance {
-    /// The group import.
-    pub import: GroupImport,
-    /// The provenance of the group import (path or URL).
-    pub provenance: Provenance,
 }

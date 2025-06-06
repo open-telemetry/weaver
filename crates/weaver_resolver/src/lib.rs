@@ -159,6 +159,16 @@ pub enum Error {
         attribute_id: String,
     },
 
+    /// Invalid import wildcard.
+    #[error("Invalid import wildcard: {error:?}")]
+    #[diagnostic(help(
+        "Check the wildcard syntax supported here: https://crates.io/crates/globset"
+    ))]
+    InvalidWildcard {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -469,7 +479,7 @@ mod tests {
                         let group = resolved_registry.group("otel.unused");
                         assert!(group.is_none());
                         // The group referenced in the `imports` should not be garbage collected
-                        let group = resolved_registry.group("metric.example_counter");
+                        let group = resolved_registry.group("metric.example.counter");
                         assert!(group.is_some());
                     }
 

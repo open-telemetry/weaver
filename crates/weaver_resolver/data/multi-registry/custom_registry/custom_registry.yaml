@@ -31,4 +31,4 @@ groups:
         requirement_level: required
 
 imports:
-  - metric_ref: metric.example_counter
+  - metric.example.*

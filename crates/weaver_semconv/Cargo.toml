@@ -27,6 +27,7 @@ ordered-float.workspace = true
 miette.workspace = true
 schemars.workspace = true
 regex.workspace = true
+globset.workspace = true
 
 glob = "0.3.2"
 jsonschema = "0.30.0"       # JSON Schema validation used to enhance error messages

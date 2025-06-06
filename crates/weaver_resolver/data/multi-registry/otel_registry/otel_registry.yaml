@@ -22,7 +22,7 @@ groups:
         examples:
           "Unused"
 
-  - id: metric.example_counter
+  - id: metric.example.counter
     type: metric
     metric_name: example.counter
     stability: development
