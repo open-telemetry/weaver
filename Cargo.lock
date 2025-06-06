@@ -6266,8 +6266,8 @@ name = "weaver_resolver"
 version = "0.15.2"
 dependencies = [
  "glob",
+ "globset",
  "itertools 0.14.0",
- "log",
  "miette",
  "rayon",
  "serde",
@@ -6285,6 +6285,7 @@ name = "weaver_semconv"
 version = "0.15.2"
 dependencies = [
  "glob",
+ "globset",
  "jsonschema 0.30.0",
  "miette",
  "ordered-float 4.6.0",

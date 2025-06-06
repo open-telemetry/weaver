@@ -2,7 +2,7 @@
 
 //! Semantic convention specification.
 
-use crate::group::GroupSpec;
+use crate::group::{GroupSpec, GroupWildcard};
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
 use crate::Error;
@@ -19,6 +19,10 @@ use weaver_common::result::WResult;
 pub struct SemConvSpec {
     /// A collection of semantic convention groups or [`GroupSpec`].
     pub(crate) groups: Vec<GroupSpec>,
+
+    /// A list of imports referencing groups defined in a dependent registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) imports: Option<Vec<GroupWildcard>>,
 }
 
 /// A wrapper for a [`SemConvSpec`] with its provenance.
@@ -172,6 +176,12 @@ impl SemConvSpec {
     pub fn groups(&self) -> &[GroupSpec] {
         &self.groups
     }
+
+    /// Returns the list of imports in the semantic convention spec.
+    #[must_use]
+    pub fn imports(&self) -> Option<&[GroupWildcard]> {
+        self.imports.as_deref()
+    }
 }
 
 impl SemConvSpecWithProvenance {
@@ -278,11 +288,16 @@ mod tests {
                 stability: "stable"
                 brief: "description2"
                 type: "int"
+        imports:
+          - metric.*
+          - event.id
+          - entity.*
         "#;
         let semconv_spec = SemConvSpec::from_string(spec)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.groups.len(), 2);
+        assert_eq!(semconv_spec.imports.as_ref().unwrap().len(), 3);
 
         // Invalid yaml
         let spec = r#"

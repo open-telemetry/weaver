@@ -4,11 +4,11 @@
 
 //! A group specification.
 
+use globset::Glob;
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
-
-use serde::{Deserialize, Serialize};
 
 use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
@@ -105,6 +105,11 @@ pub struct GroupSpec {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
 }
+
+/// Represents a wildcard expression to import one or several groups defined in an imported
+/// registry.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {
     /// Validation logic for the group.
@@ -594,6 +599,24 @@ impl Display for InstrumentSpec {
             Histogram => write!(f, "histogram"),
         }
     }
+}
+
+/// A group spec with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct GroupSpecWithProvenance {
+    /// The group spec.
+    pub spec: GroupSpec,
+    /// The provenance of the group spec (path or URL).
+    pub provenance: Provenance,
+}
+
+/// A group wildcard with its provenance (path or URL).
+#[derive(Debug, Clone, Deserialize)]
+pub struct GroupWildcardWithProvenance {
+    /// The group wildcard.
+    pub wildcard: GroupWildcard,
+    /// The provenance of the group import (path or URL).
+    pub provenance: Provenance,
 }
 
 #[cfg(test)]
@@ -1850,13 +1873,4 @@ mod tests {
             result
         );
     }
-}
-
-/// A group spec with its provenance (path or URL).
-#[derive(Debug, Clone)]
-pub struct GroupSpecWithProvenance {
-    /// The group spec.
-    pub spec: GroupSpec,
-    /// The provenance of the group spec (path or URL).
-    pub provenance: Provenance,
 }
