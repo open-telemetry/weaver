@@ -18,6 +18,7 @@ const TEMPLATE_SUFFIX: &str = "]";
 /// Add OpenTelemetry specific filters to the environment.
 pub(crate) fn add_filters(env: &mut minijinja::Environment<'_>) {
     env.add_filter("attribute_namespace", attribute_namespace);
+    env.add_filter("attribute_id", attribute_id);
     env.add_filter("attribute_registry_namespace", attribute_registry_namespace);
     env.add_filter("attribute_registry_title", attribute_registry_title);
     env.add_filter("attribute_registry_file", attribute_registry_file);
@@ -140,19 +141,40 @@ pub(crate) fn metric_namespace(input: &str) -> Result<String, minijinja::Error> 
     Ok(parts[1].to_owned())
 }
 
-/// Converts {namespace}.{attribute_id} to {namespace}.
+/// Converts {namespace}.{attribute_id} to ({namespace}, {id}).
+/// Falls back to "other" if no namespace present.
 ///
-/// A [`minijinja::Error`] is returned if the input does not have
-/// at least two parts. Otherwise, it returns the namespace (first part of the input).
-pub(crate) fn attribute_namespace(input: &str) -> Result<String, minijinja::Error> {
-    let parts: Vec<&str> = input.split('.').collect();
-    if parts.len() < 2 {
-        return Err(minijinja::Error::new(
+/// A [`minijinja::Error`] is returned if the input or any part of it is empty.
+fn attribute_split(input: &str) -> Result<(&str, &str), minijinja::Error> {
+    let bad = |msg| {
+        Err(minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("This attribute name `{}` is invalid", input),
-        ));
+            format!("`{input}`: {msg}"),
+        ))
+    };
+    if input.is_empty() {
+        return bad("must not be empty");
     }
-    Ok(parts[0].to_owned())
+    match input.split_once(".") {
+        Some((_, "")) => bad("id must not be empty"), // "namespace."
+        Some(("", _)) => bad("namespace must not be empty"), // ".id"
+        Some(parts) => Ok(parts),                     // "namespace.id"
+        None => Ok(("other", input)),                 // "id"
+    }
+}
+
+/// Converts {namespace}.{attribute_id} to {namespace}. Falls back to "other" if no namespace present.
+///
+/// A [`minijinja::Error`] is returned if the input or any part of it is empty.
+pub(crate) fn attribute_namespace(input: &str) -> Result<String, minijinja::Error> {
+    attribute_split(input).map(|(namespace, _)| namespace.to_owned())
+}
+
+/// Converts {namespace}.{attribute_id} to {attribute_id}.
+///
+/// A [`minijinja::Error`] is returned if the input or any part of it is empty.
+pub(crate) fn attribute_id(input: &str) -> Result<String, minijinja::Error> {
+    attribute_split(input).map(|(_, id)| id.to_owned())
 }
 
 /// Converts a semconv id into semconv constant following the namespacing rules and the
@@ -535,10 +557,11 @@ mod tests {
     use std::fmt::Debug;
     use std::sync::Arc;
 
-    use crate::extensions::otel;
+    use crate::extensions::otel::{self, attribute_id};
     use crate::extensions::otel::{
-        attribute_registry_file, attribute_registry_namespace, attribute_registry_title,
-        attribute_sort, is_experimental, is_stable, metric_namespace, print_member_value,
+        attribute_namespace, attribute_registry_file, attribute_registry_namespace,
+        attribute_registry_title, attribute_sort, is_experimental, is_stable, metric_namespace,
+        print_member_value,
     };
     use weaver_resolved_schema::attribute::Attribute;
     use weaver_semconv::any_value::{AnyValueCommonSpec, AnyValueSpec};
@@ -661,6 +684,60 @@ mod tests {
         // An empty string
         let input = "";
         assert!(metric_namespace(input).is_err());
+    }
+
+    #[test]
+    fn test_attribute_namespace() {
+        // Normal case with namespace
+        let input = "namespace.attribute_id";
+        assert_eq!(attribute_namespace(input).unwrap(), "namespace");
+
+        // Multiple dots - should return first part
+        let input = "namespace.sub.attribute_id";
+        assert_eq!(attribute_namespace(input).unwrap(), "namespace");
+
+        // No dots - should fallback to "other"
+        let input = "attribute_id";
+        assert_eq!(attribute_namespace(input).unwrap(), "other");
+
+        // Empty string - should fail
+        let input = "";
+        assert!(attribute_namespace(input).is_err());
+
+        // String starting with dot - should fail
+        let input = ".attribute_id";
+        assert!(attribute_namespace(input).is_err());
+
+        // String ending with dot - should fail
+        let input = "namespace.";
+        assert!(attribute_namespace(input).is_err());
+    }
+
+    #[test]
+    fn test_attribute_id() {
+        // Normal case with namespace
+        let input = "namespace.attribute_id";
+        assert_eq!(attribute_id(input).unwrap(), "attribute_id");
+
+        // Multiple dots - should return first part
+        let input = "namespace.sub.attribute_id";
+        assert_eq!(attribute_id(input).unwrap(), "sub.attribute_id");
+
+        // No dots - should fallback to "other"
+        let input = "attribute_id";
+        assert_eq!(attribute_id(input).unwrap(), "attribute_id");
+
+        // Empty string - should fail
+        let input = "";
+        assert!(attribute_id(input).is_err());
+
+        // String starting with dot - should fail
+        let input = ".attribute_id";
+        assert!(attribute_id(input).is_err());
+
+        // String ending with dot - should fail
+        let input = "namespace.";
+        assert!(attribute_id(input).is_err());
     }
 
     #[test]
