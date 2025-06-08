@@ -22,6 +22,7 @@ groups:
     brief: "Count of all bids we've seen"
     instrument: counter
     unit: "{bid}"
+    value_type: int
     attributes:
       - ref: auction.id
         requirement_level: required

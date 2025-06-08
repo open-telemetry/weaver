@@ -1,7 +1,7 @@
 groups:
   - id: metric_attributes.http.server
     type: attribute_group
-    brief: 'HTTP server attributes'
+    brief: "HTTP server attributes"
     extends: attributes.http.server
     attributes:
       - ref: server.address
@@ -20,7 +20,7 @@ groups:
           > to trigger cardinality limits, degrading the usefulness of the metric.
   - id: metric_attributes.http.client
     type: attribute_group
-    brief: 'HTTP client attributes'
+    brief: "HTTP client attributes"
     extends: attributes.http.client
 
   - id: metric.http.server.request.duration
@@ -30,6 +30,7 @@ groups:
     brief: "Duration of HTTP server requests."
     instrument: histogram
     unit: "s"
+    value_type: int
     extends: metric_attributes.http.server
 
   - id: metric.http.server.active_requests
@@ -39,6 +40,7 @@ groups:
     brief: "Number of active HTTP server requests."
     instrument: updowncounter
     unit: "{request}"
+    value_type: int
     attributes:
       - ref: http.request.method
         requirement_level: required
@@ -71,6 +73,7 @@ groups:
     brief: "Size of HTTP server request bodies."
     instrument: histogram
     unit: "By"
+    value_type: int
     note: >
       The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and
       is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)
@@ -84,6 +87,7 @@ groups:
     brief: "Size of HTTP server response bodies."
     instrument: histogram
     unit: "By"
+    value_type: int
     note: >
       The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and
       is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)
@@ -97,6 +101,7 @@ groups:
     brief: "Duration of HTTP client requests."
     instrument: histogram
     unit: "s"
+    value_type: int
     extends: metric_attributes.http.client
 
   - id: metric.http.client.request.body.size
@@ -106,6 +111,7 @@ groups:
     brief: "Size of HTTP client request bodies."
     instrument: histogram
     unit: "By"
+    value_type: int
     note: >
       The size of the request payload body in bytes. This is the number of bytes transferred excluding headers and
       is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)
@@ -119,6 +125,7 @@ groups:
     brief: "Size of HTTP client response bodies."
     instrument: histogram
     unit: "By"
+    value_type: int
     note: >
       The size of the response payload body in bytes. This is the number of bytes transferred excluding headers and
       is often, but not always, present as the [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-length)
