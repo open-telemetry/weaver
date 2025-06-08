@@ -1000,7 +1000,9 @@ mod tests {
             }])),
             live_check_result: None,
         });
-        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(registry, advisors);
+
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1015,6 +1017,7 @@ mod tests {
         assert!(result.is_ok());
         stats.finalize();
         assert_eq!(stats.advice_type_counts.get("low_value"), Some(&1));
+        assert_eq!(stats.advice_type_counts.get("value_type_mismatch"), Some(&2));
     }
 
     #[test]
