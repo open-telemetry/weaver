@@ -452,6 +452,7 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                value_type: None,
             }],
         }
     }
@@ -521,6 +522,7 @@ mod tests {
                     lineage: None,
                     display_name: Some("System Memory Attributes".to_owned()),
                     body: None,
+                    value_type: None,
                 },
                 // System uptime metric
                 ResolvedGroup {
@@ -543,6 +545,7 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: None,
                 },
                 // System memory usage metric
                 ResolvedGroup {
@@ -583,6 +586,7 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: None,
                 },
             ],
         }
@@ -633,6 +637,7 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                value_type: None,
             }],
         };
 
@@ -893,6 +898,7 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                value_type: None,
             }],
         };
 

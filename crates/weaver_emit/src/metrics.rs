@@ -7,6 +7,7 @@ use opentelemetry::global;
 use weaver_forge::registry::ResolvedRegistry;
 use weaver_semconv::group::GroupType;
 use weaver_semconv::group::InstrumentSpec;
+use weaver_semconv::metric::MetricValueTypeSpec;
 
 /// Uses the global meter_provider to emit metrics for all the defined
 /// metrics in the registry
@@ -27,39 +28,75 @@ pub(crate) fn emit_metrics_for_registry(registry: &ResolvedRegistry) {
                     .map(get_attribute_name_value)
                     .collect::<Vec<_>>();
 
-                match instrument {
-                    InstrumentSpec::UpDownCounter => {
-                        let up_down_counter = meter
-                            .i64_up_down_counter(metric_name)
-                            .with_unit(unit)
-                            .with_description(description)
-                            .build();
-                        up_down_counter.add(1, &attributes);
-                    }
-                    InstrumentSpec::Counter => {
-                        let counter = meter
-                            .u64_counter(metric_name)
-                            .with_unit(unit)
-                            .with_description(description)
-                            .build();
-                        counter.add(1, &attributes);
-                    }
-                    InstrumentSpec::Gauge => {
-                        let gauge = meter
-                            .i64_gauge(metric_name)
-                            .with_unit(unit)
-                            .with_description(description)
-                            .build();
-                        gauge.record(1, &attributes);
-                    }
-                    InstrumentSpec::Histogram => {
-                        let histogram = meter
-                            .u64_histogram(metric_name)
-                            .with_unit(unit)
-                            .with_description(description)
-                            .build();
-                        histogram.record(1, &attributes);
-                    }
+                match group.value_type {
+                    Some(MetricValueTypeSpec::Double) => match instrument {
+                        InstrumentSpec::UpDownCounter => {
+                            let up_down_counter = meter
+                                .f64_up_down_counter(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            up_down_counter.add(1.0, &attributes);
+                        }
+                        InstrumentSpec::Counter => {
+                            let counter = meter
+                                .f64_counter(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            counter.add(1.0, &attributes);
+                        }
+                        InstrumentSpec::Gauge => {
+                            let gauge = meter
+                                .f64_gauge(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            gauge.record(1.0, &attributes);
+                        }
+                        InstrumentSpec::Histogram => {
+                            let histogram = meter
+                                .f64_histogram(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            histogram.record(1.0, &attributes);
+                        }
+                    },
+                    _ => match instrument {
+                        InstrumentSpec::UpDownCounter => {
+                            let up_down_counter = meter
+                                .i64_up_down_counter(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            up_down_counter.add(1, &attributes);
+                        }
+                        InstrumentSpec::Counter => {
+                            let counter = meter
+                                .u64_counter(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            counter.add(1, &attributes);
+                        }
+                        InstrumentSpec::Gauge => {
+                            let gauge = meter
+                                .i64_gauge(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            gauge.record(1, &attributes);
+                        }
+                        InstrumentSpec::Histogram => {
+                            let histogram = meter
+                                .u64_histogram(metric_name)
+                                .with_unit(unit)
+                                .with_description(description)
+                                .build();
+                            histogram.record(1, &attributes);
+                        }
+                    },
                 }
             }
         }

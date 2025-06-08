@@ -188,6 +188,7 @@ mod tests {
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
+        metric::MetricValueTypeSpec,
         stability::Stability,
     };
 
@@ -238,6 +239,7 @@ mod tests {
                     display_name: None,
                     body: None,
                     entity_associations: vec![],
+                    value_type: None,
                 },
                 ResolvedGroup {
                     id: "test.updowncounter".to_owned(),
@@ -259,6 +261,7 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: Some(MetricValueTypeSpec::Int),
                 },
                 ResolvedGroup {
                     id: "test.counter".to_owned(),
@@ -280,6 +283,7 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: Some(MetricValueTypeSpec::Int),
                 },
                 ResolvedGroup {
                     id: "test.gauge".to_owned(),
@@ -301,6 +305,7 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: Some(MetricValueTypeSpec::Int),
                 },
                 ResolvedGroup {
                     id: "test.histogram".to_owned(),
@@ -322,6 +327,7 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: Some(MetricValueTypeSpec::Int),
                 },
             ],
         };

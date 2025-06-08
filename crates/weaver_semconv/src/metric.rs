@@ -2,8 +2,11 @@
 
 //! Metric specification.
 
+use std::fmt::{Display, Formatter};
+
 use crate::attribute::AttributeSpec;
 use crate::group::InstrumentSpec;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A metric specification.
@@ -23,6 +26,8 @@ pub struct MetricSpec {
     pub instrument: InstrumentSpec,
     /// Unit of the metric.
     pub unit: Option<String>,
+    /// Number type of the metric's value.
+    pub value_type: Option<MetricValueTypeSpec>,
 }
 
 impl MetricSpec {
@@ -58,4 +63,24 @@ pub struct MetricSpecWithProvenance {
     pub metric: MetricSpec,
     /// The provenance of the metric (path or URL).
     pub provenance: String,
+}
+
+/// Primitive or array types.
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MetricValueTypeSpec {
+    /// An integer value (signed 64 bit integer).
+    Int,
+    /// A double value (double precision floating point (IEEE 754-1985)).
+    Double,
+}
+
+/// Implements a human readable display for MetricValueTypeSpec.
+impl Display for MetricValueTypeSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MetricValueTypeSpec::Int => write!(f, "int"),
+            MetricValueTypeSpec::Double => write!(f, "double"),
+        }
+    }
 }
