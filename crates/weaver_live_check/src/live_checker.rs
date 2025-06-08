@@ -801,7 +801,10 @@ mod tests {
         assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
         assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
-        assert_eq!(stats.advice_type_counts.get("value_type_mismatch"), Some(&1));
+        assert_eq!(
+            stats.advice_type_counts.get("value_type_mismatch"),
+            Some(&1)
+        );
         assert_eq!(
             stats.seen_registry_metrics.get("system.memory.usage"),
             Some(&1)
@@ -1017,7 +1020,10 @@ mod tests {
         assert!(result.is_ok());
         stats.finalize();
         assert_eq!(stats.advice_type_counts.get("low_value"), Some(&1));
-        assert_eq!(stats.advice_type_counts.get("value_type_mismatch"), Some(&2));
+        assert_eq!(
+            stats.advice_type_counts.get("value_type_mismatch"),
+            Some(&2)
+        );
     }
 
     #[test]
