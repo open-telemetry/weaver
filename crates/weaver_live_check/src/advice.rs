@@ -186,7 +186,7 @@ fn check_attributes(
                 ),
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
                 | RequirementLevel::OptIn { .. } => (
-                    "optin_attribute_not_present".to_owned(),
+                    "opt_in_attribute_not_present".to_owned(),
                     AdviceLevel::Information,
                     "Opt-in attribute is not present".to_owned(),
                 ),
@@ -567,11 +567,11 @@ mod tests {
                 },
             ),
             create_test_attribute(
-                "optin_basic",
+                "opt_in_basic",
                 RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
             ),
             create_test_attribute(
-                "optin_text",
+                "opt_in_text",
                 RequirementLevel::OptIn {
                     text: "This is opt-in".to_owned(),
                 },
@@ -601,7 +601,7 @@ mod tests {
             Some(&AdviceLevel::Improvement)
         );
         assert_eq!(
-            advice_map.get("optin_attribute_not_present"),
+            advice_map.get("opt_in_attribute_not_present"),
             Some(&AdviceLevel::Information)
         );
         assert_eq!(
