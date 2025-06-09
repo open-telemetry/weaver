@@ -3925,23 +3925,14 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "ordered-float"
-version = "4.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7bb71e1b3fa6ca1c61f383464aaf2bb0e2f8e772a1f01d486832464de363b951"
-dependencies = [
- "num-traits",
- "rand 0.8.5",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "ordered-float"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2c1f9f56e534ac6a9b8a4600bdf0f530fb393b5f393e7b4d03489c3cf0c3f01"
 dependencies = [
  "num-traits",
+ "rand 0.8.5",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -4854,7 +4845,7 @@ dependencies = [
  "arraydeque",
  "encoding_rs",
  "hashlink",
- "ordered-float 5.0.0",
+ "ordered-float",
  "saphyr-parser",
 ]
 
@@ -6172,7 +6163,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry-stdout 0.30.0",
  "opentelemetry_sdk 0.30.0",
- "ordered-float 4.6.0",
+ "ordered-float",
  "serde",
  "thiserror 2.0.12",
  "tokio",
@@ -6252,7 +6243,7 @@ dependencies = [
 name = "weaver_resolved_schema"
 version = "0.15.2"
 dependencies = [
- "ordered-float 4.6.0",
+ "ordered-float",
  "schemars",
  "serde",
  "serde_json",
@@ -6287,7 +6278,7 @@ dependencies = [
  "glob",
  "jsonschema 0.30.0",
  "miette",
- "ordered-float 4.6.0",
+ "ordered-float",
  "regex",
  "saphyr",
  "schemars",
