@@ -791,12 +791,18 @@ mod tests {
             assert!(result.is_ok());
         }
         stats.finalize();
+
         // Check the statistics
         assert_eq!(stats.total_entities_by_type.get("data_point"), Some(&6));
         assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
         assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
         assert_eq!(stats.no_advice_count, 3);
-        assert_eq!(stats.advice_type_counts.get("attribute_required"), Some(&2));
+        assert_eq!(
+            stats
+                .advice_type_counts
+                .get("recommended_attribute_not_present"),
+            Some(&2)
+        );
         assert_eq!(stats.advice_type_counts.get("missing_attribute"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
