@@ -30,7 +30,7 @@ minijinja-contrib = { version = "2.9.0", features = ["pycompat"] }
 convert_case = "0.8.0"
 jaq-core = "2.2.0"
 jaq-std = "2.1.1"
-jaq-json = { version = "1.1.1", features = ["serde_json"] }
+jaq-json = { version = "1.1.2", features = ["serde_json"] }
 indexmap = "2.9.0"
 regex = "1.11.1"
 markdown = "=1.0.0"
