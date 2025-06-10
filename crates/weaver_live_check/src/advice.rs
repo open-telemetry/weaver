@@ -375,7 +375,7 @@ impl Advisor for TypeAdvisor {
 fn json_to_value_type(value: &Value) -> Option<MetricValueTypeSpec> {
     match value {
         Value::Number(num) => {
-            if num.is_i64() {
+            if num.is_i64() || num.is_u64() {
                 Some(MetricValueTypeSpec::Int)
             } else if num.is_f64() {
                 Some(MetricValueTypeSpec::Double)

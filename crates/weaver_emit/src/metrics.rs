@@ -63,7 +63,7 @@ pub(crate) fn emit_metrics_for_registry(registry: &ResolvedRegistry) {
                             histogram.record(1.0, &attributes);
                         }
                     },
-                    _ => match instrument {
+                    Some(MetricValueTypeSpec::Int) | None => match instrument {
                         InstrumentSpec::UpDownCounter => {
                             let up_down_counter = meter
                                 .i64_up_down_counter(metric_name)
