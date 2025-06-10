@@ -785,26 +785,18 @@ mod tests {
             assert!(result.is_ok());
         }
         stats.finalize();
-        /* Assert on these:
-        total_entities_by_type: {
-            "data_point": 6,
-            "metric": 4,
-            "attribute": 3,
-        },
-        no_advice_count: 4,
-        advice_type_counts: {
-            "attribute_required": 2,
-            "missing_attribute": 2,
-            "stability": 2,
-            "missing_metric": 3,
-            "missing_namespace": 2,
-        }, */
+
         // Check the statistics
         assert_eq!(stats.total_entities_by_type.get("data_point"), Some(&6));
         assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
         assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
         assert_eq!(stats.no_advice_count, 4);
-        assert_eq!(stats.advice_type_counts.get("attribute_required"), Some(&2));
+        assert_eq!(
+            stats
+                .advice_type_counts
+                .get("recommended_attribute_not_present"),
+            Some(&2)
+        );
         assert_eq!(stats.advice_type_counts.get("missing_attribute"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
