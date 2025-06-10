@@ -161,7 +161,17 @@ impl Advisor for StabilityAdvisor {
 pub struct TypeAdvisor;
 
 /// Checks if attributes from a resolved group are present in a list of sample attributes
-/// Returns a list of advice for the attributes based on their RequirementLevel
+///
+/// Returns a list of advice for the attributes based on their RequirementLevel.
+///
+/// If an attribute is not present in the sample:
+///
+/// | RequirementLevel       | Live-check advice level |
+/// |------------------------|-------------------------|
+/// | Required               | Violation               |
+/// | Recommended            | Improvement             |
+/// | Opt-In                 | Information             |
+/// | Conditionally Required | Information             |
 fn check_attributes(
     semconv_attributes: &[Attribute],
     sample_attributes: &[SampleAttribute],
