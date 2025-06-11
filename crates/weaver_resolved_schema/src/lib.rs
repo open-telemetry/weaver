@@ -815,8 +815,7 @@ mod tests {
         assert_eq!(new_name, "system.cpu.time");
         assert_eq!(note, "Replaced by `system.cpu.utilization`");
 
-        let Some(SchemaItemChange::Added { name }) =
-            mcs
+        let Some(SchemaItemChange::Added { name }) = mcs
             .iter()
             .find(|change| matches!(change, &SchemaItemChange::Added { .. }))
         else {
