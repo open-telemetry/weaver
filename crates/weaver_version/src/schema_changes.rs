@@ -48,7 +48,7 @@ pub struct RegistryManifest {
 /// Represents the different types of changes that can occur between
 /// two versions of a schema. This covers changes such as adding, removing,
 /// renaming, and deprecating telemetry objects (attributes, metrics, etc.).
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SchemaItemChange {
