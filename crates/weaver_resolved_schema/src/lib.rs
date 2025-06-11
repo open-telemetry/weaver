@@ -246,6 +246,16 @@ impl ResolvedTelemetrySchema {
             .collect()
     }
 
+    /// Grab a specific type of group identified by the name (not id).
+    pub fn groups_by_name(&self, group_type: GroupType) -> HashMap<&str, &Group> {
+        self.registry
+            .groups
+            .iter()
+            .filter(|group| group.r#type == group_type)
+            .filter_map(|g| g.signal_name().map(|name| (name, g)))
+            .collect()
+    }
+
     /// Get the group by its ID.
     #[must_use]
     pub fn group(&self, group_id: &str) -> Option<&Group> {
@@ -277,34 +287,37 @@ impl ResolvedTelemetrySchema {
         self.diff_attributes(baseline_schema, &mut changes);
 
         // Signals
-        let latest_signals = self.groups(GroupType::Metric);
-        let baseline_signals = baseline_schema.groups(GroupType::Metric);
+        let latest_signals = self.groups_by_name(GroupType::Metric);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Metric);
         self.diff_signals(
             SchemaItemType::Metrics,
             &latest_signals,
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Event);
-        let baseline_signals = baseline_schema.groups(GroupType::Event);
+        let latest_signals = self.groups_by_name(GroupType::Event);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Event);
         self.diff_signals(
             SchemaItemType::Events,
             &latest_signals,
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Span);
-        let baseline_signals = baseline_schema.groups(GroupType::Span);
+        // Note: We cannot support spans here. Currently spans do not have a stable identifier to represent them.
+        // This means `groups_by_name` never returns a group today.
+        // See: https://github.com/open-telemetry/semantic-conventions/issues/2055
+        let latest_signals = self.groups_by_name(GroupType::Span);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Span);
         self.diff_signals(
             SchemaItemType::Spans,
             &latest_signals,
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Entity);
-        let baseline_signals = baseline_schema.groups(GroupType::Entity);
+        let latest_signals = self.groups_by_name(GroupType::Entity);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Entity);
         self.diff_signals(
-            SchemaItemType::Resources,
+            SchemaItemType::Entities,
             &latest_signals,
             &baseline_signals,
             &mut changes,
@@ -408,8 +421,8 @@ impl ResolvedTelemetrySchema {
     ) {
         // Collect all the information related to the signals that have been
         // deprecated in the latest schema.
-        for (signal_id, group) in latest_signals.iter() {
-            let baseline_group = baseline_signals.get(signal_id);
+        for (signal_name, group) in latest_signals.iter() {
+            let baseline_group = baseline_signals.get(signal_name);
 
             if let Some(baseline_group) = baseline_group {
                 if let Some(deprecated) = group.deprecated.as_ref() {
@@ -420,12 +433,6 @@ impl ResolvedTelemetrySchema {
                         }
                     }
 
-                    let Some(old_signal_name) = baseline_group.signal_name() else {
-                        // TODO: Verification should not allow old
-                        // signal name to not exist.
-                        panic!("No name found for signal: {}", signal_id)
-                    };
-
                     match deprecated {
                         Deprecated::Renamed {
                             renamed_to: rename_to,
@@ -434,7 +441,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Renamed {
-                                    old_name: old_signal_name.to_owned(),
+                                    old_name: (*signal_name).to_owned(),
                                     new_name: rename_to.clone(),
                                     note: note.clone(),
                                 },
@@ -444,7 +451,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Obsoleted {
-                                    name: (*signal_id).to_owned(),
+                                    name: (*signal_name).to_owned(),
                                     note: note.clone(),
                                 },
                             );
@@ -453,7 +460,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Uncategorized {
-                                    name: (*signal_id).to_owned(),
+                                    name: (*signal_name).to_owned(),
                                     note: note.clone(),
                                 },
                             );
@@ -464,7 +471,7 @@ impl ResolvedTelemetrySchema {
                 changes.add_change(
                     schema_item_type,
                     SchemaItemChange::Added {
-                        name: (*signal_id).to_owned(),
+                        name: (*signal_name).to_owned(),
                     },
                 );
             }
@@ -807,5 +814,15 @@ mod tests {
         assert_eq!(old_name, "cpu.time");
         assert_eq!(new_name, "system.cpu.time");
         assert_eq!(note, "Replaced by `system.cpu.utilization`");
+
+        let Some(SchemaItemChange::Added { name }) =
+            mcs
+            .iter()
+            .filter(|change| matches!(change, &SchemaItemChange::Added { .. }))
+            .next()
+        else {
+            panic!("No added change found in: {:?}", mcs);
+        };
+        assert_eq!(name, "system.cpu.time");
     }
 }
