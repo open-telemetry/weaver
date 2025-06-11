@@ -5,6 +5,7 @@
 use crate::attribute::AttributeCatalog;
 use crate::Error;
 use crate::Error::{DuplicateGroupId, DuplicateGroupName, DuplicateMetricName};
+use globset::GlobSet;
 use itertools::Itertools;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -15,7 +16,7 @@ use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::GroupSpecWithProvenance;
+use weaver_semconv::group::{GroupSpecWithProvenance, GroupWildcardWithProvenance};
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
@@ -30,6 +31,9 @@ pub struct UnresolvedRegistry {
     /// The resolution process will progressively move the unresolved groups
     /// into the registry field once they are resolved.
     pub groups: Vec<UnresolvedGroup>,
+
+    /// List of unresolved imports that belong to the semantic convention
+    pub imports: Vec<GroupWildcardWithProvenance>,
 }
 
 /// A group containing unresolved attributes.
@@ -137,7 +141,14 @@ pub fn resolve_semconv_registry(
     check_root_attribute_id_duplicates(&ureg.registry, &attr_name_index, &mut errors);
 
     if !include_unreferenced {
-        gc_unreferenced_objects(registry.manifest(), &mut ureg.registry, attr_catalog);
+        if let Err(e) = gc_unreferenced_objects(
+            registry.manifest(),
+            &mut ureg.registry,
+            &ureg.imports,
+            attr_catalog,
+        ) {
+            return WResult::FatalErr(e);
+        }
     }
 
     WResult::OkWithNFEs(ureg.registry, errors)
@@ -149,8 +160,19 @@ pub fn resolve_semconv_registry(
 fn gc_unreferenced_objects(
     manifest: Option<&RegistryManifest>,
     registry: &mut Registry,
+    imports: &[GroupWildcardWithProvenance],
     attr_catalog: &mut AttributeCatalog,
-) {
+) -> Result<(), Error> {
+    // Build a set of imported IDs from the imports.
+    let mut builder = GlobSet::builder();
+    for iwp in imports.iter() {
+        // Add the wildcard to the builder.
+        _ = builder.add(iwp.wildcard.0.clone());
+    }
+    let imports_matcher = builder.build().map_err(|e| Error::InvalidWildcard {
+        error: e.to_string(),
+    })?;
+
     if let Some(manifest) = manifest {
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
             // This registry has dependencies.
@@ -158,7 +180,10 @@ fn gc_unreferenced_objects(
 
             // Remove all groups that are not defined in the current registry.
             registry.groups.retain(|group| {
-                if let Some(lineage) = &group.lineage {
+                if imports_matcher.is_match(group.id.as_str()) {
+                    // This group is referenced in the `imports` section, so we keep it.
+                    true
+                } else if let Some(lineage) = &group.lineage {
                     lineage.provenance().registry_id.as_ref() == current_reg_id
                 } else {
                     true
@@ -185,6 +210,7 @@ fn gc_unreferenced_objects(
             });
         }
     }
+    Ok(())
 }
 
 /// Generic function to check for duplicate keys in the given registry.
@@ -307,10 +333,12 @@ fn unresolved_registry_from_specs(
         .unresolved_group_with_provenance_iter()
         .map(group_from_spec)
         .collect();
+    let imports = registry.unresolved_imports_iter().collect::<Vec<_>>();
 
     UnresolvedRegistry {
         registry: Registry::new(registry_url),
         groups,
+        imports,
     }
 }
 
