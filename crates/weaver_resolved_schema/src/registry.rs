@@ -137,6 +137,24 @@ pub struct Group {
     pub entity_associations: Vec<String>,
 }
 
+impl Group {
+    /// Returns the signal name for this group.
+    /// For `metric` - this is `metric_name` property
+    /// For `entity` or `event` this is the `name` property.
+    pub fn signal_name(&self) -> Option<&str> {
+        match self.r#type {
+            GroupType::AttributeGroup => None,
+            GroupType::Span => None,
+            GroupType::Event => self.name.as_deref(),
+            GroupType::Metric => self.metric_name.as_deref(),
+            GroupType::MetricGroup => None,
+            GroupType::Entity => self.name.as_deref(),
+            GroupType::Scope => None,
+            GroupType::Undefined => None,
+        }
+    }
+}
+
 /// Common statistics for a group.
 #[derive(Debug, Serialize, Default)]
 pub struct CommonGroupStats {

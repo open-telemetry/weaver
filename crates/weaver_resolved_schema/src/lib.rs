@@ -106,6 +106,39 @@ impl ResolvedTelemetrySchema {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn add_metric_group<const N: usize>(
+        &mut self,
+        group_id: &str,
+        metric_name: &str,
+        attrs: [Attribute; N],
+        deprecated: Option<Deprecated>,
+    ) {
+        let attr_refs = self.catalog.add_attributes(attrs);
+        self.registry.groups.push(Group {
+            id: group_id.to_owned(),
+            r#type: GroupType::AttributeGroup,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated: deprecated,
+            name: Some(group_id.to_owned()),
+            lineage: None,
+            display_name: None,
+            attributes: attr_refs,
+            span_kind: None,
+            events: vec![],
+            metric_name: Some(metric_name.to_owned()),
+            instrument: Some(weaver_semconv::group::InstrumentSpec::Gauge),
+            unit: Some("{things}".to_owned()),
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+        });
+    }
+
     /// Adds a new attribute group to the schema.
     ///
     /// Note: This method is intended to be used for testing purposes only.
@@ -729,5 +762,33 @@ mod tests {
         assert_eq!(changes.count_changes(), 2);
         assert_eq!(changes.count_registry_attribute_changes(), 2);
         assert_eq!(changes.count_removed_registry_attributes(), 2);
+    }
+
+    // TODO add group diffs checks.
+    #[test]
+    fn detect_metric_name_change() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        prior_schema.add_metric_group("metrics.cpu.time", "cpu.time", [], None);
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "", "", "");
+        latest_schema.add_metric_group("metrics.cpu.time", "cpu.time", [], Some(Deprecated::Renamed { 
+            renamed_to: "system.cpu.time".to_owned(), 
+            note: "Replaced by `system.cpu.utilization`".to_owned(), 
+        }));
+        latest_schema.add_metric_group("metrics.system.cpu.time", "system.cpu.time", [], None);
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 1);
+        assert_eq!(changes.count_metric_changes(), 1);
+        let Some(mcs) = changes.changes_by_type(SchemaItemType::Metrics) else {
+            panic!("No metric changes in {:?}", changes)
+        };
+        let Some(SchemaItemChange::Renamed { 
+            old_name,
+            new_name,
+            ..
+        }) = mcs.iter().next() else {
+            panic!("No metric changes in {:?}", changes)
+        };
+        assert_eq!("old_metric", old_name);
+        assert_eq!("new_metric", new_name);
     }
 }
