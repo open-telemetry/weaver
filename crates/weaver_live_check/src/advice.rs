@@ -403,11 +403,13 @@ fn check_value_type_mismatch(
     };
 
     if is_mismatch {
+        // This advice is Information level because the specification allows for some flexibility
+        // in value types, but we still want to inform the user about the mismatch
         Some(Advice {
             advice_type: "value_type_mismatch".to_owned(),
             value,
             message: format!("Value type should be `{}`", semconv_value_type),
-            advice_level: AdviceLevel::Violation,
+            advice_level: AdviceLevel::Information,
         })
     } else {
         None
