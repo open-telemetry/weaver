@@ -408,8 +408,8 @@ impl ResolvedTelemetrySchema {
     ) {
         // Collect all the information related to the signals that have been
         // deprecated in the latest schema.
-        for (signal_name, group) in latest_signals.iter() {
-            let baseline_group = baseline_signals.get(signal_name);
+        for (signal_id, group) in latest_signals.iter() {
+            let baseline_group = baseline_signals.get(signal_id);
 
             if let Some(baseline_group) = baseline_group {
                 if let Some(deprecated) = group.deprecated.as_ref() {
@@ -420,6 +420,12 @@ impl ResolvedTelemetrySchema {
                         }
                     }
 
+                    let Some(old_signal_name) = baseline_group.signal_name() else {
+                        // TODO: Verification should not allow old
+                        // signal name to not exist.
+                        panic!("No name found for signal: {}", signal_id)
+                    };
+
                     match deprecated {
                         Deprecated::Renamed {
                             renamed_to: rename_to,
@@ -428,7 +434,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Renamed {
-                                    old_name: (*signal_name).to_owned(),
+                                    old_name: old_signal_name.to_owned(),
                                     new_name: rename_to.clone(),
                                     note: note.clone(),
                                 },
@@ -438,7 +444,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Obsoleted {
-                                    name: (*signal_name).to_owned(),
+                                    name: (*signal_id).to_owned(),
                                     note: note.clone(),
                                 },
                             );
@@ -447,7 +453,7 @@ impl ResolvedTelemetrySchema {
                             changes.add_change(
                                 schema_item_type,
                                 SchemaItemChange::Uncategorized {
-                                    name: (*signal_name).to_owned(),
+                                    name: (*signal_id).to_owned(),
                                     note: note.clone(),
                                 },
                             );
@@ -458,7 +464,7 @@ impl ResolvedTelemetrySchema {
                 changes.add_change(
                     schema_item_type,
                     SchemaItemChange::Added {
-                        name: (*signal_name).to_owned(),
+                        name: (*signal_id).to_owned(),
                     },
                 );
             }
@@ -764,7 +770,7 @@ mod tests {
         assert_eq!(changes.count_removed_registry_attributes(), 2);
     }
 
-    // TODO add group diffs checks.
+    // TODO add many more group diff checks for various capabilities.
     #[test]
     fn detect_metric_name_change() {
         let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "test/base_version", "", "");
