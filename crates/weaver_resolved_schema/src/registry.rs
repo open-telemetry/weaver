@@ -7,6 +7,7 @@
 use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::metric::MetricValueTypeSpec;
 
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;
@@ -135,6 +136,9 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+    /// Number type of the metric's value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_type: Option<MetricValueTypeSpec>,
 }
 
 /// Common statistics for a group.
