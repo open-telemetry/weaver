@@ -247,6 +247,7 @@ impl ResolvedTelemetrySchema {
     }
 
     /// Grab a specific type of group identified by the name (not id).
+    #[must_use]
     pub fn groups_by_name(&self, group_type: GroupType) -> HashMap<&str, &Group> {
         self.registry
             .groups
@@ -806,8 +807,7 @@ mod tests {
             note,
         }) = mcs
             .iter()
-            .filter(|change| matches!(change, &SchemaItemChange::Renamed { .. }))
-            .next()
+            .find(|change| matches!(change, &SchemaItemChange::Renamed { .. }))
         else {
             panic!("No rename change found in: {:?}", mcs);
         };
@@ -818,8 +818,7 @@ mod tests {
         let Some(SchemaItemChange::Added { name }) =
             mcs
             .iter()
-            .filter(|change| matches!(change, &SchemaItemChange::Added { .. }))
-            .next()
+            .find(|change| matches!(change, &SchemaItemChange::Added { .. }))
         else {
             panic!("No added change found in: {:?}", mcs);
         };

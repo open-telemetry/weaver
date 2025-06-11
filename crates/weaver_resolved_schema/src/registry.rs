@@ -140,7 +140,8 @@ pub struct Group {
 impl Group {
     /// Returns the signal name for this group.
     /// For `metric` - this is `metric_name` property
-    /// For `entity` or `event` this is the `name` property.
+    /// For `span`, `entity` or `event` this is the `name` property.
+    #[must_use]
     pub fn signal_name(&self) -> Option<&str> {
         match self.r#type {
             GroupType::AttributeGroup => None,
