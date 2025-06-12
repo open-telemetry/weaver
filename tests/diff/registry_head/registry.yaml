@@ -151,7 +151,7 @@
         - ref: attr0
       stability: experimental
     - id: resource2
-      type: resource
+      type: entity
       name: resource2
       brief: This resource has been deprecated without replacement.
       attributes:
@@ -160,7 +160,7 @@
       deprecated:
         reason: obsoleted
     - id: resource3
-      type: resource
+      type: entity
       name: resource3
       brief: This resource has been split into 2 resources.
       attributes:
@@ -169,7 +169,7 @@
       deprecated:
         reason: uncategorized
     - id: resource4
-      type: resource
+      type: entity
       name: resource4
       brief: This resource has been renamed into resource4_bis.
       attributes:
@@ -179,7 +179,7 @@
         reason: renamed
         renamed_to: resource4_bis
     - id: resource4_bis
-      type: resource
+      type: entity
       name: resource4_bis
       brief: Resource4 bis.
       attributes:

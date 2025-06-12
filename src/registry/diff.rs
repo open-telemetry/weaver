@@ -219,6 +219,7 @@ mod tests {
                 .expect("Failed to open file");
             serde_json::from_reader(file).expect("Failed to parse JSON")
         };
+        // Note: span differences have disappeared.
         assert_eq!(schema_changes.count_changes(), 25);
         assert_eq!(schema_changes.count_registry_attribute_changes(), 5);
         assert_eq!(schema_changes.count_added_registry_attributes(), 1);

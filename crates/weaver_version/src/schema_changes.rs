@@ -15,10 +15,10 @@ pub enum SchemaItemType {
     Metrics,
     /// Events
     Events,
-    /// Spans
+    /// Spans - Note: Not Supported yet
     Spans,
-    /// Resources
-    Resources,
+    /// Entities
+    Entities,
 }
 
 /// A summary of schema changes between two versions of a schema.
@@ -48,7 +48,7 @@ pub struct RegistryManifest {
 /// Represents the different types of changes that can occur between
 /// two versions of a schema. This covers changes such as adding, removing,
 /// renaming, and deprecating telemetry objects (attributes, metrics, etc.).
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum SchemaItemChange {
@@ -116,7 +116,7 @@ impl SchemaChanges {
             .insert(SchemaItemType::Spans, Vec::new());
         let _ = schema_changes
             .changes
-            .insert(SchemaItemType::Resources, Vec::new());
+            .insert(SchemaItemType::Entities, Vec::new());
 
         schema_changes
     }
@@ -230,7 +230,7 @@ impl SchemaChanges {
     #[must_use]
     pub fn count_resource_changes(&self) -> usize {
         self.changes
-            .get(&SchemaItemType::Resources)
+            .get(&SchemaItemType::Entities)
             .map(|v| v.len())
             .unwrap_or(0)
     }
@@ -354,7 +354,7 @@ impl SchemaChanges {
             &mut result,
         );
         print_changes(
-            self.changes.get(&SchemaItemType::Resources),
+            self.changes.get(&SchemaItemType::Entities),
             "Resources",
             &mut result,
         );

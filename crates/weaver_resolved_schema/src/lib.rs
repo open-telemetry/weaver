@@ -106,6 +106,40 @@ impl ResolvedTelemetrySchema {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn add_metric_group<const N: usize>(
+        &mut self,
+        group_id: &str,
+        metric_name: &str,
+        attrs: [Attribute; N],
+        deprecated: Option<Deprecated>,
+    ) {
+        let attr_refs = self.catalog.add_attributes(attrs);
+        self.registry.groups.push(Group {
+            id: group_id.to_owned(),
+            r#type: GroupType::Metric,
+            brief: "".to_owned(),
+            note: "".to_owned(),
+            prefix: "".to_owned(),
+            extends: None,
+            stability: None,
+            deprecated,
+            name: Some(group_id.to_owned()),
+            lineage: None,
+            display_name: None,
+            attributes: attr_refs,
+            span_kind: None,
+            events: vec![],
+            metric_name: Some(metric_name.to_owned()),
+            instrument: Some(weaver_semconv::group::InstrumentSpec::Gauge),
+            unit: Some("{things}".to_owned()),
+            body: None,
+            annotations: None,
+            entity_associations: vec![],
+            value_type: Some(weaver_semconv::metric::MetricValueTypeSpec::Double),
+        });
+    }
+
     /// Adds a new attribute group to the schema.
     ///
     /// Note: This method is intended to be used for testing purposes only.
@@ -214,6 +248,17 @@ impl ResolvedTelemetrySchema {
             .collect()
     }
 
+    /// Grab a specific type of group identified by the name (not id).
+    #[must_use]
+    pub fn groups_by_name(&self, group_type: GroupType) -> HashMap<&str, &Group> {
+        self.registry
+            .groups
+            .iter()
+            .filter(|group| group.r#type == group_type)
+            .filter_map(|g| g.signal_name().map(|name| (name, g)))
+            .collect()
+    }
+
     /// Get the group by its ID.
     #[must_use]
     pub fn group(&self, group_id: &str) -> Option<&Group> {
@@ -245,34 +290,37 @@ impl ResolvedTelemetrySchema {
         self.diff_attributes(baseline_schema, &mut changes);
 
         // Signals
-        let latest_signals = self.groups(GroupType::Metric);
-        let baseline_signals = baseline_schema.groups(GroupType::Metric);
+        let latest_signals = self.groups_by_name(GroupType::Metric);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Metric);
         self.diff_signals(
             SchemaItemType::Metrics,
             &latest_signals,
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Event);
-        let baseline_signals = baseline_schema.groups(GroupType::Event);
+        let latest_signals = self.groups_by_name(GroupType::Event);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Event);
         self.diff_signals(
             SchemaItemType::Events,
             &latest_signals,
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Span);
-        let baseline_signals = baseline_schema.groups(GroupType::Span);
+        // Note: We cannot support spans here. Currently spans do not have a stable identifier to represent them.
+        // This means `groups_by_name` never returns a group today.
+        // See: https://github.com/open-telemetry/semantic-conventions/issues/2055
+        let latest_signals = self.groups_by_name(GroupType::Span);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Span);
         self.diff_signals(
             SchemaItemType::Spans,
             &latest_signals,
             &baseline_signals,
             &mut changes,
         );
-        let latest_signals = self.groups(GroupType::Entity);
-        let baseline_signals = baseline_schema.groups(GroupType::Entity);
+        let latest_signals = self.groups_by_name(GroupType::Entity);
+        let baseline_signals = baseline_schema.groups_by_name(GroupType::Entity);
         self.diff_signals(
-            SchemaItemType::Resources,
+            SchemaItemType::Entities,
             &latest_signals,
             &baseline_signals,
             &mut changes,
@@ -730,5 +778,51 @@ mod tests {
         assert_eq!(changes.count_changes(), 2);
         assert_eq!(changes.count_registry_attribute_changes(), 2);
         assert_eq!(changes.count_removed_registry_attributes(), 2);
+    }
+
+    // TODO add many more group diff checks for various capabilities.
+    #[test]
+    fn detect_metric_name_change() {
+        let mut prior_schema = ResolvedTelemetrySchema::new("1.0", "test/base_version", "", "");
+        prior_schema.add_metric_group("metrics.cpu.time", "cpu.time", [], None);
+        let mut latest_schema = ResolvedTelemetrySchema::new("1.0", "test/new_version", "", "");
+        latest_schema.add_metric_group(
+            "metrics.cpu.time",
+            "cpu.time",
+            [],
+            Some(Deprecated::Renamed {
+                renamed_to: "system.cpu.time".to_owned(),
+                note: "Replaced by `system.cpu.utilization`".to_owned(),
+            }),
+        );
+        latest_schema.add_metric_group("metrics.system.cpu.time", "system.cpu.time", [], None);
+        let changes = latest_schema.diff(&prior_schema);
+        assert_eq!(changes.count_changes(), 2);
+        assert_eq!(changes.count_metric_changes(), 2);
+        let Some(mcs) = changes.changes_by_type(SchemaItemType::Metrics) else {
+            panic!("No metric changes in {:?}", changes)
+        };
+
+        let Some(SchemaItemChange::Renamed {
+            old_name,
+            new_name,
+            note,
+        }) = mcs
+            .iter()
+            .find(|change| matches!(change, &SchemaItemChange::Renamed { .. }))
+        else {
+            panic!("No rename change found in: {:?}", mcs);
+        };
+        assert_eq!(old_name, "cpu.time");
+        assert_eq!(new_name, "system.cpu.time");
+        assert_eq!(note, "Replaced by `system.cpu.utilization`");
+
+        let Some(SchemaItemChange::Added { name }) = mcs
+            .iter()
+            .find(|change| matches!(change, &SchemaItemChange::Added { .. }))
+        else {
+            panic!("No added change found in: {:?}", mcs);
+        };
+        assert_eq!(name, "system.cpu.time");
     }
 }
