@@ -8,12 +8,12 @@ groups:
         type:
           members:
             - id: heap
-              value: 'heap'
-              brief: 'Heap memory.'
+              value: "heap"
+              brief: "Heap memory."
               stability: stable
             - id: non_heap
-              value: 'non_heap'
-              brief: 'Non-heap memory'
+              value: "non_heap"
+              brief: "Non-heap memory"
               stability: stable
         requirement_level: recommended
         brief: The type of memory.
@@ -36,3 +36,4 @@ groups:
     instrument: updowncounter
     unit: "By"
     stability: stable
+    value_type: int

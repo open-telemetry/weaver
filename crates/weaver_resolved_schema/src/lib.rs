@@ -170,6 +170,7 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
+            value_type: None,
         });
     }
 

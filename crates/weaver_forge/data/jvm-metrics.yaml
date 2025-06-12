@@ -9,12 +9,12 @@ groups:
           members:
             - id: heap
               stability: stable
-              value: 'heap'
-              brief: 'Heap memory.'
+              value: "heap"
+              brief: "Heap memory."
             - id: non_heap
               stability: stable
-              value: 'non_heap'
-              brief: 'Non-heap memory'
+              value: "non_heap"
+              brief: "Non-heap memory"
         requirement_level: recommended
         brief: The type of memory.
         examples: ["heap", "non_heap"]
@@ -38,6 +38,7 @@ groups:
     stability: stable
     entity_associations:
       - service
+    value_type: int
 
   - id: metric.jvm.memory.committed
     type: metric
@@ -47,6 +48,7 @@ groups:
     instrument: updowncounter
     unit: "By"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.memory.limit
     type: metric
@@ -56,6 +58,7 @@ groups:
     instrument: updowncounter
     unit: "By"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.memory.used_after_last_gc
     type: metric
@@ -65,6 +68,7 @@ groups:
     instrument: updowncounter
     unit: "By"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.gc.duration
     type: metric
@@ -92,6 +96,7 @@ groups:
           Garbage collector action is generally obtained via
           [GarbageCollectionNotificationInfo#getGcAction()](https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/GarbageCollectionNotificationInfo.html#getGcAction()).
     stability: stable
+    value_type: int
 
   - id: metric.jvm.thread.count
     type: metric
@@ -112,31 +117,32 @@ groups:
           members:
             - id: new
               stability: stable
-              value: 'new'
-              brief: 'A thread that has not yet started is in this state.'
+              value: "new"
+              brief: "A thread that has not yet started is in this state."
             - id: runnable
               stability: stable
-              value: 'runnable'
-              brief: 'A thread executing in the Java virtual machine is in this state.'
+              value: "runnable"
+              brief: "A thread executing in the Java virtual machine is in this state."
             - id: blocked
               stability: stable
-              value: 'blocked'
-              brief: 'A thread that is blocked waiting for a monitor lock is in this state.'
+              value: "blocked"
+              brief: "A thread that is blocked waiting for a monitor lock is in this state."
             - id: waiting
               stability: stable
-              value: 'waiting'
-              brief: 'A thread that is waiting indefinitely for another thread to perform a particular action is in this state.'
+              value: "waiting"
+              brief: "A thread that is waiting indefinitely for another thread to perform a particular action is in this state."
             - id: timed_waiting
               stability: stable
-              value: 'timed_waiting'
-              brief: 'A thread that is waiting for another thread to perform an action for up to a specified waiting time is in this state.'
+              value: "timed_waiting"
+              brief: "A thread that is waiting for another thread to perform an action for up to a specified waiting time is in this state."
             - id: terminated
               stability: stable
-              value: 'terminated'
-              brief: 'A thread that has exited is in this state.'
+              value: "terminated"
+              brief: "A thread that has exited is in this state."
         brief: "State of the thread."
         examples: ["runnable", "blocked"]
     stability: stable
+    value_type: int
 
   - id: metric.jvm.class.loaded
     type: metric
@@ -145,6 +151,7 @@ groups:
     instrument: counter
     unit: "{class}"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.class.unloaded
     type: metric
@@ -153,6 +160,7 @@ groups:
     instrument: counter
     unit: "{class}"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.class.count
     type: metric
@@ -161,6 +169,7 @@ groups:
     instrument: updowncounter
     unit: "{class}"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.cpu.count
     type: metric
@@ -169,6 +178,7 @@ groups:
     instrument: updowncounter
     unit: "{cpu}"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.cpu.time
     type: metric
@@ -177,6 +187,7 @@ groups:
     instrument: counter
     unit: "s"
     stability: stable
+    value_type: int
 
   - id: metric.jvm.cpu.recent_utilization
     type: metric
@@ -190,3 +201,4 @@ groups:
     instrument: gauge
     unit: "1"
     stability: stable
+    value_type: int

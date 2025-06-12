@@ -1,7 +1,7 @@
 groups:
   - id: metric_attributes.http.server
     type: attribute_group
-    brief: 'HTTP server attributes'
+    brief: "HTTP server attributes"
     extends: attributes.http.server
     attributes:
       - ref: server.port
@@ -20,3 +20,4 @@ groups:
     unit: "s"
     stability: stable
     extends: metric_attributes.http.server
+    value_type: int
