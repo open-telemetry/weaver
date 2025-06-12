@@ -1,5 +1,5 @@
 groups:
-  - id: "registry.group1"
+  - id: "other_name.group1"
     type: "attribute_group"
     name: "registry.group1"
     brief: "registry.group1"

@@ -485,6 +485,12 @@ impl GroupLineage {
         self.attributes.contains_key(attr_id)
     }
 
+    /// Returns the attribute lineage.
+    #[must_use]
+    pub(crate) fn attribute(&self, attr_id: &str) -> Option<&AttributeLineage> {
+        self.attributes.get(attr_id)
+    }
+
     /// Returns the source file of the group (path or URL).
     #[must_use]
     pub fn provenance(&self) -> &Provenance {
