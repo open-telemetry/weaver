@@ -123,7 +123,7 @@ impl ResolvedTelemetrySchema {
             prefix: "".to_owned(),
             extends: None,
             stability: None,
-            deprecated: deprecated,
+            deprecated,
             name: Some(group_id.to_owned()),
             lineage: None,
             display_name: None,
@@ -136,7 +136,7 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
-            value_type: None,
+            value_type: Some(weaver_semconv::metric::MetricValueTypeSpec::Double),
         });
     }
 
