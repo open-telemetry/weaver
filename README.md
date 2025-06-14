@@ -36,6 +36,47 @@ Weaver transforms how you build and maintain observability in your applications 
 - **Saving Time**: Auto-generate documentation, code, and configuration from a single source of truth
 - **Enabling Collaboration**: Create a shared language between developers, SREs, and product managers
 
+## The Observability by Design Workflow
+
+```
+Define → Instrument → Validate → Deploy
+  ↑_______________________________|
+              Iterate
+```
+
+1. **Define**: Set clear observability objectives early
+2. **Instrument**: Generate type-safe code and docs
+3. **Validate**: Catch issues in CI/CD pipeline
+4. **Deploy**: Ship with confidence
+5. **Iterate**: Refine using production feedback
+
+## OpenTelemetry Semantic Conventions
+
+Weaver leverages the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/) - 900+ standardized attributes across 74 domains, maintained by expert groups.
+
+Use official conventions, extend them, or create custom registries for your needs.
+
+## Real-World Impact
+
+**Before Weaver:**
+
+```rust
+// Developer A:
+counter.add(1, [("method", "GET")]);
+
+// Developer B:
+counter.add(1, [("http_method", "GET")]);
+// Result: Inconsistent data, broken dashboards
+```
+
+**With Weaver:**
+
+```rust
+// Both developers:
+counter.add(1, [(attributes::HttpMethod::KEY, "GET")]);
+// Result: Consistent data, reliable observability
+```
+
 ## Quick Start
 
 ### 1. Install
@@ -137,47 +178,6 @@ Keep docs in sync:
 
 ```bash
 weaver registry update-markdown docs/
-```
-
-## The Observability by Design Workflow
-
-```
-Define → Instrument → Validate → Deploy
-  ↑_______________________________|
-              Iterate
-```
-
-1. **Define**: Set clear observability objectives early
-2. **Instrument**: Generate type-safe code and docs
-3. **Validate**: Catch issues in CI/CD pipeline
-4. **Deploy**: Ship with confidence
-5. **Iterate**: Refine using production feedback
-
-## OpenTelemetry Semantic Conventions
-
-Weaver leverages the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/) - 900+ standardized attributes across 74 domains, maintained by expert groups.
-
-Use official conventions, extend them, or create custom registries for your needs.
-
-## Real-World Impact
-
-**Before Weaver:**
-
-```rust
-// Developer A:
-counter.add(1, [("method", "GET")]);
-
-// Developer B:
-counter.add(1, [("http_method", "GET")]);
-// Result: Inconsistent data, broken dashboards
-```
-
-**With Weaver:**
-
-```rust
-// Both developers:
-counter.add(1, [(attributes::HttpMethod::KEY, "GET")]);
-// Result: Consistent data, reliable observability
 ```
 
 ## What's Next
