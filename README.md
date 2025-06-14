@@ -1,7 +1,8 @@
+# OpenTelemetry Weaver
+
 <div style="display: flex; align-items: center; margin-bottom: 20px;">
-  <img src="docs/images/weaver-logo.svg" alt="OpenTelemetry Weaver" width="220" height="200" style="margin-right: 20px;">
+  <img src="docs/images/weaver-logo.svg" alt="OpenTelemetry Weaver" width="220" height="120" style="margin-right: 20px;">
   <div>
-    <h1 style="margin: 0; border-bottom: none;">OpenTelemetry Weaver</h1>
     <h3 style="margin: 5px 0;">Observability by Design</h3>
     <p><strong>Treat your telemetry like a public API</strong></p>
   </div>
@@ -12,8 +13,6 @@
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Slack](https://img.shields.io/badge/Slack-OpenTelemetry_Weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
-
----
 
 ## What is Observability by Design?
 
