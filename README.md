@@ -1,15 +1,12 @@
-<table>
-<tr>
-<td>
-  <img src="docs/images/weaver-logo.svg" alt="OpenTelemetry Weaver" width="300" height="300">
-</td>
-<td>
-  <h1>OpenTelemetry Weaver</h1>
-  <h3>Observability by Design</h3>
-  <p><strong>Treat your telemetry like a public API</strong></p>
-</td>
-</tr>
-</table>
+<p align="left">
+  <img src="docs/images/weaver-logo.svg" alt="OpenTelemetry Weaver" width="220" height="120" align="left" style="margin-right: 20px;">
+</p>
+
+# OpenTelemetry Weaver
+
+### Observability by Design
+
+Treat your telemetry like a public API
 
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/open-telemetry/weaver/graph/badge.svg?token=tmWKFoMT2G)](https://codecov.io/gh/open-telemetry/weaver)
