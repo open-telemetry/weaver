@@ -224,7 +224,7 @@ impl ResolvedTelemetrySchema {
     /// The "registry" of attributes includes only attributes that are NOT
     /// refinements of other attributes (i.e. they are the source or definition).
     ///
-    /// A refinment is defined as any attribute which is a `ref` of another.
+    /// A refinement is defined as any attribute which is a `ref` of another.
     #[must_use]
     pub fn registry_attribute_map(&self) -> HashMap<&str, &Attribute> {
         self.registry
