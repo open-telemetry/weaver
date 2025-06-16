@@ -662,7 +662,8 @@
             ]
           }
         }
-      }
+      },
+      "value_type": "int"
     },
     {
       "id": "metric.messaging.receive.duration",
@@ -784,7 +785,8 @@
             ]
           }
         }
-      }
+      },
+      "value_type": "int"
     },
     {
       "id": "metric.messaging.deliver.duration",
@@ -906,7 +908,8 @@
             ]
           }
         }
-      }
+      },
+      "value_type": "int"
     },
     {
       "id": "metric.messaging.publish.messages",
@@ -1028,7 +1031,8 @@
             ]
           }
         }
-      }
+      },
+      "value_type": "int"
     },
     {
       "id": "metric.messaging.receive.messages",
@@ -1150,7 +1154,8 @@
             ]
           }
         }
-      }
+      },
+      "value_type": "int"
     },
     {
       "id": "metric.messaging.deliver.messages",
@@ -1272,7 +1277,8 @@
             ]
           }
         }
-      }
+      },
+      "value_type": "int"
     },
     {
       "id": "registry.error",

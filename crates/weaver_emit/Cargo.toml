@@ -17,7 +17,7 @@ opentelemetry.workspace = true
 opentelemetry_sdk = { version = "0.30.0", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.30.0", features = ["grpc-tonic"] }
 opentelemetry-stdout = { version = "0.30.0", features = ["trace"] }
-tokio = { version = "1.44.2", features = ["full"] }
+tokio = { version = "1.45.1", features = ["full"] }
 ordered-float.workspace = true
 thiserror.workspace = true
 serde.workspace = true

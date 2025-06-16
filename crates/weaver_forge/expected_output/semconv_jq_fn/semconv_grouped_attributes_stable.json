@@ -848,6 +848,11 @@
   {
     "attributes": [
       {
+        "annotations": {
+          "collector": {
+            "optional": true
+          }
+        },
         "brief": "SHOULD be set to true if the exception event is recorded at a point where it is known that the exception is escaping the scope of the span.\n",
         "name": "exception.escaped",
         "note": "An exception is considered to have escaped (or left) the scope of a span,\nif that span is ended while the exception is still logically \"in flight\".\nThis may be actually \"in flight\" in some languages (e.g. if the exception\nis passed to a Context manager\u0027s `__exit__` method in Python) but will\nusually be caught at the point of recording the exception in most languages.\n\nIt is usually not possible to determine at the point where an exception is thrown\nwhether it will escape the scope of a span.\nHowever, it is trivial to know that an exception\nwill escape, if one checks for an active exception just before ending the span,\nas done in the [example for recording span exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/exceptions-spans/#recording-an-exception).\n\nIt follows that an exception may still escape the scope of the span\neven if the `exception.escaped` attribute was not set or set to false,\nsince the event might have been recorded at a time where it was not\nclear whether the exception will escape.",
