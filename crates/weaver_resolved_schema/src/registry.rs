@@ -383,16 +383,6 @@ impl Registry {
 }
 
 impl Group {
-    /// Returns `true` if the group is a registry attribute group.
-    ///
-    /// Note: Currently, this method relies on the `registry.` prefix to identify
-    /// registry attribute groups. Once issue [#580](https://github.com/open-telemetry/weaver/issues/580)
-    /// is resolved, this method must be updated accordingly.
-    #[must_use]
-    pub fn is_registry_attribute_group(&self) -> bool {
-        matches!(self.r#type, GroupType::AttributeGroup) && self.id.starts_with("registry.")
-    }
-
     /// Returns the fully resolved attributes of the group.
     /// The attribute references are resolved via the provided catalog.
     /// If an attribute reference is not found in the catalog, an error is
