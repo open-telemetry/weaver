@@ -583,6 +583,7 @@ clear whether the exception will escape.
   
 - Stability: Stable
   
+- Annotations: {"collector": {"optional": true}}
   
 #### Attribute `exception.message`
 

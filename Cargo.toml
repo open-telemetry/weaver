@@ -82,11 +82,11 @@ weaver_emit = { path = "crates/weaver_emit" }
 weaver_live_check = { path = "crates/weaver_live_check" }
 
 clap = { version = "4.5.40", features = ["derive"] }
-clap_complete = "4.5.47"
+clap_complete = "4.5.54"
 rayon = "1.10.0"
 ratatui = { version = "0.29.0", features = ["serde"] }
 tui-textarea = "0.7.0"
-tokio = { version = "1.44.2", features = ["rt", "net", "signal"] }
+tokio = { version = "1.45.1", features = ["rt", "net", "signal"] }
 prost = "0.13.4"
 tonic = { version = "0.12.3", default-features = false, features = [
     "server",
