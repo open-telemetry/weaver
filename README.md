@@ -225,7 +225,7 @@ changes:
 
 ## Media
 
-- **📺 [OpenTelemetry Weaver - Observability by Design](https://www.youtube.com/watch?v=BJt6LyJEYD0&ab_channel=CNCF%5BCloudNativeComputingFoundation%5D)** - CNCF presentation introducing Weaver's core concepts
+- **📺 [OpenTelemetry Weaver - Observability by Design](https://www.youtube.com/watch?v=BJt6LyJEYD0)** - CNCF presentation introducing Weaver's core concepts
 - **📺 [OpenTelemetry Semantic Conventions and How to Avoid Broken Observability](https://www.youtube.com/watch?v=Vd6MheRkHss)** - SRECON Americas 2025 presentation
 
 ## Getting Help
