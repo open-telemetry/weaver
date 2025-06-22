@@ -23,6 +23,7 @@ Have you ever experienced:
 
 - Broken alerts after a deployment because metric names changed?
 - Complex, hard-to-understand queries due to inconsistent naming?
+- Teams struggling to interpret unclear or undocumented signals?
 - Missing critical instrumentation discovered only in production?
 
 **Observability by Design** solves these problems by treating your observability signals (metrics, traces, logs) as a first-class public API that requires the same quality standards as your code.
@@ -36,12 +37,6 @@ Have you ever experienced:
 3. **Validate**: Catch issues in CI/CD pipeline
 4. **Deploy**: Ship with confidence
 5. **Iterate**: Refine using production feedback
-
-## OpenTelemetry Semantic Conventions
-
-Weaver leverages the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/) - 900+ standardized attributes across 74 domains, maintained by expert groups.
-
-Use official conventions, extend them, or create custom registries for your needs.
 
 ## Real-World Impact
 
@@ -64,9 +59,7 @@ counter.add(1, [(attributes::HttpMethod::KEY, "GET")]);
 // Result: Consistent data, reliable observability
 ```
 
-## Quick Start
-
-### 1. Install
+## Install
 
 **Pre-built binaries:**
 
@@ -86,7 +79,13 @@ cd weaver
 cargo build --release
 ```
 
-### 2. Define Your Schema
+## Define Your Schema
+
+![Observability by Design Workflow - Define](docs/images/workflow_define.svg)
+
+Weaver leverages the [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/) - 900+ standardized attributes across 74 domains, maintained by expert groups.
+
+Use official conventions, extend them, or create custom registries for your needs.
 
 Create `my-app.yaml`:
 
@@ -106,7 +105,14 @@ groups:
           - ref: http.status_code
 ```
 
-### 3. Generate Type-Safe Code
+## Generate Type-Safe Code and Docs
+
+![Observability by Design Workflow - Instrument](docs/images/workflow_instrument.svg)
+
+- **Resolution and Validation**
+- **Flexible data processing**
+- **Customizable Templates**
+- **Predefined Markdown templates available**
 
 ```bash
 # Generate Rust client
@@ -116,42 +122,70 @@ weaver registry generate -r ./my-app.yaml -t templates rust
 weaver registry generate -r ./my-app.yaml -t templates markdown
 ```
 
-### 4. Use in Your App
-
 ```rust
-// Generated type-safe client - no more typos!
-let counter = metric::Counter::new(
-    metrics::HttpServerRequests::NAME,
-    metrics::HttpServerRequests::UNIT,
-    metrics::HttpServerRequests::DESCRIPTION,
+let http_request_duration = HttpServerRequestDuration::<u64>::new(&meter);
+// Records a new data point and provides the required and some optional attributes
+http_request_duration.record(
+    100,
+    &HttpServerRequestDurationReqAttributes {
+        http_request_method: HttpRequestMethod::Connect,
+        url_scheme: "http".to_owned(),
+    },
+    Some(&HttpServerRequestDurationOptAttributes {
+        http_response_status_code: Some(200),
+        ..Default::default()
+    }),
 );
-
-// IDE auto-completion for attributes
-counter.add(1, &[
-    (attributes::HttpMethod::KEY, "GET"),
-    (attributes::HttpStatusCode::KEY, 200),
-]);
 ```
 
-## Core Features
+## Validate definitions and live telemetry
 
-### 🔒 **Policy Validation**
+![Observability by Design Workflow - Validate](docs/images/workflow_validate.svg)
+
+### Policy-based Static Validation Check
 
 Prevent breaking changes and enforce standards:
+
+- **Verify best practices compliance**
+- **Validate schema changes (avoid breaking alerts, dashboards, ...)**
 
 ```bash
 weaver registry check --policy policies/
 ```
 
-### 📊 **Live Validation**
+```
+Violation: Metric 'auction.bid.count' cannot change
+required/recommended attributes (missing '{"auction.
+id"}')
+- Category        : backward_compatibility
+- Type           : semconv_attribute
+- SemConv group  : metric.auction.bid.count
+- SemConv attribute: auction.id
+- Provenance: /home/weaver/source
+
+Total execution time: 5.531342577s
+make: *** [Makefile:89: check] Error 1
+```
+
+### Live Instrumentation Checks
 
 Check running apps against your schema:
+
+- **Confirm captured OTLP telemetry matches registry**
+- **Check coverage against registry**
+- **Check compliance with custom policies**
 
 ```bash
 weaver registry live-check --registry ./my-registry
 ```
 
-### 🔄 **Schema Evolution**
+### Publish Definitions
+
+![Observability by Design Workflow - Deploy](docs/images/workflow_deploy.svg)
+**Coming soon**
+
+- **Share your telemetry schema in an open format**
+- **Include a "diff" allowing automatic upgrade / downgrade**
 
 Track changes safely:
 
@@ -159,12 +193,30 @@ Track changes safely:
 weaver registry diff --baseline-registry v1.0.0
 ```
 
-### 📝 **Auto Documentation**
-
-Keep docs in sync:
-
-```bash
-weaver registry update-markdown docs/
+```yaml
+head:
+  semconv_version: v1.27.0
+baseline:
+  semconv_version: v1.26.0
+changes:
+  registry_attributes:
+    - name: http.server_name # attribute name
+      type: obsoleted # change type
+      note: This attribute is deprecated.
+    - name: user.email # attribute name
+      type: added # change type
+    - name: http_target
+      type: renamed
+      new_name: http.target
+      note: Renamed to http.target
+    - ...
+  events:
+    - name: exception
+      type: added
+    - ...
+  metrics:
+    - name: go.goroutine.count
+      type: added
 ```
 
 ## What's Next
