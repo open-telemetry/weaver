@@ -91,18 +91,18 @@ Create `my-app.yaml`:
 
 ```yaml
 groups:
-  - id: my.app.http
-    type: metric_group
-    brief: HTTP server metrics
-    metrics:
-      - name: http_requests_total
-        metric_name: http.server.requests
-        type: counter
-        brief: Total HTTP requests
-        unit: "1"
-        attributes:
-          - ref: http.method
-          - ref: http.status_code
+  - id: span.example_message
+    type: span
+    stability: development
+    brief: This span represents a simple message.
+    span_kind: client
+    attributes:
+      - ref: example.message
+        requirement_level: required
+      - ref: host.name
+        requirement_level: required
+      - ref: host.arch
+        requirement_level: required
 ```
 
 ## Generate Type-Safe Code and Docs
@@ -178,6 +178,10 @@ Check running apps against your schema:
 ```bash
 weaver registry live-check --registry ./my-registry
 ```
+
+**Test the actual OTLP from your app in CI/CD**
+
+![Live Check GitHub Action](docs/images/live-check-gh-action.png)
 
 ### Publish Definitions
 
