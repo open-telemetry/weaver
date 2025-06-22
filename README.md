@@ -27,22 +27,9 @@ Have you ever experienced:
 
 **Observability by Design** solves these problems by treating your observability signals (metrics, traces, logs) as a first-class public API that requires the same quality standards as your code.
 
-## Why OpenTelemetry Weaver?
-
-Weaver transforms how you build and maintain observability in your applications by:
-
-- **Preventing Naming Errors**: Generate type-safe client SDKs that eliminate typos and provide IDE auto-completion
-- **Ensuring Consistency**: Enforce naming conventions and backward compatibility through policy-based validation
-- **Saving Time**: Auto-generate documentation, code, and configuration from a single source of truth
-- **Enabling Collaboration**: Create a shared language between developers, SREs, and product managers
-
 ## The Observability by Design Workflow
 
-```
-Define → Instrument → Validate → Deploy
-  ↑_______________________________|
-              Iterate
-```
+![Observability by Design Workflow](docs/images/workflow_base.svg)
 
 1. **Define**: Set clear observability objectives early
 2. **Instrument**: Generate type-safe code and docs

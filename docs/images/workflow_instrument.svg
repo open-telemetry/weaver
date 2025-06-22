@@ -1,0 +1,33 @@
+<svg width="680" height="145" xmlns="http://www.w3.org/2000/svg">
+  <!-- Workflow boxes -->
+  <rect x="10" y="10" width="120" height="60" rx="8" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  <text x="70" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Define</text>
+  
+  <rect x="180" y="10" width="120" height="60" rx="8" fill="#dc2626" stroke="#b91c1c" stroke-width="2"/>
+  <text x="240" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Instrument</text>
+  
+  <rect x="350" y="10" width="120" height="60" rx="8" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  <text x="410" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Validate</text>
+  
+  <rect x="520" y="10" width="120" height="60" rx="8" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  <text x="580" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Deploy</text>
+  
+  <!-- Forward arrows -->
+  <path d="M 130 40 L 170 40" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 300 40 L 340 40" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  <path d="M 470 40 L 510 40" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Iterate arrow (bottom curve) -->
+  <path d="M 580 70 L 580 110 Q 580 110 360 110 Q 70 110 70 110 L 70 70" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  
+  <!-- Iterate label box -->
+  <rect x="285" y="100" width="80" height="20" rx="10" fill="#2563eb" stroke="#1e40af" stroke-width="1"/>
+  <text x="325" y="113" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">Iterate</text>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+  </defs>
+</svg>
