@@ -17,8 +17,12 @@ use weaver_checker::{
 use weaver_forge::{jq, registry::ResolvedGroup};
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_semconv::{
-    attribute::{AttributeType, PrimitiveOrArrayTypeSpec, TemplateTypeSpec, ValueSpec},
+    attribute::{
+        AttributeType, BasicRequirementLevelSpec, PrimitiveOrArrayTypeSpec, RequirementLevel,
+        TemplateTypeSpec, ValueSpec,
+    },
     deprecated::Deprecated,
+    metric::MetricValueTypeSpec,
     stability::Stability,
 };
 
@@ -157,23 +161,58 @@ impl Advisor for StabilityAdvisor {
 /// An advisor that checks if an attribute has the correct type
 pub struct TypeAdvisor;
 
-/// Checks if required attributes from a resolved group are present in a list of attributes
-/// Returns a list of advice for missing attributes
-fn check_required_attributes(
-    required_attributes: &[Attribute],
-    attributes: &[SampleAttribute],
+/// Checks if attributes from a resolved group are present in a list of sample attributes
+///
+/// Returns a list of advice for the attributes based on their RequirementLevel.
+///
+/// If an attribute is not present in the sample:
+///
+/// | RequirementLevel       | Live-check advice level |
+/// |------------------------|-------------------------|
+/// | Required               | Violation               |
+/// | Recommended            | Improvement             |
+/// | Opt-In                 | Information             |
+/// | Conditionally Required | Information             |
+fn check_attributes(
+    semconv_attributes: &[Attribute],
+    sample_attributes: &[SampleAttribute],
 ) -> Vec<Advice> {
     // Create a HashSet of attribute names for O(1) lookups
-    let attribute_set: HashSet<_> = attributes.iter().map(|attr| &attr.name).collect();
+    let attribute_set: HashSet<_> = sample_attributes.iter().map(|attr| &attr.name).collect();
 
     let mut advice_list = Vec::new();
-    for required_attribute in required_attributes {
-        if !attribute_set.contains(&required_attribute.name) {
+    for semconv_attribute in semconv_attributes {
+        if !attribute_set.contains(&semconv_attribute.name) {
+            let (advice_type, advice_level, message) = match &semconv_attribute.requirement_level {
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required) => (
+                    "required_attribute_not_present".to_owned(),
+                    AdviceLevel::Violation,
+                    "Required attribute is not present".to_owned(),
+                ),
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended)
+                | RequirementLevel::Recommended { .. } => (
+                    "recommended_attribute_not_present".to_owned(),
+                    AdviceLevel::Improvement,
+                    "Recommended attribute is not present".to_owned(),
+                ),
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn)
+                | RequirementLevel::OptIn { .. } => (
+                    "opt_in_attribute_not_present".to_owned(),
+                    AdviceLevel::Information,
+                    "Opt-in attribute is not present".to_owned(),
+                ),
+                RequirementLevel::ConditionallyRequired { .. } => (
+                    "conditionally_required_attribute_not_present".to_owned(),
+                    AdviceLevel::Information,
+                    "Conditionally required attribute is not present".to_owned(),
+                ),
+            };
+
             advice_list.push(Advice {
-                advice_type: "attribute_required".to_owned(),
-                value: Value::String(required_attribute.name.clone()),
-                message: "Attribute is required".to_owned(),
-                advice_level: AdviceLevel::Violation,
+                advice_type,
+                value: Value::String(semconv_attribute.name.clone()),
+                message,
+                advice_level,
             });
         }
     }
@@ -287,17 +326,27 @@ impl Advisor for TypeAdvisor {
             }
             SampleRef::NumberDataPoint(sample_number_data_point) => {
                 if let Some(semconv_metric) = registry_group {
-                    Ok(check_required_attributes(
+                    let mut advice_list = check_attributes(
                         &semconv_metric.attributes,
                         &sample_number_data_point.attributes,
-                    ))
+                    );
+
+                    if let Some(semconv_value_type) = &semconv_metric.value_type {
+                        if let Some(advice) = check_value_type_mismatch(
+                            &sample_number_data_point.value,
+                            semconv_value_type,
+                        ) {
+                            advice_list.push(advice);
+                        }
+                    }
+                    Ok(advice_list)
                 } else {
                     Ok(Vec::new())
                 }
             }
             SampleRef::HistogramDataPoint(sample_histogram_data_point) => {
                 if let Some(semconv_metric) = registry_group {
-                    Ok(check_required_attributes(
+                    Ok(check_attributes(
                         &semconv_metric.attributes,
                         &sample_histogram_data_point.attributes,
                     ))
@@ -305,8 +354,65 @@ impl Advisor for TypeAdvisor {
                     Ok(Vec::new())
                 }
             }
+            SampleRef::Exemplar(sample_exemplar) => {
+                let mut advice_list = Vec::new();
+                if let Some(semconv_metric) = registry_group {
+                    if let Some(semconv_value_type) = &semconv_metric.value_type {
+                        if let Some(advice) =
+                            check_value_type_mismatch(&sample_exemplar.value, semconv_value_type)
+                        {
+                            advice_list.push(advice);
+                        }
+                    }
+                }
+                Ok(advice_list)
+            }
             _ => Ok(Vec::new()),
         }
+    }
+}
+
+fn json_to_value_type(value: &Value) -> Option<MetricValueTypeSpec> {
+    match value {
+        Value::Number(num) => {
+            if num.is_i64() || num.is_u64() {
+                Some(MetricValueTypeSpec::Int)
+            } else if num.is_f64() {
+                Some(MetricValueTypeSpec::Double)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Checks for value type mismatch and returns advice if there's a mismatch
+fn check_value_type_mismatch(
+    sample_value: &Value,
+    semconv_value_type: &MetricValueTypeSpec,
+) -> Option<Advice> {
+    let sample_value_type = json_to_value_type(sample_value);
+    let (value, is_mismatch) = if let Some(sample_type) = sample_value_type {
+        (
+            Value::String(sample_type.to_string()),
+            &sample_type != semconv_value_type,
+        )
+    } else {
+        (Value::String("unknown".to_owned()), true)
+    };
+
+    if is_mismatch {
+        // This advice is Information level because the specification allows for some flexibility
+        // in value types, but we still want to inform the user about the mismatch
+        Some(Advice {
+            advice_type: "value_type_mismatch".to_owned(),
+            value,
+            message: format!("Value type should be `{}`", semconv_value_type),
+            advice_level: AdviceLevel::Information,
+        })
+    } else {
+        None
     }
 }
 
@@ -481,5 +587,147 @@ impl Advisor for RegoAdvisor {
             registry_attribute,
             registry_group,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use weaver_resolved_schema::attribute::Attribute;
+    use weaver_semconv::attribute::{
+        AttributeType::PrimitiveOrArray, BasicRequirementLevelSpec, RequirementLevel,
+    };
+
+    fn create_test_attribute(name: &str, requirement_level: RequirementLevel) -> Attribute {
+        Attribute {
+            name: name.to_owned(),
+            requirement_level,
+            r#type: PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+            brief: "test attribute".to_owned(),
+            examples: None,
+            tag: None,
+            stability: None,
+            deprecated: None,
+            sampling_relevant: None,
+            note: "".to_owned(),
+            prefix: false,
+            annotations: None,
+            role: None,
+            tags: None,
+            value: None,
+        }
+    }
+
+    fn create_sample_attribute(name: &str) -> SampleAttribute {
+        SampleAttribute {
+            name: name.to_owned(),
+            value: None,
+            r#type: None,
+            live_check_result: None,
+        }
+    }
+
+    #[test]
+    fn test_check_attributes_all_requirement_levels() {
+        let semconv_attributes = vec![
+            create_test_attribute(
+                "required_attr",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ),
+            create_test_attribute(
+                "recommended_basic",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            ),
+            create_test_attribute(
+                "recommended_text",
+                RequirementLevel::Recommended {
+                    text: "This is recommended".to_owned(),
+                },
+            ),
+            create_test_attribute(
+                "opt_in_basic",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::OptIn),
+            ),
+            create_test_attribute(
+                "opt_in_text",
+                RequirementLevel::OptIn {
+                    text: "This is opt-in".to_owned(),
+                },
+            ),
+            create_test_attribute(
+                "conditional",
+                RequirementLevel::ConditionallyRequired {
+                    text: "Required when X".to_owned(),
+                },
+            ),
+        ];
+
+        // Provide no attributes
+        let sample_attributes = vec![];
+
+        let advice = check_attributes(&semconv_attributes, &sample_attributes);
+        assert_eq!(advice.len(), 6);
+
+        // Verify each advice type and level
+        let advice_map: std::collections::HashMap<_, _> = advice
+            .iter()
+            .map(|a| (a.advice_type.clone(), a.advice_level.clone()))
+            .collect();
+
+        assert_eq!(
+            advice_map.get("recommended_attribute_not_present"),
+            Some(&AdviceLevel::Improvement)
+        );
+        assert_eq!(
+            advice_map.get("opt_in_attribute_not_present"),
+            Some(&AdviceLevel::Information)
+        );
+        assert_eq!(
+            advice_map.get("conditionally_required_attribute_not_present"),
+            Some(&AdviceLevel::Information)
+        );
+        assert_eq!(
+            advice_map.get("required_attribute_not_present"),
+            Some(&AdviceLevel::Violation)
+        );
+
+        // Count advice levels
+        let violations = advice
+            .iter()
+            .filter(|a| a.advice_level == AdviceLevel::Violation)
+            .count();
+        let improvements = advice
+            .iter()
+            .filter(|a| a.advice_level == AdviceLevel::Improvement)
+            .count();
+        let information = advice
+            .iter()
+            .filter(|a| a.advice_level == AdviceLevel::Information)
+            .count();
+
+        assert_eq!(violations, 1);
+        assert_eq!(improvements, 2);
+        assert_eq!(information, 3);
+    }
+
+    #[test]
+    fn test_check_attributes_no_missing_attributes() {
+        let semconv_attributes = vec![
+            create_test_attribute(
+                "attr1",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Required),
+            ),
+            create_test_attribute(
+                "attr2",
+                RequirementLevel::Basic(BasicRequirementLevelSpec::Recommended),
+            ),
+        ];
+        let sample_attributes = vec![
+            create_sample_attribute("attr1"),
+            create_sample_attribute("attr2"),
+        ];
+
+        let advice = check_attributes(&semconv_attributes, &sample_attributes);
+        assert!(advice.is_empty());
     }
 }

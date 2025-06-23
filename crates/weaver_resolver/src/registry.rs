@@ -405,6 +405,7 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             body: group.spec.body,
             annotations: group.spec.annotations,
             entity_associations: group.spec.entity_associations,
+            value_type: group.spec.value_type,
         },
         attributes: attrs,
         provenance: group.provenance,

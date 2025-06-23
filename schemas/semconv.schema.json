@@ -71,7 +71,10 @@
 							"description": "A note explaining the reason for the deprecation."
 						}
 					},
-					"required": ["reason", "renamed_to"],
+					"required": [
+						"reason",
+						"renamed_to"
+					],
 					"additionalProperties": false
 				},
 				{
@@ -86,7 +89,9 @@
 							"description": "A note explaining the reason for the deprecation."
 						}
 					},
-					"required": ["reason"],
+					"required": [
+						"reason"
+					],
 					"additionalProperties": false
 				},
 				{
@@ -101,12 +106,13 @@
 							"description": "A note explaining the reason for the deprecation."
 						}
 					},
-					"required": ["reason"],
+					"required": [
+						"reason"
+					],
 					"additionalProperties": false
 				}
 			]
 		},
-
 		"EntitySemanticConvention": {
 			"allOf": [
 				{
@@ -262,7 +268,9 @@
 				},
 				"entity_associations": {
 					"type": "array",
-					"items": { "$ref": "#/$defs/EntityAssociation" }
+					"items": {
+						"$ref": "#/$defs/EntityAssociation"
+					}
 				}
 			}
 		},
@@ -286,7 +294,9 @@
 				},
 				"entity_associations": {
 					"type": "array",
-					"items": { "$ref": "#/$defs/EntityAssociation" }
+					"items": {
+						"$ref": "#/$defs/EntityAssociation"
+					}
 				}
 			},
 			"anyOf": [
@@ -466,7 +476,8 @@
 				"type",
 				"metric_name",
 				"instrument",
-				"unit"
+				"unit",
+				"value_type"
 			],
 			"properties": {
 				"instrument": {
@@ -493,7 +504,17 @@
 				},
 				"entity_associations": {
 					"type": "array",
-					"items": { "$ref": "#/$defs/EntityAssociation" }
+					"items": {
+						"$ref": "#/$defs/EntityAssociation"
+					}
+				},
+				"value_type": {
+					"type": "string",
+					"description": "Number type of the metric's value. It can be 'int' or 'double'.",
+					"enum": [
+						"int",
+						"double"
+					]
 				}
 			}
 		},
@@ -801,7 +822,9 @@
 		},
 		"EntityAssociation": {
 			"type": "array",
-			"items": { "type": "string" },
+			"items": {
+				"type": "string"
+			},
 			"description": "list of entity associations."
 		}
 	}

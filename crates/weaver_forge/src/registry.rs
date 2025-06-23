@@ -7,6 +7,7 @@
 use crate::error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
@@ -14,7 +15,9 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
+use weaver_semconv::metric::MetricValueTypeSpec;
 use weaver_semconv::stability::Stability;
+use weaver_semconv::YamlValue;
 
 /// A resolved semantic convention registry used in the context of the template and policy
 /// engines.
@@ -107,6 +110,13 @@ pub struct ResolvedGroup {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+    /// Number type of the metric's value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_type: Option<MetricValueTypeSpec>,
+    /// Annotations for the group.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<HashMap<String, YamlValue>>,
 }
 
 impl ResolvedGroup {
@@ -160,6 +170,8 @@ impl ResolvedGroup {
             display_name: group.display_name.clone(),
             body: group.body.clone(),
             entity_associations: group.entity_associations.clone(),
+            value_type: group.value_type.clone(),
+            annotations: group.annotations.clone(),
         })
     }
 }
@@ -220,6 +232,8 @@ impl ResolvedRegistry {
                     display_name: group.display_name.clone(),
                     body: group.body.clone(),
                     entity_associations: group.entity_associations.clone(),
+                    value_type: group.value_type.clone(),
+                    annotations: group.annotations.clone(),
                 }
             })
             .collect();

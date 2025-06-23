@@ -127,6 +127,7 @@ mod tests {
             TemplateTypeSpec, ValueSpec,
         },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
+        metric::MetricValueTypeSpec,
         stability::Stability,
     };
 
@@ -452,6 +453,8 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                value_type: None,
+                annotations: None,
             }],
         }
     }
@@ -521,6 +524,8 @@ mod tests {
                     lineage: None,
                     display_name: Some("System Memory Attributes".to_owned()),
                     body: None,
+                    value_type: None,
+                    annotations: None,
                 },
                 // System uptime metric
                 ResolvedGroup {
@@ -543,6 +548,8 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: Some(MetricValueTypeSpec::Int),
+                    annotations: None,
                 },
                 // System memory usage metric
                 ResolvedGroup {
@@ -583,6 +590,8 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
+                    value_type: Some(MetricValueTypeSpec::Int),
+                    annotations: None,
                 },
             ],
         }
@@ -633,6 +642,8 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                value_type: None,
+                annotations: None,
             }],
         };
 
@@ -785,30 +796,26 @@ mod tests {
             assert!(result.is_ok());
         }
         stats.finalize();
-        /* Assert on these:
-        total_entities_by_type: {
-            "data_point": 6,
-            "metric": 4,
-            "attribute": 3,
-        },
-        no_advice_count: 4,
-        advice_type_counts: {
-            "attribute_required": 2,
-            "missing_attribute": 2,
-            "stability": 2,
-            "missing_metric": 3,
-            "missing_namespace": 2,
-        }, */
+
         // Check the statistics
         assert_eq!(stats.total_entities_by_type.get("data_point"), Some(&6));
         assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
         assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
-        assert_eq!(stats.no_advice_count, 4);
-        assert_eq!(stats.advice_type_counts.get("attribute_required"), Some(&2));
+        assert_eq!(stats.no_advice_count, 3);
+        assert_eq!(
+            stats
+                .advice_type_counts
+                .get("recommended_attribute_not_present"),
+            Some(&2)
+        );
         assert_eq!(stats.advice_type_counts.get("missing_attribute"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
         assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
+        assert_eq!(
+            stats.advice_type_counts.get("value_type_mismatch"),
+            Some(&1)
+        );
         assert_eq!(
             stats.seen_registry_metrics.get("system.memory.usage"),
             Some(&1)
@@ -893,6 +900,8 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
+                value_type: None,
+                annotations: None,
             }],
         };
 
@@ -1006,7 +1015,9 @@ mod tests {
             }])),
             live_check_result: None,
         });
-        let mut live_checker = LiveChecker::new(registry, vec![]);
+        let advisors: Vec<Box<dyn Advisor>> = vec![Box::new(TypeAdvisor)];
+        let mut live_checker = LiveChecker::new(registry, advisors);
+
         let rego_advisor = RegoAdvisor::new(
             &live_checker,
             &Some("data/policies/live_check_advice/".into()),
@@ -1021,6 +1032,10 @@ mod tests {
         assert!(result.is_ok());
         stats.finalize();
         assert_eq!(stats.advice_type_counts.get("low_value"), Some(&1));
+        assert_eq!(
+            stats.advice_type_counts.get("value_type_mismatch"),
+            Some(&2)
+        );
     }
 
     #[test]

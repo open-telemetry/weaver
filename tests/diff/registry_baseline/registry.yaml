@@ -1,5 +1,5 @@
 groups:
-  - id: "registry.group1"
+  - id: "other_name.group1"
     type: "attribute_group"
     name: "registry.group1"
     brief: "registry.group1"
@@ -119,28 +119,28 @@ groups:
       - ref: attr0
     stability: experimental
   - id: resource1
-    type: resource
+    type: entity
     name: resource1
     brief: Resource 1
     attributes:
       - ref: attr0
     stability: experimental
   - id: resource2
-    type: resource
+    type: entity
     name: resource2
     brief: Resource 2
     attributes:
       - ref: attr0
     stability: experimental
   - id: resource3
-    type: resource
+    type: entity
     name: resource3
     brief: Resource 3
     attributes:
       - ref: attr0
     stability: experimental
   - id: resource4
-    type: resource
+    type: entity
     name: resource4
     brief: Resource 4
     attributes:

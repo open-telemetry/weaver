@@ -154,7 +154,7 @@ events ::= id {id} # MUST point to an existing event group
 
 name ::= string
 
-metricfields ::= metric_name instrument unit stability
+metricfields ::= metric_name instrument unit stability value_type
 
 metric_name ::= string
 instrument ::=  "counter"
@@ -162,6 +162,7 @@ instrument ::=  "counter"
             | "gauge"
             | "updowncounter"
 unit ::= string
+value_type ::= "int" | "double"
 ```
 
 ## Semantics
@@ -179,11 +180,11 @@ The field `semconv` represents a semantic convention and it is made by:
 - `brief`, string, a brief description of the semantic convention.
 - `stability`, required enum, specifies the stability of the attribute.
 - `note`, optional string, a more elaborate description of the semantic convention.
-   It defaults to an empty string.
+  It defaults to an empty string.
 - `extends`, optional string, reference another semantic convention `id`.
-   It inherits all attributes defined in the specified semantic convention.
+  It inherits all attributes defined in the specified semantic convention.
 - `deprecated`, optional, when present marks the semantic convention as deprecated.
-   The string provided as `<description>` MUST specify why it's deprecated and/or what to use instead.
+  The string provided as `<description>` MUST specify why it's deprecated and/or what to use instead.
 - `attributes`, list of attributes that belong to the semantic convention.
 - `annotations`, optional map of annotations. Annotations are key-value pairs that provide additional information about
   the group. The keys are strings and the values are any YAML value.
@@ -205,63 +206,63 @@ The following is only valid if `type` is `event`:
 
 ##### Event semantic convention example
 
-  ```yaml
-  - id: event.some_event
-    name: the.event.name
-    type: event
-    brief: "Describes the event."
-    stability: development
-    attributes:                                  # Optional
-      - ref: registry.attribute.id
-      - ref: registry.some_other.attribute.id    # Reference to an existing global attribute
-    body:                                        # Optional, follows the any_value conventions
-      id: event_body.some_event.fields
-      type: map
-      requirement_level: required
-      fields:                                    # Unique to this event definition only
-        - id: method
-          type: string
-          stability: development
-          brief: "The HTTP method used in the request."
-          examples: ['GET', 'POST']
-          requirement_level: required
-        - id: url
-          type: string
-          stability: development
-          brief: "The URL of the request."
-          examples: ['http://example.com']
-          requirement_level: required
-        - id: status_code
-          type: int
-          stability: development
-          brief: "The status code of the response."
-          examples: [200, 404]
-          requirement_level: required
-        - id: nested_map
-          type: map
-          stability: development
-          requirement_level: required
-          fields:
-            - id: nested_field
-              type: string    # May be any supported any_value type
-              stability: development
-              requirement_level: required
-              brief: "A nested field."
-              examples: ['nested_value']
-        - id: nested_enum_state
-          type: enum
-          stability: development
-          requirement_level: required
-          members:
-            - id: active
-              value: 'active'
-              brief: The state became active.
-            - id: inactive
-              value: 'inactive'
-              brief: The state became inactive.
-            - id: background
-              value: 'background'
-              brief: The state is now in the background.
+```yaml
+- id: event.some_event
+  name: the.event.name
+  type: event
+  brief: "Describes the event."
+  stability: development
+  attributes: # Optional
+    - ref: registry.attribute.id
+    - ref: registry.some_other.attribute.id # Reference to an existing global attribute
+  body: # Optional, follows the any_value conventions
+    id: event_body.some_event.fields
+    type: map
+    requirement_level: required
+    fields: # Unique to this event definition only
+      - id: method
+        type: string
+        stability: development
+        brief: "The HTTP method used in the request."
+        examples: ["GET", "POST"]
+        requirement_level: required
+      - id: url
+        type: string
+        stability: development
+        brief: "The URL of the request."
+        examples: ["http://example.com"]
+        requirement_level: required
+      - id: status_code
+        type: int
+        stability: development
+        brief: "The status code of the response."
+        examples: [200, 404]
+        requirement_level: required
+      - id: nested_map
+        type: map
+        stability: development
+        requirement_level: required
+        fields:
+          - id: nested_field
+            type: string # May be any supported any_value type
+            stability: development
+            requirement_level: required
+            brief: "A nested field."
+            examples: ["nested_value"]
+      - id: nested_enum_state
+        type: enum
+        stability: development
+        requirement_level: required
+        members:
+          - id: active
+            value: "active"
+            brief: The state became active.
+          - id: inactive
+            value: "inactive"
+            brief: The state became inactive.
+          - id: background
+            value: "background"
+            brief: The state is now in the background.
 ```
 
 #### Metric Group semantic convention
@@ -276,13 +277,14 @@ can be defined and then referenced from other `metric` groups using `ref`.
 
 The following is only valid if `type` is `metric`:
 
-  - `metric_name`, required, the metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
-  - `instrument`, required, the [instrument type]( https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#instrument)
+- `metric_name`, required, the metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
+- `instrument`, required, the [instrument type](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#instrument)
   that should be used to record the metric. Note that the semantic conventions must be written
   using the names of the synchronous instrument types (`counter`, `gauge`, `updowncounter` and `histogram`).
   For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
-  - `unit`, required, the unit in which the metric is measured, which should adhere to
-    [the guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+- `unit`, required, the unit in which the metric is measured, which should adhere to
+  [the guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
+- `value_type`, required, the number type of the metric's value (`int` or `double`)
 
 #### Attribute group semantic convention
 
@@ -295,32 +297,32 @@ Attribute groups don't have any specific fields and follow the general `semconv`
 Describes the type of the value of an extended (log) attribute or the body of an event.
 
 - `id`, required, string. The name of the field / any value.
-- `type`, either a string literal denoting the type as a primitive or an array type, [an enum definition](#enumeration) or a map of fields.  Required.
-   The accepted string literals are:
-  * `"string"`: String value.
-  * `"int"`: Integer value.
-  * `"double"`: Double value.
-  * `"boolean"`: Boolean value.
-  * `"string[]"`: Array of strings value.
-  * `"int[]"`: Array of integer value.
-  * `"double[]"`: Array of double value.
-  * `"boolean[]"`: Array of boolean value.
-  * `"byte[]"`: Array of bytes value.
-  * `"map"`: Map of any_value types.
-    * The `fields` field is required and contains a list of any_value entries that describe each field of the map.
-  * `"enum"`: Enumerated value.
-    * The `members` field is required and contains a list of enum entries.
-  * `"undefined"`: The actually format of the value is not defined.
+- `type`, either a string literal denoting the type as a primitive or an array type, [an enum definition](#enumeration) or a map of fields. Required.
+  The accepted string literals are:
+  - `"string"`: String value.
+  - `"int"`: Integer value.
+  - `"double"`: Double value.
+  - `"boolean"`: Boolean value.
+  - `"string[]"`: Array of strings value.
+  - `"int[]"`: Array of integer value.
+  - `"double[]"`: Array of double value.
+  - `"boolean[]"`: Array of boolean value.
+  - `"byte[]"`: Array of bytes value.
+  - `"map"`: Map of any_value types.
+    - The `fields` field is required and contains a list of any_value entries that describe each field of the map.
+  - `"enum"`: Enumerated value.
+    - The `members` field is required and contains a list of enum entries.
+  - `"undefined"`: The actually format of the value is not defined.
 - `brief`, `note`, `deprecated`, `stability`, same meaning as for the whole
   [semantic convention](#semantic-convention), but per field.
 - `requirement_level`, required. Specifies if the field is mandatory.
-   Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended".
-    When set to "conditionally_required", the string provided as `<condition>` MUST specify
-    the conditions under which the field is required.
+  Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the field is "recommended".
+  When set to "conditionally_required", the string provided as `<condition>` MUST specify
+  the conditions under which the field is required.
 - `examples`, sequence of example values for the field or single example value.
-   They are required only for string and string array fields.
-   Example values must be of the same type of the field or for a map of fields, the type can be of a string type.
-   If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
+  They are required only for string and string array fields.
+  Example values must be of the same type of the field or for a map of fields, the type can be of a string type.
+  If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
 - `fields`, required only when the type is `map`, list of any value entries that describe each field of the map.
 - `members`, required only when the type is `enum`, list of enum entries. See [below](#enumeration).
 
@@ -329,37 +331,37 @@ Describes the type of the value of an extended (log) attribute or the body of an
 An attribute is defined by:
 
 - `id`, string that uniquely identifies the attribute. Required.
-- `type`, either a string literal denoting the type as a primitive or an array type, a template type or an enum definition (See later).  Required.
-   The accepted string literals are:
-  * _primitive and array types as string literals:_
-    * `"string"`: String attributes.
-    * `"int"`: Integer attributes.
-    * `"double"`: Double attributes.
-    * `"boolean"`: Boolean attributes.
-    * `"string[]"`: Array of strings attributes.
-    * `"int[]"`: Array of integer attributes.
-    * `"double[]"`: Array of double attributes.
-    * `"boolean[]"`: Array of boolean attributes.
-  * _template type as string literal:_ `"template[<PRIMITIVE_OR_ARRAY_TYPE>]"` (See [below](#template-type))
-  See the [specification of Attributes](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute) for the definition of the value types.
+- `type`, either a string literal denoting the type as a primitive or an array type, a template type or an enum definition (See later). Required.
+  The accepted string literals are:
+  - _primitive and array types as string literals:_
+    - `"string"`: String attributes.
+    - `"int"`: Integer attributes.
+    - `"double"`: Double attributes.
+    - `"boolean"`: Boolean attributes.
+    - `"string[]"`: Array of strings attributes.
+    - `"int[]"`: Array of integer attributes.
+    - `"double[]"`: Array of double attributes.
+    - `"boolean[]"`: Array of boolean attributes.
+  - _template type as string literal:_ `"template[<PRIMITIVE_OR_ARRAY_TYPE>]"` (See [below](#template-type))
+    See the [specification of Attributes](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute) for the definition of the value types.
 - `stability`, required enum, specifies the stability of the attribute.
 - `ref`, optional string, reference an existing attribute, see [below](#ref).
 - `tag`, optional string, associates a tag ("sub-group") to the attribute.
-   It carries no particular semantic meaning but can be used e.g. for filtering
-   in the markdown generator.
+  It carries no particular semantic meaning but can be used e.g. for filtering
+  in the markdown generator.
 - `requirement_level`, optional, specifies if the attribute is mandatory.
-   Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the attribute is "recommended".
-   When set to "conditionally_required", the string provided as `<condition>` MUST specify
-   the conditions under which the attribute is required.
+  Can be "required", "conditionally_required", "recommended" or "opt_in". When omitted, the attribute is "recommended".
+  When set to "conditionally_required", the string provided as `<condition>` MUST specify
+  the conditions under which the attribute is required.
 - `sampling_relevant`, optional boolean,
   specifies if the attribute is (especially) relevant for sampling and
   thus should be set at span start. It defaults to `false`.
 - `brief`, `note`, `deprecated`, same meaning as for the whole
   [semantic convention](#semantic-convention), but per attribute.
 - `examples`, sequence of example values for the attribute or single example value.
-   They are required only for string and string array attributes.
-   Example values must be of the same type of the attribute.
-   If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
+  They are required only for string and string array attributes.
+  Example values must be of the same type of the attribute.
+  If only a single example is provided, it can directly be reported without encapsulating it into a sequence/dictionary. See [below](#examples-for-examples).
 - `annotations`, optional map of annotations. Annotations are key-value pairs that provide additional information about
   the attribute. The keys are strings and the values are any YAML value.
 
@@ -370,20 +372,20 @@ Examples for setting the `examples` field:
 A single example value for a string attribute. All the following three representations are equivalent:
 
 ```yaml
-examples: 'this is a single string'
+examples: "this is a single string"
 ```
 
 or
 
 ```yaml
-examples: ['this is a single string']
+examples: ["this is a single string"]
 ```
 
 or
 
 ```yaml
 examples:
-   - 'this is a single string'
+  - "this is a single string"
 ```
 
 Attention, the following will throw a type mismatch error because a string type as example value is expected and not an array of string:
@@ -398,48 +400,52 @@ examples: [['this is an error']]
 Multiple example values for a string attribute:
 
 ```yaml
-examples: ['this is a single string', 'this is another one']
+examples: ["this is a single string", "this is another one"]
 ```
 
 or
 
 ```yaml
 examples:
-   - 'this is a single string'
-   - 'this is another one'
+  - "this is a single string"
+  - "this is another one"
 ```
 
 A single example value for an array of strings attribute:
 
 ```yaml
-examples: [ ['first element of first array', 'second element of first array'] ]
+examples: [["first element of first array", "second element of first array"]]
 ```
 
 or
 
 ```yaml
 examples:
-  - ['first element of first array', 'second element of first array']
+  - ["first element of first array", "second element of first array"]
 ```
 
 Multiple example values for an array of string attribute:
 
 ```yaml
-examples: [ ['first element of first array', 'second element of first array'], ['first element of second array', 'second element of second array'] ]
+examples:
+  [
+    ["first element of first array", "second element of first array"],
+    ["first element of second array", "second element of second array"],
+  ]
 ```
 
 or
 
 ```yaml
 examples:
-   - ['first element of first array', 'second element of first array']
-   - ['first element of second array', 'second element of second array']
+  - ["first element of first array", "second element of first array"]
+  - ["first element of second array", "second element of second array"]
 ```
 
 Attention: the following will throw a type mismatch error because an array of strings as type for the example values is expected and not a string:
 
 ```yaml
-examples: 'this is an error'
+examples: "this is an error"
 ```
 
 #### Ref
@@ -475,7 +481,11 @@ groups:
         stability: stable
         brief: >
           HTTP request headers, the key being the normalized HTTP header name (lowercase, with `-` characters replaced by `_`), the value being the header values.
-        examples: ['http.request.header.content_type=["application/json"]', 'http.request.header.x_forwarded_for=["1.2.3.4", "1.2.3.5"]']
+        examples:
+          [
+            'http.request.header.content_type=["application/json"]',
+            'http.request.header.x_forwarded_for=["1.2.3.4", "1.2.3.5"]',
+          ]
         note: |
           ...
 ```
@@ -496,4 +506,3 @@ An enum entry has the following fields:
 - `note`, optional string, longer description. It defaults to an empty string.
 - `stability`, required stability level. Attributes marked non-stable cannot have stable members.
 - `deprecated`, optional string, similarly to semantic convention and attribute deprecation, marks specific member as deprecated.
-

@@ -7,6 +7,7 @@
 use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
+use weaver_semconv::metric::MetricValueTypeSpec;
 
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;
@@ -135,6 +136,31 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
+    /// Number type of the metric's value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_type: Option<MetricValueTypeSpec>,
+}
+
+impl Group {
+    /// Returns the signal name for this group.
+    /// For `metric` - this is `metric_name` property
+    /// For `span`, `entity` or `event` this is the `name` property.
+    #[must_use]
+    pub fn signal_name(&self) -> Option<&str> {
+        match self.r#type {
+            GroupType::AttributeGroup => None,
+            // ToDo: Remove this comment way forward is agreed upon
+            // https://github.com/open-telemetry/weaver/issues/785
+            // For now we allow group.name to be a namespace for spans.
+            GroupType::Span => self.name.as_deref(),
+            GroupType::Event => self.name.as_deref(),
+            GroupType::Metric => self.metric_name.as_deref(),
+            GroupType::MetricGroup => None,
+            GroupType::Entity => self.name.as_deref(),
+            GroupType::Scope => None,
+            GroupType::Undefined => None,
+        }
+    }
 }
 
 /// Common statistics for a group.
@@ -357,16 +383,6 @@ impl Registry {
 }
 
 impl Group {
-    /// Returns `true` if the group is a registry attribute group.
-    ///
-    /// Note: Currently, this method relies on the `registry.` prefix to identify
-    /// registry attribute groups. Once issue [#580](https://github.com/open-telemetry/weaver/issues/580)
-    /// is resolved, this method must be updated accordingly.
-    #[must_use]
-    pub fn is_registry_attribute_group(&self) -> bool {
-        matches!(self.r#type, GroupType::AttributeGroup) && self.id.starts_with("registry.")
-    }
-
     /// Returns the fully resolved attributes of the group.
     /// The attribute references are resolved via the provided catalog.
     /// If an attribute reference is not found in the catalog, an error is
