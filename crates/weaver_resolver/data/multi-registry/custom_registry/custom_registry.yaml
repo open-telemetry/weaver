@@ -31,4 +31,11 @@ groups:
         requirement_level: required
 
 imports:
-  - metric.example.*
+  attributes:
+    - attributes.http.*
+  metrics:
+    - example.*
+  entities:
+    - gcp.*
+  events:
+    - session.start

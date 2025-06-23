@@ -16,7 +16,9 @@ use weaver_resolved_schema::attribute::UnresolvedAttribute;
 use weaver_resolved_schema::lineage::{AttributeLineage, GroupLineage};
 use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::attribute::AttributeSpec;
-use weaver_semconv::group::{GroupSpecWithProvenance, GroupWildcardWithProvenance};
+use weaver_semconv::group::{
+    GroupSpecWithProvenance, GroupType, GroupWildcard, ImportsWithProvenance,
+};
 use weaver_semconv::manifest::RegistryManifest;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
@@ -33,7 +35,7 @@ pub struct UnresolvedRegistry {
     pub groups: Vec<UnresolvedGroup>,
 
     /// List of unresolved imports that belong to the semantic convention
-    pub imports: Vec<GroupWildcardWithProvenance>,
+    pub imports: Vec<ImportsWithProvenance>,
 }
 
 /// A group containing unresolved attributes.
@@ -160,18 +162,32 @@ pub fn resolve_semconv_registry(
 fn gc_unreferenced_objects(
     manifest: Option<&RegistryManifest>,
     registry: &mut Registry,
-    imports: &[GroupWildcardWithProvenance],
+    all_imports: &[ImportsWithProvenance],
     attr_catalog: &mut AttributeCatalog,
 ) -> Result<(), Error> {
-    // Build a set of imported IDs from the imports.
-    let mut builder = GlobSet::builder();
-    for iwp in imports.iter() {
-        // Add the wildcard to the builder.
-        _ = builder.add(iwp.wildcard.0.clone());
-    }
-    let imports_matcher = builder.build().map_err(|e| Error::InvalidWildcard {
-        error: e.to_string(),
-    })?;
+    let build_globset = |wildcards: Option<&Vec<GroupWildcard>>| {
+        let mut builder = GlobSet::builder();
+        if let Some(wildcards_vec) = wildcards {
+            for wildcard in wildcards_vec.iter() {
+                _ = builder.add(wildcard.0.clone());
+            }
+        }
+        builder.build().map_err(|e| Error::InvalidWildcard {
+            error: e.to_string(),
+        })
+    };
+
+    let attrs_imports_matcher = build_globset(
+        all_imports
+            .iter()
+            .find_map(|i| i.imports.attributes.as_ref()),
+    )?;
+    let metrics_imports_matcher =
+        build_globset(all_imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
+    let events_imports_matcher =
+        build_globset(all_imports.iter().find_map(|i| i.imports.events.as_ref()))?;
+    let entities_imports_matcher =
+        build_globset(all_imports.iter().find_map(|i| i.imports.entities.as_ref()))?;
 
     if let Some(manifest) = manifest {
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
@@ -180,7 +196,22 @@ fn gc_unreferenced_objects(
 
             // Remove all groups that are not defined in the current registry.
             registry.groups.retain(|group| {
-                if imports_matcher.is_match(group.id.as_str()) {
+                let ref_in_imports = match group.r#type {
+                    GroupType::AttributeGroup => attrs_imports_matcher.is_match(group.id.as_str()),
+                    GroupType::Event => group
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| events_imports_matcher.is_match(name.as_str())),
+                    GroupType::Metric => group.metric_name.as_ref().is_some_and(|metric_name| {
+                        metrics_imports_matcher.is_match(metric_name.as_str())
+                    }),
+                    GroupType::Entity => group
+                        .name
+                        .as_ref()
+                        .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
+                    _ => false,
+                };
+                if ref_in_imports {
                     // This group is referenced in the `imports` section, so we keep it.
                     true
                 } else if let Some(lineage) = &group.lineage {
@@ -276,7 +307,7 @@ pub fn check_root_attribute_id_duplicates(
     registry
         .groups
         .iter()
-        .filter(|group| group.r#type == weaver_semconv::group::GroupType::AttributeGroup)
+        .filter(|group| group.r#type == GroupType::AttributeGroup)
         .for_each(|group| {
             // Iterate over all attribute references in the group.
             for attr_ref in group.attributes.iter() {

@@ -15,6 +15,7 @@ use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::provenance::Provenance;
+use crate::semconv::Imports;
 use crate::stability::Stability;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
@@ -610,12 +611,12 @@ pub struct GroupSpecWithProvenance {
     pub provenance: Provenance,
 }
 
-/// A group wildcard with its provenance (path or URL).
+/// Imports with its provenance (path or URL).
 #[derive(Debug, Clone, Deserialize)]
-pub struct GroupWildcardWithProvenance {
-    /// The group wildcard.
-    pub wildcard: GroupWildcard,
-    /// The provenance of the group import (path or URL).
+pub struct ImportsWithProvenance {
+    /// The `imports` section.
+    pub imports: Imports,
+    /// The provenance of the `imports` (path or URL).
     pub provenance: Provenance,
 }
 

@@ -3,7 +3,7 @@
 //! Semantic Convention Registry.
 
 use crate::attribute::AttributeSpecWithProvenance;
-use crate::group::{GroupSpecWithProvenance, GroupWildcardWithProvenance};
+use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
@@ -248,17 +248,13 @@ impl SemConvRegistry {
 
     /// Returns an iterator over all the unresolved imports defined in the semantic convention
     /// registry. Each import is associated with its provenance (path or URL).
-    pub fn unresolved_imports_iter(
-        &self,
-    ) -> impl Iterator<Item = GroupWildcardWithProvenance> + '_ {
+    pub fn unresolved_imports_iter(&self) -> impl Iterator<Item = ImportsWithProvenance> + '_ {
         self.specs
             .iter()
             .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
-                spec.imports.iter().flat_map(|imports| {
-                    imports.iter().map(|wildcard| GroupWildcardWithProvenance {
-                        wildcard: wildcard.clone(),
-                        provenance: provenance.clone(),
-                    })
+                spec.imports.iter().map(|imports| ImportsWithProvenance {
+                    imports: imports.clone(),
+                    provenance: provenance.clone(),
                 })
             })
     }
