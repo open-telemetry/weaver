@@ -29,10 +29,6 @@ pub struct SemConvSpec {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Imports {
-    /// A list of attribute group id wildcards.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub attributes: Option<Vec<GroupWildcard>>,
-
     /// A list of metric group metric_name wildcards.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metrics: Option<Vec<GroupWildcard>>,
@@ -310,10 +306,6 @@ mod tests {
                 brief: "description2"
                 type: "int"
         imports:
-          attributes:
-            - http.*
-            - db.*
-            - system.*
           metrics:
             - db.*
           events:
@@ -326,17 +318,6 @@ mod tests {
             .unwrap();
         assert_eq!(semconv_spec.groups.len(), 2);
         assert!(semconv_spec.imports.is_some());
-        assert_eq!(
-            semconv_spec
-                .imports
-                .as_ref()
-                .unwrap()
-                .attributes
-                .as_ref()
-                .unwrap()
-                .len(),
-            3
-        );
         assert_eq!(
             semconv_spec
                 .imports

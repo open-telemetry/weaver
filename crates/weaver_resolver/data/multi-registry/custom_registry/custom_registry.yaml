@@ -32,8 +32,6 @@ groups:
         requirement_level: required
 
 imports:
-  attributes:
-    - attributes.http.*
   metrics:
     - example.*
   entities:

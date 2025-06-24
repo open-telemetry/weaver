@@ -177,11 +177,6 @@ fn gc_unreferenced_objects(
         })
     };
 
-    let attrs_imports_matcher = build_globset(
-        all_imports
-            .iter()
-            .find_map(|i| i.imports.attributes.as_ref()),
-    )?;
     let metrics_imports_matcher =
         build_globset(all_imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
     let events_imports_matcher =
@@ -197,7 +192,6 @@ fn gc_unreferenced_objects(
             // Remove all groups that are not defined in the current registry.
             registry.groups.retain(|group| {
                 let ref_in_imports = match group.r#type {
-                    GroupType::AttributeGroup => attrs_imports_matcher.is_match(group.id.as_str()),
                     GroupType::Event => group
                         .name
                         .as_ref()

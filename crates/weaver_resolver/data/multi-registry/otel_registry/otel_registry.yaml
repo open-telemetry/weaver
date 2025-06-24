@@ -82,23 +82,3 @@ groups:
       emitted prior to the `session.start` event.
     attributes:
       - ref: error.type
-
-  - id: attributes.http.common
-    type: attribute_group
-    brief: "Describes HTTP attributes."
-    attributes:
-      - ref: error.type
-
-  - id: attributes.http.client
-    type: attribute_group
-    brief: 'HTTP Client attributes'
-    extends: attributes.http.common
-    attributes:
-      - ref: error.type
-
-  - id: attributes.http.server
-    type: attribute_group
-    brief: 'HTTP Server attributes'
-    extends: attributes.http.common
-    attributes:
-      - ref: error.type

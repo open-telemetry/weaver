@@ -452,16 +452,6 @@ mod tests {
                             semconv_spec
                                 .imports()
                                 .unwrap()
-                                .attributes
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
                                 .metrics
                                 .as_ref()
                                 .unwrap()
@@ -494,7 +484,7 @@ mod tests {
                             source.path,
                             "data/multi-registry/otel_registry/otel_registry.yaml"
                         );
-                        assert_eq!(semconv_spec.groups().len(), 10);
+                        assert_eq!(semconv_spec.groups().len(), 7);
                         assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
                         assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
                         assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
@@ -505,9 +495,6 @@ mod tests {
                         assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
                         assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
                         assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
-                        assert_eq!(&semconv_spec.groups()[7].id, "attributes.http.common");
-                        assert_eq!(&semconv_spec.groups()[8].id, "attributes.http.client");
-                        assert_eq!(&semconv_spec.groups()[9].id, "attributes.http.server");
                     }
                     _ => panic!("Unexpected registry id: {}", source.registry_id),
                 }
@@ -537,12 +524,6 @@ mod tests {
                         assert!(group.is_some());
                         let group = resolved_registry.group("event.session.end");
                         assert!(group.is_some());
-                        let group = resolved_registry.group("attributes.http.common");
-                        assert!(group.is_some());
-                        let group = resolved_registry.group("attributes.http.client");
-                        assert!(group.is_some());
-                        let group = resolved_registry.group("attributes.http.server");
-                        assert!(group.is_some());
                     } else {
                         // These groups should be garbage collected because they are not referenced
                         // anywhere (in ref or imports)
@@ -560,13 +541,6 @@ mod tests {
                         let group = resolved_registry.group("entity.gcp.apphub.service");
                         assert!(group.is_some());
                         let group = resolved_registry.group("event.session.start");
-                        assert!(group.is_some());
-                        dbg!(&resolved_registry.groups(GroupType::AttributeGroup));
-                        let group = resolved_registry.group("attributes.http.common");
-                        assert!(group.is_some());
-                        let group = resolved_registry.group("attributes.http.client");
-                        assert!(group.is_some());
-                        let group = resolved_registry.group("attributes.http.server");
                         assert!(group.is_some());
                     }
 
