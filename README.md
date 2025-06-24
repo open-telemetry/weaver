@@ -133,7 +133,7 @@ default.
 
 To check a set of policies against the registry, use the following command:
 ```
-cargo run -- registry check -b path/to/policies
+cargo run -- registry check -p path/to/policies
 ```
 
 An example of a policy file can be found here [schemas/otel_policies.rego](schemas/otel_policies.rego).
