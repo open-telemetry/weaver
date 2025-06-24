@@ -98,10 +98,10 @@ groups:
     attributes:
       - ref: example.message
         requirement_level: required
-      - ref: host.name
-        requirement_level: required
-      - ref: host.arch
-        requirement_level: required
+      - ref: host.name                 # imported from OTEL semantic conventions
+        requirement_level: required.   # requirement level redefined locally
+      - ref: host.arch                 # imported from OTEL semantic conventions
+        requirement_level: required.   # requirement level redefined locally
 ```
 
 ## Generate Type-Safe Code and Docs
