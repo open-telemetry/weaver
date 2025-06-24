@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# [NEXT] - NEXT
+# [0.15.3] - 2025-06-24
 
 - Add support for metrics to `registry emit`
   ([#767](https://github.com/open-telemetry/weaver/pull/767) by @jerbly)
