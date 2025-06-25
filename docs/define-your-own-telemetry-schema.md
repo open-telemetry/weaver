@@ -56,7 +56,7 @@ dependencies:
 Semantic conventions are defined in YAML files. OpenTelemetry maintains a
 registry of general attributes and signals across many domains, from databases
 and messaging to generative AI (see
-the [offical OTEL semantic conventions](https://opentelemetry.io/docs/specs/semconv/)).
+the [official OTEL semantic conventions](https://opentelemetry.io/docs/specs/semconv/)).
 
 You can define your own semantic conventions or reuse those defined by OTEL. The
 example below shows how to define a simple span semantic convention representing
