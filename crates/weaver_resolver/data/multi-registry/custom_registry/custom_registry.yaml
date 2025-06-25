@@ -30,3 +30,11 @@ groups:
         requirement_level: recommended
       - ref: error.type
         requirement_level: required
+
+imports:
+  metrics:
+    - example.*
+  entities:
+    - gcp.*
+  events:
+    - session.start

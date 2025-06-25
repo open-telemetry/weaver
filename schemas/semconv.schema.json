@@ -45,6 +45,24 @@
 					}
 				]
 			}
+		},
+		"imports": {
+			"type": "object",
+			"properties": {
+				"metrics": {
+					"type": "array",
+					"items": { "type": "string" }
+				},
+				"events": {
+					"type": "array",
+					"items": { "type": "string" }
+				},
+				"entities": {
+					"type": "array",
+					"items": { "type": "string" }
+				}
+			},
+			"additionalProperties": false
 		}
 	},
 	"$defs": {

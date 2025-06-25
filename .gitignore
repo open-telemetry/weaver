@@ -41,3 +41,6 @@ resolved-schema.yaml
 
 # Ignore the temporary repo dir created by `cargo xtask history` command
 history-temp-repo/
+
+# Exclude patch files
+*.patch
