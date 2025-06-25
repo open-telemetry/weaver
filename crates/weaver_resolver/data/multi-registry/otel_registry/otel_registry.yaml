@@ -21,3 +21,64 @@ groups:
         requirement_level: recommended
         examples:
           "Unused"
+
+  - id: metric.example.counter
+    type: metric
+    metric_name: example.counter
+    stability: development
+    brief: A counter of the number of messages processed.
+    instrument: counter
+    unit: "1"
+    value_type: int
+    attributes:
+      - ref: error.type
+
+  - id: entity.gcp.apphub.application
+    type: entity
+    stability: development
+    name: gcp.apphub.application
+    brief: >
+      Attributes denoting data from an Application in AppHub.
+      See [AppHub overview](https://cloud.google.com/app-hub/docs/overview).
+    attributes:
+      - ref: error.type
+  - id: entity.gcp.apphub.service
+    type: entity
+    stability: development
+    name: gcp.apphub.service
+    brief: >
+      Attributes denoting data from a Service in AppHub.
+      See [AppHub overview](https://cloud.google.com/app-hub/docs/overview).
+    attributes:
+      - ref: error.type
+
+  - id: event.session.start
+    stability: development
+    type: event
+    name: session.start
+    brief: >
+      Indicates that a new session has been started, optionally linking to the prior session.
+    note: >
+      For instrumentation that tracks user behavior during user sessions, a `session.start` event MUST be emitted
+      every time a session is created. When a new session is created as a continuation of a prior session,
+      the `session.previous_id` SHOULD be included in the event. The values of `session.id` and `session.previous_id`
+      MUST be different.
+
+      When the `session.start` event contains both `session.id` and `session.previous_id` fields, the event indicates
+      that the previous session has ended. If the session ID in `session.previous_id` has not yet ended via explicit
+      `session.end` event, then the consumer SHOULD treat this continuation event as semantically equivalent to
+      `session.end(session.previous_id)` and `session.start(session.id)`.
+    attributes:
+      - ref: error.type
+  - id: event.session.end
+    stability: development
+    type: event
+    name: session.end
+    brief: >
+      Indicates that a session has ended.
+    note: >
+      For instrumentation that tracks user behavior during user sessions, a `session.end` event SHOULD be emitted
+      every time a session ends. When a session ends and continues as a new session, this event SHOULD be
+      emitted prior to the `session.start` event.
+    attributes:
+      - ref: error.type

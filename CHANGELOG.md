@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 # [0.15.3] - 2025-06-24
 
+- Add `imports` section to semconv spec. Custom registries can now import groups
+  by name or by wildcard. ([#769](https://github.com/open-telemetry/weaver/pull/769/) by @lquerel)
 - Add support for metrics to `registry emit`
   ([#767](https://github.com/open-telemetry/weaver/pull/767) by @jerbly)
 - Adds `value_type` to metric: `int` or `double`. Data-point and exemplar values are live-checked.

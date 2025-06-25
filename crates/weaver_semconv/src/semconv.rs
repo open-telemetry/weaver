@@ -2,7 +2,7 @@
 
 //! Semantic convention specification.
 
-use crate::group::GroupSpec;
+use crate::group::{GroupSpec, GroupWildcard};
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
 use crate::Error;
@@ -19,6 +19,27 @@ use weaver_common::result::WResult;
 pub struct SemConvSpec {
     /// A collection of semantic convention groups or [`GroupSpec`].
     pub(crate) groups: Vec<GroupSpec>,
+
+    /// A list of imports referencing groups defined in a dependent registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) imports: Option<Imports>,
+}
+
+/// Imports are used to reference groups defined in a dependent registry.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Imports {
+    /// A list of metric group metric_name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metrics: Option<Vec<GroupWildcard>>,
+
+    /// A list of event group name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub events: Option<Vec<GroupWildcard>>,
+
+    /// A list of entity group name wildcards.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entities: Option<Vec<GroupWildcard>>,
 }
 
 /// A wrapper for a [`SemConvSpec`] with its provenance.
@@ -172,6 +193,12 @@ impl SemConvSpec {
     pub fn groups(&self) -> &[GroupSpec] {
         &self.groups
     }
+
+    /// Returns the list of imports in the semantic convention spec.
+    #[must_use]
+    pub fn imports(&self) -> Option<&Imports> {
+        self.imports.as_ref()
+    }
 }
 
 impl SemConvSpecWithProvenance {
@@ -278,11 +305,52 @@ mod tests {
                 stability: "stable"
                 brief: "description2"
                 type: "int"
+        imports:
+          metrics:
+            - db.*
+          events:
+            - db.*
+          entities:
+            - host
         "#;
         let semconv_spec = SemConvSpec::from_string(spec)
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.groups.len(), 2);
+        assert!(semconv_spec.imports.is_some());
+        assert_eq!(
+            semconv_spec
+                .imports
+                .as_ref()
+                .unwrap()
+                .metrics
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            semconv_spec
+                .imports
+                .as_ref()
+                .unwrap()
+                .events
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            semconv_spec
+                .imports
+                .as_ref()
+                .unwrap()
+                .entities
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
 
         // Invalid yaml
         let spec = r#"
