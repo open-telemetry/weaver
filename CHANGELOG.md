@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-# [NEXT] - NEXT
+# [0.15.3] - 2025-06-24
 
 - Add `imports` section to semconv spec. Custom registries can now import groups
   by name or by wildcard. ([#769](https://github.com/open-telemetry/weaver/pull/769/) by @lquerel)
