@@ -164,6 +164,9 @@ For github groups see the [codeowners](CODEOWNERS) file.
 - [Jeremy Blythe](https://github.com/jerbly) Evertz
 
 For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
+
+### Approvers
+
 We're seeking approvers.
 
 ### Become an Approver or Maintainer
