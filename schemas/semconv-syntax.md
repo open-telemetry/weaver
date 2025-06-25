@@ -39,10 +39,15 @@ here in `syntax.md` should be considered more authoritative though. Please keep
 All attributes are lower case.
 
 ```ebnf
-groups ::= semconv
-       | semconv groups
-
+groups ::= semconv [imports]
+       | semconv [imports] groups
+       
 semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
+
+imports := [metrics] [events] [entities]
+metrics := <wildcard> {<wildcard>}         # e.g. "db.*"
+events := <wildcard> {<wildcard>}          # e.g. "db.*"
+entities := <wildcard> {<wildcard>}        # e.g. "host", "service.*
 
 extends_or_attributes ::= (extends | attributes | (extends attributes))
 
