@@ -169,6 +169,4 @@ For more information about the maintainer role, see the [community repository](h
 
 We're seeking approvers.
 
-### Become an Approver or Maintainer
-
-See the [community membership document in OpenTelemetry community repo](https://github.com/open-telemetry/community/blob/master/community-membership.md).
+For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver).
