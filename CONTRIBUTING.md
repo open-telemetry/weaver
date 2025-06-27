@@ -163,10 +163,10 @@ For github groups see the [codeowners](CODEOWNERS) file.
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
 - [Jeremy Blythe](https://github.com/jerbly) Evertz
 
-For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/community-membership.md#maintainer).
+For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 
 ### Approvers
 
 We're seeking approvers.
 
-For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/community-membership.md#approver).
+For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
