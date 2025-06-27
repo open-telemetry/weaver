@@ -4,11 +4,11 @@
 
 //! A group specification.
 
+use globset::Glob;
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
-
-use serde::{Deserialize, Serialize};
 
 use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
@@ -16,6 +16,7 @@ use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
 use crate::metric::MetricValueTypeSpec;
 use crate::provenance::Provenance;
+use crate::semconv::Imports;
 use crate::stability::Stability;
 use crate::{Error, YamlValue};
 use weaver_common::result::WResult;
@@ -109,6 +110,11 @@ pub struct GroupSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value_type: Option<MetricValueTypeSpec>,
 }
+
+/// Represents a wildcard expression to import one or several groups defined in an imported
+/// registry.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {
     /// Validation logic for the group.
@@ -607,6 +613,24 @@ impl Display for InstrumentSpec {
             Histogram => write!(f, "histogram"),
         }
     }
+}
+
+/// A group spec with its provenance (path or URL).
+#[derive(Debug, Clone)]
+pub struct GroupSpecWithProvenance {
+    /// The group spec.
+    pub spec: GroupSpec,
+    /// The provenance of the group spec (path or URL).
+    pub provenance: Provenance,
+}
+
+/// Imports with its provenance (path or URL).
+#[derive(Debug, Clone, Deserialize)]
+pub struct ImportsWithProvenance {
+    /// The `imports` section.
+    pub imports: Imports,
+    /// The provenance of the `imports` (path or URL).
+    pub provenance: Provenance,
 }
 
 #[cfg(test)]
@@ -1926,13 +1950,4 @@ mod tests {
     }
 
     // Test value_type validation for groups.
-}
-
-/// A group spec with its provenance (path or URL).
-#[derive(Debug, Clone)]
-pub struct GroupSpecWithProvenance {
-    /// The group spec.
-    pub spec: GroupSpec,
-    /// The provenance of the group spec (path or URL).
-    pub provenance: Provenance,
 }

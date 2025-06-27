@@ -5998,7 +5998,7 @@ dependencies = [
 
 [[package]]
 name = "weaver"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -6041,7 +6041,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_checker"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "globset",
  "miette",
@@ -6057,7 +6057,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_codegen_test"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "dirs",
  "log",
@@ -6072,7 +6072,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_common"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "dirs",
  "flate2",
@@ -6096,7 +6096,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_diff"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "serde_json",
  "similar",
@@ -6105,7 +6105,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_emit"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "futures-util",
  "miette",
@@ -6125,7 +6125,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_forge"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "convert_case",
  "dirs",
@@ -6162,7 +6162,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_live_check"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "miette",
  "schemars",
@@ -6191,7 +6191,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolved_schema"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "ordered-float",
  "schemars",
@@ -6204,11 +6204,11 @@ dependencies = [
 
 [[package]]
 name = "weaver_resolver"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "glob",
+ "globset",
  "itertools 0.14.0",
- "log",
  "miette",
  "rayon",
  "serde",
@@ -6223,9 +6223,10 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "glob",
+ "globset",
  "jsonschema 0.30.0",
  "miette",
  "ordered-float",
@@ -6243,7 +6244,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_semconv_gen"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "miette",
  "nom 8.0.0",
@@ -6260,7 +6261,7 @@ dependencies = [
 
 [[package]]
 name = "weaver_version"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "schemars",
  "semver",
@@ -6743,9 +6744,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "4.1.0"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af7dcdb4229c0e79c2531a24de7726a0e980417a74fb4d030a35f535665439a0"
+checksum = "95ab361742de920c5535880f89bbd611ee62002bf11341d16a5f057bb8ba6899"
 dependencies = [
  "aes",
  "arbitrary",

@@ -7,7 +7,7 @@
 [![Slack](https://img.shields.io/badge/Slack-OpenTelemetry_Weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
 ----
 
-[Getting started](#getting-started) | [Main commands](#main-commands) | [Generate Doc & Code](crates/weaver_forge/README.md) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
+[Getting started](#getting-started) | [Main commands](#main-commands) | [Generate Doc & Code](crates/weaver_forge/README.md) | [Define your registry](docs/define-your-own-telemetry-schema.md) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
 
 > [!NOTE]
 > Codegen authors, please refer to the following documentation to learn how to
@@ -157,6 +157,8 @@ Telemetry Schemas.
 
 ## Documentation
 
+- [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md): A guide on how to define your own
+  telemetry schema using semantic conventions.
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
 - [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
 - [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate
