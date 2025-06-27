@@ -157,16 +157,16 @@ The OpenTelemetry Weaver was initially developed in the
 
 For github groups see the [codeowners](CODEOWNERS) file.
 
-### Maintainers (@open-telemetry/weaver-maintainers)
+### Maintainers
 
 - [Laurent Quérel](https://github.com/lquerel) F5 Networks
 - [Josh Suereth](https://github.com/jsuereth) Google LLC
 - [Jeremy Blythe](https://github.com/jerbly) Evertz
 
+For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
+
 ### Approvers
 
 We're seeking approvers.
 
-### Become an Approver or Maintainer
-
-See the [community membership document in OpenTelemetry community repo](https://github.com/open-telemetry/community/blob/master/community-membership.md).
+For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
