@@ -79,7 +79,7 @@ fn regex_replace(
     let re = Regex::new(pattern.as_ref()).map_err(|e| {
         minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("Invalid regex pattern: {}", e),
+            format!("Invalid regex pattern: {e}"),
         )
     })?;
     Ok(re

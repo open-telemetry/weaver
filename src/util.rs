@@ -200,11 +200,11 @@ pub(crate) fn resolve_semconv_specs(
     let registry_id = registry.id().to_owned();
     match SchemaResolver::resolve_semantic_convention_registry(registry, include_unreferenced) {
         WResult::Ok(resolved_schema) => {
-            log_success(format!("`{}` semconv registry resolved", registry_id));
+            log_success(format!("`{registry_id}` semconv registry resolved"));
             WResult::Ok(resolved_schema)
         }
         WResult::OkWithNFEs(resolved_schema, errs) => {
-            log_success(format!("`{}` semconv registry resolved", registry_id));
+            log_success(format!("`{registry_id}` semconv registry resolved"));
             let nfes = errs.into_iter().map(DiagnosticMessage::new).collect();
             WResult::OkWithNFEs(resolved_schema, nfes)
         }

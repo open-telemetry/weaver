@@ -115,7 +115,7 @@ impl JsonSchemaValidator {
                 "The following YAML snippet does not match any of the allowed schemas (anyOf, see help section).".to_owned(),
 
             ValidationErrorKind::BacktrackLimitExceeded { error: e } =>
-                format!("Regex match failed: backtrack limit exceeded ({})", e),
+                format!("Regex match failed: backtrack limit exceeded ({e})"),
 
             ValidationErrorKind::Constant { expected_value } =>
                 format!("Value {} does not match the required constant: {}.", error.instance, expected_value),
@@ -130,7 +130,7 @@ impl JsonSchemaValidator {
                 format!("Value {} does not conform to the required contentMediaType: '{}'.", error.instance, content_media_type),
 
             ValidationErrorKind::Custom { message } =>
-                format!("Custom validation error: {}", message),
+                format!("Custom validation error: {message}"),
 
             ValidationErrorKind::Enum { options } =>
                 format!("Value {} is not among the allowed options: {}.", error.instance, options),
@@ -148,7 +148,7 @@ impl JsonSchemaValidator {
                 format!("Value {} does not match the required format: '{}'.", error.instance, format),
 
             ValidationErrorKind::FromUtf8 { error: e } =>
-                format!("Base64 or UTF-8 decoding failed: {}", e),
+                format!("Base64 or UTF-8 decoding failed: {e}"),
 
             ValidationErrorKind::MaxItems { limit } =>
                 format!("Array {} has too many items: {} (maximum allowed is {}).", error.instance, error.instance, limit),
@@ -194,10 +194,10 @@ impl JsonSchemaValidator {
                 format!("String {} does not match the required pattern: '{}'.", error.instance, pattern),
 
             ValidationErrorKind::PropertyNames { error: e } =>
-                format!("Invalid object property name(s): {}", e),
+                format!("Invalid object property name(s): {e}"),
 
             ValidationErrorKind::Required { property } =>
-                format!("Missing required property: {}.", property),
+                format!("Missing required property: {property}."),
 
             ValidationErrorKind::Type { kind: TypeKind::Single(type_) } =>
                 format!("Value {} is not of the required type: '{}'.", error.instance, type_),
@@ -215,7 +215,7 @@ impl JsonSchemaValidator {
                 format!("Array {} has duplicate (non-unique) items.", error.instance),
 
             ValidationErrorKind::Referencing(e) =>
-                format!("Error resolving $ref: {}", e),
+                format!("Error resolving $ref: {e}"),
         }
     }
 
@@ -244,7 +244,7 @@ impl JsonSchemaValidator {
                     } else {
                         return Err(InvalidXPath {
                             xpath: xpath.to_owned(),
-                            error: format!("Key '{}' not found in JSON schema", key),
+                            error: format!("Key '{key}' not found in JSON schema"),
                         });
                     }
                 }
@@ -254,7 +254,7 @@ impl JsonSchemaValidator {
                     } else {
                         return Err(InvalidXPath {
                             xpath: xpath.to_owned(),
-                            error: format!("Index {} out of bounds in JSON schema", index),
+                            error: format!("Index {index} out of bounds in JSON schema"),
                         });
                     }
                 }
@@ -282,7 +282,7 @@ impl JsonSchemaValidator {
             } else {
                 return Err(InvalidXPath {
                     xpath: ref_path.to_owned(),
-                    error: format!("No such reference: {}", part),
+                    error: format!("No such reference: {part}"),
                 });
             }
         }
@@ -392,7 +392,7 @@ impl YamlDoc {
                     } else {
                         return Err(InvalidXPath {
                             xpath: xpath.to_owned(),
-                            error: format!("Key '{}' not found in YAML document", key),
+                            error: format!("Key '{key}' not found in YAML document"),
                         });
                     }
                 }
@@ -403,7 +403,7 @@ impl YamlDoc {
                     } else {
                         return Err(InvalidXPath {
                             xpath: xpath.to_owned(),
-                            error: format!("Index {} out of bounds in YAML document", index),
+                            error: format!("Index {index} out of bounds in YAML document"),
                         });
                     }
                 }

@@ -585,7 +585,7 @@ mod tests {
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {
-                let output = format!("{}", err);
+                let output = format!("{err}");
                 let diag_msgs: DiagnosticMessages = err.into();
                 assert_eq!(diag_msgs.len(), 1);
                 assert!(!output.is_empty());

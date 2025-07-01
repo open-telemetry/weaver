@@ -271,7 +271,7 @@ impl Advisor for TypeAdvisor {
                             Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
-                                message: format!("Type should be `{}`", semconv_attribute_type),
+                                message: format!("Type should be `{semconv_attribute_type}`"),
                                 advice_level: AdviceLevel::Violation,
                             }])
                         } else {
@@ -301,8 +301,7 @@ impl Advisor for TypeAdvisor {
                                         advice_type: "instrument_mismatch".to_owned(),
                                         value: Value::String(sample_instrument.to_string()),
                                         message: format!(
-                                            "Instrument should be `{}`",
-                                            semconv_instrument
+                                            "Instrument should be `{semconv_instrument}`"
                                         ),
                                         advice_level: AdviceLevel::Violation,
                                     });
@@ -316,7 +315,7 @@ impl Advisor for TypeAdvisor {
                             advice_list.push(Advice {
                                 advice_type: "unit_mismatch".to_owned(),
                                 value: Value::String(sample_metric.unit.clone()),
-                                message: format!("Unit should be `{}`", semconv_unit),
+                                message: format!("Unit should be `{semconv_unit}`"),
                                 advice_level: AdviceLevel::Violation,
                             });
                         }
@@ -408,7 +407,7 @@ fn check_value_type_mismatch(
         Some(Advice {
             advice_type: "value_type_mismatch".to_owned(),
             value,
-            message: format!("Value type should be `{}`", semconv_value_type),
+            message: format!("Value type should be `{semconv_value_type}`"),
             advice_level: AdviceLevel::Information,
         })
     } else {

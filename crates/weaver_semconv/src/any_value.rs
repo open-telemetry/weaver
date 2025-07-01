@@ -180,7 +180,7 @@ impl Display for AnyValueSpec {
                     .map(|m| m.id.clone())
                     .collect::<Vec<String>>()
                     .join(", ");
-                write!(f, "enum {{{}}}", entries)
+                write!(f, "enum {{{entries}}}")
             }
         }
     }
@@ -569,7 +569,7 @@ mod tests {
             expected_json
         );
 
-        assert_eq!(format!("{}", map), "map",);
+        assert_eq!(format!("{map}"), "map",);
 
         assert_eq!(
             format!(

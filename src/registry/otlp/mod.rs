@@ -257,10 +257,7 @@ pub fn listen_otlp_requests(
 
     // Wait until the server is ready
     ready_rx.blocking_recv().map_err(|e| Error::OtlpError {
-        error: format!(
-            "OTLP server dropped before signaling readiness (error: {})",
-            e
-        ),
+        error: format!("OTLP server dropped before signaling readiness (error: {e})"),
     })?;
 
     Ok(SyncReceiver { receiver: rx })
@@ -353,7 +350,7 @@ async fn spawn_http_stop_handler(
                         }
                         Err(e) => {
                             stop_tx
-                                .send(OtlpRequest::Error(Error::HttpAdminError {error: format!("Failed to accept HTTP connection: {}", e)}))
+                                .send(OtlpRequest::Error(Error::HttpAdminError {error: format!("Failed to accept HTTP connection: {e}")}))
                                 .await
                                 .expect("Failed to send an OtlpRequest::Error");
                         }
@@ -364,7 +361,7 @@ async fn spawn_http_stop_handler(
         Err(e) => {
             stop_tx
                 .send(OtlpRequest::Error(Error::HttpAdminError {
-                    error: format!("Failed to bind HTTP stop port {}: {}", port, e),
+                    error: format!("Failed to bind HTTP stop port {port}: {e}"),
                 }))
                 .await
                 .expect("Failed to send an OtlpRequest::Error");
@@ -427,7 +424,7 @@ async fn forward_to_channel<T>(
     sender
         .send(wrapper(otlp_request))
         .await
-        .map_err(|e| Status::resource_exhausted(format!("Channel full: {}", e)))
+        .map_err(|e| Status::resource_exhausted(format!("Channel full: {e}")))
 }
 
 pub struct LogsServiceImpl {
@@ -531,10 +528,7 @@ mod tests {
                         MetricsServiceClient::connect(grpc_endpoint_clone.clone())
                             .await
                             .inspect_err(|e| {
-                                eprintln!(
-                                    "Unable to connect to {}. Error: {}",
-                                    grpc_endpoint_clone, e
-                                );
+                                eprintln!("Unable to connect to {grpc_endpoint_clone}. Error: {e}");
                             })
                             .unwrap();
                     for _ in 0..expected_metrics_count {
@@ -582,7 +576,7 @@ mod tests {
                     break;
                 }
                 other => {
-                    panic!("Unexpected request: {:?}", other);
+                    panic!("Unexpected request: {other:?}");
                 }
             }
         }
@@ -627,7 +621,7 @@ mod tests {
                 eprintln!("Test: Received Stop as expected");
             }
             other => {
-                panic!("Expected OtlpRequest::Stop, got {:?}", other);
+                panic!("Expected OtlpRequest::Stop, got {other:?}");
             }
         }
     }

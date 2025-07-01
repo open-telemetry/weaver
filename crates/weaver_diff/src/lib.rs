@@ -31,7 +31,7 @@ pub fn diff_output(original: &str, updated: &str) -> String {
             similar::ChangeTag::Insert => GREEN,
             similar::ChangeTag::Equal => RESET,
         };
-        result.push_str(&format!("{}{} {}", color, sign, change));
+        result.push_str(&format!("{color}{sign} {change}"));
     }
     result.push_str(RESET);
     result
@@ -103,17 +103,14 @@ pub fn diff_dir<P: AsRef<Path>>(expected_dir: P, observed_dir: P) -> std::io::Re
         .collect::<Vec<_>>();
     if !not_in_observed.is_empty() {
         are_identical = false;
-        eprintln!("Observed output is missing files: {:?}", not_in_observed);
+        eprintln!("Observed output is missing files: {not_in_observed:?}");
     }
     let not_in_expected = observed_files
         .difference(&expected_files)
         .collect::<Vec<_>>();
     if !not_in_expected.is_empty() {
         are_identical = false;
-        eprintln!(
-            "Observed output has unexpected files: {:?}",
-            not_in_expected
-        );
+        eprintln!("Observed output has unexpected files: {not_in_expected:?}");
     }
 
     Ok(are_identical)
