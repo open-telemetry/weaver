@@ -105,7 +105,7 @@ enum ::= members
 
 members ::= member {member}
 
-member ::= id value [brief] [note] stability [deprecated]
+member ::= id value [brief] [note] stability [deprecated] [annotations]
 
 requirement_level ::= "required"
          |   "conditionally_required" <condition>
