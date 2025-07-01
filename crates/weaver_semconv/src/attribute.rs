@@ -386,8 +386,6 @@ pub struct EnumEntriesSpec {
     /// Deprecation note.
     pub deprecated: Option<String>,
     /// Annotations for the member.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
