@@ -569,7 +569,7 @@ mod tests {
             expected_json
         );
 
-        assert_eq!(format!("{}", map), "map",);
+        assert_eq!(format!("{map}"), "map",);
 
         assert_eq!(
             format!(

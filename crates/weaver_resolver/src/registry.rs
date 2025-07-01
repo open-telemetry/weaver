@@ -795,19 +795,19 @@ mod tests {
             //     // Skip the test for now as it is not yet supported.
             //     continue;
             // }
-            println!("Testing `{}`", test_dir);
+            println!("Testing `{test_dir}`");
 
             // Delete all the files in the observed_output/target directory
             // before generating the new files.
-            std::fs::remove_dir_all(format!("observed_output/{}", test_dir)).unwrap_or_default();
-            let observed_output_dir = PathBuf::from(format!("observed_output/{}", test_dir));
+            std::fs::remove_dir_all(format!("observed_output/{test_dir}")).unwrap_or_default();
+            let observed_output_dir = PathBuf::from(format!("observed_output/{test_dir}"));
             std::fs::create_dir_all(observed_output_dir.clone())
                 .expect("Failed to create observed output directory");
 
             let registry_id = "default";
             let result = SemConvRegistry::try_from_path_pattern(
                 registry_id,
-                &format!("{}/registry/*.yaml", test_dir),
+                &format!("{test_dir}/registry/*.yaml"),
             );
             let sc_specs = result
                 .ignore(|e| {
@@ -834,7 +834,7 @@ mod tests {
 
             // Check presence of an `expected-errors.json` file.
             // If the file is present, the test is expected to fail with the errors in the file.
-            let expected_errors_file = format!("{}/expected-errors.json", test_dir);
+            let expected_errors_file = format!("{test_dir}/expected-errors.json");
             if PathBuf::from(&expected_errors_file).exists() {
                 assert!(observed_registry.is_err(), "This test is expected to fail");
                 let expected_errors: String = std::fs::read_to_string(&expected_errors_file)
@@ -857,7 +857,7 @@ mod tests {
 
             // Load the expected registry and attribute catalog.
             let expected_attr_catalog_file =
-                format!("{}/expected-attribute-catalog.json", test_dir);
+                format!("{test_dir}/expected-attribute-catalog.json");
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
                 std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
@@ -882,7 +882,7 @@ mod tests {
 
             // Check that the resolved registry matches the expected registry.
             let expected_registry: Registry = serde_json::from_reader(
-                std::fs::File::open(format!("{}/expected-registry.json", test_dir))
+                std::fs::File::open(format!("{test_dir}/expected-registry.json"))
                     .expect("Failed to open expected registry"),
             )
             .expect("Failed to deserialize expected registry");

@@ -819,7 +819,7 @@ mod tests {
         assert_eq!(changes.count_changes(), 2);
         assert_eq!(changes.count_metric_changes(), 2);
         let Some(mcs) = changes.changes_by_type(SchemaItemType::Metrics) else {
-            panic!("No metric changes in {:?}", changes)
+            panic!("No metric changes in {changes:?}")
         };
 
         let Some(SchemaItemChange::Renamed {
@@ -830,7 +830,7 @@ mod tests {
             .iter()
             .find(|change| matches!(change, &SchemaItemChange::Renamed { .. }))
         else {
-            panic!("No rename change found in: {:?}", mcs);
+            panic!("No rename change found in: {mcs:?}");
         };
         assert_eq!(old_name, "cpu.time");
         assert_eq!(new_name, "system.cpu.time");
@@ -840,7 +840,7 @@ mod tests {
             .iter()
             .find(|change| matches!(change, &SchemaItemChange::Added { .. }))
         else {
-            panic!("No added change found in: {:?}", mcs);
+            panic!("No added change found in: {mcs:?}");
         };
         assert_eq!(name, "system.cpu.time");
     }

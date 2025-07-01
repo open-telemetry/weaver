@@ -43,7 +43,7 @@ pub(crate) fn magenta(input: &Value) -> String {
 /// Converts the input value into a text with a cyan foreground color.
 #[must_use]
 pub(crate) fn cyan(input: &Value) -> String {
-    format!("\x1b[36m{input\x1b[0m")
+    format!("\x1b[36m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a white foreground color.

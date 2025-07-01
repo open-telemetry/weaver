@@ -936,7 +936,7 @@ mod tests {
             stability: None,
             deprecated: None,
         };
-        assert_eq!(format!("{}", entries), "id=id, type=42");
+        assert_eq!(format!("{entries}"), "id=id, type=42");
     }
 
     #[test]
