@@ -540,7 +540,7 @@ impl TemplateEngine {
                 .templates()
                 .map(|(name, _)| name.to_owned())
                 .collect::<Vec<_>>();
-            let error = format!("{}. Available templates: {:?}", e, templates);
+            let error = format!("{e}. Available templates: {templates:?}");
             InvalidTemplateFile {
                 template: template_file.into(),
                 error,
@@ -556,15 +556,15 @@ impl TemplateEngine {
             })?;
         match output_directive {
             OutputDirective::Stdout => {
-                println!("{}", output);
+                println!("{output}");
             }
             OutputDirective::Stderr => {
-                eprintln!("{}", output);
+                eprintln!("{output}");
             }
             OutputDirective::File => {
                 let generated_file =
                     Self::save_generated_code(output_dir, template_object.file_name(), output)?;
-                log_success(format!("Generated file {:?}", generated_file));
+                log_success(format!("Generated file {generated_file:?}"));
             }
         }
         Ok(())
@@ -657,7 +657,7 @@ impl TemplateEngine {
             if let Err(e) = fs::create_dir_all(parent_dir) {
                 return Err(WriteGeneratedCodeFailed {
                     template: output_file_path.clone(),
-                    error: format!("{}", e),
+                    error: format!("{e}"),
                 });
             }
         }
@@ -666,7 +666,7 @@ impl TemplateEngine {
         fs::write(output_file_path.clone(), generated_code).map_err(|e| {
             WriteGeneratedCodeFailed {
                 template: output_file_path.clone(),
-                error: format!("{}", e),
+                error: format!("{e}"),
             }
         })?;
 

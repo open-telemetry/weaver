@@ -260,7 +260,7 @@ impl log::Log for MemLog {
 
 /// Adds some success flare to text
 pub fn success_flare<T: std::fmt::Display>(message: T) -> String {
-    colorize_string(format!("<green><tick></> {}", message))
+    colorize_string(format!("<green><tick></> {message}"))
 }
 /// Logs a success message as info
 pub fn log_success<T: std::fmt::Display>(message: T) {
@@ -269,7 +269,7 @@ pub fn log_success<T: std::fmt::Display>(message: T) {
 
 /// Adds some error flare to text
 pub fn error_flare<T: std::fmt::Display>(message: T) -> String {
-    colorize_string(format!("<red><cross></> {}", message))
+    colorize_string(format!("<red><cross></> {message}"))
 }
 /// Logs an error message as error
 pub fn log_error<T: std::fmt::Display>(message: T) {
@@ -278,7 +278,7 @@ pub fn log_error<T: std::fmt::Display>(message: T) {
 
 /// Adds some info flare to text
 pub fn info_flare<T: std::fmt::Display>(message: T) -> String {
-    colorize_string(format!("<cyan><info></> {}", message))
+    colorize_string(format!("<cyan><info></> {message}"))
 }
 /// Logs an info message as info
 pub fn log_info<T: std::fmt::Display>(message: T) {
@@ -287,7 +287,7 @@ pub fn log_info<T: std::fmt::Display>(message: T) {
 
 /// Adds some warning flare to text
 pub fn warn_flare<T: std::fmt::Display>(message: T) -> String {
-    colorize_string(format!("<yellow><warn></> {}", message))
+    colorize_string(format!("<yellow><warn></> {message}"))
 }
 /// Logs a warning message as warn
 pub fn log_warn<T: std::fmt::Display>(message: T) {

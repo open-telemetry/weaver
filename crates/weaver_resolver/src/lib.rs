@@ -309,10 +309,10 @@ impl SchemaResolver {
                                         .unwrap_or_default();
                                     let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
                                         let relative_path = &path[prefix.len()..];
-                                        format!("{}{}", registry_path_repr, relative_path)
+                                        format!("{registry_path_repr}{relative_path}")
                                     } else {
                                         let relative_path = &path[prefix.len() + 1..];
-                                        format!("{}/{}", registry_path_repr, relative_path)
+                                        format!("{registry_path_repr}/{relative_path}")
                                     };
                                     (Provenance::new(&registry_repo.id(), &path), spec)
                                 },

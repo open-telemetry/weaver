@@ -152,7 +152,7 @@ impl RenderContext {
     }
     fn end_unbreakable_block(&mut self, text: &str) {
         let result = if let Some(buffer) = self.unbreakable_buffer.as_ref() {
-            format!("{}{}", buffer, text)
+            format!("{buffer}{text}")
         } else {
             text.to_owned()
         };
@@ -367,9 +367,9 @@ impl MarkdownRenderer {
                 let indent = if !options.indent_first_level_list_items && ctx.list_level == 1 {
                     indent.to_owned()
                 } else if options.use_go_style_list_indent && list.ordered {
-                    format!("{} ", indent)
+                    format!("{indent} ")
                 } else {
-                    format!("{}  ", indent)
+                    format!("{indent}  ")
                 };
                 ctx.add_blank_line();
                 for item in &list.children {
@@ -384,7 +384,7 @@ impl MarkdownRenderer {
                     let line_prefix = if list.ordered {
                         format!("{}{}. ", indent, ctx.list_item_number)
                     } else {
-                        format!("{}- ", indent)
+                        format!("{indent}- ")
                     };
                     ctx.skip_line_prefix_on_first_line();
                     ctx.set_line_prefix(" ".repeat(line_prefix.len()).as_str());

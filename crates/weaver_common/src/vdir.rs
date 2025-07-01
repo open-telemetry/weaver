@@ -214,19 +214,19 @@ impl Display for VirtualDirectoryPath {
     /// Format the `VirtualDirectoryPath` as a string.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LocalFolder { path } => write!(f, "{}", path),
+            LocalFolder { path } => write!(f, "{path}"),
             LocalArchive { path, sub_folder } => {
                 if let Some(sub_folder) = sub_folder {
-                    write!(f, "{}[{}]", path, sub_folder)
+                    write!(f, "{path}[{sub_folder}]")
                 } else {
-                    write!(f, "{}", path)
+                    write!(f, "{path}")
                 }
             }
             RemoteArchive { url, sub_folder } => {
                 if let Some(sub_folder) = sub_folder {
-                    write!(f, "{}[{}]", url, sub_folder)
+                    write!(f, "{url}[{sub_folder}]")
                 } else {
-                    write!(f, "{}", url)
+                    write!(f, "{url}")
                 }
             }
             GitRepo {
@@ -234,10 +234,10 @@ impl Display for VirtualDirectoryPath {
                 refspec,
                 sub_folder,
             } => match (refspec, sub_folder) {
-                (Some(refspec), Some(folder)) => write!(f, "{}@{}[{}]", url, refspec, folder),
-                (Some(refspec), None) => write!(f, "{}@{}", url, refspec),
-                (None, Some(folder)) => write!(f, "{}[{}]", url, folder),
-                (None, None) => write!(f, "{}", url),
+                (Some(refspec), Some(folder)) => write!(f, "{url}@{refspec}[{folder}]"),
+                (Some(refspec), None) => write!(f, "{url}@{refspec}"),
+                (None, Some(folder)) => write!(f, "{url}[{folder}]"),
+                (None, None) => write!(f, "{url}"),
             },
         }
     }
@@ -364,7 +364,7 @@ impl VirtualDirectory {
             if !path_to_repo.exists() {
                 return Err(GitError {
                     repo_url: url.to_owned(),
-                    message: format!("Path `{}` not found in repo", sub_folder),
+                    message: format!("Path `{sub_folder}` not found in repo"),
                 });
             }
 

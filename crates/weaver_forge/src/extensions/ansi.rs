@@ -7,139 +7,139 @@ use minijinja::Value;
 /// Converts the input value into a text with a black foreground color.
 #[must_use]
 pub(crate) fn black(input: &Value) -> String {
-    format!("\x1b[30m{}\x1b[0m", input)
+    format!("\x1b[30m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a red foreground color.
 #[must_use]
 pub(crate) fn red(input: &Value) -> String {
-    format!("\x1b[31m{}\x1b[0m", input)
+    format!("\x1b[31m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a green foreground color.
 #[must_use]
 pub(crate) fn green(input: &Value) -> String {
-    format!("\x1b[32m{}\x1b[0m", input)
+    format!("\x1b[32m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a yellow foreground color.
 #[must_use]
 pub(crate) fn yellow(input: &Value) -> String {
-    format!("\x1b[33m{}\x1b[0m", input)
+    format!("\x1b[33m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a blue foreground color.
 #[must_use]
 pub(crate) fn blue(input: &Value) -> String {
-    format!("\x1b[34m{}\x1b[0m", input)
+    format!("\x1b[34m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a magenta foreground color.
 #[must_use]
 pub(crate) fn magenta(input: &Value) -> String {
-    format!("\x1b[35m{}\x1b[0m", input)
+    format!("\x1b[35m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a cyan foreground color.
 #[must_use]
 pub(crate) fn cyan(input: &Value) -> String {
-    format!("\x1b[36m{}\x1b[0m", input)
+    format!("\x1b[36m{input\x1b[0m")
 }
 
 /// Converts the input value into a text with a white foreground color.
 #[must_use]
 pub(crate) fn white(input: &Value) -> String {
-    format!("\x1b[37m{}\x1b[0m", input)
+    format!("\x1b[37m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright black foreground color.
 #[must_use]
 pub(crate) fn bright_black(input: &Value) -> String {
-    format!("\x1b[90m{}\x1b[0m", input)
+    format!("\x1b[90m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright red foreground color.
 #[must_use]
 pub(crate) fn bright_red(input: &Value) -> String {
-    format!("\x1b[91m{}\x1b[0m", input)
+    format!("\x1b[91m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright green foreground color.
 #[must_use]
 pub(crate) fn bright_green(input: &Value) -> String {
-    format!("\x1b[92m{}\x1b[0m", input)
+    format!("\x1b[92m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright yellow foreground color.
 #[must_use]
 pub(crate) fn bright_yellow(input: &Value) -> String {
-    format!("\x1b[93m{}\x1b[0m", input)
+    format!("\x1b[93m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright blue foreground color.
 #[must_use]
 pub(crate) fn bright_blue(input: &Value) -> String {
-    format!("\x1b[94m{}\x1b[0m", input)
+    format!("\x1b[94m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright magenta foreground color.
 #[must_use]
 pub(crate) fn bright_magenta(input: &Value) -> String {
-    format!("\x1b[95m{}\x1b[0m", input)
+    format!("\x1b[95m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright cyan foreground color.
 #[must_use]
 pub(crate) fn bright_cyan(input: &Value) -> String {
-    format!("\x1b[96m{}\x1b[0m", input)
+    format!("\x1b[96m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright white foreground color.
 #[must_use]
 pub(crate) fn bright_white(input: &Value) -> String {
-    format!("\x1b[97m{}\x1b[0m", input)
+    format!("\x1b[97m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a black background color.
 #[must_use]
 pub(crate) fn bg_black(input: &Value) -> String {
-    format!("\x1b[40m{}\x1b[0m", input)
+    format!("\x1b[40m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a red background color.
 #[must_use]
 pub(crate) fn bg_red(input: &Value) -> String {
-    format!("\x1b[41m{}\x1b[0m", input)
+    format!("\x1b[41m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a green background color.
 #[must_use]
 pub(crate) fn bg_green(input: &Value) -> String {
-    format!("\x1b[42m{}\x1b[0m", input)
+    format!("\x1b[42m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a yellow background color.
 #[must_use]
 pub(crate) fn bg_yellow(input: &Value) -> String {
-    format!("\x1b[43m{}\x1b[0m", input)
+    format!("\x1b[43m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a blue background color.
 #[must_use]
 pub(crate) fn bg_blue(input: &Value) -> String {
-    format!("\x1b[44m{}\x1b[0m", input)
+    format!("\x1b[44m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a magenta background color.
 #[must_use]
 pub(crate) fn bg_magenta(input: &Value) -> String {
-    format!("\x1b[45m{}\x1b[0m", input)
+    format!("\x1b[45m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a cyan background color.
 #[must_use]
 pub(crate) fn bg_cyan(input: &Value) -> String {
-    format!("\x1b[46m{}\x1b[0m", input)
+    format!("\x1b[46m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a white background color.

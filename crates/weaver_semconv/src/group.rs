@@ -415,7 +415,7 @@ impl GroupSpec {
                     path_or_url: path_or_url.to_owned(),
                     group_id: self.id.clone(),
                     // TODO - use JSON/YAML friendly render of t.
-                    error: format!("Group with entity_associations cannot have type: {:?}", t),
+                    error: format!("Group with entity_associations cannot have type: {t:?}"),
                 }),
             }
         }
