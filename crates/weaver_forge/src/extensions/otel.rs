@@ -1715,6 +1715,7 @@ mod tests {
                 note: None,
                 stability: None,
                 deprecated: None,
+                annotations: None,
             })
             .collect();
 

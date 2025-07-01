@@ -53,6 +53,10 @@ def code_generation_exclude_filter($options):
             or .annotations.code_generation.exclude == null
             or .annotations.code_generation.exclude == false
         ))
+        | map(.type.members? |= map(select(.annotations == null
+            or .annotations.code_generation == null
+            or .annotations.code_generation.exclude == null
+            or .annotations.code_generation.exclude == false)))
     end;
 
 #####################

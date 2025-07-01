@@ -930,12 +930,25 @@
               "value": "couchdb"
             },
             {
+              "annotations": {
+                "code_generation": {
+                  "exclude": true
+                }
+              },
               "brief": "Microsoft Azure Cosmos DB",
-              "deprecated": null,
+              "deprecated": "Replaced by `azure.cosmosdb`.",
               "id": "cosmosdb",
               "note": null,
               "stability": "stable",
               "value": "cosmosdb"
+            },
+            {
+              "brief": "Microsoft Azure Cosmos DB",
+              "deprecated": null,
+              "id": "azure_cosmosdb",
+              "note": null,
+              "stability": "stable",
+              "value": "azure.cosmosdb"
             },
             {
               "brief": "Amazon DynamoDB",

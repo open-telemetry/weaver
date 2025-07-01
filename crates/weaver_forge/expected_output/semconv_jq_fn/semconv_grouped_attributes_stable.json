@@ -741,10 +741,10 @@
             {
               "brief": "Microsoft Azure Cosmos DB",
               "deprecated": null,
-              "id": "cosmosdb",
+              "id": "azure_cosmosdb",
               "note": null,
               "stability": "stable",
-              "value": "cosmosdb"
+              "value": "azure.cosmosdb"
             },
             {
               "brief": "Amazon DynamoDB",

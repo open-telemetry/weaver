@@ -370,6 +370,7 @@ mod tests {
                                     note: None,
                                     stability: Some(Stability::Stable),
                                     deprecated: None,
+                                    annotations: None,
                                 },
                                 EnumEntriesSpec {
                                     id: "test_enum_member2".to_owned(),
@@ -378,6 +379,7 @@ mod tests {
                                     note: None,
                                     stability: Some(Stability::Stable),
                                     deprecated: None,
+                                    annotations: None,
                                 },
                             ],
                         },
@@ -485,6 +487,7 @@ mod tests {
                                     note: None,
                                     stability: Some(Stability::Development),
                                     deprecated: None,
+                                    annotations: None,
                                 },
                                 EnumEntriesSpec {
                                     id: "free".to_owned(),
@@ -493,6 +496,7 @@ mod tests {
                                     note: None,
                                     stability: Some(Stability::Development),
                                     deprecated: None,
+                                    annotations: None,
                                 },
                             ],
                         },
