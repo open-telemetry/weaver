@@ -290,7 +290,7 @@ impl SchemaChanges {
             result: &mut String,
         ) {
             if let Some(changes) = changes {
-                result.push_str(&format!("{}:\n", item_type));
+                result.push_str(&format!("{item_type}:\n"));
                 result.push_str(&format!(
                     "  Added: {}\n",
                     changes

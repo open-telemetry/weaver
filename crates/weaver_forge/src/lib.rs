@@ -540,7 +540,7 @@ impl TemplateEngine {
                 .templates()
                 .map(|(name, _)| name.to_owned())
                 .collect::<Vec<_>>();
-            let error = format!("{}. Available templates: {:?}", e, templates);
+            let error = format!("{e}. Available templates: {templates:?}");
             InvalidTemplateFile {
                 template: template_file.into(),
                 error,
@@ -556,15 +556,15 @@ impl TemplateEngine {
             })?;
         match output_directive {
             OutputDirective::Stdout => {
-                println!("{}", output);
+                println!("{output}");
             }
             OutputDirective::Stderr => {
-                eprintln!("{}", output);
+                eprintln!("{output}");
             }
             OutputDirective::File => {
                 let generated_file =
                     Self::save_generated_code(output_dir, template_object.file_name(), output)?;
-                log_success(format!("Generated file {:?}", generated_file));
+                log_success(format!("Generated file {generated_file:?}"));
             }
         }
         Ok(())
@@ -657,7 +657,7 @@ impl TemplateEngine {
             if let Err(e) = fs::create_dir_all(parent_dir) {
                 return Err(WriteGeneratedCodeFailed {
                     template: output_file_path.clone(),
-                    error: format!("{}", e),
+                    error: format!("{e}"),
                 });
             }
         }
@@ -666,7 +666,7 @@ impl TemplateEngine {
         fs::write(output_file_path.clone(), generated_code).map_err(|e| {
             WriteGeneratedCodeFailed {
                 template: output_file_path.clone(),
-                error: format!("{}", e),
+                error: format!("{e}"),
             }
         })?;
 
@@ -728,7 +728,7 @@ mod tests {
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
-        let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
+        let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
         let engine = TemplateEngine::new(config, loader, cli_params);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
@@ -737,21 +737,18 @@ mod tests {
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to create the context for the template evaluation: {:?}",
-                        e
-                    )
+                    panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
-        fs::remove_dir_all(format!("observed_output/{}", target)).unwrap_or_default();
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
 
         (
             engine,
             template_registry,
-            PathBuf::from(format!("observed_output/{}", target)),
-            PathBuf::from(format!("expected_output/{}", target)),
+            PathBuf::from(format!("observed_output/{target}")),
+            PathBuf::from(format!("expected_output/{target}")),
         )
     }
 
@@ -913,10 +910,7 @@ mod tests {
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to create the context for the template evaluation: {:?}",
-                        e
-                    )
+                    panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
 
         engine

@@ -48,7 +48,7 @@ pub(crate) fn comment_with_prefix(input: &Value, prefix: &str) -> String {
         if !comment.is_empty() {
             comment.push('\n');
         }
-        comment.push_str(&format!("{}{}", prefix, line));
+        comment.push_str(&format!("{prefix}{line}"));
     }
     comment
 }
@@ -114,8 +114,7 @@ pub(crate) fn comment(
                 return Err(minijinja::Error::new(
                     ErrorKind::InvalidOperation,
                     format!(
-                        "'remove_trailing_dots' and 'enforce_trailing_dots' can't be both set to true at the same time for format '{}'",
-                        comment_format_name
+                        "'remove_trailing_dots' and 'enforce_trailing_dots' can't be both set to true at the same time for format '{comment_format_name}'"
                     ),
                 ));
             }
@@ -166,8 +165,7 @@ pub(crate) fn comment(
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
                             format!(
-                                "Comment Markdown rendering failed for format '{}': {}",
-                                default_comment_format, e
+                                "Comment Markdown rendering failed for format '{default_comment_format}': {e}"
                             ),
                         )
                     })?,
@@ -177,8 +175,7 @@ pub(crate) fn comment(
                         minijinja::Error::new(
                             ErrorKind::InvalidOperation,
                             format!(
-                                "Comment HTML rendering failed for format '{}': {}",
-                                default_comment_format, e
+                                "Comment HTML rendering failed for format '{default_comment_format}': {e}"
                             ),
                         )
                     })?,
@@ -194,21 +191,21 @@ pub(crate) fn comment(
                 if header.is_empty() && new_comment.is_empty() {
                     // For the first line we don't add the indentation
                     if comment_format.trim {
-                        new_comment.push_str(format!("{}{}", prefix, line).trim_end());
+                        new_comment.push_str(format!("{prefix}{line}").trim_end());
                     } else {
-                        new_comment.push_str(&format!("{}{}", prefix, line));
+                        new_comment.push_str(&format!("{prefix}{line}"));
                     }
                 } else if comment_format.trim {
-                    new_comment.push_str(format!("{}{}{}", indent, prefix, line).trim_end());
+                    new_comment.push_str(format!("{indent}{prefix}{line}").trim_end());
                 } else {
-                    new_comment.push_str(&format!("{}{}{}", indent, prefix, line));
+                    new_comment.push_str(&format!("{indent}{prefix}{line}"));
                 }
             }
             comment = new_comment;
 
             // Add header + footer to the comment.
             if !header.is_empty() {
-                comment = format!("{}\n{}", header, comment);
+                comment = format!("{header}\n{comment}");
             }
             if !footer.is_empty() {
                 comment = format!("{}\n{}{}", comment.trim_end(), indent, footer);

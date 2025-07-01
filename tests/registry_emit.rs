@@ -65,16 +65,15 @@ fn test_emit_with_live_check() {
     // Verify the live check command exited with a failure status
     assert!(
         status.success(),
-        "Live check command did not exit successfully: {:?}",
-        status
+        "Live check command did not exit successfully: {status:?}"
     );
 
     // Verify the live check report in the temporary output directory
-    let live_check_report = fs::read_to_string(format!("{}/live_check.json", temp_dir_path))
+    let live_check_report = fs::read_to_string(format!("{temp_dir_path}/live_check.json"))
         .expect("Failed to read live check report from output directory");
     let live_check_json: serde_json::Value =
         serde_json::from_str(&live_check_report).expect("Failed to parse live check report JSON");
-    println!("{:#?}", live_check_json);
+    println!("{live_check_json:#?}");
     let statistics = live_check_json["statistics"].as_object().unwrap();
     let no_advice_count = statistics["no_advice_count"].as_u64().unwrap();
     let total_advisories = statistics["total_advisories"].as_u64().unwrap();

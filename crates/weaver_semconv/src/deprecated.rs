@@ -111,7 +111,7 @@ where
                 Some("renamed") => {
                     let renamed_to =
                         new_name.ok_or_else(|| de::Error::missing_field("rename_to"))?;
-                    let note = note.unwrap_or_else(|| format!("Replaced by `{}`.", renamed_to));
+                    let note = note.unwrap_or_else(|| format!("Replaced by `{renamed_to}`."));
                     Ok(Deprecated::Renamed { renamed_to, note })
                 }
                 Some("obsoleted") => Ok(Deprecated::Obsoleted {
@@ -182,7 +182,7 @@ impl Display for Deprecated {
             | Deprecated::Uncategorized { note }
             | Deprecated::Unspecified { note } => note,
         };
-        write!(f, "{}", text)
+        write!(f, "{text}")
     }
 }
 

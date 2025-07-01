@@ -220,7 +220,7 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
     let canonical_root = root.canonicalize().map_err(|e| {
         minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("Failed to canonicalize root path: {}", e),
+            format!("Failed to canonicalize root path: {e}"),
         )
     })?;
     let canonical_combined = path.canonicalize().map_err(|e| {
@@ -238,8 +238,7 @@ fn safe_join(root: &Path, template: &str) -> Result<PathBuf, minijinja::Error> {
         Err(minijinja::Error::new(
             ErrorKind::InvalidOperation,
             format!(
-                "The combined path is not a subdirectory of the root path: {:?} -> {:?}",
-                canonical_root, canonical_combined
+                "The combined path is not a subdirectory of the root path: {canonical_root:?} -> {canonical_combined:?}"
             ),
         ))
     }

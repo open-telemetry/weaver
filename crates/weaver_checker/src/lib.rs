@@ -417,13 +417,13 @@ impl Engine {
     pub fn check(&mut self, stage: PolicyStage) -> Result<Vec<Violation>, Error> {
         // If we don't have any policy package that matches the stage,
         // return an empty list of violations.
-        if !self.policy_packages.contains(&format!("data.{}", stage)) {
+        if !self.policy_packages.contains(&format!("data.{stage}")) {
             return Ok(vec![]);
         }
 
         let value = self
             .engine
-            .eval_rule(format!("data.{}.deny", stage))
+            .eval_rule(format!("data.{stage}.deny"))
             .map_err(|e| Error::ViolationEvaluationError {
                 error: e.to_string(),
             })?;
@@ -443,7 +443,7 @@ impl Engine {
                     .map_err(|e| Error::ViolationEvaluationError {
                         error: e.to_string(),
                     })?;
-            println!("{}", pretty_report);
+            println!("{pretty_report}");
         }
 
         // convert `regorus` value to `serde_json` value

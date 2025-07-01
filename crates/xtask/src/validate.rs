@@ -79,7 +79,7 @@ pub fn run() -> anyhow::Result<()> {
 
     if !errors.is_empty() {
         for error in errors {
-            eprintln!("{}", error);
+            eprintln!("{error}");
             eprintln!();
         }
         #[allow(clippy::exit)] // This is an expected exit

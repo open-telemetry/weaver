@@ -291,8 +291,8 @@ impl<'source> HtmlRenderer<'source> {
             }
             Node::List(list) => {
                 let tag = if list.ordered { "ol" } else { "ul" };
-                ctx.push_unbroken(&format!("<{}>", tag), indent)?;
-                let li_indent = format!("{}  ", indent);
+                ctx.push_unbroken(&format!("<{tag}>"), indent)?;
+                let li_indent = format!("{indent}  ");
                 for item in &list.children {
                     ctx.pushln(&li_indent)?;
                     ctx.push_unbroken("<li>", &li_indent)?;
@@ -302,7 +302,7 @@ impl<'source> HtmlRenderer<'source> {
                     }
                 }
                 ctx.pushln(indent)?;
-                ctx.push_unbroken(&format!("</{}>", tag), indent)?;
+                ctx.push_unbroken(&format!("</{tag}>"), indent)?;
                 ctx.add_newline = true;
                 if options.old_style_paragraph {
                     ctx.add_old_style_paragraph = true;
