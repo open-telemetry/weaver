@@ -257,9 +257,7 @@ pub fn listen_otlp_requests(
 
     // Wait until the server is ready
     ready_rx.blocking_recv().map_err(|e| Error::OtlpError {
-        error: format!(
-            "OTLP server dropped before signaling readiness (error: {e})"
-        ),
+        error: format!("OTLP server dropped before signaling readiness (error: {e})"),
     })?;
 
     Ok(SyncReceiver { receiver: rx })
@@ -530,9 +528,7 @@ mod tests {
                         MetricsServiceClient::connect(grpc_endpoint_clone.clone())
                             .await
                             .inspect_err(|e| {
-                                eprintln!(
-                                    "Unable to connect to {grpc_endpoint_clone}. Error: {e}"
-                                );
+                                eprintln!("Unable to connect to {grpc_endpoint_clone}. Error: {e}");
                             })
                             .unwrap();
                     for _ in 0..expected_metrics_count {
