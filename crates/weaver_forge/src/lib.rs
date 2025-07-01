@@ -737,9 +737,7 @@ mod tests {
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to create the context for the template evaluation: {e:?}"
-                    )
+                    panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
 
         // Delete all the files in the observed_output/target directory
@@ -912,9 +910,7 @@ mod tests {
         let template_registry =
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
-                    panic!(
-                        "Failed to create the context for the template evaluation: {e:?}"
-                    )
+                    panic!("Failed to create the context for the template evaluation: {e:?}")
                 });
 
         engine

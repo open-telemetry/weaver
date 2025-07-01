@@ -856,8 +856,7 @@ mod tests {
             let observed_registry = observed_registry.expect("Failed to resolve the registry");
 
             // Load the expected registry and attribute catalog.
-            let expected_attr_catalog_file =
-                format!("{test_dir}/expected-attribute-catalog.json");
+            let expected_attr_catalog_file = format!("{test_dir}/expected-attribute-catalog.json");
             let expected_attr_catalog: Vec<attribute::Attribute> = serde_json::from_reader(
                 std::fs::File::open(expected_attr_catalog_file)
                     .expect("Failed to open expected attribute catalog"),
