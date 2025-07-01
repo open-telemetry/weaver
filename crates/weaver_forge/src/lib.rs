@@ -728,7 +728,7 @@ mod tests {
     ) -> (TemplateEngine, ResolvedRegistry, PathBuf, PathBuf) {
         let loader = FileSystemFileLoader::try_new("templates".into(), target)
             .expect("Failed to create file system loader");
-        let config = WeaverConfig::try_from_path(format!("templates/{}", target)).unwrap();
+        let config = WeaverConfig::try_from_path(format!("templates/{target}")).unwrap();
         let engine = TemplateEngine::new(config, loader, cli_params);
         let schema = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false)
             .into_result_failing_non_fatal()
@@ -738,20 +738,19 @@ mod tests {
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
                     panic!(
-                        "Failed to create the context for the template evaluation: {:?}",
-                        e
+                        "Failed to create the context for the template evaluation: {e:?}"
                     )
                 });
 
         // Delete all the files in the observed_output/target directory
         // before generating the new files.
-        fs::remove_dir_all(format!("observed_output/{}", target)).unwrap_or_default();
+        fs::remove_dir_all(format!("observed_output/{target}")).unwrap_or_default();
 
         (
             engine,
             template_registry,
-            PathBuf::from(format!("observed_output/{}", target)),
-            PathBuf::from(format!("expected_output/{}", target)),
+            PathBuf::from(format!("observed_output/{target}")),
+            PathBuf::from(format!("expected_output/{target}")),
         )
     }
 
@@ -914,8 +913,7 @@ mod tests {
             ResolvedRegistry::try_from_resolved_registry(&schema.registry, schema.catalog())
                 .unwrap_or_else(|e| {
                     panic!(
-                        "Failed to create the context for the template evaluation: {:?}",
-                        e
+                        "Failed to create the context for the template evaluation: {e:?}"
                     )
                 });
 

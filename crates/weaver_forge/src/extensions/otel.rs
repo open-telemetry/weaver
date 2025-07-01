@@ -1236,7 +1236,7 @@ mod tests {
             .expect("Result was not a sequence!")
             .collect::<Vec<_>>();
         // Assert that requirement level takes precedence over anything else.
-        assert_eq!(result_seq.len(), 10, "Expected 10 items, found {}", result);
+        assert_eq!(result_seq.len(), 10, "Expected 10 items, found {result}");
         let names: Vec<String> = result_seq
             .iter()
             .map(|item| item.get_attr("name").unwrap().as_str().unwrap().to_owned())
@@ -1709,7 +1709,7 @@ mod tests {
             .into_iter()
             .enumerate()
             .map(|(i, value)| EnumEntriesSpec {
-                id: format!("variant{}", i),
+                id: format!("variant{i}"),
                 value,
                 brief: None,
                 note: None,

@@ -194,16 +194,14 @@ pub(crate) fn command(args: &RegistryLiveCheckArgs) -> Result<ExitDirectives, Di
     .map_err(|e| {
         DiagnosticMessages::from(Error::OutputError {
             error: format!(
-                "Failed to create the embedded file loader for the live check templates: {}",
-                e
+                "Failed to create the embedded file loader for the live check templates: {e}"
             ),
         })
     })?;
     let config = WeaverConfig::try_from_loader(&loader).map_err(|e| {
         DiagnosticMessages::from(Error::OutputError {
             error: format!(
-                "Failed to load `defaults/live_check_templates/weaver.yaml`: {}",
-                e
+                "Failed to load `defaults/live_check_templates/weaver.yaml`: {e}"
             ),
         })
     })?;

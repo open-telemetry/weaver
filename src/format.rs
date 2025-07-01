@@ -17,8 +17,8 @@ pub(crate) enum Format {
 pub(crate) fn apply_format<T: Serialize>(format: &Format, object: &T) -> Result<String, String> {
     match format {
         Format::Yaml => serde_yaml::to_string(object)
-            .map_err(|e| format!("Failed to serialize in Yaml the resolved registry: {:?}", e)),
+            .map_err(|e| format!("Failed to serialize in Yaml the resolved registry: {e:?}")),
         Format::Json => serde_json::to_string_pretty(object)
-            .map_err(|e| format!("Failed to serialize in Json the resolved registry: {:?}", e)),
+            .map_err(|e| format!("Failed to serialize in Json the resolved registry: {e:?}")),
     }
 }

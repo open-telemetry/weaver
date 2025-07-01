@@ -145,79 +145,79 @@ pub(crate) fn bg_cyan(input: &Value) -> String {
 /// Converts the input value into a text with a white background color.
 #[must_use]
 pub(crate) fn bg_white(input: &Value) -> String {
-    format!("\x1b[47m{}\x1b[0m", input)
+    format!("\x1b[47m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright black background color.
 #[must_use]
 pub(crate) fn bg_bright_black(input: &Value) -> String {
-    format!("\x1b[100m{}\x1b[0m", input)
+    format!("\x1b[100m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright red background color.
 #[must_use]
 pub(crate) fn bg_bright_red(input: &Value) -> String {
-    format!("\x1b[101m{}\x1b[0m", input)
+    format!("\x1b[101m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright green background color.
 #[must_use]
 pub(crate) fn bg_bright_green(input: &Value) -> String {
-    format!("\x1b[102m{}\x1b[0m", input)
+    format!("\x1b[102m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright yellow background color.
 #[must_use]
 pub(crate) fn bg_bright_yellow(input: &Value) -> String {
-    format!("\x1b[103m{}\x1b[0m", input)
+    format!("\x1b[103m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright blue background color.
 #[must_use]
 pub(crate) fn bg_bright_blue(input: &Value) -> String {
-    format!("\x1b[104m{}\x1b[0m", input)
+    format!("\x1b[104m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright magenta background color.
 #[must_use]
 pub(crate) fn bg_bright_magenta(input: &Value) -> String {
-    format!("\x1b[105m{}\x1b[0m", input)
+    format!("\x1b[105m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright cyan background color.
 #[must_use]
 pub(crate) fn bg_bright_cyan(input: &Value) -> String {
-    format!("\x1b[106m{}\x1b[0m", input)
+    format!("\x1b[106m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bright white background color.
 #[must_use]
 pub(crate) fn bg_bright_white(input: &Value) -> String {
-    format!("\x1b[107m{}\x1b[0m", input)
+    format!("\x1b[107m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a bold style.
 #[must_use]
 pub(crate) fn bold(input: &Value) -> String {
-    format!("\x1b[1m{}\x1b[0m", input)
+    format!("\x1b[1m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with an italic style.
 #[must_use]
 pub(crate) fn italic(input: &Value) -> String {
-    format!("\x1b[3m{}\x1b[0m", input)
+    format!("\x1b[3m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with an underline style.
 #[must_use]
 pub(crate) fn underline(input: &Value) -> String {
-    format!("\x1b[4m{}\x1b[0m", input)
+    format!("\x1b[4m{input}\x1b[0m")
 }
 
 /// Converts the input value into a text with a strikethrough style.
 #[must_use]
 pub(crate) fn strikethrough(input: &Value) -> String {
-    format!("\x1b[9m{}\x1b[0m", input)
+    format!("\x1b[9m{input}\x1b[0m")
 }
 
 /// Adds all the ANSI filters to the given environment.

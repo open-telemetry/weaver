@@ -65,7 +65,7 @@ pub(crate) fn command(args: &RegistryResolveArgs) -> Result<ExitDirectives, Diag
                     .map_err(|e| format!("Failed to write the resolved registry to file: {e:?}"))
             } else {
                 // Print the resolved registry to stdout.
-                println!("{}", s);
+                println!("{s}");
                 Ok(())
             }
         })

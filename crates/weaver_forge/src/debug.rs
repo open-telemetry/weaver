@@ -24,9 +24,9 @@ pub(crate) fn error_summary(error: minijinja::Error) -> String {
     for (i, e) in errors.iter().enumerate() {
         if i == errors.len() - 1 {
             // Display the last error with all the referenced variables
-            error_msg.push_str(&format!("{:#}\n", e));
+            error_msg.push_str(&format!("{e:#}\n"));
         } else {
-            error_msg.push_str(&format!("{}\nCaused by:\n", e));
+            error_msg.push_str(&format!("{e}\nCaused by:\n"));
         }
     }
     error_msg
