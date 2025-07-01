@@ -385,7 +385,7 @@ pub struct EnumEntriesSpec {
     pub stability: Option<Stability>,
     /// Deprecation note.
     pub deprecated: Option<String>,
-    /// Annotations for the group.
+    /// Annotations for the member.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
