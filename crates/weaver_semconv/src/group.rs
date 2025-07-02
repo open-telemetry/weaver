@@ -630,7 +630,7 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroup,
         InvalidGroupMissingExtendsOrAttributes, InvalidGroupMissingType, InvalidGroupStability,
-        InvalidGroupUsesPrefix, InvalidMetric, InvalidMetricWarning, InvalidSpanMissingSpanKind,
+        InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
         UnstructuredDeprecatedProperty,
     };
 
