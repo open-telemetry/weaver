@@ -20,7 +20,6 @@ groups:
     instrument: histogram
     unit: "s"
     extends: metric.messaging.attributes
-    value_type: int
 
   - id: metric.messaging.receive.duration
     stability: experimental
@@ -30,7 +29,6 @@ groups:
     instrument: histogram
     unit: "s"
     extends: metric.messaging.attributes
-    value_type: int
 
   - id: metric.messaging.deliver.duration
     stability: experimental
@@ -40,7 +38,6 @@ groups:
     instrument: histogram
     unit: "s"
     extends: metric.messaging.attributes
-    value_type: int
 
   # counters
   - id: metric.messaging.publish.messages
@@ -51,7 +48,6 @@ groups:
     instrument: counter
     unit: "{message}"
     extends: metric.messaging.attributes
-    value_type: int
 
   - id: metric.messaging.receive.messages
     stability: experimental
@@ -61,7 +57,6 @@ groups:
     instrument: counter
     unit: "{message}"
     extends: metric.messaging.attributes
-    value_type: int
 
   - id: metric.messaging.deliver.messages
     stability: experimental
@@ -71,4 +66,3 @@ groups:
     instrument: counter
     unit: "{message}"
     extends: metric.messaging.attributes
-    value_type: int

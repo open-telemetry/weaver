@@ -7,7 +7,6 @@ groups:
     brief: "Measure of initial memory requested."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.system.cpu.utilization
     stability: experimental
@@ -21,7 +20,6 @@ groups:
       [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getCpuLoad()).
     instrument: gauge
     unit: "1"
-    value_type: int
 
   - id: metric.jvm.system.cpu.load_1m
     stability: experimental
@@ -35,7 +33,6 @@ groups:
       [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/java.management/java/lang/management/OperatingSystemMXBean.html#getSystemLoadAverage()).
     instrument: gauge
     unit: "{run_queue_item}"
-    value_type: int
 
   - id: attributes.jvm.buffer
     type: attribute_group
@@ -59,7 +56,6 @@ groups:
     brief: "Measure of memory used by buffers."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.buffer.memory.limit
     stability: experimental
@@ -69,7 +65,6 @@ groups:
     brief: "Measure of total memory capacity of buffers."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.buffer.count
     stability: experimental
@@ -79,4 +74,3 @@ groups:
     brief: "Number of buffers in the pool."
     instrument: updowncounter
     unit: "{buffer}"
-    value_type: int

@@ -222,7 +222,6 @@ mod tests {
                 + 3 /* metric after resolution */
                 + 9 /* http after resolution */
                 + 1 /* deprecated string note */
-                + 6 // value_type
             );
         }
     }

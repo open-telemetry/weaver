@@ -41,7 +41,7 @@ All attributes are lower case.
 ```ebnf
 groups ::= semconv [imports]
        | semconv [imports] groups
-       
+
 semconv ::= id convtype brief [note] [extends] [stability] [deprecated] [display_name] [attributes]  [annotations] specificfields
 
 imports := [metrics] [events] [entities]
@@ -159,7 +159,7 @@ events ::= id {id} # MUST point to an existing event group
 
 name ::= string
 
-metricfields ::= metric_name instrument unit stability value_type
+metricfields ::= metric_name instrument unit stability
 
 metric_name ::= string
 instrument ::=  "counter"
@@ -167,7 +167,6 @@ instrument ::=  "counter"
             | "gauge"
             | "updowncounter"
 unit ::= string
-value_type ::= "int" | "double"
 ```
 
 ## Semantics
@@ -289,7 +288,6 @@ The following is only valid if `type` is `metric`:
   For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
 - `unit`, required, the unit in which the metric is measured, which should adhere to
   [the guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
-- `value_type`, required, the number type of the metric's value (`int` or `double`)
 
 #### Attribute group semantic convention
 

@@ -36,4 +36,3 @@ groups:
     instrument: updowncounter
     unit: "By"
     stability: stable
-    value_type: int

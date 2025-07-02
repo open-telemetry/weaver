@@ -14,7 +14,6 @@ use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
-use crate::metric::MetricValueTypeSpec;
 use crate::provenance::Provenance;
 use crate::semconv::Imports;
 use crate::stability::Stability;
@@ -106,9 +105,6 @@ pub struct GroupSpec {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
-    /// Number type of the metric's value.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_type: Option<MetricValueTypeSpec>,
 }
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
@@ -266,15 +262,6 @@ impl GroupSpec {
                     path_or_url: path_or_url.to_owned(),
                     group_id: self.id.clone(),
                     error: "This group contains a metric type but the unit is not set.".to_owned(),
-                });
-            }
-            // Value type will be required in the future
-            if self.value_type.is_none() {
-                errors.push(Error::InvalidMetricWarning {
-                    path_or_url: path_or_url.to_owned(),
-                    group_id: self.id.clone(),
-                    error: "This group contains a metric type but the value_type is not set."
-                        .to_owned(),
                 });
             }
         }
@@ -643,7 +630,7 @@ mod tests {
     use crate::Error::{
         CompoundError, InvalidAttributeWarning, InvalidExampleWarning, InvalidGroup,
         InvalidGroupMissingExtendsOrAttributes, InvalidGroupMissingType, InvalidGroupStability,
-        InvalidGroupUsesPrefix, InvalidMetric, InvalidMetricWarning, InvalidSpanMissingSpanKind,
+        InvalidGroupUsesPrefix, InvalidMetric, InvalidSpanMissingSpanKind,
         UnstructuredDeprecatedProperty,
     };
 
@@ -688,7 +675,6 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
         assert!(group
             .validate("<test>")
@@ -765,12 +751,6 @@ mod tests {
                     path_or_url: "<test>".to_owned(),
                     group_id: "test".to_owned(),
                     error: "This group contains a metric type but the unit is not set.".to_owned(),
-                },
-                InvalidMetricWarning {
-                    path_or_url: "<test>".to_owned(),
-                    group_id: "test".to_owned(),
-                    error: "This group contains a metric type but the value_type is not set."
-                        .to_owned(),
                 },
             ],),),
             result
@@ -860,7 +840,6 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
         assert!(group
             .validate("<test>")
@@ -1119,7 +1098,6 @@ mod tests {
             }),
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
         assert!(group
             .validate("<test>")
@@ -1335,7 +1313,6 @@ mod tests {
             }),
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
         assert!(group
             .validate("<test>")
@@ -1479,7 +1456,6 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
         assert!(group
             .validate("<test>")
@@ -1546,7 +1522,6 @@ mod tests {
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
-        group.value_type = Some(MetricValueTypeSpec::Int);
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
             Err(InvalidGroupStability {
@@ -1651,7 +1626,6 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
 
         // Attribute Group must have extends or attributes.
@@ -1738,7 +1712,6 @@ mod tests {
         group.metric_name = Some("test".to_owned());
         group.instrument = Some(Counter);
         group.unit = Some("test".to_owned());
-        group.value_type = Some(MetricValueTypeSpec::Int);
         assert!(group
             .validate("<test>")
             .into_result_failing_non_fatal()
@@ -1805,7 +1778,6 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: Vec::new(),
-            value_type: None,
         };
 
         // Check group with duplicate attributes.
@@ -1866,7 +1838,6 @@ mod tests {
             body: None,
             annotations: None,
             entity_associations: vec!["test".to_owned()],
-            value_type: Some(MetricValueTypeSpec::Int),
         };
         assert!(group
             .validate("<test>")
@@ -1903,51 +1874,4 @@ mod tests {
             result
         );
     }
-
-    #[test]
-    fn test_validate_metric_value_type() {
-        let mut group = GroupSpec {
-            id: "test".to_owned(),
-            r#type: GroupType::Metric,
-            brief: "test".to_owned(),
-            note: "test".to_owned(),
-            prefix: "".to_owned(),
-            extends: None,
-            stability: Some(Stability::Stable),
-            deprecated: None,
-            attributes: vec![],
-            span_kind: None,
-            events: vec![],
-            metric_name: Some("test_metric".to_owned()),
-            instrument: Some(Counter),
-            unit: Some("unit".to_owned()),
-            name: None,
-            display_name: None,
-            body: None,
-            annotations: None,
-            entity_associations: vec![],
-            value_type: None, // Missing value_type should trigger warning
-        };
-
-        // Should get InvalidMetricWarning when value_type is None
-        let result = group.validate("<test>").into_result_failing_non_fatal();
-        assert_eq!(
-            Err(InvalidMetricWarning {
-                path_or_url: "<test>".to_owned(),
-                group_id: "test".to_owned(),
-                error: "This group contains a metric type but the value_type is not set."
-                    .to_owned(),
-            }),
-            result
-        );
-
-        // Should pass validation when value_type is set
-        group.value_type = Some(MetricValueTypeSpec::Int);
-        assert!(group
-            .validate("<test>")
-            .into_result_failing_non_fatal()
-            .is_ok());
-    }
-
-    // Test value_type validation for groups.
 }
