@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 # [Next] - Next
 
 - Reverts the `value_type` feature.
-  ([#???](https://github.com/open-telemetry/weaver/pull/???) by @jerbly)
+  ([#816](https://github.com/open-telemetry/weaver/pull/816) by @jerbly)
 
 # [0.15.3] - 2025-06-24
 
