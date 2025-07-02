@@ -972,6 +972,7 @@ mod tests {
                     note: None,
                     stability: None,
                     deprecated: None,
+                    annotations: None,
                 }],
             },
             brief: None,
@@ -1009,6 +1010,7 @@ mod tests {
                     note: None,
                     stability: Some(Stability::Deprecated),
                     deprecated: None,
+                    annotations: None,
                 }],
             },
             brief: None,
@@ -1404,6 +1406,7 @@ mod tests {
                     note: None,
                     stability: None,
                     deprecated: None,
+                    annotations: None,
                 }],
             }],
         });

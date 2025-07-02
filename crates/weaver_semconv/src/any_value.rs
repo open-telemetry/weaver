@@ -284,6 +284,7 @@ mod tests {
                         note: Some("note".to_owned()),
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     }],
                 },
                 AnyValueSpec::Map {
@@ -791,6 +792,7 @@ mod tests {
                         note: Some("note".to_owned()),
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     }]
                 }
             ),
@@ -818,6 +820,7 @@ mod tests {
                         note: Some("note".to_owned()),
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     }]
                 }
             ),

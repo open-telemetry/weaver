@@ -385,6 +385,8 @@ pub struct EnumEntriesSpec {
     pub stability: Option<Stability>,
     /// Deprecation note.
     pub deprecated: Option<String>,
+    /// Annotations for the member.
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
 /// Implements a human readable display for EnumEntries.
@@ -878,6 +880,7 @@ mod tests {
                         note: Some("note".to_owned()),
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     }]
                 }
             ),
@@ -935,6 +938,7 @@ mod tests {
             note: Some("note".to_owned()),
             stability: None,
             deprecated: None,
+            annotations: None,
         };
         assert_eq!(format!("{entries}"), "id=id, type=42");
     }

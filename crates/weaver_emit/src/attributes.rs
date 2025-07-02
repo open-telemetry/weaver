@@ -479,6 +479,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                     EnumEntriesSpec {
                         id: "second".to_owned(),
@@ -487,6 +488,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                 ],
             },
@@ -509,6 +511,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                     EnumEntriesSpec {
                         id: "second".to_owned(),
@@ -517,6 +520,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                 ],
             },
@@ -539,6 +543,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                     EnumEntriesSpec {
                         id: "second".to_owned(),
@@ -547,6 +552,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                 ],
             },
@@ -569,6 +575,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                     EnumEntriesSpec {
                         id: "second".to_owned(),
@@ -577,6 +584,7 @@ mod tests {
                         note: None,
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     },
                 ],
             },

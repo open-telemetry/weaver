@@ -597,7 +597,10 @@
 										"$ref": "#/$defs/StabilityLevel"
 									}
 								]
-							}
+							},
+							"annotations": {
+								"$ref": "#/$defs/annotations"
+							}							
 						}
 					}
 				}

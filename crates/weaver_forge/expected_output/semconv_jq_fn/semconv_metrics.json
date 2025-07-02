@@ -181,6 +181,7 @@
             "type": {
               "members": [
                 {
+                  "annotations": null,
                   "brief": "Heap memory.",
                   "deprecated": null,
                   "id": "heap",
@@ -189,6 +190,7 @@
                   "value": "heap"
                 },
                 {
+                  "annotations": null,
                   "brief": "Non-heap memory",
                   "deprecated": null,
                   "id": "non_heap",
@@ -267,6 +269,7 @@
             "type": {
               "members": [
                 {
+                  "annotations": null,
                   "brief": "Heap memory.",
                   "deprecated": null,
                   "id": "heap",
@@ -275,6 +278,7 @@
                   "value": "heap"
                 },
                 {
+                  "annotations": null,
                   "brief": "Non-heap memory",
                   "deprecated": null,
                   "id": "non_heap",
@@ -353,6 +357,7 @@
             "type": {
               "members": [
                 {
+                  "annotations": null,
                   "brief": "Heap memory.",
                   "deprecated": null,
                   "id": "heap",
@@ -361,6 +366,7 @@
                   "value": "heap"
                 },
                 {
+                  "annotations": null,
                   "brief": "Non-heap memory",
                   "deprecated": null,
                   "id": "non_heap",
@@ -442,6 +448,7 @@
             "type": {
               "members": [
                 {
+                  "annotations": null,
                   "brief": "Heap memory.",
                   "deprecated": null,
                   "id": "heap",
@@ -450,6 +457,7 @@
                   "value": "heap"
                 },
                 {
+                  "annotations": null,
                   "brief": "Non-heap memory",
                   "deprecated": null,
                   "id": "non_heap",
@@ -535,6 +543,7 @@
             "type": {
               "members": [
                 {
+                  "annotations": null,
                   "brief": "A thread that has not yet started is in this state.",
                   "deprecated": null,
                   "id": "new",
@@ -543,6 +552,7 @@
                   "value": "new"
                 },
                 {
+                  "annotations": null,
                   "brief": "A thread executing in the Java virtual machine is in this state.",
                   "deprecated": null,
                   "id": "runnable",
@@ -551,6 +561,7 @@
                   "value": "runnable"
                 },
                 {
+                  "annotations": null,
                   "brief": "A thread that is blocked waiting for a monitor lock is in this state.",
                   "deprecated": null,
                   "id": "blocked",
@@ -559,6 +570,7 @@
                   "value": "blocked"
                 },
                 {
+                  "annotations": null,
                   "brief": "A thread that is waiting indefinitely for another thread to perform a particular action is in this state.",
                   "deprecated": null,
                   "id": "waiting",
@@ -567,6 +579,7 @@
                   "value": "waiting"
                 },
                 {
+                  "annotations": null,
                   "brief": "A thread that is waiting for another thread to perform an action for up to a specified waiting time is in this state.",
                   "deprecated": null,
                   "id": "timed_waiting",
@@ -575,6 +588,7 @@
                   "value": "timed_waiting"
                 },
                 {
+                  "annotations": null,
                   "brief": "A thread that has exited is in this state.",
                   "deprecated": null,
                   "id": "terminated",
