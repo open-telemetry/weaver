@@ -45,8 +45,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.init_duration",
@@ -75,8 +74,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.coldstarts",
@@ -105,8 +103,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.errors",
@@ -135,8 +132,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.invocations",
@@ -165,8 +161,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.timeouts",
@@ -195,8 +190,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.mem_usage",
@@ -225,8 +219,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.cpu_usage",
@@ -255,8 +248,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "metric.faas.net_io",
@@ -285,8 +277,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     }
   ]
 }

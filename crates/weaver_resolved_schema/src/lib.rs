@@ -136,7 +136,6 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
-            value_type: Some(weaver_semconv::metric::MetricValueTypeSpec::Double),
         });
     }
 
@@ -179,7 +178,6 @@ impl ResolvedTelemetrySchema {
             body: None,
             annotations: None,
             entity_associations: vec![],
-            value_type: None,
         });
     }
 

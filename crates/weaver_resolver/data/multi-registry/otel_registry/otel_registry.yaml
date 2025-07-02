@@ -8,8 +8,7 @@ groups:
         brief: The error type.
         stability: stable
         requirement_level: recommended
-        examples:
-          "Ex"
+        examples: "Ex"
   - id: otel.unused
     type: attribute_group
     brief: Unused attributes from the OTEL Registry.
@@ -19,8 +18,7 @@ groups:
         brief: Unused attribute.
         stability: stable
         requirement_level: recommended
-        examples:
-          "Unused"
+        examples: "Unused"
 
   - id: metric.example.counter
     type: metric
@@ -29,7 +27,6 @@ groups:
     brief: A counter of the number of messages processed.
     instrument: counter
     unit: "1"
-    value_type: int
     attributes:
       - ref: error.type
 

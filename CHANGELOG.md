@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+# [Next] - Next
+
+- Reverts the `value_type` feature.
+  ([#???](https://github.com/open-telemetry/weaver/pull/???) by @jerbly)
+
 # [0.15.3] - 2025-06-24
 
 - Add `imports` section to semconv spec. Custom registries can now import groups
