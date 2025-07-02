@@ -26,7 +26,6 @@ groups:
       **Streaming**: N/A.
     instrument: histogram
     unit: "ms"
-    value_type: int
     note: |
       While streaming RPCs may record this metric as start-of-batch
       to end-of-batch, it's hard to interpret in practice.
@@ -40,7 +39,6 @@ groups:
       **Streaming**: Recorded per message in a streaming batch
     instrument: histogram
     unit: "By"
-    value_type: int
 
   - id: metric.rpc.server.response.size
     stability: stable
@@ -51,7 +49,6 @@ groups:
       **Streaming**: Recorded per response in a streaming batch
     instrument: histogram
     unit: "By"
-    value_type: int
 
   - id: metric.rpc.server.requests_per_rpc
     stability: stable
@@ -62,7 +59,6 @@ groups:
       **Streaming**: This metric is required for server and client streaming RPCs
     instrument: histogram
     unit: "{count}"
-    value_type: int
 
   - id: metric.rpc.server.responses_per_rpc
     stability: stable
@@ -73,7 +69,6 @@ groups:
       **Streaming**: This metric is required for server and client streaming RPCs
     instrument: histogram
     unit: "{count}"
-    value_type: int
 
   # RPC Client metrics
   - id: metric.rpc.client.duration
@@ -85,7 +80,6 @@ groups:
       **Streaming**: N/A.
     instrument: histogram
     unit: "ms"
-    value_type: int
     note: |
       While streaming RPCs may record this metric as start-of-batch
       to end-of-batch, it's hard to interpret in practice.
@@ -99,7 +93,6 @@ groups:
       **Streaming**: Recorded per message in a streaming batch
     instrument: histogram
     unit: "By"
-    value_type: int
 
   - id: metric.rpc.client.response.size
     stability: stable
@@ -110,7 +103,6 @@ groups:
       **Streaming**: Recorded per response in a streaming batch
     instrument: histogram
     unit: "By"
-    value_type: int
 
   - id: metric.rpc.client.requests_per_rpc
     stability: stable
@@ -121,7 +113,6 @@ groups:
       **Streaming**: This metric is required for server and client streaming RPCs
     instrument: histogram
     unit: "{count}"
-    value_type: int
 
   - id: metric.rpc.client.responses_per_rpc
     stability: stable
@@ -132,4 +123,3 @@ groups:
       **Streaming**: This metric is required for server and client streaming RPCs
     instrument: histogram
     unit: "{count}"
-    value_type: int

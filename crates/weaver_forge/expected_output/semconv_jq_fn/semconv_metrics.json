@@ -19,8 +19,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{class}",
-        "value_type": "int"
+        "unit": "{class}"
       },
       {
         "attributes": [],
@@ -40,8 +39,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{class}",
-        "value_type": "int"
+        "unit": "{class}"
       },
       {
         "attributes": [],
@@ -61,8 +59,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{class}",
-        "value_type": "int"
+        "unit": "{class}"
       },
       {
         "attributes": [],
@@ -82,8 +79,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{cpu}",
-        "value_type": "int"
+        "unit": "{cpu}"
       },
       {
         "attributes": [],
@@ -104,8 +100,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "1",
-        "value_type": "int"
+        "unit": "1"
       },
       {
         "attributes": [],
@@ -125,8 +120,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "s",
-        "value_type": "int"
+        "unit": "s"
       },
       {
         "attributes": [
@@ -171,8 +165,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "s",
-        "value_type": "int"
+        "unit": "s"
       },
       {
         "attributes": [
@@ -260,8 +253,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -349,8 +341,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -441,8 +432,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -530,8 +520,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -627,8 +616,7 @@
         "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{thread}",
-        "value_type": "int"
+        "unit": "{thread}"
       }
     ],
     "root_namespace": "jvm"

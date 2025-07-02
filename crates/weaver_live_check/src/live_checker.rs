@@ -127,7 +127,6 @@ mod tests {
             TemplateTypeSpec, ValueSpec,
         },
         group::{GroupType, InstrumentSpec, SpanKindSpec},
-        metric::MetricValueTypeSpec,
         stability::Stability,
     };
 
@@ -455,7 +454,6 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
-                value_type: None,
                 annotations: None,
             }],
         }
@@ -528,7 +526,6 @@ mod tests {
                     lineage: None,
                     display_name: Some("System Memory Attributes".to_owned()),
                     body: None,
-                    value_type: None,
                     annotations: None,
                 },
                 // System uptime metric
@@ -552,7 +549,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Int),
                     annotations: None,
                 },
                 // System memory usage metric
@@ -594,7 +590,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Int),
                     annotations: None,
                 },
             ],
@@ -646,7 +641,6 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
-                value_type: None,
                 annotations: None,
             }],
         };
@@ -805,7 +799,7 @@ mod tests {
         assert_eq!(stats.total_entities_by_type.get("data_point"), Some(&6));
         assert_eq!(stats.total_entities_by_type.get("metric"), Some(&4));
         assert_eq!(stats.total_entities_by_type.get("attribute"), Some(&3));
-        assert_eq!(stats.no_advice_count, 3);
+        assert_eq!(stats.no_advice_count, 4);
         assert_eq!(
             stats
                 .advice_type_counts
@@ -816,10 +810,6 @@ mod tests {
         assert_eq!(stats.advice_type_counts.get("stability"), Some(&2));
         assert_eq!(stats.advice_type_counts.get("missing_metric"), Some(&3));
         assert_eq!(stats.advice_type_counts.get("missing_namespace"), Some(&2));
-        assert_eq!(
-            stats.advice_type_counts.get("value_type_mismatch"),
-            Some(&1)
-        );
         assert_eq!(
             stats.seen_registry_metrics.get("system.memory.usage"),
             Some(&1)
@@ -904,7 +894,6 @@ mod tests {
                 lineage: None,
                 display_name: None,
                 body: None,
-                value_type: None,
                 annotations: None,
             }],
         };
@@ -1036,10 +1025,6 @@ mod tests {
         assert!(result.is_ok());
         stats.finalize();
         assert_eq!(stats.advice_type_counts.get("low_value"), Some(&1));
-        assert_eq!(
-            stats.advice_type_counts.get("value_type_mismatch"),
-            Some(&2)
-        );
     }
 
     #[test]

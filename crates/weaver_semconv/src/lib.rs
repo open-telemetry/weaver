@@ -238,18 +238,6 @@ pub enum Error {
         error: String,
     },
 
-    /// The semantic convention asset contains a future invalid metric definition.
-    #[error("Invalid metric definition in {path_or_url:?}.\ngroup_id=`{group_id}`. {error}")]
-    #[diagnostic(severity(Warning))]
-    InvalidMetricWarning {
-        /// The path or URL of the semantic convention asset.
-        path_or_url: String,
-        /// The group id of the metric.
-        group_id: String,
-        /// The reason of the error.
-        error: String,
-    },
-
     /// This indicates that any_value is invalid.
     #[error("The value `{value_id}` in the group `{group_id}` is invalid. {error}\nProvenance: {path_or_url:?}")]
     #[diagnostic(severity(Warning))]

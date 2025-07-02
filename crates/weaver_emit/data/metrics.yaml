@@ -8,7 +8,6 @@ groups:
     unit: "1"
     attributes:
       - ref: test.string
-    value_type: int
 
   - id: test.comprehensive.counter
     type: metric
@@ -19,7 +18,6 @@ groups:
     unit: "1"
     attributes:
       - ref: test.string
-    value_type: int
 
   - id: test.comprehensive.updowncounter
     type: metric
@@ -30,7 +28,6 @@ groups:
     unit: "1"
     attributes:
       - ref: test.string
-    value_type: int
 
   - id: test.comprehensive.histogram
     type: metric
@@ -41,4 +38,3 @@ groups:
     unit: "1"
     attributes:
       - ref: test.string
-    value_type: int
