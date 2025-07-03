@@ -509,6 +509,15 @@ fn validate_any_value(
                             ),
                         });
                     }
+
+                    if matches!(member.deprecated, Some(Deprecated::Unspecified { .. })) {
+                        errors.push(Error::UnstructuredDeprecatedProperty {
+                            path_or_url: path_or_url.to_owned(),
+                            id: member.id.clone(),
+                            error: "Unstructured deprecated note is not supported on enum members."
+                                .to_owned(),
+                        });
+                    }                    
                 }
             }
             AnyValueSpec::Map { fields, .. } => {

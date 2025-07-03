@@ -384,7 +384,7 @@ pub struct EnumEntriesSpec {
     /// Stability of this enum value.
     pub stability: Option<Stability>,
     /// Deprecation note.
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Annotations for the member.
     pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
