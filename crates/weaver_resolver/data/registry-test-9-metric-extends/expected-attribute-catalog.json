@@ -7,17 +7,13 @@
           "id": "heap",
           "value": "heap",
           "brief": "Heap memory.",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "non_heap",
           "value": "non_heap",
           "brief": "Non-heap memory",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },
