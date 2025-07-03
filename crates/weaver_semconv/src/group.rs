@@ -111,7 +111,7 @@ pub struct GroupSpec {
     pub body: Option<AnyValueSpec>,
     /// Annotations for the group.
     #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]    
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<HashMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.

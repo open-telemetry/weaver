@@ -80,7 +80,7 @@ pub struct ResolvedGroup {
     /// associated with this span semantic convention.
     /// Note: only valid if type is span
     #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]    
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub events: Vec<String>,
     /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
     /// Note: This field is required if type is metric.
