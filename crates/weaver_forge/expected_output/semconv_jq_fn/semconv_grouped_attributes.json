@@ -1005,7 +1005,11 @@
                 }
               },
               "brief": "Microsoft Azure Cosmos DB",
-              "deprecated": "Replaced by `azure.cosmosdb`.",
+              "deprecated": {
+                "note": "Replaced by `azure.cosmosdb`.",
+                "reason": "renamed",
+                "renamed_to": "azure.cosmosdb"
+              },
               "id": "cosmosdb",
               "note": null,
               "stability": "stable",

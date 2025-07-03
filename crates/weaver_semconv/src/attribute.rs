@@ -384,6 +384,10 @@ pub struct EnumEntriesSpec {
     /// Stability of this enum value.
     pub stability: Option<Stability>,
     /// Deprecation note.
+    #[serde(
+        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+        default
+    )]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the member.
     pub annotations: Option<BTreeMap<String, YamlValue>>,
