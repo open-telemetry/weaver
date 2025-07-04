@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 # [Next] - Next
 
+# [0.16.1] - 2025-07-04
+
+- Fix github release actions.
+
 # [0.16.0] - 2025-07-03
 
 - Reverts the `value_type` feature.
