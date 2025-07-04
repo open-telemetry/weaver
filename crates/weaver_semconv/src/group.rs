@@ -25,7 +25,7 @@ use weaver_common::result::WResult;
 /// Mandatory fields are: `id` and `brief`.
 ///
 /// Note: The `resource` type is no longer used and is an alias for `entity`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
