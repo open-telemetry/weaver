@@ -359,7 +359,6 @@ mod tests {
                         body: None,
                         annotations: None,
                         entity_associations: Vec::new(),
-                        value_type: None,
                     }],
                     imports: None,
                 },
@@ -387,7 +386,6 @@ mod tests {
                         body: None,
                         annotations: None,
                         entity_associations: Vec::new(),
-                        value_type: None,
                     }],
                     imports: None,
                 },
@@ -441,7 +439,7 @@ mod tests {
                 GroupType::MetricGroup => assert_eq!(*total, 0),
                 GroupType::Entity => assert_eq!(*total, 1),
                 GroupType::Span => assert_eq!(*total, 1),
-                _ => panic!("Unexpected group type {:?}", group_type),
+                _ => panic!("Unexpected group type {group_type:?}"),
             });
     }
 

@@ -123,7 +123,7 @@ fn compile_errors(errs: jaq_core::compile::Errors<&str, JqFileType>) -> String {
 
 /// Turns IO errors from JQ into raw strings.
 fn report_io((path, error): (&str, String)) -> String {
-    format!("could not load file {}: {}", path, error)
+    format!("could not load file {path}: {error}")
 }
 
 /// Turns lexing errors from JQ into raw strings.

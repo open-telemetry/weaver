@@ -217,7 +217,7 @@ impl<'a> SearchApp<'a> {
             if let Some(stability) = result.stability.as_ref() {
                 text.push(Line::from(vec![
                     Span::styled("Stability: ", Style::default().fg(Color::Blue)),
-                    Span::raw(format!("{}", stability)),
+                    Span::raw(format!("{stability}")),
                 ]));
             }
 
@@ -360,7 +360,7 @@ fn run_command_line_search(schema: &ResolvedTelemetrySchema, pattern: &str) {
         .filter(|a| a.name.contains(pattern))
         .map(|a| a.name.to_owned())
         .join("\n");
-    println!("{}", results);
+    println!("{results}");
 }
 
 pub(crate) fn command(args: &RegistrySearchArgs) -> Result<ExitDirectives, DiagnosticMessages> {

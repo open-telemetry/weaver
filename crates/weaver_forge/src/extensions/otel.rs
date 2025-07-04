@@ -87,7 +87,7 @@ pub(crate) fn attribute_registry_namespace(input: &str) -> Result<String, miniji
     if parts.len() < 2 || parts[0] != "registry" {
         return Err(minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("This attribute registry id `{}` is invalid", input),
+            format!("This attribute registry id `{input}` is invalid"),
         ));
     }
     Ok(parts[1].to_owned())
@@ -102,7 +102,7 @@ pub(crate) fn attribute_registry_title(input: &str) -> Result<String, minijinja:
     if parts.len() < 2 || parts[0] != "registry" {
         return Err(minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("This attribute registry id `{}` is invalid", input),
+            format!("This attribute registry id `{input}` is invalid"),
         ));
     }
     Ok(CaseConvention::TitleCase.convert(parts[1]))
@@ -117,7 +117,7 @@ pub(crate) fn attribute_registry_file(input: &str) -> Result<String, minijinja::
     if parts.len() < 2 || parts[0] != "registry" {
         return Err(minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("This attribute registry id `{}` is invalid", input),
+            format!("This attribute registry id `{input}` is invalid"),
         ));
     }
     Ok(format!(
@@ -135,7 +135,7 @@ pub(crate) fn metric_namespace(input: &str) -> Result<String, minijinja::Error> 
     if parts.len() < 2 || parts[0] != "metric" {
         return Err(minijinja::Error::new(
             ErrorKind::InvalidOperation,
-            format!("This metric id `{}` is invalid", input),
+            format!("This metric id `{input}` is invalid"),
         ));
     }
     Ok(parts[1].to_owned())
@@ -235,8 +235,7 @@ fn compare_requirement_level(
                 Some("recommended") => Ok(3),
                 Some("opt_in") => Ok(4),
                 _ => Err(minijinja::Error::custom(format!(
-                    "Expected requirement level, found {}",
-                    level
+                    "Expected requirement level, found {level}",
                 ))),
             }
         }
@@ -346,8 +345,7 @@ pub(crate) fn instantiated_type(attr_type: &Value) -> Result<String, minijinja::
         return enum_type(attr_type);
     }
     Err(minijinja::Error::custom(format!(
-        "Expected simple type, template type, or enum type, found {}",
-        attr_type
+        "Expected simple type, template type, or enum type, found {attr_type}"
     )))
 }
 
@@ -365,8 +363,7 @@ pub(crate) fn print_member_value(input: &Value) -> Result<String, minijinja::Err
                     Ok(input)
                 } else {
                     Err(minijinja::Error::custom(format!(
-                        "`print_member_value` failed to convert {} to a string",
-                        input
+                        "`print_member_value` failed to convert {input} to a string"
                     )))
                 }
             } else {
@@ -397,8 +394,7 @@ pub(crate) fn enum_type(attr_type: &Value) -> Result<String, minijinja::Error> {
                 ValueKind::String => "string",
                 _ => {
                     return Err(minijinja::Error::custom(format!(
-                        "Enum values are expected to be int, double, or string, found {}",
-                        value
+                        "Enum values are expected to be int, double, or string, found {value}"
                     )));
                 }
             };
@@ -419,8 +415,7 @@ pub(crate) fn enum_type(attr_type: &Value) -> Result<String, minijinja::Error> {
         return inferred_type.ok_or_else(|| minijinja::Error::custom("Empty enum type"));
     }
     Err(minijinja::Error::custom(format!(
-        "Expected enum type, found {}",
-        attr_type
+        "Expected enum type, found {attr_type}"
     )))
 }
 
@@ -1241,7 +1236,7 @@ mod tests {
             .expect("Result was not a sequence!")
             .collect::<Vec<_>>();
         // Assert that requirement level takes precedence over anything else.
-        assert_eq!(result_seq.len(), 10, "Expected 10 items, found {}", result);
+        assert_eq!(result_seq.len(), 10, "Expected 10 items, found {result}");
         let names: Vec<String> = result_seq
             .iter()
             .map(|item| item.get_attr("name").unwrap().as_str().unwrap().to_owned())
@@ -1714,12 +1709,13 @@ mod tests {
             .into_iter()
             .enumerate()
             .map(|(i, value)| EnumEntriesSpec {
-                id: format!("variant{}", i),
+                id: format!("variant{i}"),
                 value,
                 brief: None,
                 note: None,
                 stability: None,
                 deprecated: None,
+                annotations: None,
             })
             .collect();
 

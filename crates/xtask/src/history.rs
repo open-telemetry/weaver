@@ -75,7 +75,7 @@ pub fn run(start_version: Option<String>) -> anyhow::Result<()> {
     let versions =
         get_versions_from_git(&repo, start_semver).context("Failed to get the tag list.")?;
     let _ = fs::remove_dir_all(TEMP_REPO_DIR);
-    println!("Checking versions: {:?}", versions);
+    println!("Checking versions: {versions:?}");
     let mut failed = false;
     for version in versions {
         let mut cmd =
@@ -91,10 +91,10 @@ pub fn run(start_version: Option<String>) -> anyhow::Result<()> {
             .context("Failed to execute the weaver process.")?;
 
         if output.status.success() {
-            println!("Success for: {}", version);
+            println!("Success for: {version}");
         } else {
             failed = true;
-            println!("Failure for: {}", version);
+            println!("Failure for: {version}");
             println!(
                 "{}",
                 String::from_utf8(output.stdout).context("Invalid UTF-8")?

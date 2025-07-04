@@ -6,7 +6,8 @@
       "type": "attribute_group",
       "brief": "Attributes",
       "attributes": [
-        0
+        0,
+        1
       ],
       "lineage": {
         "provenance": {
@@ -26,7 +27,7 @@
       "type": "attribute_group",
       "brief": "Attributes",
       "attributes": [
-        1
+        2
       ],
       "lineage": {
         "provenance": {

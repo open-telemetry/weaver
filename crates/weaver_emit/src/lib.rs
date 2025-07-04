@@ -188,7 +188,6 @@ mod tests {
     use weaver_semconv::{
         attribute::{AttributeType, Examples, PrimitiveOrArrayTypeSpec, RequirementLevel},
         group::{GroupType, InstrumentSpec, SpanKindSpec},
-        metric::MetricValueTypeSpec,
         stability::Stability,
     };
 
@@ -239,7 +238,6 @@ mod tests {
                     display_name: None,
                     body: None,
                     entity_associations: vec![],
-                    value_type: None,
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -262,7 +260,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Int),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -285,7 +282,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Int),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -308,7 +304,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Int),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -331,7 +326,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Int),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -354,7 +348,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Double),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -377,7 +370,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Double),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -400,7 +392,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Double),
                     annotations: None,
                 },
                 ResolvedGroup {
@@ -423,7 +414,6 @@ mod tests {
                     lineage: None,
                     display_name: None,
                     body: None,
-                    value_type: Some(MetricValueTypeSpec::Double),
                     annotations: None,
                 },
             ],
