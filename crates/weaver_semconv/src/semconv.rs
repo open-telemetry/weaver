@@ -209,7 +209,7 @@ impl SemConvSpec {
     /// Removes V2 definitions for just V1 definitions.
     #[must_use]
     pub fn erase_v2(self, provenance: &Provenance) -> SemConvSpec {
-        if !self.v2.is_emtpy() {
+        if !self.v2.is_empty() {
             let name = format!(
                 "registry.{}.{}",
                 &provenance.registry_id,

@@ -37,7 +37,7 @@ pub struct CommonFields {
     /// Specifies the stability of the span.
     pub stability: Stability,
     /// Specifies if the semantic convention is deprecated. The string
-    /// provided as <description> MUST specify why it's deprecated and/or what
+    /// provided as description MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(
@@ -93,7 +93,8 @@ impl V2SemconvSpec {
         .collect()
     }
     /// True if this specification holds no definitions.
-    pub fn is_emtpy(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.attributes.is_empty()
             && self.entities.is_empty()
             && self.events.is_empty()
