@@ -76,8 +76,6 @@ impl SpanGroup {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

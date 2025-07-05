@@ -70,7 +70,6 @@ impl MetricGroup {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,7 +2,7 @@
 
 //! The new way we want to define data going forward.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,10 @@ use crate::{
     deprecated::Deprecated,
     group::GroupSpec,
     stability::Stability,
-    v2::{entity::EntityGroup, event::EventGroup, metric::MetricGroup, span::SpanGroup},
+    v2::{
+        attribute::AttributeDef, entity::EntityGroup, event::EventGroup, metric::MetricGroup,
+        span::SpanGroup,
+    },
     YamlValue,
 };
 
@@ -44,7 +47,7 @@ pub struct CommonFields {
     pub deprecated: Option<Deprecated>,
     /// Annotations for the group.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<HashMap<String, YamlValue>>,
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
@@ -52,7 +55,9 @@ pub struct CommonFields {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct V2SemconvSpec {
-    // TODO - Attributes
+    /// A collection of semantic conventions for attributes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) attributes: Vec<AttributeDef>,
     /// A collection of semantic conventions for Entity signals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) entities: Vec<EntityGroup>,
@@ -69,17 +74,25 @@ pub struct V2SemconvSpec {
 
 impl V2SemconvSpec {
     /// Converts the version 2 schema into the version 1 group spec.
-    pub(crate) fn into_v1_groups(self) -> Vec<GroupSpec> {
-        self.entities
-            .into_iter()
-            .map(|e| e.into_v1_group())
-            .chain(self.events.into_iter().map(|e| e.into_v1_group()))
-            .chain(self.metrics.into_iter().map(|m| m.into_v1_group()))
-            .chain(self.spans.into_iter().map(|s| s.into_v1_group()))
-            .collect()
+    pub(crate) fn into_v1_groups(self, attribute_group_name: &str) -> Vec<GroupSpec> {
+        vec![GroupSpec {
+            id: attribute_group_name.to_owned(),
+            r#type: crate::group::GroupType::AttributeGroup,
+            attributes: self
+                .attributes
+                .into_iter()
+                .map(|a| a.into_v1_attribute())
+                .collect(),
+            ..Default::default()
+        }]
+        .into_iter()
+        .chain(self.entities.into_iter().map(|e| e.into_v1_group()))
+        .chain(self.events.into_iter().map(|e| e.into_v1_group()))
+        .chain(self.metrics.into_iter().map(|m| m.into_v1_group()))
+        .chain(self.spans.into_iter().map(|s| s.into_v1_group()))
+        .collect()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -89,7 +102,12 @@ mod tests {
         let spec = serde_yaml::from_str::<V2SemconvSpec>(v2).expect("Failed to parse YAML string");
         let expected =
             serde_yaml::from_str::<Vec<GroupSpec>>(v1).expect("Failed to parse expected YAML");
-        assert_eq!(expected, spec.into_v1_groups());
+        let result = spec.into_v1_groups("registry.test_attribute_group");
+        let result_yaml = serde_yaml::to_string(&result).expect("Unable to write YAML from v1");
+        assert_eq!(
+            expected, result,
+            "Expected yaml\n:{v1}\nFound yaml:\n{result_yaml}"
+        );
     }
 
     #[test]
@@ -97,6 +115,11 @@ mod tests {
         parse_and_translate(
             // V2 - Span
             r#"
+attributes:
+  - key: test.attribute
+    type: int
+    brief: A test attribute
+    stability: stable
 metrics:
   - name: my_metric
     brief: Test metric
@@ -128,6 +151,15 @@ spans:
 "#,
             // V1 - Groups
             r#"
+- id: registry.test_attribute_group
+  type: attribute_group
+  brief:
+  attributes:
+    - id: test.attribute
+      type: int
+      brief: A test attribute
+      requirement_level: recommended
+      stability: stable
 - id: entity.my_entity
   type: entity
   name: my_entity

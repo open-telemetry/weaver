@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::ops::Not;
 
 use crate::{
-    attribute::{AttributeRole, AttributeSpec, Examples, RequirementLevel},
+    attribute::{AttributeRole, AttributeSpec, AttributeType, Examples, RequirementLevel},
     deprecated::Deprecated,
     stability::Stability,
+    v2::CommonFields,
     YamlValue,
 };
 
@@ -114,6 +115,53 @@ impl AttributeRef {
             prefix: self.prefix,
             annotations: self.annotations,
             role: Some(role),
+        }
+    }
+}
+
+/// The definition of an Attribute.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct AttributeDef {
+    /// String that uniquely identifies the attribute.
+    key: String,
+    /// Either a string literal denoting the type as a primitive or an
+    /// array type, a template type or an enum definition.
+    r#type: AttributeType,
+    /// Sequence of example values for the attribute or single example
+    /// value. They are required only for string and string array
+    /// attributes. Example values must be of the same type of the
+    /// attribute. If only a single example is provided, it can directly
+    /// be reported without encapsulating it into a sequence/dictionary.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    examples: Option<Examples>,
+    /// Associates a tag ("sub-group") to the attribute. It carries no
+    /// particular semantic meaning but can be used e.g. for filtering
+    /// in the markdown generator.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tag: Option<String>,
+    /// Common fields (like brief, note, attributes).
+    #[serde(flatten)]
+    pub common: CommonFields,
+}
+
+impl AttributeDef {
+    /// Converts a v2 refinement into a v1 AttributeSpec.
+    pub fn into_v1_attribute(self) -> AttributeSpec {
+        AttributeSpec::Id {
+            id: self.key,
+            r#type: self.r#type,
+            brief: Some(self.common.brief),
+            examples: self.examples,
+            tag: self.tag,
+            requirement_level: Default::default(),
+            sampling_relevant: None,
+            note: self.common.note,
+            stability: Some(self.common.stability),
+            deprecated: self.common.deprecated,
+            annotations: self.common.annotations,
+            role: None,
         }
     }
 }

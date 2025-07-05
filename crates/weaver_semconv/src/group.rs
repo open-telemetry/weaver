@@ -7,7 +7,7 @@
 use globset::Glob;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use crate::any_value::AnyValueSpec;
@@ -25,7 +25,7 @@ use weaver_common::result::WResult;
 /// Mandatory fields are: `id` and `brief`.
 ///
 /// Note: The `resource` type is no longer used and is an alias for `entity`.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GroupSpec {
     /// The id that uniquely identifies the semantic convention.
@@ -99,7 +99,7 @@ pub struct GroupSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
     /// Annotations for the group.
-    pub annotations: Option<HashMap<String, YamlValue>>,
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
     #[serde(default)]
