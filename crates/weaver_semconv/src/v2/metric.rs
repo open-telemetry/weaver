@@ -40,7 +40,7 @@ pub struct MetricGroup {
 }
 
 impl MetricGroup {
-    /// Converts a v2 span gorup into a v1 GroupSpec.
+    /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
         GroupSpec {

@@ -24,7 +24,7 @@ pub struct SpanGroup {
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
     pub kind: SpanKindSpec,
-    /// The name patern for the span.
+    /// The name pattern for the span.
     pub name: String,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
@@ -46,7 +46,7 @@ pub struct SpanGroup {
 }
 
 impl SpanGroup {
-    /// Converts a v2 span gorup into a v1 GroupSpec.
+    /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
         GroupSpec {
