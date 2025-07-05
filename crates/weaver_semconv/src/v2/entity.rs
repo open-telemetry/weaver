@@ -29,6 +29,7 @@ pub struct EntityGroup {
 
 impl EntityGroup {
     /// Converts a v2 event into a v1 GroupSpec.
+    #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
         let attributes = self
             .identity

@@ -11,7 +11,7 @@ use crate::{Error, YamlValue};
 use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Not;
 use weaver_common::result::WResult;

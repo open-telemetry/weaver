@@ -7,7 +7,7 @@
 use crate::error::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;

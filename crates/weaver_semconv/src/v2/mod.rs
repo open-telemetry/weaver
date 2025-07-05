@@ -2,7 +2,7 @@
 
 //! The new way we want to define data going forward.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

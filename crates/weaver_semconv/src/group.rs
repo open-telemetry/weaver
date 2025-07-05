@@ -7,7 +7,7 @@
 use globset::Glob;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Display, Formatter};
 
 use crate::any_value::AnyValueSpec;

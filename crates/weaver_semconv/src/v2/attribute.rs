@@ -84,6 +84,7 @@ pub struct AttributeRef {
 
 impl AttributeRef {
     /// Converts a v2 refinement into a v1 AttributeSpec.
+    #[must_use]
     pub fn into_v1_attribute(self) -> AttributeSpec {
         AttributeSpec::Ref {
             r#ref: self.r#ref,
@@ -101,6 +102,7 @@ impl AttributeRef {
         }
     }
     /// Converts a v2 refinement into a v1 AttributeSpec.
+    #[must_use]
     pub fn into_v1_attribute_with_role(self, role: AttributeRole) -> AttributeSpec {
         AttributeSpec::Ref {
             r#ref: self.r#ref,
@@ -148,6 +150,7 @@ pub struct AttributeDef {
 
 impl AttributeDef {
     /// Converts a v2 refinement into a v1 AttributeSpec.
+    #[must_use]
     pub fn into_v1_attribute(self) -> AttributeSpec {
         AttributeSpec::Id {
             id: self.key,

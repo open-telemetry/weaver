@@ -47,6 +47,7 @@ pub struct SpanGroup {
 
 impl SpanGroup {
     /// Converts a v2 span gorup into a v1 GroupSpec.
+    #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
         GroupSpec {
             id: format!("span.{}", &self.r#type),
