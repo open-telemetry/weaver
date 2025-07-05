@@ -26,6 +26,7 @@ pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
