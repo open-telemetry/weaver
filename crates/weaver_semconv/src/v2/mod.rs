@@ -52,7 +52,7 @@ pub struct CommonFields {
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic conventions.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default)]
 #[serde(deny_unknown_fields)]
 pub struct V2SemconvSpec {
     /// A collection of semantic conventions for attributes.
@@ -91,6 +91,14 @@ impl V2SemconvSpec {
         .chain(self.metrics.into_iter().map(|m| m.into_v1_group()))
         .chain(self.spans.into_iter().map(|s| s.into_v1_group()))
         .collect()
+    }
+    /// True if this specification holds no definitions.
+    pub fn is_emtpy(&self) -> bool {
+        self.attributes.is_empty()
+            && self.entities.is_empty()
+            && self.events.is_empty()
+            && self.metrics.is_empty()
+            && self.spans.is_empty()
     }
 }
 

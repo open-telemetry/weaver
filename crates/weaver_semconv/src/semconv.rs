@@ -5,6 +5,7 @@
 use crate::group::{GroupSpec, GroupWildcard};
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
+use crate::v2::V2SemconvSpec;
 use crate::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,12 @@ use weaver_common::result::WResult;
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SemConvSpec {
+    /// The new specification for semantic convention file.
+    #[serde(flatten)]
+    pub(crate) v2: V2SemconvSpec,
+
     /// A collection of semantic convention groups or [`GroupSpec`].
+    #[serde(default)] // TODO - Should we have disjoint V1 and V2 instead?
     pub(crate) groups: Vec<GroupSpec>,
 
     /// A list of imports referencing groups defined in a dependent registry.
@@ -199,6 +205,25 @@ impl SemConvSpec {
     pub fn imports(&self) -> Option<&Imports> {
         self.imports.as_ref()
     }
+
+    /// Removes V2 definitions for just V1 definitions.
+    #[must_use]
+    pub fn erase_v2(self, provenance: &Provenance) -> SemConvSpec {
+        if !self.v2.is_emtpy() {
+            let name = format!(
+                "registry.{}.{}",
+                &provenance.registry_id,
+                provenance.path.replace("\\", ".").replace("/", "."),
+            );
+            SemConvSpec {
+                v2: Default::default(),
+                groups: self.v2.into_v1_groups(&name),
+                imports: self.imports,
+            }
+        } else {
+            self
+        }
+    }
 }
 
 impl SemConvSpecWithProvenance {
@@ -219,8 +244,10 @@ impl SemConvSpecWithProvenance {
     ) -> WResult<SemConvSpecWithProvenance, Error> {
         let path = path.as_ref().display().to_string();
         let provenance = Provenance::new(registry_id, &path);
-        SemConvSpec::from_file(path, validator)
-            .map(|spec| SemConvSpecWithProvenance { spec, provenance })
+        SemConvSpec::from_file(path, validator).map(|spec| SemConvSpecWithProvenance {
+            spec: spec.erase_v2(&provenance),
+            provenance,
+        })
     }
 
     /// Creates a semantic convention spec with provenance from a string.
@@ -238,7 +265,10 @@ impl SemConvSpecWithProvenance {
         provenance: Provenance,
         spec: &str,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
-        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance { spec, provenance })
+        SemConvSpec::from_string(spec).map(|spec| SemConvSpecWithProvenance {
+            spec: spec.erase_v2(&provenance),
+            provenance,
+        })
     }
 }
 
@@ -519,6 +549,41 @@ mod tests {
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(semconv_spec.spec.groups.len(), 2);
+        assert_eq!(semconv_spec.provenance, provenance);
+    }
+
+    #[test]
+    fn test_semconv_spec_with_provenance_from_string_v2() {
+        let provenance = Provenance::new("main", "my_string");
+        let spec = r#"
+        attributes:
+        - key: "attr1"
+          stability: "stable"
+          brief: "description1"
+          type: "string"
+          examples: "example1"
+        spans:
+        - type: "group2"
+          stability: "stable"
+          brief: "description2"
+          kind: "server"
+          name: "{myspan}"
+          attributes:
+            - ref: "attr1"
+        "#;
+
+        let semconv_spec = SemConvSpecWithProvenance::from_string(provenance.clone(), spec)
+            .into_result_failing_non_fatal()
+            .unwrap();
+        assert_eq!(semconv_spec.spec.groups.len(), 2);
+        let mut group_ids: Vec<&str> = semconv_spec
+            .spec
+            .groups
+            .iter()
+            .map(|g| g.id.as_str())
+            .collect();
+        group_ids.sort();
+        assert_eq!(vec!["registry.main.my_string", "span.group2"], group_ids);
         assert_eq!(semconv_spec.provenance, provenance);
     }
 }

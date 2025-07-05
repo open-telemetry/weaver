@@ -361,6 +361,7 @@ mod tests {
                         entity_associations: Vec::new(),
                     }],
                     imports: None,
+                    v2: Default::default(),
                 },
             ),
             (
@@ -388,6 +389,7 @@ mod tests {
                         entity_associations: Vec::new(),
                     }],
                     imports: None,
+                    v2: Default::default(),
                 },
             ),
         ];
