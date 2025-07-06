@@ -254,7 +254,7 @@ pub(crate) fn jinja_err_convert(e: minijinja::Error) -> Error {
     Error::WriteGeneratedCodeFailed {
         template: PathBuf::from_str(e.template_source().unwrap_or(""))
             .expect("Template source should be path"),
-        error: format!("{}", e),
+        error: format!("{e}"),
     }
 }
 

@@ -188,7 +188,7 @@ impl Ingester for OtlpIngester {
             Duration::from_secs(self.inactivity_timeout),
         )
         .map_err(|e| Error::IngestError {
-            error: format!("Failed to listen to OTLP requests: {}", e),
+            error: format!("Failed to listen to OTLP requests: {e}"),
         })?;
 
         log_info("To stop the OTLP receiver:");

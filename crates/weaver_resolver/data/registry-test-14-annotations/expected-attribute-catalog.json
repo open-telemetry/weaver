@@ -15,6 +15,42 @@
     }
   },
   {
+    "name": "attr2",
+    "type": {
+      "members": [
+        {
+          "id": "first",
+          "value": "first",
+          "brief": "First",
+          "stability": "stable"
+        },
+        {
+          "id": "second",
+          "value": "second",
+          "brief": "Second",
+          "stability": "stable",
+          "annotations": {
+            "code_generation": {
+              "exclude": true
+            },
+            "privacy_sensitivity": "PII + PHI"
+          }
+        }
+      ]
+    },
+    "brief": "Brief",
+    "examples": "eu-central-1",
+    "requirement_level": "required",
+    "note": "Note",
+    "stability": "stable",
+    "annotations": {
+      "code_generation": {
+        "exclude": true
+      },
+      "privacy_sensitivity": "PII"
+    }
+  },
+  {
     "name": "attr1",
     "type": "string",
     "brief": "Brief",
@@ -26,7 +62,6 @@
       "code_generation": {
         "exclude": true
       },
-      "privacy_sensitivity": "PII + PHI",
       "complex": {
         "key1": "string",
         "key2": 234,
@@ -41,7 +76,8 @@
           67
         ],
         "key6": null
-      }
+      },
+      "privacy_sensitivity": "PII + PHI"
     }
   }
 ]

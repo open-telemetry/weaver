@@ -226,15 +226,15 @@ pub enum AttributeType {
 impl Display for AttributeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PrimitiveOrArray(t) => write!(f, "{}", t),
-            Template(t) => write!(f, "{}", t),
+            PrimitiveOrArray(t) => write!(f, "{t}"),
+            Template(t) => write!(f, "{t}"),
             Enum { members, .. } => {
                 let entries = members
                     .iter()
                     .map(|m| m.id.clone())
                     .collect::<Vec<String>>()
                     .join(", ");
-                write!(f, "enum {{{}}}", entries)
+                write!(f, "enum {{{entries}}}")
             }
         }
     }
@@ -377,14 +377,21 @@ pub struct EnumEntriesSpec {
     pub value: ValueSpec,
     /// Brief description of the enum entry value.
     /// It defaults to the value of id.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Longer description.
     /// It defaults to an empty string.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// Stability of this enum value.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Deprecation note.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<String>,
+    /// Annotations for the member.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
 /// Implements a human readable display for EnumEntries.
@@ -414,10 +421,10 @@ impl Display for ValueSpec {
     /// Formats the value.
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValueSpec::Int(v) => write!(f, "{}", v),
-            ValueSpec::Double(v) => write!(f, "{}", v),
-            ValueSpec::String(v) => write!(f, "{}", v),
-            ValueSpec::Bool(v) => write!(f, "{}", v),
+            ValueSpec::Int(v) => write!(f, "{v}"),
+            ValueSpec::Double(v) => write!(f, "{v}"),
+            ValueSpec::String(v) => write!(f, "{v}"),
+            ValueSpec::Bool(v) => write!(f, "{v}"),
         }
     }
 }
@@ -528,7 +535,7 @@ impl Examples {
                         path_or_url: path_or_url.to_owned(),
                         group_id: group_id.to_owned(),
                         attribute_id: attr_id.to_owned(),
-                        error: format!("All examples SHOULD be of type `{}`", attr_type),
+                        error: format!("All examples SHOULD be of type `{attr_type}`"),
                     }],
                 )
             }
@@ -554,7 +561,7 @@ impl Examples {
                     path_or_url: path_or_url.to_owned(),
                     group_id: group_id.to_owned(),
                     attribute_id: attr_id.to_owned(),
-                    error: format!("All examples SHOULD be of type `{}`", attr_type),
+                    error: format!("All examples SHOULD be of type `{attr_type}`"),
                 }],
             ),
             _ => WResult::OkWithNFEs(
@@ -563,7 +570,7 @@ impl Examples {
                     path_or_url: path_or_url.to_owned(),
                     group_id: group_id.to_owned(),
                     attribute_id: attr_id.to_owned(),
-                    error: format!("All examples MUST be of type `{}`", attr_type),
+                    error: format!("All examples MUST be of type `{attr_type}`"),
                 }],
             ),
         }
@@ -612,7 +619,7 @@ impl Examples {
                     path_or_url: path_or_url.to_owned(),
                     group_id: group_id.to_owned(),
                     value_id: any_value.id(),
-                    error: format!("All examples SHOULD be of type `{}`", any_value),
+                    error: format!("All examples SHOULD be of type `{any_value}`"),
                 }],
             ),
             (_, AnyValueSpec::Maps { .. }) | (_, AnyValueSpec::Map { .. }) => WResult::OkWithNFEs(
@@ -622,8 +629,7 @@ impl Examples {
                     group_id: group_id.to_owned(),
                     value_id: any_value.id(),
                     error: format!(
-                        "Examples for `{}` values MUST be a supported string type",
-                        any_value
+                        "Examples for `{any_value}` values MUST be a supported string type"
                     ),
                 }],
             ),
@@ -633,7 +639,7 @@ impl Examples {
                     path_or_url: path_or_url.to_owned(),
                     group_id: group_id.to_owned(),
                     value_id: any_value.id(),
-                    error: format!("All examples MUST be of type `{}`", any_value),
+                    error: format!("All examples MUST be of type `{any_value}`"),
                 }],
             ),
         }
@@ -671,12 +677,12 @@ pub enum RequirementLevel {
 impl Display for RequirementLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            RequirementLevel::Basic(brl) => write!(f, "{}", brl),
+            RequirementLevel::Basic(brl) => write!(f, "{brl}"),
             RequirementLevel::ConditionallyRequired { text } => {
-                write!(f, "conditionally required (condition: {})", text)
+                write!(f, "conditionally required (condition: {text})")
             }
-            RequirementLevel::Recommended { text } => write!(f, "recommended ({})", text),
-            RequirementLevel::OptIn { text } => write!(f, "opt in ({})", text),
+            RequirementLevel::Recommended { text } => write!(f, "recommended ({text})"),
+            RequirementLevel::OptIn { text } => write!(f, "opt in ({text})"),
         }
     }
 }
@@ -879,6 +885,7 @@ mod tests {
                         note: Some("note".to_owned()),
                         stability: None,
                         deprecated: None,
+                        annotations: None,
                     }]
                 }
             ),
@@ -936,8 +943,9 @@ mod tests {
             note: Some("note".to_owned()),
             stability: None,
             deprecated: None,
+            annotations: None,
         };
-        assert_eq!(format!("{}", entries), "id=id, type=42");
+        assert_eq!(format!("{entries}"), "id=id, type=42");
     }
 
     #[test]

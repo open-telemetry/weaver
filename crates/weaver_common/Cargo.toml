@@ -33,9 +33,9 @@ gix = { version = "0.70.0", default-features = false, features = [
     "worktree-mutation",
     "blocking-http-transport-reqwest-rust-tls",
 ] }
-flate2 = "1.0.35"
+flate2 = "1.1.2"
 tar = "0.4.43"
-zip = "2.2.2"
+zip = "4.2.0"
 
 [dev-dependencies]
 ureq.workspace = true

@@ -159,6 +159,16 @@ pub enum Error {
         attribute_id: String,
     },
 
+    /// Invalid import wildcard.
+    #[error("Invalid import wildcard: {error:?}")]
+    #[diagnostic(help(
+        "Check the wildcard syntax supported here: https://crates.io/crates/globset"
+    ))]
+    InvalidWildcard {
+        /// The error that occurred.
+        error: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -299,10 +309,10 @@ impl SchemaResolver {
                                         .unwrap_or_default();
                                     let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
                                         let relative_path = &path[prefix.len()..];
-                                        format!("{}{}", registry_path_repr, relative_path)
+                                        format!("{registry_path_repr}{relative_path}")
                                     } else {
                                         let relative_path = &path[prefix.len() + 1..];
-                                        format!("{}/{}", registry_path_repr, relative_path)
+                                        format!("{registry_path_repr}/{relative_path}")
                                     };
                                     (Provenance::new(&registry_repo.id(), &path), spec)
                                 },
@@ -438,15 +448,53 @@ mod tests {
                         assert_eq!(semconv_spec.groups().len(), 2);
                         assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
                         assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
+                        assert_eq!(
+                            semconv_spec
+                                .imports()
+                                .unwrap()
+                                .metrics
+                                .as_ref()
+                                .unwrap()
+                                .len(),
+                            1
+                        );
+                        assert_eq!(
+                            semconv_spec
+                                .imports()
+                                .unwrap()
+                                .events
+                                .as_ref()
+                                .unwrap()
+                                .len(),
+                            1
+                        );
+                        assert_eq!(
+                            semconv_spec
+                                .imports()
+                                .unwrap()
+                                .entities
+                                .as_ref()
+                                .unwrap()
+                                .len(),
+                            1
+                        );
                     }
                     "otel" => {
                         assert_eq!(
                             source.path,
                             "data/multi-registry/otel_registry/otel_registry.yaml"
                         );
-                        assert_eq!(semconv_spec.groups().len(), 2);
+                        assert_eq!(semconv_spec.groups().len(), 7);
                         assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
                         assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
+                        assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
+                        assert_eq!(
+                            &semconv_spec.groups()[3].id,
+                            "entity.gcp.apphub.application"
+                        );
+                        assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
+                        assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
+                        assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
                     }
                     _ => panic!("Unexpected registry id: {}", source.registry_id),
                 }
@@ -463,10 +511,37 @@ mod tests {
                         // The group `otel.unused` shouldn't be garbage collected
                         let group = resolved_registry.group("otel.unused");
                         assert!(group.is_some());
+
+                        // These groups are referenced in the `imports` and should not be garbage
+                        // collected
+                        let group = resolved_registry.group("metric.example.counter");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("entity.gcp.apphub.application");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("entity.gcp.apphub.service");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("event.session.start");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("event.session.end");
+                        assert!(group.is_some());
                     } else {
-                        // The group `otel.unused` should be garbage collected
+                        // These groups should be garbage collected because they are not referenced
+                        // anywhere (in ref or imports)
                         let group = resolved_registry.group("otel.unused");
                         assert!(group.is_none());
+                        let group = resolved_registry.group("event.session.end");
+                        assert!(group.is_none());
+
+                        // These groups are referenced in the `imports` and should not be garbage
+                        // collected
+                        let group = resolved_registry.group("metric.example.counter");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("entity.gcp.apphub.application");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("entity.gcp.apphub.service");
+                        assert!(group.is_some());
+                        let group = resolved_registry.group("event.session.start");
+                        assert!(group.is_some());
                     }
 
                     let metrics = resolved_registry.groups(GroupType::Metric);

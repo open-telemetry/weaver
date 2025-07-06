@@ -2,8 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-# [NEXT] - NEXT
+# [Next] - Next
 
+- Don't serialize default values and empty arrays when resolving semantic conventions.
+  ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
+
+# [0.16.1] - 2025-07-04
+
+- Fix github release actions.
+
+# [0.16.0] - 2025-07-03
+
+- Reverts the `value_type` feature.
+  ([#816](https://github.com/open-telemetry/weaver/pull/816) by @jerbly)
+- Adds annotations to enum members ([#812](https://github.com/open-telemetry/weaver/pull/812) by @lmolkova)
+
+# [0.15.3] - 2025-06-24
+
+- Add `imports` section to semconv spec. Custom registries can now import groups
+  by name or by wildcard. ([#769](https://github.com/open-telemetry/weaver/pull/769/) by @lquerel)
 - Add support for metrics to `registry emit`
   ([#767](https://github.com/open-telemetry/weaver/pull/767) by @jerbly)
 - Adds `value_type` to metric: `int` or `double`. Data-point and exemplar values are live-checked.

@@ -7,7 +7,6 @@
 use schemars::JsonSchema;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use weaver_semconv::any_value::AnyValueSpec;
-use weaver_semconv::metric::MetricValueTypeSpec;
 
 use crate::attribute::{Attribute, AttributeRef};
 use crate::catalog::Catalog;
@@ -85,6 +84,7 @@ pub struct Group {
     pub deprecated: Option<Deprecated>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeRef>,
 
     /// Specifies the kind of the span.
@@ -136,9 +136,6 @@ pub struct Group {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
-    /// Number type of the metric's value.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_type: Option<MetricValueTypeSpec>,
 }
 
 impl Group {
@@ -383,16 +380,6 @@ impl Registry {
 }
 
 impl Group {
-    /// Returns `true` if the group is a registry attribute group.
-    ///
-    /// Note: Currently, this method relies on the `registry.` prefix to identify
-    /// registry attribute groups. Once issue [#580](https://github.com/open-telemetry/weaver/issues/580)
-    /// is resolved, this method must be updated accordingly.
-    #[must_use]
-    pub fn is_registry_attribute_group(&self) -> bool {
-        matches!(self.r#type, GroupType::AttributeGroup) && self.id.starts_with("registry.")
-    }
-
     /// Returns the fully resolved attributes of the group.
     /// The attribute references are resolved via the provided catalog.
     /// If an attribute reference is not found in the catalog, an error is

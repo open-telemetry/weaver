@@ -76,10 +76,7 @@ pub(crate) fn parse_key_val(s: &str) -> Result<(String, Value), Error> {
     })?;
     let value = serde_yaml::from_str(&s[pos + 1..]).map_err(|e| Error::InvalidParam {
         param: s.to_owned(),
-        error: format!(
-            "A valid parameter definition is `--param <name>=<yaml-value>`. Error: {}",
-            e
-        ),
+        error: format!("A valid parameter definition is `--param <name>=<yaml-value>`. Error: {e}"),
     })?;
     Ok((s[..pos].to_string(), value))
 }
@@ -477,8 +474,7 @@ mod tests {
 
             assert_eq!(
                 rust_files, expected_rust_files,
-                "File sets don't match for follow_symlinks = {}",
-                follow_symlinks
+                "File sets don't match for follow_symlinks = {follow_symlinks}"
             );
         }
     }

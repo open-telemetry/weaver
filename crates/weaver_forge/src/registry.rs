@@ -15,7 +15,6 @@ use weaver_resolved_schema::registry::{Group, Registry};
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
-use weaver_semconv::metric::MetricValueTypeSpec;
 use weaver_semconv::stability::Stability;
 use weaver_semconv::YamlValue;
 
@@ -70,18 +69,22 @@ pub struct ResolvedGroup {
     pub deprecated: Option<Deprecated>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<Attribute>,
 
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub span_kind: Option<SpanKindSpec>,
     /// List of strings that specify the ids of event semantic conventions
     /// associated with this span semantic convention.
     /// Note: only valid if type is span
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub events: Vec<String>,
     /// The metric name as described by the [OpenTelemetry Specification](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/data-model.md#timeseries-model).
     /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub metric_name: Option<String>,
     /// The instrument type that should be used to record the metric. Note that
     /// the semantic conventions must be written using the names of the
@@ -89,13 +92,16 @@ pub struct ResolvedGroup {
     /// histogram).
     /// For more details: [Metrics semantic conventions - Instrument types](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-types).
     /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub instrument: Option<InstrumentSpec>,
     /// The unit in which the metric is measured, which should adhere to the
     /// [guidelines](https://github.com/open-telemetry/opentelemetry-specification/tree/main/specification/metrics/semantic_conventions#instrument-units).
     /// Note: This field is required if type is metric.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// The lineage of the group.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -110,9 +116,6 @@ pub struct ResolvedGroup {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
-    /// Number type of the metric's value.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_type: Option<MetricValueTypeSpec>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -170,7 +173,6 @@ impl ResolvedGroup {
             display_name: group.display_name.clone(),
             body: group.body.clone(),
             entity_associations: group.entity_associations.clone(),
-            value_type: group.value_type.clone(),
             annotations: group.annotations.clone(),
         })
     }
@@ -232,7 +234,6 @@ impl ResolvedRegistry {
                     display_name: group.display_name.clone(),
                     body: group.body.clone(),
                     entity_associations: group.entity_associations.clone(),
-                    value_type: group.value_type.clone(),
                     annotations: group.annotations.clone(),
                 }
             })

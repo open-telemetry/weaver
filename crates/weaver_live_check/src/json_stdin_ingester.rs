@@ -35,13 +35,13 @@ impl Ingester for JsonStdinIngester {
         let _ = handle
             .read_to_string(&mut buffer)
             .map_err(|e| Error::IngestError {
-                error: format!("Failed to read from stdin: {}", e),
+                error: format!("Failed to read from stdin: {e}"),
             })?;
 
         // Deserialize JSON from the buffer
         let samples: Vec<Sample> =
             serde_json::from_str(&buffer).map_err(|e| Error::IngestError {
-                error: format!("Failed to parse JSON from stdin: {}", e),
+                error: format!("Failed to parse JSON from stdin: {e}"),
             })?;
 
         Ok(Box::new(samples.into_iter()))

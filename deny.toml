@@ -54,6 +54,7 @@ allow = [
     "Zlib",
     "BSL-1.0", # BOSL license used by https://crates.io/crates/lockfree-object-pool
     "BSD-2-Clause",
+    "CDLA-Permissive-2.0", # See https://github.com/cncf/foundation/issues/1007
 ]
 
 # List of explicitly disallowed licenses

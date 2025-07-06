@@ -45,6 +45,30 @@
 					}
 				]
 			}
+		},
+		"imports": {
+			"type": "object",
+			"properties": {
+				"metrics": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"events": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"entities": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			},
+			"additionalProperties": false
 		}
 	},
 	"$defs": {
@@ -476,8 +500,7 @@
 				"type",
 				"metric_name",
 				"instrument",
-				"unit",
-				"value_type"
+				"unit"
 			],
 			"properties": {
 				"instrument": {
@@ -507,14 +530,6 @@
 					"items": {
 						"$ref": "#/$defs/EntityAssociation"
 					}
-				},
-				"value_type": {
-					"type": "string",
-					"description": "Number type of the metric's value. It can be 'int' or 'double'.",
-					"enum": [
-						"int",
-						"double"
-					]
 				}
 			}
 		},
@@ -582,7 +597,10 @@
 										"$ref": "#/$defs/StabilityLevel"
 									}
 								]
-							}
+							},
+							"annotations": {
+								"$ref": "#/$defs/annotations"
+							}							
 						}
 					}
 				}

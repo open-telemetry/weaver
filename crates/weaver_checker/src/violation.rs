@@ -38,8 +38,7 @@ impl Display for Violation {
             } => {
                 write!(
                     f,
-                    "id={}, category={}, group={}, attr={}",
-                    id, category, group, attr
+                    "id={id}, category={category}, group={group}, attr={attr}"
                 )
             }
             Violation::Advice(Advice {
@@ -50,8 +49,7 @@ impl Display for Violation {
             }) => {
                 write!(
                     f,
-                    "type={}, value={}, message={}, advice_level={:?}",
-                    r#type, value, message, advice_level
+                    "type={type}, value={value}, message={message}, advice_level={advice_level:?}"
                 )
             }
         }

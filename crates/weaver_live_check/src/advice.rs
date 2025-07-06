@@ -22,7 +22,6 @@ use weaver_semconv::{
         TemplateTypeSpec, ValueSpec,
     },
     deprecated::Deprecated,
-    metric::MetricValueTypeSpec,
     stability::Stability,
 };
 
@@ -271,7 +270,7 @@ impl Advisor for TypeAdvisor {
                             Ok(vec![Advice {
                                 advice_type: "type_mismatch".to_owned(),
                                 value: Value::String(attribute_type.to_string()),
-                                message: format!("Type should be `{}`", semconv_attribute_type),
+                                message: format!("Type should be `{semconv_attribute_type}`"),
                                 advice_level: AdviceLevel::Violation,
                             }])
                         } else {
@@ -301,8 +300,7 @@ impl Advisor for TypeAdvisor {
                                         advice_type: "instrument_mismatch".to_owned(),
                                         value: Value::String(sample_instrument.to_string()),
                                         message: format!(
-                                            "Instrument should be `{}`",
-                                            semconv_instrument
+                                            "Instrument should be `{semconv_instrument}`"
                                         ),
                                         advice_level: AdviceLevel::Violation,
                                     });
@@ -316,7 +314,7 @@ impl Advisor for TypeAdvisor {
                             advice_list.push(Advice {
                                 advice_type: "unit_mismatch".to_owned(),
                                 value: Value::String(sample_metric.unit.clone()),
-                                message: format!("Unit should be `{}`", semconv_unit),
+                                message: format!("Unit should be `{semconv_unit}`"),
                                 advice_level: AdviceLevel::Violation,
                             });
                         }
@@ -326,19 +324,11 @@ impl Advisor for TypeAdvisor {
             }
             SampleRef::NumberDataPoint(sample_number_data_point) => {
                 if let Some(semconv_metric) = registry_group {
-                    let mut advice_list = check_attributes(
+                    let advice_list = check_attributes(
                         &semconv_metric.attributes,
                         &sample_number_data_point.attributes,
                     );
 
-                    if let Some(semconv_value_type) = &semconv_metric.value_type {
-                        if let Some(advice) = check_value_type_mismatch(
-                            &sample_number_data_point.value,
-                            semconv_value_type,
-                        ) {
-                            advice_list.push(advice);
-                        }
-                    }
                     Ok(advice_list)
                 } else {
                     Ok(Vec::new())
@@ -354,65 +344,8 @@ impl Advisor for TypeAdvisor {
                     Ok(Vec::new())
                 }
             }
-            SampleRef::Exemplar(sample_exemplar) => {
-                let mut advice_list = Vec::new();
-                if let Some(semconv_metric) = registry_group {
-                    if let Some(semconv_value_type) = &semconv_metric.value_type {
-                        if let Some(advice) =
-                            check_value_type_mismatch(&sample_exemplar.value, semconv_value_type)
-                        {
-                            advice_list.push(advice);
-                        }
-                    }
-                }
-                Ok(advice_list)
-            }
             _ => Ok(Vec::new()),
         }
-    }
-}
-
-fn json_to_value_type(value: &Value) -> Option<MetricValueTypeSpec> {
-    match value {
-        Value::Number(num) => {
-            if num.is_i64() || num.is_u64() {
-                Some(MetricValueTypeSpec::Int)
-            } else if num.is_f64() {
-                Some(MetricValueTypeSpec::Double)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
-/// Checks for value type mismatch and returns advice if there's a mismatch
-fn check_value_type_mismatch(
-    sample_value: &Value,
-    semconv_value_type: &MetricValueTypeSpec,
-) -> Option<Advice> {
-    let sample_value_type = json_to_value_type(sample_value);
-    let (value, is_mismatch) = if let Some(sample_type) = sample_value_type {
-        (
-            Value::String(sample_type.to_string()),
-            &sample_type != semconv_value_type,
-        )
-    } else {
-        (Value::String("unknown".to_owned()), true)
-    };
-
-    if is_mismatch {
-        // This advice is Information level because the specification allows for some flexibility
-        // in value types, but we still want to inform the user about the mismatch
-        Some(Advice {
-            advice_type: "value_type_mismatch".to_owned(),
-            value,
-            message: format!("Value type should be `{}`", semconv_value_type),
-            advice_level: AdviceLevel::Information,
-        })
-    } else {
-        None
     }
 }
 

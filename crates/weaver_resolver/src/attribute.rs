@@ -132,7 +132,7 @@ impl AttributeCatalog {
 
                     if *prefix {
                         // depending on the prefix we either create embedded attribute or normal reference
-                        name = format!("{}.{}", group_prefix, r#ref);
+                        name = format!("{group_prefix}.{ref}");
                     } else {
                         name = r#ref.clone();
                     }
@@ -347,7 +347,7 @@ mod tests {
     }
 
     fn gen_attr(id: usize) -> attribute::Attribute {
-        gen_attr_by_name(format!("attr-{}", id), RequirementLevel::Basic(Recommended))
+        gen_attr_by_name(format!("attr-{id}"), RequirementLevel::Basic(Recommended))
     }
 
     fn gen_attr_by_name(name: String, requirement_level: RequirementLevel) -> attribute::Attribute {

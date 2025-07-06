@@ -34,7 +34,6 @@
       "type": "event",
       "brief": "brief",
       "stability": "development",
-      "attributes": [],
       "name": "empty.event",
       "lineage": {
         "provenance": {
@@ -99,7 +98,6 @@
       "brief": "This event represents an occurrence of a something.\n",
       "note": "This event transmits the body as a JSON encoded string.\n",
       "stability": "development",
-      "attributes": [],
       "name": "string.body.event",
       "lineage": {
         "provenance": {
@@ -124,7 +122,6 @@
       "brief": "This event represents an occurrence of a something.\n",
       "note": "This event transmits the body as a JSON encoded string.\n",
       "stability": "development",
-      "attributes": [],
       "name": "string.body.detailed.event",
       "lineage": {
         "provenance": {
@@ -150,7 +147,6 @@
       "brief": "This event represents an occurrence of a lifecycle transition on Android or iOS platform.\n",
       "note": "This event identifies the fields that are common to all lifecycle events for android and iOS using the `android.state` and `ios.state` fields. The `android.state` and `ios.state` attributes are mutually exclusive.\n",
       "stability": "development",
-      "attributes": [],
       "name": "device.app.lifecycle",
       "lineage": {
         "provenance": {
@@ -178,41 +174,31 @@
                 "id": "active",
                 "value": "active",
                 "brief": "The app has become `active`. Associated with UIKit notification `applicationDidBecomeActive`.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               },
               {
                 "id": "inactive",
                 "value": "inactive",
                 "brief": "The app is now `inactive`. Associated with UIKit notification `applicationWillResignActive`.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               },
               {
                 "id": "background",
                 "value": "background",
                 "brief": "The app is now in the background. This value is associated with UIKit notification `applicationDidEnterBackground`.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               },
               {
                 "id": "foreground",
                 "value": "foreground",
                 "brief": "The app is now in the foreground. This value is associated with UIKit notification `applicationWillEnterForeground`.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               },
               {
                 "id": "terminate",
                 "value": "terminate",
                 "brief": "The app is about to terminate. Associated with UIKit notification `applicationWillTerminate`.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               }
             ]
           },
@@ -230,25 +216,19 @@
                 "id": "created",
                 "value": "created",
                 "brief": "Any time before Activity.onResume() or, if the app has no Activity, Context.startService() has been called in the app for the first time.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               },
               {
                 "id": "background",
                 "value": "background",
                 "brief": "Any time after Activity.onPause() or, if the app has no Activity, Context.stopService() has been called when the app was in the foreground state.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               },
               {
                 "id": "foreground",
                 "value": "foreground",
                 "brief": "Any time after Activity.onResume() or, if the app has no Activity, Context.startService() has been called when the app was in either the created or background states.\n",
-                "note": null,
-                "stability": "stable",
-                "deprecated": null
+                "stability": "stable"
               }
             ]
           }
@@ -361,7 +341,6 @@
       "type": "event",
       "brief": "An event that adds global attributes for reuse.\n",
       "stability": "development",
-      "attributes": [],
       "name": "browser.test.event_with_body_details",
       "lineage": {
         "provenance": {

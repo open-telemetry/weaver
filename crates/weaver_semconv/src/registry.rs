@@ -3,7 +3,7 @@
 //! Semantic Convention Registry.
 
 use crate::attribute::AttributeSpecWithProvenance;
-use crate::group::GroupSpecWithProvenance;
+use crate::group::{GroupSpecWithProvenance, ImportsWithProvenance};
 use crate::json_schema::JsonSchemaValidator;
 use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
@@ -246,6 +246,19 @@ impl SemConvRegistry {
             })
     }
 
+    /// Returns an iterator over all the unresolved imports defined in the semantic convention
+    /// registry. Each import is associated with its provenance (path or URL).
+    pub fn unresolved_imports_iter(&self) -> impl Iterator<Item = ImportsWithProvenance> + '_ {
+        self.specs
+            .iter()
+            .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
+                spec.imports.iter().map(|imports| ImportsWithProvenance {
+                    imports: imports.clone(),
+                    provenance: provenance.clone(),
+                })
+            })
+    }
+
     /// Returns a set of stats about the semantic convention registry.
     pub fn stats(&self) -> Stats {
         Stats {
@@ -346,8 +359,8 @@ mod tests {
                         body: None,
                         annotations: None,
                         entity_associations: Vec::new(),
-                        value_type: None,
                     }],
+                    imports: None,
                 },
             ),
             (
@@ -373,8 +386,8 @@ mod tests {
                         body: None,
                         annotations: None,
                         entity_associations: Vec::new(),
-                        value_type: None,
                     }],
+                    imports: None,
                 },
             ),
         ];
@@ -426,7 +439,7 @@ mod tests {
                 GroupType::MetricGroup => assert_eq!(*total, 0),
                 GroupType::Entity => assert_eq!(*total, 1),
                 GroupType::Span => assert_eq!(*total, 1),
-                _ => panic!("Unexpected group type {:?}", group_type),
+                _ => panic!("Unexpected group type {group_type:?}"),
             });
     }
 

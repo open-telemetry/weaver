@@ -22,7 +22,6 @@ groups:
     brief: "Count of all bids we've seen"
     instrument: counter
     unit: "{bid}"
-    value_type: int
     attributes:
       - ref: auction.id
         requirement_level: required
@@ -30,3 +29,11 @@ groups:
         requirement_level: recommended
       - ref: error.type
         requirement_level: required
+
+imports:
+  metrics:
+    - example.*
+  entities:
+    - gcp.*
+  events:
+    - session.start

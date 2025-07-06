@@ -192,8 +192,7 @@ fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
             Ok(_) => {}
             Err(e) => {
                 log_error(format!(
-                    "Failed to render the diagnostic messages. Error: {}",
-                    e
+                    "Failed to render the diagnostic messages. Error: {e}"
                 ));
                 exit_directives.exit_code = 1;
                 return exit_directives;
@@ -208,8 +207,7 @@ fn process_diagnostics(cmd_result: CmdResult) -> ExitDirectives {
                 Ok(_) => {}
                 Err(e) => {
                     log_error(format!(
-                        "Failed to render the diagnostic messages. Error: {}",
-                        e
+                        "Failed to render the diagnostic messages. Error: {e}"
                     ));
                 }
             }

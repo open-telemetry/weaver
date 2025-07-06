@@ -36,7 +36,6 @@ groups:
     brief: "Measure of memory used."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.memory.committed
     stability: stable
@@ -46,7 +45,6 @@ groups:
     brief: "Measure of memory committed."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.memory.limit
     stability: stable
@@ -56,7 +54,6 @@ groups:
     brief: "Measure of max obtainable memory."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.memory.usage_after_last_gc
     stability: stable
@@ -66,7 +63,6 @@ groups:
     brief: "Measure of memory used, as measured after the most recent garbage collection event on this pool."
     instrument: updowncounter
     unit: "By"
-    value_type: int
 
   - id: metric.jvm.gc.duration
     stability: stable
@@ -75,7 +71,6 @@ groups:
     brief: "Duration of JVM garbage collection actions."
     instrument: histogram
     unit: "s"
-    value_type: int
     attributes:
       - id: jvm.gc.name
         stability: stable
@@ -103,7 +98,6 @@ groups:
     brief: "Number of executing platform threads."
     instrument: updowncounter
     unit: "{thread}"
-    value_type: int
     attributes:
       - ref: thread.daemon
         requirement_level: recommended
@@ -115,7 +109,6 @@ groups:
     brief: "Number of classes loaded since JVM start."
     instrument: counter
     unit: "{class}"
-    value_type: int
 
   - id: metric.jvm.class.unloaded
     stability: stable
@@ -124,7 +117,6 @@ groups:
     brief: "Number of classes unloaded since JVM start."
     instrument: counter
     unit: "{class}"
-    value_type: int
 
   - id: metric.jvm.class.count
     stability: stable
@@ -133,7 +125,6 @@ groups:
     brief: "Number of classes currently loaded."
     instrument: updowncounter
     unit: "{class}"
-    value_type: int
 
   - id: metric.jvm.cpu.count
     stability: stable
@@ -142,7 +133,6 @@ groups:
     brief: "Number of processors available to the Java virtual machine."
     instrument: updowncounter
     unit: "{cpu}"
-    value_type: int
 
   - id: metric.jvm.cpu.time
     stability: stable
@@ -151,7 +141,6 @@ groups:
     brief: "CPU time used by the process as reported by the JVM."
     instrument: counter
     unit: "s"
-    value_type: int
 
   - id: metric.jvm.cpu.recent_utilization
     stability: stable
@@ -165,4 +154,3 @@ groups:
       [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).
     instrument: gauge
     unit: "1"
-    value_type: int

@@ -154,8 +154,7 @@
             ]
           }
         }
-      },
-      "value_type": "int"
+      }
     },
     {
       "id": "registry.network",

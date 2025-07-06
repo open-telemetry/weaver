@@ -7,41 +7,31 @@
           "id": "datasource",
           "value": "datasource",
           "brief": "A response to some data source operation such as a database or filesystem read/write",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "http",
           "value": "http",
           "brief": "To provide an answer to an inbound HTTP request",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "pubsub",
           "value": "pubsub",
           "brief": "A function is set to be executed when messages are sent to a messaging system",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "timer",
           "value": "timer",
           "brief": "A function is scheduled to be executed regularly",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "other",
           "value": "other",
           "brief": "If none of the others apply",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },
@@ -66,41 +56,31 @@
           "id": "alibaba_cloud",
           "value": "alibaba_cloud",
           "brief": "Alibaba Cloud",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "aws",
           "value": "aws",
           "brief": "Amazon Web Services",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "azure",
           "value": "azure",
           "brief": "Microsoft Azure",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "gcp",
           "value": "gcp",
           "brief": "Google Cloud Platform",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "tencent_cloud",
           "value": "tencent_cloud",
           "brief": "Tencent Cloud",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },

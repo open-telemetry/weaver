@@ -1,6 +1,7 @@
 # Telemetry Schema Resolution Process
 
 Resolution Process Status:
+
 - Semantic Convention Registry: **Fully Implemented**, **Partially Tested**
 - Application Telemetry Schema: **Partially Implemented**
 
@@ -31,18 +32,22 @@ structure during the parsing process.
 
 The resolution process for semantic conventions is a multistep process that
 involves the following steps:
+
 - Load all semantic conventions from the registry
 - Resolve iteratively all semantic conventions. This involves the maintenance
   of an unresolved semantic convention list and a resolved semantic convention
   list. The resolution process involves the following steps:
-  - Resolve iteratively all `extends` parent/child clauses until no more
-    resolvable `extends` are found. The extended entity inherits attributes
-    from the parent entity.
-  - Resolve iteratively all attributes `ref` until no more resolvable `ref` are
-    found.
+    - Resolve iteratively all `extends` parent/child clauses until no more
+      resolvable `extends` are found. The extended entity inherits attributes
+      from the parent entity.
+    - Resolve iteratively all attributes `ref` until no more resolvable `ref`are
+      found.
+- In the case of a registry importing another registry, the imports section is
+  used to import the metric, event, and entity groups specified by referencing
+  the names of these groups or by using a wildcard expression.
 - Validate the resolved semantic conventions
-  - No more unresolved `ref` or `extends` clauses. The unresolved list should
-    be empty.
+    - No more unresolved `ref` or `extends` clauses. The unresolved list should
+      be empty.
 
 ## Lineage (experimental)
 
@@ -58,6 +63,7 @@ The resolution process can optionally compute the lineage for each attribute of
 a semantic convention registry. The lineage as such is not part of the syntax
 and structure of a semantic convention; rather, it's an extension produced by
 the `weaver` tool, intended for use in scenarios such as:
+
 - A semconv author wishes to verify the exact path followed by the resolution
   process in the case of a complex cascade of inheritance across multiple levels
   between groups.
@@ -79,7 +85,9 @@ follows:
       "id": "<group id>",
       "type": "<group type>",
       "brief": "<group brief>",
-      "attributes": [ /* ... */ ],
+      "attributes": [
+        /* ... */
+      ],
       "lineage": {
         // `source_file` is either:
         // - a relative path in the case of a registry that has been explicitly
@@ -101,9 +109,15 @@ follows:
             // The field names inherited from the source group. This field is
             // present only if the attribute is inherited.
             // We assume all are inherited unless overridden.
-            "inherited_fields": [ "<field name>", /* ... */ ],
+            "inherited_fields": [
+              "<field name>",
+              /* ... */
+            ],
             // The field names overridden in the local group.
-            "locally_overridden_fields": [ "<field name>", /* ... */ ],
+            "locally_overridden_fields": [
+              "<field name>",
+              /* ... */
+            ],
           }
         }
       }

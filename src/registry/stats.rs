@@ -94,11 +94,11 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                     );
                     println!("      - Instrument breakdown:");
                     for (instrument, count) in instrument_breakdown.iter() {
-                        println!("        - {}: {}", instrument, count);
+                        println!("        - {instrument}: {count}");
                     }
                     println!("      - Unit breakdown:");
                     for (unit, count) in unit_breakdown.iter() {
-                        println!("        - {}: {}", unit, count);
+                        println!("        - {unit}: {count}");
                     }
                 }
                 GroupStats::MetricGroup { common_stats } => {
@@ -125,7 +125,7 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                     total_number_of_attributes += common_stats.total_attribute_count;
                     println!("      - Span kind breakdown:");
                     for (span_kind, count) in span_kind_breakdown.iter() {
-                        println!("        - {:#?}: {}", span_kind, count);
+                        println!("        - {span_kind:#?}: {count}");
                     }
                 }
                 GroupStats::Undefined { common_stats } => {
@@ -146,11 +146,11 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
     }
     println!("    - Attribute types breakdown:");
     for (attribute_type, count) in catalog_stats.attribute_type_breakdown.iter() {
-        println!("      - {}: {}", attribute_type, count);
+        println!("      - {attribute_type}: {count}");
     }
     println!("    - Requirement levels breakdown:");
     for (requirement_level, count) in catalog_stats.requirement_level_breakdown.iter() {
-        println!("      - {}: {}", requirement_level, count);
+        println!("      - {requirement_level}: {count}");
     }
     if !catalog_stats.stability_breakdown.is_empty() {
         println!(
@@ -159,7 +159,7 @@ fn display_schema_stats(schema: &ResolvedTelemetrySchema) {
                 / catalog_stats.attribute_count
         );
         for (stability, count) in catalog_stats.stability_breakdown.iter() {
-            println!("      - {}: {}", stability, count);
+            println!("      - {stability}: {count}");
         }
     }
     if catalog_stats.deprecated_count > 0 {
@@ -204,7 +204,7 @@ fn display_common_group_stats(group_type: &GroupType, common_stats: &CommonGroup
             common_stats.stability_breakdown.values().sum::<usize>() * 100 / common_stats.count
         );
         for (stability, count) in common_stats.stability_breakdown.iter() {
-            println!("        - {}: {}", stability, count);
+            println!("        - {stability}: {count}");
         }
     }
     if common_stats.deprecated_count > 0 {

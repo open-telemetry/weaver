@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
             "history" => history::run(std::env::args().nth(2)),
             "help" => print_help(),
             _ => {
-                eprintln!("Unknown task: {}", task);
+                eprintln!("Unknown task: {task}");
                 print_help()
             }
         },
