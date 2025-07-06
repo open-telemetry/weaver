@@ -15,9 +15,6 @@ body:
       value: 42
       brief: brief
       note: note
-      stability: null
-      deprecated: null
-      annotations: null
   - type: map
     id: id_map
     brief: brief

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 # [Next] - Next
 
+- Don't serialize default values and empty arrays when resolving semantic conventions.
+  ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
+
 # [0.16.1] - 2025-07-04
 
 - Fix github release actions.

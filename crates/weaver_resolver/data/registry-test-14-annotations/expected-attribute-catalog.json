@@ -22,17 +22,13 @@
           "id": "first",
           "value": "first",
           "brief": "First",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "second",
           "value": "second",
           "brief": "Second",
-          "note": null,
           "stability": "stable",
-          "deprecated": null,
           "annotations": {
             "code_generation": {
               "exclude": true
@@ -66,7 +62,6 @@
       "code_generation": {
         "exclude": true
       },
-      "privacy_sensitivity": "PII + PHI",
       "complex": {
         "key1": "string",
         "key2": 234,
@@ -81,7 +76,8 @@
           67
         ],
         "key6": null
-      }
+      },
+      "privacy_sensitivity": "PII + PHI"
     }
   }
 ]

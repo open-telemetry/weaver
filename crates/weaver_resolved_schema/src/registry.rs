@@ -84,6 +84,7 @@ pub struct Group {
     pub deprecated: Option<Deprecated>,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeRef>,
 
     /// Specifies the kind of the span.
