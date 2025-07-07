@@ -81,8 +81,6 @@ cargo build --release
 
 ## Documentation
 
-- [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md): A guide on how to define your own
-  telemetry schema using semantic conventions.
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
 - [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
 - [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate documentation and code based on semantic conventions.
