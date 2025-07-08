@@ -377,19 +377,24 @@ pub struct EnumEntriesSpec {
     pub value: ValueSpec,
     /// Brief description of the enum entry value.
     /// It defaults to the value of id.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Longer description.
     /// It defaults to an empty string.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// Stability of this enum value.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Deprecation note.
     #[serde(
         deserialize_with = "crate::deprecated::deserialize_option_deprecated",
         default
     )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the member.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 

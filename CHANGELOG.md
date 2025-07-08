@@ -4,8 +4,20 @@ All notable changes to this project will be documented in this file.
 
 # [Next] - Next
 
+- Support structured deprecation info on enum members.
+  ([#823](https://github.com/open-telemetry/weaver/pull/823) by @lmolkova)
+- Don't serialize default values and empty arrays when resolving semantic conventions.
+  ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
+
+# [0.16.1] - 2025-07-04
+
+- Fix github release actions.
+
+# [0.16.0] - 2025-07-03
+
 - Reverts the `value_type` feature.
   ([#816](https://github.com/open-telemetry/weaver/pull/816) by @jerbly)
+- Adds annotations to enum members ([#812](https://github.com/open-telemetry/weaver/pull/812) by @lmolkova)
 
 # [0.15.3] - 2025-06-24
 
