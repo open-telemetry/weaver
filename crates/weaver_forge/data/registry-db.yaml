@@ -479,7 +479,9 @@ groups:
               stability: stable
               value: 'cosmosdb'
               brief: 'Microsoft Azure Cosmos DB'
-              deprecated: "Replaced by `azure.cosmosdb`."
+              deprecated:
+                reason: renamed
+                renamed_to: azure.cosmosdb
               annotations:
                 code_generation:
                   exclude: true
