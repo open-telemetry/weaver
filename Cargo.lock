@@ -3303,9 +3303,9 @@ dependencies = [
 
 [[package]]
 name = "jaq-std"
-version = "2.1.1"
+version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9360182e2b7837fe24ad8da58e21b29c5bff9eb722e68603986535c1e1b39a46"
+checksum = "2c264fe397c981705976c71f1bfe020382b9eda52ae950e57fe885e147bdd67d"
 dependencies = [
  "aho-corasick",
  "base64 0.22.1",
