@@ -345,6 +345,17 @@ impl GroupSpec {
                                     ),
                                 });
                             }
+
+                            if matches!(member.deprecated, Some(Deprecated::Unspecified { .. })) {
+                                errors.push(Error::UnstructuredDeprecatedProperty {
+                                    path_or_url: path_or_url.to_owned(),
+                                    id: attribute.id(),
+                                    error: format!(
+                                        "Unstructured deprecated note is used on enum member {}.",
+                                        member.id
+                                    ),
+                                });
+                            }
                         }
                     }
 
@@ -1051,29 +1062,66 @@ mod tests {
         );
 
         // Deprecated is set to unspecified.
-        group.attributes = vec![AttributeSpec::Id {
-            id: "test".to_owned(),
-            r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
-            brief: Some("brief".to_owned()),
-            stability: Some(Stability::Stable),
-            deprecated: Some(Deprecated::Unspecified {
-                note: "note".to_owned(),
-            }),
-            examples: Some(Examples::String("test".to_owned())),
-            tag: None,
-            requirement_level: Default::default(),
-            sampling_relevant: None,
-            note: "".to_owned(),
-            annotations: None,
-            role: Default::default(),
-        }];
+        group.attributes = vec![
+            AttributeSpec::Id {
+                id: "test".to_owned(),
+                r#type: AttributeType::PrimitiveOrArray(PrimitiveOrArrayTypeSpec::String),
+                brief: Some("brief".to_owned()),
+                stability: Some(Stability::Stable),
+                deprecated: Some(Deprecated::Unspecified {
+                    note: "note".to_owned(),
+                }),
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                annotations: None,
+                role: Default::default(),
+            },
+            AttributeSpec::Id {
+                id: "test_enum".to_owned(),
+                r#type: AttributeType::Enum {
+                    members: vec![EnumEntriesSpec {
+                        id: "member_id".to_owned(),
+                        value: ValueSpec::String("member_value".to_owned()),
+                        brief: None,
+                        note: None,
+                        stability: Some(Stability::Stable),
+                        deprecated: Some(Deprecated::Unspecified {
+                            note: "note".to_owned(),
+                        }),
+                        annotations: None,
+                    }],
+                },
+                brief: Some("brief".to_owned()),
+                stability: Some(Stability::Stable),
+                deprecated: None,
+                examples: Some(Examples::String("test".to_owned())),
+                tag: None,
+                requirement_level: Default::default(),
+                sampling_relevant: None,
+                note: "".to_owned(),
+                annotations: None,
+                role: Default::default(),
+            },
+        ];
         let result = group.validate("<test>").into_result_failing_non_fatal();
         assert_eq!(
-            Err(UnstructuredDeprecatedProperty {
-                path_or_url: "<test>".to_owned(),
-                id: "test".to_owned(),
-                error: "Unstructured deprecated note is not supported on attributes.".to_owned(),
-            },),
+            Err(CompoundError(vec![
+                UnstructuredDeprecatedProperty {
+                    path_or_url: "<test>".to_owned(),
+                    id: "test".to_owned(),
+                    error: "Unstructured deprecated note is not supported on attributes."
+                        .to_owned(),
+                },
+                UnstructuredDeprecatedProperty {
+                    path_or_url: "<test>".to_owned(),
+                    id: "test_enum".to_owned(),
+                    error: "Unstructured deprecated note is used on enum member member_id."
+                        .to_owned(),
+                },
+            ])),
             result
         );
     }

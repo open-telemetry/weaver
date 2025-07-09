@@ -387,8 +387,12 @@ pub struct EnumEntriesSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Deprecation note.
+    #[serde(
+        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
+        default
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deprecated: Option<String>,
+    pub deprecated: Option<Deprecated>,
     /// Annotations for the member.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
