@@ -74,9 +74,9 @@ groups:
     span_kind: client
     attributes:
       - ref: host.name                 # imported from OTEL semantic conventions
-        requirement_level: required.   # requirement level redefined locally
+        requirement_level: required    # requirement level redefined locally
       - ref: host.arch                 # imported from OTEL semantic conventions
-        requirement_level: required.   # requirement level redefined locally
+        requirement_level: required    # requirement level redefined locally
 
 imports:
   metrics:
