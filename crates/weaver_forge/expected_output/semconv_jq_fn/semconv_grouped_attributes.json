@@ -11,90 +11,57 @@
         "type": {
           "members": [
             {
-              "brief": null,
-              "deprecated": null,
               "id": "all",
-              "note": null,
               "stability": "stable",
               "value": "all"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "each_quorum",
-              "note": null,
               "stability": "stable",
               "value": "each_quorum"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "quorum",
-              "note": null,
               "stability": "stable",
               "value": "quorum"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "local_quorum",
-              "note": null,
               "stability": "stable",
               "value": "local_quorum"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "one",
-              "note": null,
               "stability": "stable",
               "value": "one"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "two",
-              "note": null,
               "stability": "stable",
               "value": "two"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "three",
-              "note": null,
               "stability": "stable",
               "value": "three"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "local_one",
-              "note": null,
               "stability": "stable",
               "value": "local_one"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "any",
-              "note": null,
               "stability": "stable",
               "value": "any"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "serial",
-              "note": null,
               "stability": "stable",
               "value": "serial"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "local_serial",
-              "note": null,
               "stability": "stable",
               "value": "local_serial"
             }
@@ -197,17 +164,13 @@
           "members": [
             {
               "brief": "Gateway (HTTP) connections mode",
-              "deprecated": null,
               "id": "gateway",
-              "note": null,
               "stability": "stable",
               "value": "gateway"
             },
             {
               "brief": "Direct connection.",
-              "deprecated": null,
               "id": "direct",
-              "note": null,
               "stability": "stable",
               "value": "direct"
             }
@@ -234,122 +197,77 @@
         "type": {
           "members": [
             {
-              "brief": null,
-              "deprecated": null,
               "id": "invalid",
-              "note": null,
               "stability": "stable",
               "value": "Invalid"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "create",
-              "note": null,
               "stability": "stable",
               "value": "Create"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "patch",
-              "note": null,
               "stability": "stable",
               "value": "Patch"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "read",
-              "note": null,
               "stability": "stable",
               "value": "Read"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "read_feed",
-              "note": null,
               "stability": "stable",
               "value": "ReadFeed"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "delete",
-              "note": null,
               "stability": "stable",
               "value": "Delete"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "replace",
-              "note": null,
               "stability": "stable",
               "value": "Replace"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "execute",
-              "note": null,
               "stability": "stable",
               "value": "Execute"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "query",
-              "note": null,
               "stability": "stable",
               "value": "Query"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "head",
-              "note": null,
               "stability": "stable",
               "value": "Head"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "head_feed",
-              "note": null,
               "stability": "stable",
               "value": "HeadFeed"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "upsert",
-              "note": null,
               "stability": "stable",
               "value": "Upsert"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "batch",
-              "note": null,
               "stability": "stable",
               "value": "Batch"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "query_plan",
-              "note": null,
               "stability": "stable",
               "value": "QueryPlan"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "execute_javascript",
-              "note": null,
               "stability": "stable",
               "value": "ExecuteJavaScript"
             }
@@ -603,417 +521,329 @@
           "members": [
             {
               "brief": "Some other SQL database. Fallback only. See notes.",
-              "deprecated": null,
               "id": "other_sql",
-              "note": null,
               "stability": "development",
               "value": "other_sql"
             },
             {
               "brief": "Microsoft SQL Server",
-              "deprecated": null,
               "id": "mssql",
-              "note": null,
               "stability": "stable",
               "value": "mssql"
             },
             {
               "brief": "Microsoft SQL Server Compact",
-              "deprecated": null,
               "id": "mssqlcompact",
-              "note": null,
               "stability": "development",
               "value": "mssqlcompact"
             },
             {
               "brief": "MySQL",
-              "deprecated": null,
               "id": "mysql",
-              "note": null,
               "stability": "stable",
               "value": "mysql"
             },
             {
               "brief": "Oracle Database",
-              "deprecated": null,
               "id": "oracle",
-              "note": null,
               "stability": "stable",
               "value": "oracle"
             },
             {
               "brief": "IBM Db2",
-              "deprecated": null,
               "id": "db2",
-              "note": null,
               "stability": "stable",
               "value": "db2"
             },
             {
               "brief": "PostgreSQL",
-              "deprecated": null,
               "id": "postgresql",
-              "note": null,
               "stability": "stable",
               "value": "postgresql"
             },
             {
               "brief": "Amazon Redshift",
-              "deprecated": null,
               "id": "redshift",
-              "note": null,
               "stability": "stable",
               "value": "redshift"
             },
             {
               "brief": "Apache Hive",
-              "deprecated": null,
               "id": "hive",
-              "note": null,
               "stability": "stable",
               "value": "hive"
             },
             {
               "brief": "Cloudscape",
-              "deprecated": null,
               "id": "cloudscape",
-              "note": null,
               "stability": "stable",
               "value": "cloudscape"
             },
             {
               "brief": "HyperSQL DataBase",
-              "deprecated": null,
               "id": "hsqldb",
-              "note": null,
               "stability": "stable",
               "value": "hsqldb"
             },
             {
               "brief": "Progress Database",
-              "deprecated": null,
               "id": "progress",
-              "note": null,
               "stability": "stable",
               "value": "progress"
             },
             {
               "brief": "SAP MaxDB",
-              "deprecated": null,
               "id": "maxdb",
-              "note": null,
               "stability": "stable",
               "value": "maxdb"
             },
             {
               "brief": "SAP HANA",
-              "deprecated": null,
               "id": "hanadb",
-              "note": null,
               "stability": "stable",
               "value": "hanadb"
             },
             {
               "brief": "Ingres",
-              "deprecated": null,
               "id": "ingres",
-              "note": null,
               "stability": "stable",
               "value": "ingres"
             },
             {
               "brief": "FirstSQL",
-              "deprecated": null,
               "id": "firstsql",
-              "note": null,
               "stability": "stable",
               "value": "firstsql"
             },
             {
               "brief": "EnterpriseDB",
-              "deprecated": null,
               "id": "edb",
-              "note": null,
               "stability": "stable",
               "value": "edb"
             },
             {
               "brief": "InterSystems Caché",
-              "deprecated": null,
               "id": "cache",
-              "note": null,
               "stability": "stable",
               "value": "cache"
             },
             {
               "brief": "Adabas (Adaptable Database System)",
-              "deprecated": null,
               "id": "adabas",
-              "note": null,
               "stability": "stable",
               "value": "adabas"
             },
             {
               "brief": "Firebird",
-              "deprecated": null,
               "id": "firebird",
-              "note": null,
               "stability": "stable",
               "value": "firebird"
             },
             {
               "brief": "Apache Derby",
-              "deprecated": null,
               "id": "derby",
-              "note": null,
               "stability": "stable",
               "value": "derby"
             },
             {
               "brief": "FileMaker",
-              "deprecated": null,
               "id": "filemaker",
-              "note": null,
               "stability": "stable",
               "value": "filemaker"
             },
             {
               "brief": "Informix",
-              "deprecated": null,
               "id": "informix",
-              "note": null,
               "stability": "stable",
               "value": "informix"
             },
             {
               "brief": "InstantDB",
-              "deprecated": null,
               "id": "instantdb",
-              "note": null,
               "stability": "stable",
               "value": "instantdb"
             },
             {
               "brief": "InterBase",
-              "deprecated": null,
               "id": "interbase",
-              "note": null,
               "stability": "stable",
               "value": "interbase"
             },
             {
               "brief": "MariaDB",
-              "deprecated": null,
               "id": "mariadb",
-              "note": null,
               "stability": "stable",
               "value": "mariadb"
             },
             {
               "brief": "Netezza",
-              "deprecated": null,
               "id": "netezza",
-              "note": null,
               "stability": "stable",
               "value": "netezza"
             },
             {
               "brief": "Pervasive PSQL",
-              "deprecated": null,
               "id": "pervasive",
-              "note": null,
               "stability": "stable",
               "value": "pervasive"
             },
             {
               "brief": "PointBase",
-              "deprecated": null,
               "id": "pointbase",
-              "note": null,
               "stability": "stable",
               "value": "pointbase"
             },
             {
               "brief": "SQLite",
-              "deprecated": null,
               "id": "sqlite",
-              "note": null,
               "stability": "stable",
               "value": "sqlite"
             },
             {
               "brief": "Sybase",
-              "deprecated": null,
               "id": "sybase",
-              "note": null,
               "stability": "stable",
               "value": "sybase"
             },
             {
               "brief": "Teradata",
-              "deprecated": null,
               "id": "teradata",
-              "note": null,
               "stability": "stable",
               "value": "teradata"
             },
             {
               "brief": "Vertica",
-              "deprecated": null,
               "id": "vertica",
-              "note": null,
               "stability": "stable",
               "value": "vertica"
             },
             {
               "brief": "H2",
-              "deprecated": null,
               "id": "h2",
-              "note": null,
               "stability": "stable",
               "value": "h2"
             },
             {
               "brief": "ColdFusion IMQ",
-              "deprecated": null,
               "id": "coldfusion",
-              "note": null,
               "stability": "stable",
               "value": "coldfusion"
             },
             {
               "brief": "Apache Cassandra",
-              "deprecated": null,
               "id": "cassandra",
-              "note": null,
               "stability": "stable",
               "value": "cassandra"
             },
             {
               "brief": "Apache HBase",
-              "deprecated": null,
               "id": "hbase",
-              "note": null,
               "stability": "stable",
               "value": "hbase"
             },
             {
               "brief": "MongoDB",
-              "deprecated": null,
               "id": "mongodb",
-              "note": null,
               "stability": "stable",
               "value": "mongodb"
             },
             {
               "brief": "Redis",
-              "deprecated": null,
               "id": "redis",
-              "note": null,
               "stability": "stable",
               "value": "redis"
             },
             {
               "brief": "Couchbase",
-              "deprecated": null,
               "id": "couchbase",
-              "note": null,
               "stability": "stable",
               "value": "couchbase"
             },
             {
               "brief": "CouchDB",
-              "deprecated": null,
               "id": "couchdb",
-              "note": null,
               "stability": "stable",
               "value": "couchdb"
             },
             {
+              "annotations": {
+                "code_generation": {
+                  "exclude": true
+                }
+              },
               "brief": "Microsoft Azure Cosmos DB",
-              "deprecated": null,
+              "deprecated": {
+                "note": "Replaced by `azure.cosmosdb`.",
+                "reason": "renamed",
+                "renamed_to": "azure.cosmosdb"
+              },
               "id": "cosmosdb",
-              "note": null,
               "stability": "stable",
               "value": "cosmosdb"
             },
             {
+              "brief": "Microsoft Azure Cosmos DB",
+              "id": "azure_cosmosdb",
+              "stability": "stable",
+              "value": "azure.cosmosdb"
+            },
+            {
               "brief": "Amazon DynamoDB",
-              "deprecated": null,
               "id": "dynamodb",
-              "note": null,
               "stability": "stable",
               "value": "dynamodb"
             },
             {
               "brief": "Neo4j",
-              "deprecated": null,
               "id": "neo4j",
-              "note": null,
               "stability": "stable",
               "value": "neo4j"
             },
             {
               "brief": "Apache Geode",
-              "deprecated": null,
               "id": "geode",
-              "note": null,
               "stability": "stable",
               "value": "geode"
             },
             {
               "brief": "Elasticsearch",
-              "deprecated": null,
               "id": "elasticsearch",
-              "note": null,
               "stability": "stable",
               "value": "elasticsearch"
             },
             {
               "brief": "Memcached",
-              "deprecated": null,
               "id": "memcached",
-              "note": null,
               "stability": "stable",
               "value": "memcached"
             },
             {
               "brief": "CockroachDB",
-              "deprecated": null,
               "id": "cockroachdb",
-              "note": null,
               "stability": "stable",
               "value": "cockroachdb"
             },
             {
               "brief": "OpenSearch",
-              "deprecated": null,
               "id": "opensearch",
-              "note": null,
               "stability": "stable",
               "value": "opensearch"
             },
             {
               "brief": "ClickHouse",
-              "deprecated": null,
               "id": "clickhouse",
-              "note": null,
               "stability": "stable",
               "value": "clickhouse"
             },
             {
               "brief": "Cloud Spanner",
-              "deprecated": null,
               "id": "spanner",
-              "note": null,
               "stability": "stable",
               "value": "spanner"
             },
             {
               "brief": "Trino",
-              "deprecated": null,
               "id": "trino",
-              "note": null,
               "stability": "stable",
               "value": "trino"
             }
@@ -1133,81 +963,61 @@
           "members": [
             {
               "brief": "CONNECT method.",
-              "deprecated": null,
               "id": "connect",
-              "note": null,
               "stability": "stable",
               "value": "CONNECT"
             },
             {
               "brief": "DELETE method.",
-              "deprecated": null,
               "id": "delete",
-              "note": null,
               "stability": "stable",
               "value": "DELETE"
             },
             {
               "brief": "GET method.",
-              "deprecated": null,
               "id": "get",
-              "note": null,
               "stability": "stable",
               "value": "GET"
             },
             {
               "brief": "HEAD method.",
-              "deprecated": null,
               "id": "head",
-              "note": null,
               "stability": "stable",
               "value": "HEAD"
             },
             {
               "brief": "OPTIONS method.",
-              "deprecated": null,
               "id": "options",
-              "note": null,
               "stability": "stable",
               "value": "OPTIONS"
             },
             {
               "brief": "PATCH method.",
-              "deprecated": null,
               "id": "patch",
-              "note": null,
               "stability": "stable",
               "value": "PATCH"
             },
             {
               "brief": "POST method.",
-              "deprecated": null,
               "id": "post",
-              "note": null,
               "stability": "stable",
               "value": "POST"
             },
             {
               "brief": "PUT method.",
-              "deprecated": null,
               "id": "put",
-              "note": null,
               "stability": "stable",
               "value": "PUT"
             },
             {
               "brief": "TRACE method.",
-              "deprecated": null,
               "id": "trace",
-              "note": null,
               "stability": "stable",
               "value": "TRACE"
             },
             {
               "brief": "Any HTTP method that the instrumentation has no prior knowledge of.",
-              "deprecated": null,
               "id": "other",
-              "note": null,
               "stability": "stable",
               "value": "_OTHER"
             }
@@ -1340,169 +1150,127 @@
           "members": [
             {
               "brief": "GPRS",
-              "deprecated": null,
               "id": "gprs",
-              "note": null,
               "stability": "stable",
               "value": "gprs"
             },
             {
               "brief": "EDGE",
-              "deprecated": null,
               "id": "edge",
-              "note": null,
               "stability": "stable",
               "value": "edge"
             },
             {
               "brief": "UMTS",
-              "deprecated": null,
               "id": "umts",
-              "note": null,
               "stability": "stable",
               "value": "umts"
             },
             {
               "brief": "CDMA",
-              "deprecated": null,
               "id": "cdma",
-              "note": null,
               "stability": "stable",
               "value": "cdma"
             },
             {
               "brief": "EVDO Rel. 0",
-              "deprecated": null,
               "id": "evdo_0",
-              "note": null,
               "stability": "stable",
               "value": "evdo_0"
             },
             {
               "brief": "EVDO Rev. A",
-              "deprecated": null,
               "id": "evdo_a",
-              "note": null,
               "stability": "stable",
               "value": "evdo_a"
             },
             {
               "brief": "CDMA2000 1XRTT",
-              "deprecated": null,
               "id": "cdma2000_1xrtt",
-              "note": null,
               "stability": "stable",
               "value": "cdma2000_1xrtt"
             },
             {
               "brief": "HSDPA",
-              "deprecated": null,
               "id": "hsdpa",
-              "note": null,
               "stability": "stable",
               "value": "hsdpa"
             },
             {
               "brief": "HSUPA",
-              "deprecated": null,
               "id": "hsupa",
-              "note": null,
               "stability": "stable",
               "value": "hsupa"
             },
             {
               "brief": "HSPA",
-              "deprecated": null,
               "id": "hspa",
-              "note": null,
               "stability": "stable",
               "value": "hspa"
             },
             {
               "brief": "IDEN",
-              "deprecated": null,
               "id": "iden",
-              "note": null,
               "stability": "stable",
               "value": "iden"
             },
             {
               "brief": "EVDO Rev. B",
-              "deprecated": null,
               "id": "evdo_b",
-              "note": null,
               "stability": "stable",
               "value": "evdo_b"
             },
             {
               "brief": "LTE",
-              "deprecated": null,
               "id": "lte",
-              "note": null,
               "stability": "stable",
               "value": "lte"
             },
             {
               "brief": "EHRPD",
-              "deprecated": null,
               "id": "ehrpd",
-              "note": null,
               "stability": "stable",
               "value": "ehrpd"
             },
             {
               "brief": "HSPAP",
-              "deprecated": null,
               "id": "hspap",
-              "note": null,
               "stability": "stable",
               "value": "hspap"
             },
             {
               "brief": "GSM",
-              "deprecated": null,
               "id": "gsm",
-              "note": null,
               "stability": "stable",
               "value": "gsm"
             },
             {
               "brief": "TD-SCDMA",
-              "deprecated": null,
               "id": "td_scdma",
-              "note": null,
               "stability": "stable",
               "value": "td_scdma"
             },
             {
               "brief": "IWLAN",
-              "deprecated": null,
               "id": "iwlan",
-              "note": null,
               "stability": "stable",
               "value": "iwlan"
             },
             {
               "brief": "5G NR (New Radio)",
-              "deprecated": null,
               "id": "nr",
-              "note": null,
               "stability": "stable",
               "value": "nr"
             },
             {
               "brief": "5G NRNSA (New Radio Non-Standalone)",
-              "deprecated": null,
               "id": "nrnsa",
-              "note": null,
               "stability": "stable",
               "value": "nrnsa"
             },
             {
               "brief": "LTE CA",
-              "deprecated": null,
               "id": "lte_ca",
-              "note": null,
               "stability": "stable",
               "value": "lte_ca"
             }
@@ -1519,42 +1287,27 @@
         "type": {
           "members": [
             {
-              "brief": null,
-              "deprecated": null,
               "id": "wifi",
-              "note": null,
               "stability": "stable",
               "value": "wifi"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "wired",
-              "note": null,
               "stability": "stable",
               "value": "wired"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "cell",
-              "note": null,
               "stability": "stable",
               "value": "cell"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "unavailable",
-              "note": null,
               "stability": "stable",
               "value": "unavailable"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "unknown",
-              "note": null,
               "stability": "stable",
               "value": "unknown"
             }
@@ -1573,18 +1326,12 @@
         "type": {
           "members": [
             {
-              "brief": null,
-              "deprecated": null,
               "id": "transmit",
-              "note": null,
               "stability": "stable",
               "value": "transmit"
             },
             {
-              "brief": null,
-              "deprecated": null,
               "id": "receive",
-              "note": null,
               "stability": "stable",
               "value": "receive"
             }
@@ -1676,33 +1423,25 @@
           "members": [
             {
               "brief": "TCP",
-              "deprecated": null,
               "id": "tcp",
-              "note": null,
               "stability": "stable",
               "value": "tcp"
             },
             {
               "brief": "UDP",
-              "deprecated": null,
               "id": "udp",
-              "note": null,
               "stability": "stable",
               "value": "udp"
             },
             {
               "brief": "Named or anonymous pipe.",
-              "deprecated": null,
               "id": "pipe",
-              "note": null,
               "stability": "stable",
               "value": "pipe"
             },
             {
               "brief": "Unix domain socket",
-              "deprecated": null,
               "id": "unix",
-              "note": null,
               "stability": "stable",
               "value": "unix"
             }
@@ -1724,17 +1463,13 @@
           "members": [
             {
               "brief": "IPv4",
-              "deprecated": null,
               "id": "ipv4",
-              "note": null,
               "stability": "stable",
               "value": "ipv4"
             },
             {
               "brief": "IPv6",
-              "deprecated": null,
               "id": "ipv6",
-              "note": null,
               "stability": "stable",
               "value": "ipv6"
             }

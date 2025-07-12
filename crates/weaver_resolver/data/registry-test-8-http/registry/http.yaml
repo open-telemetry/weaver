@@ -20,4 +20,3 @@ groups:
     unit: "s"
     stability: stable
     extends: metric_attributes.http.server
-    value_type: int

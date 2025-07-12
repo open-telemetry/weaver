@@ -1,275 +1,109 @@
 # OpenTelemetry Weaver
 
+<p align="left">
+  <img src="docs/images/weaver-logo.svg" alt="OpenTelemetry Weaver" width="200" height="100" align="left" style="margin-right: 20px;">
+</p>
+
+### Observability by Design
+
+_Treat your telemetry like a public API_
+
+&nbsp;
+
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/open-telemetry/weaver/graph/badge.svg?token=tmWKFoMT2G)](https://codecov.io/gh/open-telemetry/weaver)
 [![build](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml/badge.svg)](https://github.com/open-telemetry/weaver/actions/workflows/audit.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Slack](https://img.shields.io/badge/Slack-OpenTelemetry_Weaver-purple)](https://cloud-native.slack.com/archives/C0697EXNTL3)
-----
 
-[Getting started](#getting-started) | [Main commands](#main-commands) | [Generate Doc & Code](crates/weaver_forge/README.md) | [Define your registry](docs/define-your-own-telemetry-schema.md) | [Architecture](docs/architecture.md) | [Change log](CHANGELOG.md) | [Contributing](CONTRIBUTING.md) | [Links](#links) |
+OpenTelemetry Weaver helps teams build observability by design, enabling consistent, type-safe, and automated telemetry through semantic conventions. With Weaver, you can define, validate, and evolve your telemetry schemas, ensuring reliability and clarity across your systems.
 
-> [!NOTE]
-> Codegen authors, please refer to the following documentation to learn how to
-> use Weaver for generating code from semantic conventions:
-> - [Templates organization, integrated Jinja2 engine, list of supported filters/functions/tests](crates/weaver_forge/README.md)
-> - [Weaver Configuration](docs/weaver-config.md)
+## What is Observability by Design?
 
-## What is OpenTelemetry Weaver?
+Have you ever experienced:
 
-**OTel Weaver** is a comprehensive tool designed to enable developers to
-easily develop, validate, document, and deploy semantic conventions (phase 1)
-and application telemetry schemas (phase 2). As an **open, customizable, and
-extensible platform**, it aims to serve both as a standalone developer tool
-and as an integral component within CI/CD pipelines—whether for the
-OpenTelemetry project itself, other open-source projects, vendor solutions,
-or even large-scale enterprise deployments leveraging OpenTelemetry.
+- Broken alerts after a deployment because metric names changed?
+- Complex, hard-to-understand queries due to inconsistent naming?
+- Teams struggling to interpret unclear or undocumented signals?
+- Missing critical instrumentation discovered only in production?
 
-## Semantic Conventions and Application Telemetry Schema
+**Observability by Design** solves these problems by treating your observability signals (metrics, traces, logs) as a first-class public API that requires the same quality standards as your code.
 
-- **Semantic conventions** enable SMEs to define a catalog of well-defined and reusable
-  attributes and signals. OpenTelemetry maintains an official Semantic Convention
-  Registry that any project can leverage for consistent instrumentation.
-  Open-source projects, vendors, and enterprises can also implement their own
-  registries for specific needs, which Weaver can import and resolve to cover all
-  instrumented components of complex systems.
-- **Application Telemetry Schema** allows developers to specify the semantic
-  convention registries and custom attributes and signals supported by their
-  applications. The vision behind this concept is detailed in this [document](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md),
-  with implementation planned for Weaver's phase 2.
+An introduction to Weaver and Observability by Design is presented in the official blog post: [Observability by Design: Unlocking Consistency with OpenTelemetry Weaver](https://opentelemetry.io/blog/2025/otel-weaver/)
 
-## Design Principles
+## Install
 
-Weaver is built upon principles of extensibility, customizability, scalability,
-robustness, reliability, and cross-platform compatibility.
+**Pre-built binaries:**
 
-## Key Features
+Linux, Windows and Mac installers on the [releases](https://github.com/open-telemetry/weaver/releases) page.
 
-- **Schema Resolution**: The Weaver Resolver sub-project resolves references,
-  extends clauses, and overrides in semantic convention registries and application
-  telemetry schemas, producing self-contained, easy-to-process, and shareable
-  resolved schemas.
-- **Policy Enforcement**: The Weaver Checker sub-project ensures the quality,
-  maintainability, and extensibility of registries and schemas by checking them
-  against a set of declarative policies using the popular rego policy language.
-- **Documentation and Code Generation**: The Weaver Forge sub-project generates
-  documentation and code from registries and schemas. It leverages a `jq-compatible`
-  expression language for data transformation and a `jinja2-compatible` template
-  engine for output generation.
-- **WASM-based Plugin System (future plan)**: A plugin system based on WASM will
-  be implemented to extend the Weaver platform. Plugins could be designed to
-  download registries and schemas from custom systems, feed data catalog solutions,
-  or configure dashboard systems, among other functionalities.
+**Docker:**
 
-## Scalability
-
-- Built with Rust, Weaver offers performance comparable to C or C++ implementation.
-  The entire OpenTelemetry semantic convention registry can be downloaded, resolved,
-  and documented in under 2 seconds.
-- Semantic Convention Registry Git repositories can be efficiently cached locally.
-- Registry and schema validation, as well as documentation and code generation,
-  are parallelized for optimal performance.
-
-## Robustness and Reliability
-
-- **Memory Safety**: Rust ensures memory safety, preventing common vulnerabilities.
-- **Comprehensive Error Reporting**: Weaver reports as many errors as possible in
-  a single pass, providing developers with comprehensive feedback.
-- **Quality Assurance**: Code coverage, Cargo deny, Dependabot, and automated security
-  audits.
-
-## Cross-Platform Compatibility
-
-- Tested Platforms: Weaver is manually tested on Linux, macOS, and Windows.
-- Future Plans: Automated tests will be implemented for broader platform coverage.
-
-## Getting started
-
-Currently, weaver can be consumed in one of three ways:
-
-- [Pre-built Binaries](#pre-built-binaries)
-- [Docker Image](#docker-image)
-- [Building from source](#building-from-source)
-
-### Pre-built Binaries
-
-Weaver release attach pre-built binaries for supported platforms with every release.
-Instructions for installing are included in these release notes.
-
-See: [Weaver Releases](https://github.com/open-telemetry/weaver/releases)
-
-### Docker Image
-
-Weaver deploys a docker image for development to [docker hub](https://hub.docker.com/r/otel/weaver).
-
-Instructions for using the docker image can be found [here](docs/docker-guide.md).
-
-### Building from source
-
-To install the tool from source. you need to have Rust installed on your
-system (see [Install Rust](https://www.rust-lang.org/tools/install)).
-
-To build the tool:
-
-- In debug mode, run the following command:
-  ```
-  cargo build
-  ```
-- In release mode, run the following command:
-  ```
-  cargo build --release
-  ```
-
-The generated `weaver` binary will be located in the `target/debug` directory
-for debug mode or the `target/release` directory for release mode.
-
-To run a registry check, use the following command:
-```
-cargo run -- registry check
+```bash
+docker pull otel/weaver
 ```
 
-This command will check the OpenTelemetry Semantic Convention Registry by
-default.
+**From source:**
 
-To check a set of policies against the registry, use the following command:
+```bash
+git clone https://github.com/open-telemetry/weaver.git
+cd weaver
+cargo build --release
 ```
-cargo run -- registry check -p path/to/policies
-```
 
-An example of a policy file can be found here [schemas/otel_policies.rego](schemas/otel_policies.rego).
+## Examples and How-Tos
 
-## Main commands
+- [O11y by design](https://github.com/jsuereth/o11y-by-design/) - from the CNCF 2025 presentation
+- [Weaver Example](https://github.com/jerbly/weaver-example) - doc-gen, code-gen, emit, live-check in CI/CD
+- [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md) - A guide on how to define your own
+  telemetry schema using semantic conventions.
 
-In phase 1, the only supported commands are related to the management of
-Semantic Convention Registries. The following commands are available:
+
+## Media
+
+- [OpenTelemetry Weaver - Observability by Design](https://www.youtube.com/watch?v=BJt6LyJEYD0) - CNCF presentation introducing Weaver's core concepts
+- [OpenTelemetry Semantic Conventions and How to Avoid Broken Observability](https://www.youtube.com/watch?v=Vd6MheRkHss) - SRECON Americas 2025 presentation
+- [Observability by Design: Unlocking Consistency with OpenTelemetry Weaver](https://opentelemetry.io/blog/2025/otel-weaver/) - official blog post on opentelemetry.io
+- [Presentation slides from the Semantic Convention SIG meeting on October 23, 2023](https://docs.google.com/presentation/d/1nxt5VFlC1mUjZ8eecUYK4e4SxThpIVj1IRnIcodMsNI/edit?usp=sharing).
+
+## Main Commands
 
 | Command                                                                   | Description                                 |
 |---------------------------------------------------------------------------|---------------------------------------------|
-| [weaver registry check](docs/usage.md#registry-check)                     | Check the validity of a semconv registry    |
-| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolve a semconv registry                  |
-| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff report between two versions |
-| [weaver registry generate](docs/usage.md#registry-generate)               | Generate artifacts from a semconv registry  |
-| [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update semconv snippet-based markdown files |
-| [weaver registry stats](docs/usage.md#registry-stats)                     | Generate statistics on a semconv registry   |
-
-Phase 2 will introduce commands related to the management of Application
-Telemetry Schemas.
+| [weaver registry check](docs/usage.md#registry-check)                     | Validates a semantic convention registry    |
+| [weaver registry resolve](docs/usage.md#registry-resolve)                 | Resolves a semantic convention registry     |
+| [weaver registry diff](docs/usage.md#registry-diff)                       | Generate a diff between two versions of a semantic convention registry |
+| [weaver registry generate](docs/usage.md#registry-generate)               | Generates artifacts from a semantic convention registry  |
+| [weaver registry update-markdown](docs/usage.md#registry-update-markdown) | Update markdown files that contain markers indicating the templates used to update the specified sections |
+| [weaver registry live-check](docs/usage.md#registry-live-check)           | Check the conformance level of an OTLP stream against a semantic convention registry |
+| [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver |
+| [weaver completion](docs/usage.md#completion)                             | Generate shell completions |
 
 ## Documentation
 
-- [Define your own telemetry schema](docs/define-your-own-telemetry-schema.md): A guide on how to define your own
-  telemetry schema using semantic conventions.
 - [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
 - [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
-- [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate
-  documentation and code based on semantic conventions.
-- [Weaver Checker](crates/weaver_checker/README.md): An integrated policy
-  engine for enforcing policies on semantic conventions.
-- [Schema Changes](docs/schema-changes.md): A document describing the data model
-  used to represent the differences between two versions of a semantic convention registry.
-- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md):
-  A vision and roadmap for the concept of Application Telemetry Schema.
-- Presentation slides from the Semantic Convention SIG meeting on October 23,
-  2023 [here](https://docs.google.com/presentation/d/1nxt5VFlC1mUjZ8eecUYK4e4SxThpIVj1IRnIcodMsNI/edit?usp=sharing).
+- [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate documentation and code based on semantic conventions.
+- [Weaver Checker](crates/weaver_checker/README.md): An integrated policy engine for enforcing policies on semantic conventions.
+- [Weaver Live-check](crates/weaver_live_check/README.md): Live check is a developer tool for assessing sample telemetry and providing advice for improvement.
+- [Schema Changes](docs/schema-changes.md): A document describing the data model used to represent the differences between two versions of a semantic convention registry.
+- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
 
-## Examples of Code and Documentation Generation
+## Getting Help
 
-The following examples show how to generate code and documentation for various languages using Weaver.
-
-> Note: A more out of the box experience will be available in the future.
-
-**Java**
-From GitHub repo main branch.
-
-```bash
-weaver registry generate \
---templates https://github.com/open-telemetry/semantic-conventions-java.git[buildscripts/templates] \
-java
-```
-
-**C++**
-From a specific release using the corresponding archive.
-
-```bash
-weaver registry generate \
---templates https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.20.0.zip[buildscripts/semantic-convention/templates] \
-./ \
---param filter=any \
---param output=output/ \
---param schema_url=https://opentelemetry.io/schemas/v1.32.0
-```
-
-**Python**
-From GitHub repo main branch.
-
-```bash
-weaver registry generate \
---templates https://github.com/open-telemetry/opentelemetry-python.git[scripts/semconv/templates] \
---param output=./ \
---param filter=any \
-./
-```
-
-**Markdown (attribute registry)**
-From a specific release using a GitHub archive release.
-
-```bash
-weaver registry generate \
---templates https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.32.0.zip[templates] \
-markdown
-```
-
-**Templates in local path**
-
-```bash
-weaver registry generate \
---templates custom-templates/ \
-markdown
-```
-
-## Experimental
-
-- [Component Telemetry Schema](docs/component-telemetry-schema.md) (proposal)
-- [Resolved Telemetry Schema](docs/resolved-telemetry-schema.md) (proposal)
-- OpenTelemetry Telemetry Schema
-  v1.2.0 [Draft](https://github.com/lquerel/oteps/blob/app-telemetry-schema-format/text/0241-telemetry-schema-ext.md) (
-  not yet ready).
-
-## Shell Completions
-
-Weaver supports shell completions via
-[clap_complete](https://docs.rs/clap_complete/latest/clap_complete/) for the
-following shells: bash, elvish, fish, powershell, and zsh. Installing and using
-the completion depends on your shell, and your setup.
-
-For example, to install the completion for bash, you can run the following
-command:
-
-```bash
-weaver completion bash > $BASH_COMPLETION_USER_DIR/weaver
-```
-
-To enable the completion for zsh, you can run the following command:
-
-```bash
-weaver completion zsh > ${fpath[1]}/_weaver
-```
-
-That will install the completion in the first directory in your `fpath` array.
-
-## Links
-
-- [OpenTelemetry Semantic Convention File Format](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
-- [OpenTelemetry Schema File Format v1.1.0](https://opentelemetry.io/docs/specs/otel/schemas/file_format_v1.1.0/)
-- Meta/Facebook's [positional paper](https://research.facebook.com/publications/positional-paper-schema-first-application-telemetry/)
-  presenting a similar approach but based on Thrift+Annotations+Automations.
+- **Documentation**: [docs/](docs/)
+- **Issues**: [GitHub Issues](https://github.com/open-telemetry/weaver/issues)
+- **Roadmap**: [Github Project](https://github.com/orgs/open-telemetry/projects/74)
+- **Discussions**: [OpenTelemetry Slack #weaver](https://cloud-native.slack.com/archives/C0697EXNTL3)
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue
-first to discuss what you would like to change. For more information, please
-read [CONTRIBUTING](CONTRIBUTING.md).
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-OpenTelemetry Weaver is licensed under Apache License Version 2.0.
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
+
+---
+
+_Stop treating observability as an afterthought. Start building it by design._

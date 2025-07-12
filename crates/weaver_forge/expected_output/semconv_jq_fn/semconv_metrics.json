@@ -2,9 +2,7 @@
   {
     "metrics": [
       {
-        "attributes": [],
         "brief": "Number of classes currently loaded.",
-        "events": [],
         "id": "metric.jvm.class.count",
         "instrument": "updowncounter",
         "lineage": {
@@ -14,18 +12,13 @@
           }
         },
         "metric_name": "jvm.class.count",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{class}",
-        "value_type": "int"
+        "unit": "{class}"
       },
       {
-        "attributes": [],
         "brief": "Number of classes loaded since JVM start.",
-        "events": [],
         "id": "metric.jvm.class.loaded",
         "instrument": "counter",
         "lineage": {
@@ -35,18 +28,13 @@
           }
         },
         "metric_name": "jvm.class.loaded",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{class}",
-        "value_type": "int"
+        "unit": "{class}"
       },
       {
-        "attributes": [],
         "brief": "Number of classes unloaded since JVM start.",
-        "events": [],
         "id": "metric.jvm.class.unloaded",
         "instrument": "counter",
         "lineage": {
@@ -56,18 +44,13 @@
           }
         },
         "metric_name": "jvm.class.unloaded",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{class}",
-        "value_type": "int"
+        "unit": "{class}"
       },
       {
-        "attributes": [],
         "brief": "Number of processors available to the Java virtual machine.",
-        "events": [],
         "id": "metric.jvm.cpu.count",
         "instrument": "updowncounter",
         "lineage": {
@@ -77,18 +60,13 @@
           }
         },
         "metric_name": "jvm.cpu.count",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{cpu}",
-        "value_type": "int"
+        "unit": "{cpu}"
       },
       {
-        "attributes": [],
         "brief": "Recent CPU utilization for the process as reported by the JVM.",
-        "events": [],
         "id": "metric.jvm.cpu.recent_utilization",
         "instrument": "gauge",
         "lineage": {
@@ -98,19 +76,14 @@
           }
         },
         "metric_name": "jvm.cpu.recent_utilization",
-        "name": null,
         "note": "The value range is [0.0,1.0]. This utilization is not defined as being for the specific interval since last measurement (unlike `system.cpu.utilization`). [Reference](https://docs.oracle.com/en/java/javase/17/docs/api/jdk.management/com/sun/management/OperatingSystemMXBean.html#getProcessCpuLoad()).\n",
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "1",
-        "value_type": "int"
+        "unit": "1"
       },
       {
-        "attributes": [],
         "brief": "CPU time used by the process as reported by the JVM.",
-        "events": [],
         "id": "metric.jvm.cpu.time",
         "instrument": "counter",
         "lineage": {
@@ -120,13 +93,10 @@
           }
         },
         "metric_name": "jvm.cpu.time",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "s",
-        "value_type": "int"
+        "unit": "s"
       },
       {
         "attributes": [
@@ -156,7 +126,6 @@
           }
         ],
         "brief": "Duration of JVM garbage collection actions.",
-        "events": [],
         "id": "metric.jvm.gc.duration",
         "instrument": "histogram",
         "lineage": {
@@ -166,13 +135,10 @@
           }
         },
         "metric_name": "jvm.gc.duration",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "s",
-        "value_type": "int"
+        "unit": "s"
       },
       {
         "attributes": [
@@ -189,17 +155,13 @@
               "members": [
                 {
                   "brief": "Heap memory.",
-                  "deprecated": null,
                   "id": "heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "heap"
                 },
                 {
                   "brief": "Non-heap memory",
-                  "deprecated": null,
                   "id": "non_heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "non_heap"
                 }
@@ -221,7 +183,6 @@
           }
         ],
         "brief": "Measure of memory committed.",
-        "events": [],
         "id": "metric.jvm.memory.committed",
         "instrument": "updowncounter",
         "lineage": {
@@ -253,13 +214,10 @@
           }
         },
         "metric_name": "jvm.memory.committed",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -276,17 +234,13 @@
               "members": [
                 {
                   "brief": "Heap memory.",
-                  "deprecated": null,
                   "id": "heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "heap"
                 },
                 {
                   "brief": "Non-heap memory",
-                  "deprecated": null,
                   "id": "non_heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "non_heap"
                 }
@@ -308,7 +262,6 @@
           }
         ],
         "brief": "Measure of max obtainable memory.",
-        "events": [],
         "id": "metric.jvm.memory.limit",
         "instrument": "updowncounter",
         "lineage": {
@@ -340,13 +293,10 @@
           }
         },
         "metric_name": "jvm.memory.limit",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -363,17 +313,13 @@
               "members": [
                 {
                   "brief": "Heap memory.",
-                  "deprecated": null,
                   "id": "heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "heap"
                 },
                 {
                   "brief": "Non-heap memory",
-                  "deprecated": null,
                   "id": "non_heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "non_heap"
                 }
@@ -398,7 +344,6 @@
         "entity_associations": [
           "service"
         ],
-        "events": [],
         "id": "metric.jvm.memory.used",
         "instrument": "updowncounter",
         "lineage": {
@@ -430,13 +375,10 @@
           }
         },
         "metric_name": "jvm.memory.used",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -453,17 +395,13 @@
               "members": [
                 {
                   "brief": "Heap memory.",
-                  "deprecated": null,
                   "id": "heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "heap"
                 },
                 {
                   "brief": "Non-heap memory",
-                  "deprecated": null,
                   "id": "non_heap",
-                  "note": null,
                   "stability": "stable",
                   "value": "non_heap"
                 }
@@ -485,7 +423,6 @@
           }
         ],
         "brief": "Measure of memory used, as measured after the most recent garbage collection event on this pool.",
-        "events": [],
         "id": "metric.jvm.memory.used_after_last_gc",
         "instrument": "updowncounter",
         "lineage": {
@@ -517,13 +454,10 @@
           }
         },
         "metric_name": "jvm.memory.used_after_last_gc",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "By",
-        "value_type": "int"
+        "unit": "By"
       },
       {
         "attributes": [
@@ -547,49 +481,37 @@
               "members": [
                 {
                   "brief": "A thread that has not yet started is in this state.",
-                  "deprecated": null,
                   "id": "new",
-                  "note": null,
                   "stability": "stable",
                   "value": "new"
                 },
                 {
                   "brief": "A thread executing in the Java virtual machine is in this state.",
-                  "deprecated": null,
                   "id": "runnable",
-                  "note": null,
                   "stability": "stable",
                   "value": "runnable"
                 },
                 {
                   "brief": "A thread that is blocked waiting for a monitor lock is in this state.",
-                  "deprecated": null,
                   "id": "blocked",
-                  "note": null,
                   "stability": "stable",
                   "value": "blocked"
                 },
                 {
                   "brief": "A thread that is waiting indefinitely for another thread to perform a particular action is in this state.",
-                  "deprecated": null,
                   "id": "waiting",
-                  "note": null,
                   "stability": "stable",
                   "value": "waiting"
                 },
                 {
                   "brief": "A thread that is waiting for another thread to perform an action for up to a specified waiting time is in this state.",
-                  "deprecated": null,
                   "id": "timed_waiting",
-                  "note": null,
                   "stability": "stable",
                   "value": "timed_waiting"
                 },
                 {
                   "brief": "A thread that has exited is in this state.",
-                  "deprecated": null,
                   "id": "terminated",
-                  "note": null,
                   "stability": "stable",
                   "value": "terminated"
                 }
@@ -598,7 +520,6 @@
           }
         ],
         "brief": "Number of executing platform threads.",
-        "events": [],
         "id": "metric.jvm.thread.count",
         "instrument": "updowncounter",
         "lineage": {
@@ -608,13 +529,10 @@
           }
         },
         "metric_name": "jvm.thread.count",
-        "name": null,
         "root_namespace": "jvm",
-        "span_kind": null,
         "stability": "stable",
         "type": "metric",
-        "unit": "{thread}",
-        "value_type": "int"
+        "unit": "{thread}"
       }
     ],
     "root_namespace": "jvm"

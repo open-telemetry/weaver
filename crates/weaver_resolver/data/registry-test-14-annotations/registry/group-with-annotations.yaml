@@ -14,6 +14,31 @@ groups:
           code_generation:
             exclude: true
           privacy_sensitivity: PII
+      - id: attr2
+        stability: stable
+        type:
+          members:
+            - id: first
+              brief: First
+              value: 'first'
+              stability: stable
+            - id: second
+              brief: Second
+              value: 'second'
+              stability: stable
+              annotations:
+                code_generation:
+                  exclude: true
+                privacy_sensitivity: PII + PHI
+        requirement_level: required
+        brief: Brief
+        note: Note
+        examples: 'eu-central-1'
+        annotations:
+          code_generation:
+            exclude: true
+          privacy_sensitivity: PII
+
     annotations:
       code_generation:
         exclude: true

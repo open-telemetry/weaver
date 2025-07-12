@@ -479,6 +479,16 @@ groups:
               stability: stable
               value: 'cosmosdb'
               brief: 'Microsoft Azure Cosmos DB'
+              deprecated:
+                reason: renamed
+                renamed_to: azure.cosmosdb
+              annotations:
+                code_generation:
+                  exclude: true
+            - id: azure_cosmosdb
+              stability: stable
+              value: 'azure.cosmosdb'
+              brief: 'Microsoft Azure Cosmos DB'
             - id: dynamodb
               stability: stable
               value: 'dynamodb'
