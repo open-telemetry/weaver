@@ -15,9 +15,7 @@
 
 name: Release
 permissions:
-  "attestations": "write"
-  "contents": "write"
-  "id-token": "write"
+  contents: read
 
 # This task will run whenever you push a git tag that looks like a version
 # like "1.0.0", "v0.1.0-prerelease.1", "my-app/0.1.0", "releases/v1.0.0", etc.
@@ -94,6 +92,9 @@ jobs:
     # Let the initial task tell us to not run (currently very blunt)
     needs:
       - plan
+    permissions:
+      attestations: write
+      id-token: write
     if: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
     strategy:
       fail-fast: false
@@ -212,6 +213,8 @@ jobs:
       - plan
       - build-local-artifacts
       - build-global-artifacts
+    permissions:
+      contents: write
     # Only run if we're "publishing", and only if local and global didn't fail (skipped is fine)
     if: ${{ always() && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     env:
