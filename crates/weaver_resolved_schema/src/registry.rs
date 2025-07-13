@@ -16,6 +16,7 @@ use crate::registry::GroupStats::{
     AttributeGroup, Entity, Event, Metric, MetricGroup, Scope, Span, Undefined,
 };
 use serde::{Deserialize, Serialize};
+use weaver_semconv::aggregation::AggregationSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
@@ -113,6 +114,12 @@ pub struct Group {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// The aggregation which should occur on the data points being capture by a meter.
+    /// Semconv metrics all use the default aggregation type, hence this option is for 
+    /// providing the parameters of the aggregation.
+    /// For more details: [Metrics SDK - Aggregation](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#aggregation).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aggregation: Option<AggregationSpec>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]
