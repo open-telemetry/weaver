@@ -1,0 +1,12 @@
+groups:
+  - id: namespace.gen-ai
+    type: namespace
+    name: gen-ai
+    note: This is a description of the gen ai namespace
+    brief: This is a summary of the gen ai namespace
+    header:
+      title: Migration strategy
+      content: To protect personl information the following document should be followed.
+      style: warning
+    footer:
+      content: Footer
