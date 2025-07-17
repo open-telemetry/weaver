@@ -397,6 +397,8 @@ fn group_from_spec(group: GroupSpecWithProvenance) -> UnresolvedGroup {
             lineage: Some(GroupLineage::new(group.provenance.clone())),
             display_name: group.spec.display_name,
             body: group.spec.body,
+            header: group.spec.header,
+            footer: group.spec.footer,
             annotations: group.spec.annotations,
             entity_associations: group.spec.entity_associations,
         },

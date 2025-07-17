@@ -16,7 +16,9 @@ use weaver_common::error::{format_errors, WeaverError};
 pub mod any_value;
 pub mod attribute;
 pub mod deprecated;
+pub mod footer;
 pub mod group;
+pub mod header;
 pub mod json_schema;
 pub mod manifest;
 pub mod metric;
@@ -26,6 +28,7 @@ pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod style;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
