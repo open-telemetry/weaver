@@ -51,6 +51,24 @@ cd weaver
 cargo build --release
 ```
 
+## Usage
+
+Weaver provides a _set of tools_ for working with **schematized telemetry**.
+
+- **[Registry](./docs/registry.md)**: The schema definition
+  - [**Validation**](./docs/validate.md): Lint syntax, semantics and custom rules
+  - **Resolving**: Consolidate the registry and its dependencies into a single artifact
+  - [**Comparing**](docs/schema-changes.md): Compute the differences between two versions of a registry
+- [**Code generation**](./docs/codegen.md): Produce (non-)code artifacts from the schema using templates
+  - e.g. Go code, Markdown documentation, etc.
+- Working with real telemetry
+  - [**Live-checking**](/crates/weaver_live_check/README.md) of emitted telemetry against a schema
+  - **Emitting** example telemetry based on a schema
+
+Further reading:
+- [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
+- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
+
 ## Examples and How-Tos
 
 - [O11y by design](https://github.com/jsuereth/o11y-by-design/) - from the CNCF 2025 presentation
@@ -79,15 +97,6 @@ cargo build --release
 | [weaver registry emit](docs/usage.md#registry-emit)                       | Emits a semantic convention registry as example signals to your OTLP receiver |
 | [weaver completion](docs/usage.md#completion)                             | Generate shell completions |
 
-## Documentation
-
-- [Weaver Architecture](docs/architecture.md): A document detailing the architecture of the project.
-- [Weaver Configuration](docs/weaver-config.md): A document detailing the configuration options available.
-- [Weaver Forge](crates/weaver_forge/README.md): An integrated template engine designed to generate documentation and code based on semantic conventions.
-- [Weaver Checker](crates/weaver_checker/README.md): An integrated policy engine for enforcing policies on semantic conventions.
-- [Weaver Live-check](crates/weaver_live_check/README.md): Live check is a developer tool for assessing sample telemetry and providing advice for improvement.
-- [Schema Changes](docs/schema-changes.md): A document describing the data model used to represent the differences between two versions of a semantic convention registry.
-- [Application Telemetry Schema OTEP](https://github.com/open-telemetry/oteps/blob/main/text/0243-app-telemetry-schema-vision-roadmap.md): A vision and roadmap for the concept of Application Telemetry Schema.
 
 ## Getting Help
 
