@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::error::{format_errors, WeaverError};
 
+pub mod aggregation;
 pub mod any_value;
 pub mod attribute;
 pub mod deprecated;

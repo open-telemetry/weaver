@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
   ([#823](https://github.com/open-telemetry/weaver/pull/823) by @lmolkova)
 - Don't serialize default values and empty arrays when resolving semantic conventions.
   ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
+- Support for describing aggregation being done on metrics
+  ([#845](https://github.com/open-telemetry/weaver/pull/822) by @thompson-tomo)
 
 # [0.16.1] - 2025-07-04
 
