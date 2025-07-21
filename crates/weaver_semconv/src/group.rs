@@ -162,6 +162,7 @@ impl GroupSpec {
         // All types, except metric and event, must have extends or attributes or both.
         if self.r#type != GroupType::Metric
             && self.r#type != GroupType::Event
+            && self.r#type != GroupType::Scope
             && self.extends.is_none()
             && self.attributes.is_empty()
         {
