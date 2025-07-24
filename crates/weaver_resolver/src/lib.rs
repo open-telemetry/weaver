@@ -22,7 +22,7 @@ use weaver_semconv::json_schema::JsonSchemaValidator;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
-use weaver_semconv::semconv::SemConvSpec;
+use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 
 pub mod attribute;
 pub mod registry;
@@ -260,7 +260,7 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
-    ) -> WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error> {
+    ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -298,26 +298,26 @@ impl SchemaResolver {
                             return vec![].into_par_iter();
                         }
 
-                        vec![
-                            SemConvRegistry::semconv_spec_from_file(entry.path(), &validator).map(
-                                |(path, spec)| {
-                                    // Replace the local path with the git URL combined with the relative path
-                                    // of the semantic convention file.
-                                    let prefix = local_path
-                                        .to_str()
-                                        .map(|s| s.to_owned())
-                                        .unwrap_or_default();
-                                    let path = if registry_path_repr.ends_with(MAIN_SEPARATOR) {
-                                        let relative_path = &path[prefix.len()..];
-                                        format!("{registry_path_repr}{relative_path}")
-                                    } else {
-                                        let relative_path = &path[prefix.len() + 1..];
-                                        format!("{registry_path_repr}/{relative_path}")
-                                    };
-                                    (Provenance::new(&registry_repo.id(), &path), spec)
-                                },
-                            ),
-                        ]
+                        vec![SemConvRegistry::semconv_spec_from_file(
+                            &registry_repo.id(),
+                            entry.path(),
+                            &validator,
+                            |path| {
+                                // Replace the local path with the git URL combined with the relative path
+                                // of the semantic convention file.
+                                let prefix = local_path
+                                    .to_str()
+                                    .map(|s| s.to_owned())
+                                    .unwrap_or_default();
+                                if registry_path_repr.ends_with(MAIN_SEPARATOR) {
+                                    let relative_path = &path[prefix.len()..];
+                                    format!("{registry_path_repr}{relative_path}")
+                                } else {
+                                    let relative_path = &path[prefix.len() + 1..];
+                                    format!("{registry_path_repr}/{relative_path}")
+                                }
+                            },
+                        )]
                         .into_par_iter()
                     }
                     Err(e) => vec![WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
@@ -367,7 +367,7 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
-    ) -> Option<WResult<Vec<(Provenance, SemConvSpec)>, weaver_semconv::Error>> {
+    ) -> Option<WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error>> {
         match registry_repo.manifest() {
             Some(manifest) => {
                 if let Some(dependencies) = manifest
@@ -428,21 +428,25 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_repo::RegistryRepo;
-    use weaver_semconv::semconv::SemConvSpec;
+    use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance};
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
         fn check_semconv_specs(
             registry_repo: &RegistryRepo,
-            semconv_specs: Vec<(Provenance, SemConvSpec)>,
+            semconv_specs: Vec<SemConvSpecWithProvenance>,
             include_unreferenced: bool,
         ) {
             assert_eq!(semconv_specs.len(), 2);
-            for (source, semconv_spec) in semconv_specs.iter() {
-                match source.registry_id.as_ref() {
+            for SemConvSpecWithProvenance {
+                spec: semconv_spec,
+                provenance: Provenance { registry_id, path },
+            } in semconv_specs.iter()
+            {
+                match registry_id.as_ref() {
                     "acme" => {
                         assert_eq!(
-                            source.path,
+                            path,
                             "data/multi-registry/custom_registry/custom_registry.yaml"
                         );
                         assert_eq!(semconv_spec.groups().len(), 2);
@@ -480,10 +484,7 @@ mod tests {
                         );
                     }
                     "otel" => {
-                        assert_eq!(
-                            source.path,
-                            "data/multi-registry/otel_registry/otel_registry.yaml"
-                        );
+                        assert_eq!(path, "data/multi-registry/otel_registry/otel_registry.yaml");
                         assert_eq!(semconv_spec.groups().len(), 7);
                         assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
                         assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
@@ -496,7 +497,7 @@ mod tests {
                         assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
                         assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
                     }
-                    _ => panic!("Unexpected registry id: {}", source.registry_id),
+                    _ => panic!("Unexpected registry id: {}", registry_id),
                 }
             }
 

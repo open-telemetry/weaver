@@ -46,9 +46,9 @@ pub struct Imports {
 #[derive(Debug, Clone)]
 pub struct SemConvSpecWithProvenance {
     /// The semantic convention spec.
-    pub(crate) spec: SemConvSpec,
+    pub spec: SemConvSpec,
     /// The provenance of the semantic convention spec (path or URL).
-    pub(crate) provenance: Provenance,
+    pub provenance: Provenance,
 }
 
 impl SemConvSpec {
@@ -61,7 +61,7 @@ impl SemConvSpec {
     /// # Returns
     ///
     /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    pub(crate) fn from_file<P: AsRef<Path>>(
+    fn from_file<P: AsRef<Path>>(
         path: P,
         json_schema_validator: &JsonSchemaValidator,
     ) -> WResult<SemConvSpec, Error> {
@@ -157,8 +157,30 @@ impl SemConvSpecWithProvenance {
         path: P,
         validator: &JsonSchemaValidator,
     ) -> WResult<SemConvSpecWithProvenance, Error> {
+        Self::from_file_with_mapped_path(registry_id, path, validator, |path| path)
+    }
+    /// Creates a semantic convention spec with provenance from a file.
+    ///
+    /// # Arguments:
+    ///
+    /// * `path` - The path to the semantic convention spec.
+    ///
+    /// # Returns
+    ///
+    /// The semantic convention with provenance or an error if the semantic
+    /// convention spec is invalid.
+    pub fn from_file_with_mapped_path<P, F>(
+        registry_id: &str,
+        path: P,
+        validator: &JsonSchemaValidator,
+        path_fixer: F,
+    ) -> WResult<SemConvSpecWithProvenance, Error>
+    where
+        P: AsRef<Path>,
+        F: Fn(String) -> String,
+    {
         let path = path.as_ref().display().to_string();
-        let provenance = Provenance::new(registry_id, &path);
+        let provenance = Provenance::new(registry_id, &path_fixer(path.clone()));
         SemConvSpec::from_file(path, validator)
             .map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
