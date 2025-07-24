@@ -22,7 +22,7 @@ use weaver_semconv::json_schema::JsonSchemaValidator;
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::registry::SemConvRegistry;
 use weaver_semconv::registry_repo::{RegistryRepo, REGISTRY_MANIFEST};
-use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
 pub mod attribute;
 pub mod registry;
@@ -428,7 +428,7 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_repo::RegistryRepo;
-    use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+    use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
