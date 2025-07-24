@@ -117,9 +117,6 @@ impl SemConvSpecWithProvenance {
         P: AsRef<Path>,
         F: Fn(String) -> String,
     {
-        let path = path.as_ref().display().to_string();
-        let provenance = Provenance::new(registry_id, &path_fixer(path.clone()));
-
         fn from_file_or_fatal(
             path: &Path,
             provenance: &str,
@@ -156,7 +153,8 @@ impl SemConvSpecWithProvenance {
                 }
             }
         }
-
+        let path = path.as_ref().display().to_string();
+        let provenance = Provenance::new(registry_id, &path_fixer(path.clone()));
         let raw_spec = match from_file_or_fatal(path.as_ref(), &path, validator) {
             Ok(semconv_spec) => {
                 // Important note: the resolution process expects this step of validation to be done for
