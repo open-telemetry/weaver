@@ -7,7 +7,7 @@ use crate::Error::{CompoundError, InvalidSemConvSpec, InvalidXPath};
 use crate::{Error, InvalidSemConvSpecError};
 use jsonschema::error::{TypeKind, ValidationErrorKind};
 use jsonschema::{JsonType, JsonTypeSet};
-use miette::{NamedSource, SourceOffset, SourceSpan};
+use miette::{NamedSource, SourceSpan};
 use saphyr::{LoadableYamlNode, MarkedYaml};
 use std::borrow::Cow;
 

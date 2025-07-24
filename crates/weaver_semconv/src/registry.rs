@@ -9,7 +9,7 @@ use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
-use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+use crate::semconv::SemConvSpecWithProvenance;
 use crate::stats::Stats;
 use crate::Error;
 use regex::Regex;
@@ -278,11 +278,10 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
-    use crate::json_schema::JsonSchemaValidator;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
-    use crate::semconv::SemConvSpecWithProvenance;
+    use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
     use crate::Error;
     use weaver_common::test::ServeStaticFiles;
     use weaver_common::vdir::VirtualDirectoryPath;
@@ -311,7 +310,7 @@ mod tests {
         let semconv_specs = vec![
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c1.yaml"),
-                spec: super::SemConvSpec {
+                spec: SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -353,7 +352,7 @@ mod tests {
             },
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c2.yaml"),
-                spec: super::SemConvSpec {
+                spec: SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
                         r#type: GroupType::AttributeGroup,
