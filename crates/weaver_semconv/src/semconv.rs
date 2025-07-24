@@ -52,68 +52,6 @@ pub struct SemConvSpecWithProvenance {
 }
 
 impl SemConvSpec {
-    /// Create a new semantic convention spec from a file.
-    ///
-    /// # Arguments:
-    ///
-    /// * `path` - The path to the [`SemConvSpec`].
-    ///
-    /// # Returns
-    ///
-    /// The [`SemConvSpec`] or an [`Error`] if the semantic convention spec is invalid.
-    fn from_file<P: AsRef<Path>>(
-        path: P,
-        json_schema_validator: &JsonSchemaValidator,
-    ) -> WResult<SemConvSpec, Error> {
-        fn from_file_or_fatal(
-            path: &Path,
-            provenance: &str,
-            json_schema_validator: &JsonSchemaValidator,
-        ) -> Result<SemConvSpec, Error> {
-            use serde_yaml::Value;
-            use std::io::Seek;
-
-            // Open file
-            let mut semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
-                path_or_url: provenance.to_owned(),
-                error: e.to_string(),
-            })?;
-
-            // Try direct deserialization first
-            match serde_yaml::from_reader::<_, SemConvSpec>(&mut semconv_file) {
-                Ok(spec) => Ok(spec),
-                Err(e) => {
-                    // If serde fails, try to get better errors via jsonschema
-                    // Rewind file for second read
-                    _ = semconv_file.rewind().ok();
-
-                    let original_error = e.to_string();
-                    let value: Result<Value, _> = serde_yaml::from_reader(&mut semconv_file);
-                    if let Ok(yaml_value) = value {
-                        json_schema_validator.validate_yaml(yaml_value, provenance, e)?;
-                    }
-
-                    // Fallback: return original serde error
-                    Err(Error::DeserializationError {
-                        path_or_url: provenance.to_owned(),
-                        error: original_error,
-                    })
-                }
-            }
-        }
-
-        let provenance = path.as_ref().display().to_string();
-
-        match from_file_or_fatal(path.as_ref(), &provenance, json_schema_validator) {
-            Ok(semconv_spec) => {
-                // Important note: the resolution process expects this step of validation to be done for
-                // each semantic convention spec.
-                semconv_spec.validate(&provenance)
-            }
-            Err(e) => WResult::FatalErr(e),
-        }
-    }
-
     fn validate(self, provenance: &str) -> WResult<Self, Error> {
         let mut errors: Vec<Error> = vec![];
 
@@ -181,8 +119,53 @@ impl SemConvSpecWithProvenance {
     {
         let path = path.as_ref().display().to_string();
         let provenance = Provenance::new(registry_id, &path_fixer(path.clone()));
-        SemConvSpec::from_file(path, validator)
-            .map(|spec| SemConvSpecWithProvenance { spec, provenance })
+
+        fn from_file_or_fatal(
+            path: &Path,
+            provenance: &str,
+            json_schema_validator: &JsonSchemaValidator,
+        ) -> Result<SemConvSpec, Error> {
+            use serde_yaml::Value;
+            use std::io::Seek;
+
+            // Open file
+            let mut semconv_file = File::open(path).map_err(|e| Error::RegistryNotFound {
+                path_or_url: provenance.to_owned(),
+                error: e.to_string(),
+            })?;
+
+            // Try direct deserialization first
+            match serde_yaml::from_reader::<_, SemConvSpec>(&mut semconv_file) {
+                Ok(spec) => Ok(spec),
+                Err(e) => {
+                    // If serde fails, try to get better errors via jsonschema
+                    // Rewind file for second read
+                    _ = semconv_file.rewind().ok();
+
+                    let original_error = e.to_string();
+                    let value: Result<Value, _> = serde_yaml::from_reader(&mut semconv_file);
+                    if let Ok(yaml_value) = value {
+                        json_schema_validator.validate_yaml(yaml_value, provenance, e)?;
+                    }
+
+                    // Fallback: return original serde error
+                    Err(Error::DeserializationError {
+                        path_or_url: provenance.to_owned(),
+                        error: original_error,
+                    })
+                }
+            }
+        }
+
+        let raw_spec = match from_file_or_fatal(path.as_ref(), &path, validator) {
+            Ok(semconv_spec) => {
+                // Important note: the resolution process expects this step of validation to be done for
+                // each semantic convention spec.
+                semconv_spec.validate(&path)
+            }
+            Err(e) => WResult::FatalErr(e),
+        };
+        raw_spec.map(|spec| SemConvSpecWithProvenance { spec, provenance })
     }
 
     /// Creates a semantic convention spec with provenance from a string.
@@ -232,20 +215,23 @@ mod tests {
         let validator = JsonSchemaValidator::new();
         // Existing file
         let path = PathBuf::from("data/database.yaml");
-        let semconv_spec = SemConvSpec::from_file(path, &validator)
+
+        let semconv_spec = SemConvSpecWithProvenance::from_file("test", path, &validator)
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(semconv_spec.groups.len(), 10);
+        assert_eq!(semconv_spec.spec.groups.len(), 10);
 
         // Non-existing file
         let path = PathBuf::from("data/non-existing.yaml");
-        let semconv_spec = SemConvSpec::from_file(path, &validator).into_result_failing_non_fatal();
+        let semconv_spec = SemConvSpecWithProvenance::from_file("test", path, &validator)
+            .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(semconv_spec.unwrap_err(), RegistryNotFound { .. }));
 
         // Invalid file structure
         let path = PathBuf::from("data/invalid/invalid-semconv.yaml");
-        let semconv_spec = SemConvSpec::from_file(path, &validator).into_result_failing_non_fatal();
+        let semconv_spec = SemConvSpecWithProvenance::from_file("test", path, &validator)
+            .into_result_failing_non_fatal();
         assert!(semconv_spec.is_err());
         assert!(matches!(
             semconv_spec.unwrap_err(),
