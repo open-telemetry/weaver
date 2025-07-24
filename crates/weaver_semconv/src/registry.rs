@@ -188,7 +188,7 @@ impl SemConvRegistry {
     }
 
     /// Load and add a semantic convention file to the semantic convention registry.
-    pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
+    pub(crate) fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
         &mut self,
         registry_id: &str,
         path: P,
@@ -199,6 +199,8 @@ impl SemConvRegistry {
     }
 
     /// Load and add a semantic convention string to the semantic convention registry.
+    /// 
+    /// This should only be used in tests!
     pub fn add_semconv_spec_from_string(
         &mut self,
         provenance: Provenance,
@@ -215,11 +217,6 @@ impl SemConvRegistry {
     ) -> WResult<(String, SemConvSpec), Error> {
         let provenance = semconv_path.as_ref().display().to_string();
         SemConvSpec::from_file(semconv_path, validator).map(|spec| (provenance, spec))
-    }
-
-    /// Downloads and returns the semantic convention spec from a URL.
-    pub fn semconv_spec_from_url(sem_conv_url: &str) -> WResult<(String, SemConvSpec), Error> {
-        SemConvSpec::from_url(sem_conv_url).map(|spec| (sem_conv_url.to_owned(), spec))
     }
 
     /// Returns the number of semantic convention specs added in the semantic
@@ -307,15 +304,6 @@ mod tests {
             registry.unwrap_err(),
             Error::InvalidRegistryPathPattern { .. }
         ));
-    }
-
-    #[test]
-    fn test_semconv_spec_from_url() {
-        let server = ServeStaticFiles::from("tests/test_data").unwrap();
-        let semconv_url = server.relative_path_to_url("url/common.yaml");
-        let result =
-            SemConvRegistry::semconv_spec_from_url(&semconv_url).into_result_failing_non_fatal();
-        assert!(result.is_ok());
     }
 
     #[test]
