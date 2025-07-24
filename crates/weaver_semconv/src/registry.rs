@@ -283,7 +283,7 @@ mod tests {
     use crate::registry_repo::RegistryRepo;
     use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
     use crate::Error;
-    
+
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
