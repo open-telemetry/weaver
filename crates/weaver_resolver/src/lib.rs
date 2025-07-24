@@ -497,7 +497,7 @@ mod tests {
                         assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
                         assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
                     }
-                    _ => panic!("Unexpected registry id: {}", registry_id),
+                    _ => panic!("Unexpected registry id: {registry_id}"),
                 }
             }
 
