@@ -161,33 +161,25 @@
           "id": "publish",
           "value": "publish",
           "brief": "One or more messages are provided for publishing to an intermediary. If a single message is published, the context of the \"Publish\" span can be used as the creation context and no \"Create\" span needs to be created.\n",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "create",
           "value": "create",
           "brief": "A message is created. \"Create\" spans always refer to a single message and are used to provide a unique creation context for messages in batch publishing scenarios.\n",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "receive",
           "value": "receive",
           "brief": "One or more messages are requested by a consumer. This operation refers to pull-based scenarios, where consumers explicitly call methods of messaging SDKs to receive messages.\n",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "deliver",
           "value": "deliver",
           "brief": "One or more messages are passed to a consumer. This operation refers to push-based scenarios, where consumer register callbacks which get called by messaging SDKs.\n",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },
@@ -220,17 +212,13 @@
           "id": "clustering",
           "value": "clustering",
           "brief": "Clustering consumption model",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "broadcasting",
           "value": "broadcasting",
           "brief": "Broadcasting consumption model",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },
@@ -293,33 +281,25 @@
           "id": "normal",
           "value": "normal",
           "brief": "Normal message",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "fifo",
           "value": "fifo",
           "brief": "FIFO message",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "delay",
           "value": "delay",
           "brief": "Delay message",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "transaction",
           "value": "transaction",
           "brief": "Transaction message",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },
@@ -351,81 +331,61 @@
           "id": "activemq",
           "value": "activemq",
           "brief": "Apache ActiveMQ",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "aws_sqs",
           "value": "aws_sqs",
           "brief": "Amazon Simple Queue Service (SQS)",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "azure_eventgrid",
           "value": "azure_eventgrid",
           "brief": "Azure Event Grid",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "azure_eventhubs",
           "value": "azure_eventhubs",
           "brief": "Azure Event Hubs",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "azure_servicebus",
           "value": "azure_servicebus",
           "brief": "Azure Service Bus",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "gcp_pubsub",
           "value": "gcp_pubsub",
           "brief": "Google Cloud Pub/Sub",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "jms",
           "value": "jms",
           "brief": "Java Message Service",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "kafka",
           "value": "kafka",
           "brief": "Apache Kafka",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "rabbitmq",
           "value": "rabbitmq",
           "brief": "RabbitMQ",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         },
         {
           "id": "rocketmq",
           "value": "rocketmq",
           "brief": "Apache RocketMQ",
-          "note": null,
-          "stability": "stable",
-          "deprecated": null
+          "stability": "stable"
         }
       ]
     },

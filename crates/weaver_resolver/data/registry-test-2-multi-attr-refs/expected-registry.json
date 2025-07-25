@@ -11,8 +11,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-2-multi-attr-refs/registry/metrics-messaging.yaml"
         },
         "attributes": {
           "messaging.destination.name": {
@@ -80,8 +80,8 @@
       ],
       "lineage": {
         "provenance": {
-          "path": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml",
-          "registry_id": "default"
+          "registry_id": "default",
+          "path": "data/registry-test-2-multi-attr-refs/registry/registry-messaging.yaml"
         }
       }
     }

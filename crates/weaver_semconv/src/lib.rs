@@ -336,7 +336,7 @@ pub struct InvalidSemConvSpecError {
 
     /// The span of the error in the semantic convention spec.
     #[label("somewhere in this block")]
-    pub err_span: SourceSpan,
+    pub err_span: Option<SourceSpan>,
 
     /// The error that occurred.
     pub error: String,
@@ -514,7 +514,6 @@ impl std::hash::Hash for YamlValue {
 
 #[cfg(test)]
 mod tests {
-    use crate::json_schema::JsonSchemaValidator;
     use crate::registry::SemConvRegistry;
     use std::vec;
     use weaver_common::diagnostic::DiagnosticMessages;
@@ -523,54 +522,16 @@ mod tests {
     /// No error should be emitted.
     #[test]
     fn test_valid_semconv_registry() {
-        let validator = JsonSchemaValidator::new();
-        let yaml_files = vec![
-            "data/client.yaml",
-            "data/cloud.yaml",
-            "data/cloudevents.yaml",
-            "data/database.yaml",
-            "data/database-metrics.yaml",
-            "data/event.yaml",
-            "data/exception.yaml",
-            "data/faas.yaml",
-            "data/faas-common.yaml",
-            "data/faas-metrics.yaml",
-            "data/http.yaml",
-            "data/http-common.yaml",
-            "data/http-metrics.yaml",
-            "data/jvm-metrics.yaml",
-            "data/media.yaml",
-            "data/messaging.yaml",
-            "data/network.yaml",
-            "data/rpc.yaml",
-            "data/rpc-metrics.yaml",
-            "data/server.yaml",
-            "data/source.yaml",
-            "data/trace-exception.yaml",
-            "data/url.yaml",
-            "data/user-agent.yaml",
-            "data/vm-metrics-experimental.yaml",
-            "data/tls.yaml",
-        ];
-
-        let mut registry = SemConvRegistry::default();
-        for yaml in yaml_files {
-            let result = registry
-                .add_semconv_spec_from_file("main", yaml, &validator)
-                .into_result_failing_non_fatal();
-            assert!(result.is_ok(), "{:#?}", result.err().unwrap());
-        }
+        let result = SemConvRegistry::try_from_path_pattern("main", "data/*.yaml")
+            .into_result_failing_non_fatal();
+        assert!(result.is_ok(), "{:#?}", result.err().unwrap());
     }
 
     #[test]
     fn test_invalid_semconv_registry() {
-        let yaml_files = vec!["data/invalid.yaml"];
-
-        let mut registry = SemConvRegistry::default();
-        let validator = JsonSchemaValidator::new();
+        let yaml_files = vec!["data/invalid/*.yaml"];
         for yaml in yaml_files {
-            let result = registry
-                .add_semconv_spec_from_file("main", yaml, &validator)
+            let result = SemConvRegistry::try_from_path_pattern("main", yaml)
                 .into_result_failing_non_fatal();
             assert!(result.is_err(), "{:#?}", result.ok().unwrap());
             if let Err(err) = result {

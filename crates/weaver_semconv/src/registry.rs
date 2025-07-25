@@ -9,7 +9,7 @@ use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
-use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+use crate::semconv::SemConvSpecWithProvenance;
 use crate::stats::Stats;
 use crate::Error;
 use regex::Regex;
@@ -121,7 +121,7 @@ impl SemConvRegistry {
     /// * `semconv_specs` - The list of semantic convention specs to load.
     pub fn from_semconv_specs(
         registry_repo: &RegistryRepo,
-        semconv_specs: Vec<(Provenance, SemConvSpec)>,
+        semconv_specs: Vec<SemConvSpecWithProvenance>,
     ) -> Result<SemConvRegistry, Error> {
         // ToDo We should use: https://docs.rs/semver/latest/semver/ and URL parser that can give us the last element of the path to send to the parser.
         static VERSION_REGEX: LazyLock<Regex> =
@@ -130,8 +130,8 @@ impl SemConvRegistry {
         // Load all the semantic convention registry.
         let mut registry = SemConvRegistry::new(registry_repo.id().as_ref());
 
-        for (provenance, spec) in semconv_specs {
-            registry.add_semconv_spec(SemConvSpecWithProvenance { spec, provenance });
+        for spec in semconv_specs {
+            registry.add_semconv_spec(spec);
         }
 
         if registry_repo.manifest().is_none() {
@@ -187,18 +187,9 @@ impl SemConvRegistry {
         self.semconv_spec_count += 1;
     }
 
-    /// Load and add a semantic convention file to the semantic convention registry.
-    pub fn add_semconv_spec_from_file<P: AsRef<Path> + Clone>(
-        &mut self,
-        registry_id: &str,
-        path: P,
-        validator: &JsonSchemaValidator,
-    ) -> WResult<(), Error> {
-        SemConvSpecWithProvenance::from_file(registry_id, path.clone(), validator)
-            .map(|spec| self.add_semconv_spec(spec))
-    }
-
     /// Load and add a semantic convention string to the semantic convention registry.
+    ///
+    /// This should only be used in tests!
     pub fn add_semconv_spec_from_string(
         &mut self,
         provenance: Provenance,
@@ -209,17 +200,22 @@ impl SemConvRegistry {
     }
 
     /// Loads and returns the semantic convention spec from a file.
-    pub fn semconv_spec_from_file<P: AsRef<Path>>(
+    pub fn semconv_spec_from_file<P, F>(
+        registry_id: &str,
         semconv_path: P,
         validator: &JsonSchemaValidator,
-    ) -> WResult<(String, SemConvSpec), Error> {
-        let provenance = semconv_path.as_ref().display().to_string();
-        SemConvSpec::from_file(semconv_path, validator).map(|spec| (provenance, spec))
-    }
-
-    /// Downloads and returns the semantic convention spec from a URL.
-    pub fn semconv_spec_from_url(sem_conv_url: &str) -> WResult<(String, SemConvSpec), Error> {
-        SemConvSpec::from_url(sem_conv_url).map(|spec| (sem_conv_url.to_owned(), spec))
+        path_fixer: F,
+    ) -> WResult<SemConvSpecWithProvenance, Error>
+    where
+        P: AsRef<Path>,
+        F: Fn(String) -> String,
+    {
+        SemConvSpecWithProvenance::from_file_with_mapped_path(
+            registry_id,
+            semconv_path,
+            validator,
+            path_fixer,
+        )
     }
 
     /// Returns the number of semantic convention specs added in the semantic
@@ -282,12 +278,12 @@ impl SemConvRegistry {
 mod tests {
     use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
     use crate::group::{GroupSpec, GroupType};
-    use crate::json_schema::JsonSchemaValidator;
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
+    use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
     use crate::Error;
-    use weaver_common::test::ServeStaticFiles;
+
     use weaver_common::vdir::VirtualDirectoryPath;
 
     #[test]
@@ -310,20 +306,11 @@ mod tests {
     }
 
     #[test]
-    fn test_semconv_spec_from_url() {
-        let server = ServeStaticFiles::from("tests/test_data").unwrap();
-        let semconv_url = server.relative_path_to_url("url/common.yaml");
-        let result =
-            SemConvRegistry::semconv_spec_from_url(&semconv_url).into_result_failing_non_fatal();
-        assert!(result.is_ok());
-    }
-
-    #[test]
     fn test_from_semconv_specs() {
         let semconv_specs = vec![
-            (
-                Provenance::new("main", "data/c1.yaml"),
-                super::SemConvSpec {
+            SemConvSpecWithProvenance {
+                provenance: Provenance::new("main", "data/c1.yaml"),
+                spec: SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -363,10 +350,10 @@ mod tests {
                     imports: None,
                     v2: Default::default(),
                 },
-            ),
-            (
-                Provenance::new("main", "data/c2.yaml"),
-                super::SemConvSpec {
+            },
+            SemConvSpecWithProvenance {
+                provenance: Provenance::new("main", "data/c2.yaml"),
+                spec: SemConvSpec {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -391,7 +378,7 @@ mod tests {
                     imports: None,
                     v2: Default::default(),
                 },
-            ),
+            },
         ];
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data".to_owned(),
@@ -411,18 +398,16 @@ mod tests {
 
     #[test]
     fn test_semconv_from_path_pattern() {
-        let validator = JsonSchemaValidator::new();
         let mut registry = SemConvRegistry::try_from_path_pattern("test", "data/c*.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
         assert_eq!(registry.id(), "test");
         assert_eq!(registry.semconv_spec_count(), 3);
 
-        registry
-            .add_semconv_spec_from_file("main", "data/database.yaml", &validator)
+        registry = SemConvRegistry::try_from_path_pattern("test", "data/database.yaml")
             .into_result_failing_non_fatal()
             .unwrap();
-        assert_eq!(registry.semconv_spec_count(), 4);
+        assert_eq!(registry.semconv_spec_count(), 1);
     }
 
     #[test]
