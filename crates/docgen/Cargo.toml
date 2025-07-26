@@ -1,0 +1,15 @@
+[package]
+name = "docgen"
+version = "0.1.1"
+publish = false               # docgen is not meant to be published
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+itertools.workspace = true
+schemars.workspace = true
+weaver_forge = { path = "../weaver_forge" }
