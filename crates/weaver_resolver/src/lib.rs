@@ -428,7 +428,7 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_repo::RegistryRepo;
-    use weaver_semconv::semconv::SemConvSpecWithProvenance;
+    use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance, VersionedSemConvSpec};
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
@@ -439,65 +439,75 @@ mod tests {
         ) {
             assert_eq!(semconv_specs.len(), 2);
             for SemConvSpecWithProvenance {
-                spec: semconv_spec,
+                spec: versioned_spec,
                 provenance: Provenance { registry_id, path },
             } in semconv_specs.iter()
             {
-                match registry_id.as_ref() {
-                    "acme" => {
-                        assert_eq!(
-                            path,
-                            "data/multi-registry/custom_registry/custom_registry.yaml"
-                        );
-                        assert_eq!(semconv_spec.groups().len(), 2);
-                        assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
-                        assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
-                                .metrics
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
-                                .events
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
-                                .entities
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
+                match versioned_spec {
+                    SemConvSpec::WithVersion(VersionedSemConvSpec::V1(semconv_spec))
+                    | SemConvSpec::NoVersion(semconv_spec) => match registry_id.as_ref() {
+                        "acme" => {
+                            assert_eq!(
+                                path,
+                                "data/multi-registry/custom_registry/custom_registry.yaml"
+                            );
+                            assert_eq!(semconv_spec.groups().len(), 2);
+                            assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
+                            assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
+                            assert_eq!(
+                                semconv_spec
+                                    .imports()
+                                    .unwrap()
+                                    .metrics
+                                    .as_ref()
+                                    .unwrap()
+                                    .len(),
+                                1
+                            );
+                            assert_eq!(
+                                semconv_spec
+                                    .imports()
+                                    .unwrap()
+                                    .events
+                                    .as_ref()
+                                    .unwrap()
+                                    .len(),
+                                1
+                            );
+                            assert_eq!(
+                                semconv_spec
+                                    .imports()
+                                    .unwrap()
+                                    .entities
+                                    .as_ref()
+                                    .unwrap()
+                                    .len(),
+                                1
+                            );
+                        }
+                        "otel" => {
+                            assert_eq!(
+                                path,
+                                "data/multi-registry/otel_registry/otel_registry.yaml"
+                            );
+                            assert_eq!(semconv_spec.groups().len(), 7);
+                            assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
+                            assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
+                            assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
+                            assert_eq!(
+                                &semconv_spec.groups()[3].id,
+                                "entity.gcp.apphub.application"
+                            );
+                            assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
+                            assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
+                            assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
+                        }
+                        _ => panic!("Unexpected registry id: {registry_id}"),
+                    },
+                    SemConvSpec::WithVersion(VersionedSemConvSpec::V2(_)) => {
+                        // Ignore for now
+                        panic!("Unexpected V2 specification: {registry_id}")
                     }
-                    "otel" => {
-                        assert_eq!(path, "data/multi-registry/otel_registry/otel_registry.yaml");
-                        assert_eq!(semconv_spec.groups().len(), 7);
-                        assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
-                        assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
-                        assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
-                        assert_eq!(
-                            &semconv_spec.groups()[3].id,
-                            "entity.gcp.apphub.application"
-                        );
-                        assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
-                        assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
-                        assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
-                    }
-                    _ => panic!("Unexpected registry id: {registry_id}"),
                 }
             }
 

@@ -281,9 +281,7 @@ mod tests {
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
-    use crate::semconv::{
-        SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance,
-    };
+    use crate::semconv::{SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance};
     use crate::Error;
 
     use weaver_common::vdir::VirtualDirectoryPath;

@@ -5,8 +5,8 @@
 use crate::group::{GroupSpec, GroupWildcard};
 use crate::json_schema::JsonSchemaValidator;
 use crate::provenance::Provenance;
-use crate::Error;
 use crate::v2::SemConvSpecV2;
+use crate::Error;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -26,7 +26,7 @@ pub enum SemConvSpec {
 
 /// A versioned semantic convention file.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(tag="version")]
+#[serde(tag = "version")]
 pub enum VersionedSemConvSpec {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "1")]
@@ -277,11 +277,12 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::{
-        v2::{attribute::AttributeDef, CommonFields}, Error::{
+        v2::{attribute::AttributeDef, CommonFields},
+        Error::{
             DeserializationError, InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning,
             InvalidGroupMissingType, InvalidGroupStability, InvalidSemConvSpec,
             InvalidSpanMissingSpanKind, RegistryNotFound,
-        }
+        },
     };
     use std::path::PathBuf;
 
@@ -544,36 +545,39 @@ mod tests {
 
     #[test]
     fn test_versioned_semconv() {
-        let sample =
-        SemConvSpec::WithVersion(VersionedSemConvSpec::V2(
-            SemConvSpecV2 {
-                attributes: vec![AttributeDef { 
-                    key: "test.key".to_owned(), 
-                    r#type: crate::attribute::AttributeType::PrimitiveOrArray(crate::attribute::PrimitiveOrArrayTypeSpec::Int), 
-                    examples: None,
-                    tag: None, 
-                    common: CommonFields { 
-                        brief: "test attribute".to_owned(), 
-                        note: "".to_owned(), 
-                        stability: crate::stability::Stability::Stable, 
-                        deprecated: None, 
-                        annotations: None },
-                }],
-                entities: vec![],
-                events: vec![],
-                metrics: vec![],
-                spans: vec![],
-                imports: None
-            }));
+        let sample = SemConvSpec::WithVersion(VersionedSemConvSpec::V2(SemConvSpecV2 {
+            attributes: vec![AttributeDef {
+                key: "test.key".to_owned(),
+                r#type: crate::attribute::AttributeType::PrimitiveOrArray(
+                    crate::attribute::PrimitiveOrArrayTypeSpec::Int,
+                ),
+                examples: None,
+                tag: None,
+                common: CommonFields {
+                    brief: "test attribute".to_owned(),
+                    note: "".to_owned(),
+                    stability: crate::stability::Stability::Stable,
+                    deprecated: None,
+                    annotations: None,
+                },
+            }],
+            entities: vec![],
+            events: vec![],
+            metrics: vec![],
+            spans: vec![],
+            imports: None,
+        }));
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
         assert_eq!(
-r#"version: '2'
+            r#"version: '2'
 attributes:
 - key: test.key
   type: int
   brief: test attribute
   stability: stable
-"#, sample_yaml);
+"#,
+            sample_yaml
+        );
 
         let raw = parse_versioned(
             r#" groups:
