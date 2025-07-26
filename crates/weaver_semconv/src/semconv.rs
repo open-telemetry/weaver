@@ -635,7 +635,7 @@ attributes:
                 registry_id: "test".into(),
                 path: "test".to_owned(),
             },
-            &spec,
+            spec,
         )
         .into_result_failing_non_fatal()
         .unwrap()
