@@ -89,6 +89,7 @@ impl SemConvSpecV2 {
                     .into_iter()
                     .map(|a| a.into_v1_attribute())
                     .collect(),
+                brief: "<synthetic v2>".to_owned(),
                 ..Default::default()
             }]
             .into_iter()
@@ -174,7 +175,7 @@ imports:
 groups:
 - id: registry.test_attribute_group
   type: attribute_group
-  brief:
+  brief: <synthetic v2>
   attributes:
     - id: test.attribute
       type: int

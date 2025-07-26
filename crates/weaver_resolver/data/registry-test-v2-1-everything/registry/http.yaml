@@ -1,0 +1,34 @@
+version: "2"
+attributes:
+  - key: server.port
+    stability: stable
+    type: int
+    brief: Server port number.
+    note: >
+      When observed from the client side, and when communicating through an intermediary, `server.port` SHOULD represent
+      the server port behind any intermediaries, for example proxies, if it's available.
+    examples: [80, 8080, 443]
+  - key: network.protocol.name
+    stability: stable
+    type: string
+    brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+    note: The value SHOULD be normalized to lowercase.
+    examples: ['amqp', 'http', 'mqtt']
+metrics:
+  - name: http.server.request.duration
+    brief: "Duration of HTTP server requests."
+    instrument: histogram
+    unit: "s"
+    stability: stable
+    attributes:
+      - ref: server.port
+        requirement_level: opt_in
+        note: |
+          See [Setting `server.address` and `server.port` attributes](/docs/http/http-spans.md#setting-serveraddress-and-serverport-attributes).
+          > **Warning**
+          > Since this attribute is based on HTTP headers, opting in to it may allow an attacker
+          > to trigger cardinality limits, degrading the usefulness of the metric.
+      - ref: network.protocol.name
+        examples: ['http', 'spdy']
+        requirement_level:
+          conditionally_required: If not `http` and `network.protocol.version` is set.

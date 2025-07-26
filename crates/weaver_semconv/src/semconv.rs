@@ -143,14 +143,45 @@ impl SemConvSpec {
     }
 }
 
+// This is a helper method to pull "normal" parts of a file path
+// to give a relatively unique name to the attribute group registry
+// when converting from V1 to V2.
+fn provenance_path_to_name(path: &str) -> String {
+    // At least allocate the full path.
+    let mut result = String::with_capacity(path.len());
+    let mut need_dot = false;
+    let p = Path::new(path);
+    for component in p.components() {
+        match component {
+            std::path::Component::Normal(part) => {
+                if let Some(safe_name) = Path::new(part)
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .or(part.to_str())
+                {
+                    if need_dot {
+                        result.push_str(".");
+                    }
+                    result.push_str(safe_name);
+                    need_dot = true;
+                }
+            }
+            // Ignore
+            _ => (),
+        }
+    }
+
+    return result;
+}
+
 impl SemConvSpecWithProvenance {
     /// Converts this semconv specification into version 1, preserving provenance.
     #[must_use]
     pub fn into_v1(self) -> SemConvSpecV1WithProvenance {
         // TODO - better name
-        let name = &self.provenance.path;
+        let name = provenance_path_to_name(&self.provenance.path);
         SemConvSpecV1WithProvenance {
-            spec: self.spec.into_v1(name),
+            spec: self.spec.into_v1(&name),
             provenance: self.provenance,
         }
     }
