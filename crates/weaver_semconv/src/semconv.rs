@@ -160,7 +160,7 @@ fn provenance_path_to_name(path: &str) -> String {
                     .or(part.to_str())
                 {
                     if need_dot {
-                        result.push_str(".");
+                        result.push('.');
                     }
                     result.push_str(safe_name);
                     need_dot = true;
@@ -171,7 +171,7 @@ fn provenance_path_to_name(path: &str) -> String {
         }
     }
 
-    return result;
+    result
 }
 
 impl SemConvSpecWithProvenance {
