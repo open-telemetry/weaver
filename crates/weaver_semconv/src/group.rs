@@ -112,7 +112,7 @@ pub struct GroupSpec {
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<HashMap<String, YamlValue>>,
+    pub annotations: Option<BTreeMap<String, YamlValue>>,
     /// Which resources this group should be associated with.
     /// Note: this is only viable for span, metric and event groups.
     #[serde(default)]
@@ -122,7 +122,7 @@ pub struct GroupSpec {
 
 /// Represents a wildcard expression to import one or several groups defined in an imported
 /// registry.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 pub struct GroupWildcard(#[schemars(with = "String")] pub Glob);
 
 impl GroupSpec {

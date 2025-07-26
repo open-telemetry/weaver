@@ -9,7 +9,7 @@ use crate::manifest::RegistryManifest;
 use crate::metric::MetricSpecWithProvenance;
 use crate::provenance::Provenance;
 use crate::registry_repo::RegistryRepo;
-use crate::semconv::SemConvSpecWithProvenance;
+use crate::semconv::{SemConvSpecV1WithProvenance, SemConvSpecWithProvenance};
 use crate::stats::Stats;
 use crate::Error;
 use regex::Regex;
@@ -30,7 +30,7 @@ pub struct SemConvRegistry {
     semconv_spec_count: usize,
 
     /// A collection of semantic convention specifications loaded in the semantic convention registry.
-    specs: Vec<SemConvSpecWithProvenance>,
+    specs: Vec<SemConvSpecV1WithProvenance>,
 
     /// Attributes indexed by their respective id independently of their
     /// semantic convention group.
@@ -183,7 +183,7 @@ impl SemConvRegistry {
     ///
     /// * `spec` - The semantic convention spec with provenance to add.
     fn add_semconv_spec(&mut self, spec: SemConvSpecWithProvenance) {
-        self.specs.push(spec);
+        self.specs.push(spec.into_v1());
         self.semconv_spec_count += 1;
     }
 
@@ -234,7 +234,7 @@ impl SemConvRegistry {
     ) -> impl Iterator<Item = GroupSpecWithProvenance> + '_ {
         self.specs
             .iter()
-            .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
+            .flat_map(|SemConvSpecV1WithProvenance { spec, provenance }| {
                 spec.groups.iter().map(|group| GroupSpecWithProvenance {
                     spec: group.clone(),
                     provenance: provenance.clone(),
@@ -247,7 +247,7 @@ impl SemConvRegistry {
     pub fn unresolved_imports_iter(&self) -> impl Iterator<Item = ImportsWithProvenance> + '_ {
         self.specs
             .iter()
-            .flat_map(|SemConvSpecWithProvenance { spec, provenance }| {
+            .flat_map(|SemConvSpecV1WithProvenance { spec, provenance }| {
                 spec.imports.iter().map(|imports| ImportsWithProvenance {
                     imports: imports.clone(),
                     provenance: provenance.clone(),
@@ -281,7 +281,9 @@ mod tests {
     use crate::provenance::Provenance;
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
-    use crate::semconv::{SemConvSpec, SemConvSpecWithProvenance};
+    use crate::semconv::{
+        SemConvSpec, SemConvSpecV1, SemConvSpecV1WithProvenance, SemConvSpecWithProvenance,
+    };
     use crate::Error;
 
     use weaver_common::vdir::VirtualDirectoryPath;
@@ -310,7 +312,7 @@ mod tests {
         let semconv_specs = vec![
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c1.yaml"),
-                spec: SemConvSpec {
+                spec: SemConvSpec::NoVersion(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group1".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -348,12 +350,11 @@ mod tests {
                         entity_associations: Vec::new(),
                     }],
                     imports: None,
-                    v2: Default::default(),
-                },
+                }),
             },
             SemConvSpecWithProvenance {
                 provenance: Provenance::new("main", "data/c2.yaml"),
-                spec: SemConvSpec {
+                spec: SemConvSpec::NoVersion(SemConvSpecV1 {
                     groups: vec![GroupSpec {
                         id: "group2".to_owned(),
                         r#type: GroupType::AttributeGroup,
@@ -376,8 +377,7 @@ mod tests {
                         entity_associations: Vec::new(),
                     }],
                     imports: None,
-                    v2: Default::default(),
-                },
+                }),
             },
         ];
         let registry_path = VirtualDirectoryPath::LocalFolder {

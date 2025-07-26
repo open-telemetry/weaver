@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     deprecated::Deprecated,
     group::GroupSpec,
+    semconv::{Imports, SemConvSpecV1},
     stability::Stability,
     v2::{
         attribute::AttributeDef, entity::EntityGroup, event::EventGroup, metric::MetricGroup,
@@ -51,10 +52,10 @@ pub struct CommonFields {
 }
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
-/// A semconv file is a collection of semantic conventions.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, Default)]
+/// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct V2SemconvSpec {
+pub struct SemConvSpecV2 {
     /// A collection of semantic conventions for attributes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) attributes: Vec<AttributeDef>,
@@ -70,27 +71,34 @@ pub struct V2SemconvSpec {
     /// A collection of semantic conventions for Span signals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) spans: Vec<SpanGroup>,
+
+    /// A list of imports referencing groups defined in a dependent registry.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) imports: Option<Imports>,
 }
 
-impl V2SemconvSpec {
+impl SemConvSpecV2 {
     /// Converts the version 2 schema into the version 1 group spec.
-    pub(crate) fn into_v1_groups(self, attribute_group_name: &str) -> Vec<GroupSpec> {
-        vec![GroupSpec {
-            id: attribute_group_name.to_owned(),
-            r#type: crate::group::GroupType::AttributeGroup,
-            attributes: self
-                .attributes
-                .into_iter()
-                .map(|a| a.into_v1_attribute())
-                .collect(),
-            ..Default::default()
-        }]
-        .into_iter()
-        .chain(self.entities.into_iter().map(|e| e.into_v1_group()))
-        .chain(self.events.into_iter().map(|e| e.into_v1_group()))
-        .chain(self.metrics.into_iter().map(|m| m.into_v1_group()))
-        .chain(self.spans.into_iter().map(|s| s.into_v1_group()))
-        .collect()
+    pub(crate) fn into_v1_specification(self, attribute_group_name: &str) -> SemConvSpecV1 {
+        SemConvSpecV1 {
+            groups: vec![GroupSpec {
+                id: attribute_group_name.to_owned(),
+                r#type: crate::group::GroupType::AttributeGroup,
+                attributes: self
+                    .attributes
+                    .into_iter()
+                    .map(|a| a.into_v1_attribute())
+                    .collect(),
+                ..Default::default()
+            }]
+            .into_iter()
+            .chain(self.entities.into_iter().map(|e| e.into_v1_group()))
+            .chain(self.events.into_iter().map(|e| e.into_v1_group()))
+            .chain(self.metrics.into_iter().map(|m| m.into_v1_group()))
+            .chain(self.spans.into_iter().map(|s| s.into_v1_group()))
+            .collect(),
+            imports: self.imports,
+        }
     }
     /// True if this specification holds no definitions.
     #[must_use]
@@ -108,10 +116,10 @@ mod tests {
     use super::*;
 
     fn parse_and_translate(v2: &str, v1: &str) {
-        let spec = serde_yaml::from_str::<V2SemconvSpec>(v2).expect("Failed to parse YAML string");
+        let spec = serde_yaml::from_str::<SemConvSpecV2>(v2).expect("Failed to parse YAML string");
         let expected =
-            serde_yaml::from_str::<Vec<GroupSpec>>(v1).expect("Failed to parse expected YAML");
-        let result = spec.into_v1_groups("registry.test_attribute_group");
+            serde_yaml::from_str::<SemConvSpecV1>(v1).expect("Failed to parse expected YAML");
+        let result = spec.into_v1_specification("registry.test_attribute_group");
         let result_yaml = serde_yaml::to_string(&result).expect("Unable to write YAML from v1");
         assert_eq!(
             expected, result,
@@ -157,9 +165,13 @@ spans:
     stability: stable
     kind: client
     brief: Test span
+imports:
+  metrics:
+    - foo/*
 "#,
             // V1 - Groups
             r#"
+groups:
 - id: registry.test_attribute_group
   type: attribute_group
   brief:
@@ -201,6 +213,9 @@ spans:
   name: "{some} {name}"
   span_kind: client
   stability: stable
+imports:
+  metrics:
+    - foo/*
 "#,
         );
     }
