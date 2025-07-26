@@ -26,6 +26,7 @@ pub enum SemConvSpec {
 
 /// A versioned semantic convention file.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(tag="version")]
 pub enum VersionedSemConvSpec {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "1")]
@@ -276,11 +277,11 @@ impl SemConvSpecWithProvenance {
 mod tests {
     use super::*;
     use crate::{
-        Error::{
+        v2::{attribute::AttributeDef, CommonFields}, Error::{
             DeserializationError, InvalidAttribute, InvalidAttributeWarning, InvalidExampleWarning,
             InvalidGroupMissingType, InvalidGroupStability, InvalidSemConvSpec,
             InvalidSpanMissingSpanKind, RegistryNotFound,
-        },
+        }
     };
     use std::path::PathBuf;
 
@@ -546,24 +547,33 @@ mod tests {
         let sample =
         SemConvSpec::WithVersion(VersionedSemConvSpec::V2(
             SemConvSpecV2 {
-                attributes: vec![],
+                attributes: vec![AttributeDef { 
+                    key: "test.key".to_owned(), 
+                    r#type: crate::attribute::AttributeType::PrimitiveOrArray(crate::attribute::PrimitiveOrArrayTypeSpec::Int), 
+                    examples: None,
+                    tag: None, 
+                    common: CommonFields { 
+                        brief: "test attribute".to_owned(), 
+                        note: "".to_owned(), 
+                        stability: crate::stability::Stability::Stable, 
+                        deprecated: None, 
+                        annotations: None },
+                }],
                 entities: vec![],
                 events: vec![],
                 metrics: vec![],
                 spans: vec![],
                 imports: None
             }));
-        // TopLevelSemconvSpec::WithVersion(
-        //     VersionedSemConvSpec::V1 { spec:
-        //     SemConvSpec {
-        //     groups: vec![GroupSpec {
-        //         id: "test".to_owned(),
-        //         ..Default::default()
-        //     }],
-        //     imports: None,
-        // }});
         let sample_yaml = serde_yaml::to_string(&sample).expect("Failed to serialize");
-        assert_eq!("", sample_yaml);
+        assert_eq!(
+r#"version: '2'
+attributes:
+- key: test.key
+  type: int
+  brief: test attribute
+  stability: stable
+"#, sample_yaml);
 
         let raw = parse_versioned(
             r#" groups:
@@ -580,12 +590,12 @@ mod tests {
                 examples: "example1""#,
         );
         assert!(matches!(raw, SemConvSpec::NoVersion(_)));
-        let v1 = parse_versioned(r#"version: '1.0'"#);
+        let v1 = parse_versioned(r#"version: '1'"#);
         assert!(matches!(
             v1,
             SemConvSpec::WithVersion(VersionedSemConvSpec::V1 { .. })
         ));
-        let v2 = parse_versioned("version: '2.0'");
+        let v2 = parse_versioned("version: '2'");
         assert!(matches!(
             v2,
             SemConvSpec::WithVersion(VersionedSemConvSpec::V2 { .. })
@@ -596,7 +606,7 @@ mod tests {
     fn test_semconv_spec_with_provenance_from_string_v2() {
         // let provenance = Provenance::new("main", "my_string");
         let spec = r#"
-        version: 2.0
+        version: '2'
         attributes:
         - key: "attr1"
           stability: "stable"
@@ -625,11 +635,11 @@ mod tests {
         )
         .into_result_failing_non_fatal()
         .unwrap()
-        .spec
-        .into_v1("test");
+        .into_v1()
+        .spec;
         assert_eq!(semconv_spec.groups.len(), 2);
         let mut group_ids: Vec<&str> = semconv_spec.groups.iter().map(|g| g.id.as_str()).collect();
         group_ids.sort();
-        assert_eq!(vec!["registry.my_string", "span.group2"], group_ids);
+        assert_eq!(vec!["registry.test", "span.group2"], group_ids);
     }
 }

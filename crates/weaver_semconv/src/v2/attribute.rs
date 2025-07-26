@@ -127,22 +127,22 @@ impl AttributeRef {
 #[serde(rename_all = "snake_case")]
 pub struct AttributeDef {
     /// String that uniquely identifies the attribute.
-    key: String,
+    pub key: String,
     /// Either a string literal denoting the type as a primitive or an
     /// array type, a template type or an enum definition.
-    r#type: AttributeType,
+    pub r#type: AttributeType,
     /// Sequence of example values for the attribute or single example
     /// value. They are required only for string and string array
     /// attributes. Example values must be of the same type of the
     /// attribute. If only a single example is provided, it can directly
     /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(skip_serializing_if = "Option::is_none")]
-    examples: Option<Examples>,
+    pub examples: Option<Examples>,
     /// Associates a tag ("sub-group") to the attribute. It carries no
     /// particular semantic meaning but can be used e.g. for filtering
     /// in the markdown generator.
     #[serde(skip_serializing_if = "Option::is_none")]
-    tag: Option<String>,
+    pub tag: Option<String>,
     /// Common fields (like brief, note, attributes).
     #[serde(flatten)]
     pub common: CommonFields,

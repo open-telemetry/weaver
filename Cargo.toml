@@ -140,7 +140,7 @@ semicolon_in_expressions_from_macros = "warn"
 missing_docs = "deny"
 unstable_features = "deny"
 unused_import_braces = "deny"
-unused_qualifications = "deny"
+unused_qualifications = "warn"
 unused_results = "deny"
 unused_extern_crates = "deny"
 

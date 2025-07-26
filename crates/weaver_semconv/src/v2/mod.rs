@@ -82,7 +82,7 @@ impl SemConvSpecV2 {
     pub(crate) fn into_v1_specification(self, attribute_group_name: &str) -> SemConvSpecV1 {
         SemConvSpecV1 {
             groups: vec![GroupSpec {
-                id: attribute_group_name.to_owned(),
+                id: format!("registry.{attribute_group_name}"),
                 r#type: crate::group::GroupType::AttributeGroup,
                 attributes: self
                     .attributes
@@ -119,7 +119,7 @@ mod tests {
         let spec = serde_yaml::from_str::<SemConvSpecV2>(v2).expect("Failed to parse YAML string");
         let expected =
             serde_yaml::from_str::<SemConvSpecV1>(v1).expect("Failed to parse expected YAML");
-        let result = spec.into_v1_specification("registry.test_attribute_group");
+        let result = spec.into_v1_specification("test_attribute_group");
         let result_yaml = serde_yaml::to_string(&result).expect("Unable to write YAML from v1");
         assert_eq!(
             expected, result,

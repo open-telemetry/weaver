@@ -282,7 +282,7 @@ mod tests {
     use crate::registry::SemConvRegistry;
     use crate::registry_repo::RegistryRepo;
     use crate::semconv::{
-        SemConvSpec, SemConvSpecV1, SemConvSpecV1WithProvenance, SemConvSpecWithProvenance,
+        SemConvSpec, SemConvSpecV1, SemConvSpecWithProvenance,
     };
     use crate::Error;
 
