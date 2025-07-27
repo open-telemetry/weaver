@@ -3,6 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use miette::Diagnostic;
+use std::collections::HashSet;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 use weaver_common::log_error;
 
@@ -172,6 +173,16 @@ pub enum Error {
         error: String,
     },
 
+    /// Circular dependency detected in registry chain.
+    #[error("Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {dependency_chain}")]
+    #[diagnostic(help("Remove the circular dependency from your registry manifest files."))]
+    CircularDependency {
+        /// The registry ID that creates the circular dependency.
+        registry_id: String,
+        /// The dependency chain that shows the circular path.
+        dependency_chain: String,
+    },
+
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
@@ -264,7 +275,16 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
     ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
-        Self::load_semconv_specs_with_depth(registry_repo, allow_registry_deps, follow_symlinks, MAX_DEPENDENCY_DEPTH)
+        let mut visited_registries = HashSet::new();
+        let mut dependency_chain = Vec::new();
+        Self::load_semconv_specs_with_depth(
+            registry_repo, 
+            allow_registry_deps, 
+            follow_symlinks, 
+            MAX_DEPENDENCY_DEPTH,
+            &mut visited_registries,
+            &mut dependency_chain
+        )
     }
 
     fn load_semconv_specs_with_depth(
@@ -272,7 +292,26 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
         max_dependency_depth: u32,
+        visited_registries: &mut HashSet<String>,
+        dependency_chain: &mut Vec<String>,
     ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
+        let registry_id = registry_repo.id().to_string();
+        
+        // Check for circular dependency
+        if visited_registries.contains(&registry_id) {
+            dependency_chain.push(registry_id.clone());
+            let chain_str = dependency_chain.join(" → ");
+            return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                error: format!(
+                    "Circular dependency detected: registry '{}' depends on itself through the chain: {}",
+                    registry_id, chain_str
+                ),
+            });
+        }
+        
+        // Add current registry to visited set and dependency chain
+        let _ = visited_registries.insert(registry_id.clone());
+        dependency_chain.push(registry_id.clone());
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -345,7 +384,7 @@ impl SchemaResolver {
 
         // Process the registry dependencies (if any).
         if let Some(dep_result) =
-            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks, max_dependency_depth)
+            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks, max_dependency_depth, visited_registries, dependency_chain)
         {
             match dep_result {
                 WResult::Ok(t) => specs.extend(t),
@@ -380,6 +419,8 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
         max_dependency_depth: u32,
+        visited_registries: &mut HashSet<String>,
+        dependency_chain: &mut Vec<String>,
     ) -> Option<WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error>> {
         match registry_repo.manifest() {
             Some(manifest) => {
@@ -417,6 +458,8 @@ impl SchemaResolver {
                                 true,
                                 follow_symlinks,
                                 max_dependency_depth - 1,
+                                visited_registries,
+                                dependency_chain,
                             )),
                             Err(e) => {
                                 Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
@@ -677,7 +720,9 @@ mod tests {
         let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
         
         // Try with depth limit of 1 - should fail at acme->otel transition
-        let result = SchemaResolver::load_semconv_specs_with_depth(&registry_repo, true, true, 1);
+        let mut visited_registries = HashSet::new();
+        let mut dependency_chain = Vec::new();
+        let result = SchemaResolver::load_semconv_specs_with_depth(&registry_repo, true, true, 1, &mut visited_registries, &mut dependency_chain);
         
         match result {
             WResult::FatalErr(fatal) => {
@@ -689,6 +734,33 @@ mod tests {
             }
             _ => {
                 panic!("Expected fatal error due to depth limit, but got success");
+            }
+        }
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_circular_dependency_detection() -> Result<(), weaver_semconv::Error> {
+        // Test circular dependency: registry_a -> registry_b -> registry_a
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/circular-registry-test/registry_a".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("registry_a", &registry_path)?;
+        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+        
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Circular dependency detected") && 
+                    error_msg.contains("registry_a") &&
+                    error_msg.contains("registry_b"),
+                    "Expected circular dependency error mentioning both registries, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to circular dependency, but got success");
             }
         }
         
