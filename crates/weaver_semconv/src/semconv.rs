@@ -196,22 +196,18 @@ fn provenance_path_to_name(path: &str) -> String {
     let mut need_dot = false;
     let p = Path::new(path);
     for component in p.components() {
-        match component {
-            std::path::Component::Normal(part) => {
-                if let Some(safe_name) = Path::new(part)
-                    .file_stem()
-                    .and_then(|stem| stem.to_str())
-                    .or(part.to_str())
-                {
-                    if need_dot {
-                        result.push('.');
-                    }
-                    result.push_str(safe_name);
-                    need_dot = true;
+        if let std::path::Component::Normal(part) = component {
+            if let Some(safe_name) = Path::new(part)
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .or(part.to_str())
+            {
+                if need_dot {
+                    result.push('.');
                 }
+                result.push_str(safe_name);
+                need_dot = true;
             }
-            // Ignore
-            _ => (),
         }
     }
 
