@@ -173,16 +173,6 @@ pub enum Error {
         error: String,
     },
 
-    /// Circular dependency detected in registry chain.
-    #[error("Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {dependency_chain}")]
-    #[diagnostic(help("Remove the circular dependency from your registry manifest files."))]
-    CircularDependency {
-        /// The registry ID that creates the circular dependency.
-        registry_id: String,
-        /// The dependency chain that shows the circular path.
-        dependency_chain: String,
-    },
-
     /// A container for multiple errors.
     #[error("{:?}", format_errors(.0))]
     CompoundError(#[related] Vec<Error>),
