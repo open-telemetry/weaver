@@ -753,12 +753,6 @@ mod tests {
                             .group("app.example")
                             .expect("app.example group should exist");
 
-                        // Should have exactly 2 attributes: app.name (local) and error.type (from otel)
-                        println!(
-                            "app.example group has {} attributes",
-                            app_group.attributes.len()
-                        );
-
                         // Collect attribute names for verification
                         let mut attr_names = HashSet::new();
                         for attr_ref in &app_group.attributes {
@@ -766,7 +760,6 @@ mod tests {
                                 .catalog
                                 .attribute(attr_ref)
                                 .expect("Failed to resolve attribute");
-                            println!("app.example attribute: {}", attr.name);
                             let _ = attr_names.insert(attr.name.clone());
                         }
 
