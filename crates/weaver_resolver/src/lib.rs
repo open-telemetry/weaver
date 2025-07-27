@@ -293,8 +293,7 @@ impl SchemaResolver {
             let chain_str = dependency_chain.join(" → ");
             return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
                 error: format!(
-                    "Circular dependency detected: registry '{}' depends on itself through the chain: {}",
-                    registry_id, chain_str
+                    "Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain_str}"
                 ),
             });
         }
@@ -712,8 +711,8 @@ mod tests {
                         // Should only have the app.example group, not any imported groups
                         assert_eq!(all_groups.len(), 1, 
                             "Expected only 1 group (app.example), but found {}: {:?}", all_groups.len(), all_groups);
-                        assert!(all_groups.contains(&"app.example".to_string()), 
-                            "Missing app.example group, found: {:?}", all_groups);
+                        assert!(all_groups.contains(&"app.example".to_owned()), 
+                            "Missing app.example group, found: {all_groups:?}");
                         
                         // Check that app.example group exists and has exactly the expected attributes
                         let app_group = resolved_registry.group("app.example")
@@ -735,7 +734,7 @@ mod tests {
                         assert!(attr_names.contains("app.name"), "Missing app.name attribute");
                         assert!(attr_names.contains("error.type"), "Missing error.type attribute");
                         assert_eq!(attr_names.len(), 2, 
-                            "Expected exactly 2 attributes (app.name, error.type), got: {:?}", attr_names);
+                            "Expected exactly 2 attributes (app.name, error.type), got: {attr_names:?}");
                     }
                     WResult::FatalErr(fatal) => {
                         panic!("Failed to resolve registry: {fatal}");
