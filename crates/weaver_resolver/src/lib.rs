@@ -268,12 +268,12 @@ impl SchemaResolver {
         let mut visited_registries = HashSet::new();
         let mut dependency_chain = Vec::new();
         Self::load_semconv_specs_with_depth(
-            registry_repo, 
-            allow_registry_deps, 
-            follow_symlinks, 
+            registry_repo,
+            allow_registry_deps,
+            follow_symlinks,
             MAX_DEPENDENCY_DEPTH,
             &mut visited_registries,
-            &mut dependency_chain
+            &mut dependency_chain,
         )
     }
 
@@ -304,7 +304,7 @@ impl SchemaResolver {
         }
 
         let registry_id = registry_repo.id().to_string();
-        
+
         // Check for circular dependency
         if visited_registries.contains(&registry_id) {
             dependency_chain.push(registry_id.clone());
@@ -315,7 +315,7 @@ impl SchemaResolver {
                 ),
             });
         }
-        
+
         // Add current registry to visited set and dependency chain
         let _ = visited_registries.insert(registry_id.clone());
         dependency_chain.push(registry_id.clone());
@@ -373,9 +373,14 @@ impl SchemaResolver {
         let mut specs = vec![];
 
         // Process the registry dependencies (if any).
-        if let Some(dep_result) =
-            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks, max_dependency_depth, visited_registries, dependency_chain)
-        {
+        if let Some(dep_result) = Self::process_registry_dependencies(
+            registry_repo,
+            allow_registry_deps,
+            follow_symlinks,
+            max_dependency_depth,
+            visited_registries,
+            dependency_chain,
+        ) {
             match dep_result {
                 WResult::Ok(t) => specs.extend(t),
                 WResult::OkWithNFEs(t, nfes) => {
@@ -677,64 +682,104 @@ mod tests {
         };
         let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
-        
+
         match result {
             WResult::Ok(semconv_specs) | WResult::OkWithNFEs(semconv_specs, _) => {
                 // Should successfully load specs from all three registries
-                assert!(semconv_specs.len() >= 3, "Expected specs from at least 3 registries, got {}", semconv_specs.len());
-                
+                assert!(
+                    semconv_specs.len() >= 3,
+                    "Expected specs from at least 3 registries, got {}",
+                    semconv_specs.len()
+                );
+
                 // Verify we have specs from all three registries
-                let registry_ids: Vec<&str> = semconv_specs.iter()
+                let registry_ids: Vec<&str> = semconv_specs
+                    .iter()
                     .map(|spec| spec.provenance.registry_id.as_ref())
                     .collect();
-                
+
                 assert!(registry_ids.contains(&"app"), "Missing app registry specs");
-                assert!(registry_ids.contains(&"acme"), "Missing acme registry specs");
-                assert!(registry_ids.contains(&"otel"), "Missing otel registry specs");
+                assert!(
+                    registry_ids.contains(&"acme"),
+                    "Missing acme registry specs"
+                );
+                assert!(
+                    registry_ids.contains(&"otel"),
+                    "Missing otel registry specs"
+                );
 
                 // Now test the resolved registry content
-                let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
-                    .expect("Failed to create the registry");
-                let resolved_result = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false);
-                
+                let mut registry =
+                    SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
+                        .expect("Failed to create the registry");
+                let resolved_result =
+                    SchemaResolver::resolve_semantic_convention_registry(&mut registry, false);
+
                 match resolved_result {
                     WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
                         // Check that ONLY the app.example group exists (no imported groups should be in the resolved registry)
                         use weaver_semconv::group::GroupType;
-                        let all_groups: Vec<String> = [GroupType::AttributeGroup, GroupType::Metric, GroupType::Event, GroupType::Span]
-                            .iter()
-                            .flat_map(|group_type| {
-                                resolved_registry.groups(group_type.clone()).keys().map(|k| (*k).to_owned()).collect::<Vec<_>>()
-                            })
-                            .collect();
-                        
-                        
+                        let all_groups: Vec<String> = [
+                            GroupType::AttributeGroup,
+                            GroupType::Metric,
+                            GroupType::Event,
+                            GroupType::Span,
+                        ]
+                        .iter()
+                        .flat_map(|group_type| {
+                            resolved_registry
+                                .groups(group_type.clone())
+                                .keys()
+                                .map(|k| (*k).to_owned())
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
+
                         // Should only have the app.example group, not any imported groups
-                        assert_eq!(all_groups.len(), 1, 
-                            "Expected only 1 group (app.example), but found {}: {:?}", all_groups.len(), all_groups);
-                        assert!(all_groups.contains(&"app.example".to_owned()), 
-                            "Missing app.example group, found: {all_groups:?}");
-                        
+                        assert_eq!(
+                            all_groups.len(),
+                            1,
+                            "Expected only 1 group (app.example), but found {}: {:?}",
+                            all_groups.len(),
+                            all_groups
+                        );
+                        assert!(
+                            all_groups.contains(&"app.example".to_owned()),
+                            "Missing app.example group, found: {all_groups:?}"
+                        );
+
                         // Check that app.example group exists and has exactly the expected attributes
-                        let app_group = resolved_registry.group("app.example")
+                        let app_group = resolved_registry
+                            .group("app.example")
                             .expect("app.example group should exist");
-                        
+
                         // Should have exactly 2 attributes: app.name (local) and error.type (from otel)
-                        println!("app.example group has {} attributes", app_group.attributes.len());
-                        
+                        println!(
+                            "app.example group has {} attributes",
+                            app_group.attributes.len()
+                        );
+
                         // Collect attribute names for verification
                         let mut attr_names = HashSet::new();
                         for attr_ref in &app_group.attributes {
-                            let attr = resolved_registry.catalog.attribute(attr_ref)
+                            let attr = resolved_registry
+                                .catalog
+                                .attribute(attr_ref)
                                 .expect("Failed to resolve attribute");
                             println!("app.example attribute: {}", attr.name);
                             let _ = attr_names.insert(attr.name.clone());
                         }
-                        
+
                         // Verify we have exactly the expected attributes
-                        assert!(attr_names.contains("app.name"), "Missing app.name attribute");
-                        assert!(attr_names.contains("error.type"), "Missing error.type attribute");
-                        assert_eq!(attr_names.len(), 2, 
+                        assert!(
+                            attr_names.contains("app.name"),
+                            "Missing app.name attribute"
+                        );
+                        assert!(
+                            attr_names.contains("error.type"),
+                            "Missing error.type attribute"
+                        );
+                        assert_eq!(attr_names.len(), 2,
                             "Expected exactly 2 attributes (app.name, error.type), got: {attr_names:?}");
                     }
                     WResult::FatalErr(fatal) => {
@@ -746,7 +791,7 @@ mod tests {
                 panic!("Unexpected fatal error in three-registry chain: {fatal}");
             }
         }
-        
+
         Ok(())
     }
 
@@ -757,12 +802,19 @@ mod tests {
             path: "data/multi-registry/app_registry".to_owned(),
         };
         let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
-        
+
         // Try with depth limit of 1 - should fail at acme->otel transition
         let mut visited_registries = HashSet::new();
         let mut dependency_chain = Vec::new();
-        let result = SchemaResolver::load_semconv_specs_with_depth(&registry_repo, true, true, 1, &mut visited_registries, &mut dependency_chain);
-        
+        let result = SchemaResolver::load_semconv_specs_with_depth(
+            &registry_repo,
+            true,
+            true,
+            1,
+            &mut visited_registries,
+            &mut dependency_chain,
+        );
+
         match result {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
@@ -775,7 +827,7 @@ mod tests {
                 panic!("Expected fatal error due to depth limit, but got success");
             }
         }
-        
+
         Ok(())
     }
 
@@ -787,7 +839,7 @@ mod tests {
         };
         let registry_repo = RegistryRepo::try_new("registry_a", &registry_path)?;
         let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
-        
+
         match result {
             WResult::FatalErr(fatal) => {
                 let error_msg = fatal.to_string();
@@ -802,7 +854,7 @@ mod tests {
                 panic!("Expected fatal error due to circular dependency, but got success");
             }
         }
-        
+
         Ok(())
     }
 }
