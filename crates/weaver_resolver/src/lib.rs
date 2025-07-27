@@ -27,6 +27,9 @@ use weaver_semconv::semconv::SemConvSpecWithProvenance;
 pub mod attribute;
 pub mod registry;
 
+/// Maximum allowed depth for registry dependency chains.
+const MAX_DEPENDENCY_DEPTH: u32 = 3;
+
 /// A resolver that can be used to resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
 pub struct SchemaResolver {}
@@ -261,6 +264,15 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
     ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
+        Self::load_semconv_specs_with_depth(registry_repo, allow_registry_deps, follow_symlinks, MAX_DEPENDENCY_DEPTH)
+    }
+
+    fn load_semconv_specs_with_depth(
+        registry_repo: &RegistryRepo,
+        allow_registry_deps: bool,
+        follow_symlinks: bool,
+        max_dependency_depth: u32,
+    ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -333,7 +345,7 @@ impl SchemaResolver {
 
         // Process the registry dependencies (if any).
         if let Some(dep_result) =
-            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks)
+            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks, max_dependency_depth)
         {
             match dep_result {
                 WResult::Ok(t) => specs.extend(t),
@@ -367,6 +379,7 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
+        max_dependency_depth: u32,
     ) -> Option<WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error>> {
         match registry_repo.manifest() {
             Some(manifest) => {
@@ -378,7 +391,14 @@ impl SchemaResolver {
                     if !allow_registry_deps {
                         Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
                             error: format!(
-                                "Registry dependencies are not allowed for the `{}` registry. Weaver currently supports only two registry levels.",
+                                "Registry dependencies are not allowed for the `{}` registry.",
+                                registry_repo.registry_path_repr()
+                            ),
+                        }))
+                    } else if max_dependency_depth == 0 {
+                        Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                            error: format!(
+                                "Maximum dependency depth reached for registry `{}`. Cannot load further dependencies.",
                                 registry_repo.registry_path_repr()
                             ),
                         }))
@@ -392,10 +412,11 @@ impl SchemaResolver {
                     } else {
                         let dependency = &dependencies[0];
                         match RegistryRepo::try_new(&dependency.name, &dependency.registry_path) {
-                            Ok(registry_repo_dep) => Some(Self::load_semconv_specs(
+                            Ok(registry_repo_dep) => Some(Self::load_semconv_specs_with_depth(
                                 &registry_repo_dep,
-                                false,
+                                true,
                                 follow_symlinks,
+                                max_dependency_depth - 1,
                             )),
                             Err(e) => {
                                 Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
@@ -612,6 +633,65 @@ mod tests {
             }
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_three_registry_chain_works() -> Result<(), weaver_semconv::Error> {
+        // Test the three-registry chain: app -> acme -> otel
+        // This should now work with our new implementation
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/multi-registry/app_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+        
+        match result {
+            WResult::Ok(semconv_specs) | WResult::OkWithNFEs(semconv_specs, _) => {
+                // Should successfully load specs from all three registries
+                assert!(semconv_specs.len() >= 3, "Expected specs from at least 3 registries, got {}", semconv_specs.len());
+                
+                // Verify we have specs from all three registries
+                let registry_ids: Vec<&str> = semconv_specs.iter()
+                    .map(|spec| spec.provenance.registry_id.as_ref())
+                    .collect();
+                
+                assert!(registry_ids.contains(&"app"), "Missing app registry specs");
+                assert!(registry_ids.contains(&"acme"), "Missing acme registry specs");
+                assert!(registry_ids.contains(&"otel"), "Missing otel registry specs");
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Unexpected fatal error in three-registry chain: {fatal}");
+            }
+        }
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_depth_limit_enforcement() -> Result<(), weaver_semconv::Error> {
+        // Test that depth limit is properly enforced by using internal method
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/multi-registry/app_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        
+        // Try with depth limit of 1 - should fail at acme->otel transition
+        let result = SchemaResolver::load_semconv_specs_with_depth(&registry_repo, true, true, 1);
+        
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Maximum dependency depth reached"),
+                    "Expected depth limit error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to depth limit, but got success");
+            }
+        }
+        
         Ok(())
     }
 }

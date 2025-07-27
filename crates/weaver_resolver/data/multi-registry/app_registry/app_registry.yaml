@@ -1,0 +1,12 @@
+groups:
+  - id: app.example
+    type: attribute_group
+    brief: Example attributes for the application.
+    attributes:
+      - id: app.name
+        type: string
+        brief: Name of the application.
+        stability: stable
+        requirement_level: required
+        examples: "MyApp"
+      - ref: error.type
