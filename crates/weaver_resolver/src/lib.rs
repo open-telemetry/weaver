@@ -702,6 +702,57 @@ mod tests {
                 assert!(registry_ids.contains(&"app"), "Missing app registry specs");
                 assert!(registry_ids.contains(&"acme"), "Missing acme registry specs");
                 assert!(registry_ids.contains(&"otel"), "Missing otel registry specs");
+
+                // Now test the resolved registry content
+                let mut registry = SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
+                    .expect("Failed to create the registry");
+                let resolved_result = SchemaResolver::resolve_semantic_convention_registry(&mut registry, false);
+                
+                match resolved_result {
+                    WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                        // Check that ONLY the app.example group exists (no imported groups should be in the resolved registry)
+                        use weaver_semconv::group::GroupType;
+                        let all_groups: Vec<String> = [GroupType::AttributeGroup, GroupType::Metric, GroupType::Event, GroupType::Span]
+                            .iter()
+                            .flat_map(|group_type| {
+                                resolved_registry.groups(group_type.clone()).keys().map(|k| k.to_string()).collect::<Vec<_>>()
+                            })
+                            .collect();
+                        
+                        println!("All groups in resolved registry: {:?}", all_groups);
+                        
+                        // Should only have the app.example group, not any imported groups
+                        assert_eq!(all_groups.len(), 1, 
+                            "Expected only 1 group (app.example), but found {}: {:?}", all_groups.len(), all_groups);
+                        assert!(all_groups.contains(&"app.example".to_string()), 
+                            "Missing app.example group, found: {:?}", all_groups);
+                        
+                        // Check that app.example group exists and has exactly the expected attributes
+                        let app_group = resolved_registry.group("app.example")
+                            .expect("app.example group should exist");
+                        
+                        // Should have exactly 2 attributes: app.name (local) and error.type (from otel)
+                        println!("app.example group has {} attributes", app_group.attributes.len());
+                        
+                        // Collect attribute names for verification
+                        let mut attr_names = HashSet::new();
+                        for attr_ref in &app_group.attributes {
+                            let attr = resolved_registry.catalog.attribute(attr_ref)
+                                .expect("Failed to resolve attribute");
+                            println!("app.example attribute: {}", attr.name);
+                            let _ = attr_names.insert(attr.name.clone());
+                        }
+                        
+                        // Verify we have exactly the expected attributes
+                        assert!(attr_names.contains("app.name"), "Missing app.name attribute");
+                        assert!(attr_names.contains("error.type"), "Missing error.type attribute");
+                        assert_eq!(attr_names.len(), 2, 
+                            "Expected exactly 2 attributes (app.name, error.type), got: {:?}", attr_names);
+                    }
+                    WResult::FatalErr(fatal) => {
+                        panic!("Failed to resolve registry: {fatal}");
+                    }
+                }
             }
             WResult::FatalErr(fatal) => {
                 panic!("Unexpected fatal error in three-registry chain: {fatal}");
