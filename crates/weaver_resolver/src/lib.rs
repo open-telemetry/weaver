@@ -719,7 +719,6 @@ mod tests {
                             })
                             .collect();
                         
-                        println!("All groups in resolved registry: {:?}", all_groups);
                         
                         // Should only have the app.example group, not any imported groups
                         assert_eq!(all_groups.len(), 1, 
