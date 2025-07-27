@@ -672,7 +672,6 @@ mod tests {
     #[test]
     fn test_three_registry_chain_works() -> Result<(), weaver_semconv::Error> {
         // Test the three-registry chain: app -> acme -> otel
-        // This should now work with our new implementation
         let registry_path = VirtualDirectoryPath::LocalFolder {
             path: "data/multi-registry/app_registry".to_owned(),
         };
