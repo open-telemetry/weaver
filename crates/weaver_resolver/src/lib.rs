@@ -428,7 +428,7 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_repo::RegistryRepo;
-    use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance, VersionedSemConvSpec};
+    use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance, Versioned};
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
@@ -444,7 +444,7 @@ mod tests {
             } in semconv_specs.iter()
             {
                 match versioned_spec {
-                    SemConvSpec::WithVersion(VersionedSemConvSpec::V1(semconv_spec))
+                    SemConvSpec::WithVersion(Versioned::V1(semconv_spec))
                     | SemConvSpec::NoVersion(semconv_spec) => match registry_id.as_ref() {
                         "acme" => {
                             assert_eq!(
@@ -504,7 +504,7 @@ mod tests {
                         }
                         _ => panic!("Unexpected registry id: {registry_id}"),
                     },
-                    SemConvSpec::WithVersion(VersionedSemConvSpec::V2(_)) => {
+                    SemConvSpec::WithVersion(Versioned::V2(_)) => {
                         // Ignore for now
                         panic!("Unexpected V2 specification: {registry_id}")
                     }

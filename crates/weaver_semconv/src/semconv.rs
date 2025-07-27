@@ -19,15 +19,16 @@ use weaver_common::result::WResult;
 #[serde(untagged)]
 pub enum SemConvSpec {
     /// Semantic convention specification that includes a version tag.
-    WithVersion(VersionedSemConvSpec),
+    WithVersion(Versioned),
     /// Semantic convention specification that does NOT include a version tag.
     NoVersion(SemConvSpecV1),
 }
 
 /// A versioned semantic convention file.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "version")]
-pub enum VersionedSemConvSpec {
+#[allow(unused_qualifications)]
+pub enum Versioned {
     /// Version 1 of the semantic convention schema.
     #[serde(rename = "1")]
     V1(SemConvSpecV1),
@@ -35,6 +36,52 @@ pub enum VersionedSemConvSpec {
     #[serde(rename = "2")]
     V2(SemConvSpecV2),
 }
+
+// Note: We automatically create the Schemars code and provide `allow(unused_qualifications)` to work around schemars limitations.
+// You can use `cargo expand -p weaver_semconv` to find this code and generate it in the future.
+const _: () = {
+    #[automatically_derived]
+    #[allow(unused_braces, unused_qualifications)]
+    impl schemars::JsonSchema for Versioned {
+        fn schema_name() -> std::string::String {
+            "Versioned".to_owned()
+        }
+        fn schema_id() -> std::borrow::Cow<'static, str> {
+            std::borrow::Cow::Borrowed("weaver_semconv::semconv::Versioned")
+        }
+        fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+            schemars::_private::metadata::add_description(
+                schemars::schema::Schema::Object(schemars::schema::SchemaObject {
+                    subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
+                        one_of: Some(<[_]>::into_vec(Box::new([
+                            schemars::_private::metadata::add_description(
+                                schemars::_private::new_internally_tagged_enum(
+                                    "version", "1", false,
+                                ),
+                                "Version 1 of the semantic convention schema.",
+                            )
+                            .flatten(
+                                <SemConvSpecV1 as schemars::JsonSchema>::json_schema(generator),
+                            ),
+                            schemars::_private::metadata::add_description(
+                                schemars::_private::new_internally_tagged_enum(
+                                    "version", "2", false,
+                                ),
+                                "Version 2 of the semantic convention schema.",
+                            )
+                            .flatten(
+                                <SemConvSpecV2 as schemars::JsonSchema>::json_schema(generator),
+                            ),
+                        ]))),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }),
+                "A versioned semantic convention file.",
+            )
+        }
+    }
+};
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
 /// A semconv file is a collection of semantic convention groups (i.e. [`GroupSpec`]).
@@ -121,23 +168,20 @@ impl SemConvSpec {
     pub fn into_v1(self, name: &str) -> SemConvSpecV1 {
         match self {
             SemConvSpec::NoVersion(v1) => v1,
-            SemConvSpec::WithVersion(VersionedSemConvSpec::V1(v1)) => v1,
-            SemConvSpec::WithVersion(VersionedSemConvSpec::V2(v2)) => {
-                v2.into_v1_specification(name)
-            }
+            SemConvSpec::WithVersion(Versioned::V1(v1)) => v1,
+            SemConvSpec::WithVersion(Versioned::V2(v2)) => v2.into_v1_specification(name),
         }
     }
 
     /// Validates invariants on the model.
     pub fn validate(self, provenance: &str) -> WResult<Self, Error> {
         match self {
-            SemConvSpec::NoVersion(v1) | SemConvSpec::WithVersion(VersionedSemConvSpec::V1(v1)) => {
-                v1.validate(provenance)
-                    .map(|v1| SemConvSpec::WithVersion(VersionedSemConvSpec::V1(v1)))
-            }
+            SemConvSpec::NoVersion(v1) | SemConvSpec::WithVersion(Versioned::V1(v1)) => v1
+                .validate(provenance)
+                .map(|v1| SemConvSpec::WithVersion(Versioned::V1(v1))),
             // TODO - what validation is needed on V2?
-            SemConvSpec::WithVersion(VersionedSemConvSpec::V2(v2)) => {
-                WResult::Ok(SemConvSpec::WithVersion(VersionedSemConvSpec::V2(v2)))
+            SemConvSpec::WithVersion(Versioned::V2(v2)) => {
+                WResult::Ok(SemConvSpec::WithVersion(Versioned::V2(v2)))
             }
         }
     }
@@ -576,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_versioned_semconv() {
-        let sample = SemConvSpec::WithVersion(VersionedSemConvSpec::V2(SemConvSpecV2 {
+        let sample = SemConvSpec::WithVersion(Versioned::V2(SemConvSpecV2 {
             attributes: vec![AttributeDef {
                 key: "test.key".to_owned(),
                 r#type: crate::attribute::AttributeType::PrimitiveOrArray(
@@ -626,15 +670,9 @@ attributes:
         );
         assert!(matches!(raw, SemConvSpec::NoVersion(_)));
         let v1 = parse_versioned(r#"version: '1'"#);
-        assert!(matches!(
-            v1,
-            SemConvSpec::WithVersion(VersionedSemConvSpec::V1 { .. })
-        ));
+        assert!(matches!(v1, SemConvSpec::WithVersion(Versioned::V1 { .. })));
         let v2 = parse_versioned("version: '2'");
-        assert!(matches!(
-            v2,
-            SemConvSpec::WithVersion(VersionedSemConvSpec::V2 { .. })
-        ));
+        assert!(matches!(v2, SemConvSpec::WithVersion(Versioned::V2 { .. })));
     }
 
     #[test]
