@@ -285,22 +285,6 @@ impl SchemaResolver {
         visited_registries: &mut HashSet<String>,
         dependency_chain: &mut Vec<String>,
     ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
-        let registry_id = registry_repo.id().to_string();
-        
-        // Check for circular dependency
-        if visited_registries.contains(&registry_id) {
-            dependency_chain.push(registry_id.clone());
-            let chain_str = dependency_chain.join(" → ");
-            return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
-                error: format!(
-                    "Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain_str}"
-                ),
-            });
-        }
-        
-        // Add current registry to visited set and dependency chain
-        let _ = visited_registries.insert(registry_id.clone());
-        dependency_chain.push(registry_id.clone());
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -318,6 +302,23 @@ impl SchemaResolver {
                 && file_name != "schema-next.yaml"
                 && file_name != REGISTRY_MANIFEST
         }
+
+        let registry_id = registry_repo.id().to_string();
+        
+        // Check for circular dependency
+        if visited_registries.contains(&registry_id) {
+            dependency_chain.push(registry_id.clone());
+            let chain_str = dependency_chain.join(" → ");
+            return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                error: format!(
+                    "Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain_str}"
+                ),
+            });
+        }
+        
+        // Add current registry to visited set and dependency chain
+        let _ = visited_registries.insert(registry_id.clone());
+        dependency_chain.push(registry_id.clone());
 
         let local_path = registry_repo.path().to_path_buf();
         let registry_path_repr = registry_repo.registry_path_repr();
@@ -703,7 +704,7 @@ mod tests {
                         let all_groups: Vec<String> = [GroupType::AttributeGroup, GroupType::Metric, GroupType::Event, GroupType::Span]
                             .iter()
                             .flat_map(|group_type| {
-                                resolved_registry.groups(group_type.clone()).keys().map(|k| k.to_string()).collect::<Vec<_>>()
+                                resolved_registry.groups(group_type.clone()).keys().map(|k| (*k).to_owned()).collect::<Vec<_>>()
                             })
                             .collect();
                         
