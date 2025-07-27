@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
   ([#823](https://github.com/open-telemetry/weaver/pull/823) by @lmolkova)
 - Don't serialize default values and empty arrays when resolving semantic conventions.
   ([#822](https://github.com/open-telemetry/weaver/pull/822) by @lmolkova)
+- Add support for a three registry dependency chain, a->b->c. This pattern is useful when making narrow application registries that depend on a corporate registry based on the OpenTelemetry semantic conventions.
+  ([#???](https://github.com/open-telemetry/weaver/pull/???) by @jerbly)
 
 # [0.16.1] - 2025-07-04
 
