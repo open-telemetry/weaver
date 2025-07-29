@@ -30,5 +30,5 @@ regex.workspace = true
 globset.workspace = true
 
 glob = "0.3.2"
-jsonschema = "0.30.0"       # JSON Schema validation used to enhance error messages
+jsonschema = "0.31.0"       # JSON Schema validation used to enhance error messages
 saphyr = "0.0.4"             # YAML parser preserving span information (location in file)
