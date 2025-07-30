@@ -12,6 +12,7 @@ use weaver_resolved_schema::attribute::Attribute;
 use weaver_resolved_schema::catalog::Catalog;
 use weaver_resolved_schema::lineage::GroupLineage;
 use weaver_resolved_schema::registry::{Group, Registry};
+use weaver_semconv::aggregation::AggregationSpec;
 use weaver_semconv::any_value::AnyValueSpec;
 use weaver_semconv::deprecated::Deprecated;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
@@ -99,6 +100,12 @@ pub struct ResolvedGroup {
     /// Note: This field is required if type is metric.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit: Option<String>,
+    /// The aggregation which should occur on the data points being capture by a meter.
+    /// Semconv metrics all use the default aggregation type, hence this option is for 
+    /// providing the parameters of the aggregation.
+    /// For more details: [Metrics SDK - Aggregation](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#aggregation).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aggregation: Option<AggregationSpec>,
     /// The name of the event. If not specified, the prefix is used.
     /// If prefix is empty (or unspecified), name is required.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -168,6 +175,7 @@ impl ResolvedGroup {
             metric_name: group.metric_name.clone(),
             instrument: group.instrument.clone(),
             unit: group.unit.clone(),
+            aggregation: group.aggregation.clone(),
             name: group.name.clone(),
             lineage,
             display_name: group.display_name.clone(),
@@ -229,6 +237,7 @@ impl ResolvedRegistry {
                     metric_name: group.metric_name.clone(),
                     instrument: group.instrument.clone(),
                     unit: group.unit.clone(),
+                    aggregation: group.aggregation.clone(),
                     name: group.name.clone(),
                     lineage,
                     display_name: group.display_name.clone(),
