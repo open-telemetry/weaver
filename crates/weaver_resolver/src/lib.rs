@@ -29,7 +29,7 @@ pub mod attribute;
 pub mod registry;
 
 /// Maximum allowed depth for registry dependency chains.
-const MAX_DEPENDENCY_DEPTH: u32 = 3;
+const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// A resolver that can be used to resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
@@ -735,17 +735,21 @@ mod tests {
                         })
                         .collect();
 
-                        // Should only have the app.example group, not any imported groups
+                        // Should have the app.example group and the imported example.counter metric
                         assert_eq!(
                             all_groups.len(),
-                            1,
-                            "Expected only 1 group (app.example), but found {}: {:?}",
+                            2,
+                            "Expected 2 groups (app.example and metric.example.counter), but found {}: {:?}",
                             all_groups.len(),
                             all_groups
                         );
                         assert!(
                             all_groups.contains(&"app.example".to_owned()),
                             "Missing app.example group, found: {all_groups:?}"
+                        );
+                        assert!(
+                            all_groups.contains(&"metric.example.counter".to_owned()),
+                            "Missing metric.example.counter group, found: {all_groups:?}"
                         );
 
                         // Check that app.example group exists and has exactly the expected attributes
@@ -772,8 +776,12 @@ mod tests {
                             attr_names.contains("error.type"),
                             "Missing error.type attribute"
                         );
-                        assert_eq!(attr_names.len(), 2,
-                            "Expected exactly 2 attributes (app.name, error.type), got: {attr_names:?}");
+                        assert!(
+                            attr_names.contains("auction.name"),
+                            "Missing auction.name attribute"
+                        );
+                        assert_eq!(attr_names.len(), 3,
+                            "Expected exactly 3 attributes (app.name, error.type, auction.name), got: {attr_names:?}");
                     }
                     WResult::FatalErr(fatal) => {
                         panic!("Failed to resolve registry: {fatal}");

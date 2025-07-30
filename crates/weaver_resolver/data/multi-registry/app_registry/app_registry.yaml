@@ -10,3 +10,8 @@ groups:
         requirement_level: required
         examples: "MyApp"
       - ref: error.type
+      - ref: auction.name
+
+imports:
+  metrics:
+    - example.*
