@@ -13,4 +13,4 @@ The validation process for a semantic convention registry involves several steps
 
 Specific validation rules can be expressed using the Rego policy language (https://www.openpolicyagent.org/docs/policy-language).
 
-Please see [Weaver Forge](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_forge/README.md) for details.
+Please see [Weaver Checker](https://github.com/open-telemetry/weaver/blob/main/crates/weaver_checker/README.md) for details.

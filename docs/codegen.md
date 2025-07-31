@@ -19,7 +19,7 @@ A core element of schema-first telemetry are the artifacts it enables:
 >[!Tip]
 >For a full tutorial, consider the [Step-by-Step Guide](/crates/weaver_forge/README.md#step-by-step-guide)
 
-Let's say we want to generate Markdown documentation for the metrics of out application or convention.
+Let's say we want to generate Markdown documentation for the metrics of our application or convention.
 With Weaver Forge, the following directory layout is used by default:
 
 | Path | Description |
@@ -104,7 +104,7 @@ jinja --> file1
 jinja --> file2
 ```
 
-Weaver resolves the entire registry (http and grpc in this case) into a single document and. This is passed to the [JQ filter](/crates/weaver_forge/README.md#jq-filters) `semconv_grouped_metrics`. This groups individual metrics by their root namespcae (`http` or `grpc`)
+Weaver resolves the entire registry (http and grpc in this case) into a single document. This is passed to the [JQ filter](/crates/weaver_forge/README.md#jq-filters) `semconv_grouped_metrics`. This groups individual metrics by their root namespace (`http` or `grpc`)
 
 This output in turn is passed to the `metrics.md.j2` template, evaluated by the [minijinja](https://github.com/mitsuhiko/minijinja) templating engine. Because `application_mode` is set to `each`, the template is invoked for each group, so this yields a `http.md` and a separate `grpc.md`.
 
