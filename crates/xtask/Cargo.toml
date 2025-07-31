@@ -19,7 +19,7 @@ gix = { version = "0.71.0", default-features = false, features = [
     "blocking-http-transport-reqwest-rust-tls",
 ] }
 semver = "1.0.26"
-toml = "0.8.23"
+toml = "0.9.4"
 
 #[lints]
 #workspace = true
