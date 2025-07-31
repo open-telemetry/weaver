@@ -11,7 +11,7 @@ use crate::{
     v2::{attribute::AttributeRef, CommonFields},
 };
 
-/// A MetricGroup defines a new metric.
+/// An EventGroup defines a new event.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EventGroup {
