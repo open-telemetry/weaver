@@ -58,7 +58,11 @@ impl EventGroup {
             name: Some(self.name),
             display_name: None,
             body: Some(self.body),
-            annotations: self.common.annotations,
+            annotations: if self.common.annotations.is_empty() {
+                None
+            } else {
+                Some(self.common.annotations)
+            },
             entity_associations: self.entity_associations,
         }
     }

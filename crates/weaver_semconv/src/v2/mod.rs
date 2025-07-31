@@ -44,8 +44,8 @@ pub struct CommonFields {
     #[serde(default)]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the group.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub annotations: Option<BTreeMap<String, YamlValue>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
 }
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)

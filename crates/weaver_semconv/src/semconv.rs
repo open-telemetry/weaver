@@ -355,7 +355,7 @@ mod tests {
             InvalidSpanMissingSpanKind, RegistryNotFound,
         },
     };
-    use std::path::PathBuf;
+    use std::{collections::BTreeMap, path::PathBuf};
 
     #[test]
     fn test_semconv_spec_from_file() {
@@ -628,7 +628,7 @@ mod tests {
                     note: "".to_owned(),
                     stability: crate::stability::Stability::Stable,
                     deprecated: None,
-                    annotations: None,
+                    annotations: BTreeMap::new(),
                 },
             }],
             entities: vec![],

@@ -65,7 +65,11 @@ impl MetricGroup {
             name: None,
             display_name: None,
             body: None,
-            annotations: self.common.annotations,
+            annotations: if self.common.annotations.is_empty() {
+                None
+            } else {
+                Some(self.common.annotations)
+            },
             entity_associations: self.entity_associations,
         }
     }

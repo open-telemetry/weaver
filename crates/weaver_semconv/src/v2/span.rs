@@ -66,7 +66,11 @@ impl SpanGroup {
             name: Some(self.name),
             display_name: None,
             body: None,
-            annotations: self.common.annotations,
+            annotations: if self.common.annotations.is_empty() {
+                None
+            } else {
+                Some(self.common.annotations)
+            },
             entity_associations: self.entity_associations,
         }
     }
@@ -83,7 +87,6 @@ pub struct SpanAttributeRef {
     /// Specifies if the attribute is (especially) relevant for sampling
     /// and thus should be set at span start. It defaults to false.
     /// Note: this field is experimental.
-    // TODO - move to SpanAttributeRef...
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling_relevant: Option<bool>,
 }

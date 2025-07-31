@@ -137,7 +137,11 @@ impl AttributeDef {
             note: self.common.note,
             stability: Some(self.common.stability),
             deprecated: self.common.deprecated,
-            annotations: self.common.annotations,
+            annotations: if self.common.annotations.is_empty() {
+                None
+            } else {
+                Some(self.common.annotations)
+            },
             role: None,
         }
     }
