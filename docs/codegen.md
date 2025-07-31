@@ -108,3 +108,17 @@ Weaver resolves the entire registry (http and grpc in this case) into a single d
 
 This output in turn is passed to the `metrics.md.j2` template, evaluated by the [minijinja](https://github.com/mitsuhiko/minijinja) templating engine. Because `application_mode` is set to `each`, the template is invoked for each group, so this yields a `http.md` and a separate `grpc.md`.
 
+
+## Tips and Tricks
+
+#### Use `debug()`
+
+Jinja2 can be overwhelming and hard to discover. Try putting `debug()` somewhere in your code:
+
+```
+/*
+{{ debug() }}
+*/
+```
+
+This gives you a JSON-like dump of every exact variable and corresponding value, identifier, function, filter, test, etc.
