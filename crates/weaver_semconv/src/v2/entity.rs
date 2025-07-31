@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     group::GroupSpec,
-    v2::{attribute::AttributeRef, CommonFields},
+    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
 };
 
 /// Defines a new entity.
@@ -15,7 +15,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct Entity {
     /// The type of the Entity.
-    pub r#type: String,
+    pub r#type: SignalId,
     /// The attributes that make the identity of the Entity.
     pub identity: Vec<AttributeRef>,
     /// The attributes that make the description of the Entity.
@@ -55,7 +55,7 @@ impl Entity {
             metric_name: None,
             instrument: None,
             unit: None,
-            name: Some(self.r#type),
+            name: Some(self.r#type.into_v1()),
             display_name: None,
             body: None,
             annotations: if self.common.annotations.is_empty() {

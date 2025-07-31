@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     attribute::AttributeSpec,
     group::{GroupSpec, GroupType, SpanKindSpec},
-    v2::{attribute::AttributeRef, CommonFields},
+    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
 };
 
 /// A group defines an attribute group, an entity, or a signal.
@@ -21,7 +21,7 @@ use crate::{
 pub struct Span {
     /// The type of the Span. This denotes the identity
     /// of the "shape" of this span, and must be unique.
-    pub r#type: String,
+    pub r#type: SignalId,
     /// Specifies the kind of the span.
     /// Note: only valid if type is span
     pub kind: SpanKindSpec,

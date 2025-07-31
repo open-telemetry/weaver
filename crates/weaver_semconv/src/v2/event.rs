@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     group::GroupSpec,
-    v2::{attribute::AttributeRef, CommonFields},
+    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
 };
 
 /// Defines a new event.
@@ -15,7 +15,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct Event {
     /// The name of the event.
-    pub name: String,
+    pub name: SignalId,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -52,7 +52,7 @@ impl Event {
             metric_name: None,
             instrument: None,
             unit: None,
-            name: Some(self.name),
+            name: Some(self.name.into_v1()),
             display_name: None,
             body: None,
             annotations: if self.common.annotations.is_empty() {

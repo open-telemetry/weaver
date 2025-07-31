@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     group::{GroupSpec, InstrumentSpec},
-    v2::{attribute::AttributeRef, CommonFields},
+    v2::{attribute::AttributeRef, signal_id::SignalId, CommonFields},
 };
 
 /// Defines a new metric.
@@ -15,7 +15,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub struct Metric {
     /// The name of the metric.
-    pub name: String,
+    pub name: SignalId,
     /// The instrument type that should be used to record the metric. Note that
     /// the semantic conventions must be written using the names of the
     /// synchronous instrument types (counter, gauge, updowncounter and
@@ -59,7 +59,7 @@ impl Metric {
                 .collect(),
             span_kind: None,
             events: Default::default(),
-            metric_name: Some(self.name),
+            metric_name: Some(self.name.into_v1()),
             instrument: Some(self.instrument),
             unit: Some(self.unit),
             name: None,
