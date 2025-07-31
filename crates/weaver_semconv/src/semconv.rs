@@ -89,7 +89,7 @@ const _: () = {
 #[serde(deny_unknown_fields)]
 pub struct SemConvSpecV1 {
     /// A collection of semantic convention groups or [`GroupSpec`].
-    #[serde(default)] // TODO - Should we have disjoint V1 and V2 instead?
+    #[serde(default)]
     pub(crate) groups: Vec<GroupSpec>,
 
     /// A list of imports referencing groups defined in a dependent registry.
@@ -623,7 +623,6 @@ mod tests {
                     crate::attribute::PrimitiveOrArrayTypeSpec::Int,
                 ),
                 examples: None,
-                tag: None,
                 common: CommonFields {
                     brief: "test attribute".to_owned(),
                     note: "".to_owned(),

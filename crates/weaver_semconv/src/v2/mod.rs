@@ -41,10 +41,7 @@ pub struct CommonFields {
     /// provided as description MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(
-        deserialize_with = "crate::deprecated::deserialize_option_deprecated",
-        default
-    )]
+    #[serde(default)]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the group.
     #[serde(skip_serializing_if = "Option::is_none")]
