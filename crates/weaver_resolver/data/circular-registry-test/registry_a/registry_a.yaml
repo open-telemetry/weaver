@@ -1,0 +1,11 @@
+groups:
+  - id: registry_a.example
+    type: attribute_group
+    brief: Example attributes from registry A.
+    attributes:
+      - id: registry_a.name
+        type: string
+        brief: Name from registry A.
+        stability: stable
+        requirement_level: required
+        examples: "A"
