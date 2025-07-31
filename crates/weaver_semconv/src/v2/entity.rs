@@ -22,7 +22,7 @@ pub struct Entity {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub description: Vec<AttributeRef>,
-    /// Common fields (like brief, note, attributes).
+    /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
 }

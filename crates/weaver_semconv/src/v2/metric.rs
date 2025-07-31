@@ -34,7 +34,7 @@ pub struct Metric {
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entity_associations: Vec<String>,
-    /// Common fields (like brief, note, attributes).
+    /// Common fields (like brief, note, annotations).
     #[serde(flatten)]
     pub common: CommonFields,
 }
