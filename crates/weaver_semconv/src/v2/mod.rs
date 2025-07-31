@@ -12,10 +12,7 @@ use crate::{
     group::GroupSpec,
     semconv::{Imports, SemConvSpecV1},
     stability::Stability,
-    v2::{
-        attribute::AttributeDef, entity::EntityGroup, event::EventGroup, metric::MetricGroup,
-        span::SpanGroup,
-    },
+    v2::{attribute::AttributeDef, entity::Entity, event::Event, metric::Metric, span::Span},
     YamlValue,
 };
 
@@ -58,16 +55,16 @@ pub struct SemConvSpecV2 {
     pub(crate) attributes: Vec<AttributeDef>,
     /// A collection of semantic conventions for Entity signals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) entities: Vec<EntityGroup>,
+    pub(crate) entities: Vec<Entity>,
     /// A collection of semantic conventions for Event signals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) events: Vec<EventGroup>,
+    pub(crate) events: Vec<Event>,
     /// A collection of semantic conventions for Metric signals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) metrics: Vec<MetricGroup>,
+    pub(crate) metrics: Vec<Metric>,
     /// A collection of semantic conventions for Span signals.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) spans: Vec<SpanGroup>,
+    pub(crate) spans: Vec<Span>,
 
     /// A list of imports referencing groups defined in a dependent registry.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -151,10 +148,6 @@ entities:
     stability: stable
 events:
   - name: my_event
-    body:
-      id: body
-      type: string
-      requirement_level: required
     brief: Test event
     stability: stable
 spans:
@@ -194,10 +187,6 @@ groups:
   name: my_event
   brief: Test event
   stability: stable
-  body:
-    id: body
-    type: string
-    requirement_level: required
 - id: metric.my_metric
   type: metric
   metric_name: my_metric

@@ -10,10 +10,10 @@ use crate::{
     v2::{attribute::AttributeRef, CommonFields},
 };
 
-/// A MetricGroup defines a new metric.
+/// Defines a new metric.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct MetricGroup {
+pub struct Metric {
     /// The name of the metric.
     pub name: String,
     /// The instrument type that should be used to record the metric. Note that
@@ -39,7 +39,7 @@ pub struct MetricGroup {
     pub common: CommonFields,
 }
 
-impl MetricGroup {
+impl Metric {
     /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
@@ -80,7 +80,7 @@ mod tests {
     use super::*;
 
     fn parse_and_translate(v2: &str, v1: &str) {
-        let metric = serde_yaml::from_str::<MetricGroup>(v2).expect("Failed to parse YAML string");
+        let metric = serde_yaml::from_str::<Metric>(v2).expect("Failed to parse YAML string");
         let expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
         assert_eq!(expected, metric.into_v1_group());

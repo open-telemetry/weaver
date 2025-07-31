@@ -10,10 +10,10 @@ use crate::{
     v2::{attribute::AttributeRef, CommonFields},
 };
 
-/// An EntityGroup defines a new entity.
+/// Defines a new entity.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct EntityGroup {
+pub struct Entity {
     /// The type of the Entity.
     pub r#type: String,
     /// The attributes that make the identity of the Entity.
@@ -27,7 +27,7 @@ pub struct EntityGroup {
     pub common: CommonFields,
 }
 
-impl EntityGroup {
+impl Entity {
     /// Converts a v2 entity into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
@@ -73,7 +73,7 @@ mod tests {
     use super::*;
 
     fn parse_and_translate(v2: &str, v1: &str) {
-        let entity = serde_yaml::from_str::<EntityGroup>(v2).expect("Failed to parse YAML string");
+        let entity = serde_yaml::from_str::<Entity>(v2).expect("Failed to parse YAML string");
         let expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
         assert_eq!(expected, entity.into_v1_group());

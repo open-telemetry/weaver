@@ -6,19 +6,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    any_value::AnyValueSpec,
     group::GroupSpec,
     v2::{attribute::AttributeRef, CommonFields},
 };
 
-/// An EventGroup defines a new event.
+/// Defines a new event.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct EventGroup {
+pub struct Event {
     /// The name of the event.
     pub name: String,
-    /// The event body definition
-    pub body: AnyValueSpec,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -32,7 +29,7 @@ pub struct EventGroup {
     pub common: CommonFields,
 }
 
-impl EventGroup {
+impl Event {
     /// Converts a v2 event into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
@@ -57,7 +54,7 @@ impl EventGroup {
             unit: None,
             name: Some(self.name),
             display_name: None,
-            body: Some(self.body),
+            body: None,
             annotations: if self.common.annotations.is_empty() {
                 None
             } else {
@@ -73,7 +70,7 @@ mod tests {
     use super::*;
 
     fn parse_and_translate(v2: &str, v1: &str) {
-        let event = serde_yaml::from_str::<EventGroup>(v2).expect("Failed to parse YAML string");
+        let event = serde_yaml::from_str::<Event>(v2).expect("Failed to parse YAML string");
         let expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
         assert_eq!(expected, event.into_v1_group());
@@ -84,10 +81,6 @@ mod tests {
         parse_and_translate(
             // V2 - Event
             r#"name: my_event
-body:
-  id: body
-  type: string
-  requirement_level: required
 brief: Test event
 stability: stable
 "#,
@@ -97,10 +90,6 @@ type: event
 name: my_event
 brief: Test event
 stability: stable
-body:
-  id: body
-  type: string
-  requirement_level: required
 "#,
         );
     }

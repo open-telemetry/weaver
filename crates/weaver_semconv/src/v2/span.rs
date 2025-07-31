@@ -18,7 +18,7 @@ use crate::{
 /// Note: The `resource` type is no longer used and is an alias for `entity`.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct SpanGroup {
+pub struct Span {
     /// The type of the Span. This denotes the identity
     /// of the "shape" of this span, and must be unique.
     pub r#type: String,
@@ -40,7 +40,7 @@ pub struct SpanGroup {
     pub common: CommonFields,
 }
 
-impl SpanGroup {
+impl Span {
     /// Converts a v2 span group into a v1 GroupSpec.
     #[must_use]
     pub fn into_v1_group(self) -> GroupSpec {
@@ -117,7 +117,7 @@ mod tests {
     use super::*;
 
     fn parse_and_translate(v2: &str, v1: &str) {
-        let span = serde_yaml::from_str::<SpanGroup>(v2).expect("Failed to parse YAML string");
+        let span = serde_yaml::from_str::<Span>(v2).expect("Failed to parse YAML string");
         let expected =
             serde_yaml::from_str::<GroupSpec>(v1).expect("Failed to parse expected YAML");
         assert_eq!(expected, span.into_v1_group());
