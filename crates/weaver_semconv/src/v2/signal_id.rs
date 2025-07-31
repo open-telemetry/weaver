@@ -5,7 +5,7 @@
 use std::{fmt, ops::Deref};
 
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Serialize, JsonSchema, Clone, Debug)]
 /// An identifier for a signal.  Should be `.` separated namespaces and names.
@@ -13,6 +13,7 @@ pub struct SignalId(String);
 
 impl SignalId {
     /// Returns the v1 version of signal ids (raw strings).
+    #[must_use]
     pub fn into_v1(self) -> String {
         self.0
     }
