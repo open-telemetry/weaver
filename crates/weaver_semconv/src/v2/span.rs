@@ -106,7 +106,11 @@ impl SpanAttributeRef {
             stability: self.base.stability,
             deprecated: self.base.deprecated,
             prefix: false,
-            annotations: self.base.annotations,
+            annotations: if self.base.annotations.is_empty() {
+                None
+            } else {
+                Some(self.base.annotations)
+            },
             role: None,
         }
     }

@@ -23,8 +23,8 @@ pub struct AttributeRef {
     /// Reference an existing attribute by key.
     pub r#ref: String,
 
-    // TODO - Simplify the options below for "override" / "refine" focus.
     /// Refines the brief description of the attribute.
+    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Refined sequence of example values for the attribute or single example
@@ -32,6 +32,7 @@ pub struct AttributeRef {
     /// attributes. Example values must be of the same type of the
     /// attribute. If only a single example is provided, it can directly
     /// be reported without encapsulating it into a sequence/dictionary.
+    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
     /// Refines the attribute requirement level. Can be "required",
@@ -39,6 +40,7 @@ pub struct AttributeRef {
     /// the original attribute requirement level is used. When set to
     /// "conditionally_required", the string provided as `condition` MUST
     /// specify the conditions under which the attribute is required.
+    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<RequirementLevel>,
     /// Refines the more elaborate description of the attribute.
@@ -48,18 +50,18 @@ pub struct AttributeRef {
     /// Refines the stability of the attribute.
     /// This denotes whether an attribute is stable for a specific
     /// signal.
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Specifies if the attribute is deprecated for this signal.
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Additional annotations for the attribute. These will be
     /// merged with annotations from the definition.
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub annotations: Option<BTreeMap<String, YamlValue>>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub annotations: BTreeMap<String, YamlValue>,
 }
 
 impl AttributeRef {
@@ -77,7 +79,11 @@ impl AttributeRef {
             stability: self.stability,
             deprecated: self.deprecated,
             prefix: false,
-            annotations: self.annotations,
+            annotations: if self.annotations.is_empty() {
+                None
+            } else {
+                Some(self.annotations)
+            },
             role: None,
         }
     }
@@ -95,7 +101,11 @@ impl AttributeRef {
             stability: self.stability,
             deprecated: self.deprecated,
             prefix: false,
-            annotations: self.annotations,
+            annotations: if self.annotations.is_empty() {
+                None
+            } else {
+                Some(self.annotations)
+            },
             role: Some(role),
         }
     }
@@ -116,6 +126,7 @@ pub struct AttributeDef {
     /// attributes. Example values must be of the same type of the
     /// attribute. If only a single example is provided, it can directly
     /// be reported without encapsulating it into a sequence/dictionary.
+    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
     /// Common fields (like brief, note, attributes).
