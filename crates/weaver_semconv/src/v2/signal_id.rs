@@ -42,7 +42,7 @@ impl<'de> Deserialize<'de> for SignalId {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        // TODO - Enforce some cosntraints on allowed strings here...
+        // TODO - Enforce some constraints on allowed strings here...
         Ok(SignalId(s))
     }
 }

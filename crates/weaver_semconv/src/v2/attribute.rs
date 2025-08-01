@@ -24,40 +24,41 @@ pub struct AttributeRef {
     pub r#ref: String,
 
     // TODO - Simplify the options below for "override" / "refine" focus.
-    /// A brief description of the attribute.
+    /// Refines the brief description of the attribute.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
-    /// Sequence of example values for the attribute or single example
+    /// Refined sequence of example values for the attribute or single example
     /// value. They are required only for string and string array
     /// attributes. Example values must be of the same type of the
     /// attribute. If only a single example is provided, it can directly
     /// be reported without encapsulating it into a sequence/dictionary.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
-    /// Specifies if the attribute is mandatory. Can be "required",
+    /// Refines the attribute requirement level. Can be "required",
     /// "conditionally_required", "recommended" or "opt_in". When omitted,
-    /// the attribute is "recommended". When set to
+    /// the original attribute requirement level is used. When set to
     /// "conditionally_required", the string provided as `condition` MUST
     /// specify the conditions under which the attribute is required.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<RequirementLevel>,
-    /// A more elaborate description of the attribute.
-    /// It defaults to an empty string.
+    /// Refines the more elaborate description of the attribute.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
-    /// Specifies the stability of the attribute.
-    /// Note that, if stability is missing but deprecated is present, it will
-    /// automatically set the stability to deprecated. If deprecated is
-    /// present and stability differs from deprecated, this will result in an
-    /// error.
+    /// Refines the stability of the attribute.
+    /// This denotes whether an attribute is stable for a specific
+    /// signal.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub stability: Option<Stability>,
-    /// Specifies if the attribute is deprecated.
+    /// Specifies if the attribute is deprecated for this signal.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub deprecated: Option<Deprecated>,
-    /// Annotations for the attribute.
+    /// Additional annotations for the attribute. These will be
+    /// merged with annotations from the definition.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub annotations: Option<BTreeMap<String, YamlValue>>,
 }
 
