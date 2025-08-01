@@ -11,7 +11,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
-use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
