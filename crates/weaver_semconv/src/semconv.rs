@@ -326,7 +326,7 @@ impl SemConvSpecWithProvenance {
                             version: "2".to_owned(),
                             provenance: spec.provenance.path.clone(),
                         },
-                    )])
+                    )]);
                 }
             })
             .capture_warnings(&mut warnings)

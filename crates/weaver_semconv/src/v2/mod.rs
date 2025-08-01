@@ -39,7 +39,6 @@ pub struct CommonFields {
     /// provided as description MUST specify why it's deprecated and/or what
     /// to use instead. See also stability.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
     pub deprecated: Option<Deprecated>,
     /// Annotations for the group.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]

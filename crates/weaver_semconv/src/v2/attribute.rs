@@ -24,7 +24,6 @@ pub struct AttributeRef {
     pub r#ref: String,
 
     /// Refines the brief description of the attribute.
-    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub brief: Option<String>,
     /// Refined sequence of example values for the attribute or single example
@@ -32,7 +31,6 @@ pub struct AttributeRef {
     /// attributes. Example values must be of the same type of the
     /// attribute. If only a single example is provided, it can directly
     /// be reported without encapsulating it into a sequence/dictionary.
-    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub examples: Option<Examples>,
     /// Refines the attribute requirement level. Can be "required",
@@ -40,21 +38,17 @@ pub struct AttributeRef {
     /// the original attribute requirement level is used. When set to
     /// "conditionally_required", the string provided as `condition` MUST
     /// specify the conditions under which the attribute is required.
-    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requirement_level: Option<RequirementLevel>,
     /// Refines the more elaborate description of the attribute.
-    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     /// Refines the stability of the attribute.
     /// This denotes whether an attribute is stable for a specific
     /// signal.
-    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stability: Option<Stability>,
     /// Specifies if the attribute is deprecated for this signal.
-    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deprecated: Option<Deprecated>,
     /// Additional annotations for the attribute. These will be
