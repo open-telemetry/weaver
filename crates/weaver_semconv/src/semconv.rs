@@ -11,6 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
+use weaver_common::diagnostic::{DiagnosticMessage, DiagnosticMessages};
 use weaver_common::result::WResult;
 
 /// A semantic convention file as defined [here](https://github.com/open-telemetry/build-tools/blob/main/semantic-conventions/syntax.md)
@@ -309,7 +310,26 @@ impl SemConvSpecWithProvenance {
             }
             Err(e) => WResult::FatalErr(e),
         };
-        raw_spec.map(|spec| SemConvSpecWithProvenance { spec, provenance })
+        let mut warnings = DiagnosticMessages::empty();
+        raw_spec
+            .map(|spec| SemConvSpecWithProvenance { spec, provenance })
+            .inspect(|spec, _| {
+                if matches!(
+                    spec,
+                    SemConvSpecWithProvenance {
+                        spec: SemConvSpec::WithVersion(Versioned::V2(..)),
+                        ..
+                    }
+                ) {
+                    warnings.extend_from_vec(vec![DiagnosticMessage::new(
+                        Error::UnstableFileVersion {
+                            version: "2".to_owned(),
+                            provenance: spec.provenance.path.clone(),
+                        },
+                    )])
+                }
+            })
+            .capture_warnings(&mut warnings)
     }
 
     /// Creates a semantic convention spec with provenance from a string.

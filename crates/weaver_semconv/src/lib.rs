@@ -298,6 +298,16 @@ pub enum Error {
         error: String,
     },
 
+    /// This indicates the file version used is not yet stable.
+    #[error("Version `{version}` schema file format is not yet stable: {provenance}")]
+    #[diagnostic(severity(Warning))]
+    UnstableFileVersion {
+        /// The version specified.
+        version: String,
+        /// The source using that version.
+        provenance: String,
+    },
+
     /// This indicates that deprecated property is invalid
     #[error(
         "The `deprecated` property in `{id}` is invalid. {error}\nProvenance: {path_or_url:?}"
