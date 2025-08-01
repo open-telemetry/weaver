@@ -1,0 +1,1 @@
+This test checks whether the new version of files works.

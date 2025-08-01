@@ -1,0 +1,8 @@
+version: "2"
+attributes:
+  - key: network.protocol.name
+    stability: stable
+    type: string
+    brief: '[OSI application layer](https://osi-model.com/application-layer/) or non-OSI equivalent.'
+    note: The value SHOULD be normalized to lowercase.
+    examples: ['amqp', 'http', 'mqtt']

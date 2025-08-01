@@ -840,6 +840,15 @@ mod tests {
                             }
                         )
                 })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        weaver_semconv::Error::UnstableFileVersion {
+                            version: _,
+                            provenance: _,
+                        }
+                    )
+                })
                 .into_result_failing_non_fatal()
                 .expect("Failed to load semconv specs");
 
