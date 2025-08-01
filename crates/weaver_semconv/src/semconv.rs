@@ -216,6 +216,17 @@ fn provenance_path_to_name(path: &str) -> String {
 }
 
 impl SemConvSpecWithProvenance {
+    /// True if this specification contains V2 version.
+    fn is_v2(&self) -> bool {
+        matches!(
+            self,
+            SemConvSpecWithProvenance {
+                spec: SemConvSpec::WithVersion(Versioned::V2(..)),
+                ..
+            }
+        )
+    }
+
     /// Converts this semconv specification into version 1, preserving provenance.
     #[must_use]
     pub fn into_v1(self) -> SemConvSpecV1WithProvenance {
@@ -310,26 +321,34 @@ impl SemConvSpecWithProvenance {
             }
             Err(e) => WResult::FatalErr(e),
         };
-        let mut warnings = DiagnosticMessages::empty();
-        raw_spec
-            .map(|spec| SemConvSpecWithProvenance { spec, provenance })
-            .inspect(|spec, _| {
-                if matches!(
-                    spec,
-                    SemConvSpecWithProvenance {
-                        spec: SemConvSpec::WithVersion(Versioned::V2(..)),
-                        ..
-                    }
-                ) {
-                    warnings.extend_from_vec(vec![DiagnosticMessage::new(
-                        Error::UnstableFileVersion {
-                            version: "2".to_owned(),
-                            provenance: spec.provenance.path.clone(),
-                        },
-                    )]);
+        let result = raw_spec.map(|spec| SemConvSpecWithProvenance { spec, provenance });
+        // Check for unstable versions and add warnings.
+        match result {
+            WResult::Ok(spec) => {
+                if spec.is_v2() {
+                    let nfe = Error::UnstableFileVersion {
+                        version: "2".to_owned(),
+                        provenance: spec.provenance.path.clone(),
+                    };
+                    WResult::with_non_fatal_errors(spec, vec![nfe])
+                } else {
+                    WResult::Ok(spec)
                 }
-            })
-            .capture_warnings(&mut warnings)
+            }
+            WResult::OkWithNFEs(spec, errs) => {
+                if spec.is_v2() {
+                    let mut nfes = errs;
+                    nfes.push(Error::UnstableFileVersion {
+                        version: "2".to_owned(),
+                        provenance: spec.provenance.path.clone(),
+                    });
+                    WResult::OkWithNFEs(spec, nfes)
+                } else {
+                    WResult::OkWithNFEs(spec, errs)
+                }
+            }
+            WResult::FatalErr(err) => WResult::FatalErr(err),
+        }
     }
 
     /// Creates a semantic convention spec with provenance from a string.
