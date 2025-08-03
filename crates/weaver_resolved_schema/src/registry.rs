@@ -17,8 +17,7 @@ use crate::registry::GroupStats::{
 };
 use serde::{Deserialize, Serialize};
 use weaver_semconv::deprecated::Deprecated;
-use weaver_semconv::footer::FooterSpec;
-use weaver_semconv::header::HeaderSpec;
+use weaver_semconv::migration::MigrationSpec;
 use weaver_semconv::group::{GroupType, InstrumentSpec, SpanKindSpec};
 use weaver_semconv::provenance::Provenance;
 use weaver_semconv::stability::Stability;
@@ -129,12 +128,9 @@ pub struct Group {
     /// This fields is only used for event groups.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
-    /// Header for the namespace/page.
+    /// Migration details for the namespace.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub header: Option<HeaderSpec>,
-    /// Footer for the namespace/page.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub footer: Option<FooterSpec>,
+    pub migration: Option<MigrationSpec>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]

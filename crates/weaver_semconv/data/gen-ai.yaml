@@ -4,9 +4,8 @@ groups:
     name: gen-ai
     note: This is a description of the gen ai namespace
     brief: This is a summary of the gen ai namespace
-    header:
-      title: Migration strategy
-      content: To protect personl information the following document should be followed.
-      style: warning
-    footer:
-      content: Footer
+    migration:
+      brief: Migration strategy
+      note: To protect personal information the following document should be followed.
+      targetVersion: 1.20.0
+      link: ./migration-guide.md

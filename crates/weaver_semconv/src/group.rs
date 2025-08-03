@@ -13,9 +13,8 @@ use std::fmt::{Display, Formatter};
 use crate::any_value::AnyValueSpec;
 use crate::attribute::{AttributeSpec, AttributeType, PrimitiveOrArrayTypeSpec};
 use crate::deprecated::Deprecated;
-use crate::footer::FooterSpec;
 use crate::group::InstrumentSpec::{Counter, Gauge, Histogram, UpDownCounter};
-use crate::header::HeaderSpec;
+use crate::migration::MigrationSpec;
 use crate::provenance::Provenance;
 use crate::semconv::Imports;
 use crate::stability::Stability;
@@ -111,12 +110,9 @@ pub struct GroupSpec {
     /// Note: only valid if type is event
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<AnyValueSpec>,
-    /// Header for the namespace/page.
+    /// Migration details for the namespace/.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub header: Option<HeaderSpec>,
-    /// Footer for the namespace/page.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub footer: Option<FooterSpec>,
+    pub migration: Option<MigrationSpec>,
     /// Annotations for the group.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -709,8 +705,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -876,8 +871,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1175,8 +1169,7 @@ mod tests {
                     ),
                 },
             }),
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1392,8 +1385,7 @@ mod tests {
                     ),
                 },
             }),
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1538,8 +1530,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1710,8 +1701,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1864,8 +1854,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
@@ -1926,8 +1915,7 @@ mod tests {
             name: None,
             display_name: None,
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: vec!["test".to_owned()],
         };
@@ -1987,8 +1975,7 @@ mod tests {
             display_name: None,
             attributes: vec![],
             body: None,
-            header: None,
-            footer: None,
+            migration: None,
             annotations: None,
             entity_associations: Vec::new(),
         };
