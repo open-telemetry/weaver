@@ -26,7 +26,7 @@ pub struct Span {
     /// Note: only valid if type is span
     pub kind: SpanKindSpec,
     /// The name pattern for the span.
-    pub name: String,
+    pub name: SpanName,
     /// List of attributes that belong to the semantic convention.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -63,7 +63,7 @@ impl Span {
             metric_name: None,
             instrument: None,
             unit: None,
-            name: Some(self.name),
+            name: Some(self.name.note),
             display_name: None,
             body: None,
             annotations: if self.common.annotations.is_empty() {
@@ -74,6 +74,15 @@ impl Span {
             entity_associations: self.entity_associations,
         }
     }
+}
+
+/// Specification of the span name.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct SpanName {
+    /// Required description of how a span name should be created.
+    pub note: String,
 }
 
 /// A refinement of an Attribute for a span.
@@ -132,7 +141,8 @@ mod tests {
         parse_and_translate(
             // V2 - Span
             r#"type: my_span
-name: "{some} {name}"
+name:
+  note: "{some} {name}"
 stability: stable
 kind: client
 brief: Test span

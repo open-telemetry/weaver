@@ -152,7 +152,8 @@ events:
     stability: stable
 spans:
   - type: my_span
-    name: "{some} {name}"
+    name: 
+      note: "{some} {name}"
     stability: stable
     kind: client
     brief: Test span
