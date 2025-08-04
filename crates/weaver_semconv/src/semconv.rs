@@ -724,7 +724,8 @@ attributes:
           stability: "stable"
           brief: "description2"
           kind: "server"
-          name: "{myspan}"
+          name: 
+           note: "{myspan}"
           attributes:
             - ref: "attr1"
         imports:
