@@ -20,7 +20,7 @@ use AttributeType::{Enum, PrimitiveOrArray, Template};
 /// A reference to an attribute or a local definition of an attribute.
 /// For a reference to an attribute, only the `ref` field is required.
 /// For a locally defined attribute, the fields `id`, `type`, `requirement_level`, and `note` are required.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
 #[serde(rename_all = "snake_case")]

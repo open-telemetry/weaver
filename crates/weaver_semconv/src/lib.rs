@@ -26,6 +26,7 @@ pub mod registry_repo;
 pub mod semconv;
 pub mod stability;
 pub mod stats;
+pub mod v2;
 
 /// An error that can occur while loading a semantic convention registry.
 #[derive(thiserror::Error, Debug, Clone, PartialEq, Serialize, Diagnostic)]
@@ -295,6 +296,16 @@ pub enum Error {
         archive: String,
         /// The error message
         error: String,
+    },
+
+    /// This indicates the file version used is not yet stable.
+    #[error("Version `{version}` schema file format is not yet stable: {provenance}")]
+    #[diagnostic(severity(Warning))]
+    UnstableFileVersion {
+        /// The version specified.
+        version: String,
+        /// The source using that version.
+        provenance: String,
     },
 
     /// This indicates that deprecated property is invalid
