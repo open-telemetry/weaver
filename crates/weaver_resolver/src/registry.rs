@@ -177,12 +177,30 @@ fn gc_unreferenced_objects(
         })
     };
 
-    let metrics_imports_matcher =
-        build_globset(all_imports.iter().find_map(|i| i.imports.metrics.as_ref()))?;
-    let events_imports_matcher =
-        build_globset(all_imports.iter().find_map(|i| i.imports.events.as_ref()))?;
-    let entities_imports_matcher =
-        build_globset(all_imports.iter().find_map(|i| i.imports.entities.as_ref()))?;
+    // Filter imports to only include those from the current registry
+    let current_registry_imports: Vec<_> = all_imports
+        .iter()
+        .filter(|import| {
+            import.provenance.registry_id.as_ref()
+                == manifest.map(|m| m.name.as_str()).unwrap_or("")
+        })
+        .collect();
+
+    let metrics_imports_matcher = build_globset(
+        current_registry_imports
+            .iter()
+            .find_map(|i| i.imports.metrics.as_ref()),
+    )?;
+    let events_imports_matcher = build_globset(
+        current_registry_imports
+            .iter()
+            .find_map(|i| i.imports.events.as_ref()),
+    )?;
+    let entities_imports_matcher = build_globset(
+        current_registry_imports
+            .iter()
+            .find_map(|i| i.imports.entities.as_ref()),
+    )?;
 
     if let Some(manifest) = manifest {
         if manifest.dependencies.as_ref().map_or(0, |d| d.len()) > 0 {
@@ -205,13 +223,15 @@ fn gc_unreferenced_objects(
                         .is_some_and(|name| entities_imports_matcher.is_match(name.as_str())),
                     _ => false,
                 };
+
                 if ref_in_imports {
                     // This group is referenced in the `imports` section, so we keep it.
                     true
                 } else if let Some(lineage) = &group.lineage {
                     lineage.provenance().registry_id.as_ref() == current_reg_id
                 } else {
-                    true
+                    // Groups without lineage should be garbage collected.
+                    false
                 }
             });
 
@@ -819,6 +839,15 @@ mod tests {
                                 group_id: _
                             }
                         )
+                })
+                .ignore(|e| {
+                    matches!(
+                        e,
+                        weaver_semconv::Error::UnstableFileVersion {
+                            version: _,
+                            provenance: _,
+                        }
+                    )
                 })
                 .into_result_failing_non_fatal()
                 .expect("Failed to load semconv specs");
