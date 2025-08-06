@@ -3,6 +3,7 @@
 #![doc = include_str!("../README.md")]
 
 use miette::Diagnostic;
+use std::collections::HashSet;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 use weaver_common::log_error;
 
@@ -26,6 +27,9 @@ use weaver_semconv::semconv::SemConvSpecWithProvenance;
 
 pub mod attribute;
 pub mod registry;
+
+/// Maximum allowed depth for registry dependency chains.
+const MAX_DEPENDENCY_DEPTH: u32 = 10;
 
 /// A resolver that can be used to resolve telemetry schemas.
 /// All references to semantic conventions will be resolved.
@@ -261,6 +265,26 @@ impl SchemaResolver {
         allow_registry_deps: bool,
         follow_symlinks: bool,
     ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
+        let mut visited_registries = HashSet::new();
+        let mut dependency_chain = Vec::new();
+        Self::load_semconv_specs_with_depth(
+            registry_repo,
+            allow_registry_deps,
+            follow_symlinks,
+            MAX_DEPENDENCY_DEPTH,
+            &mut visited_registries,
+            &mut dependency_chain,
+        )
+    }
+
+    fn load_semconv_specs_with_depth(
+        registry_repo: &RegistryRepo,
+        allow_registry_deps: bool,
+        follow_symlinks: bool,
+        max_dependency_depth: u32,
+        visited_registries: &mut HashSet<String>,
+        dependency_chain: &mut Vec<String>,
+    ) -> WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error> {
         // Define helper functions for filtering files.
         fn is_hidden(entry: &DirEntry) -> bool {
             entry
@@ -278,6 +302,23 @@ impl SchemaResolver {
                 && file_name != "schema-next.yaml"
                 && file_name != REGISTRY_MANIFEST
         }
+
+        let registry_id = registry_repo.id().to_string();
+
+        // Check for circular dependency
+        if visited_registries.contains(&registry_id) {
+            dependency_chain.push(registry_id.clone());
+            let chain_str = dependency_chain.join(" → ");
+            return WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                error: format!(
+                    "Circular dependency detected: registry '{registry_id}' depends on itself through the chain: {chain_str}"
+                ),
+            });
+        }
+
+        // Add current registry to visited set and dependency chain
+        let _ = visited_registries.insert(registry_id.clone());
+        dependency_chain.push(registry_id.clone());
 
         let local_path = registry_repo.path().to_path_buf();
         let registry_path_repr = registry_repo.registry_path_repr();
@@ -332,9 +373,14 @@ impl SchemaResolver {
         let mut specs = vec![];
 
         // Process the registry dependencies (if any).
-        if let Some(dep_result) =
-            Self::process_registry_dependencies(registry_repo, allow_registry_deps, follow_symlinks)
-        {
+        if let Some(dep_result) = Self::process_registry_dependencies(
+            registry_repo,
+            allow_registry_deps,
+            follow_symlinks,
+            max_dependency_depth,
+            visited_registries,
+            dependency_chain,
+        ) {
             match dep_result {
                 WResult::Ok(t) => specs.extend(t),
                 WResult::OkWithNFEs(t, nfes) => {
@@ -367,6 +413,9 @@ impl SchemaResolver {
         registry_repo: &RegistryRepo,
         allow_registry_deps: bool,
         follow_symlinks: bool,
+        max_dependency_depth: u32,
+        visited_registries: &mut HashSet<String>,
+        dependency_chain: &mut Vec<String>,
     ) -> Option<WResult<Vec<SemConvSpecWithProvenance>, weaver_semconv::Error>> {
         match registry_repo.manifest() {
             Some(manifest) => {
@@ -378,7 +427,14 @@ impl SchemaResolver {
                     if !allow_registry_deps {
                         Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
                             error: format!(
-                                "Registry dependencies are not allowed for the `{}` registry. Weaver currently supports only two registry levels.",
+                                "Registry dependencies are not allowed for the `{}` registry.",
+                                registry_repo.registry_path_repr()
+                            ),
+                        }))
+                    } else if max_dependency_depth == 0 {
+                        Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
+                            error: format!(
+                                "Maximum dependency depth reached for registry `{}`. Cannot load further dependencies.",
                                 registry_repo.registry_path_repr()
                             ),
                         }))
@@ -392,10 +448,13 @@ impl SchemaResolver {
                     } else {
                         let dependency = &dependencies[0];
                         match RegistryRepo::try_new(&dependency.name, &dependency.registry_path) {
-                            Ok(registry_repo_dep) => Some(Self::load_semconv_specs(
+                            Ok(registry_repo_dep) => Some(Self::load_semconv_specs_with_depth(
                                 &registry_repo_dep,
-                                false,
+                                true,
                                 follow_symlinks,
+                                max_dependency_depth - 1,
+                                visited_registries,
+                                dependency_chain,
                             )),
                             Err(e) => {
                                 Some(WResult::FatalErr(weaver_semconv::Error::SemConvSpecError {
@@ -428,7 +487,7 @@ mod tests {
     use weaver_semconv::provenance::Provenance;
     use weaver_semconv::registry::SemConvRegistry;
     use weaver_semconv::registry_repo::RegistryRepo;
-    use weaver_semconv::semconv::SemConvSpecWithProvenance;
+    use weaver_semconv::semconv::{SemConvSpec, SemConvSpecWithProvenance, Versioned};
 
     #[test]
     fn test_multi_registry() -> Result<(), weaver_semconv::Error> {
@@ -439,65 +498,75 @@ mod tests {
         ) {
             assert_eq!(semconv_specs.len(), 2);
             for SemConvSpecWithProvenance {
-                spec: semconv_spec,
+                spec: versioned_spec,
                 provenance: Provenance { registry_id, path },
             } in semconv_specs.iter()
             {
-                match registry_id.as_ref() {
-                    "acme" => {
-                        assert_eq!(
-                            path,
-                            "data/multi-registry/custom_registry/custom_registry.yaml"
-                        );
-                        assert_eq!(semconv_spec.groups().len(), 2);
-                        assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
-                        assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
-                                .metrics
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
-                                .events
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
-                        assert_eq!(
-                            semconv_spec
-                                .imports()
-                                .unwrap()
-                                .entities
-                                .as_ref()
-                                .unwrap()
-                                .len(),
-                            1
-                        );
+                match versioned_spec {
+                    SemConvSpec::WithVersion(Versioned::V1(semconv_spec))
+                    | SemConvSpec::NoVersion(semconv_spec) => match registry_id.as_ref() {
+                        "acme" => {
+                            assert_eq!(
+                                path,
+                                "data/multi-registry/custom_registry/custom_registry.yaml"
+                            );
+                            assert_eq!(semconv_spec.groups().len(), 2);
+                            assert_eq!(&semconv_spec.groups()[0].id, "shared.attributes");
+                            assert_eq!(&semconv_spec.groups()[1].id, "metric.auction.bid.count");
+                            assert_eq!(
+                                semconv_spec
+                                    .imports()
+                                    .unwrap()
+                                    .metrics
+                                    .as_ref()
+                                    .unwrap()
+                                    .len(),
+                                1
+                            );
+                            assert_eq!(
+                                semconv_spec
+                                    .imports()
+                                    .unwrap()
+                                    .events
+                                    .as_ref()
+                                    .unwrap()
+                                    .len(),
+                                1
+                            );
+                            assert_eq!(
+                                semconv_spec
+                                    .imports()
+                                    .unwrap()
+                                    .entities
+                                    .as_ref()
+                                    .unwrap()
+                                    .len(),
+                                1
+                            );
+                        }
+                        "otel" => {
+                            assert_eq!(
+                                path,
+                                "data/multi-registry/otel_registry/otel_registry.yaml"
+                            );
+                            assert_eq!(semconv_spec.groups().len(), 7);
+                            assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
+                            assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
+                            assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
+                            assert_eq!(
+                                &semconv_spec.groups()[3].id,
+                                "entity.gcp.apphub.application"
+                            );
+                            assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
+                            assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
+                            assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
+                        }
+                        _ => panic!("Unexpected registry id: {registry_id}"),
+                    },
+                    SemConvSpec::WithVersion(Versioned::V2(_)) => {
+                        // Ignore for now
+                        panic!("Unexpected V2 specification: {registry_id}")
                     }
-                    "otel" => {
-                        assert_eq!(path, "data/multi-registry/otel_registry/otel_registry.yaml");
-                        assert_eq!(semconv_spec.groups().len(), 7);
-                        assert_eq!(&semconv_spec.groups()[0].id, "otel.registry");
-                        assert_eq!(&semconv_spec.groups()[1].id, "otel.unused");
-                        assert_eq!(&semconv_spec.groups()[2].id, "metric.example.counter");
-                        assert_eq!(
-                            &semconv_spec.groups()[3].id,
-                            "entity.gcp.apphub.application"
-                        );
-                        assert_eq!(&semconv_spec.groups()[4].id, "entity.gcp.apphub.service");
-                        assert_eq!(&semconv_spec.groups()[5].id, "event.session.start");
-                        assert_eq!(&semconv_spec.groups()[6].id, "event.session.end");
-                    }
-                    _ => panic!("Unexpected registry id: {registry_id}"),
                 }
             }
 
@@ -609,6 +678,191 @@ mod tests {
             }
             WResult::FatalErr(fatal) => {
                 panic!("Fatal error: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_three_registry_chain_works() -> Result<(), weaver_semconv::Error> {
+        // Test the three-registry chain: app -> acme -> otel
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/multi-registry/app_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+
+        match result {
+            WResult::Ok(semconv_specs) | WResult::OkWithNFEs(semconv_specs, _) => {
+                // Should successfully load specs from all three registries
+                assert!(
+                    semconv_specs.len() >= 3,
+                    "Expected specs from at least 3 registries, got {}",
+                    semconv_specs.len()
+                );
+
+                // Verify we have specs from all three registries
+                let registry_ids: Vec<&str> = semconv_specs
+                    .iter()
+                    .map(|spec| spec.provenance.registry_id.as_ref())
+                    .collect();
+
+                assert!(registry_ids.contains(&"app"), "Missing app registry specs");
+                assert!(
+                    registry_ids.contains(&"acme"),
+                    "Missing acme registry specs"
+                );
+                assert!(
+                    registry_ids.contains(&"otel"),
+                    "Missing otel registry specs"
+                );
+
+                // Now test the resolved registry content
+                let mut registry =
+                    SemConvRegistry::from_semconv_specs(&registry_repo, semconv_specs)
+                        .expect("Failed to create the registry");
+                let resolved_result =
+                    SchemaResolver::resolve_semantic_convention_registry(&mut registry, false);
+
+                match resolved_result {
+                    WResult::Ok(resolved_registry) | WResult::OkWithNFEs(resolved_registry, _) => {
+                        // Check that ONLY the app.example group exists (no imported groups should be in the resolved registry)
+                        use weaver_semconv::group::GroupType;
+                        let all_groups: Vec<String> = [
+                            GroupType::AttributeGroup,
+                            GroupType::Metric,
+                            GroupType::Event,
+                            GroupType::Span,
+                        ]
+                        .iter()
+                        .flat_map(|group_type| {
+                            resolved_registry
+                                .groups(group_type.clone())
+                                .keys()
+                                .map(|k| (*k).to_owned())
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
+
+                        // Should have the app.example group and the imported example.counter metric
+                        assert_eq!(
+                            all_groups.len(),
+                            2,
+                            "Expected 2 groups (app.example and metric.example.counter), but found {}: {:?}",
+                            all_groups.len(),
+                            all_groups
+                        );
+                        assert!(
+                            all_groups.contains(&"app.example".to_owned()),
+                            "Missing app.example group, found: {all_groups:?}"
+                        );
+                        assert!(
+                            all_groups.contains(&"metric.example.counter".to_owned()),
+                            "Missing metric.example.counter group, found: {all_groups:?}"
+                        );
+
+                        // Check that app.example group exists and has exactly the expected attributes
+                        let app_group = resolved_registry
+                            .group("app.example")
+                            .expect("app.example group should exist");
+
+                        // Collect attribute names for verification
+                        let mut attr_names = HashSet::new();
+                        for attr_ref in &app_group.attributes {
+                            let attr = resolved_registry
+                                .catalog
+                                .attribute(attr_ref)
+                                .expect("Failed to resolve attribute");
+                            let _ = attr_names.insert(attr.name.clone());
+                        }
+
+                        // Verify we have exactly the expected attributes
+                        assert!(
+                            attr_names.contains("app.name"),
+                            "Missing app.name attribute"
+                        );
+                        assert!(
+                            attr_names.contains("error.type"),
+                            "Missing error.type attribute"
+                        );
+                        assert!(
+                            attr_names.contains("auction.name"),
+                            "Missing auction.name attribute"
+                        );
+                        assert_eq!(attr_names.len(), 3,
+                            "Expected exactly 3 attributes (app.name, error.type, auction.name), got: {attr_names:?}");
+                    }
+                    WResult::FatalErr(fatal) => {
+                        panic!("Failed to resolve registry: {fatal}");
+                    }
+                }
+            }
+            WResult::FatalErr(fatal) => {
+                panic!("Unexpected fatal error in three-registry chain: {fatal}");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_depth_limit_enforcement() -> Result<(), weaver_semconv::Error> {
+        // Test that depth limit is properly enforced by using internal method
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/multi-registry/app_registry".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("app", &registry_path)?;
+
+        // Try with depth limit of 1 - should fail at acme->otel transition
+        let mut visited_registries = HashSet::new();
+        let mut dependency_chain = Vec::new();
+        let result = SchemaResolver::load_semconv_specs_with_depth(
+            &registry_repo,
+            true,
+            true,
+            1,
+            &mut visited_registries,
+            &mut dependency_chain,
+        );
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Maximum dependency depth reached"),
+                    "Expected depth limit error, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to depth limit, but got success");
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_circular_dependency_detection() -> Result<(), weaver_semconv::Error> {
+        // Test circular dependency: registry_a -> registry_b -> registry_a
+        let registry_path = VirtualDirectoryPath::LocalFolder {
+            path: "data/circular-registry-test/registry_a".to_owned(),
+        };
+        let registry_repo = RegistryRepo::try_new("registry_a", &registry_path)?;
+        let result = SchemaResolver::load_semconv_specs(&registry_repo, true, true);
+
+        match result {
+            WResult::FatalErr(fatal) => {
+                let error_msg = fatal.to_string();
+                assert!(
+                    error_msg.contains("Circular dependency detected") && 
+                    error_msg.contains("registry_a") &&
+                    error_msg.contains("registry_b"),
+                    "Expected circular dependency error mentioning both registries, got: {error_msg}"
+                );
+            }
+            _ => {
+                panic!("Expected fatal error due to circular dependency, but got success");
             }
         }
 
